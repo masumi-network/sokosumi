@@ -31,7 +31,6 @@ const filtersLabels = {
   scopeLabel: "Scope",
   scopeOwned: "My tasks",
   scopeWorkspace: "Workspace",
-  projectLabel: "Project",
 } as const;
 
 const labels = {

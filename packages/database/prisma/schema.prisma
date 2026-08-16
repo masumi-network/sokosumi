@@ -440,6 +440,7 @@ model Project {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   name                   String
+  filesToken             String?
   briefing               String?
   briefingUrl            String?
   contextMd              String?

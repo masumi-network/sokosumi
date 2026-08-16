@@ -130,6 +130,40 @@ vi.mock("../markdown-editor", () => ({
   }),
 }));
 
+vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
+  InlineCreateProjectModal: ({
+    open,
+    onCreated,
+  }: {
+    open: boolean;
+    onCreated: (result: {
+      projectId: string;
+      name: string;
+      project?: { designMd?: { url: string; extractionId: string | null } };
+    }) => void;
+  }) =>
+    open ? (
+      <button
+        type="button"
+        data-testid="confirm-inline-create"
+        onClick={() =>
+          onCreated({
+            projectId: "project-created",
+            name: "Northstar",
+            project: {
+              designMd: {
+                url: "https://blob.example/northstar-design.md",
+                extractionId: null,
+              },
+            },
+          })
+        }
+      >
+        confirm-create
+      </button>
+    ) : null,
+}));
+
 vi.mock("../task-context-attachments", () => ({
   getDefaultTaskContextSelection: (project?: { designMd?: unknown }) => ({
     brand: {
@@ -240,6 +274,7 @@ const baseLabels = {
   projectNone: "No project",
   projectSearchPlaceholder: "Search projects...",
   projectEmptyResults: "No projects found.",
+  projectCreate: "Create project...",
   coworker: "Coworker",
   coworkerDescription: "Pick a coworker",
   status: "Status",
@@ -840,6 +875,76 @@ describe("TaskForm", () => {
     expect(screen.getByTestId("context-attachments")).toHaveAttribute(
       "data-brand-source",
       "project",
+    );
+  });
+
+  it("keeps briefing and memory toggles when switching project", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "context-memory" }));
+    await user.click(screen.getByRole("button", { name: "context-briefing" }));
+    expect(
+      screen.getByRole("button", { name: "context-memory" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: "context-briefing" }),
+    ).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
+    await user.click(screen.getByText("Beta Project"));
+
+    expect(screen.getByTestId("context-attachments")).toHaveAttribute(
+      "data-brand-source",
+      "default",
+    );
+    expect(
+      screen.getByRole("button", { name: "context-memory" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: "context-briefing" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("uses the created project object for default brand context", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
+    await user.click(screen.getByText("Create project..."));
+    await user.click(screen.getByTestId("confirm-inline-create"));
+
+    expect(screen.getByTestId("context-attachments")).toHaveAttribute(
+      "data-brand-source",
+      "project",
+    );
+    expect(screen.getByTestId("context-attachments")).toHaveAttribute(
+      "data-project",
+      "Northstar",
     );
   });
 

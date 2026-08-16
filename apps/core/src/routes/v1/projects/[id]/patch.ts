@@ -10,7 +10,11 @@ import {
   type OpenAPIHonoWithAuth,
   withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
-import { uploadProjectBriefingFile } from "@/lib/project-files-blob";
+import {
+  deleteProjectBriefingBlob,
+  ensureProjectFilesToken,
+  uploadProjectBriefingFile,
+} from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -34,7 +38,7 @@ const route = withOrchestratorContextHeaderParameters(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, briefing, website, logo, or DESIGN.md. Changing websiteUrl does not clear logo or DESIGN.md. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Update a project's name, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Session user or orchestrator with context headers; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -67,12 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (body.name !== undefined) {
       updateData.name = body.name;
     }
-    if (body.briefing !== undefined) {
-      updateData.briefing = body.briefing ?? null;
-      if (body.briefing === null) {
-        updateData.briefingUrl = null;
-      }
-    }
     if (body.websiteUrl !== undefined) {
       updateData.websiteUrl = body.websiteUrl ?? null;
     }
@@ -84,9 +82,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       updateData.logo = body.logo ?? null;
     }
-    if (body.designMd !== undefined) {
-      updateData.designMdUrl = body.designMd?.url ?? null;
-      updateData.designMdExtractionId = body.designMd?.extractionId ?? null;
+    const existingProject = await prisma.project.findFirst({
+      where: { id, workspaceId: workspaceContext.workspaceId },
+    });
+    if (!existingProject) {
+      throw notFound("Project not found");
+    }
+
+    let briefingUrlToDelete: string | null = null;
+    if (body.briefing !== undefined) {
+      const briefing = body.briefing?.trim() || null;
+      updateData.briefing = briefing;
+
+      if (!briefing) {
+        updateData.briefingUrl = null;
+        briefingUrlToDelete = existingProject.briefingUrl;
+      } else {
+        const filesToken = await ensureProjectFilesToken(
+          id,
+          existingProject.filesToken,
+        );
+        if (!filesToken) {
+          throw notFound("Project not found");
+        }
+
+        const briefingUrl = await uploadProjectBriefingFile(
+          id,
+          filesToken,
+          briefing,
+        );
+        updateData.briefingUrl = briefingUrl;
+        if (!briefingUrl) {
+          console.warn("Project briefing saved without a Blob URL", {
+            projectId: id,
+          });
+        }
+        if (existingProject.briefingUrl !== briefingUrl) {
+          briefingUrlToDelete = existingProject.briefingUrl;
+        }
+      }
     }
 
     const updateResult = await prisma.project.updateMany({
@@ -98,15 +132,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    if (body.briefing !== null && body.briefing !== undefined) {
-      const briefingUrl = await uploadProjectBriefingFile(id, body.briefing);
-      if (briefingUrl) {
-        await prisma.project.updateMany({
-          where: { id, workspaceId: workspaceContext.workspaceId },
-          data: { briefingUrl },
-        });
-      }
-    }
+    await deleteProjectBriefingBlob(briefingUrlToDelete);
 
     const project = await prisma.project.findFirst({
       where: { id, workspaceId: workspaceContext.workspaceId },

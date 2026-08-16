@@ -14,6 +14,7 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
   CoreApiRequestError,
   coreClient,
+  mapCoreApiStatusToCommonErrorCode,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
@@ -84,7 +85,12 @@ function normalizeOptionalWebsiteUrl(
     return null;
   }
 
-  return normalizeWebsiteUrl(trimmed);
+  const normalized = normalizeWebsiteUrl(trimmed);
+  if (!normalized) {
+    throw new Error("Invalid website URL");
+  }
+
+  return normalized;
 }
 
 function revalidateProjectMutationRoutes(projectId: string) {
@@ -106,11 +112,13 @@ export const createProject = withSession<
     throw new Error("Name required");
   }
 
+  const normalizedWebsiteUrl = normalizeOptionalWebsiteUrl(websiteUrl);
+
   try {
     const project = await projectService.createProject({
       name: normalizedName,
       briefing: normalizeProjectBriefing(briefing),
-      websiteUrl: normalizeOptionalWebsiteUrl(websiteUrl),
+      websiteUrl: normalizedWebsiteUrl,
     });
 
     revalidatePath("/projects");
@@ -134,12 +142,19 @@ export const updateProject = withSession<
     throw new Error("Name required");
   }
 
+  const normalizedWebsiteUrl =
+    websiteUrl !== undefined
+      ? normalizeOptionalWebsiteUrl(websiteUrl)
+      : undefined;
+
   try {
     await projectService.patchProject(normalizedProjectId, {
       name: normalizedName,
-      briefing: normalizeProjectBriefing(briefing),
-      ...(websiteUrl !== undefined
-        ? { websiteUrl: normalizeOptionalWebsiteUrl(websiteUrl) }
+      ...(briefing !== undefined
+        ? { briefing: normalizeProjectBriefing(briefing) }
+        : {}),
+      ...(normalizedWebsiteUrl !== undefined
+        ? { websiteUrl: normalizedWebsiteUrl }
         : {}),
       ...(logo !== undefined ? { logo } : {}),
     });
@@ -154,7 +169,7 @@ export const updateProject = withSession<
 
 const resolveProjectSiteIconSchema = z.object({
   url: z.url(),
-  projectId: z.string().trim().min(1),
+  projectId: z.string().uuid(),
 });
 
 export const resolveProjectSiteIcon = withSession<
@@ -178,39 +193,14 @@ export const resolveProjectSiteIcon = withSession<
     );
     return toActionResult(ok({ url: data.url }));
   } catch (error) {
-    if (error instanceof CoreApiRequestError && error.status === 400) {
-      return toActionResult(
-        err({ code: CommonErrorCode.BAD_INPUT, message: error.message }),
-      );
+    if (error instanceof CoreApiRequestError) {
+      const code = mapCoreApiStatusToCommonErrorCode(error.status);
+      if (code !== CommonErrorCode.INTERNAL_SERVER_ERROR) {
+        return toActionResult(err({ code, message: error.message }));
+      }
     }
     console.error("Failed to resolve project site icon", error);
     return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
-  }
-});
-
-export const updateProjectDesignMd = withSession<
-  {
-    projectId: string;
-    content: string;
-    extractionId?: string | null;
-  } & AuthenticatedRequest,
-  { projectId: string }
->(async ({ projectId, content, extractionId }) => {
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedProjectId || !content.trim()) {
-    throw new Error("Project DESIGN.md required");
-  }
-
-  try {
-    await projectService.updateProjectDesignMd(normalizedProjectId, {
-      content,
-      extractionId,
-    });
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return { projectId: normalizedProjectId };
-  } catch (error) {
-    console.error("Failed to save project DESIGN.md", error);
-    throwCoreActionError(error, "Failed to save project DESIGN.md");
   }
 });
 

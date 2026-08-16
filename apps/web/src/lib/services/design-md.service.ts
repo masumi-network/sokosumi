@@ -8,15 +8,11 @@ import {
   type DesignMdDonePayload,
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
-import {
-  descriptionIncludesTaskAttachmentLink,
-  formatTaskAttachmentMarkdown,
-  type Session,
-} from "@sokosumi/utils";
+import { type Session } from "@sokosumi/utils";
 import { cache } from "react";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type {
   DesignMdOwnerSchemaType,
@@ -174,9 +170,21 @@ async function assertCanManageOwner(
       if (error instanceof DesignMdServiceError) {
         throw error;
       }
+      if (
+        error instanceof CoreApiRequestError &&
+        (error.status === 403 || error.status === 404)
+      ) {
+        throw new DesignMdServiceError(
+          "unauthorized",
+          "Project DESIGN.md can only be managed by workspace members",
+        );
+      }
+      if (error instanceof CoreApiRequestError) {
+        throw new DesignMdServiceError("external", error.message);
+      }
       throw new DesignMdServiceError(
-        "unauthorized",
-        "Project DESIGN.md can only be managed by workspace members",
+        "internal",
+        "Failed to authorize project DESIGN.md access",
       );
     }
     return;
@@ -413,50 +421,7 @@ export const designMdService = (() => {
     },
   );
 
-  /**
-   * Prepends a DESIGN.md attachment link to a task description, idempotently
-   * (a no-op if the link is already present). Shared by the default
-   * (organization/personal) attachment path and by a task's explicit choice
-   * of a different, ad hoc DESIGN.md — both end up as the same plain markdown
-   * link in the description, which is all the agent actually reads.
-   */
-  function withDesignMdAttachment(
-    description: string,
-    designMd: { label: string; url: string },
-  ): string {
-    if (
-      descriptionIncludesTaskAttachmentLink(
-        description,
-        designMd.label,
-        designMd.url,
-      )
-    ) {
-      return description;
-    }
-
-    const attachment = formatTaskAttachmentMarkdown(
-      designMd.label,
-      designMd.url,
-    );
-    const trimmedDescription = description.trimStart();
-
-    return trimmedDescription
-      ? `${attachment}\n${trimmedDescription}`
-      : attachment;
-  }
-
-  async function appendDesignMdToDescription(
-    description: string,
-  ): Promise<string> {
-    const designMd = await resolveEffectiveDesignMd();
-
-    return designMd
-      ? withDesignMdAttachment(description, designMd)
-      : description;
-  }
-
   return {
-    appendDesignMdToDescription,
     finalizeAndPersistDesignMd,
     getDesignMdPreviewUrl,
     persistUploadedDesignMd,
@@ -464,6 +429,5 @@ export const designMdService = (() => {
     removeDesignMd,
     resolveEffectiveDesignMd,
     startDesignMdGeneration,
-    withDesignMdAttachment,
   };
 })();

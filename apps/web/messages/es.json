@@ -1606,7 +1606,6 @@
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
         "statusLabel": "Estado",
-        "projectLabel": "Proyecto",
         "statusOptions": {
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
@@ -2159,6 +2158,7 @@
           "fileName": "Memoria",
           "updated": "Actualizado {when}",
           "updating": "Actualizando…",
+          "loading": "Cargando…",
           "empty": "Crece al completar tareas",
           "modelLine": "{model} · alojada en la UE 🇪🇺",
           "defaultModel": "Mistral Medium",

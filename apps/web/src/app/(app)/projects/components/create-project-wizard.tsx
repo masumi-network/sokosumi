@@ -4,7 +4,7 @@ import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
@@ -52,6 +52,7 @@ export function CreateProjectWizard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [createdProject, setCreatedProject] = useState<Project | null>(null);
+  const createdProjectRef = useRef<Project | null>(null);
   const trimmedName = name.trim();
   const normalizedWebsite = normalizeWebsiteUrl(website);
   const isWebsiteValid = isEmptyOrValidWebsiteUrl(website);
@@ -63,19 +64,50 @@ export function CreateProjectWizard({
     onSubmittingChange?.(nextIsSubmitting);
   }
 
+  function storeCreatedProject(project: Project | null) {
+    createdProjectRef.current = project;
+    setCreatedProject(project);
+  }
+
+  function handleBrandChange(brand: {
+    logo?: string | null;
+    designMd?: Project["designMd"];
+  }) {
+    const current = createdProjectRef.current;
+    if (!current) {
+      return;
+    }
+    storeCreatedProject({ ...current, ...brand });
+  }
+
+  function completeCreatedProject() {
+    if (!createdProjectId) {
+      return;
+    }
+    onSuccess?.(
+      createdProjectId,
+      trimmedName,
+      createdProjectRef.current ?? createdProject ?? undefined,
+    );
+    onOpenChange(false);
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen && isSubmitting) {
       return;
+    }
+    if (!nextOpen && createdProjectId) {
+      onSuccess?.(
+        createdProjectId,
+        trimmedName,
+        createdProjectRef.current ?? createdProject ?? undefined,
+      );
     }
     onOpenChange(nextOpen);
   }
 
   function handleOpenProject() {
-    if (!createdProjectId) {
-      return;
-    }
-    onSuccess?.(createdProjectId, trimmedName, createdProject ?? undefined);
-    onOpenChange(false);
+    completeCreatedProject();
   }
 
   async function handleCreate() {
@@ -100,7 +132,7 @@ export function CreateProjectWizard({
 
       if (normalizedWebsite) {
         setCreatedProjectId(result.projectId);
-        setCreatedProject(result.project);
+        storeCreatedProject(result.project);
         return;
       }
 
@@ -164,6 +196,7 @@ export function CreateProjectWizard({
                 projectId={createdProjectId}
                 projectName={trimmedName}
                 websiteUrl={normalizedWebsite}
+                onBrandChange={handleBrandChange}
               />
             ) : null}
 

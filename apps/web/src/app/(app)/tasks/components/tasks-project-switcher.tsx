@@ -77,7 +77,7 @@ export function TasksProjectSwitcher({
       projectId,
     );
     const nextQuery = nextSearchParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   }
 
   function handleSelect(projectId: string | null) {
@@ -135,7 +135,10 @@ export function TasksProjectSwitcher({
             ) : (
               <Folder className="size-4 shrink-0" aria-hidden />
             )}
-            <span className="min-w-0 flex-1 truncate">
+            <span
+              className="min-w-0 flex-1 truncate"
+              title={selectedProject?.name ?? t("allProjects")}
+            >
               {selectedProject?.name ?? t("allProjects")}
             </span>
             <ChevronDown

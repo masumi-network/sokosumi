@@ -35,11 +35,6 @@ interface PatchProjectInput {
   logo?: string | null;
 }
 
-interface ProjectDesignMdInput {
-  content: string;
-  extractionId?: string | null;
-}
-
 export const projectService = (() => {
   async function listProjects(params: ListProjectsParams = {}): Promise<{
     projects: ProjectListItem[];
@@ -120,19 +115,6 @@ export const projectService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to update project");
-    }
-
-    return result.data;
-  }
-
-  async function updateProjectDesignMd(
-    projectId: string,
-    input: ProjectDesignMdInput,
-  ): Promise<Project> {
-    const result = await coreClient.putProjectsByIdDesignMd(projectId, input);
-
-    if (!result.data) {
-      throw new Error("Failed to save project DESIGN.md");
     }
 
     return result.data;
@@ -258,7 +240,6 @@ export const projectService = (() => {
     getProjectContextMd,
     createProject,
     patchProject,
-    updateProjectDesignMd,
     removeProjectDesignMd,
     deleteProject,
     listProjectJobs,

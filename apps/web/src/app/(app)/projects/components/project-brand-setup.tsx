@@ -17,11 +17,20 @@ import {
   updateProject,
 } from "@/lib/actions/project/action";
 
+export interface ProjectBrandChange {
+  logo?: string | null;
+  designMd?: {
+    url: string;
+    extractionId: string | null;
+  } | null;
+}
+
 interface ProjectBrandSetupProps {
   projectId: string;
   projectName: string;
   websiteUrl: string;
   onReadyLogo?: (logoUrl: string | null) => void;
+  onBrandChange?: (brand: ProjectBrandChange) => void;
 }
 
 export function ProjectBrandSetup({
@@ -29,6 +38,7 @@ export function ProjectBrandSetup({
   projectName,
   websiteUrl,
   onReadyLogo,
+  onBrandChange,
 }: ProjectBrandSetupProps) {
   const t = useTranslations("App.Projects.Wizard.brand");
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
@@ -46,6 +56,14 @@ export function ProjectBrandSetup({
       saveFailed: tDesignMd("saveError"),
       startFailed: tDesignMd("startGenerateError"),
     },
+    onCompleted: (designMd) => {
+      onBrandChange?.({
+        designMd: {
+          url: designMd.url,
+          extractionId: designMd.extractionId,
+        },
+      });
+    },
     owner,
   });
 
@@ -59,6 +77,7 @@ export function ProjectBrandSetup({
         const nextLogo = result.ok ? (result.value.url ?? null) : null;
         setLogoUrl(nextLogo);
         onReadyLogo?.(nextLogo);
+        onBrandChange?.({ logo: nextLogo });
         if (nextLogo) {
           await updateProject({
             projectId,

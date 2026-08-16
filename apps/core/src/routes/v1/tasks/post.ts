@@ -7,6 +7,7 @@ import {
   VendorGrantStatus,
 } from "@sokosumi/database";
 import {
+  buildAdHocDesignMdPrefix,
   DESIGN_MD_ATTACHMENT_LABEL,
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
@@ -18,7 +19,11 @@ import {
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
 import { resolveEffectiveDesignMd } from "@/helpers/design-md-effective";
-import { errorResponseSchema, notFound } from "@/helpers/error";
+import {
+  errorResponseSchema,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -48,6 +53,10 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import {
+  ensureProjectFilesToken,
+  uploadProjectBriefingFile,
+} from "@/lib/project-files-blob";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -163,13 +172,16 @@ const route = withCoworkerContextHeaderParameters(
         content: jsonContent(errorResponseSchema),
       },
       404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
 );
 
 const TASK_CONTEXT_PROJECT_SELECT = {
   id: true,
+  filesToken: true,
   designMdUrl: true,
+  briefing: true,
   briefingUrl: true,
   contextMdUrl: true,
 } satisfies Prisma.ProjectSelect;
@@ -181,13 +193,12 @@ type TaskContextProject = Prisma.ProjectGetPayload<{
 async function findTaskProjectInWorkspace(
   projectId: string | null | undefined,
   workspaceId: string,
-  tx: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<TaskContextProject | null> {
   if (projectId === null || projectId === undefined) {
     return null;
   }
 
-  const project = await tx.project.findFirst({
+  const project = await prisma.project.findFirst({
     where: {
       id: projectId,
       workspaceId,
@@ -202,9 +213,57 @@ async function findTaskProjectInWorkspace(
   return project;
 }
 
+async function healProjectBriefingUrl(
+  project: TaskContextProject | null,
+  workspaceId: string,
+): Promise<TaskContextProject | null> {
+  if (!project?.briefing || project.briefingUrl) {
+    return project;
+  }
+
+  const filesToken = await ensureProjectFilesToken(
+    project.id,
+    project.filesToken,
+  );
+  if (!filesToken) {
+    return project;
+  }
+
+  const briefingUrl = await uploadProjectBriefingFile(
+    project.id,
+    filesToken,
+    project.briefing,
+  );
+  if (!briefingUrl) {
+    return project;
+  }
+
+  const updateResult = await prisma.project.updateMany({
+    where: {
+      id: project.id,
+      workspaceId,
+      briefing: project.briefing,
+      briefingUrl: null,
+    },
+    data: { briefingUrl },
+  });
+
+  return updateResult.count === 1
+    ? { ...project, filesToken, briefingUrl }
+    : project;
+}
+
 interface TaskContextAttachment {
   label: string;
   url: string;
+}
+
+function isUrlUnderPathPrefix(url: string, prefix: string): boolean {
+  try {
+    return decodeURIComponent(new URL(url).pathname).startsWith(`/${prefix}`);
+  } catch {
+    return false;
+  }
 }
 
 function prependTaskContextAttachments(
@@ -246,23 +305,45 @@ async function resolveTaskDescriptionWithContext({
   tx: Prisma.TransactionClient;
 }): Promise<string | null> {
   const attachments: TaskContextAttachment[] = [];
+  let effectiveDesignMdUrl: string | null | undefined;
+
+  async function getEffectiveDesignMdUrl(): Promise<string | null> {
+    if (effectiveDesignMdUrl === undefined) {
+      const effectiveDesignMd = await resolveEffectiveDesignMd({
+        userId: ownerId,
+        organizationId,
+        tx,
+      });
+      effectiveDesignMdUrl = effectiveDesignMd?.url ?? null;
+    }
+    return effectiveDesignMdUrl;
+  }
 
   if (context?.brand !== false) {
     let brandUrl: string | null = null;
 
     if (typeof context?.brand === "object") {
       brandUrl = context.brand.url;
+      const isOwnedAdHocBrand = isUrlUnderPathPrefix(
+        brandUrl,
+        buildAdHocDesignMdPrefix(ownerId),
+      );
+      const isProjectBrand = brandUrl === project?.designMdUrl;
+      if (
+        !isOwnedAdHocBrand &&
+        !isProjectBrand &&
+        brandUrl !== (await getEffectiveDesignMdUrl())
+      ) {
+        throw unprocessableEntity(
+          "Custom brand must be owned by the caller or selected project",
+        );
+      }
     } else if ((context?.brandSource ?? "project") === "project") {
       brandUrl = project?.designMdUrl ?? null;
     }
 
     if (!brandUrl) {
-      const effectiveDesignMd = await resolveEffectiveDesignMd({
-        userId: ownerId,
-        organizationId,
-        tx,
-      });
-      brandUrl = effectiveDesignMd?.url ?? null;
+      brandUrl = await getEffectiveDesignMdUrl();
     }
 
     if (brandUrl) {
@@ -353,6 +434,7 @@ async function createTaskRecord(
     body: z.infer<typeof createTaskRequestSchema>;
     resolvedName: string;
     authContext: AuthenticationContext;
+    project: TaskContextProject | null;
     pendingVendorGrantId?: string | null;
     grantResumeStatus?: GrantResumeStatus | null;
   },
@@ -365,25 +447,22 @@ async function createTaskRecord(
     organizationId,
     ownerId,
     pendingVendorGrantId,
+    project,
     resolvedName,
     workspaceId,
   } = params;
 
-  const project = await findTaskProjectInWorkspace(
-    body.projectId,
-    workspaceId,
-    tx,
-  );
-  const description = await resolveTaskDescriptionWithContext({
-    context: body.context,
-    description: body.description,
-    organizationId,
-    ownerId,
-    project,
-    tx,
-  });
-
   const isGrantPending = pendingVendorGrantId != null;
+  const description = isGrantPending
+    ? (body.description ?? null)
+    : await resolveTaskDescriptionWithContext({
+        context: body.context,
+        description: body.description,
+        organizationId,
+        ownerId,
+        project,
+        tx,
+      });
   const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
   const initialEventStatus = status;
   const creatorFields = await resolveTaskCreatorFields(authContext, ownerId);
@@ -446,6 +525,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
+    const project = await findTaskProjectInWorkspace(
+      body.projectId,
+      workspaceContext.workspaceId,
+    );
+    const projectWithBriefing =
+      !shouldEnforceCreateGrant && body.context?.briefing !== false
+        ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
+        : project;
 
     if (!shouldEnforceCreateGrant) {
       const task = await prisma.$transaction(async (tx) =>
@@ -455,6 +542,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
             body,
+            project: projectWithBriefing,
             resolvedName,
             authContext,
           },
@@ -466,12 +554,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const task = await prisma.$transaction(async (tx) => {
-      await findTaskProjectInWorkspace(
-        body.projectId,
-        workspaceContext.workspaceId,
-        tx,
-      );
-
       const { grant } = await requestWorkspaceGrant(
         {
           vendorId: authContext.vendorId,
@@ -487,12 +569,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (grant.status === VendorGrantStatus.GRANTED) {
+        const grantedProject =
+          body.context?.briefing !== false
+            ? await healProjectBriefingUrl(
+                project,
+                workspaceContext.workspaceId,
+              )
+            : project;
         return createTaskRecord(
           {
             ownerId: userContext.userId,
             organizationId: userContext.organizationId,
             workspaceId: workspaceContext.workspaceId,
             body,
+            project: grantedProject,
             resolvedName,
             authContext,
           },
@@ -506,6 +596,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           body,
+          project,
           resolvedName,
           authContext,
           pendingVendorGrantId: grant.id,

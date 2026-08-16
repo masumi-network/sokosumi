@@ -12,6 +12,7 @@ import {
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
 import {
   sokosumiJobStatusSchema,
   taskStatusSchema,
@@ -25,8 +26,13 @@ const projectWebsiteUrlSchema = z
   .max(2048)
   .url()
   .refine((value) => {
-    const protocol = new URL(value).protocol;
-    return protocol === "http:" || protocol === "https:";
+    // Refinements can run even when `.url()` already failed — never throw.
+    try {
+      const protocol = new URL(value).protocol;
+      return protocol === "http:" || protocol === "https:";
+    } catch {
+      return false;
+    }
   }, "Website URL must use HTTP or HTTPS");
 
 const projectLogoUrlSchema = z
@@ -48,11 +54,6 @@ export const projectDesignMdSchema = z
     extractionId: z.string().nullable(),
   })
   .openapi("ProjectDesignMd");
-
-const projectDesignMdInputSchema = z.object({
-  url: projectDesignMdUrlSchema,
-  extractionId: z.string().nullish().optional(),
-});
 
 export const projectDesignMdWriteSchema = z
   .object({
@@ -126,7 +127,7 @@ export const projectSchema = z
     }),
     memoryEnabled: z.boolean().openapi({
       description:
-        "Whether Core has AI Gateway credentials and can update project memory.",
+        "Whether Core has both AI Gateway and Blob storage credentials and can update project memory.",
       example: true,
     }),
     memoryModel: projectMemoryModelSchema.openapi({
@@ -155,6 +156,16 @@ export const projectListItemSchema = projectSchema
   })
   .openapi("ProjectListItem");
 
+function resolveProjectBriefingAlias(
+  briefing: string | null | undefined,
+  description: string | null | undefined,
+): string | null | undefined {
+  if (briefing === null && description === undefined) {
+    return null;
+  }
+  return briefing ?? description;
+}
+
 export const createProjectRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(200).openapi({ example: "Q1 research" }),
@@ -164,36 +175,50 @@ export const createProjectRequestSchema = z
       .max(20_000)
       .nullish()
       .openapi({ example: "Optional campaign briefing" }),
+    description: z.string().trim().max(20_000).nullish().openapi({
+      deprecated: true,
+      description: "Deprecated. Use briefing instead.",
+      example: "Legacy campaign briefing",
+    }),
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
-    logo: projectLogoUrlSchema.nullish().optional(),
-    designMd: z.union([projectDesignMdInputSchema, z.null()]).optional(),
   })
+  .transform(({ description, ...data }) => ({
+    ...data,
+    briefing: resolveProjectBriefingAlias(data.briefing, description),
+  }))
   .openapi("CreateProjectRequest");
 
 export const patchProjectRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     briefing: z.string().trim().max(20_000).nullish().optional(),
+    description: z.string().trim().max(20_000).nullish().openapi({
+      deprecated: true,
+      description: "Deprecated. Use briefing instead.",
+    }),
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
-    designMd: z.union([projectDesignMdInputSchema, z.null()]).optional(),
   })
   .superRefine((data, ctx) => {
     if (
       data.name === undefined &&
       data.briefing === undefined &&
+      data.description === undefined &&
       data.websiteUrl === undefined &&
-      data.logo === undefined &&
-      data.designMd === undefined
+      data.logo === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, briefing, websiteUrl, logo, or designMd",
+          "Provide at least one of name, briefing, description, websiteUrl, or logo",
         path: [],
       });
     }
   })
+  .transform(({ description, ...data }) => ({
+    ...data,
+    briefing: resolveProjectBriefingAlias(data.briefing, description),
+  }))
   .openapi("PatchProjectRequest");
 
 export const addProjectJobRequestSchema = z
@@ -309,7 +334,7 @@ export function mapProjectForApi(
           extractionId: project.designMdExtractionId,
         }
       : null,
-    memoryEnabled: Boolean(env.AI_GATEWAY_API_KEY),
+    memoryEnabled: isProjectMemoryConfigured(env),
     memoryModel: {
       id: env.PROJECT_MEMORY_MODEL,
       label:

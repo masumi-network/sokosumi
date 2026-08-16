@@ -1606,7 +1606,6 @@
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "statusLabel": "Status",
-        "projectLabel": "Project",
         "statusOptions": {
           "DRAFT": "Draft",
           "QUEUED": "Queued",
@@ -2159,6 +2158,7 @@
           "fileName": "Memory",
           "updated": "Updated {when}",
           "updating": "Updating…",
+          "loading": "Loading…",
           "empty": "Builds as tasks complete",
           "modelLine": "{model} · hosted in the EU 🇪🇺",
           "defaultModel": "Mistral Medium",

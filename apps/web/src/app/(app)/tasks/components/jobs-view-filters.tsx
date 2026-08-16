@@ -27,7 +27,6 @@ interface JobsViewFiltersProps {
     scopeLabel: string;
     scopeOwned: string;
     scopeWorkspace: string;
-    projectLabel: string;
   };
   labels: {
     filterButton: string;

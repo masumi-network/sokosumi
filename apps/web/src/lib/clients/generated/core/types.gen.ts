@@ -3203,7 +3203,7 @@ export type Project = {
      */
     designMd: ProjectDesignMd | null;
     /**
-     * Whether Core has AI Gateway credentials and can update project memory.
+     * Whether Core has both AI Gateway and Blob storage credentials and can update project memory.
      */
     memoryEnabled: boolean;
     memoryModel: ProjectMemoryModel;
@@ -3219,12 +3219,13 @@ export type Project = {
 export type CreateProjectRequest = {
     name: string;
     briefing?: string | null;
+    /**
+     * Deprecated. Use briefing instead.
+     *
+     * @deprecated
+     */
+    description?: string | null;
     websiteUrl?: string | null;
-    logo?: string | null;
-    designMd?: {
-        url: string;
-        extractionId?: string | null;
-    } | null;
 };
 
 export type ProjectStatsBatch = {
@@ -3273,12 +3274,14 @@ export type ProjectDesignMdWrite = {
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
+    /**
+     * Deprecated. Use briefing instead.
+     *
+     * @deprecated
+     */
+    description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
-    designMd?: {
-        url: string;
-        extractionId?: string | null;
-    } | null;
 };
 
 export type ProjectDeleted = {
@@ -29285,6 +29288,20 @@ export type PostTasksErrors = {
             method: string;
         };
     };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostTasksError = PostTasksErrors[keyof PostTasksErrors];
@@ -32040,6 +32057,34 @@ export type GetToolsSiteIconErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const replaceMock = vi.fn();
+const pushMock = vi.fn();
 const searchParamsStore = {
   current: new URLSearchParams(),
 };
@@ -10,7 +10,7 @@ const searchParamsStore = {
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tasks",
   useRouter: () => ({
-    replace: replaceMock,
+    push: pushMock,
   }),
   useSearchParams: () => searchParamsStore.current,
 }));
@@ -72,7 +72,7 @@ const projectOptions = [
 
 describe("TasksProjectSwitcher", () => {
   beforeEach(() => {
-    replaceMock.mockClear();
+    pushMock.mockClear();
     searchParamsStore.current = new URLSearchParams();
     window.history.replaceState({}, "", "/tasks");
   });
@@ -94,7 +94,7 @@ describe("TasksProjectSwitcher", () => {
       screen.getByTestId(`tasks-project-switcher-item-${RESEARCH_ID}`),
     );
 
-    expect(replaceMock).toHaveBeenCalledWith(`/tasks?projectId=${RESEARCH_ID}`);
+    expect(pushMock).toHaveBeenCalledWith(`/tasks?projectId=${RESEARCH_ID}`);
     expect(onProjectCreated).not.toHaveBeenCalled();
   });
 
@@ -128,7 +128,7 @@ describe("TasksProjectSwitcher", () => {
     await user.click(screen.getByTestId("tasks-project-switcher"));
     await user.click(screen.getByTestId("tasks-project-switcher-all"));
 
-    expect(replaceMock).toHaveBeenCalledWith("/tasks?status=READY");
+    expect(pushMock).toHaveBeenCalledWith("/tasks?status=READY");
   });
 
   it("creates a project and selects it", async () => {
@@ -155,7 +155,7 @@ describe("TasksProjectSwitcher", () => {
       briefingUrl: null,
       contextMd: null,
     });
-    expect(replaceMock).toHaveBeenCalledWith(
+    expect(pushMock).toHaveBeenCalledWith(
       "/tasks?projectId=aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     );
   });

@@ -31,7 +31,6 @@ interface TasksViewFiltersProps {
     scopeWorkspace: string;
     coworkerLabel: string;
     statusLabel: string;
-    projectLabel: string;
     statusOptions: Record<TaskStatus, string>;
   };
 }

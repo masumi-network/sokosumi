@@ -7,7 +7,10 @@ import {
   type OpenAPIHonoWithAuth,
   withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
-import { uploadProjectBriefingFile } from "@/lib/project-files-blob";
+import {
+  generateProjectFilesToken,
+  uploadProjectBriefingFile,
+} from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -21,7 +24,7 @@ const route = withOrchestratorContextHeaderParameters(
     method: "post",
     path: "/",
     description:
-      "Create a project, optional website, logo, DESIGN.md, and briefing in the active workspace. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Create a project with an optional website and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Session user or orchestrator with context headers; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       body: {
@@ -45,23 +48,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
+    const briefing = body.briefing?.trim() || null;
+    const filesToken = briefing ? generateProjectFilesToken() : null;
 
     let project = await prisma.project.create({
       data: {
         workspaceId: workspaceContext.workspaceId,
         name: body.name,
-        briefing: body.briefing ?? null,
+        filesToken,
+        briefing,
         websiteUrl: body.websiteUrl ?? null,
-        logo: body.logo ?? null,
-        designMdUrl: body.designMd?.url ?? null,
-        designMdExtractionId: body.designMd?.extractionId ?? null,
       },
     });
 
-    if (body.briefing !== null && body.briefing !== undefined) {
+    if (briefing && filesToken) {
       const briefingUrl = await uploadProjectBriefingFile(
         project.id,
-        body.briefing,
+        filesToken,
+        briefing,
       );
       if (briefingUrl) {
         project = await prisma.project.update({

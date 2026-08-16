@@ -35,7 +35,6 @@ const labels = {
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",
-  projectLabel: "Project",
   statusOptions: {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",

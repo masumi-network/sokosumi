@@ -246,6 +246,8 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
+  buildProjectFilesPrefix,
+  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,

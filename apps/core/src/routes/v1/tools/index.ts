@@ -10,7 +10,7 @@ const requireUser = createMiddleware(async (c, next) => {
   await next();
 });
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
 app.use("*", requireUser);
 mountSiteIcon(app);

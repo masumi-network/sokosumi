@@ -53,10 +53,12 @@ export function ProjectBriefing({
       {content ? (
         <div className="space-y-2">
           <div
+            data-testid="project-briefing-content"
             className={cn(
               "text-foreground/80",
               isLong && !expanded && "max-h-64 overflow-hidden",
             )}
+            inert={isLong && !expanded ? true : undefined}
           >
             <Markdown>{content}</Markdown>
           </div>

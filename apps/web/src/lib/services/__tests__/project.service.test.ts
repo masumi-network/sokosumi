@@ -261,26 +261,15 @@ describe("project.service", () => {
     ).resolves.toBeNull();
   });
 
-  it("saves and removes project DESIGN.md via Core", async () => {
+  it("removes project DESIGN.md via Core", async () => {
     const project = buildProject();
-    coreClientMock.putProjectsByIdDesignMd.mockResolvedValue({
-      data: project,
-    });
     coreClientMock.deleteProjectsByIdDesignMd.mockResolvedValue({
       data: project,
     });
 
     const { projectService } = await import("../project.service");
-    await projectService.updateProjectDesignMd("project-1", {
-      content: "# Brand",
-      extractionId: "ex-1",
-    });
     await projectService.removeProjectDesignMd("project-1");
 
-    expect(coreClientMock.putProjectsByIdDesignMd).toHaveBeenCalledWith(
-      "project-1",
-      { content: "# Brand", extractionId: "ex-1" },
-    );
     expect(coreClientMock.deleteProjectsByIdDesignMd).toHaveBeenCalledWith(
       "project-1",
     );

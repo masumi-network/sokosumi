@@ -10730,7 +10730,7 @@ export const ProjectSchema = {
         },
         memoryEnabled: {
             type: 'boolean',
-            description: 'Whether Core has AI Gateway credentials and can update project memory.',
+            description: 'Whether Core has both AI Gateway and Blob storage credentials and can update project memory.',
             example: true
         },
         memoryModel: {
@@ -10798,6 +10798,16 @@ export const CreateProjectRequestSchema = {
             maxLength: 20000,
             example: 'Optional campaign briefing'
         },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            deprecated: true,
+            description: 'Deprecated. Use briefing instead.',
+            example: 'Legacy campaign briefing'
+        },
         websiteUrl: {
             type: [
                 'string',
@@ -10805,38 +10815,6 @@ export const CreateProjectRequestSchema = {
             ],
             maxLength: 2048,
             format: 'uri'
-        },
-        logo: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri'
-        },
-        designMd: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        url: {
-                            type: 'string',
-                            format: 'uri'
-                        },
-                        extractionId: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        }
-                    },
-                    required: [
-                        'url'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     required: [
@@ -11043,6 +11021,15 @@ export const PatchProjectRequestSchema = {
             ],
             maxLength: 20000
         },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            deprecated: true,
+            description: 'Deprecated. Use briefing instead.'
+        },
         websiteUrl: {
             type: [
                 'string',
@@ -11057,31 +11044,6 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             format: 'uri'
-        },
-        designMd: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        url: {
-                            type: 'string',
-                            format: 'uri'
-                        },
-                        extractionId: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        }
-                    },
-                    required: [
-                        'url'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     }
 } as const;

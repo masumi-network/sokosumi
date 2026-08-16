@@ -276,7 +276,6 @@ interface TasksViewProps {
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;
-      projectLabel: string;
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
@@ -1298,7 +1297,6 @@ export function TasksView({
                 scopeLabel: labels.filters.scopeLabel,
                 scopeOwned: labels.filters.scopeOwned,
                 scopeWorkspace: labels.filters.scopeWorkspace,
-                projectLabel: labels.filters.projectLabel,
               }}
               labels={{
                 filterButton: labels.jobs.filterButton,

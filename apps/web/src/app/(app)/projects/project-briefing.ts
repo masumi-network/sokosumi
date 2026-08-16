@@ -36,7 +36,10 @@ export function previewProjectBriefing(briefing?: string | null): string {
 
 export function insertBriefingHeading(value: string, heading: string): string {
   const marker = `## ${heading}`;
-  if (value.includes(marker)) {
+  const alreadyPresent = value
+    .split(/\r\n|\r|\n/)
+    .some((line) => line.trim() === marker);
+  if (alreadyPresent) {
     return value;
   }
 

@@ -45,4 +45,10 @@ describe("insertBriefingHeading", () => {
     const value = "## Goals\nWin the quarter\n";
     expect(insertBriefingHeading(value, "Goals")).toBe(value);
   });
+
+  it("does not treat a longer heading as the same section", () => {
+    expect(insertBriefingHeading("## Goals and scope\nWin.", "Goals")).toBe(
+      "## Goals and scope\nWin.\n\n## Goals\n",
+    );
+  });
 });

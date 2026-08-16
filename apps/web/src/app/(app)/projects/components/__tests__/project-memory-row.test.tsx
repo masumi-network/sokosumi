@@ -13,6 +13,7 @@ const MESSAGES: Record<string, string> = {
   "memory.fileName": "Memory",
   "memory.updated": "Updated {when}",
   "memory.updating": "Updating…",
+  "memory.loading": "Loading…",
   "memory.empty": "Builds as tasks complete",
   "memory.modelLine": "{model} · hosted in the EU 🇪🇺",
   "memory.defaultModel": "Mistral Medium",
@@ -138,5 +139,31 @@ describe("ProjectMemoryRow", () => {
       "href",
       "https://blob.example/CONTEXT.md",
     );
+  });
+
+  it("shows a loading label while memory content is fetched", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getProjectContextMd).mockReturnValue(new Promise(() => {}));
+
+    render(
+      <ProjectMemoryRow
+        projectId="project-1"
+        contextMd={{
+          url: "https://blob.example/CONTEXT.md",
+          updatedAt: new Date("2026-08-16T10:00:00.000Z"),
+          version: 2,
+          model: {
+            id: "mistral/mistral-medium-latest",
+            label: "Mistral Medium",
+            region: "eu",
+          },
+          lineCount: 12,
+        }}
+        contextMdUpdating={false}
+      />,
+    );
+
+    await user.click(screen.getByTestId("project-memory-row"));
+    expect(await screen.findByText("Loading…")).toBeInTheDocument();
   });
 });

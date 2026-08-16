@@ -22,6 +22,7 @@ function createDatabaseProject(
     id: "22222222-2222-4222-8222-222222222222",
     workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     name: "Launch",
+    filesToken: null,
     briefing: "# Briefing",
     briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
     contextMd: null,
@@ -45,6 +46,7 @@ describe("project schemas", () => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({
       AI_GATEWAY_API_KEY: undefined,
+      BLOB_READ_WRITE_TOKEN: undefined,
       PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
     });
   });
@@ -64,24 +66,23 @@ describe("project schemas", () => {
     ).toThrow();
   });
 
-  it("validates project website, logo, and DESIGN.md inputs", () => {
+  it("validates website and PATCH logo while stripping create-only legacy brand fields", () => {
     const logo =
       "https://abc.public.blob.vercel-storage.com/projects/project_123/logos/hash.png";
     const designMdUrl =
       "https://abc.public.blob.vercel-storage.com/design-md/projects/project_123/hash.md";
 
-    expect(
-      createProjectRequestSchema.parse({
-        name: "Launch",
-        websiteUrl: "https://example.com",
-        logo,
-        designMd: { url: designMdUrl, extractionId: "extract_123" },
-      }),
-    ).toMatchObject({
+    const created = createProjectRequestSchema.parse({
+      name: "Launch",
       websiteUrl: "https://example.com",
       logo,
       designMd: { url: designMdUrl, extractionId: "extract_123" },
     });
+    expect(created).toMatchObject({
+      websiteUrl: "https://example.com",
+    });
+    expect(created).not.toHaveProperty("logo");
+    expect(created).not.toHaveProperty("designMd");
     expect(
       createProjectRequestSchema.safeParse({
         name: "Launch",
@@ -93,6 +94,31 @@ describe("project schemas", () => {
         logo: "https://example.com/logo.png",
       }).success,
     ).toBe(false);
+    expect(
+      patchProjectRequestSchema.safeParse({ designMd: null }).success,
+    ).toBe(false);
+  });
+
+  it("accepts deprecated description as a briefing alias", () => {
+    expect(
+      createProjectRequestSchema.parse({
+        name: "Legacy client",
+        description: "Legacy briefing",
+      }).briefing,
+    ).toBe("Legacy briefing");
+    expect(
+      patchProjectRequestSchema.parse({ description: "Legacy update" })
+        .briefing,
+    ).toBe("Legacy update");
+    expect(
+      patchProjectRequestSchema.parse({
+        briefing: "Canonical briefing",
+        description: "Legacy update",
+      }).briefing,
+    ).toBe("Canonical briefing");
+    expect(patchProjectRequestSchema.parse({ briefing: null }).briefing).toBe(
+      null,
+    );
   });
 
   it("maps nullable project brand metadata", () => {
@@ -145,6 +171,7 @@ describe("project schemas", () => {
   it("reports configured memory capability before the first update", () => {
     getEnvMock.mockReturnValue({
       AI_GATEWAY_API_KEY: "gateway_key",
+      BLOB_READ_WRITE_TOKEN: "blob_key",
       PROJECT_MEMORY_MODEL: "mistral/custom-eu-model",
     });
 
@@ -157,6 +184,16 @@ describe("project schemas", () => {
       },
       contextMd: null,
     });
+  });
+
+  it("disables memory when Blob storage is missing", () => {
+    getEnvMock.mockReturnValue({
+      AI_GATEWAY_API_KEY: "gateway_key",
+      BLOB_READ_WRITE_TOKEN: undefined,
+      PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
+    });
+
+    expect(mapProjectForApi(createDatabaseProject()).memoryEnabled).toBe(false);
   });
 
   it("treats update markers older than five minutes as stale", () => {

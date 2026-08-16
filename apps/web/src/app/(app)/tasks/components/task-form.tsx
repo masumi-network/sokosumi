@@ -306,17 +306,24 @@ export function TaskForm({
   }, []);
 
   const handleProjectChange = useCallback(
-    (nextProjectId: string | null) => {
+    (nextProjectId: string | null, nextProject?: ProjectFilterOption) => {
       setProjectId(nextProjectId);
-      setContextSelection(
-        getDefaultTaskContextSelection(
-          nextProjectId
-            ? localProjectOptions.find(
-                (project) => project.id === nextProjectId,
-              )
-            : undefined,
-        ),
-      );
+      const project =
+        nextProject ??
+        (nextProjectId
+          ? localProjectOptions.find((item) => item.id === nextProjectId)
+          : undefined);
+      setContextSelection((current) => ({
+        ...current,
+        brand: {
+          ...current.brand,
+          source: project?.designMd
+            ? "project"
+            : current.brand.source === "project"
+              ? "default"
+              : current.brand.source,
+        },
+      }));
     },
     [localProjectOptions],
   );
@@ -334,7 +341,7 @@ export function TaskForm({
         contextMd: result.project?.contextMd ?? null,
       };
       setInlineCreatedProjects((prev) => [...prev, newProject]);
-      handleProjectChange(result.projectId);
+      handleProjectChange(result.projectId, newProject);
     },
     [handleProjectChange],
   );

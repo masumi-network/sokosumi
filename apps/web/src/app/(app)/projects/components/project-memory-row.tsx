@@ -166,7 +166,7 @@ export function ProjectMemoryRow({
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {isLoading ? (
               <p className="text-muted-foreground/60 text-sm">
-                {t("memory.updating")}
+                {t("memory.loading")}
               </p>
             ) : content ? (
               <Markdown className="text-foreground/80">{content}</Markdown>

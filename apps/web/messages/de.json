@@ -1606,7 +1606,6 @@
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "statusLabel": "Status",
-        "projectLabel": "Projekt",
         "statusOptions": {
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
@@ -2159,6 +2158,7 @@
           "fileName": "Gedächtnis",
           "updated": "Aktualisiert {when}",
           "updating": "Wird aktualisiert…",
+          "loading": "Wird geladen…",
           "empty": "Wächst mit abgeschlossenen Tasks",
           "modelLine": "{model} · gehostet in der EU 🇪🇺",
           "defaultModel": "Mistral Medium",

@@ -308,7 +308,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),
-            projectLabel: t("Filters.projectLabel"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),

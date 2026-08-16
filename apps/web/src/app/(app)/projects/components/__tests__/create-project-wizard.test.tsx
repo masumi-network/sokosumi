@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateProjectWizard } from "@/app/projects/components/create-project-wizard";
@@ -18,9 +19,25 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 
 vi.mock("@/app/projects/components/project-brand-setup", () => ({
-  ProjectBrandSetup: () => (
-    <div data-testid="project-brand-setup">Brand setup</div>
-  ),
+  ProjectBrandSetup: ({
+    onBrandChange,
+  }: {
+    onBrandChange?: (brand: {
+      logo?: string | null;
+      designMd?: { url: string; extractionId: string | null } | null;
+    }) => void;
+  }) => {
+    useEffect(() => {
+      onBrandChange?.({
+        logo: "https://blob.example/logo.png",
+        designMd: {
+          url: "https://blob.example/DESIGN.md",
+          extractionId: "ex-1",
+        },
+      });
+    }, [onBrandChange]);
+    return <div data-testid="project-brand-setup">Brand setup</div>;
+  },
 }));
 
 vi.mock("sonner", () => ({
@@ -188,5 +205,74 @@ describe("CreateProjectWizard", () => {
         name: "App.Projects.Wizard.nav.openProject",
       }),
     ).toBeEnabled();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "App.Projects.Wizard.nav.openProject",
+      }),
+    );
+    expect(onSuccess).toHaveBeenCalledWith(
+      "project-1",
+      "Spring launch",
+      expect.objectContaining({
+        id: "project-1",
+        logo: "https://blob.example/logo.png",
+        designMd: {
+          url: "https://blob.example/DESIGN.md",
+          extractionId: "ex-1",
+        },
+      }),
+    );
+  });
+
+  it("treats dismiss during brand setup as success", async () => {
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+    const onOpenChange = vi.fn();
+    const createProjectMock = vi.mocked(createProject);
+    createProjectMock.mockResolvedValue({
+      projectId: "project-1",
+      project: CREATED_PROJECT,
+    });
+
+    render(
+      <CreateProjectWizard
+        open
+        onOpenChange={onOpenChange}
+        creationSource="task_form"
+        onSuccess={onSuccess}
+      />,
+    );
+
+    await user.type(
+      screen.getByLabelText("App.Projects.NewProject.name"),
+      "Spring launch",
+    );
+    await user.type(
+      screen.getByLabelText("App.Projects.Wizard.name.websiteLabel"),
+      "acme.com",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.next" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.next" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.create" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-brand-setup")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onSuccess).toHaveBeenCalledWith(
+      "project-1",
+      "Spring launch",
+      expect.objectContaining({ id: "project-1" }),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

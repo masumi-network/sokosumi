@@ -8,14 +8,28 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostProject from "./post.js";
 
-const { projectCreateMock } = vi.hoisted(() => ({
+const {
+  generateProjectFilesTokenMock,
+  projectCreateMock,
+  projectUpdateMock,
+  uploadProjectBriefingFileMock,
+} = vi.hoisted(() => ({
+  generateProjectFilesTokenMock: vi.fn(),
   projectCreateMock: vi.fn(),
+  projectUpdateMock: vi.fn(),
+  uploadProjectBriefingFileMock: vi.fn(),
+}));
+
+vi.mock("@/lib/project-files-blob", () => ({
+  generateProjectFilesToken: generateProjectFilesTokenMock,
+  uploadProjectBriefingFile: uploadProjectBriefingFileMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: {
       create: projectCreateMock,
+      update: projectUpdateMock,
     },
   },
 }));
@@ -54,6 +68,10 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 describe("POST /projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    generateProjectFilesTokenMock.mockReturnValue("secret_token");
+    uploadProjectBriefingFileMock.mockResolvedValue(
+      "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+    );
   });
 
   it("creates a project and returns it", async () => {
@@ -61,6 +79,7 @@ describe("POST /projects", () => {
       id: "33333333-3333-4333-8333-333333333333",
       workspaceId: WORKSPACE_CONTEXT.workspaceId,
       name: "Alpha",
+      filesToken: null,
       websiteUrl: null,
       logo: null,
       designMdUrl: null,
@@ -92,13 +111,59 @@ describe("POST /projects", () => {
       data: {
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
         name: "Alpha",
+        filesToken: null,
         websiteUrl: null,
-        logo: null,
-        designMdUrl: null,
-        designMdExtractionId: null,
         briefing: null,
       },
     });
+  });
+
+  it("stores one token and uploads a briefing under it", async () => {
+    const createdProject = {
+      id: "33333333-3333-4333-8333-333333333333",
+      workspaceId: WORKSPACE_CONTEXT.workspaceId,
+      name: "Alpha",
+      filesToken: "secret_token",
+      websiteUrl: null,
+      logo: null,
+      designMdUrl: null,
+      designMdExtractionId: null,
+      briefing: "Project briefing",
+      briefingUrl: null,
+      contextMd: null,
+      contextMdUrl: null,
+      contextMdUpdatedAt: null,
+      contextMdModel: null,
+      contextMdUpdatingSince: null,
+      contextMdVersion: 0,
+      createdAt: new Date("2026-04-02T12:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T12:00:00.000Z"),
+    };
+    projectCreateMock.mockResolvedValue(createdProject);
+    projectUpdateMock.mockResolvedValue({
+      ...createdProject,
+      briefingUrl:
+        "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+    });
+
+    const res = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Alpha", briefing: "Project briefing" }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(projectCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        briefing: "Project briefing",
+        filesToken: "secret_token",
+      }),
+    });
+    expect(uploadProjectBriefingFileMock).toHaveBeenCalledWith(
+      createdProject.id,
+      "secret_token",
+      "Project briefing",
+    );
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
@@ -120,7 +185,7 @@ describe("POST /projects", () => {
     expect(projectCreateMock).not.toHaveBeenCalled();
   });
 
-  it("persists project brand fields", async () => {
+  it("ignores removed create brand fields and persists website only", async () => {
     const logo =
       "https://abc.public.blob.vercel-storage.com/projects/project_123/logos/hash.png";
     const designMdUrl =
@@ -129,10 +194,11 @@ describe("POST /projects", () => {
       id: "33333333-3333-4333-8333-333333333333",
       workspaceId: WORKSPACE_CONTEXT.workspaceId,
       name: "Branded",
+      filesToken: null,
       websiteUrl: "https://example.com",
-      logo,
-      designMdUrl,
-      designMdExtractionId: "extract_123",
+      logo: null,
+      designMdUrl: null,
+      designMdExtractionId: null,
       briefing: null,
       briefingUrl: null,
       contextMd: null,
@@ -161,11 +227,9 @@ describe("POST /projects", () => {
       data: {
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
         name: "Branded",
+        filesToken: null,
         briefing: null,
         websiteUrl: "https://example.com",
-        logo,
-        designMdUrl,
-        designMdExtractionId: "extract_123",
       },
     });
   });
