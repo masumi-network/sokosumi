@@ -5,6 +5,7 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   JobSummary,
   Project,
+  ProjectContextMd,
   ProjectDeleted,
   ProjectListItem,
   ProjectStatsEntry,
@@ -23,12 +24,12 @@ interface ListProjectResourcesParams {
 
 interface CreateProjectInput {
   name: string;
-  description?: string | null;
+  briefing?: string | null;
 }
 
 interface PatchProjectInput {
   name?: string;
-  description?: string | null;
+  briefing?: string | null;
 }
 
 export const projectService = (() => {
@@ -74,8 +75,26 @@ export const projectService = (() => {
     }
   }
 
+  async function getProjectContextMd(
+    projectId: string,
+  ): Promise<ProjectContextMd | null> {
+    try {
+      const result = await coreClient.getProjectsByIdContextMd(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async function createProject(input: CreateProjectInput): Promise<Project> {
-    const result = await coreClient.postProjects(input);
+    const result = await coreClient.postProjects({
+      name: input.name,
+      briefing: input.briefing ?? null,
+    });
 
     if (!result.data) {
       throw new Error("Failed to create project");
@@ -204,6 +223,7 @@ export const projectService = (() => {
     listProjects,
     getProjectsStats,
     getProjectById,
+    getProjectContextMd,
     createProject,
     patchProject,
     deleteProject,

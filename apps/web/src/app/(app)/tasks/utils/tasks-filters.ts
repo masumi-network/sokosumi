@@ -15,6 +15,7 @@ export interface TasksFilters {
 export interface ProjectFilterOption {
   id: string;
   name: string;
+  contextMdUpdatedAt?: string | Date | null;
 }
 
 /** App Router `searchParams` values can be `string | string[]` when a key is repeated. */

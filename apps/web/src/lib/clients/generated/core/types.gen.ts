@@ -3168,18 +3168,38 @@ export type ProjectListItem = Project & {
     jobCount: number;
 };
 
+export type ProjectContextMdMetadata = {
+    url: string;
+    updatedAt: Date;
+    version: number;
+    model: ProjectMemoryModel;
+    lineCount: number;
+};
+
+export type ProjectMemoryModel = {
+    id: string;
+    label: string;
+    region: 'eu';
+};
+
 export type Project = {
     id: string;
     workspaceId: string;
     name: string;
-    description: string | null;
+    briefing: string | null;
+    briefingUrl: string | null;
+    /**
+     * Project memory metadata. Null until the first task completion writes CONTEXT.md.
+     */
+    contextMd: ProjectContextMdMetadata | null;
+    contextMdUpdating: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
 
 export type CreateProjectRequest = {
     name: string;
-    description?: string | null;
+    briefing?: string | null;
 };
 
 export type ProjectStatsBatch = {
@@ -3216,9 +3236,13 @@ export type AddProjectTaskRequest = {
     taskId: string;
 };
 
+export type ProjectContextMd = ProjectContextMdMetadata & {
+    content: string;
+};
+
 export type PatchProjectRequest = {
     name?: string;
-    description?: string | null;
+    briefing?: string | null;
 };
 
 export type ProjectDeleted = {
@@ -24985,6 +25009,92 @@ export type DeleteProjectsByIdTasksByTaskIdResponses = {
 };
 
 export type DeleteProjectsByIdTasksByTaskIdResponse = DeleteProjectsByIdTasksByTaskIdResponses[keyof DeleteProjectsByIdTasksByTaskIdResponses];
+
+export type GetProjectsByIdContextMdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/context-md';
+};
+
+export type GetProjectsByIdContextMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdContextMdError = GetProjectsByIdContextMdErrors[keyof GetProjectsByIdContextMdErrors];
+
+export type GetProjectsByIdContextMdResponses = {
+    /**
+     * Project CONTEXT.md
+     */
+    200: {
+        data: ProjectContextMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

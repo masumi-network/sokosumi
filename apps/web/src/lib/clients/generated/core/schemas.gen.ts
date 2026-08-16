@@ -10586,6 +10586,67 @@ export const ProjectListItemSchema = {
     ]
 } as const;
 
+export const ProjectContextMdMetadataSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/CONTEXT.md'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        version: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        model: {
+            $ref: '#/components/schemas/ProjectMemoryModel'
+        },
+        lineCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 42
+        }
+    },
+    required: [
+        'url',
+        'updatedAt',
+        'version',
+        'model',
+        'lineCount'
+    ]
+} as const;
+
+export const ProjectMemoryModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'mistral/mistral-medium-3.5'
+        },
+        label: {
+            type: 'string',
+            example: 'Mistral Medium'
+        },
+        region: {
+            type: 'string',
+            enum: [
+                'eu'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'region'
+    ]
+} as const;
+
 export const ProjectSchema = {
     type: 'object',
     properties: {
@@ -10603,12 +10664,36 @@ export const ProjectSchema = {
             type: 'string',
             example: 'Q1 research'
         },
-        description: {
+        briefing: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'Notes'
+            example: 'Campaign briefing'
+        },
+        briefingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md'
+        },
+        contextMd: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectContextMdMetadata'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Project memory metadata. Null until the first task completion writes CONTEXT.md.',
+            example: null
+        },
+        contextMdUpdating: {
+            type: 'boolean',
+            example: false
         },
         createdAt: {
             type: 'string',
@@ -10625,7 +10710,10 @@ export const ProjectSchema = {
         'id',
         'workspaceId',
         'name',
-        'description',
+        'briefing',
+        'briefingUrl',
+        'contextMd',
+        'contextMdUpdating',
         'createdAt',
         'updatedAt'
     ]
@@ -10640,13 +10728,13 @@ export const CreateProjectRequestSchema = {
             maxLength: 200,
             example: 'Q1 research'
         },
-        description: {
+        briefing: {
             type: [
                 'string',
                 'null'
             ],
-            maxLength: 10000,
-            example: 'Optional description'
+            maxLength: 20000,
+            example: 'Optional campaign briefing'
         }
     },
     required: [
@@ -10798,6 +10886,26 @@ export const AddProjectTaskRequestSchema = {
     ]
 } as const;
 
+export const ProjectContextMdSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectContextMdMetadata'
+        },
+        {
+            type: 'object',
+            properties: {
+                content: {
+                    type: 'string',
+                    example: '# Project context'
+                }
+            },
+            required: [
+                'content'
+            ]
+        }
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -10806,12 +10914,12 @@ export const PatchProjectRequestSchema = {
             minLength: 1,
             maxLength: 200
         },
-        description: {
+        briefing: {
             type: [
                 'string',
                 'null'
             ],
-            maxLength: 10000
+            maxLength: 20000
         }
     }
 } as const;

@@ -8,6 +8,7 @@ const coreClientMock = {
   deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
+  getProjectsByIdContextMd: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
   postProjects: vi.fn(),
@@ -32,7 +33,10 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     id: "project-1",
     workspaceId: "workspace-1",
     name: "Launch plan",
-    description: null,
+    briefing: null,
+    briefingUrl: null,
+    contextMd: null,
+    contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
     ...overrides,
@@ -154,7 +158,7 @@ describe("project.service", () => {
     const { projectService } = await import("../project.service");
     const created = await projectService.createProject({
       name: "Launch plan",
-      description: null,
+      briefing: null,
     });
     const updated = await projectService.patchProject("project-1", {
       name: "Updated launch plan",
@@ -163,7 +167,7 @@ describe("project.service", () => {
 
     expect(coreClientMock.postProjects).toHaveBeenCalledWith({
       name: "Launch plan",
-      description: null,
+      briefing: null,
     });
     expect(coreClientMock.patchProjectsById).toHaveBeenCalledWith("project-1", {
       name: "Updated launch plan",
@@ -209,5 +213,39 @@ describe("project.service", () => {
         taskId: "task-1",
       },
     );
+  });
+
+  it("loads project memory and returns null on 404", async () => {
+    const contextMd = {
+      content: "# Memory",
+      url: "https://blob.example/CONTEXT.md",
+      updatedAt: "2026-08-16T10:00:00.000Z",
+      version: 1,
+      model: {
+        id: "mistral/mistral-medium-latest",
+        label: "Mistral Medium",
+        region: "eu",
+      },
+      lineCount: 1,
+    };
+    coreClientMock.getProjectsByIdContextMd.mockResolvedValue({
+      data: contextMd,
+    });
+
+    const { projectService } = await import("../project.service");
+    const result = await projectService.getProjectContextMd("project-1");
+
+    expect(coreClientMock.getProjectsByIdContextMd).toHaveBeenCalledWith(
+      "project-1",
+    );
+    expect(result).toEqual(contextMd);
+
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    coreClientMock.getProjectsByIdContextMd.mockRejectedValue(
+      new CoreApiRequestError("not found", { status: 404 }),
+    );
+    await expect(
+      projectService.getProjectContextMd("project-missing"),
+    ).resolves.toBeNull();
   });
 });

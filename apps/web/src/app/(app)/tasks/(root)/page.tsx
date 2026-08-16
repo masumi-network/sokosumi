@@ -133,6 +133,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     (project) => ({
       id: project.id,
       name: project.name,
+      contextMdUpdatedAt: project.contextMd?.updatedAt ?? null,
     }),
   );
   if (
@@ -144,7 +145,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     );
     if (selectedProject) {
       projectOptions = [
-        { id: selectedProject.id, name: selectedProject.name },
+        {
+          id: selectedProject.id,
+          name: selectedProject.name,
+          contextMdUpdatedAt: selectedProject.contextMd?.updatedAt ?? null,
+        },
         ...projectOptions,
       ];
     }

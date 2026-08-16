@@ -60,10 +60,18 @@ import {
   type TaskDesignMdSelection,
 } from "./task-design-md-attachment";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
+import {
+  TaskProjectFilesAttachmentField,
+  type TaskProjectFilesSelection,
+} from "./task-project-files-attachment";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
+const DEFAULT_PROJECT_FILES_SELECTION: TaskProjectFilesSelection = {
+  briefingEnabled: true,
+  contextMdEnabled: true,
+};
 
 export interface TaskFormLabels {
   details: string;
@@ -159,6 +167,8 @@ interface TaskFormProps {
     assigneeId: string | null;
     projectId?: string | null;
     skipDesignMdAttachment?: boolean;
+    skipProjectBriefingAttachment?: boolean;
+    skipProjectContextMdAttachment?: boolean;
     designMdAttachmentOverride?: { label: string; url: string };
     status: Extract<TaskStatus, "DRAFT" | "READY">;
     schedule?: TaskScheduleSelection;
@@ -205,6 +215,8 @@ export function TaskForm({
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
   );
+  const [projectFilesSelection, setProjectFilesSelection] =
+    useState<TaskProjectFilesSelection>(DEFAULT_PROJECT_FILES_SELECTION);
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -298,6 +310,11 @@ export function TaskForm({
     setIsCreateProjectModalOpen(true);
   }, []);
 
+  const handleProjectChange = useCallback((nextProjectId: string | null) => {
+    setProjectId(nextProjectId);
+    setProjectFilesSelection(DEFAULT_PROJECT_FILES_SELECTION);
+  }, []);
+
   const handleProjectCreated = useCallback(
     (result: { projectId: string; name: string }) => {
       const newProject: ProjectFilterOption = {
@@ -305,9 +322,9 @@ export function TaskForm({
         name: result.name,
       };
       setInlineCreatedProjects((prev) => [...prev, newProject]);
-      setProjectId(result.projectId);
+      handleProjectChange(result.projectId);
     },
-    [],
+    [handleProjectChange],
   );
 
   const abortActiveUploads = useCallback(() => {
@@ -322,6 +339,15 @@ export function TaskForm({
   const { os, isMobile } = useOSDetection();
 
   const isNameRequired = mode === "edit";
+  const shouldShowProjectFiles =
+    mode === "create" && shouldShowProjectSelect && projectId !== null;
+  const selectedProject = useMemo(
+    () =>
+      projectId
+        ? localProjectOptions.find((project) => project.id === projectId)
+        : undefined,
+    [localProjectOptions, projectId],
+  );
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const hasSchedule = scheduleSelection.mode !== "none";
   const ScheduleFooterIcon = hasSchedule
@@ -424,6 +450,14 @@ export function TaskForm({
                   url: designMdSelection.custom.url,
                 }
               : undefined,
+            ...(shouldShowProjectFiles
+              ? {
+                  skipProjectBriefingAttachment:
+                    !projectFilesSelection.briefingEnabled,
+                  skipProjectContextMdAttachment:
+                    !projectFilesSelection.contextMdEnabled,
+                }
+              : {}),
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
@@ -506,6 +540,7 @@ export function TaskForm({
       assigneeId,
       projectId,
       shouldShowProjectSelect,
+      shouldShowProjectFiles,
       originalStatus,
       router,
       status,
@@ -518,6 +553,7 @@ export function TaskForm({
       hadSchedule,
       initialDesignMdAttachment,
       designMdSelection,
+      projectFilesSelection,
       labels.statusDraft,
       labels.statusQueued,
       labels.statusReady,
@@ -827,7 +863,7 @@ export function TaskForm({
                   <TaskProjectSelect
                     projectOptions={localProjectOptions}
                     value={projectId}
-                    onChange={setProjectId}
+                    onChange={handleProjectChange}
                     projectLabel={labels.projectLabel}
                     noneLabel={labels.projectNone}
                     searchPlaceholder={labels.projectSearchPlaceholder}
@@ -904,6 +940,13 @@ export function TaskForm({
                     defaultAttachment={initialDesignMdAttachment}
                     selection={designMdSelection}
                     onSelectionChange={setDesignMdSelection}
+                  />
+                ) : null}
+                {shouldShowProjectFiles ? (
+                  <TaskProjectFilesAttachmentField
+                    selection={projectFilesSelection}
+                    onSelectionChange={setProjectFilesSelection}
+                    contextMdUpdatedAt={selectedProject?.contextMdUpdatedAt}
                   />
                 ) : null}
                 {attachmentUrls.length > 0 ? (

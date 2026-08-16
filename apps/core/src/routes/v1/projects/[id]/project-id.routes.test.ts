@@ -5,7 +5,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-
+import mountGetProjectContextMd from "./context-md/get.js";
 import mountDeleteProject from "./delete.js";
 import mountGetProject from "./get.js";
 import mountDeleteProjectJob from "./jobs/[jobId]/delete.js";
@@ -19,6 +19,7 @@ const {
   jobFindFirstMock,
   jobUpdateMock,
   jobUpdateManyMock,
+  uploadProjectBriefingFileMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
@@ -26,6 +27,11 @@ const {
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
+  uploadProjectBriefingFileMock: vi.fn(),
+}));
+
+vi.mock("@/lib/project-files-blob", () => ({
+  uploadProjectBriefingFile: uploadProjectBriefingFileMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -66,7 +72,14 @@ const sampleProject = {
   id: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
   name: "P",
-  description: null,
+  briefing: null,
+  briefingUrl: null,
+  contextMd: null,
+  contextMdUrl: null,
+  contextMdUpdatedAt: null,
+  contextMdModel: null,
+  contextMdUpdatingSince: null,
+  contextMdVersion: 0,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
@@ -119,9 +132,61 @@ describe("GET /projects/{id}", () => {
   });
 });
 
+describe("GET /projects/{id}/context-md", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 404 when project has no memory", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    const app = createApp();
+    mountGetProjectContextMd(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}/context-md`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns read-only project memory", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      contextMd: "# Context\n\nDecision",
+      contextMdUrl: "https://blob.example/projects/project_1/CONTEXT.md",
+      contextMdUpdatedAt: new Date("2026-04-03T09:00:00.000Z"),
+      contextMdModel: "mistral/mistral-medium-latest",
+      contextMdVersion: 2,
+    });
+    const app = createApp();
+    mountGetProjectContextMd(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}/context-md`);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        content: string;
+        lineCount: number;
+        model: { id: string; label: string; region: string };
+      };
+    };
+    expect(body.data).toMatchObject({
+      content: "# Context\n\nDecision",
+      lineCount: 3,
+      model: {
+        id: "mistral/mistral-medium-latest",
+        label: "Mistral Medium",
+        region: "eu",
+      },
+    });
+  });
+});
+
 describe("PATCH /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    uploadProjectBriefingFileMock.mockResolvedValue(
+      "https://blob.example/projects/project_1/BRIEFING.md",
+    );
   });
 
   it("returns 404 when update matches no row", async () => {
@@ -152,6 +217,50 @@ describe("PATCH /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { name: string } };
     expect(body.data.name).toBe("New");
+  });
+
+  it("uploads a briefing only after the scoped project update succeeds", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      briefing: "Updated briefing",
+      briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
+    });
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing: "Updated briefing" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(uploadProjectBriefingFileMock).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "Updated briefing",
+    );
+    expect(projectUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: {
+        briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
+      },
+    });
+  });
+
+  it("does not upload a briefing when the scoped project update misses", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 0 });
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing: "Unauthorized briefing" }),
+    });
+
+    expect(res.status).toBe(404);
+    expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

@@ -27,6 +27,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 
 const appendDesignMdToDescriptionMock = vi.fn();
 const withDesignMdAttachmentMock = vi.fn();
+const appendProjectFilesToDescriptionMock = vi.fn();
 const taskServiceMock = {
   listTaskLinks: vi.fn(),
   deleteTaskLink: vi.fn(),
@@ -69,6 +70,13 @@ vi.mock("@/lib/services/design-md.service", () => ({
       appendDesignMdToDescriptionMock(...args),
     withDesignMdAttachment: (...args: unknown[]) =>
       withDesignMdAttachmentMock(...args),
+  },
+}));
+
+vi.mock("@/lib/services/project-files.service", () => ({
+  projectFilesService: {
+    appendProjectFilesToDescription: (...args: unknown[]) =>
+      appendProjectFilesToDescriptionMock(...args),
   },
 }));
 
@@ -148,6 +156,10 @@ describe("task link actions", () => {
     withDesignMdAttachmentMock.mockImplementation(
       (description: string, attachment: { label: string; url: string }) =>
         `[${attachment.label}](${attachment.url})\n\n${description}`,
+    );
+    appendProjectFilesToDescriptionMock.mockReset();
+    appendProjectFilesToDescriptionMock.mockImplementation(
+      async (description: string) => description,
     );
     toCoreApiActionErrorMock.mockReset();
     toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
@@ -230,6 +242,79 @@ describe("task link actions", () => {
     );
     expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
       "name",
+    );
+    expect(appendProjectFilesToDescriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("prepends project files before DESIGN.md when creating a project task", async () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    appendProjectFilesToDescriptionMock.mockResolvedValue(
+      "[BRIEFING.md](https://blob.example/BRIEFING.md)\n\n" +
+        "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\n" +
+        "Created related task",
+    );
+    appendDesignMdToDescriptionMock.mockImplementation(
+      async (description: string) =>
+        `[DESIGN.md](https://blob.example/DESIGN.md)\n\n${description}`,
+    );
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      assigneeId: null,
+      projectId,
+      status: TaskStatus.READY,
+    });
+
+    expect(appendProjectFilesToDescriptionMock).toHaveBeenCalledWith(
+      "Created related task",
+      projectId,
+      {
+        skipBriefing: undefined,
+        skipContextMd: undefined,
+      },
+    );
+    expect(appendDesignMdToDescriptionMock).toHaveBeenCalledWith(
+      "[BRIEFING.md](https://blob.example/BRIEFING.md)\n\n" +
+        "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\n" +
+        "Created related task",
+    );
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description:
+          "[DESIGN.md](https://blob.example/DESIGN.md)\n\n" +
+          "[BRIEFING.md](https://blob.example/BRIEFING.md)\n\n" +
+          "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\n" +
+          "Created related task",
+        projectId,
+      }),
+    );
+  });
+
+  it("forwards project-file skip choices to server-side attachment resolution", async () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      assigneeId: null,
+      projectId,
+      skipProjectBriefingAttachment: true,
+      skipProjectContextMdAttachment: false,
+      status: TaskStatus.READY,
+    });
+
+    expect(appendProjectFilesToDescriptionMock).toHaveBeenCalledWith(
+      "Created related task",
+      projectId,
+      {
+        skipBriefing: true,
+        skipContextMd: false,
+      },
     );
   });
 

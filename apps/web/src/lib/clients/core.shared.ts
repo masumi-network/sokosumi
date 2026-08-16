@@ -186,6 +186,7 @@ import {
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
+  getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
@@ -2306,6 +2307,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdContextMd(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdContextMd({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch project memory",
+    );
+  }
+
   async function patchProjectsById(
     id: string,
     body: NonNullable<PatchProjectsByIdData["body"]>,
@@ -4283,6 +4297,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPendingNotices,
     getProjects,
     getProjectsById,
+    getProjectsByIdContextMd,
     getProjectsStats,
     getSharedResourceByToken,
     destroyHermesInstance,

@@ -956,6 +956,8 @@ export function TaskDetailActions({
               status,
               schedule,
               skipDesignMdAttachment,
+              skipProjectBriefingAttachment,
+              skipProjectContextMdAttachment,
               designMdAttachmentOverride,
             }) => {
               const result = await createTaskAndLink({
@@ -966,6 +968,12 @@ export function TaskDetailActions({
                 status,
                 schedule,
                 skipDesignMdAttachment,
+                ...(typeof skipProjectBriefingAttachment !== "undefined"
+                  ? { skipProjectBriefingAttachment }
+                  : {}),
+                ...(typeof skipProjectContextMdAttachment !== "undefined"
+                  ? { skipProjectContextMdAttachment }
+                  : {}),
                 designMdAttachmentOverride,
                 relation: selectedCreateRelatedOption.relation,
               });

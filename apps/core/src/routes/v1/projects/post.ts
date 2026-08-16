@@ -7,10 +7,12 @@ import {
   type OpenAPIHonoWithAuth,
   withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
+import { uploadProjectBriefingFile } from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createProjectRequestSchema,
+  mapProjectForApi,
   projectSchema,
 } from "@/schemas/project.schema";
 
@@ -44,14 +46,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
-    const project = await prisma.project.create({
+    let project = await prisma.project.create({
       data: {
         workspaceId: workspaceContext.workspaceId,
         name: body.name,
-        description: body.description ?? null,
+        briefing: body.briefing ?? null,
       },
     });
 
-    return created(c, projectSchema.parse(project));
+    if (body.briefing !== null && body.briefing !== undefined) {
+      const briefingUrl = await uploadProjectBriefingFile(
+        project.id,
+        body.briefing,
+      );
+      if (briefingUrl) {
+        project = await prisma.project.update({
+          where: { id: project.id },
+          data: { briefingUrl },
+        });
+      }
+    }
+
+    return created(c, mapProjectForApi(project));
   });
 }

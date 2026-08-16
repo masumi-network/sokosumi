@@ -18,6 +18,7 @@ const projectServiceMock = {
   addTask: vi.fn(),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
+  getProjectContextMd: vi.fn(),
   patchProject: vi.fn(),
   removeJob: vi.fn(),
   removeTask: vi.fn(),
@@ -37,7 +38,10 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     id: "project-1",
     workspaceId: "workspace-1",
     name: "Launch plan",
-    description: null,
+    briefing: null,
+    briefingUrl: null,
+    contextMd: null,
+    contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
     ...overrides,
@@ -63,12 +67,12 @@ describe("project actions", () => {
     const { revalidatePath } = await import("next/cache");
     const result = await createProject({
       name: "  Launch plan  ",
-      description: "  Ship the launch  ",
+      briefing: "  Ship the launch  ",
     });
 
     expect(projectServiceMock.createProject).toHaveBeenCalledWith({
       name: "Launch plan",
-      description: "Ship the launch",
+      briefing: "Ship the launch",
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(result).toEqual({ projectId: "project-1" });
@@ -84,12 +88,12 @@ describe("project actions", () => {
     const result = await updateProject({
       projectId: " project-1 ",
       name: " Updated launch plan ",
-      description: "   ",
+      briefing: "   ",
     });
 
     expect(projectServiceMock.patchProject).toHaveBeenCalledWith("project-1", {
       name: "Updated launch plan",
-      description: null,
+      briefing: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
@@ -153,13 +157,39 @@ describe("project actions", () => {
     );
   });
 
+  it("loads project memory through the service", async () => {
+    const contextMd = {
+      content: "# Memory",
+      url: "https://blob.example/CONTEXT.md",
+      updatedAt: "2026-08-16T10:00:00.000Z",
+      version: 1,
+      model: {
+        id: "mistral/mistral-medium-latest",
+        label: "Mistral Medium",
+        region: "eu" as const,
+      },
+      lineCount: 1,
+    };
+    projectServiceMock.getProjectContextMd.mockResolvedValue(contextMd);
+
+    const { getProjectContextMd } = await import("../action");
+    const result = await getProjectContextMd({
+      projectId: " project-1 ",
+    });
+
+    expect(projectServiceMock.getProjectContextMd).toHaveBeenCalledWith(
+      "project-1",
+    );
+    expect(result).toEqual(contextMd);
+  });
+
   it("rejects a project without a name before calling the service", async () => {
     const { createProject } = await import("../action");
 
     await expect(
       createProject({
         name: " ",
-        description: null,
+        briefing: null,
       }),
     ).rejects.toThrow("Name required");
 
@@ -178,7 +208,7 @@ describe("project actions", () => {
       updateProject({
         projectId: "project-1",
         name: "Launch plan",
-        description: null,
+        briefing: null,
       }),
     ).rejects.toThrow("Project name is already in use");
 

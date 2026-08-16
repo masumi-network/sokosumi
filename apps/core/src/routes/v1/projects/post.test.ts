@@ -61,7 +61,14 @@ describe("POST /projects", () => {
       id: "33333333-3333-4333-8333-333333333333",
       workspaceId: WORKSPACE_CONTEXT.workspaceId,
       name: "Alpha",
-      description: null,
+      briefing: null,
+      briefingUrl: null,
+      contextMd: null,
+      contextMdUrl: null,
+      contextMdUpdatedAt: null,
+      contextMdModel: null,
+      contextMdUpdatingSince: null,
+      contextMdVersion: 0,
       createdAt: new Date("2026-04-02T12:00:00.000Z"),
       updatedAt: new Date("2026-04-02T12:00:00.000Z"),
     });
@@ -81,7 +88,7 @@ describe("POST /projects", () => {
       data: {
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
         name: "Alpha",
-        description: null,
+        briefing: null,
       },
     });
   });

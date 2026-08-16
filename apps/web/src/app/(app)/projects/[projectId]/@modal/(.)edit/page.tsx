@@ -27,15 +27,13 @@ export default async function ProjectEditModalPage({
         detailsDescription: t("EditProject.detailsDescription"),
         name: t("EditProject.name"),
         namePlaceholder: t("EditProject.namePlaceholder"),
-        description: t("EditProject.description"),
-        descriptionPlaceholder: t("EditProject.descriptionPlaceholder"),
         submit: t("EditProject.save"),
         cancel: t("EditProject.cancel"),
         error: t("Detail.errors.update"),
       }}
       initialValues={{
         name: project.name,
-        description: project.description ?? "",
+        briefing: project.briefing ?? "",
       }}
     />
   );

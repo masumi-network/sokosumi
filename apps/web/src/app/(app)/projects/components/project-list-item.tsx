@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
+import { previewProjectBriefing } from "@/app/projects/project-briefing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +68,7 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const description = project.description?.trim() || "—";
+  const briefing = previewProjectBriefing(project.briefing);
 
   function handleDeleteProject() {
     startDeleteTransition(async () => {
@@ -98,7 +99,7 @@ export function ProjectListItem({
               {project.name}
             </span>
             <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
-              {description}
+              {briefing}
             </p>
           </div>
         </div>

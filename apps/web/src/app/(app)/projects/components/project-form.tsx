@@ -6,14 +6,12 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
+import { PROJECT_NAME_MAX_LENGTH } from "@/app/projects/project-briefing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { createProject, updateProject } from "@/lib/actions/project/action";
-
-const PROJECT_NAME_MAX_LENGTH = 200;
-const PROJECT_DESCRIPTION_MAX_LENGTH = 10_000;
 
 export type ProjectCreationSource = "projects_page" | "task_form";
 
@@ -22,8 +20,6 @@ export interface ProjectFormLabels {
   detailsDescription: string;
   name: string;
   namePlaceholder: string;
-  description: string;
-  descriptionPlaceholder: string;
   submit: string;
   cancel: string;
   error: string;
@@ -31,7 +27,7 @@ export interface ProjectFormLabels {
 
 interface ProjectFormInitialValues {
   name?: string;
-  description?: string | null;
+  briefing?: string | null;
 }
 
 interface ProjectFormProps {
@@ -62,9 +58,7 @@ export function ProjectForm({
   const router = useRouter();
   const isModal = variant === "modal";
   const [name, setName] = useState(initialValues?.name ?? "");
-  const [description, setDescription] = useState(
-    initialValues?.description ?? "",
-  );
+  const [briefing, setBriefing] = useState(initialValues?.briefing ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmitDisabled = !name.trim() || isSubmitting;
 
@@ -82,7 +76,7 @@ export function ProjectForm({
       const trimmedName = name.trim();
       const input = {
         name: trimmedName,
-        description: description.trim() || null,
+        briefing: briefing.trim() || null,
       };
 
       const result =
@@ -164,24 +158,11 @@ export function ProjectForm({
             />
           </div>
 
-          <div
-            className={
-              isModal ? "flex min-h-0 flex-1 flex-col space-y-2" : "space-y-2"
-            }
-          >
-            <Label htmlFor="project-description">{labels.description}</Label>
-            <Textarea
-              id="project-description"
-              maxLength={PROJECT_DESCRIPTION_MAX_LENGTH}
-              placeholder={labels.descriptionPlaceholder}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              disabled={isSubmitting}
-              className={
-                isModal ? "flex-1 resize-none" : "min-h-32 resize-none"
-              }
-            />
-          </div>
+          <ProjectBriefingField
+            value={briefing}
+            onChange={setBriefing}
+            disabled={isSubmitting}
+          />
         </div>
 
         <div

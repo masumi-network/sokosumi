@@ -19,6 +19,7 @@ import {
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { designMdService } from "@/lib/services/design-md.service";
+import { projectFilesService } from "@/lib/services/project-files.service";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
@@ -39,6 +40,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  skipProjectBriefingAttachment?: boolean;
+  skipProjectContextMdAttachment?: boolean;
   /** Attach this DESIGN.md instead of resolving the caller's own effective
    * one — e.g. a task-scoped "use a different company's branding" pick.
    * Ignored when `skipDesignMdAttachment` is true. */
@@ -100,6 +103,8 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  skipProjectBriefingAttachment?: boolean;
+  skipProjectContextMdAttachment?: boolean;
   designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
@@ -247,6 +252,8 @@ async function createTaskFromDescription(input: {
   projectId?: string | null;
   userId: string;
   skipDesignMdAttachment?: boolean;
+  skipProjectBriefingAttachment?: boolean;
+  skipProjectContextMdAttachment?: boolean;
   designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
@@ -257,17 +264,29 @@ async function createTaskFromDescription(input: {
   }
 
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
+  const descriptionWithProjectFiles = normalizedProjectId
+    ? await projectFilesService.appendProjectFilesToDescription(
+        trimmedDescription,
+        normalizedProjectId,
+        {
+          skipBriefing: input.skipProjectBriefingAttachment,
+          skipContextMd: input.skipProjectContextMdAttachment,
+        },
+      )
+    : trimmedDescription;
   const descriptionWithDesignMd = input.skipDesignMdAttachment
-    ? trimmedDescription
+    ? descriptionWithProjectFiles
     : input.designMdAttachmentOverride
       ? designMdService.withDesignMdAttachment(
-          trimmedDescription,
+          descriptionWithProjectFiles,
           resolveDesignMdAttachmentOverride(
             input.designMdAttachmentOverride,
             input.userId,
           ),
         )
-      : await designMdService.appendDesignMdToDescription(trimmedDescription);
+      : await designMdService.appendDesignMdToDescription(
+          descriptionWithProjectFiles,
+        );
 
   const task = await taskService.createTask({
     description: descriptionWithDesignMd,
@@ -416,6 +435,8 @@ export const createTask = withSession<
     projectId,
     session,
     skipDesignMdAttachment,
+    skipProjectBriefingAttachment,
+    skipProjectContextMdAttachment,
     designMdAttachmentOverride,
     status,
     schedule,
@@ -427,6 +448,8 @@ export const createTask = withSession<
         projectId,
         userId: session.user.id,
         skipDesignMdAttachment,
+        skipProjectBriefingAttachment,
+        skipProjectContextMdAttachment,
         designMdAttachmentOverride,
         status,
         schedule,
@@ -756,6 +779,8 @@ export const createTaskAndLink = withSession<
     session,
     status,
     skipDesignMdAttachment,
+    skipProjectBriefingAttachment,
+    skipProjectContextMdAttachment,
     designMdAttachmentOverride,
     schedule,
     relation,
@@ -776,6 +801,8 @@ export const createTaskAndLink = withSession<
         projectId,
         userId: session.user.id,
         skipDesignMdAttachment,
+        skipProjectBriefingAttachment,
+        skipProjectContextMdAttachment,
         designMdAttachmentOverride,
         status,
         schedule,

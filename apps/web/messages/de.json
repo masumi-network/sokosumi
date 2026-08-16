@@ -1840,6 +1840,15 @@
           "useDifferentBranding": "Anderes Branding verwenden",
           "resetToDefault": "Branding zurücksetzen"
         },
+        "ProjectFilesAttachment": {
+          "briefingDescription": "Projektbriefing",
+          "briefingInfo": "BRIEFING.md enthält Ziele, Zielgruppe, Kanäle, Zeitplan und Vorgaben des Projekts. Sie gibt dem Coworker den nötigen Kontext für diesen Task.",
+          "briefingInfoAria": "Über BRIEFING.md",
+          "contextDescription": "Projektgedächtnis",
+          "contextDescriptionUpdated": "Projektgedächtnis · {when} aktualisiert",
+          "contextInfo": "CONTEXT.md ist das fortlaufende Projektgedächtnis und wird aktualisiert, wenn Tasks abgeschlossen werden. So kann der Coworker Entscheidungen und Erkenntnisse wiederverwenden.",
+          "contextInfoAria": "Über CONTEXT.md"
+        },
         "title": "Neuer Task",
         "details": "Details",
         "detailsDescription": "Beschreibe kurz die zu erledigende Aufgabe",
@@ -2046,25 +2055,61 @@
           }
         }
       },
-      "NewProject": {
+      "Briefing": {
+        "label": "Briefing",
+        "placeholder": "Beschreibe die Kampagne oder Initiative…",
+        "guidance": "Beschreibe Kampagne/Initiative: Ziele, Zielgruppe, Kanäle, Zeitplan, Ton & Stimme, KPIs, Must-haves / Must-avoids.",
+        "wordCount": "{count, plural, =0 {0 Wörter} =1 {1 Wort} other {# Wörter}}",
+        "encouragement": "Gute Briefings haben 300+ Wörter — je mehr du schreibst, desto besser wird jeder Task.",
+        "encouragementMet": "Starkes Briefing — jeder Task hat den nötigen Kontext.",
+        "chips": {
+          "goals": "Ziele",
+          "audience": "Zielgruppe",
+          "channels": "Kanäle",
+          "timeline": "Zeitplan",
+          "tone": "Ton & Stimme",
+          "kpis": "KPIs",
+          "mustHaves": "Must-haves",
+          "mustAvoids": "Must-avoids"
+        }
+      },
+      "Wizard": {
         "title": "Neues Projekt",
-        "details": "Details",
-        "detailsDescription": "Gib dem Projekt einen Namen und optionalen Kontext.",
+        "stepLabel": "{current} / {total}",
+        "name": {
+          "title": "Projekt benennen",
+          "subtitle": "Ein kurzer Titel für die Kampagne oder Initiative."
+        },
+        "briefing": {
+          "title": "Briefing schreiben",
+          "subtitle": "Je mehr du schreibst, desto besser wird jeder Task in diesem Projekt."
+        },
+        "review": {
+          "title": "Prüfen und erstellen",
+          "subtitle": "Du kannst das Briefing jederzeit bearbeiten.",
+          "nameLabel": "Name",
+          "briefingLabel": "Briefing",
+          "emptyBriefing": "Noch kein Briefing — du kannst es nach dem Erstellen ergänzen.",
+          "briefingNote": "Dieses Briefing wird als BRIEFING.md gespeichert und an jeden neuen Task angehängt.",
+          "memoryNote": "Das Projekt führt außerdem ein Gedächtnis (CONTEXT.md), das mit abgeschlossenen Tasks wächst."
+        },
+        "nav": {
+          "next": "Weiter",
+          "back": "Zurück",
+          "create": "Projekt erstellen",
+          "creating": "Wird erstellt…"
+        }
+      },
+      "NewProject": {
         "name": "Projektname",
-        "namePlaceholder": "Kurzen Titel eingeben",
-        "description": "Beschreibung",
-        "descriptionPlaceholder": "Projektkontext hinzufügen...",
-        "createProject": "Projekt erstellen",
-        "cancel": "Abbrechen"
+        "namePlaceholder": "Kurzen Titel eingeben"
       },
       "EditProject": {
         "title": "Projekt bearbeiten",
         "details": "Details",
-        "detailsDescription": "Aktualisiere die Projektdetails.",
+        "detailsDescription": "Aktualisiere Name und Briefing des Projekts.",
         "name": "Projektname",
         "namePlaceholder": "Kurzen Titel eingeben",
-        "description": "Beschreibung",
-        "descriptionPlaceholder": "Projektkontext aktualisieren...",
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
@@ -2074,8 +2119,21 @@
           "updated": "Aktualisiert",
           "created": "Erstellt"
         },
-        "description": "Beschreibung",
-        "emptyDescription": "Noch keine Beschreibung.",
+        "briefing": "Briefing",
+        "emptyBriefing": "Noch kein Briefing.",
+        "editBriefing": "Bearbeiten",
+        "showMore": "Mehr anzeigen",
+        "showLess": "Weniger anzeigen",
+        "memory": {
+          "fileName": "CONTEXT.md",
+          "updated": "Aktualisiert {when}",
+          "updating": "Wird aktualisiert…",
+          "empty": "Gedächtnis wächst, wenn Tasks abgeschlossen werden",
+          "title": "Projektgedächtnis",
+          "copyLink": "Link kopieren",
+          "openRaw": "Rohdatei öffnen",
+          "copied": "Kopiert"
+        },
         "jobs": {
           "title": "Jobs",
           "empty": "Diesem Projekt sind noch keine Jobs zugeordnet.",
@@ -2124,7 +2182,8 @@
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
           "removeTask": "Task konnte nicht entfernt werden",
-          "loadMore": "Weitere Projekte konnten nicht geladen werden"
+          "loadMore": "Weitere Projekte konnten nicht geladen werden",
+          "contextMd": "Projektgedächtnis konnte nicht geladen werden"
         }
       }
     },

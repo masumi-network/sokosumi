@@ -439,8 +439,15 @@ model Project {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  name        String
-  description String?
+  name                   String
+  briefing               String?
+  briefingUrl            String?
+  contextMd              String?
+  contextMdUrl           String?
+  contextMdUpdatedAt     DateTime?
+  contextMdModel         String?
+  contextMdUpdatingSince DateTime?
+  contextMdVersion       Int       @default(0)
 
   jobs  Job[]
   tasks Task[]

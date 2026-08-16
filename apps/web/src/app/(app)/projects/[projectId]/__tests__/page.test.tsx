@@ -34,8 +34,12 @@ vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: () => null,
 }));
 
-vi.mock("@/app/projects/components/project-description", () => ({
-  ProjectDescription: () => null,
+vi.mock("@/app/projects/components/project-briefing", () => ({
+  ProjectBriefing: () => null,
+}));
+
+vi.mock("@/app/projects/components/project-memory-row", () => ({
+  ProjectMemoryRow: () => null,
 }));
 
 vi.mock("@/app/projects/components/project-jobs-section", () => ({
@@ -51,7 +55,10 @@ function buildProject() {
     id: "project-1",
     workspaceId: "workspace-1",
     name: "Launch plan",
-    description: null,
+    briefing: null,
+    briefingUrl: null,
+    contextMd: null,
+    contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   };

@@ -187,6 +187,60 @@ vi.mock("../task-design-md-attachment", () => ({
   ),
 }));
 
+vi.mock("../task-project-files-attachment", () => ({
+  TaskProjectFilesAttachmentField: ({
+    selection,
+    onSelectionChange,
+    contextMdUpdatedAt,
+  }: {
+    selection: {
+      briefingEnabled: boolean;
+      contextMdEnabled: boolean;
+    };
+    onSelectionChange: (next: {
+      briefingEnabled: boolean;
+      contextMdEnabled: boolean;
+    }) => void;
+    contextMdUpdatedAt?: string | Date | null;
+  }) => (
+    <div
+      data-testid="project-files-attachment"
+      data-context-updated-at={
+        typeof contextMdUpdatedAt === "string"
+          ? contextMdUpdatedAt
+          : contextMdUpdatedAt?.toISOString()
+      }
+    >
+      <label>
+        <input
+          type="checkbox"
+          aria-label="project-briefing-attachment"
+          checked={selection.briefingEnabled}
+          onChange={(event) =>
+            onSelectionChange({
+              ...selection,
+              briefingEnabled: event.target.checked,
+            })
+          }
+        />
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          aria-label="project-context-md-attachment"
+          checked={selection.contextMdEnabled}
+          onChange={(event) =>
+            onSelectionChange({
+              ...selection,
+              contextMdEnabled: event.target.checked,
+            })
+          }
+        />
+      </label>
+    </div>
+  ),
+}));
+
 const baseLabels = {
   details: "Details",
   detailsDescription: "Describe the task",
@@ -240,6 +294,7 @@ const projectOptions = [
   {
     id: "project-1",
     name: "Alpha Project",
+    contextMdUpdatedAt: new Date("2026-08-16T08:00:00.000Z"),
   },
   {
     id: "project-2",
@@ -759,6 +814,33 @@ describe("TaskForm", () => {
     );
   });
 
+  it("shows default-enabled project files for a project-page prefill", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        defaultProjectId="project-1"
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("project-files-attachment")).toHaveAttribute(
+      "data-context-updated-at",
+      "2026-08-16T08:00:00.000Z",
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "project-briefing-attachment" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "project-context-md-attachment" }),
+    ).toBeChecked();
+  });
+
   it("shows the DESIGN.md attachment field without seeding it into the description", () => {
     render(
       <TaskForm
@@ -962,6 +1044,43 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-1",
+        skipProjectBriefingAttachment: false,
+        skipProjectContextMdAttachment: false,
+      }),
+    );
+  });
+
+  it("passes unchecked project-file choices to task creation", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "project-context-md-attachment",
+      }),
+    );
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        skipProjectBriefingAttachment: false,
+        skipProjectContextMdAttachment: true,
       }),
     );
   });

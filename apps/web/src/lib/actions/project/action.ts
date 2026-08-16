@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { toCoreApiActionError } from "@/lib/clients/core.client";
+import type { ProjectContextMd } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,
@@ -11,13 +12,17 @@ import {
 
 interface CreateProjectParameters extends AuthenticatedRequest {
   name: string;
-  description?: string | null;
+  briefing?: string | null;
 }
 
 interface UpdateProjectParameters extends AuthenticatedRequest {
   projectId: string;
   name: string;
-  description?: string | null;
+  briefing?: string | null;
+}
+
+interface GetProjectContextMdParameters extends AuthenticatedRequest {
+  projectId: string;
 }
 
 interface DeleteProjectParameters extends AuthenticatedRequest {
@@ -38,11 +43,9 @@ function normalizeProjectName(name: string): string {
   return name.trim();
 }
 
-function normalizeProjectDescription(
-  description?: string | null,
-): string | null {
-  const trimmedDescription = description?.trim();
-  return trimmedDescription ? trimmedDescription : null;
+function normalizeProjectBriefing(briefing?: string | null): string | null {
+  const trimmedBriefing = briefing?.trim();
+  return trimmedBriefing ? trimmedBriefing : null;
 }
 
 function revalidateProjectMutationRoutes(projectId: string) {
@@ -58,7 +61,7 @@ function throwCoreActionError(error: unknown, fallbackMessage: string): never {
 export const createProject = withSession<
   CreateProjectParameters,
   { projectId: string }
->(async ({ name, description }) => {
+>(async ({ name, briefing }) => {
   const normalizedName = normalizeProjectName(name);
   if (!normalizedName) {
     throw new Error("Name required");
@@ -67,7 +70,7 @@ export const createProject = withSession<
   try {
     const project = await projectService.createProject({
       name: normalizedName,
-      description: normalizeProjectDescription(description),
+      briefing: normalizeProjectBriefing(briefing),
     });
 
     revalidatePath("/projects");
@@ -81,7 +84,7 @@ export const createProject = withSession<
 export const updateProject = withSession<
   UpdateProjectParameters,
   { projectId: string }
->(async ({ projectId, name, description }) => {
+>(async ({ projectId, name, briefing }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedName = normalizeProjectName(name);
   if (!normalizedProjectId) {
@@ -94,7 +97,7 @@ export const updateProject = withSession<
   try {
     await projectService.patchProject(normalizedProjectId, {
       name: normalizedName,
-      description: normalizeProjectDescription(description),
+      briefing: normalizeProjectBriefing(briefing),
     });
 
     revalidateProjectMutationRoutes(normalizedProjectId);
@@ -102,6 +105,29 @@ export const updateProject = withSession<
   } catch (error) {
     console.error("Failed to update project", error);
     throwCoreActionError(error, "Failed to update project");
+  }
+});
+
+export const getProjectContextMd = withSession<
+  GetProjectContextMdParameters,
+  ProjectContextMd
+>(async ({ projectId }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    throw new Error("Project required");
+  }
+
+  try {
+    const contextMd =
+      await projectService.getProjectContextMd(normalizedProjectId);
+    if (!contextMd) {
+      throw new Error("Context not found");
+    }
+
+    return contextMd;
+  } catch (error) {
+    console.error("Failed to load project memory", error);
+    throwCoreActionError(error, "Failed to load project memory");
   }
 });
 

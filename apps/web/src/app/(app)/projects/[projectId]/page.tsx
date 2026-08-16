@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { ProjectDescription } from "@/app/projects/components/project-description";
+import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
+import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectStatsSummary } from "@/app/projects/components/project-stats-summary";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
 import { buildTaskStatusAbbreviationLabels } from "@/app/tasks/utils/task-status-labels";
@@ -102,6 +103,14 @@ export default async function ProjectDetailPage({
           }
         />
 
+        <div className="mt-3">
+          <ProjectMemoryRow
+            projectId={project.id}
+            contextMd={project.contextMd}
+            contextMdUpdating={project.contextMdUpdating}
+          />
+        </div>
+
         <div className="mt-6 space-y-8">
           <ProjectStatsSummary
             stats={projectStats}
@@ -120,10 +129,14 @@ export default async function ProjectDetailPage({
             }}
           />
 
-          <ProjectDescription
-            title={t("description")}
-            description={project.description}
-            emptyLabel={t("emptyDescription")}
+          <ProjectBriefing
+            title={t("briefing")}
+            briefing={project.briefing}
+            emptyLabel={t("emptyBriefing")}
+            editHref={`/projects/${project.id}/edit`}
+            editLabel={t("editBriefing")}
+            showMoreLabel={t("showMore")}
+            showLessLabel={t("showLess")}
           />
 
           <ProjectJobsSection

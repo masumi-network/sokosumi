@@ -1840,6 +1840,15 @@
           "useDifferentBranding": "Use different branding",
           "resetToDefault": "Reset branding"
         },
+        "ProjectFilesAttachment": {
+          "briefingDescription": "Project briefing",
+          "briefingInfo": "BRIEFING.md contains the project's goals, audience, channels, timeline, and constraints. It gives the coworker essential context for this task.",
+          "briefingInfoAria": "About BRIEFING.md",
+          "contextDescription": "Project memory",
+          "contextDescriptionUpdated": "Project memory · updated {when}",
+          "contextInfo": "CONTEXT.md is the project's living memory, updated as tasks complete. It helps the coworker reuse decisions and learnings.",
+          "contextInfoAria": "About CONTEXT.md"
+        },
         "title": "New Task",
         "details": "Details",
         "detailsDescription": "Briefly explain the task that needs to be done",
@@ -2046,25 +2055,61 @@
           }
         }
       },
+      "Briefing": {
+        "label": "Briefing",
+        "placeholder": "Describe the campaign or initiative…",
+        "guidance": "Describe the campaign/initiative: goals, audience, channels, timeline, tone & voice, KPIs, must-haves / must-avoids.",
+        "wordCount": "{count, plural, =0 {0 words} =1 {1 word} other {# words}}",
+        "encouragement": "Great briefings are 300+ words — the more you write, the better every task turns out.",
+        "encouragementMet": "Strong briefing — every task will have the context it needs.",
+        "chips": {
+          "goals": "Goals",
+          "audience": "Audience",
+          "channels": "Channels",
+          "timeline": "Timeline",
+          "tone": "Tone & voice",
+          "kpis": "KPIs",
+          "mustHaves": "Must-haves",
+          "mustAvoids": "Must-avoids"
+        }
+      },
+      "Wizard": {
+        "title": "New project",
+        "stepLabel": "{current} / {total}",
+        "name": {
+          "title": "Name this project",
+          "subtitle": "A short title for the campaign or initiative."
+        },
+        "briefing": {
+          "title": "Write the briefing",
+          "subtitle": "The more you write, the better every task in this project turns out."
+        },
+        "review": {
+          "title": "Review and create",
+          "subtitle": "You can edit the briefing anytime.",
+          "nameLabel": "Name",
+          "briefingLabel": "Briefing",
+          "emptyBriefing": "No briefing yet — you can add one after creating.",
+          "briefingNote": "This briefing is saved as BRIEFING.md and attached to every new task.",
+          "memoryNote": "The project also keeps a memory (CONTEXT.md) that improves as tasks complete."
+        },
+        "nav": {
+          "next": "Continue",
+          "back": "Back",
+          "create": "Create project",
+          "creating": "Creating…"
+        }
+      },
       "NewProject": {
-        "title": "New Project",
-        "details": "Details",
-        "detailsDescription": "Name the project and add optional context.",
         "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Add project context...",
-        "createProject": "Create Project",
-        "cancel": "Cancel"
+        "namePlaceholder": "Enter a short title"
       },
       "EditProject": {
         "title": "Edit Project",
         "details": "Details",
-        "detailsDescription": "Update the project details.",
+        "detailsDescription": "Update the project name and briefing.",
         "name": "Project name",
         "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Update project context...",
         "save": "Save",
         "cancel": "Cancel"
       },
@@ -2074,8 +2119,21 @@
           "updated": "Updated",
           "created": "Created"
         },
-        "description": "Description",
-        "emptyDescription": "No description yet.",
+        "briefing": "Briefing",
+        "emptyBriefing": "No briefing yet.",
+        "editBriefing": "Edit",
+        "showMore": "Show more",
+        "showLess": "Show less",
+        "memory": {
+          "fileName": "CONTEXT.md",
+          "updated": "Updated {when}",
+          "updating": "Updating…",
+          "empty": "Memory builds as tasks complete",
+          "title": "Project memory",
+          "copyLink": "Copy link",
+          "openRaw": "Open raw",
+          "copied": "Copied"
+        },
         "jobs": {
           "title": "Jobs",
           "empty": "No jobs linked to this project yet.",
@@ -2124,7 +2182,8 @@
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
           "removeTask": "Failed to remove task",
-          "loadMore": "Failed to load more projects"
+          "loadMore": "Failed to load more projects",
+          "contextMd": "Couldn't load project memory"
         }
       }
     },

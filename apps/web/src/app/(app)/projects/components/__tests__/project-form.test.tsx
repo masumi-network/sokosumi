@@ -30,13 +30,23 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => {
+    return (key: string, values?: Record<string, unknown>) => {
+      if (key === "label") return "Briefing";
+      if (key === "placeholder") return "Briefing";
+      if (key === "wordCount") return `${values?.count ?? 0} words`;
+      if (key.startsWith("chips.")) return key.slice("chips.".length);
+      return key;
+    };
+  },
+}));
+
 const baseLabels = {
   details: "Details",
   detailsDescription: "Describe the project",
   name: "Project name",
   namePlaceholder: "Name",
-  description: "Description",
-  descriptionPlaceholder: "Description",
   submit: "Save project",
   cancel: "Cancel",
   error: "Project could not be saved",
@@ -87,13 +97,13 @@ describe("ProjectForm", () => {
     );
 
     await user.type(screen.getByLabelText("Project name"), "  Launch plan  ");
-    await user.type(screen.getByLabelText("Description"), "  Ship it  ");
+    await user.type(screen.getByLabelText("Briefing"), "  Ship it  ");
     await user.click(screen.getByRole("button", { name: "Save project" }));
 
     await waitFor(() => {
       expect(createProjectMock).toHaveBeenCalledWith({
         name: "Launch plan",
-        description: "Ship it",
+        briefing: "Ship it",
       });
     });
     expect(onSuccess).toHaveBeenCalledWith("project-1", "Launch plan");
@@ -140,7 +150,7 @@ describe("ProjectForm", () => {
         labels={baseLabels}
         initialValues={{
           name: "Old name",
-          description: "Old description",
+          briefing: "Old briefing",
         }}
         showCancel={false}
       />,
@@ -148,15 +158,15 @@ describe("ProjectForm", () => {
 
     await user.clear(screen.getByLabelText("Project name"));
     await user.type(screen.getByLabelText("Project name"), " Updated name ");
-    await user.clear(screen.getByLabelText("Description"));
-    await user.type(screen.getByLabelText("Description"), "   ");
+    await user.clear(screen.getByLabelText("Briefing"));
+    await user.type(screen.getByLabelText("Briefing"), "   ");
     await user.click(screen.getByRole("button", { name: "Save project" }));
 
     await waitFor(() => {
       expect(updateProjectMock).toHaveBeenCalledWith({
         projectId: "project-1",
         name: "Updated name",
-        description: null,
+        briefing: null,
       });
     });
     expect(pushMock).toHaveBeenCalledWith("/projects/project-1");
