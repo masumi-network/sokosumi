@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { FormEvent } from "react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { RoomMessageComposer } from "../room-message-composer";
@@ -45,9 +46,57 @@ describe("RoomMessageComposer send pointer path", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(editor);
 
-    // Follow-up click must not double-submit.
-    fireEvent.click(send);
+    // Follow-up pointer click (detail >= 1) must not double-submit.
+    fireEvent.click(send, { detail: 1 });
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("still submits via keyboard after pointer submit disables then re-enables Send", () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    function Harness() {
+      const [sendDisabled, setSendDisabled] = useState(false);
+      return (
+        <RoomMessageComposer
+          onSubmit={(event) => {
+            onSubmit(event);
+            // Mimic draft clear: Send disables before the follow-up click.
+            setSendDisabled(true);
+          }}
+          attachments={[]}
+          onRemoveAttachment={() => undefined}
+          removeAttachmentLabel={(name) => name}
+          isSending={false}
+          sendDisabled={sendDisabled}
+          sendAriaLabel="Send"
+        >
+          <div role="textbox" contentEditable tabIndex={0} />
+          <button type="button" onClick={() => setSendDisabled(false)}>
+            re-enable
+          </button>
+        </RoomMessageComposer>
+      );
+    }
+
+    render(<Harness />);
+
+    const send = screen.getByRole("button", { name: "Send" });
+    fireEvent.pointerDown(send, { button: 0 });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(send).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "re-enable" }));
+    expect(send).not.toBeDisabled();
+
+    // Synthetic follow-up pointer click must stay ignored (detail: 1).
+    fireEvent.click(send, { detail: 1 });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    // Keyboard activation (detail: 0) must still submit — no stale latch.
+    fireEvent.click(send, { detail: 0 });
+    expect(onSubmit).toHaveBeenCalledTimes(2);
   });
 
   it("does not submit when send is disabled", () => {
