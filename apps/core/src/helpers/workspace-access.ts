@@ -11,13 +11,13 @@ export const WORKSPACE_GATE_STATUSES = [
 
 export type WorkspaceGateStatus = (typeof WORKSPACE_GATE_STATUSES)[number];
 
-export interface WorkspaceInventoryFacts {
+export interface WorkspaceAccessFacts {
   hasPersonalWorkspace: boolean;
   hasOrganizationMembership: boolean;
   hasPendingOrganizationInvites: boolean;
 }
 
-export interface WorkspaceInventory extends WorkspaceInventoryFacts {
+export interface WorkspaceAccess extends WorkspaceAccessFacts {
   gate: WorkspaceGateStatus;
 }
 
@@ -27,7 +27,7 @@ export interface WorkspaceInventory extends WorkspaceInventoryFacts {
  * pending org invitations yield `pending-invites`; else identity onboarding.
  */
 export function deriveWorkspaceGate(
-  facts: WorkspaceInventoryFacts,
+  facts: WorkspaceAccessFacts,
 ): WorkspaceGateStatus {
   if (facts.hasPersonalWorkspace || facts.hasOrganizationMembership) {
     return "ready";
@@ -39,14 +39,14 @@ export function deriveWorkspaceGate(
 }
 
 /**
- * Loads inventory facts for a user and derives the workspace gate.
+ * Loads access facts for a user and derives the workspace gate.
  * Pending invites: non-expired PENDING organization invitations for the user's
  * email (trim + lowercase). Join-link mid-flow is not counted here.
  */
-export async function loadWorkspaceInventory(
+export async function loadWorkspaceAccess(
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<WorkspaceInventory> {
+): Promise<WorkspaceAccess> {
   const user = await tx.user.findUnique({
     where: { id: userId },
     select: { email: true },
@@ -82,7 +82,7 @@ export async function loadWorkspaceInventory(
     }),
   ]);
 
-  const facts: WorkspaceInventoryFacts = {
+  const facts: WorkspaceAccessFacts = {
     hasPersonalWorkspace: personalWorkspace != null,
     hasOrganizationMembership: membership != null,
     hasPendingOrganizationInvites: pendingInvite != null,
