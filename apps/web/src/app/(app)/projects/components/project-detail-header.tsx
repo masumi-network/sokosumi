@@ -1,6 +1,8 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+
 interface ProjectDetailHeaderMetadataItem {
   label: string;
   value: string;
@@ -8,6 +10,7 @@ interface ProjectDetailHeaderMetadataItem {
 
 interface ProjectDetailHeaderProps {
   projectName: string;
+  projectLogo?: string | null;
   backLabel: string;
   metadata: ProjectDetailHeaderMetadataItem[];
   actions?: React.ReactNode;
@@ -15,6 +18,7 @@ interface ProjectDetailHeaderProps {
 
 export function ProjectDetailHeader({
   projectName,
+  projectLogo,
   backLabel,
   metadata,
   actions,
@@ -34,9 +38,16 @@ export function ProjectDetailHeader({
       </div>
 
       <div className="space-y-3">
-        <h1 className="text-xl leading-tight font-semibold tracking-tight">
-          {projectName}
-        </h1>
+        <div className="flex items-center gap-3">
+          <ProjectAvatar
+            name={projectName}
+            logo={projectLogo}
+            className="size-10 rounded-lg text-sm"
+          />
+          <h1 className="text-xl leading-tight font-semibold tracking-tight">
+            {projectName}
+          </h1>
+        </div>
 
         <dl className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
           {metadata.map((item) => (

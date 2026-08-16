@@ -133,7 +133,10 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     (project) => ({
       id: project.id,
       name: project.name,
-      contextMdUpdatedAt: project.contextMd?.updatedAt ?? null,
+      logo: project.logo,
+      designMd: project.designMd,
+      briefingUrl: project.briefingUrl,
+      contextMd: project.contextMd,
     }),
   );
   if (
@@ -148,7 +151,10 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         {
           id: selectedProject.id,
           name: selectedProject.name,
-          contextMdUpdatedAt: selectedProject.contextMd?.updatedAt ?? null,
+          logo: selectedProject.logo,
+          designMd: selectedProject.designMd,
+          briefingUrl: selectedProject.briefingUrl,
+          contextMd: selectedProject.contextMd,
         },
         ...projectOptions,
       ];

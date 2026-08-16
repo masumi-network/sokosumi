@@ -3,8 +3,13 @@ import {
   type Project as DatabaseProject,
   TaskStatus,
 } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  isDesignMdBlobUrl,
+  isProjectLogoBlobUrl,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import {
   sokosumiJobStatusSchema,
@@ -12,6 +17,56 @@ import {
 } from "@/schemas/domain-enums.schema";
 
 const PROJECT_MEMORY_UPDATING_WINDOW_MS = 5 * 60 * 1000;
+
+const projectWebsiteUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .url()
+  .refine((value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  }, "Website URL must use HTTP or HTTPS");
+
+const projectLogoUrlSchema = z
+  .string()
+  .url()
+  .refine(
+    isProjectLogoBlobUrl,
+    "Logo must be a Vercel Blob URL under projects/{projectId}/logos/",
+  );
+
+const projectDesignMdUrlSchema = z
+  .string()
+  .url()
+  .refine(isDesignMdBlobUrl, "URL must reference a stored DESIGN.md blob");
+
+export const projectDesignMdSchema = z
+  .object({
+    url: projectDesignMdUrlSchema,
+    extractionId: z.string().nullable(),
+  })
+  .openapi("ProjectDesignMd");
+
+const projectDesignMdInputSchema = z.object({
+  url: projectDesignMdUrlSchema,
+  extractionId: z.string().nullish().optional(),
+});
+
+export const projectDesignMdWriteSchema = z
+  .object({
+    content: z
+      .string()
+      .refine((value) => value.trim().length > 0, "DESIGN.md must not be empty")
+      .refine(
+        (value) =>
+          Buffer.byteLength(value, "utf8") <= LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
+        `DESIGN.md exceeds the maximum size of ${LIMITS.DESIGN_MD_MAX_SIZE_BYTES} bytes`,
+      )
+      .openapi({ example: "# DESIGN.md\n\nBrand guidelines…" }),
+    extractionId: z.string().nullish().optional().openapi({ example: "12345" }),
+  })
+  .openapi("ProjectDesignMdWrite");
 
 export const PROJECT_MEMORY_MODEL_LABELS: Readonly<Record<string, string>> = {
   "mistral/mistral-medium-3.5": "Mistral Medium",
@@ -59,6 +114,15 @@ export const projectSchema = z
       example:
         "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md",
     }),
+    websiteUrl: z.url().nullable().openapi({ example: "https://example.com" }),
+    logo: z.url().nullable().openapi({
+      example:
+        "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png",
+    }),
+    designMd: z.union([projectDesignMdSchema, z.null()]).openapi({
+      description: "Project-owned brand DESIGN.md, or null when none exists.",
+      example: null,
+    }),
     // Union-with-null instead of `.nullable()`: `.nullable()` on a named
     // `.openapi(...)` schema drops `| null` from the generated client and makes
     // the transformer call the date converter unconditionally (crashing on
@@ -90,6 +154,9 @@ export const createProjectRequestSchema = z
       .max(20_000)
       .nullish()
       .openapi({ example: "Optional campaign briefing" }),
+    websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
+    logo: projectLogoUrlSchema.nullish().optional(),
+    designMd: z.union([projectDesignMdInputSchema, z.null()]).optional(),
   })
   .openapi("CreateProjectRequest");
 
@@ -97,12 +164,22 @@ export const patchProjectRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     briefing: z.string().trim().max(20_000).nullish().optional(),
+    websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
+    logo: projectLogoUrlSchema.nullish().optional(),
+    designMd: z.union([projectDesignMdInputSchema, z.null()]).optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.name === undefined && data.briefing === undefined) {
+    if (
+      data.name === undefined &&
+      data.briefing === undefined &&
+      data.websiteUrl === undefined &&
+      data.logo === undefined &&
+      data.designMd === undefined
+    ) {
       ctx.addIssue({
         code: "custom",
-        message: "Provide at least one of name or briefing",
+        message:
+          "Provide at least one of name, briefing, websiteUrl, logo, or designMd",
         path: [],
       });
     }
@@ -213,6 +290,14 @@ export function mapProjectForApi(
     name: project.name,
     briefing: project.briefing,
     briefingUrl: project.briefingUrl,
+    websiteUrl: project.websiteUrl,
+    logo: project.logo,
+    designMd: project.designMdUrl
+      ? {
+          url: project.designMdUrl,
+          extractionId: project.designMdExtractionId,
+        }
+      : null,
     contextMd: contextMd
       ? {
           url: contextMd.url,

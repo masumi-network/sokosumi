@@ -16,6 +16,7 @@ const {
   projectFindFirstMock,
   prismaTransactionMock,
   requestWorkspaceGrantMock,
+  resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
   workspaceFindUniqueMock,
@@ -27,6 +28,7 @@ const {
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requestWorkspaceGrantMock: vi.fn(),
+  resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
   taskCreateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -119,6 +121,10 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
 }));
 
+vi.mock("@/helpers/design-md-effective", () => ({
+  resolveEffectiveDesignMd: resolveEffectiveDesignMdMock,
+}));
+
 vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/helpers/vendor-grants")>();
@@ -175,6 +181,7 @@ function mockWorkspaceGrantInTransaction(
 describe("createTaskRequestSchema", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
   });
 
   it("defaults status to DRAFT when omitted", () => {
@@ -338,6 +345,27 @@ describe("createTaskRequestSchema", () => {
 
     expect(result.channel).toBe(Channel.SOKOSUMI);
   });
+
+  it("accepts a custom DESIGN.md context URL and rejects external URLs", () => {
+    const validUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/ad-hoc/example.md";
+
+    expect(
+      createTaskRequestSchema.parse({
+        name: "Custom brand",
+        assigneeId: null,
+        context: { brand: { url: validUrl } },
+      }).context,
+    ).toEqual({ brand: { url: validUrl } });
+
+    expect(
+      createTaskRequestSchema.safeParse({
+        name: "External brand",
+        assigneeId: null,
+        context: { brand: { url: "https://example.com/DESIGN.md" } },
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("POST /tasks", () => {
@@ -370,6 +398,7 @@ describe("POST /tasks", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
     taskCreateMock.mockResolvedValue({ id: "tsk_123" });
     mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
@@ -443,7 +472,12 @@ describe("POST /tasks", () => {
         id: projectId,
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
-      select: { id: true },
+      select: {
+        id: true,
+        designMdUrl: true,
+        briefingUrl: true,
+        contextMdUrl: true,
+      },
     });
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -475,6 +509,177 @@ describe("POST /tasks", () => {
 
     expect(response.status).toBe(404);
     expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("prepends project brand, briefing, and memory by default", async () => {
+    const app = createApp();
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const designMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
+    const briefingUrl = "https://store.public.blob.vercel-storage.com/brief.md";
+    const contextMdUrl =
+      "https://store.public.blob.vercel-storage.com/context.md";
+    projectFindFirstMock.mockResolvedValue({
+      id: projectId,
+      designMdUrl,
+      briefingUrl,
+      contextMdUrl,
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Project task",
+        description: "Original description",
+        projectId,
+        assigneeId: null,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${designMdUrl})\n[BRIEFING.md](${briefingUrl})\n[CONTEXT.md](${contextMdUrl})\n\nOriginal description`,
+        }),
+      }),
+    );
+    expect(resolveEffectiveDesignMdMock).not.toHaveBeenCalled();
+  });
+
+  it("honors explicit context opt-outs", async () => {
+    const app = createApp();
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    projectFindFirstMock.mockResolvedValue({
+      id: projectId,
+      designMdUrl:
+        "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md",
+      briefingUrl: "https://store.public.blob.vercel-storage.com/brief.md",
+      contextMdUrl: "https://store.public.blob.vercel-storage.com/context.md",
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "No context",
+        description: "Original description",
+        projectId,
+        assigneeId: null,
+        context: { brand: false, briefing: false, memory: false },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ description: "Original description" }),
+      }),
+    );
+    expect(resolveEffectiveDesignMdMock).not.toHaveBeenCalled();
+  });
+
+  it("uses effective workspace brand when requested", async () => {
+    const app = createApp();
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const workspaceDesignMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/organizations/brand.md";
+    projectFindFirstMock.mockResolvedValue({
+      id: projectId,
+      designMdUrl:
+        "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md",
+      briefingUrl: null,
+      contextMdUrl: null,
+    });
+    resolveEffectiveDesignMdMock.mockResolvedValue({
+      label: "DESIGN.md",
+      url: workspaceDesignMdUrl,
+      owner: { type: "organization", name: "Acme", logo: null },
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Workspace brand",
+        projectId,
+        assigneeId: null,
+        context: { brandSource: "workspace" },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${workspaceDesignMdUrl})`,
+        }),
+      }),
+    );
+  });
+
+  it("does not duplicate context links already in description", async () => {
+    const app = createApp();
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const designMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
+    const briefingUrl = "https://store.public.blob.vercel-storage.com/brief.md";
+    const description = `[DESIGN.md](${designMdUrl})\n[BRIEFING.md](${briefingUrl})\n\nOriginal`;
+    projectFindFirstMock.mockResolvedValue({
+      id: projectId,
+      designMdUrl,
+      briefingUrl,
+      contextMdUrl: null,
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Idempotent",
+        description,
+        projectId,
+        assigneeId: null,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ description }),
+      }),
+    );
+  });
+
+  it("attaches only effective brand when task has no project", async () => {
+    const app = createApp();
+    const designMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/users/brand.md";
+    resolveEffectiveDesignMdMock.mockResolvedValue({
+      label: "DESIGN.md",
+      url: designMdUrl,
+      owner: { type: "user" },
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Personal task",
+        description: "Original",
+        assigneeId: null,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${designMdUrl})\n\nOriginal`,
+        }),
+      }),
+    );
   });
 
   it("generates a name from the description when name is omitted", async () => {
@@ -615,6 +820,7 @@ describe("POST /tasks orchestrator create", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
     taskCreateMock.mockResolvedValue({ id: "tsk_orch" });
     mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
@@ -750,6 +956,7 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_123" });
     taskCreateMock.mockImplementation(
@@ -984,7 +1191,12 @@ describe("POST /tasks delegated coworker create grant", () => {
         id: projectId,
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
-      select: { id: true },
+      select: {
+        id: true,
+        designMdUrl: true,
+        briefingUrl: true,
+        contextMdUrl: true,
+      },
     });
     expect(requestWorkspaceGrantMock).not.toHaveBeenCalled();
     expect(taskCreateMock).not.toHaveBeenCalled();

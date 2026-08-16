@@ -1828,26 +1828,19 @@
         "files": "Dateien"
       },
       "NewTask": {
-        "DesignMdAttachment": {
-          "organizationLabel": "{organization} Markendesign",
-          "personalLabel": "Dein Markendesign",
-          "customLabel": "{hostname} Markendesign",
-          "tooltip": "DESIGN.md ist ein Markenleitfaden, der vom Inhaber bereits für {organization} erstellt wurde. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
-          "tooltipPersonal": "DESIGN.md ist ein Markenleitfaden, den du bereits erstellt hast. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
-          "tooltipCustom": "DESIGN.md, erzeugt von {hostname}, nur für diese Aufgabe. Mit dieser Anlage wendet der Agent dieses Branding an. Es wird nichts in deinem Profil gespeichert.",
-          "learnMore": "Mehr über DESIGN.md erfahren",
-          "infoAria": "Über diese Anlage",
-          "useDifferentBranding": "Anderes Branding verwenden",
-          "resetToDefault": "Branding zurücksetzen"
-        },
-        "ProjectFilesAttachment": {
-          "briefingDescription": "Projektbriefing",
-          "briefingInfo": "BRIEFING.md enthält Ziele, Zielgruppe, Kanäle, Zeitplan und Vorgaben des Projekts. Sie gibt dem Coworker den nötigen Kontext für diesen Task.",
-          "briefingInfoAria": "Über BRIEFING.md",
-          "contextDescription": "Projektgedächtnis",
-          "contextDescriptionUpdated": "Projektgedächtnis · {when} aktualisiert",
-          "contextInfo": "CONTEXT.md ist das fortlaufende Projektgedächtnis und wird aktualisiert, wenn Tasks abgeschlossen werden. So kann der Coworker Entscheidungen und Erkenntnisse wiederverwenden.",
-          "contextInfoAria": "Über CONTEXT.md"
+        "ContextAttachments": {
+          "label": "Kontext",
+          "brand": "Marke",
+          "namedBrand": "Marke von {name}",
+          "personalBrand": "Persönliche Marke",
+          "brandMenuAria": "Markenkontext auswählen",
+          "projectBrand": "Projektmarke",
+          "organizationBrand": "Organisationsmarke",
+          "otherWebsite": "Andere Website…",
+          "briefing": "Briefing",
+          "memory": "Gedächtnis",
+          "infoAria": "Über den Task-Kontext",
+          "info": "Marke, Briefing und Gedächtnis werden als DESIGN.md-, BRIEFING.md- und CONTEXT.md-Dateien angehängt, die der Coworker liest."
         },
         "title": "Neuer Task",
         "details": "Details",
@@ -2078,7 +2071,10 @@
         "stepLabel": "{current} / {total}",
         "name": {
           "title": "Projekt benennen",
-          "subtitle": "Ein kurzer Titel für die Kampagne oder Initiative."
+          "subtitle": "Ein kurzer Titel für die Kampagne oder Initiative.",
+          "websiteLabel": "Website",
+          "websitePlaceholder": "example.com",
+          "websiteHint": "Optional. Wird für Logo und Markenrichtlinien verwendet."
         },
         "briefing": {
           "title": "Briefing schreiben",
@@ -2088,16 +2084,25 @@
           "title": "Prüfen und erstellen",
           "subtitle": "Du kannst das Briefing jederzeit bearbeiten.",
           "nameLabel": "Name",
+          "websiteLabel": "Website",
           "briefingLabel": "Briefing",
+          "emptyWebsite": "Keine Website",
           "emptyBriefing": "Noch kein Briefing — du kannst es nach dem Erstellen ergänzen.",
-          "briefingNote": "Dieses Briefing wird als BRIEFING.md gespeichert und an jeden neuen Task angehängt.",
-          "memoryNote": "Das Projekt führt außerdem ein Gedächtnis (CONTEXT.md), das mit abgeschlossenen Tasks wächst."
+          "contextNote": "Jeder Task in diesem Projekt startet mit deinem Briefing, deiner Marke und dem Projektgedächtnis."
+        },
+        "brand": {
+          "title": "Marke wird eingerichtet",
+          "fetching": "Marke wird geladen…",
+          "ready": "Marke ist bereit. Du kannst das Projekt jederzeit öffnen.",
+          "failed": "Die Marke konnte gerade nicht fertiggestellt werden. Du kannst es später im Projekt erneut versuchen.",
+          "logoFailed": "Logo konnte nicht geladen werden. Du kannst es später hinzufügen."
         },
         "nav": {
           "next": "Weiter",
           "back": "Zurück",
           "create": "Projekt erstellen",
-          "creating": "Wird erstellt…"
+          "creating": "Wird erstellt…",
+          "openProject": "Projekt öffnen"
         }
       },
       "NewProject": {
@@ -2107,7 +2112,7 @@
       "EditProject": {
         "title": "Projekt bearbeiten",
         "details": "Details",
-        "detailsDescription": "Aktualisiere Name und Briefing des Projekts.",
+        "detailsDescription": "Aktualisiere Name, Website und Briefing des Projekts.",
         "name": "Projektname",
         "namePlaceholder": "Kurzen Titel eingeben",
         "save": "Speichern",
@@ -2124,8 +2129,9 @@
         "editBriefing": "Bearbeiten",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen",
+        "brandReady": "Marke ✓",
         "memory": {
-          "fileName": "CONTEXT.md",
+          "fileName": "Gedächtnis",
           "updated": "Aktualisiert {when}",
           "updating": "Wird aktualisiert…",
           "empty": "Gedächtnis wächst, wenn Tasks abgeschlossen werden",

@@ -72,6 +72,10 @@ const sampleProject = {
   id: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
   name: "P",
+  websiteUrl: null,
+  logo: null,
+  designMdUrl: null,
+  designMdExtractionId: null,
   briefing: null,
   briefingUrl: null,
   contextMd: null,
@@ -261,6 +265,44 @@ describe("PATCH /projects/{id}", () => {
 
     expect(res.status).toBe(404);
     expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps logo and DESIGN.md when website URL changes", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      websiteUrl: "https://new.example.com",
+    });
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ websiteUrl: "https://new.example.com" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: { websiteUrl: "https://new.example.com" },
+    });
+  });
+
+  it("rejects a logo owned by another project", async () => {
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        logo: "https://abc.public.blob.vercel-storage.com/projects/another-project/logos/hash.png",
+      }),
+    });
+
+    expect(res.status).toBe(422);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

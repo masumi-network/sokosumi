@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
@@ -38,7 +39,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
-import { createTask, updateTask } from "@/lib/actions/task/action";
+import {
+  createTask,
+  type TaskContextSelectionInput,
+  updateTask,
+} from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
@@ -49,29 +54,21 @@ import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import { getScheduleIcon } from "@/lib/utils/schedule-icon";
 import {
   extractTaskAttachmentUrls,
-  formatTaskAttachmentMarkdown,
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import {
+  getDefaultTaskContextSelection,
+  TaskContextAttachmentsField,
+  type TaskContextAttachmentsSelection,
+} from "./task-context-attachments";
 import { TaskCreatedCelebration } from "./task-created-celebration";
-import {
-  TaskDesignMdAttachmentField,
-  type TaskDesignMdSelection,
-} from "./task-design-md-attachment";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
-import {
-  TaskProjectFilesAttachmentField,
-  type TaskProjectFilesSelection,
-} from "./task-project-files-attachment";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
-const DEFAULT_PROJECT_FILES_SELECTION: TaskProjectFilesSelection = {
-  briefingEnabled: true,
-  contextMdEnabled: true,
-};
 
 export interface TaskFormLabels {
   details: string;
@@ -166,10 +163,7 @@ interface TaskFormProps {
     description: string;
     assigneeId: string | null;
     projectId?: string | null;
-    skipDesignMdAttachment?: boolean;
-    skipProjectBriefingAttachment?: boolean;
-    skipProjectContextMdAttachment?: boolean;
-    designMdAttachmentOverride?: { label: string; url: string };
+    context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
     schedule?: TaskScheduleSelection;
   }) => Promise<{ taskId: string; name?: string }>;
@@ -207,16 +201,16 @@ export function TaskForm({
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
   const [description, setDescription] = useState(initialDescription);
-  const [designMdSelection, setDesignMdSelection] =
-    useState<TaskDesignMdSelection>({
-      enabled: Boolean(initialDesignMdAttachment),
-      custom: null,
-    });
-  const [projectId, setProjectId] = useState<string | null>(
-    initialValues?.projectId ?? defaultProjectId ?? null,
-  );
-  const [projectFilesSelection, setProjectFilesSelection] =
-    useState<TaskProjectFilesSelection>(DEFAULT_PROJECT_FILES_SELECTION);
+  const initialProjectId = initialValues?.projectId ?? defaultProjectId ?? null;
+  const [projectId, setProjectId] = useState<string | null>(initialProjectId);
+  const [contextSelection, setContextSelection] =
+    useState<TaskContextAttachmentsSelection>(() =>
+      getDefaultTaskContextSelection(
+        initialProjectId
+          ? projectOptions?.find((project) => project.id === initialProjectId)
+          : undefined,
+      ),
+    );
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -310,10 +304,21 @@ export function TaskForm({
     setIsCreateProjectModalOpen(true);
   }, []);
 
-  const handleProjectChange = useCallback((nextProjectId: string | null) => {
-    setProjectId(nextProjectId);
-    setProjectFilesSelection(DEFAULT_PROJECT_FILES_SELECTION);
-  }, []);
+  const handleProjectChange = useCallback(
+    (nextProjectId: string | null) => {
+      setProjectId(nextProjectId);
+      setContextSelection(
+        getDefaultTaskContextSelection(
+          nextProjectId
+            ? localProjectOptions.find(
+                (project) => project.id === nextProjectId,
+              )
+            : undefined,
+        ),
+      );
+    },
+    [localProjectOptions],
+  );
 
   const handleProjectCreated = useCallback(
     (result: { projectId: string; name: string }) => {
@@ -339,8 +344,6 @@ export function TaskForm({
   const { os, isMobile } = useOSDetection();
 
   const isNameRequired = mode === "edit";
-  const shouldShowProjectFiles =
-    mode === "create" && shouldShowProjectSelect && projectId !== null;
   const selectedProject = useMemo(
     () =>
       projectId
@@ -438,26 +441,17 @@ export function TaskForm({
           const result = await createTaskHandler({
             description: trimmedDescription,
             assigneeId,
-            // No default to skip in the first place when the workspace has no
-            // DESIGN.md — leave it undefined so the server's own (idempotent,
-            // always-fresh) resolution decides, same as before this field existed.
-            skipDesignMdAttachment: initialDesignMdAttachment
-              ? !designMdSelection.enabled
-              : undefined,
-            designMdAttachmentOverride: designMdSelection.custom
-              ? {
-                  label: designMdSelection.custom.label,
-                  url: designMdSelection.custom.url,
-                }
-              : undefined,
-            ...(shouldShowProjectFiles
-              ? {
-                  skipProjectBriefingAttachment:
-                    !projectFilesSelection.briefingEnabled,
-                  skipProjectContextMdAttachment:
-                    !projectFilesSelection.contextMdEnabled,
-                }
-              : {}),
+            context: {
+              brand: {
+                enabled: contextSelection.brand.enabled,
+                source: contextSelection.brand.source,
+                custom: contextSelection.brand.custom
+                  ? { url: contextSelection.brand.custom.url }
+                  : null,
+              },
+              briefingEnabled: contextSelection.briefingEnabled,
+              contextMdEnabled: contextSelection.contextMdEnabled,
+            },
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
@@ -540,7 +534,6 @@ export function TaskForm({
       assigneeId,
       projectId,
       shouldShowProjectSelect,
-      shouldShowProjectFiles,
       originalStatus,
       router,
       status,
@@ -551,9 +544,7 @@ export function TaskForm({
       scheduleSelection,
       scheduleLabel,
       hadSchedule,
-      initialDesignMdAttachment,
-      designMdSelection,
-      projectFilesSelection,
+      contextSelection,
       labels.statusDraft,
       labels.statusQueued,
       labels.statusReady,
@@ -935,18 +926,12 @@ export function TaskForm({
                     </FileUploadTrigger>
                   </FileUploadDropzone>
                 </FileUpload>
-                {initialDesignMdAttachment ? (
-                  <TaskDesignMdAttachmentField
-                    defaultAttachment={initialDesignMdAttachment}
-                    selection={designMdSelection}
-                    onSelectionChange={setDesignMdSelection}
-                  />
-                ) : null}
-                {shouldShowProjectFiles ? (
-                  <TaskProjectFilesAttachmentField
-                    selection={projectFilesSelection}
-                    onSelectionChange={setProjectFilesSelection}
-                    contextMdUpdatedAt={selectedProject?.contextMdUpdatedAt}
+                {mode === "create" ? (
+                  <TaskContextAttachmentsField
+                    defaultBrand={initialDesignMdAttachment ?? null}
+                    project={selectedProject}
+                    selection={contextSelection}
+                    onSelectionChange={setContextSelection}
                   />
                 ) : null}
                 {attachmentUrls.length > 0 ? (

@@ -3,6 +3,7 @@
 import {
   extractFileLikeLinks,
   extractHttpLinks,
+  formatTaskAttachmentMarkdown,
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
@@ -53,7 +54,6 @@ import { createFileUploadProgressToast } from "@/lib/utils/file-upload-progress-
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 import {
   extractTaskAttachmentUrls,
-  formatTaskAttachmentMarkdown,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";

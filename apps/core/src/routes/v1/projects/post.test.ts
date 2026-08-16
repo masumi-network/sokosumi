@@ -61,6 +61,10 @@ describe("POST /projects", () => {
       id: "33333333-3333-4333-8333-333333333333",
       workspaceId: WORKSPACE_CONTEXT.workspaceId,
       name: "Alpha",
+      websiteUrl: null,
+      logo: null,
+      designMdUrl: null,
+      designMdExtractionId: null,
       briefing: null,
       briefingUrl: null,
       contextMd: null,
@@ -88,6 +92,10 @@ describe("POST /projects", () => {
       data: {
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
         name: "Alpha",
+        websiteUrl: null,
+        logo: null,
+        designMdUrl: null,
+        designMdExtractionId: null,
         briefing: null,
       },
     });
@@ -110,5 +118,55 @@ describe("POST /projects", () => {
 
     expect(res.status).toBe(403);
     expect(projectCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("persists project brand fields", async () => {
+    const logo =
+      "https://abc.public.blob.vercel-storage.com/projects/project_123/logos/hash.png";
+    const designMdUrl =
+      "https://abc.public.blob.vercel-storage.com/design-md/projects/project_123/hash.md";
+    projectCreateMock.mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      workspaceId: WORKSPACE_CONTEXT.workspaceId,
+      name: "Branded",
+      websiteUrl: "https://example.com",
+      logo,
+      designMdUrl,
+      designMdExtractionId: "extract_123",
+      briefing: null,
+      briefingUrl: null,
+      contextMd: null,
+      contextMdUrl: null,
+      contextMdUpdatedAt: null,
+      contextMdModel: null,
+      contextMdUpdatingSince: null,
+      contextMdVersion: 0,
+      createdAt: new Date("2026-04-02T12:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T12:00:00.000Z"),
+    });
+
+    const res = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Branded",
+        websiteUrl: "https://example.com",
+        logo,
+        designMd: { url: designMdUrl, extractionId: "extract_123" },
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(projectCreateMock).toHaveBeenCalledWith({
+      data: {
+        workspaceId: WORKSPACE_CONTEXT.workspaceId,
+        name: "Branded",
+        briefing: null,
+        websiteUrl: "https://example.com",
+        logo,
+        designMdUrl,
+        designMdExtractionId: "extract_123",
+      },
+    });
   });
 });

@@ -15,7 +15,10 @@ export interface TasksFilters {
 export interface ProjectFilterOption {
   id: string;
   name: string;
-  contextMdUpdatedAt?: string | Date | null;
+  logo?: string | null;
+  designMd?: { url: string } | null;
+  briefingUrl?: string | null;
+  contextMd?: { url: string; updatedAt: string | Date } | null;
 }
 
 /** App Router `searchParams` values can be `string | string[]` when a key is repeated. */

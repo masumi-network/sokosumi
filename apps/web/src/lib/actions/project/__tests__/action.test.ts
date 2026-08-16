@@ -21,7 +21,9 @@ const projectServiceMock = {
   getProjectContextMd: vi.fn(),
   patchProject: vi.fn(),
   removeJob: vi.fn(),
+  removeProjectDesignMd: vi.fn(),
   removeTask: vi.fn(),
+  updateProjectDesignMd: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 
@@ -40,6 +42,9 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     name: "Launch plan",
     briefing: null,
     briefingUrl: null,
+    websiteUrl: null,
+    logo: null,
+    designMd: null,
     contextMd: null,
     contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
@@ -73,6 +78,7 @@ describe("project actions", () => {
     expect(projectServiceMock.createProject).toHaveBeenCalledWith({
       name: "Launch plan",
       briefing: "Ship the launch",
+      websiteUrl: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(result).toEqual({ projectId: "project-1" });

@@ -1,8 +1,21 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
 
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import { err, ok } from "neverthrow";
+import { revalidatePath } from "next/cache";
+import * as z from "zod";
+
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import {
+  CoreApiRequestError,
+  coreClient,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import type { ProjectContextMd } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
@@ -13,12 +26,20 @@ import {
 interface CreateProjectParameters extends AuthenticatedRequest {
   name: string;
   briefing?: string | null;
+  websiteUrl?: string | null;
 }
 
 interface UpdateProjectParameters extends AuthenticatedRequest {
   projectId: string;
   name: string;
   briefing?: string | null;
+  websiteUrl?: string | null;
+  logo?: string | null;
+}
+
+interface ResolveProjectSiteIconParameters extends AuthenticatedRequest {
+  url: string;
+  projectId: string;
 }
 
 interface GetProjectContextMdParameters extends AuthenticatedRequest {
@@ -48,6 +69,21 @@ function normalizeProjectBriefing(briefing?: string | null): string | null {
   return trimmedBriefing ? trimmedBriefing : null;
 }
 
+function normalizeOptionalWebsiteUrl(
+  websiteUrl?: string | null,
+): string | null {
+  if (websiteUrl == null) {
+    return null;
+  }
+
+  const trimmed = websiteUrl.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return normalizeWebsiteUrl(trimmed);
+}
+
 function revalidateProjectMutationRoutes(projectId: string) {
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
@@ -61,7 +97,7 @@ function throwCoreActionError(error: unknown, fallbackMessage: string): never {
 export const createProject = withSession<
   CreateProjectParameters,
   { projectId: string }
->(async ({ name, briefing }) => {
+>(async ({ name, briefing, websiteUrl }) => {
   const normalizedName = normalizeProjectName(name);
   if (!normalizedName) {
     throw new Error("Name required");
@@ -71,6 +107,7 @@ export const createProject = withSession<
     const project = await projectService.createProject({
       name: normalizedName,
       briefing: normalizeProjectBriefing(briefing),
+      websiteUrl: normalizeOptionalWebsiteUrl(websiteUrl),
     });
 
     revalidatePath("/projects");
@@ -84,7 +121,7 @@ export const createProject = withSession<
 export const updateProject = withSession<
   UpdateProjectParameters,
   { projectId: string }
->(async ({ projectId, name, briefing }) => {
+>(async ({ projectId, name, briefing, websiteUrl, logo }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedName = normalizeProjectName(name);
   if (!normalizedProjectId) {
@@ -98,6 +135,10 @@ export const updateProject = withSession<
     await projectService.patchProject(normalizedProjectId, {
       name: normalizedName,
       briefing: normalizeProjectBriefing(briefing),
+      ...(websiteUrl !== undefined
+        ? { websiteUrl: normalizeOptionalWebsiteUrl(websiteUrl) }
+        : {}),
+      ...(logo !== undefined ? { logo } : {}),
     });
 
     revalidateProjectMutationRoutes(normalizedProjectId);
@@ -105,6 +146,87 @@ export const updateProject = withSession<
   } catch (error) {
     console.error("Failed to update project", error);
     throwCoreActionError(error, "Failed to update project");
+  }
+});
+
+const resolveProjectSiteIconSchema = z.object({
+  url: z.url(),
+  projectId: z.string().trim().min(1),
+});
+
+export const resolveProjectSiteIcon = withSession<
+  ResolveProjectSiteIconParameters,
+  ActionResultDto<{ url: string | null }, ActionError>
+>(async ({ url, projectId }) => {
+  const parsed = resolveProjectSiteIconSchema.safeParse({ url, projectId });
+  if (!parsed.success) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsed.error.issues[0]?.message,
+      }),
+    );
+  }
+
+  try {
+    const { data } = await coreClient.resolveProjectSiteIcon(
+      parsed.data.url,
+      parsed.data.projectId,
+    );
+    return toActionResult(ok({ url: data.url }));
+  } catch (error) {
+    if (error instanceof CoreApiRequestError && error.status === 400) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: error.message }),
+      );
+    }
+    console.error("Failed to resolve project site icon", error);
+    return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
+  }
+});
+
+export const updateProjectDesignMd = withSession<
+  {
+    projectId: string;
+    content: string;
+    extractionId?: string | null;
+  } & AuthenticatedRequest,
+  { projectId: string }
+>(async ({ projectId, content, extractionId }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId || !content.trim()) {
+    throw new Error("Project DESIGN.md required");
+  }
+
+  try {
+    await projectService.updateProjectDesignMd(normalizedProjectId, {
+      content,
+      extractionId,
+    });
+    revalidateProjectMutationRoutes(normalizedProjectId);
+    return { projectId: normalizedProjectId };
+  } catch (error) {
+    console.error("Failed to save project DESIGN.md", error);
+    throwCoreActionError(error, "Failed to save project DESIGN.md");
+  }
+});
+
+export const removeProjectDesignMd = withSession<
+  { projectId: string } & AuthenticatedRequest,
+  { projectId: string }
+>(async ({ projectId }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    throw new Error("Project required");
+  }
+
+  try {
+    await projectService.removeProjectDesignMd(normalizedProjectId);
+    revalidateProjectMutationRoutes(normalizedProjectId);
+    return { projectId: normalizedProjectId };
+  } catch (error) {
+    console.error("Failed to remove project DESIGN.md", error);
+    throwCoreActionError(error, "Failed to remove project DESIGN.md");
   }
 });
 

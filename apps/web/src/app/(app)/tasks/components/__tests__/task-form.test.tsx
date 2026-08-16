@@ -130,113 +130,102 @@ vi.mock("../markdown-editor", () => ({
   }),
 }));
 
-vi.mock("../task-design-md-attachment", () => ({
-  TaskDesignMdAttachmentField: ({
-    defaultAttachment,
+vi.mock("../task-context-attachments", () => ({
+  getDefaultTaskContextSelection: (project?: { designMd?: unknown }) => ({
+    brand: {
+      enabled: true,
+      source: project?.designMd ? "project" : "default",
+      custom: null,
+    },
+    briefingEnabled: true,
+    contextMdEnabled: true,
+  }),
+  TaskContextAttachmentsField: ({
     selection,
     onSelectionChange,
+    project,
   }: {
-    defaultAttachment: {
-      owner:
-        | { type: "organization"; name: string; logo: string | null }
-        | { type: "user" };
-    };
     selection: {
-      enabled: boolean;
-      custom: null | { label: string; url: string; sourceUrl: string };
+      brand: {
+        enabled: boolean;
+        source: "project" | "default" | "custom";
+        custom: null | { label: string; url: string; sourceUrl: string };
+      };
+      briefingEnabled: boolean;
+      contextMdEnabled: boolean;
     };
     onSelectionChange: (next: {
-      enabled: boolean;
-      custom: null | { label: string; url: string; sourceUrl: string };
+      brand: {
+        enabled: boolean;
+        source: "project" | "default" | "custom";
+        custom: null | { label: string; url: string; sourceUrl: string };
+      };
+      briefingEnabled: boolean;
+      contextMdEnabled: boolean;
     }) => void;
+    project?: {
+      name: string;
+      briefingUrl?: string | null;
+      contextMd?: { updatedAt: string | Date } | null;
+    };
   }) => (
-    <div>
-      <label>
-        <input
-          type="checkbox"
-          aria-label={
-            defaultAttachment.owner.type === "organization"
-              ? "organizationLabel"
-              : "personalLabel"
-          }
-          checked={selection.enabled}
-          onChange={(event) =>
-            onSelectionChange({
-              enabled: event.target.checked,
-              custom: selection.custom,
-            })
-          }
-        />
-      </label>
+    <div
+      data-testid="context-attachments"
+      data-brand-source={selection.brand.source}
+      data-project={project?.name}
+    >
+      <button
+        type="button"
+        aria-label="context-brand"
+        aria-pressed={selection.brand.enabled}
+        onClick={() =>
+          onSelectionChange({
+            ...selection,
+            brand: { ...selection.brand, enabled: !selection.brand.enabled },
+          })
+        }
+      />
+      <button
+        type="button"
+        aria-label="context-briefing"
+        aria-pressed={selection.briefingEnabled}
+        onClick={() =>
+          onSelectionChange({
+            ...selection,
+            briefingEnabled: !selection.briefingEnabled,
+          })
+        }
+      />
+      <button
+        type="button"
+        aria-label="context-memory"
+        aria-pressed={selection.contextMdEnabled}
+        onClick={() =>
+          onSelectionChange({
+            ...selection,
+            contextMdEnabled: !selection.contextMdEnabled,
+          })
+        }
+      />
       <button
         type="button"
         onClick={() =>
           onSelectionChange({
-            enabled: true,
-            custom: {
-              label: "DESIGN.md",
-              url: "https://blob.example/design-md/adhoc/user-1/hash.md",
-              sourceUrl: "https://competitor.com",
+            ...selection,
+            brand: {
+              enabled: true,
+              source: "custom",
+              custom: {
+                label: "DESIGN.md",
+                url: "https://blob.example/design-md/adhoc/user-1/hash.md",
+                sourceUrl: "https://competitor.com",
+              },
             },
           })
         }
       >
         set-custom-branding
       </button>
-    </div>
-  ),
-}));
-
-vi.mock("../task-project-files-attachment", () => ({
-  TaskProjectFilesAttachmentField: ({
-    selection,
-    onSelectionChange,
-    contextMdUpdatedAt,
-  }: {
-    selection: {
-      briefingEnabled: boolean;
-      contextMdEnabled: boolean;
-    };
-    onSelectionChange: (next: {
-      briefingEnabled: boolean;
-      contextMdEnabled: boolean;
-    }) => void;
-    contextMdUpdatedAt?: string | Date | null;
-  }) => (
-    <div
-      data-testid="project-files-attachment"
-      data-context-updated-at={
-        typeof contextMdUpdatedAt === "string"
-          ? contextMdUpdatedAt
-          : contextMdUpdatedAt?.toISOString()
-      }
-    >
-      <label>
-        <input
-          type="checkbox"
-          aria-label="project-briefing-attachment"
-          checked={selection.briefingEnabled}
-          onChange={(event) =>
-            onSelectionChange({
-              ...selection,
-              briefingEnabled: event.target.checked,
-            })
-          }
-        />
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          aria-label="project-context-md-attachment"
-          checked={selection.contextMdEnabled}
-          onChange={(event) =>
-            onSelectionChange({
-              ...selection,
-              contextMdEnabled: event.target.checked,
-            })
-          }
-        />
-      </label>
     </div>
   ),
 }));
@@ -294,7 +283,13 @@ const projectOptions = [
   {
     id: "project-1",
     name: "Alpha Project",
-    contextMdUpdatedAt: new Date("2026-08-16T08:00:00.000Z"),
+    logo: "https://blob.example/project-logo.png",
+    designMd: { url: "https://blob.example/project-design.md" },
+    briefingUrl: "https://blob.example/briefing.md",
+    contextMd: {
+      url: "https://blob.example/context.md",
+      updatedAt: new Date("2026-08-16T08:00:00.000Z"),
+    },
   },
   {
     id: "project-2",
@@ -814,7 +809,41 @@ describe("TaskForm", () => {
     );
   });
 
-  it("shows default-enabled project files for a project-page prefill", () => {
+  it("shows project avatars and selects project brand context when a branded project is chosen", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-2", assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    expect(
+      projectSelect.querySelector('[data-testid="project-avatar"]'),
+    ).not.toBeNull();
+    expect(screen.getByTestId("context-attachments")).toHaveAttribute(
+      "data-brand-source",
+      "default",
+    );
+
+    await user.click(projectSelect);
+    await user.click(screen.getByText("Alpha Project"));
+
+    expect(screen.getByTestId("context-attachments")).toHaveAttribute(
+      "data-brand-source",
+      "project",
+    );
+  });
+
+  it("shows default-enabled project context for a project-page prefill", () => {
     render(
       <TaskForm
         variant="modal"
@@ -829,16 +858,19 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByTestId("project-files-attachment")).toHaveAttribute(
-      "data-context-updated-at",
-      "2026-08-16T08:00:00.000Z",
+    expect(screen.getByTestId("context-attachments")).toHaveAttribute(
+      "data-brand-source",
+      "project",
     );
     expect(
-      screen.getByRole("checkbox", { name: "project-briefing-attachment" }),
-    ).toBeChecked();
+      screen.getByRole("button", { name: "context-brand" }),
+    ).toHaveAttribute("aria-pressed", "true");
     expect(
-      screen.getByRole("checkbox", { name: "project-context-md-attachment" }),
-    ).toBeChecked();
+      screen.getByRole("button", { name: "context-briefing" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "context-memory" }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows the DESIGN.md attachment field without seeding it into the description", () => {
@@ -863,8 +895,8 @@ describe("TaskForm", () => {
     // a separate control now, not text prepended into the editor.
     expect(screen.getByTestId("markdown-editor")).toHaveValue("");
     expect(
-      screen.getByRole("checkbox", { name: "organizationLabel" }),
-    ).toBeChecked();
+      screen.getByRole("button", { name: "context-brand" }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("does not touch an existing create description either", () => {
@@ -919,9 +951,12 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
+      context: {
+        brand: { enabled: true, source: "default", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: true,
+      },
       status: TaskStatus.READY,
-      skipDesignMdAttachment: false,
-      designMdAttachmentOverride: undefined,
       schedule: {
         mode: "none",
         timezone: expect.any(String),
@@ -951,9 +986,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("checkbox", { name: "organizationLabel" }),
-    );
+    await user.click(screen.getByRole("button", { name: "context-brand" }));
     await user.type(
       screen.getByTestId("markdown-editor"),
       "Build landing page",
@@ -963,9 +996,12 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
+      context: {
+        brand: { enabled: false, source: "default", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: true,
+      },
       status: TaskStatus.READY,
-      skipDesignMdAttachment: true,
-      designMdAttachmentOverride: undefined,
       schedule: {
         mode: "none",
         timezone: expect.any(String),
@@ -1007,12 +1043,18 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
-      status: TaskStatus.READY,
-      skipDesignMdAttachment: false,
-      designMdAttachmentOverride: {
-        label: "DESIGN.md",
-        url: "https://blob.example/design-md/adhoc/user-1/hash.md",
+      context: {
+        brand: {
+          enabled: true,
+          source: "custom",
+          custom: {
+            url: "https://blob.example/design-md/adhoc/user-1/hash.md",
+          },
+        },
+        briefingEnabled: true,
+        contextMdEnabled: true,
       },
+      status: TaskStatus.READY,
       schedule: {
         mode: "none",
         timezone: expect.any(String),
@@ -1044,8 +1086,11 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-1",
-        skipProjectBriefingAttachment: false,
-        skipProjectContextMdAttachment: false,
+        context: {
+          brand: { enabled: true, source: "project", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       }),
     );
   });
@@ -1068,19 +1113,18 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: "project-context-md-attachment",
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "context-memory" }));
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-1",
-        skipProjectBriefingAttachment: false,
-        skipProjectContextMdAttachment: true,
+        context: {
+          brand: { enabled: true, source: "project", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: false,
+        },
       }),
     );
   });
@@ -1619,9 +1663,12 @@ describe("TaskForm", () => {
     expect(onCreateTask).toHaveBeenCalledWith({
       description: "Write docs",
       assigneeId: "coworker-2",
+      context: {
+        brand: { enabled: true, source: "default", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: true,
+      },
       status: TaskStatus.READY,
-      skipDesignMdAttachment: undefined,
-      designMdAttachmentOverride: undefined,
       schedule: {
         mode: "none",
         timezone: expect.any(String),

@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
 
-import { notFound } from "@/helpers/error";
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -33,7 +34,7 @@ const route = withOrchestratorContextHeaderParameters(
     method: "patch",
     path: "/{id}",
     description:
-      "Rename or update a project briefing. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Update a project's name, briefing, website, logo, or DESIGN.md. Changing websiteUrl does not clear logo or DESIGN.md. Session user or orchestrator with context headers; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -71,6 +72,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (body.briefing === null) {
         updateData.briefingUrl = null;
       }
+    }
+    if (body.websiteUrl !== undefined) {
+      updateData.websiteUrl = body.websiteUrl ?? null;
+    }
+    if (body.logo !== undefined) {
+      if (body.logo !== null && !isOwnedProjectLogoUrl(body.logo, id)) {
+        throw unprocessableEntity(
+          "Logo must be owned by this project's logo prefix",
+        );
+      }
+      updateData.logo = body.logo ?? null;
+    }
+    if (body.designMd !== undefined) {
+      updateData.designMdUrl = body.designMd?.url ?? null;
+      updateData.designMdExtractionId = body.designMd?.extractionId ?? null;
     }
 
     const updateResult = await prisma.project.updateMany({

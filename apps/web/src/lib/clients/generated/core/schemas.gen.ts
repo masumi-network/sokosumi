@@ -10586,6 +10586,26 @@ export const ProjectListItemSchema = {
     ]
 } as const;
 
+export const ProjectDesignMdSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'url',
+        'extractionId'
+    ]
+} as const;
+
 export const ProjectContextMdMetadataSchema = {
     type: 'object',
     properties: {
@@ -10679,6 +10699,34 @@ export const ProjectSchema = {
             format: 'uri',
             example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md'
         },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        },
+        designMd: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectDesignMd'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Project-owned brand DESIGN.md, or null when none exists.',
+            example: null
+        },
         contextMd: {
             anyOf: [
                 {
@@ -10712,6 +10760,9 @@ export const ProjectSchema = {
         'name',
         'briefing',
         'briefingUrl',
+        'websiteUrl',
+        'logo',
+        'designMd',
         'contextMd',
         'contextMdUpdating',
         'createdAt',
@@ -10735,6 +10786,46 @@ export const CreateProjectRequestSchema = {
             ],
             maxLength: 20000,
             example: 'Optional campaign briefing'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048,
+            format: 'uri'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        designMd: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            format: 'uri'
+                        },
+                        extractionId: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -10906,6 +10997,26 @@ export const ProjectContextMdSchema = {
     ]
 } as const;
 
+export const ProjectDesignMdWriteSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            example: '# DESIGN.md\n\nBrand guidelines…'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '12345'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -10920,6 +11031,46 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             maxLength: 20000
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048,
+            format: 'uri'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        designMd: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            format: 'uri'
+                        },
+                        extractionId: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     }
 } as const;
@@ -13168,6 +13319,45 @@ export const TaskActivitySummarySchema = {
         'basis',
         'workedMinutes'
     ]
+} as const;
+
+export const CreateTaskContextSchema = {
+    type: 'object',
+    properties: {
+        brand: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            format: 'uri'
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                }
+            ]
+        },
+        brandSource: {
+            type: 'string',
+            enum: [
+                'project',
+                'workspace'
+            ]
+        },
+        briefing: {
+            type: 'boolean'
+        },
+        memory: {
+            type: 'boolean'
+        }
+    },
+    description: 'Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.'
 } as const;
 
 export const UserWritableTaskLinkRelationSchema = {

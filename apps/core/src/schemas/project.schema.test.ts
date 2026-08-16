@@ -1,7 +1,11 @@
 import type { Project as DatabaseProject } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { createProjectRequestSchema, mapProjectForApi } from "./project.schema";
+import {
+  createProjectRequestSchema,
+  mapProjectForApi,
+  patchProjectRequestSchema,
+} from "./project.schema";
 
 function createDatabaseProject(
   overrides: Partial<DatabaseProject> = {},
@@ -18,6 +22,10 @@ function createDatabaseProject(
     contextMdModel: null,
     contextMdUpdatingSince: null,
     contextMdVersion: 0,
+    websiteUrl: null,
+    logo: null,
+    designMdUrl: null,
+    designMdExtractionId: null,
     createdAt: new Date("2026-08-16T10:00:00.000Z"),
     updatedAt: new Date("2026-08-16T10:00:00.000Z"),
     ...overrides,
@@ -38,6 +46,55 @@ describe("project schemas", () => {
         briefing: "x".repeat(20_001),
       }),
     ).toThrow();
+  });
+
+  it("validates project website, logo, and DESIGN.md inputs", () => {
+    const logo =
+      "https://abc.public.blob.vercel-storage.com/projects/project_123/logos/hash.png";
+    const designMdUrl =
+      "https://abc.public.blob.vercel-storage.com/design-md/projects/project_123/hash.md";
+
+    expect(
+      createProjectRequestSchema.parse({
+        name: "Launch",
+        websiteUrl: "https://example.com",
+        logo,
+        designMd: { url: designMdUrl, extractionId: "extract_123" },
+      }),
+    ).toMatchObject({
+      websiteUrl: "https://example.com",
+      logo,
+      designMd: { url: designMdUrl, extractionId: "extract_123" },
+    });
+    expect(
+      createProjectRequestSchema.safeParse({
+        name: "Launch",
+        websiteUrl: "ftp://example.com",
+      }).success,
+    ).toBe(false);
+    expect(
+      patchProjectRequestSchema.safeParse({
+        logo: "https://example.com/logo.png",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("maps nullable project brand metadata", () => {
+    const designMdUrl =
+      "https://abc.public.blob.vercel-storage.com/design-md/projects/project_123/hash.md";
+    const project = createDatabaseProject({
+      websiteUrl: "https://example.com",
+      logo: "https://abc.public.blob.vercel-storage.com/projects/project_123/logos/hash.png",
+      designMdUrl,
+      designMdExtractionId: "extract_123",
+    });
+
+    expect(mapProjectForApi(project)).toMatchObject({
+      websiteUrl: "https://example.com",
+      logo: project.logo,
+      designMd: { url: designMdUrl, extractionId: "extract_123" },
+    });
+    expect(mapProjectForApi(createDatabaseProject()).designMd).toBeNull();
   });
 
   it("maps memory metadata and active update state", () => {

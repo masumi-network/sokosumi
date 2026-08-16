@@ -12,19 +12,17 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import {
+  type CreateTaskContext,
   type Task,
   type TaskLink,
   TaskLinkRelation,
   TaskStatus,
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
-import { designMdService } from "@/lib/services/design-md.service";
-import { projectFilesService } from "@/lib/services/project-files.service";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { sanitizeTaskAttachmentLabel } from "@/lib/utils/task-attachments";
 import {
   hasTaskScheduleChanged,
   selectionToApiBody,
@@ -39,15 +37,19 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   assigneeId: string | null;
   projectId?: string | null;
-  skipDesignMdAttachment?: boolean;
-  skipProjectBriefingAttachment?: boolean;
-  skipProjectContextMdAttachment?: boolean;
-  /** Attach this DESIGN.md instead of resolving the caller's own effective
-   * one — e.g. a task-scoped "use a different company's branding" pick.
-   * Ignored when `skipDesignMdAttachment` is true. */
-  designMdAttachmentOverride?: { label: string; url: string };
+  context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
+}
+
+export interface TaskContextSelectionInput {
+  brand: {
+    enabled: boolean;
+    source: "project" | "default" | "custom";
+    custom?: { url: string } | null;
+  };
+  briefingEnabled: boolean;
+  contextMdEnabled: boolean;
 }
 
 interface UpdateTaskParameters extends AuthenticatedRequest {
@@ -102,10 +104,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   description: string;
   assigneeId: string | null;
   projectId?: string | null;
-  skipDesignMdAttachment?: boolean;
-  skipProjectBriefingAttachment?: boolean;
-  skipProjectContextMdAttachment?: boolean;
-  designMdAttachmentOverride?: { label: string; url: string };
+  context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
   relation: UserWritableTaskLinkRelation;
@@ -215,18 +214,14 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
 }
 
 /**
- * Ad hoc overrides are the only client-supplied DESIGN.md attach path.
- * Description text is already freeform, but this gate still keeps the
- * privileged prepend limited to https blobs under this user's ad hoc prefix
- * and strips markdown-breaking brackets from the label.
+ * Ad hoc overrides are the only client-supplied DESIGN.md attach path. Keep
+ * them limited to https blobs under the caller's own ad hoc prefix before
+ * forwarding the URL to Core, which performs its own DESIGN.md URL check.
  */
-function resolveDesignMdAttachmentOverride(
-  override: { label: string; url: string },
-  userId: string,
-): { label: string; url: string } {
+function resolveDesignMdAttachmentUrl(url: string, userId: string): string {
   let parsed: URL;
   try {
-    parsed = new URL(override.url.trim());
+    parsed = new URL(url.trim());
   } catch {
     throw new Error("Invalid DESIGN.md attachment URL");
   }
@@ -240,9 +235,40 @@ function resolveDesignMdAttachmentOverride(
     throw new Error("DESIGN.md attachment URL is not valid for this user");
   }
 
+  return parsed.href;
+}
+
+function toCoreTaskContext(
+  selection: TaskContextSelectionInput,
+  userId: string,
+): CreateTaskContext {
+  if (!selection.brand.enabled) {
+    return {
+      brand: false,
+      briefing: selection.briefingEnabled,
+      memory: selection.contextMdEnabled,
+    };
+  }
+
+  if (selection.brand.source === "custom") {
+    if (!selection.brand.custom) {
+      throw new Error("Custom DESIGN.md attachment required");
+    }
+
+    return {
+      brand: {
+        url: resolveDesignMdAttachmentUrl(selection.brand.custom.url, userId),
+      },
+      briefing: selection.briefingEnabled,
+      memory: selection.contextMdEnabled,
+    };
+  }
+
   return {
-    label: sanitizeTaskAttachmentLabel(override.label, "DESIGN.md"),
-    url: parsed.href,
+    brand: true,
+    brandSource: selection.brand.source === "project" ? "project" : "workspace",
+    briefing: selection.briefingEnabled,
+    memory: selection.contextMdEnabled,
   };
 }
 
@@ -251,10 +277,7 @@ async function createTaskFromDescription(input: {
   assigneeId: string | null;
   projectId?: string | null;
   userId: string;
-  skipDesignMdAttachment?: boolean;
-  skipProjectBriefingAttachment?: boolean;
-  skipProjectContextMdAttachment?: boolean;
-  designMdAttachmentOverride?: { label: string; url: string };
+  context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
 }): Promise<Task> {
@@ -264,34 +287,15 @@ async function createTaskFromDescription(input: {
   }
 
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
-  const descriptionWithProjectFiles = normalizedProjectId
-    ? await projectFilesService.appendProjectFilesToDescription(
-        trimmedDescription,
-        normalizedProjectId,
-        {
-          skipBriefing: input.skipProjectBriefingAttachment,
-          skipContextMd: input.skipProjectContextMdAttachment,
-        },
-      )
-    : trimmedDescription;
-  const descriptionWithDesignMd = input.skipDesignMdAttachment
-    ? descriptionWithProjectFiles
-    : input.designMdAttachmentOverride
-      ? designMdService.withDesignMdAttachment(
-          descriptionWithProjectFiles,
-          resolveDesignMdAttachmentOverride(
-            input.designMdAttachmentOverride,
-            input.userId,
-          ),
-        )
-      : await designMdService.appendDesignMdToDescription(
-          descriptionWithProjectFiles,
-        );
+  const context = input.context
+    ? toCoreTaskContext(input.context, input.userId)
+    : undefined;
 
   const task = await taskService.createTask({
-    description: descriptionWithDesignMd,
+    description: trimmedDescription,
     assigneeId: input.assigneeId ? input.assigneeId : null,
     projectId: normalizedProjectId ?? null,
+    ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
   });
 
@@ -434,10 +438,7 @@ export const createTask = withSession<
     assigneeId,
     projectId,
     session,
-    skipDesignMdAttachment,
-    skipProjectBriefingAttachment,
-    skipProjectContextMdAttachment,
-    designMdAttachmentOverride,
+    context,
     status,
     schedule,
   }) => {
@@ -447,10 +448,7 @@ export const createTask = withSession<
         assigneeId,
         projectId,
         userId: session.user.id,
-        skipDesignMdAttachment,
-        skipProjectBriefingAttachment,
-        skipProjectContextMdAttachment,
-        designMdAttachmentOverride,
+        context,
         status,
         schedule,
       });
@@ -778,10 +776,7 @@ export const createTaskAndLink = withSession<
     projectId,
     session,
     status,
-    skipDesignMdAttachment,
-    skipProjectBriefingAttachment,
-    skipProjectContextMdAttachment,
-    designMdAttachmentOverride,
+    context,
     schedule,
     relation,
     note,
@@ -800,10 +795,7 @@ export const createTaskAndLink = withSession<
         assigneeId,
         projectId,
         userId: session.user.id,
-        skipDesignMdAttachment,
-        skipProjectBriefingAttachment,
-        skipProjectContextMdAttachment,
-        designMdAttachmentOverride,
+        context,
         status,
         schedule,
       });

@@ -6,13 +6,19 @@ import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
-const { resolveSiteIconAsOrganizationLogoMock } = vi.hoisted(() => ({
+const {
+  resolveSiteIconAsOrganizationLogoMock,
+  resolveSiteIconAsProjectLogoMock,
+} = vi.hoisted(() => ({
   resolveSiteIconAsOrganizationLogoMock: vi.fn(),
+  resolveSiteIconAsProjectLogoMock: vi.fn(),
 }));
 
 vi.mock("@/lib/site-icon", () => ({
   resolveSiteIconAsOrganizationLogo: (...args: unknown[]) =>
     resolveSiteIconAsOrganizationLogoMock(...args),
+  resolveSiteIconAsProjectLogo: (...args: unknown[]) =>
+    resolveSiteIconAsProjectLogoMock(...args),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -61,10 +67,13 @@ beforeEach(() => {
   resolveSiteIconAsOrganizationLogoMock.mockResolvedValue(
     "https://blob.example/organizations/org_123/logos/hash",
   );
+  resolveSiteIconAsProjectLogoMock.mockResolvedValue(
+    "https://blob.example/projects/11111111-1111-4111-8111-111111111111/logos/hash",
+  );
 });
 
 describe("GET /tools/site-icon", () => {
-  it("requires organizationId and passes it to the resolver", async () => {
+  it("passes organizationId to the organization resolver", async () => {
     const response = await createApp().request(
       "http://localhost/site-icon?url=https://example.com&organizationId=org_123",
     );
@@ -80,6 +89,22 @@ describe("GET /tools/site-icon", () => {
     );
   });
 
+  it("passes projectId to the project resolver", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    const response = await createApp().request(
+      `http://localhost/site-icon?url=https://example.com&projectId=${projectId}`,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(resolveSiteIconAsProjectLogoMock).toHaveBeenCalledWith(
+      "https://example.com",
+      projectId,
+    );
+    expect(resolveSiteIconAsOrganizationLogoMock).not.toHaveBeenCalled();
+    expect(body.data.url).toContain(`/projects/${projectId}/logos/`);
+  });
+
   it("rejects requests missing organizationId", async () => {
     const response = await createApp().request(
       "http://localhost/site-icon?url=https://example.com",
@@ -88,5 +113,17 @@ describe("GET /tools/site-icon", () => {
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.status).toBeLessThan(500);
     expect(resolveSiteIconAsOrganizationLogoMock).not.toHaveBeenCalled();
+    expect(resolveSiteIconAsProjectLogoMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests with both owner identifiers", async () => {
+    const response = await createApp().request(
+      "http://localhost/site-icon?url=https://example.com&organizationId=org_123&projectId=11111111-1111-4111-8111-111111111111",
+    );
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(500);
+    expect(resolveSiteIconAsOrganizationLogoMock).not.toHaveBeenCalled();
+    expect(resolveSiteIconAsProjectLogoMock).not.toHaveBeenCalled();
   });
 });

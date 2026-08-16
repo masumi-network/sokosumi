@@ -43,9 +43,12 @@ vi.mock("@/config/env.secrets", () => ({
 
 const getWorkspaceDesignMdMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
+const getProjectsByIdMock = vi.fn();
 const setMyDesignMdMock = vi.fn();
 const setOrganizationDesignMdMock = vi.fn();
 const storeAdHocDesignMdMock = vi.fn();
+const putProjectsByIdDesignMdMock = vi.fn();
+const deleteProjectsByIdDesignMdMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -53,10 +56,15 @@ vi.mock("@/lib/clients/core.client", () => ({
       getWorkspaceDesignMdMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
+    getProjectsById: (...args: unknown[]) => getProjectsByIdMock(...args),
     setMyDesignMd: (...args: unknown[]) => setMyDesignMdMock(...args),
     setOrganizationDesignMd: (...args: unknown[]) =>
       setOrganizationDesignMdMock(...args),
     storeAdHocDesignMd: (...args: unknown[]) => storeAdHocDesignMdMock(...args),
+    putProjectsByIdDesignMd: (...args: unknown[]) =>
+      putProjectsByIdDesignMdMock(...args),
+    deleteProjectsByIdDesignMd: (...args: unknown[]) =>
+      deleteProjectsByIdDesignMdMock(...args),
   },
 }));
 
@@ -345,6 +353,40 @@ describe("designMdService", () => {
     expect(persisted.extractionId).toBeNull();
   });
 
+  it("persists and removes project DESIGN.md via Core", async () => {
+    getProjectsByIdMock.mockResolvedValue({
+      data: { id: "project-1" },
+    });
+    putProjectsByIdDesignMdMock.mockResolvedValue({
+      data: {
+        designMd: {
+          url: "https://blob.example/design-md/projects/project-1/DESIGN.md",
+          extractionId: "9",
+        },
+      },
+    });
+
+    const { designMdService } = await import("../design-md.service");
+    const persisted = await designMdService.persistUploadedDesignMd(
+      { type: "project", projectId: "project-1" },
+      "# Project brand",
+    );
+
+    expect(putProjectsByIdDesignMdMock).toHaveBeenCalledWith("project-1", {
+      content: "# Project brand",
+      extractionId: null,
+    });
+    expect(persisted.url).toBe(
+      "https://blob.example/design-md/projects/project-1/DESIGN.md",
+    );
+
+    await designMdService.removeDesignMd({
+      type: "project",
+      projectId: "project-1",
+    });
+    expect(deleteProjectsByIdDesignMdMock).toHaveBeenCalledWith("project-1");
+  });
+
   it("throws unconfigured when the Masumi API key is missing", async () => {
     getEnvSecretsMock.mockReturnValueOnce({
       APP_SIGNING_SECRET: "test-secret",
@@ -456,9 +498,7 @@ describe("designMdService", () => {
     });
 
     const { designMdService } = await import("../design-md.service");
-    const { formatTaskAttachmentMarkdown } = await import(
-      "@/lib/utils/task-attachments"
-    );
+    const { formatTaskAttachmentMarkdown } = await import("@sokosumi/utils");
     const seededDescription = [
       formatTaskAttachmentMarkdown("DESIGN.md", designMdUrl).trimEnd(),
       "",

@@ -8,6 +8,7 @@ import { ProjectJobsSection } from "@/app/projects/components/project-jobs-secti
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectStatsSummary } from "@/app/projects/components/project-stats-summary";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
+
 import { buildTaskStatusAbbreviationLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectJobStatusCount } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
@@ -57,6 +58,7 @@ export default async function ProjectDetailPage({
   const projectStats = projectStatsResult.find(
     (entry) => entry.projectId === project.id,
   );
+  const projectDesignMd = project.designMd;
 
   if (!projectStats) {
     notFound();
@@ -73,6 +75,7 @@ export default async function ProjectDetailPage({
       <div className="mx-auto max-w-4xl pb-8 md:px-4">
         <ProjectDetailHeader
           projectName={project.name}
+          projectLogo={project.logo}
           backLabel={t("back")}
           metadata={[
             {
@@ -103,12 +106,22 @@ export default async function ProjectDetailPage({
           }
         />
 
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
           <ProjectMemoryRow
             projectId={project.id}
             contextMd={project.contextMd}
             contextMdUpdating={project.contextMdUpdating}
           />
+          {projectDesignMd ? (
+            <a
+              href={projectDesignMd.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground/70 hover:text-muted-foreground text-xs transition-colors"
+            >
+              {t("brandReady")}
+            </a>
+          ) : null}
         </div>
 
         <div className="mt-6 space-y-8">

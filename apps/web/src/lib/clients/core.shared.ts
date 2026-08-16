@@ -77,6 +77,7 @@ import type {
   PostWorkspacesDesignMdAdhocData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutProjectsByIdDesignMdData,
   PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
@@ -111,6 +112,7 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
+  deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
@@ -313,6 +315,7 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -2336,6 +2339,34 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function putProjectsByIdDesignMd(
+    id: string,
+    body: NonNullable<PutProjectsByIdDesignMdData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutProjectsByIdDesignMd({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to save project DESIGN.md",
+    );
+  }
+
+  async function deleteProjectsByIdDesignMd(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdDesignMd({
+          client,
+          path: { id },
+        }),
+      "Failed to remove project DESIGN.md",
+    );
+  }
+
   async function deleteProjectsById(id: string) {
     return executeCoreOperation(
       getClient,
@@ -3324,6 +3355,23 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
+   * Resolves the highest-quality icon for a website URL and uploads it as a
+   * project-logo blob. Core performs the SSRF-guarded fetch server-side.
+   */
+  async function resolveProjectSiteIcon(url: string, projectId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetToolsSiteIcon({
+          client,
+          query: { url, projectId },
+          cache: "no-store",
+        }),
+      "Failed to resolve project site icon",
+    );
+  }
+
+  /**
    * Fetches an organization by id, returning null when it does not exist
    * (Core responds 404).
    */
@@ -4123,6 +4171,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskEvent,
     deleteJobShare,
     deleteProjectsById,
+    deleteProjectsByIdDesignMd,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdTasksByTaskId,
     deleteTaskShare,
@@ -4294,6 +4343,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     resolveOrganizationInviteLink,
     acceptOrganizationInviteLink,
     resolveSiteIcon,
+    resolveProjectSiteIcon,
     getPendingNotices,
     getProjects,
     getProjectsById,
@@ -4307,6 +4357,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchJob,
     provideJobInput,
     patchProjectsById,
+    putProjectsByIdDesignMd,
     postProjects,
     postProjectsByIdJobs,
     postProjectsByIdTasks,

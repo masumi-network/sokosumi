@@ -1,11 +1,13 @@
 "use client";
 
+import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
 import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
 import { PROJECT_NAME_MAX_LENGTH } from "@/app/projects/project-briefing";
 import { Button } from "@/components/ui/button";
@@ -16,12 +18,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createProject } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
 
 import type { ProjectCreationSource } from "./project-form";
 
-const TOTAL_STEPS = 3;
+const SETUP_STEPS = 3;
 
 interface CreateProjectWizardProps {
   open: boolean;
@@ -43,10 +46,15 @@ export function CreateProjectWizard({
   const t = useTranslations("App.Projects");
   const [step, setStep] = useState(0);
   const [name, setName] = useState(initialName);
+  const [website, setWebsite] = useState("");
   const [briefing, setBriefing] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const trimmedName = name.trim();
-  const canContinueFromName = trimmedName.length > 0;
+  const normalizedWebsite = normalizeWebsiteUrl(website);
+  const isWebsiteValid = isEmptyOrValidWebsiteUrl(website);
+  const canContinueFromName = trimmedName.length > 0 && isWebsiteValid;
+  const isBrandStep = createdProjectId !== null && Boolean(normalizedWebsite);
 
   function updateSubmitting(nextIsSubmitting: boolean) {
     setIsSubmitting(nextIsSubmitting);
@@ -60,6 +68,14 @@ export function CreateProjectWizard({
     onOpenChange(nextOpen);
   }
 
+  function handleOpenProject() {
+    if (!createdProjectId) {
+      return;
+    }
+    onSuccess?.(createdProjectId, trimmedName);
+    onOpenChange(false);
+  }
+
   async function handleCreate() {
     if (!canContinueFromName || isSubmitting) {
       return;
@@ -70,6 +86,7 @@ export function CreateProjectWizard({
       const result = await createProject({
         name: trimmedName,
         briefing: briefing.trim() || null,
+        websiteUrl: normalizedWebsite,
       });
 
       if (creationSource) {
@@ -77,6 +94,11 @@ export function CreateProjectWizard({
           source: creationSource,
           variant: "wizard",
         });
+      }
+
+      if (normalizedWebsite) {
+        setCreatedProjectId(result.projectId);
+        return;
       }
 
       onSuccess?.(result.projectId, trimmedName);
@@ -102,7 +124,7 @@ export function CreateProjectWizard({
 
         <div className="relative flex items-center px-6 py-5 sm:px-8 sm:py-6">
           <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
-            {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
+            {Array.from({ length: SETUP_STEPS }).map((_, index) => (
               <span
                 key={index}
                 className="bg-border h-full flex-1 overflow-hidden"
@@ -110,7 +132,9 @@ export function CreateProjectWizard({
                 <span
                   className={cn(
                     "bg-primary block h-full w-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
-                    index <= step ? "scale-x-100" : "scale-x-0",
+                    index <= (isBrandStep ? SETUP_STEPS : step)
+                      ? "scale-x-100"
+                      : "scale-x-0",
                   )}
                 />
               </span>
@@ -118,18 +142,29 @@ export function CreateProjectWizard({
           </div>
           <span className="text-muted-foreground/60 text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
             {t("Wizard.stepLabel", {
-              current: String(step + 1).padStart(2, "0"),
-              total: String(TOTAL_STEPS).padStart(2, "0"),
+              current: String(isBrandStep ? SETUP_STEPS : step + 1).padStart(
+                2,
+                "0",
+              ),
+              total: String(SETUP_STEPS).padStart(2, "0"),
             })}
           </span>
         </div>
 
         <div className="flex min-h-0 flex-col overflow-y-auto px-6 py-6 sm:px-16">
           <div
-            key={step}
+            key={isBrandStep ? "brand" : step}
             className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"
           >
-            {step === 0 ? (
+            {isBrandStep && createdProjectId && normalizedWebsite ? (
+              <ProjectBrandSetup
+                projectId={createdProjectId}
+                projectName={trimmedName}
+                websiteUrl={normalizedWebsite}
+              />
+            ) : null}
+
+            {!isBrandStep && step === 0 ? (
               <div className="mx-auto w-full max-w-md text-center">
                 <h2 className="text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
                   {t("Wizard.name.title")}
@@ -137,21 +172,43 @@ export function CreateProjectWizard({
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
                   {t("Wizard.name.subtitle")}
                 </p>
-                <Input
-                  id="project-wizard-name"
-                  autoFocus
-                  maxLength={PROJECT_NAME_MAX_LENGTH}
-                  placeholder={t("NewProject.namePlaceholder")}
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  disabled={isSubmitting}
-                  aria-label={t("NewProject.name")}
-                  className="mt-10 h-14 text-[0.9375rem]"
-                />
+                <div className="mt-10 space-y-4 text-left">
+                  <div className="space-y-2">
+                    <Label htmlFor="project-wizard-name">
+                      {t("NewProject.name")}
+                    </Label>
+                    <Input
+                      id="project-wizard-name"
+                      autoFocus
+                      maxLength={PROJECT_NAME_MAX_LENGTH}
+                      placeholder={t("NewProject.namePlaceholder")}
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="project-wizard-website">
+                      {t("Wizard.name.websiteLabel")}
+                    </Label>
+                    <Input
+                      id="project-wizard-website"
+                      inputMode="url"
+                      placeholder={t("Wizard.name.websitePlaceholder")}
+                      value={website}
+                      onChange={(event) => setWebsite(event.target.value)}
+                      disabled={isSubmitting}
+                      aria-invalid={!isWebsiteValid}
+                    />
+                    <p className="text-muted-foreground/70 text-xs leading-relaxed">
+                      {t("Wizard.name.websiteHint")}
+                    </p>
+                  </div>
+                </div>
               </div>
             ) : null}
 
-            {step === 1 ? (
+            {!isBrandStep && step === 1 ? (
               <div className="mx-auto flex min-h-0 w-full max-w-xl flex-col">
                 <h2 className="text-center text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
                   {t("Wizard.briefing.title")}
@@ -169,7 +226,7 @@ export function CreateProjectWizard({
               </div>
             ) : null}
 
-            {step === 2 ? (
+            {!isBrandStep && step === 2 ? (
               <div className="mx-auto w-full max-w-xl">
                 <h2 className="text-center text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
                   {t("Wizard.review.title")}
@@ -184,6 +241,14 @@ export function CreateProjectWizard({
                       {t("Wizard.review.nameLabel")}
                     </dt>
                     <dd className="text-sm font-medium">{trimmedName}</dd>
+                  </div>
+                  <div className="space-y-1.5">
+                    <dt className="text-muted-foreground/70 text-xs font-medium tracking-wide uppercase">
+                      {t("Wizard.review.websiteLabel")}
+                    </dt>
+                    <dd className="text-muted-foreground text-sm">
+                      {normalizedWebsite ?? t("Wizard.review.emptyWebsite")}
+                    </dd>
                   </div>
                   <div className="space-y-1.5">
                     <dt className="text-muted-foreground/70 text-xs font-medium tracking-wide uppercase">
@@ -203,57 +268,75 @@ export function CreateProjectWizard({
                   </div>
                 </dl>
 
-                <div className="text-muted-foreground mt-8 space-y-2 text-sm leading-relaxed">
-                  <p>{t("Wizard.review.briefingNote")}</p>
-                  <p>{t("Wizard.review.memoryNote")}</p>
-                </div>
+                <p className="text-muted-foreground mt-8 text-sm leading-relaxed">
+                  {t("Wizard.review.contextNote")}
+                </p>
               </div>
             ) : null}
           </div>
         </div>
 
         <div className="bg-background flex items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-6 sm:pb-6">
-          {step > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-muted-foreground h-11 px-4"
-              onClick={() => setStep((current) => current - 1)}
-              disabled={isSubmitting}
-            >
-              <ArrowLeft className="size-4" />
-              {t("Wizard.nav.back")}
-            </Button>
+          {isBrandStep ? (
+            <>
+              <div />
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                className="h-11 px-6"
+                onClick={handleOpenProject}
+              >
+                {t("Wizard.nav.openProject")}
+              </Button>
+            </>
           ) : (
-            <div />
-          )}
+            <>
+              {step > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-muted-foreground h-11 px-4"
+                  onClick={() => setStep((current) => current - 1)}
+                  disabled={isSubmitting}
+                >
+                  <ArrowLeft className="size-4" />
+                  {t("Wizard.nav.back")}
+                </Button>
+              ) : (
+                <div />
+              )}
 
-          {step < 2 ? (
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="h-11 px-6"
-              disabled={step === 0 && !canContinueFromName}
-              onClick={() => setStep((current) => current + 1)}
-            >
-              {t("Wizard.nav.next")}
-              <ArrowRight className="size-4" />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="h-11 px-6"
-              disabled={!canContinueFromName || isSubmitting}
-              onClick={() => void handleCreate()}
-            >
-              {isSubmitting ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : null}
-              {isSubmitting ? t("Wizard.nav.creating") : t("Wizard.nav.create")}
-            </Button>
+              {step < 2 ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="h-11 px-6"
+                  disabled={step === 0 && !canContinueFromName}
+                  onClick={() => setStep((current) => current + 1)}
+                >
+                  {t("Wizard.nav.next")}
+                  <ArrowRight className="size-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="h-11 px-6"
+                  disabled={!canContinueFromName || isSubmitting}
+                  onClick={() => void handleCreate()}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : null}
+                  {isSubmitting
+                    ? t("Wizard.nav.creating")
+                    : t("Wizard.nav.create")}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </DialogContent>

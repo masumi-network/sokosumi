@@ -1,6 +1,8 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGetProjectContextMd from "./[id]/context-md/get.js";
 import mountDeleteProject from "./[id]/delete.js";
+import mountDeleteProjectDesignMd from "./[id]/design-md/delete.js";
+import mountPutProjectDesignMd from "./[id]/design-md/put.js";
 import mountGetProject from "./[id]/get.js";
 import mountDeleteProjectJob from "./[id]/jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./[id]/jobs/post.js";
@@ -23,6 +25,8 @@ mountDeleteProjectJob(app);
 mountPostProjectTask(app);
 mountDeleteProjectTask(app);
 mountGetProjectContextMd(app);
+mountPutProjectDesignMd(app);
+mountDeleteProjectDesignMd(app);
 mountGetProject(app);
 mountPatchProject(app);
 mountDeleteProject(app);

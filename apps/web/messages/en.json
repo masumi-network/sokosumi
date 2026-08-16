@@ -1828,26 +1828,19 @@
         "files": "Files"
       },
       "NewTask": {
-        "DesignMdAttachment": {
-          "organizationLabel": "{organization} Brand Design",
-          "personalLabel": "Your Brand Design",
-          "customLabel": "{hostname} Brand Design",
-          "tooltip": "DESIGN.md is a brand guide already created for {organization} by its owner. Attaching it here helps this agent apply your branding automatically.",
-          "tooltipPersonal": "DESIGN.md is a brand guide you already created. Attaching it here helps this agent apply your branding automatically.",
-          "tooltipCustom": "DESIGN.md generated from {hostname} for this task only. Attaching it here helps this agent apply that branding. Nothing is saved to your profile.",
-          "learnMore": "Learn more about DESIGN.md",
-          "infoAria": "About this attachment",
-          "useDifferentBranding": "Use different branding",
-          "resetToDefault": "Reset branding"
-        },
-        "ProjectFilesAttachment": {
-          "briefingDescription": "Project briefing",
-          "briefingInfo": "BRIEFING.md contains the project's goals, audience, channels, timeline, and constraints. It gives the coworker essential context for this task.",
-          "briefingInfoAria": "About BRIEFING.md",
-          "contextDescription": "Project memory",
-          "contextDescriptionUpdated": "Project memory · updated {when}",
-          "contextInfo": "CONTEXT.md is the project's living memory, updated as tasks complete. It helps the coworker reuse decisions and learnings.",
-          "contextInfoAria": "About CONTEXT.md"
+        "ContextAttachments": {
+          "label": "Context",
+          "brand": "Brand",
+          "namedBrand": "{name} brand",
+          "personalBrand": "Personal brand",
+          "brandMenuAria": "Choose brand context",
+          "projectBrand": "Project brand",
+          "organizationBrand": "Organization brand",
+          "otherWebsite": "Other website…",
+          "briefing": "Briefing",
+          "memory": "Memory",
+          "infoAria": "About task context",
+          "info": "Brand, briefing, and memory are attached as DESIGN.md, BRIEFING.md, and CONTEXT.md files for the coworker to read."
         },
         "title": "New Task",
         "details": "Details",
@@ -2078,7 +2071,10 @@
         "stepLabel": "{current} / {total}",
         "name": {
           "title": "Name this project",
-          "subtitle": "A short title for the campaign or initiative."
+          "subtitle": "A short title for the campaign or initiative.",
+          "websiteLabel": "Website",
+          "websitePlaceholder": "example.com",
+          "websiteHint": "Optional. Used to fetch the logo and brand guidelines."
         },
         "briefing": {
           "title": "Write the briefing",
@@ -2088,16 +2084,25 @@
           "title": "Review and create",
           "subtitle": "You can edit the briefing anytime.",
           "nameLabel": "Name",
+          "websiteLabel": "Website",
           "briefingLabel": "Briefing",
+          "emptyWebsite": "No website",
           "emptyBriefing": "No briefing yet — you can add one after creating.",
-          "briefingNote": "This briefing is saved as BRIEFING.md and attached to every new task.",
-          "memoryNote": "The project also keeps a memory (CONTEXT.md) that improves as tasks complete."
+          "contextNote": "Every task in this project starts with your briefing, your brand, and the project's memory."
+        },
+        "brand": {
+          "title": "Setting up brand",
+          "fetching": "Fetching brand…",
+          "ready": "Brand is ready. You can open the project anytime.",
+          "failed": "We couldn't finish the brand just now. You can try again from the project later.",
+          "logoFailed": "Couldn't fetch the logo. You can add it later."
         },
         "nav": {
           "next": "Continue",
           "back": "Back",
           "create": "Create project",
-          "creating": "Creating…"
+          "creating": "Creating…",
+          "openProject": "Open project"
         }
       },
       "NewProject": {
@@ -2107,7 +2112,7 @@
       "EditProject": {
         "title": "Edit Project",
         "details": "Details",
-        "detailsDescription": "Update the project name and briefing.",
+        "detailsDescription": "Update the project name, website, and briefing.",
         "name": "Project name",
         "namePlaceholder": "Enter a short title",
         "save": "Save",
@@ -2124,8 +2129,9 @@
         "editBriefing": "Edit",
         "showMore": "Show more",
         "showLess": "Show less",
+        "brandReady": "Brand ✓",
         "memory": {
-          "fileName": "CONTEXT.md",
+          "fileName": "Memory",
           "updated": "Updated {when}",
           "updating": "Updating…",
           "empty": "Memory builds as tasks complete",

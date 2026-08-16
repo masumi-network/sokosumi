@@ -117,6 +117,8 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildOrganizationDesignMdPrefix,
+  buildProjectDesignMdPathname,
+  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
   buildUserDesignMdPrefix,
 } from "./design-md-path.js";
@@ -245,6 +247,12 @@ export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
 } from "./project-files-path.js";
+export {
+  buildProjectLogoContentHashPathname,
+  buildProjectLogoPrefix,
+  isOwnedProjectLogoUrl,
+  isProjectLogoBlobUrl,
+} from "./project-logo-path.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export {
   hasStripeBillingAddressWithCountry,
@@ -258,6 +266,10 @@ export {
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
+export {
+  descriptionIncludesTaskAttachmentLink,
+  formatTaskAttachmentMarkdown,
+} from "./task-attachments.js";
 export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,

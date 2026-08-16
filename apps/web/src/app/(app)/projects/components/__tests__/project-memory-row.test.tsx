@@ -10,7 +10,7 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 
 const MESSAGES: Record<string, string> = {
-  "memory.fileName": "CONTEXT.md",
+  "memory.fileName": "Memory",
   "memory.updated": "Updated {when}",
   "memory.updating": "Updating…",
   "memory.empty": "Memory builds as tasks complete",
@@ -105,7 +105,9 @@ describe("ProjectMemoryRow", () => {
       />,
     );
 
-    expect(screen.getByText(/Mistral Medium 🇪🇺/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Memory · Updated 2 hours ago · Mistral Medium 🇪🇺/),
+    ).toBeInTheDocument();
     await user.click(screen.getByTestId("project-memory-row"));
 
     await waitFor(() => {

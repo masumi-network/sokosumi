@@ -96,6 +96,11 @@ async function revalidateOwner(owner: DesignMdOwnerSchemaType): Promise<void> {
       revalidatePath(`/organizations/${organization.data.slug}`);
     }
   }
+
+  if (owner.type === "project") {
+    revalidatePath("/projects");
+    revalidatePath(`/projects/${owner.projectId}`);
+  }
 }
 
 export const startDesignMdGeneration = withSession<

@@ -12,6 +12,8 @@ const coreClientMock = {
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
   postProjects: vi.fn(),
+  putProjectsByIdDesignMd: vi.fn(),
+  deleteProjectsByIdDesignMd: vi.fn(),
   postProjectsByIdJobs: vi.fn(),
   postProjectsByIdTasks: vi.fn(),
 };
@@ -35,6 +37,9 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     name: "Launch plan",
     briefing: null,
     briefingUrl: null,
+    websiteUrl: null,
+    logo: null,
+    designMd: null,
     contextMd: null,
     contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
@@ -168,6 +173,7 @@ describe("project.service", () => {
     expect(coreClientMock.postProjects).toHaveBeenCalledWith({
       name: "Launch plan",
       briefing: null,
+      websiteUrl: null,
     });
     expect(coreClientMock.patchProjectsById).toHaveBeenCalledWith("project-1", {
       name: "Updated launch plan",
@@ -247,5 +253,30 @@ describe("project.service", () => {
     await expect(
       projectService.getProjectContextMd("project-missing"),
     ).resolves.toBeNull();
+  });
+
+  it("saves and removes project DESIGN.md via Core", async () => {
+    const project = buildProject();
+    coreClientMock.putProjectsByIdDesignMd.mockResolvedValue({
+      data: project,
+    });
+    coreClientMock.deleteProjectsByIdDesignMd.mockResolvedValue({
+      data: project,
+    });
+
+    const { projectService } = await import("../project.service");
+    await projectService.updateProjectDesignMd("project-1", {
+      content: "# Brand",
+      extractionId: "ex-1",
+    });
+    await projectService.removeProjectDesignMd("project-1");
+
+    expect(coreClientMock.putProjectsByIdDesignMd).toHaveBeenCalledWith(
+      "project-1",
+      { content: "# Brand", extractionId: "ex-1" },
+    );
+    expect(coreClientMock.deleteProjectsByIdDesignMd).toHaveBeenCalledWith(
+      "project-1",
+    );
   });
 });

@@ -448,6 +448,10 @@ model Project {
   contextMdModel         String?
   contextMdUpdatingSince DateTime?
   contextMdVersion       Int       @default(0)
+  websiteUrl             String?
+  logo                   String?
+  designMdUrl            String?
+  designMdExtractionId   String?
 
   jobs  Job[]
   tasks Task[]

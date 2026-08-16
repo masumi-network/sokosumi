@@ -25,9 +25,6 @@ vi.mock("@/middleware/auth-middleware", () => ({
       }),
 }));
 
-const appendDesignMdToDescriptionMock = vi.fn();
-const withDesignMdAttachmentMock = vi.fn();
-const appendProjectFilesToDescriptionMock = vi.fn();
 const taskServiceMock = {
   listTaskLinks: vi.fn(),
   deleteTaskLink: vi.fn(),
@@ -61,22 +58,6 @@ vi.mock("@/lib/clients/core.client", () => ({
       this.kind = options?.kind;
       this.status = options?.status;
     }
-  },
-}));
-
-vi.mock("@/lib/services/design-md.service", () => ({
-  designMdService: {
-    appendDesignMdToDescription: (...args: unknown[]) =>
-      appendDesignMdToDescriptionMock(...args),
-    withDesignMdAttachment: (...args: unknown[]) =>
-      withDesignMdAttachmentMock(...args),
-  },
-}));
-
-vi.mock("@/lib/services/project-files.service", () => ({
-  projectFilesService: {
-    appendProjectFilesToDescription: (...args: unknown[]) =>
-      appendProjectFilesToDescriptionMock(...args),
   },
 }));
 
@@ -148,19 +129,6 @@ describe("task link actions", () => {
     taskScheduleServiceMock.setSchedule.mockReset();
     taskServiceMock.patchTask.mockResolvedValue({});
     taskServiceMock.createTaskEvent.mockResolvedValue({});
-    appendDesignMdToDescriptionMock.mockReset();
-    appendDesignMdToDescriptionMock.mockImplementation(
-      async (description: string) => description,
-    );
-    withDesignMdAttachmentMock.mockReset();
-    withDesignMdAttachmentMock.mockImplementation(
-      (description: string, attachment: { label: string; url: string }) =>
-        `[${attachment.label}](${attachment.url})\n\n${description}`,
-    );
-    appendProjectFilesToDescriptionMock.mockReset();
-    appendProjectFilesToDescriptionMock.mockImplementation(
-      async (description: string) => description,
-    );
     toCoreApiActionErrorMock.mockReset();
     toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
       message:
@@ -217,10 +185,7 @@ describe("task link actions", () => {
     });
   });
 
-  it("prepends the effective design.md attachment before creating a task", async () => {
-    appendDesignMdToDescriptionMock.mockResolvedValue(
-      "[DESIGN.md](https://blob.example/design.md)\n\nCreated related task",
-    );
+  it("maps project context selection into the Core task payload", async () => {
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("../action");
@@ -228,35 +193,33 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      context: {
+        brand: { enabled: true, source: "project", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: true,
+      },
       status: TaskStatus.READY,
     });
 
-    expect(appendDesignMdToDescriptionMock).toHaveBeenCalledWith(
-      "Created related task",
-    );
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        description:
-          "[DESIGN.md](https://blob.example/design.md)\n\nCreated related task",
-      }),
-    );
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith({
+      description: "Created related task",
+      assigneeId: null,
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      context: {
+        brand: true,
+        brandSource: "project",
+        briefing: true,
+        memory: true,
+      },
+      status: TaskStatus.READY,
+    });
     expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
       "name",
     );
-    expect(appendProjectFilesToDescriptionMock).not.toHaveBeenCalled();
   });
 
-  it("prepends project files before DESIGN.md when creating a project task", async () => {
-    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
-    appendProjectFilesToDescriptionMock.mockResolvedValue(
-      "[BRIEFING.md](https://blob.example/BRIEFING.md)\n\n" +
-        "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\n" +
-        "Created related task",
-    );
-    appendDesignMdToDescriptionMock.mockImplementation(
-      async (description: string) =>
-        `[DESIGN.md](https://blob.example/DESIGN.md)\n\n${description}`,
-    );
+  it("maps workspace brand and project-file opt-outs", async () => {
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("../action");
@@ -264,84 +227,56 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
-      projectId,
-      status: TaskStatus.READY,
-    });
-
-    expect(appendProjectFilesToDescriptionMock).toHaveBeenCalledWith(
-      "Created related task",
-      projectId,
-      {
-        skipBriefing: undefined,
-        skipContextMd: undefined,
+      context: {
+        brand: { enabled: true, source: "default", custom: null },
+        briefingEnabled: false,
+        contextMdEnabled: false,
       },
-    );
-    expect(appendDesignMdToDescriptionMock).toHaveBeenCalledWith(
-      "[BRIEFING.md](https://blob.example/BRIEFING.md)\n\n" +
-        "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\n" +
-        "Created related task",
-    );
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        description:
-          "[DESIGN.md](https://blob.example/DESIGN.md)\n\n" +
-          "[BRIEFING.md](https://blob.example/BRIEFING.md)\n\n" +
-          "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\n" +
-          "Created related task",
-        projectId,
-      }),
-    );
-  });
-
-  it("forwards project-file skip choices to server-side attachment resolution", async () => {
-    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
-    taskServiceMock.createTask.mockResolvedValue(buildTask());
-
-    const { createTask } = await import("../action");
-
-    await createTask({
-      description: "Created related task",
-      assigneeId: null,
-      projectId,
-      skipProjectBriefingAttachment: true,
-      skipProjectContextMdAttachment: false,
       status: TaskStatus.READY,
     });
 
-    expect(appendProjectFilesToDescriptionMock).toHaveBeenCalledWith(
-      "Created related task",
-      projectId,
-      {
-        skipBriefing: true,
-        skipContextMd: false,
-      },
-    );
-  });
-
-  it("skips design.md attachment when the composer removed it", async () => {
-    taskServiceMock.createTask.mockResolvedValue(buildTask());
-
-    const { createTask } = await import("../action");
-
-    await createTask({
-      description: "Created related task",
-      assigneeId: null,
-      skipDesignMdAttachment: true,
-      status: TaskStatus.READY,
-    });
-
-    expect(appendDesignMdToDescriptionMock).not.toHaveBeenCalled();
     expect(taskServiceMock.createTask).toHaveBeenCalledWith(
       expect.objectContaining({
         description: "Created related task",
+        context: {
+          brand: true,
+          brandSource: "workspace",
+          briefing: false,
+          memory: false,
+        },
       }),
-    );
-    expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
-      "name",
     );
   });
 
-  it("attaches an ad hoc DESIGN.md override instead of the effective one", async () => {
+  it("maps disabled brand without a brand source", async () => {
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      assigneeId: null,
+      context: {
+        brand: { enabled: false, source: "project", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: true,
+      },
+      status: TaskStatus.READY,
+    });
+
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Created related task",
+        context: {
+          brand: false,
+          briefing: true,
+          memory: true,
+        },
+      }),
+    );
+  });
+
+  it("maps an ad hoc DESIGN.md URL into custom Core brand context", async () => {
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("../action");
@@ -351,55 +286,62 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
-      designMdAttachmentOverride: {
-        label: "DESIGN.md",
-        url: overrideUrl,
+      context: {
+        brand: {
+          enabled: true,
+          source: "custom",
+          custom: { url: overrideUrl },
+        },
+        briefingEnabled: true,
+        contextMdEnabled: false,
       },
       status: TaskStatus.READY,
     });
 
-    expect(appendDesignMdToDescriptionMock).not.toHaveBeenCalled();
-    expect(withDesignMdAttachmentMock).toHaveBeenCalledWith(
-      "Created related task",
-      { label: "DESIGN.md", url: overrideUrl },
-    );
     expect(taskServiceMock.createTask).toHaveBeenCalledWith(
       expect.objectContaining({
-        description: `[DESIGN.md](${overrideUrl})\n\nCreated related task`,
+        description: "Created related task",
+        context: {
+          brand: { url: overrideUrl },
+          briefing: true,
+          memory: false,
+        },
       }),
     );
   });
 
-  it("sanitizes override labels and rejects non-adhoc or non-https URLs", async () => {
+  it("rejects non-adhoc or non-https custom brand URLs", async () => {
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("../action");
-
-    await createTask({
-      description: "Created related task",
-      assigneeId: null,
-      designMdAttachmentOverride: {
-        label: "Acme [Brand]",
-        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
-      },
-      status: TaskStatus.READY,
-    });
-
-    expect(withDesignMdAttachmentMock).toHaveBeenCalledWith(
-      "Created related task",
-      {
-        label: "Acme Brand",
-        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
-      },
-    );
 
     await expect(
       createTask({
         description: "Created related task",
         assigneeId: null,
-        designMdAttachmentOverride: {
-          label: "DESIGN.md",
-          url: "http://blob.example/design-md/adhoc/user-1/42-hash.md",
+        context: {
+          brand: { enabled: true, source: "custom", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
+        status: TaskStatus.READY,
+      }),
+    ).rejects.toThrow("Custom DESIGN.md attachment required");
+
+    await expect(
+      createTask({
+        description: "Created related task",
+        assigneeId: null,
+        context: {
+          brand: {
+            enabled: true,
+            source: "custom",
+            custom: {
+              url: "http://blob.example/design-md/adhoc/user-1/42-hash.md",
+            },
+          },
+          briefingEnabled: true,
+          contextMdEnabled: true,
         },
         status: TaskStatus.READY,
       }),
@@ -409,9 +351,16 @@ describe("task link actions", () => {
       createTask({
         description: "Created related task",
         assigneeId: null,
-        designMdAttachmentOverride: {
-          label: "DESIGN.md",
-          url: "https://blob.example/design-md/adhoc/other-user/42-hash.md",
+        context: {
+          brand: {
+            enabled: true,
+            source: "custom",
+            custom: {
+              url: "https://blob.example/design-md/adhoc/other-user/42-hash.md",
+            },
+          },
+          briefingEnabled: true,
+          contextMdEnabled: true,
         },
         status: TaskStatus.READY,
       }),
@@ -421,38 +370,18 @@ describe("task link actions", () => {
       createTask({
         description: "Created related task",
         assigneeId: null,
-        designMdAttachmentOverride: {
-          label: "DESIGN.md",
-          url: "https://evil.example/not-design.md",
+        context: {
+          brand: {
+            enabled: true,
+            source: "custom",
+            custom: { url: "https://evil.example/not-design.md" },
+          },
+          briefingEnabled: true,
+          contextMdEnabled: true,
         },
         status: TaskStatus.READY,
       }),
     ).rejects.toThrow("DESIGN.md attachment URL is not valid for this user");
-  });
-
-  it("skips the override when skipDesignMdAttachment also is set", async () => {
-    taskServiceMock.createTask.mockResolvedValue(buildTask());
-
-    const { createTask } = await import("../action");
-
-    await createTask({
-      description: "Created related task",
-      assigneeId: null,
-      skipDesignMdAttachment: true,
-      designMdAttachmentOverride: {
-        label: "DESIGN.md",
-        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
-      },
-      status: TaskStatus.READY,
-    });
-
-    expect(appendDesignMdToDescriptionMock).not.toHaveBeenCalled();
-    expect(withDesignMdAttachmentMock).not.toHaveBeenCalled();
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        description: "Created related task",
-      }),
-    );
   });
 
   it("rethrows Core 404 Project not found from createTask (SOKOSUMI-QA)", async () => {
@@ -964,9 +893,6 @@ describe("createTask schedule", () => {
     taskServiceMock.createTask.mockReset();
     taskScheduleServiceMock.clearSchedule.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
-    appendDesignMdToDescriptionMock.mockImplementation(
-      async (description: string) => description,
-    );
   });
 
   it("does not apply a schedule when saving as draft", async () => {

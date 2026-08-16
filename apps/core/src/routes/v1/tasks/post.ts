@@ -6,9 +6,18 @@ import {
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import {
+  DESIGN_MD_ATTACHMENT_LABEL,
+  descriptionIncludesTaskAttachmentLink,
+  formatTaskAttachmentMarkdown,
+  isDesignMdBlobUrl,
+  PROJECT_BRIEFING_ATTACHMENT_LABEL,
+  PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
+} from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
+import { resolveEffectiveDesignMd } from "@/helpers/design-md-effective";
 import { errorResponseSchema, notFound } from "@/helpers/error";
 import {
   jsonContent,
@@ -53,6 +62,22 @@ import {
 } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
+const customBrandSchema = z.object({
+  url: z
+    .string()
+    .url()
+    .refine(isDesignMdBlobUrl, "Brand URL must reference a DESIGN.md blob"),
+});
+
+export const createTaskContextSchema = z
+  .object({
+    brand: z.union([z.boolean(), customBrandSchema]).optional(),
+    brandSource: z.enum(["project", "workspace"]).optional(),
+    briefing: z.boolean().optional(),
+    memory: z.boolean().optional(),
+  })
+  .openapi("CreateTaskContext");
+
 export const createTaskRequestSchema = z
   .object({
     name: z
@@ -83,6 +108,10 @@ export const createTaskRequestSchema = z
       .openapi({ example: TaskStatus.READY }),
     channel: taskEventChannelField.optional(),
     origin: taskEventDeprecatedOriginField.optional(),
+    context: createTaskContextSchema.optional().openapi({
+      description:
+        "Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.",
+    }),
   })
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
@@ -112,7 +141,8 @@ const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/",
-    description: "Create task",
+    description:
+      "Create a task. By default Core prepends available DESIGN.md, project briefing, and project memory links. Use context flags only to opt out or select a workspace/custom brand.",
     tags: ["Tasks"],
     request: {
       body: {
@@ -137,13 +167,24 @@ const route = withCoworkerContextHeaderParameters(
   }),
 );
 
-async function assertTaskProjectInWorkspace(
+const TASK_CONTEXT_PROJECT_SELECT = {
+  id: true,
+  designMdUrl: true,
+  briefingUrl: true,
+  contextMdUrl: true,
+} satisfies Prisma.ProjectSelect;
+
+type TaskContextProject = Prisma.ProjectGetPayload<{
+  select: typeof TASK_CONTEXT_PROJECT_SELECT;
+}>;
+
+async function findTaskProjectInWorkspace(
   projectId: string | null | undefined,
   workspaceId: string,
   tx: Prisma.TransactionClient | typeof prisma = prisma,
-): Promise<void> {
+): Promise<TaskContextProject | null> {
   if (projectId === null || projectId === undefined) {
-    return;
+    return null;
   }
 
   const project = await tx.project.findFirst({
@@ -151,12 +192,102 @@ async function assertTaskProjectInWorkspace(
       id: projectId,
       workspaceId,
     },
-    select: { id: true },
+    select: TASK_CONTEXT_PROJECT_SELECT,
   });
 
   if (!project) {
     throw notFound("Project not found");
   }
+
+  return project;
+}
+
+interface TaskContextAttachment {
+  label: string;
+  url: string;
+}
+
+function prependTaskContextAttachments(
+  description: string | null | undefined,
+  attachments: TaskContextAttachment[],
+): string | null {
+  const existingDescription = description ?? "";
+  const missingAttachments = attachments.filter(
+    ({ label, url }) =>
+      !descriptionIncludesTaskAttachmentLink(existingDescription, label, url),
+  );
+
+  if (missingAttachments.length === 0) {
+    return description ?? null;
+  }
+
+  const attachmentMarkdown = missingAttachments
+    .map(({ label, url }) => formatTaskAttachmentMarkdown(label, url).trimEnd())
+    .join("\n");
+
+  return existingDescription
+    ? `${attachmentMarkdown}\n\n${existingDescription}`
+    : attachmentMarkdown;
+}
+
+async function resolveTaskDescriptionWithContext({
+  context,
+  description,
+  organizationId,
+  ownerId,
+  project,
+  tx,
+}: {
+  context: z.infer<typeof createTaskContextSchema> | undefined;
+  description: string | null | undefined;
+  organizationId: string | null;
+  ownerId: string;
+  project: TaskContextProject | null;
+  tx: Prisma.TransactionClient;
+}): Promise<string | null> {
+  const attachments: TaskContextAttachment[] = [];
+
+  if (context?.brand !== false) {
+    let brandUrl: string | null = null;
+
+    if (typeof context?.brand === "object") {
+      brandUrl = context.brand.url;
+    } else if ((context?.brandSource ?? "project") === "project") {
+      brandUrl = project?.designMdUrl ?? null;
+    }
+
+    if (!brandUrl) {
+      const effectiveDesignMd = await resolveEffectiveDesignMd({
+        userId: ownerId,
+        organizationId,
+        tx,
+      });
+      brandUrl = effectiveDesignMd?.url ?? null;
+    }
+
+    if (brandUrl) {
+      attachments.push({
+        label: DESIGN_MD_ATTACHMENT_LABEL,
+        url: brandUrl,
+      });
+    }
+  }
+
+  if (context?.briefing !== false && project?.briefingUrl) {
+    attachments.push({
+      label: PROJECT_BRIEFING_ATTACHMENT_LABEL,
+      url: project.briefingUrl,
+    });
+  }
+
+  if (context?.memory !== false && project?.contextMdUrl) {
+    attachments.push({
+      label: PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
+      url: project.contextMdUrl,
+    });
+  }
+
+  return prependTaskContextAttachments(description, attachments);
 }
 
 async function resolveTaskCreatorFields(
@@ -238,7 +369,19 @@ async function createTaskRecord(
     workspaceId,
   } = params;
 
-  await assertTaskProjectInWorkspace(body.projectId, workspaceId, tx);
+  const project = await findTaskProjectInWorkspace(
+    body.projectId,
+    workspaceId,
+    tx,
+  );
+  const description = await resolveTaskDescriptionWithContext({
+    context: body.context,
+    description: body.description,
+    organizationId,
+    ownerId,
+    project,
+    tx,
+  });
 
   const isGrantPending = pendingVendorGrantId != null;
   const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
@@ -256,7 +399,7 @@ async function createTaskRecord(
       workspaceId,
       projectId: body.projectId ?? null,
       name: resolvedName,
-      description: body.description ?? null,
+      description,
       assigneeId: body.assigneeId ?? null,
       ...creatorFields,
       status,
@@ -323,7 +466,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const task = await prisma.$transaction(async (tx) => {
-      await assertTaskProjectInWorkspace(
+      await findTaskProjectInWorkspace(
         body.projectId,
         workspaceContext.workspaceId,
         tx,

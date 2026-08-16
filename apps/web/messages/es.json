@@ -1828,26 +1828,19 @@
         "files": "Archivos"
       },
       "NewTask": {
-        "DesignMdAttachment": {
-          "organizationLabel": "Diseño de marca de {organization}",
-          "personalLabel": "Tu diseño de marca",
-          "customLabel": "Diseño de marca de {hostname}",
-          "tooltip": "DESIGN.md es una guía de marca ya creada para {organization} por su propietario. Adjuntarla aquí ayuda a que este agente aplique tu marca automáticamente.",
-          "tooltipPersonal": "DESIGN.md es una guía de marca que ya creaste. Adjuntarla aquí ayuda a que este agente aplique tu marca automáticamente.",
-          "tooltipCustom": "DESIGN.md generado desde {hostname} solo para esta tarea. Adjuntarlo aquí ayuda a que este agente aplique esa marca. No se guarda nada en tu perfil.",
-          "learnMore": "Más información sobre DESIGN.md",
-          "infoAria": "Sobre este adjunto",
-          "useDifferentBranding": "Usar otra marca",
-          "resetToDefault": "Restablecer marca"
-        },
-        "ProjectFilesAttachment": {
-          "briefingDescription": "Briefing del proyecto",
-          "briefingInfo": "BRIEFING.md contiene los objetivos, la audiencia, los canales, el calendario y las restricciones del proyecto. Proporciona al coworker el contexto esencial para esta tarea.",
-          "briefingInfoAria": "Acerca de BRIEFING.md",
-          "contextDescription": "Memoria del proyecto",
-          "contextDescriptionUpdated": "Memoria del proyecto · actualizada {when}",
-          "contextInfo": "CONTEXT.md es la memoria viva del proyecto y se actualiza al completar tareas. Ayuda al coworker a reutilizar decisiones y aprendizajes.",
-          "contextInfoAria": "Acerca de CONTEXT.md"
+        "ContextAttachments": {
+          "label": "Contexto",
+          "brand": "Marca",
+          "namedBrand": "Marca de {name}",
+          "personalBrand": "Marca personal",
+          "brandMenuAria": "Elegir contexto de marca",
+          "projectBrand": "Marca del proyecto",
+          "organizationBrand": "Marca de la organización",
+          "otherWebsite": "Otro sitio web…",
+          "briefing": "Briefing",
+          "memory": "Memoria",
+          "infoAria": "Acerca del contexto del Task",
+          "info": "La marca, el briefing y la memoria se adjuntan como archivos DESIGN.md, BRIEFING.md y CONTEXT.md para que los lea el coworker."
         },
         "title": "Nuevo Task",
         "details": "Detalles",
@@ -2078,7 +2071,10 @@
         "stepLabel": "{current} / {total}",
         "name": {
           "title": "Nombra este proyecto",
-          "subtitle": "Un título corto para la campaña o iniciativa."
+          "subtitle": "Un título corto para la campaña o iniciativa.",
+          "websiteLabel": "Sitio web",
+          "websitePlaceholder": "example.com",
+          "websiteHint": "Opcional. Se usa para el logo y la guía de marca."
         },
         "briefing": {
           "title": "Escribe el briefing",
@@ -2088,16 +2084,25 @@
           "title": "Revisar y crear",
           "subtitle": "Puedes editar el briefing en cualquier momento.",
           "nameLabel": "Nombre",
+          "websiteLabel": "Sitio web",
           "briefingLabel": "Briefing",
+          "emptyWebsite": "Sin sitio web",
           "emptyBriefing": "Aún no hay briefing — puedes añadirlo después de crear.",
-          "briefingNote": "Este briefing se guarda como BRIEFING.md y se adjunta a cada tarea nueva.",
-          "memoryNote": "El proyecto también guarda una memoria (CONTEXT.md) que mejora al completar tareas."
+          "contextNote": "Cada tarea de este proyecto empieza con tu briefing, tu marca y la memoria del proyecto."
+        },
+        "brand": {
+          "title": "Configurando la marca",
+          "fetching": "Obteniendo la marca…",
+          "ready": "La marca está lista. Puedes abrir el proyecto cuando quieras.",
+          "failed": "No pudimos terminar la marca ahora. Puedes intentarlo más tarde en el proyecto.",
+          "logoFailed": "No se pudo obtener el logo. Puedes añadirlo más tarde."
         },
         "nav": {
           "next": "Continuar",
           "back": "Atrás",
           "create": "Crear proyecto",
-          "creating": "Creando…"
+          "creating": "Creando…",
+          "openProject": "Abrir proyecto"
         }
       },
       "NewProject": {
@@ -2107,7 +2112,7 @@
       "EditProject": {
         "title": "Editar proyecto",
         "details": "Detalles",
-        "detailsDescription": "Actualiza el nombre y el briefing del proyecto.",
+        "detailsDescription": "Actualiza el nombre, el sitio web y el briefing del proyecto.",
         "name": "Nombre del proyecto",
         "namePlaceholder": "Introduce un título corto",
         "save": "Guardar",
@@ -2124,8 +2129,9 @@
         "editBriefing": "Editar",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos",
+        "brandReady": "Marca ✓",
         "memory": {
-          "fileName": "CONTEXT.md",
+          "fileName": "Memoria",
           "updated": "Actualizado {when}",
           "updating": "Actualizando…",
           "empty": "La memoria crece al completar tareas",

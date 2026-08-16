@@ -104,6 +104,7 @@ describe("ProjectForm", () => {
       expect(createProjectMock).toHaveBeenCalledWith({
         name: "Launch plan",
         briefing: "Ship it",
+        websiteUrl: null,
       });
     });
     expect(onSuccess).toHaveBeenCalledWith("project-1", "Launch plan");
@@ -167,6 +168,7 @@ describe("ProjectForm", () => {
         projectId: "project-1",
         name: "Updated name",
         briefing: null,
+        websiteUrl: null,
       });
     });
     expect(pushMock).toHaveBeenCalledWith("/projects/project-1");

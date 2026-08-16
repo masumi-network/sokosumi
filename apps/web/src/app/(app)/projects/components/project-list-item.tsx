@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
 import { previewProjectBriefing } from "@/app/projects/project-briefing";
 import {
@@ -94,6 +95,7 @@ export function ProjectListItem({
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg px-2 py-3 transition-colors active:scale-[0.995] sm:flex-row sm:items-center sm:gap-4"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <ProjectAvatar name={project.name} logo={project.logo} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {project.name}

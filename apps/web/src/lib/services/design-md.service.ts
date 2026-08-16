@@ -8,7 +8,11 @@ import {
   type DesignMdDonePayload,
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
-import type { Session } from "@sokosumi/utils";
+import {
+  descriptionIncludesTaskAttachmentLink,
+  formatTaskAttachmentMarkdown,
+  type Session,
+} from "@sokosumi/utils";
 import { cache } from "react";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -22,10 +26,6 @@ import {
   createDesignMdJobToken,
   verifyDesignMdJobToken,
 } from "@/lib/services/design-md-job-token";
-import {
-  descriptionIncludesTaskAttachmentLink,
-  formatTaskAttachmentMarkdown,
-} from "@/lib/utils/task-attachments";
 
 type DesignMdServiceErrorCode =
   | "bad_input"
@@ -161,6 +161,27 @@ async function assertCanManageOwner(
   // authenticated caller may generate one, matching the Core endpoint's gate.
   if (owner.type === "user" || owner.type === "adhoc") return;
 
+  if (owner.type === "project") {
+    try {
+      const project = await coreClient.getProjectsById(owner.projectId);
+      if (!project.data) {
+        throw new DesignMdServiceError(
+          "unauthorized",
+          "Project DESIGN.md can only be managed by workspace members",
+        );
+      }
+    } catch (error) {
+      if (error instanceof DesignMdServiceError) {
+        throw error;
+      }
+      throw new DesignMdServiceError(
+        "unauthorized",
+        "Project DESIGN.md can only be managed by workspace members",
+      );
+    }
+    return;
+  }
+
   const member = await coreClient.getMyMemberInOrganization(
     owner.organizationId,
   );
@@ -173,11 +194,39 @@ async function assertCanManageOwner(
   }
 }
 
+function toPersistedDesignMd(designMd: {
+  url: string;
+  extractionId: string | null;
+}): PersistedDesignMd {
+  return {
+    extractionId: designMd.extractionId,
+    previewUrl: designMd.extractionId
+      ? getDesignMdPreviewUrl(designMd.extractionId)
+      : null,
+    url: designMd.url,
+  };
+}
+
 async function persistDesignMdToProfile(
   owner: ManageableDesignMdOwnerSchemaType,
   designMd: { extractionId?: null | string; content?: null | string },
 ): Promise<PersistedDesignMd | null> {
   await assertCanManageOwner(owner);
+
+  if (owner.type === "project") {
+    const content = designMd.content?.trim();
+    if (!content) {
+      return null;
+    }
+
+    const { data } = await coreClient.putProjectsByIdDesignMd(owner.projectId, {
+      content,
+      extractionId: designMd.extractionId ?? null,
+    });
+
+    if (!data.designMd) return null;
+    return toPersistedDesignMd(data.designMd);
+  }
 
   const body = {
     content: designMd.content ?? null,
@@ -191,13 +240,7 @@ async function persistDesignMdToProfile(
 
   if (!data.designMd) return null;
 
-  const { extractionId, url } = data.designMd;
-
-  return {
-    extractionId,
-    previewUrl: extractionId ? getDesignMdPreviewUrl(extractionId) : null,
-    url,
-  };
+  return toPersistedDesignMd(data.designMd);
 }
 
 /**
@@ -350,6 +393,12 @@ export const designMdService = (() => {
   async function removeDesignMd(
     owner: ManageableDesignMdOwnerSchemaType,
   ): Promise<void> {
+    if (owner.type === "project") {
+      await assertCanManageOwner(owner);
+      await coreClient.deleteProjectsByIdDesignMd(owner.projectId);
+      return;
+    }
+
     await persistDesignMdToProfile(owner, {
       extractionId: null,
       content: null,

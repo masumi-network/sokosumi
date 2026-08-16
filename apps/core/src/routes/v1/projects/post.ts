@@ -21,7 +21,7 @@ const route = withOrchestratorContextHeaderParameters(
     method: "post",
     path: "/",
     description:
-      "Create a project in the active workspace. Session user or orchestrator with context headers; coworker keys are rejected so X-Context-User-Id cannot mint projects in another user's workspace.",
+      "Create a project, optional website, logo, DESIGN.md, and briefing in the active workspace. Session user or orchestrator with context headers; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       body: {
@@ -51,6 +51,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId: workspaceContext.workspaceId,
         name: body.name,
         briefing: body.briefing ?? null,
+        websiteUrl: body.websiteUrl ?? null,
+        logo: body.logo ?? null,
+        designMdUrl: body.designMd?.url ?? null,
+        designMdExtractionId: body.designMd?.extractionId ?? null,
       },
     });
 
