@@ -114,7 +114,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     expect(redirectMock).toHaveBeenCalledWith("/workspace-gate");
   });
 
-  it("redirects when inventory is missing (fail closed)", async () => {
+  it("redirects when workspace access is missing (fail closed)", async () => {
     getWorkspaceAccessMock.mockResolvedValue(null);
 
     const { default: AuthenticatedAppFrame } = await import(

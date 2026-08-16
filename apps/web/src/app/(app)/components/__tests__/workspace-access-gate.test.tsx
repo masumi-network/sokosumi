@@ -48,7 +48,7 @@ describe("WorkspaceAccessGate", () => {
     expect(redirectMock).toHaveBeenCalledWith("/workspace-gate");
   });
 
-  it("redirects when inventory throws (fail closed, no chrome)", async () => {
+  it("redirects when workspace access throws (fail closed, no chrome)", async () => {
     getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 
     const { default: WorkspaceAccessGate } = await import(

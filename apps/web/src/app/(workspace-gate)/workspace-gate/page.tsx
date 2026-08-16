@@ -22,28 +22,29 @@ export default async function WorkspaceGatePage() {
   await getSessionOrRedirect();
 
   let gate: string | null = null;
-  let inventoryLoadFailed = false;
+  let workspaceAccessLoadFailed = false;
 
   try {
-    const inventory = await userService.getWorkspaceAccess();
-    if (!inventory) {
-      // Session exists but gate payload missing — treat as temporary failure,
-      // not identity onboarding (user must understand why they cannot enter).
-      inventoryLoadFailed = true;
+    const workspaceAccess = await userService.getWorkspaceAccess();
+    if (!workspaceAccess) {
+      // Session exists but workspace-access payload missing — treat as
+      // temporary failure, not identity onboarding (user must understand why
+      // they cannot enter).
+      workspaceAccessLoadFailed = true;
     } else {
-      gate = inventory.gate;
+      gate = workspaceAccess.gate;
     }
   } catch (error) {
-    console.error("Failed to load workspace gate for gate page", error);
-    inventoryLoadFailed = true;
+    console.error("Failed to load workspace access for gate page", error);
+    workspaceAccessLoadFailed = true;
   }
 
   // Ready users never land on the gate.
-  if (!inventoryLoadFailed && isWorkspaceReady(gate)) {
+  if (!workspaceAccessLoadFailed && isWorkspaceReady(gate)) {
     redirect("/");
   }
 
-  const surface: GateSurface = inventoryLoadFailed
+  const surface: GateSurface = workspaceAccessLoadFailed
     ? "unavailable"
     : gate === "pending-invites"
       ? "pending-invites"
