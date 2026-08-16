@@ -56,6 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     // Promise.all on interactive transaction clients is unsupported; #2559).
     const access = await loadWorkspaceAccess(resolvedUserId, prisma);
 
+    c.header("Cache-Control", "no-store");
     return ok(c, workspaceAccessSchema.parse(access));
   });
 }

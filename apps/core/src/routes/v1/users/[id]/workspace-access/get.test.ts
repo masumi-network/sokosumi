@@ -85,6 +85,7 @@ describe("GET /users/{id}/workspace-access", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(loadWorkspaceAccessMock).toHaveBeenCalledWith(
       "user_123",
       expect.objectContaining({
