@@ -4,7 +4,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
-  Sparkles,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -139,7 +139,7 @@ export function ProjectBrandStatCard({
   return (
     <Link
       href="#project-brand-card"
-      className="bg-card hover:bg-muted/30 min-w-0 rounded-xl border p-4 transition-colors"
+      className="bg-muted/30 border-border/50 hover:bg-muted/50 min-w-0 rounded-xl border p-4 transition-colors"
       data-testid="project-brand-stat"
     >
       <p className="text-muted-foreground text-xs font-medium">{t("brand")}</p>
@@ -214,7 +214,7 @@ export function ProjectBrandCard({
     <>
       <section
         id="project-brand-card"
-        className="bg-card scroll-mt-4 rounded-xl border p-4"
+        className="bg-muted/30 border-border/50 scroll-mt-4 rounded-xl border p-4"
         data-testid="project-brand-card"
       >
         <div className="flex items-start justify-between gap-3">
@@ -255,7 +255,7 @@ export function ProjectBrandCard({
             {generation.isRunning ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
-              <Sparkles className="size-4" aria-hidden />
+              <RefreshCw className="size-4" aria-hidden />
             )}
             {t("brandCard.generate")}
           </Button>

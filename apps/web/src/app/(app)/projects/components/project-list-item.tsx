@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  Briefcase,
   Eye,
   ListTodo,
   type LucideIcon,
   MoreHorizontal,
   Pencil,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -197,7 +197,7 @@ function ProjectResourceCounts({
         total={project.taskCount}
       />
       <ResourceCountPill
-        icon={Sparkles}
+        icon={Briefcase}
         ariaLabel={labels.jobs}
         total={project.jobCount}
       />

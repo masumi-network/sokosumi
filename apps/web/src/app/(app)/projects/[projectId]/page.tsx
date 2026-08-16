@@ -122,7 +122,7 @@ export default async function ProjectDetailPage({
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <div className="bg-card rounded-xl border p-4 xl:col-span-2">
+          <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-2">
             <ProjectBriefing
               title={t("briefing")}
               briefing={project.briefing}
@@ -142,7 +142,7 @@ export default async function ProjectDetailPage({
             websiteUrl={project.websiteUrl}
           />
 
-          <div className="bg-card rounded-xl border p-4 xl:col-span-2">
+          <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-2">
             <ProjectTasksSection
               projectId={project.id}
               tasks={projectTasksResult.tasks}
@@ -167,7 +167,7 @@ export default async function ProjectDetailPage({
             />
           </div>
 
-          <div className="bg-card rounded-xl border p-4">
+          <div className="bg-muted/30 border-border/50 rounded-xl border p-4">
             <ProjectJobsSection
               projectId={project.id}
               jobs={projectJobsResult.jobs}

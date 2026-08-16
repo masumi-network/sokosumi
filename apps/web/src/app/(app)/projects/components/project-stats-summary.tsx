@@ -1,4 +1,4 @@
-import { ListTodo, Sparkles } from "lucide-react";
+import { Briefcase, ListTodo } from "lucide-react";
 import { getTaskStatusDotColorClass } from "@/app/tasks/components/task-status-badge";
 import type {
   ProjectStatsEntry,
@@ -37,7 +37,7 @@ export function ProjectStatsSummary({
 
   return (
     <div className="contents">
-      <div className="bg-card rounded-xl border p-4">
+      <div className="bg-muted/30 border-border/50 rounded-xl border p-4">
         <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
           <ListTodo className="size-4" aria-hidden />
           <span>{labels.tasks}</span>
@@ -47,9 +47,9 @@ export function ProjectStatsSummary({
         </p>
         <StatusBreakdown chips={taskChips} />
       </div>
-      <div className="bg-card rounded-xl border p-4">
+      <div className="bg-muted/30 border-border/50 rounded-xl border p-4">
         <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
-          <Sparkles className="size-4" aria-hidden />
+          <Briefcase className="size-4" aria-hidden />
           <span>{labels.jobs}</span>
         </div>
         <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
