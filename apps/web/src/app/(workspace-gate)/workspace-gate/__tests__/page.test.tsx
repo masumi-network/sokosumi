@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionOrRedirectMock = vi.fn();
-const getWorkspaceInventoryMock = vi.fn();
+const getWorkspaceAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -22,8 +22,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 
 vi.mock("@/lib/services", () => ({
   userService: {
-    getWorkspaceInventory: (...args: unknown[]) =>
-      getWorkspaceInventoryMock(...args),
+    getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
 }));
 
@@ -46,7 +45,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("redirects ready users away from the gate", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,
@@ -59,8 +58,8 @@ describe("WorkspaceGatePage", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
-  it("renders the identity gate when inventory is not ready", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue({
+  it("renders the identity gate when workspace access is not ready", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -76,8 +75,8 @@ describe("WorkspaceGatePage", () => {
     expect(JSON.stringify(ui)).not.toContain("unavailableTitle");
   });
 
-  it("renders pending-invites copy when inventory reports pending invites", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue({
+  it("renders pending-invites copy when workspace access reports pending invites", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -91,8 +90,8 @@ describe("WorkspaceGatePage", () => {
     expect(JSON.stringify(ui)).toContain("pendingInvitesTitle");
   });
 
-  it("renders unavailable surface when inventory throws (not identity onboarding)", async () => {
-    getWorkspaceInventoryMock.mockRejectedValue(new Error("Core down"));
+  it("renders unavailable surface when workspace access throws (not identity onboarding)", async () => {
+    getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
@@ -105,8 +104,8 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).not.toContain("identityTitle");
   });
 
-  it("renders unavailable surface when inventory is null for a signed-in user", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue(null);
+  it("renders unavailable surface when workspace access is null for a signed-in user", async () => {
+    getWorkspaceAccessMock.mockResolvedValue(null);
 
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();

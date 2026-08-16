@@ -9,24 +9,25 @@ interface WorkspaceAccessGateProps {
 }
 
 /**
- * Hard gate before app chrome Suspense. Not-ready / inventory failure redirects
- * to `/workspace-gate` without mounting sidebar/header fallbacks.
- * Inventory is React-cached with AuthenticatedAppFrame (one Core hit per request).
+ * Hard gate before app chrome Suspense. Not-ready / workspace-access failure
+ * redirects to `/workspace-gate` without mounting sidebar/header fallbacks.
+ * Workspace access is React-cached with AuthenticatedAppFrame (one Core hit
+ * per request).
  */
 export default async function WorkspaceAccessGate({
   children,
 }: WorkspaceAccessGateProps) {
   await getSessionOrRedirect();
 
-  let inventoryGate: string | null = null;
+  let workspaceGate: string | null = null;
   try {
-    const inventory = await userService.getWorkspaceInventory();
-    inventoryGate = inventory?.gate ?? null;
+    const workspaceAccess = await userService.getWorkspaceAccess();
+    workspaceGate = workspaceAccess?.gate ?? null;
   } catch (error) {
-    console.error("Failed to load workspace inventory for access gate", error);
+    console.error("Failed to load workspace access for access gate", error);
   }
 
-  if (!isWorkspaceReady(inventoryGate)) {
+  if (!isWorkspaceReady(workspaceGate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
 
