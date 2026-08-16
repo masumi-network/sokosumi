@@ -36,6 +36,9 @@ export function useStickToBottom({
   // Last observed scroller scrollHeight so ResizeObserver can recover when a
   // growth-driven scroll event clears the sticky flag mid-frame.
   const lastScrollHeightRef = useRef(0);
+  // After own send: restore composer focus when we write scrollTop (pin + RO).
+  const afterOwnSendPinRef = useRef<(() => void) | null>(null);
+  const afterOwnSendClearFrameRef = useRef<number | null>(null);
   // Pixel min-height so short transcripts can justify-end in the scroller
   // (kept after native overflow swap; was required for Radix display:table).
   const [contentMinHeight, setContentMinHeight] = useState<number>();
@@ -45,6 +48,7 @@ export function useStickToBottom({
     if (!el) {
       return;
     }
+    // Message list only — never scrollIntoView / window scroll (iOS OSK).
     el.scrollTop = el.scrollHeight;
     stickToBottomRef.current = true;
   }, []);
@@ -52,20 +56,51 @@ export function useStickToBottom({
   /**
    * Own send: always reveal the new bubble, even if typing/composer resize
    * cleared the sticky flag. Immediate + rAF so late layout still pins.
+   * Optional `afterPin` restores composer focus after each scrollTop write
+   * (iOS dismisses the OSK when an overflow scroller moves under focus).
    */
-  const pinToBottomAfterOwnSend = useCallback(() => {
-    scrollToBottom();
-    requestAnimationFrame(() => {
-      scrollToBottom();
-    });
-  }, [scrollToBottom]);
+  const pinToBottomAfterOwnSend = useCallback(
+    (afterPin?: () => void) => {
+      afterOwnSendPinRef.current = afterPin ?? null;
+      if (afterOwnSendClearFrameRef.current != null) {
+        cancelAnimationFrame(afterOwnSendClearFrameRef.current);
+        afterOwnSendClearFrameRef.current = null;
+      }
 
+      function runPin() {
+        scrollToBottom();
+        afterOwnSendPinRef.current?.();
+      }
+
+      runPin();
+      requestAnimationFrame(() => {
+        runPin();
+        // Keep afterPin one more frame so ResizeObserver growth pins can
+        // restore focus after the bubble paints.
+        afterOwnSendClearFrameRef.current = requestAnimationFrame(() => {
+          afterOwnSendPinRef.current = null;
+          afterOwnSendClearFrameRef.current = null;
+        });
+      });
+    },
+    [scrollToBottom],
+  );
   const scrollToBottomIfPinned = useCallback(() => {
     if (!stickToBottomRef.current) {
       return;
     }
     scrollToBottom();
   }, [scrollToBottom]);
+
+  useEffect(() => {
+    return () => {
+      if (afterOwnSendClearFrameRef.current != null) {
+        cancelAnimationFrame(afterOwnSendClearFrameRef.current);
+        afterOwnSendClearFrameRef.current = null;
+      }
+      afterOwnSendPinRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     stickToBottomRef.current = true;
@@ -92,6 +127,7 @@ export function useStickToBottom({
 
       if (stickToBottomRef.current) {
         scroller.scrollTop = scroller.scrollHeight;
+        afterOwnSendPinRef.current?.();
         return;
       }
 
@@ -103,6 +139,7 @@ export function useStickToBottom({
         if (distanceBeforeGrowth < nearBottomPx) {
           scroller.scrollTop = scroller.scrollHeight;
           stickToBottomRef.current = true;
+          afterOwnSendPinRef.current?.();
         }
       }
     });

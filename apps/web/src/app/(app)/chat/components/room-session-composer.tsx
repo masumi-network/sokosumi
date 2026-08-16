@@ -165,6 +165,11 @@ export function RoomSessionComposer({
     onClearPendingQuote?.();
     clearDraft();
 
+    // Keep first responder across draft clear before pin/await (SOK-815).
+    if (ref && typeof ref !== "function") {
+      ref.current?.focus();
+    }
+
     const result = await onSend({
       content,
       mentionedIds: snapshot.mentionedIds,
@@ -179,7 +184,7 @@ export function RoomSessionComposer({
 
     clearComposeDraft(sentDraftKey);
 
-    // Keep soft keyboard up for the next message (SOK-815).
+    // Pin/rAF may have run during onSend; restore without scrolling the page.
     if (ref && typeof ref !== "function") {
       ref.current?.focus();
     }

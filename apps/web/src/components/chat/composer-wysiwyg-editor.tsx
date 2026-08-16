@@ -421,6 +421,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
       (!isFocused || isExternalClear || editorLooksEmpty)
     ) {
       editor.innerHTML = newHtml || "";
+      // iOS can drop first-responder when emptying a focused contenteditable.
+      if (isFocused) {
+        editor.focus({ preventScroll: true });
+      }
     }
     isInternalChange.current = false;
   }, [value, resolveMentionDisplay]);
@@ -1209,7 +1213,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
     ref,
     () => ({
       focus: () => {
-        editorRef.current?.focus();
+        // preventScroll: list pin uses scrollTop; do not let focus jump the page
+        // or dismiss the iOS keyboard via an implicit scroll-into-view.
+        editorRef.current?.focus({ preventScroll: true });
       },
       insertText,
       openMentions,

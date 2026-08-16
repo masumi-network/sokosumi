@@ -548,6 +548,7 @@ describe("ComposerWysiwygEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "clear" }));
 
     expect(editor.textContent ?? "").toBe("");
+    expect(editor).toHaveFocus();
   });
 
   it("clears editor DOM after internal input then external clear in the same focused session", () => {
