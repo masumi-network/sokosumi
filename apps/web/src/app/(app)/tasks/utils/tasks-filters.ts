@@ -232,13 +232,40 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.status);
   }
 
-  if (filters.projectId) {
-    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.projectId, filters.projectId);
+  return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
+}
+
+export function applyProjectIdSearchParam(
+  currentSearchParams: URLSearchParams | SearchParamsLike,
+  projectId: string | null,
+): URLSearchParams {
+  const nextSearchParams = new URLSearchParams(currentSearchParams.toString());
+
+  if (projectId) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.projectId, projectId);
   } else {
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.projectId);
   }
 
   return nextSearchParams;
+}
+
+export function mergeProjectFilterOptions(
+  primary: readonly ProjectFilterOption[],
+  extra: readonly ProjectFilterOption[],
+): ProjectFilterOption[] {
+  const seen = new Set<string>();
+  const next: ProjectFilterOption[] = [];
+
+  for (const project of [...primary, ...extra]) {
+    if (seen.has(project.id)) {
+      continue;
+    }
+    seen.add(project.id);
+    next.push(project);
+  }
+
+  return next;
 }
 
 export function getTasksFiltersResetKey(
@@ -255,19 +282,17 @@ export function getTasksFiltersResetKey(
  * - Organization boards: Show the dot when `scope` is "owned" or "workspace"
  *   (either explicit choice signals the board is scoped — "My Tasks" or "All
  *   workspace tasks" — as opposed to a hypothetical unfiltered view). The
- *   default here is "workspace". Also show when assigneeId, status, or
- *   projectId is set.
+ *   default here is "workspace". Also show when assigneeId or status is set.
+ *   `projectId` is owned by the project switcher, not the Filters panel.
  * - Personal boards: Show the dot only when a non-default filter is applied
- *   (assigneeId, status, or projectId). The default "owned" scope alone does
+ *   (assigneeId or status). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.
  */
 export function hasActiveTasksFilters(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): boolean {
-  const hasNonScopeFilter = Boolean(
-    filters.assigneeId || filters.status || filters.projectId,
-  );
+  const hasNonScopeFilter = Boolean(filters.assigneeId || filters.status);
 
   if (activeOrganizationId !== null) {
     return (

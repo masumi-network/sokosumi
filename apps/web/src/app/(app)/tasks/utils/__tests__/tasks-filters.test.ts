@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyProjectIdSearchParam,
   buildTasksFiltersSearchParams,
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
@@ -7,6 +8,7 @@ import {
   hasActiveTasksFilters,
   isTaskDraggableForViewFilters,
   isTaskOwnerEditable,
+  mergeProjectFilterOptions,
   parseTasksFilters,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
@@ -350,13 +352,42 @@ describe("tasks-filters", () => {
       ).toBe(true);
     });
 
-    it("shows the indicator for personal boards with project filter", () => {
+    it("does not treat project scope as a Filters-panel indicator", () => {
       expect(
         hasActiveTasksFilters(
           { ...defaultFilters, projectId: PROJECT_ID },
           null,
         ),
-      ).toBe(true);
+      ).toBe(false);
+    });
+  });
+
+  describe("applyProjectIdSearchParam", () => {
+    it("sets and clears projectId without touching other params", () => {
+      const current = new URLSearchParams("status=READY&agentId=agent-1");
+
+      const withProject = applyProjectIdSearchParam(current, PROJECT_ID);
+      expect(withProject.get("projectId")).toBe(PROJECT_ID);
+      expect(withProject.get("status")).toBe("READY");
+      expect(withProject.get("agentId")).toBe("agent-1");
+
+      const cleared = applyProjectIdSearchParam(withProject, null);
+      expect(cleared.get("projectId")).toBeNull();
+      expect(cleared.get("status")).toBe("READY");
+    });
+  });
+
+  describe("mergeProjectFilterOptions", () => {
+    it("keeps server options first and appends unseen created projects", () => {
+      expect(
+        mergeProjectFilterOptions(projectOptions, [
+          { id: PROJECT_ID, name: "Stale" },
+          { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", name: "New" },
+        ]),
+      ).toEqual([
+        { id: PROJECT_ID, name: "Research" },
+        { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", name: "New" },
+      ]);
     });
   });
 

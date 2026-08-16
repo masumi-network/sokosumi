@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CircleDashed, FolderKanban, Sparkles } from "lucide-react";
+import { Building2, CircleDashed, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
@@ -153,23 +153,6 @@ export function JobsViewFilters({
       })),
     });
 
-    nextSections.push({
-      id: "project",
-      label: filtersLabels.projectLabel,
-      icon: FolderKanban,
-      value: filters.projectId,
-      allLabel: filtersLabels.all,
-      onChange: (projectId) =>
-        handleFilterChange({
-          projectId,
-        }),
-      options: projectOptions.map((project) => ({
-        value: project.id,
-        label: project.name,
-        searchKeywords: [project.name],
-      })),
-    });
-
     return nextSections;
   }, [
     activeOrganizationId,
@@ -177,9 +160,7 @@ export function JobsViewFilters({
     filters.scope,
     filters.agentId,
     filters.jobStatus,
-    filters.projectId,
     filtersLabels.all,
-    filtersLabels.projectLabel,
     filtersLabels.scopeLabel,
     filtersLabels.scopeOwned,
     filtersLabels.scopeWorkspace,
@@ -187,7 +168,6 @@ export function JobsViewFilters({
     labels.agentLabel,
     labels.jobStatusLabel,
     labels.jobStatusOptions,
-    projectOptions,
   ]);
 
   return (

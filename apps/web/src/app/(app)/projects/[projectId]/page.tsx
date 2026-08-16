@@ -1,37 +1,24 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { ProjectBrandSection } from "@/app/projects/components/project-brand-section";
+import {
+  ProjectBrandCard,
+  ProjectBrandProvider,
+  ProjectBrandStatCard,
+} from "@/app/projects/components/project-brand-card";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
+import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
 import { ProjectStatsSummary } from "@/app/projects/components/project-stats-summary";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
 import { buildTaskStatusAbbreviationLabels } from "@/app/tasks/utils/task-status-labels";
-import type { ProjectJobStatusCount } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
 const PROJECT_DETAIL_RESOURCE_LIMIT = 100;
-
-type ProjectJobStatus = ProjectJobStatusCount["status"];
-
-const JOB_STATUSES: ProjectJobStatus[] = [
-  "started",
-  "completed",
-  "processing",
-  "input_required",
-  "result_pending",
-  "failed",
-  "payment_pending",
-  "payment_failed",
-  "refund_pending",
-  "refund_resolved",
-  "dispute_pending",
-  "dispute_resolved",
-];
 
 export default async function ProjectDetailPage({
   params,
@@ -70,10 +57,11 @@ export default async function ProjectDetailPage({
   ]);
 
   return (
-    <div className="min-h-full w-full px-2 pb-8">
+    <div className="min-h-full w-full px-4 py-6 md:px-6">
       <ProjectDetailHeader
         projectName={project.name}
         projectLogo={project.logo}
+        websiteUrl={project.websiteUrl}
         backLabel={t("back")}
         metadata={[
           {
@@ -104,110 +92,147 @@ export default async function ProjectDetailPage({
         }
       />
 
-      <div className="mt-6">
-        <ProjectStatsSummary
-          stats={projectStats}
-          labels={{
-            tasks: statsT("tasks"),
-            jobs: statsT("jobs"),
-            taskStatusLabels: buildTaskStatusAbbreviationLabels((key) =>
-              statsT(`taskStatusAbbreviations.${key}`),
-            ),
-            jobStatusLabels: Object.fromEntries(
-              JOB_STATUSES.map((status) => [
-                status,
-                statsT(`jobStatusAbbreviations.${status}`),
-              ]),
-            ) as Record<ProjectJobStatus, string>,
-          }}
-        />
-      </div>
-
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <div className="space-y-8">
-          <ProjectBriefing
-            title={t("briefing")}
-            briefing={project.briefing}
-            emptyLabel={t("emptyBriefing")}
-            editHref={`/projects/${project.id}/edit`}
-            editLabel={t("editBriefing")}
-            showMoreLabel={t("showMore")}
-            showLessLabel={t("showLess")}
-          />
-
-          <ProjectTasksSection
-            projectId={project.id}
-            tasks={projectTasksResult.tasks}
+      <ProjectBrandProvider
+        key={project.designMd?.url ?? "project-brand-empty"}
+        projectId={project.id}
+        initialDesignMd={project.designMd}
+      >
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <ProjectStatsSummary
+            stats={projectStats}
             labels={{
-              title: t("tasks.title"),
-              empty: t("tasks.empty"),
-              add: t("tasks.add"),
-              remove: t("tasks.remove"),
-              pickerTitle: t("tasks.pickerTitle"),
-              pickerDescription: t("tasks.pickerDescription"),
-              pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
-              pickerEmpty: t("tasks.pickerEmpty"),
-              pickerLoading: t("tasks.pickerLoading"),
-              pickerError: t("tasks.pickerError"),
-              confirmRemove: t("actions.confirmRemoveTask"),
-              cancel: t("deleteDialog.cancel"),
-              errors: {
-                add: t("errors.addTask"),
-                remove: t("errors.removeTask"),
-              },
+              tasks: statsT("tasks"),
+              jobs: statsT("jobs"),
+              taskStatusLabels: buildTaskStatusAbbreviationLabels((key) =>
+                statsT(`taskStatusAbbreviations.${key}`),
+              ),
             }}
           />
-
-          <ProjectJobsSection
+          <ProjectBrandStatCard
+            projectName={project.name}
+            logo={project.logo}
+          />
+          <ProjectMemoryRow
             projectId={project.id}
-            jobs={projectJobsResult.jobs}
-            labels={{
-              title: t("jobs.title"),
-              empty: t("jobs.empty"),
-              add: t("jobs.add"),
-              remove: t("jobs.remove"),
-              pickerTitle: t("jobs.pickerTitle"),
-              pickerDescription: t("jobs.pickerDescription"),
-              pickerSearchPlaceholder: t("jobs.pickerSearchPlaceholder"),
-              pickerEmpty: t("jobs.pickerEmpty"),
-              pickerLoading: t("jobs.pickerLoading"),
-              pickerError: t("jobs.pickerError"),
-              confirmRemove: t("actions.confirmRemoveJob"),
-              cancel: t("deleteDialog.cancel"),
-              untitled: t("jobs.untitled"),
-              errors: {
-                add: t("errors.addJob"),
-                remove: t("errors.removeJob"),
-              },
-            }}
+            contextMd={project.contextMd}
+            contextMdUpdating={project.contextMdUpdating}
+            memoryEnabled={project.memoryEnabled}
+            memoryModel={project.memoryModel}
           />
         </div>
 
-        <aside className="space-y-6 lg:sticky lg:top-4">
-          <h2 className="text-muted-foreground/60 text-xs font-medium tracking-wide uppercase">
-            {t("contextTitle")}
-          </h2>
-          <ProjectBrandSection
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="bg-card rounded-xl border p-4 xl:col-span-2">
+            <ProjectBriefing
+              title={t("briefing")}
+              briefing={project.briefing}
+              emptyLabel={t("emptyBriefing")}
+              emptyActionLabel={t("writeBriefing")}
+              editHref={`/projects/${project.id}/edit`}
+              editLabel={t("editBriefing")}
+              showMoreLabel={t("showMore")}
+              showLessLabel={t("showLess")}
+            />
+          </div>
+
+          <ProjectBrandCard
             projectId={project.id}
             projectName={project.name}
             logo={project.logo}
             websiteUrl={project.websiteUrl}
-            designMd={project.designMd}
           />
-          <section className="space-y-2">
-            <h3 className="text-muted-foreground/60 text-xs font-medium">
-              {t("memory.fileName")}
-            </h3>
-            <ProjectMemoryRow
+
+          <div className="bg-card rounded-xl border p-4 xl:col-span-2">
+            <ProjectTasksSection
               projectId={project.id}
-              contextMd={project.contextMd}
-              contextMdUpdating={project.contextMdUpdating}
-              memoryEnabled={project.memoryEnabled}
-              memoryModel={project.memoryModel}
+              tasks={projectTasksResult.tasks}
+              labels={{
+                title: t("tasks.title"),
+                empty: t("tasks.empty"),
+                add: t("tasks.add"),
+                remove: t("tasks.remove"),
+                pickerTitle: t("tasks.pickerTitle"),
+                pickerDescription: t("tasks.pickerDescription"),
+                pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
+                pickerEmpty: t("tasks.pickerEmpty"),
+                pickerLoading: t("tasks.pickerLoading"),
+                pickerError: t("tasks.pickerError"),
+                confirmRemove: t("actions.confirmRemoveTask"),
+                cancel: t("deleteDialog.cancel"),
+                errors: {
+                  add: t("errors.addTask"),
+                  remove: t("errors.removeTask"),
+                },
+              }}
             />
-          </section>
-        </aside>
-      </div>
+          </div>
+
+          <div className="bg-card rounded-xl border p-4">
+            <ProjectJobsSection
+              projectId={project.id}
+              jobs={projectJobsResult.jobs}
+              labels={{
+                title: t("jobs.title"),
+                empty: t("jobs.empty"),
+                add: t("jobs.add"),
+                remove: t("jobs.remove"),
+                pickerTitle: t("jobs.pickerTitle"),
+                pickerDescription: t("jobs.pickerDescription"),
+                pickerSearchPlaceholder: t("jobs.pickerSearchPlaceholder"),
+                pickerEmpty: t("jobs.pickerEmpty"),
+                pickerLoading: t("jobs.pickerLoading"),
+                pickerError: t("jobs.pickerError"),
+                confirmRemove: t("actions.confirmRemoveJob"),
+                cancel: t("deleteDialog.cancel"),
+                untitled: t("jobs.untitled"),
+                errors: {
+                  add: t("errors.addJob"),
+                  remove: t("errors.removeJob"),
+                },
+              }}
+            />
+          </div>
+        </div>
+      </ProjectBrandProvider>
+
+      <section className="mt-6 space-y-3">
+        <h2 className="text-muted-foreground text-xs font-medium">
+          {t("modules.title")}
+        </h2>
+        <ProjectModuleTiles
+          labels={{
+            comingSoon: t("modules.comingSoon"),
+            seo: {
+              title: t("modules.seo.title"),
+              description: t("modules.seo.description"),
+            },
+            socialMedia: {
+              title: t("modules.socialMedia.title"),
+              description: t("modules.socialMedia.description"),
+            },
+            email: {
+              title: t("modules.email.title"),
+              description: t("modules.email.description"),
+            },
+            paidAdvertising: {
+              title: t("modules.paidAdvertising.title"),
+              description: t("modules.paidAdvertising.description"),
+            },
+            content: {
+              title: t("modules.content.title"),
+              description: t("modules.content.description"),
+            },
+            pr: {
+              title: t("modules.pr.title"),
+              description: t("modules.pr.description"),
+            },
+            fileBrowser: {
+              title: t("modules.fileBrowser.title"),
+              description: t("modules.fileBrowser.description"),
+            },
+          }}
+        />
+      </section>
     </div>
   );
 }

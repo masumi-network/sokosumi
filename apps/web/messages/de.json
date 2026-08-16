@@ -1624,6 +1624,13 @@
           "CANCELED": "Abgebrochen"
         }
       },
+      "ProjectSwitcher": {
+        "ariaLabel": "Projekt",
+        "allProjects": "Alle Projekte",
+        "searchPlaceholder": "Projekte suchen...",
+        "empty": "Keine Projekte gefunden.",
+        "create": "Projekt erstellen..."
+      },
       "Jobs": {
         "filterButton": "Filter",
         "agentLabel": "Agent",
@@ -2021,6 +2028,7 @@
             "DRAFT": "Entwurf",
             "QUEUED": "Geplant",
             "READY": "Bereit",
+            "GRANT_PENDING": "Freigabe",
             "INPUT_REQUIRED": "Eingabe",
             "APPROVAL_REQUIRED": "Genehmigung",
             "AUTHENTICATION_REQUIRED": "Auth",
@@ -2127,21 +2135,34 @@
         "briefing": "Briefing",
         "emptyBriefing": "Noch kein Briefing.",
         "editBriefing": "Bearbeiten",
+        "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen",
-        "contextTitle": "Kontext",
         "brand": "Marke",
-        "brandReady": "Marke ✓",
+        "brandCard": {
+          "ready": "Bereit",
+          "generating": "Wird erstellt…",
+          "notSet": "Nicht eingerichtet",
+          "generate": "Aus Website erstellen",
+          "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
+          "open": "Öffnen",
+          "edit": "Bearbeiten",
+          "remove": "Entfernen",
+          "removed": "Markenkontext entfernt",
+          "removeDialog": {
+            "title": "Markenkontext entfernen?",
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+          }
+        },
         "backToProject": "Zurück zum Projekt",
         "memory": {
           "fileName": "Gedächtnis",
           "updated": "Aktualisiert {when}",
-          "updatedLine": "Gedächtnis · aktualisiert {when} · erzeugt von {model}, gehostet in der EU 🇪🇺",
           "updating": "Wird aktualisiert…",
-          "empty": "Gedächtnis wächst, wenn Tasks abgeschlossen werden",
-          "emptyLine": "Gedächtnis wächst, wenn Tasks abgeschlossen werden · {model}, gehostet in der EU 🇪🇺",
+          "empty": "Wächst mit abgeschlossenen Tasks",
+          "modelLine": "{model} · gehostet in der EU 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Gedächtnis-Updates sind nicht konfiguriert (AI_GATEWAY_API_KEY)",
+          "notConfigured": "Nicht konfiguriert (AI_GATEWAY_API_KEY)",
           "title": "Projektgedächtnis",
           "copyLink": "Link kopieren",
           "openRaw": "Rohdatei öffnen",
@@ -2172,6 +2193,38 @@
           "pickerLoading": "Tasks werden geladen...",
           "pickerError": "Tasks konnten nicht geladen werden."
         },
+        "modules": {
+          "title": "Arbeitsbereich",
+          "comingSoon": "Demnächst",
+          "seo": {
+            "title": "SEO",
+            "description": "Keywords, Rankings, Audits"
+          },
+          "socialMedia": {
+            "title": "Social Media",
+            "description": "Beiträge, Kalender, Interaktion"
+          },
+          "email": {
+            "title": "E-Mail",
+            "description": "Kampagnen und Sequenzen"
+          },
+          "paidAdvertising": {
+            "title": "Bezahlte Werbung",
+            "description": "Anzeigen, Budgets, Leistung"
+          },
+          "content": {
+            "title": "Content",
+            "description": "Briefings, Entwürfe, Veröffentlichung"
+          },
+          "pr": {
+            "title": "PR",
+            "description": "Presse, Kontakte, Berichterstattung"
+          },
+          "fileBrowser": {
+            "title": "Dateibrowser",
+            "description": "Alle Dateien aus diesem Projekt"
+          }
+        },
         "actions": {
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
@@ -2196,7 +2249,8 @@
           "addTask": "Task konnte nicht hinzugefügt werden",
           "removeTask": "Task konnte nicht entfernt werden",
           "loadMore": "Weitere Projekte konnten nicht geladen werden",
-          "contextMd": "Projektgedächtnis konnte nicht geladen werden"
+          "contextMd": "Projektgedächtnis konnte nicht geladen werden",
+          "brand": "Projekt-Markenkontext konnte nicht aktualisiert werden"
         }
       }
     },

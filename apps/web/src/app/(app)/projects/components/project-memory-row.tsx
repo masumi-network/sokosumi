@@ -16,7 +16,6 @@ import type {
   ProjectContextMdMetadata,
   ProjectMemoryModel,
 } from "@/lib/clients/generated/core/types.gen";
-import { cn } from "@/lib/utils";
 
 interface ProjectMemoryRowProps {
   projectId: string;
@@ -87,7 +86,7 @@ export function ProjectMemoryRow({
   const notConfiguredHint =
     memoryEnabled === false ? (
       <p
-        className="text-muted-foreground/50 text-xs leading-relaxed"
+        className="text-muted-foreground/60 truncate text-xs"
         data-testid="project-memory-disabled"
       >
         {t("memory.notConfigured")}
@@ -96,24 +95,32 @@ export function ProjectMemoryRow({
 
   if (!contextMd && !contextMdUpdating) {
     return (
-      <div className="space-y-1">
-        <p
-          className="text-muted-foreground/60 text-xs leading-relaxed"
-          data-testid="project-memory-empty"
-        >
-          {t("memory.emptyLine", { model: modelLabel })}
+      <div
+        className="bg-card min-w-0 rounded-xl border p-4"
+        data-testid="project-memory-empty"
+      >
+        <p className="text-muted-foreground text-xs font-medium">
+          {t("memory.fileName")}
         </p>
-        {notConfiguredHint}
+        <p className="mt-2 truncate text-sm font-medium">{t("memory.empty")}</p>
+        <div className="mt-1 space-y-0.5">
+          <p className="text-muted-foreground truncate text-xs">
+            {t("memory.modelLine", { model: modelLabel })}
+          </p>
+          {notConfiguredHint}
+        </div>
       </div>
     );
   }
 
-  const summary = contextMd
-    ? t("memory.updatedLine", {
+  const statusLabel = contextMd
+    ? t("memory.updated", {
         when: formatter.relativeTime(new Date(contextMd.updatedAt)),
-        model: modelLabel,
       })
-    : t("memory.emptyLine", { model: modelLabel });
+    : t("memory.empty");
+  const summary = `${statusLabel} · ${t("memory.modelLine", {
+    model: modelLabel,
+  })}`;
 
   return (
     <>
@@ -122,22 +129,28 @@ export function ProjectMemoryRow({
         data-testid="project-memory-row"
         disabled={!contextMd}
         onClick={() => void handleOpen()}
-        className={cn(
-          "text-muted-foreground/70 flex max-w-full items-start gap-1.5 text-left text-xs leading-relaxed",
-          contextMd && "hover:text-muted-foreground transition-colors",
-          !contextMd && "cursor-default",
-        )}
+        className="bg-card hover:bg-muted/30 min-w-0 rounded-xl border p-4 text-left transition-colors disabled:cursor-default disabled:hover:bg-card"
       >
-        <span className="text-pretty">{summary}</span>
-        {contextMdUpdating ? (
-          <span
-            className="bg-muted-foreground/40 mt-1.5 size-1.5 shrink-0 animate-pulse rounded-full"
-            data-testid="project-memory-updating"
-            aria-hidden
-          />
-        ) : null}
+        <p className="text-muted-foreground text-xs font-medium">
+          {t("memory.fileName")}
+        </p>
+        <div className="mt-2 flex items-center gap-1.5">
+          <p className="truncate text-sm font-medium">{statusLabel}</p>
+          {contextMdUpdating ? (
+            <span
+              className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
+              data-testid="project-memory-updating"
+              aria-hidden
+            />
+          ) : null}
+        </div>
+        <div className="mt-1 space-y-0.5">
+          <p className="text-muted-foreground truncate text-xs">
+            {t("memory.modelLine", { model: modelLabel })}
+          </p>
+          {notConfiguredHint}
+        </div>
       </button>
-      {notConfiguredHint}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">

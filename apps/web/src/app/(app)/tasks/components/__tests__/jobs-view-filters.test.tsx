@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 const filterDropdownMenuMock = vi.fn();
 
@@ -11,9 +11,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
   },
 }));
 
-import { mockCoworkerOption } from "@/test-fixtures/coworker";
-
-import { TasksViewFilters } from "../tasks-view-filters";
+import { JobsViewFilters } from "../jobs-view-filters";
 
 const replaceMock = vi.fn();
 
@@ -25,7 +23,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const labels = {
+const filtersLabels = {
   title: "Filters",
   searchPlaceholder: "Filter...",
   emptyResults: "No results found.",
@@ -33,45 +31,35 @@ const labels = {
   scopeLabel: "Scope",
   scopeOwned: "My tasks",
   scopeWorkspace: "Workspace",
-  coworkerLabel: "Coworker",
-  statusLabel: "Status",
   projectLabel: "Project",
-  statusOptions: {
-    [TaskStatus.DRAFT]: "Draft",
-    [TaskStatus.QUEUED]: "Queued",
-    [TaskStatus.READY]: "Ready",
-    [TaskStatus.GRANT_PENDING]: "Grant pending",
-    [TaskStatus.INPUT_REQUIRED]: "Input required",
-    [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
-    [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
-    [TaskStatus.OUT_OF_CREDITS]: "Out of credits",
-    [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
-    [TaskStatus.RUNNING]: "Running",
-    [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
-    [TaskStatus.COMPLETED]: "Completed",
-    [TaskStatus.FAILED]: "Failed",
-    [TaskStatus.CANCELED]: "Canceled",
+} as const;
+
+const labels = {
+  filterButton: "Filters",
+  agentLabel: "Agent",
+  jobStatusLabel: "Job status",
+  jobStatusOptions: {
+    [AgentJobStatus.INITIATED]: "Initiated",
+    [AgentJobStatus.AWAITING_PAYMENT]: "Awaiting payment",
+    [AgentJobStatus.AWAITING_INPUT]: "Awaiting input",
+    [AgentJobStatus.RUNNING]: "Running",
+    [AgentJobStatus.COMPLETED]: "Completed",
+    [AgentJobStatus.FAILED]: "Failed",
   },
 } as const;
 
-function renderTasksViewFilters(activeOrganizationId: string | null) {
+function renderJobsViewFilters(activeOrganizationId: string | null) {
   render(
-    <TasksViewFilters
+    <JobsViewFilters
       activeOrganizationId={activeOrganizationId}
-      coworkerOptions={[
-        mockCoworkerOption({
-          id: "coworker-1",
-          slug: "elena",
-          name: "Elena",
-          image: "elena.png",
-        }),
-      ]}
+      agentOptions={[{ id: "agent-1", name: "Scout", image: null }]}
       projectOptions={[
         {
           id: "33333333-3333-4333-8333-333333333333",
           name: "Research",
         },
       ]}
+      filtersLabels={filtersLabels}
       labels={labels}
     />,
   );
@@ -82,29 +70,29 @@ function renderTasksViewFilters(activeOrganizationId: string | null) {
   };
 }
 
-describe("TasksViewFilters", () => {
+describe("JobsViewFilters", () => {
   beforeEach(() => {
     filterDropdownMenuMock.mockClear();
     replaceMock.mockClear();
   });
 
-  it("shows scope and coworker sections in workspace context", () => {
-    const props = renderTasksViewFilters("org-1");
+  it("omits the project section now owned by the switcher", () => {
+    const props = renderJobsViewFilters("org-1");
 
     expect(props.buttonLabel).toBe("Filters");
     expect(props.sections.map((section) => section.id)).toEqual([
       "scope",
-      "coworker",
-      "status",
+      "agent",
+      "jobStatus",
     ]);
   });
 
   it("only hides the scope section in personal context", () => {
-    const props = renderTasksViewFilters(null);
+    const props = renderJobsViewFilters(null);
 
     expect(props.sections.map((section) => section.id)).toEqual([
-      "coworker",
-      "status",
+      "agent",
+      "jobStatus",
     ]);
   });
 });

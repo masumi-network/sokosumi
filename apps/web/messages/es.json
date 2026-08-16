@@ -1624,6 +1624,13 @@
           "CANCELED": "Cancelado"
         }
       },
+      "ProjectSwitcher": {
+        "ariaLabel": "Proyecto",
+        "allProjects": "Todos los proyectos",
+        "searchPlaceholder": "Buscar proyectos...",
+        "empty": "No se encontraron proyectos.",
+        "create": "Crear proyecto..."
+      },
       "Jobs": {
         "filterButton": "Filtros",
         "agentLabel": "Agente",
@@ -2021,6 +2028,7 @@
             "DRAFT": "Borrador",
             "QUEUED": "Programado",
             "READY": "Lista",
+            "GRANT_PENDING": "Permiso",
             "INPUT_REQUIRED": "Entrada",
             "APPROVAL_REQUIRED": "Aprobación",
             "AUTHENTICATION_REQUIRED": "Auth",
@@ -2127,21 +2135,34 @@
         "briefing": "Briefing",
         "emptyBriefing": "Aún no hay briefing.",
         "editBriefing": "Editar",
+        "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos",
-        "contextTitle": "Contexto",
         "brand": "Marca",
-        "brandReady": "Marca ✓",
+        "brandCard": {
+          "ready": "Lista",
+          "generating": "Generando…",
+          "notSet": "Sin configurar",
+          "generate": "Generar desde el sitio web",
+          "missingWebsite": "Añade un sitio web al proyecto antes de generar el contexto de marca.",
+          "open": "Abrir",
+          "edit": "Editar",
+          "remove": "Quitar",
+          "removed": "Contexto de marca eliminado",
+          "removeDialog": {
+            "title": "¿Quitar el contexto de marca?",
+            "description": "Esto elimina el archivo DESIGN.md del proyecto."
+          }
+        },
         "backToProject": "Volver al proyecto",
         "memory": {
           "fileName": "Memoria",
           "updated": "Actualizado {when}",
-          "updatedLine": "Memoria · actualizada {when} · generada por {model}, alojada en la UE 🇪🇺",
           "updating": "Actualizando…",
-          "empty": "La memoria crece al completar tareas",
-          "emptyLine": "La memoria crece al completar tareas · {model}, alojada en la UE 🇪🇺",
+          "empty": "Crece al completar tareas",
+          "modelLine": "{model} · alojada en la UE 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Las actualizaciones de memoria no están configuradas (AI_GATEWAY_API_KEY)",
+          "notConfigured": "Sin configurar (AI_GATEWAY_API_KEY)",
           "title": "Memoria del proyecto",
           "copyLink": "Copiar enlace",
           "openRaw": "Abrir original",
@@ -2172,6 +2193,38 @@
           "pickerLoading": "Cargando tareas...",
           "pickerError": "No se pudieron cargar las tareas."
         },
+        "modules": {
+          "title": "Espacio de trabajo",
+          "comingSoon": "Próximamente",
+          "seo": {
+            "title": "SEO",
+            "description": "Palabras clave, rankings, auditorías"
+          },
+          "socialMedia": {
+            "title": "Redes sociales",
+            "description": "Publicaciones, calendario, interacción"
+          },
+          "email": {
+            "title": "Email",
+            "description": "Campañas y secuencias"
+          },
+          "paidAdvertising": {
+            "title": "Publicidad de pago",
+            "description": "Anuncios, presupuestos, rendimiento"
+          },
+          "content": {
+            "title": "Contenido",
+            "description": "Briefs, borradores, publicación"
+          },
+          "pr": {
+            "title": "RR. PP.",
+            "description": "Prensa, difusión, cobertura"
+          },
+          "fileBrowser": {
+            "title": "Explorador de archivos",
+            "description": "Todos los archivos creados por este proyecto"
+          }
+        },
         "actions": {
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
@@ -2196,7 +2249,8 @@
           "addTask": "No se pudo añadir la tarea",
           "removeTask": "No se pudo quitar la tarea",
           "loadMore": "No se pudieron cargar más proyectos",
-          "contextMd": "No se pudo cargar la memoria del proyecto"
+          "contextMd": "No se pudo cargar la memoria del proyecto",
+          "brand": "No se pudo actualizar el contexto de marca del proyecto"
         }
       }
     },

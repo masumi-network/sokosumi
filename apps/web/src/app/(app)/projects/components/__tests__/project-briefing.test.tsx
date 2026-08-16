@@ -13,6 +13,7 @@ describe("ProjectBriefing", () => {
         emptyLabel="No briefing yet."
         editHref="/projects/project-1/edit"
         editLabel="Edit"
+        emptyActionLabel="Write briefing"
         showMoreLabel="Show more"
         showLessLabel="Show less"
       />,
@@ -23,6 +24,9 @@ describe("ProjectBriefing", () => {
       "href",
       "/projects/project-1/edit",
     );
+    expect(
+      screen.getByRole("link", { name: "Write briefing" }),
+    ).toHaveAttribute("href", "/projects/project-1/edit");
   });
 
   it("collapses long briefings until expanded", async () => {

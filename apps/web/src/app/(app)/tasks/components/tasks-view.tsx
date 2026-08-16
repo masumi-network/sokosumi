@@ -29,6 +29,7 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -61,6 +62,7 @@ import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   isTaskDraggableForViewFilters,
+  mergeProjectFilterOptions,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -113,6 +115,7 @@ import {
 } from "./task-reopen-to-ready-dialog";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
 import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
+import { TasksProjectSwitcher } from "./tasks-project-switcher";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
 
@@ -346,15 +349,27 @@ export function TasksView({
 }: TasksViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
+    [],
+  );
+  const resolvedProjectOptions = useMemo(
+    () => mergeProjectFilterOptions(projectOptions, createdProjects),
+    [createdProjects, projectOptions],
+  );
   const routeFilters = useMemo(
     () =>
       getTasksFiltersFromSearchParams(
         searchParams,
         activeOrganizationId,
         coworkerOptions,
-        projectOptions,
+        resolvedProjectOptions,
       ),
-    [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
+    [
+      activeOrganizationId,
+      coworkerOptions,
+      resolvedProjectOptions,
+      searchParams,
+    ],
   );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
@@ -380,9 +395,14 @@ export function TasksView({
         searchParams,
         activeOrganizationId,
         jobAgentOptions,
-        projectOptions,
+        resolvedProjectOptions,
       ),
-    [activeOrganizationId, jobAgentOptions, projectOptions, searchParams],
+    [
+      activeOrganizationId,
+      jobAgentOptions,
+      resolvedProjectOptions,
+      searchParams,
+    ],
   );
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
@@ -459,16 +479,17 @@ export function TasksView({
     () => getJobsListFiltersResetKey(jobsRouteFilters, activeOrganizationId),
     [activeOrganizationId, jobsRouteFilters],
   );
-  const projectNameById = useMemo(
-    () => new Map(projectOptions.map((project) => [project.id, project.name])),
-    [projectOptions],
-  );
   const selectedProjectId =
     routeFilters.projectId ?? jobsRouteFilters.projectId;
   const defaultProjectId = selectedProjectId;
-  const selectedProjectName = selectedProjectId
-    ? (projectNameById.get(selectedProjectId) ?? null)
-    : null;
+
+  const handleProjectCreated = useCallback((project: ProjectFilterOption) => {
+    flushSync(() => {
+      setCreatedProjects((current) =>
+        mergeProjectFilterOptions(current, [project]),
+      );
+    });
+  }, []);
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
   const isJobsPaginationInSync =
@@ -1213,6 +1234,11 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <TasksProjectSwitcher
+            projectOptions={resolvedProjectOptions}
+            selectedProjectId={selectedProjectId}
+            onProjectCreated={handleProjectCreated}
+          />
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="tasks"
@@ -1227,11 +1253,6 @@ export function TasksView({
               {labels.tabs.jobs}
             </TabsTrigger>
           </TabsList>
-          {selectedProjectName ? (
-            <p className="text-muted-foreground truncate text-sm font-medium">
-              {selectedProjectName}
-            </p>
-          ) : null}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -1251,7 +1272,7 @@ export function TasksView({
             <TasksViewFilters
               activeOrganizationId={activeOrganizationId}
               coworkerOptions={coworkerOptions}
-              projectOptions={projectOptions}
+              projectOptions={resolvedProjectOptions}
               labels={labels.filters}
             />
           ) : null}
@@ -1268,7 +1289,7 @@ export function TasksView({
             <JobsViewFilters
               activeOrganizationId={activeOrganizationId}
               agentOptions={jobAgentOptions}
-              projectOptions={projectOptions}
+              projectOptions={resolvedProjectOptions}
               filtersLabels={{
                 title: labels.filters.title,
                 searchPlaceholder: labels.filters.searchPlaceholder,
@@ -1465,7 +1486,7 @@ export function TasksView({
       ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
+        projectOptions={resolvedProjectOptions}
         defaultProjectId={defaultProjectId}
         initialCreateTaskOpen={initialCreateTaskOpen}
       />

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { BRIEFING_COLLAPSE_CHAR_THRESHOLD } from "@/app/projects/project-briefing";
 import Markdown from "@/components/markdown";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ProjectBriefingProps {
@@ -13,6 +14,7 @@ interface ProjectBriefingProps {
   emptyLabel: string;
   editHref?: string;
   editLabel?: string;
+  emptyActionLabel?: string;
   showMoreLabel: string;
   showLessLabel: string;
 }
@@ -23,6 +25,7 @@ export function ProjectBriefing({
   emptyLabel,
   editHref,
   editLabel,
+  emptyActionLabel,
   showMoreLabel,
   showLessLabel,
 }: ProjectBriefingProps) {
@@ -68,7 +71,14 @@ export function ProjectBriefing({
           ) : null}
         </div>
       ) : (
-        <p className="text-muted-foreground/40 text-sm">{emptyLabel}</p>
+        <div className="space-y-3">
+          <p className="text-muted-foreground/60 text-sm">{emptyLabel}</p>
+          {editHref && emptyActionLabel ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={editHref}>{emptyActionLabel}</Link>
+            </Button>
+          ) : null}
+        </div>
       )}
     </section>
   );
