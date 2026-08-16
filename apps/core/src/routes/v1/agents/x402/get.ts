@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { AgentEntryType, AgentStatus, agentOrderBy } from "@sokosumi/database";
+import { agentOrderBy } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -23,7 +23,11 @@ import {
   buildX402AgentPaymentSources,
   type X402ListingDropReason,
 } from "@/helpers/x402-agent-listing";
-import { getX402ReadySources } from "@/helpers/x402-readiness";
+import {
+  getX402AgentCatalogWhere,
+  getX402ReadySources,
+  hasValidX402DiscoveryUrl,
+} from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -35,9 +39,10 @@ import { type X402Agent, x402AgentsSchema } from "@/schemas/x402-agent.schema";
 
 /**
  * One line per request summarising which gates hid agents, never one per
- * agent. Warns only when the UNFILTERED FIRST PAGE came back empty despite
- * candidates being queried — that is the state an operator reports as "the
- * listing is broken"; partial drops are routine and stay at debug.
+ * agent. Warns only when the UNFILTERED FIRST PAGE came back empty, candidates
+ * were queried, and no later raw page exists — that is the state an operator
+ * reports as "the listing is broken"; partial drops are routine and stay at
+ * debug.
  *
  * Both other inputs to that condition are client-supplied. `cursor` lets a
  * coworker aim a page at an agent it already knows is unpayable, and `limit`
@@ -52,12 +57,13 @@ function logX402ListingDrops(
   listedCount: number,
   dropsByReason: ReadonlyMap<X402ListingDropReason, number>,
   isUnfilteredFirstPage: boolean,
+  hasMore: boolean,
 ): void {
   if (dropsByReason.size === 0) {
     return;
   }
   const summary = JSON.stringify(Object.fromEntries(dropsByReason));
-  if (listedCount === 0 && isUnfilteredFirstPage) {
+  if (listedCount === 0 && isUnfilteredFirstPage && !hasMore) {
     console.warn(
       `[agents/x402] every candidate agent was dropped as unpayable: ${summary}`,
     );
@@ -119,17 +125,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // agent fails the pricing gate and drops out, so the fail-closed listing
     // is simply empty — the same contract as the readiness early-out above.
     const creditCosts = await prisma.creditCost.findMany();
+    const network = getEnv().NETWORK;
 
-    const where = {
-      type: AgentEntryType.X402,
-      status: AgentStatus.ONLINE,
-      // Same curation whitelist as the end-user catalog: an agent is listed
-      // only once isShown is true. New registry entries take that flag from
-      // SHOW_AGENTS_BY_DEFAULT, which defaults to false — a deployment that
-      // sets it true opts every third-party X402 entry straight into the
-      // listing, which is why the page below is bounded.
-      isShown: true,
-    };
+    const where = getX402AgentCatalogWhere(network);
     const takePlusOne = take + 1;
     // One snapshot for the page and its count, as in GET /v1/agents: Prisma
     // loads each `select`ed relation as a SEPARATE statement, and at READ
@@ -185,7 +183,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // dropped agent forever.
     const paginationRows = agents.slice(0, take);
 
-    const network = getEnv().NETWORK;
     const listed: X402Agent[] = [];
     // Drops are silent and per-agent, so an empty listing has many causes. One
     // tally per request (not per agent) keeps an operator from having to guess
@@ -193,6 +190,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // the network gate".
     const dropsByReason = new Map<X402ListingDropReason, number>();
     for (const agent of paginationRows) {
+      if (!hasValidX402DiscoveryUrl(agent)) {
+        dropsByReason.set(
+          "invalid_discovery_url",
+          (dropsByReason.get("invalid_discovery_url") ?? 0) + 1,
+        );
+        continue;
+      }
       const result = buildX402AgentPaymentSources(agent.paymentSources, {
         creditCosts,
         readySources,
@@ -222,18 +226,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // the default reads the same rows as no `limit` at all, so it counts.
     const isUnfilteredFirstPage =
       cursor === undefined && take === LIMITS.DEFAULT_PAGINATION_LIMIT;
-    logX402ListingDrops(listed.length, dropsByReason, isUnfilteredFirstPage);
+    const hasMore = agents.length === takePlusOne;
+    logX402ListingDrops(
+      listed.length,
+      dropsByReason,
+      isUnfilteredFirstPage,
+      hasMore,
+    );
 
     return ok(
       c,
       x402AgentsSchema.parse(listed),
-      createPaginationMeta(
-        paginationRows,
-        count,
-        take,
-        agents.length === takePlusOne,
-        cursor,
-      ),
+      createPaginationMeta(paginationRows, count, take, hasMore, cursor),
     );
   });
 }

@@ -53,6 +53,8 @@ const X402_SUPPORTED_SCHEME = "exact";
  * from an empty array alone.
  */
 export type X402ListingDropReason =
+  /** Registry discovery URL is missing or is not absolute HTTP(S). */
+  | "invalid_discovery_url"
   /** The agent registered no payment source at all. */
   | "no_payment_source"
   /** A source is FREE/DYNAMIC/UNKNOWN priced — no price to verify against. */

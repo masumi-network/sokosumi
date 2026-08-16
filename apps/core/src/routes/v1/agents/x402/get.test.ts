@@ -165,6 +165,24 @@ describe("GET /agents/x402", () => {
     ]);
   });
 
+  it("drops an X402 entry whose discovery URL is not absolute HTTP(S)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({ x402ResourcesUrl: "javascript:alert(1)" }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [],
+    });
+    expect(warn).toHaveBeenCalledWith(
+      '[agents/x402] every candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
+    );
+  });
+
   it("advertises the cached node decimals over the agent's registered scale", async () => {
     // End-to-end wiring of the money field: the readiness cache carries the
     // node's `defaultAssetDecimals`, and that — not the agent's own registry
@@ -445,6 +463,39 @@ describe("GET /agents/x402", () => {
     expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
       '[agents/x402] dropped unpayable agents: {"unsupported_scheme":1}',
+    );
+  });
+
+  it("does not warn when the first raw page drops but a later page remains", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue(
+      Array.from({ length: 21 }, (_, index) =>
+        createAgentRow({
+          id: `agent_x402_${index}`,
+          paymentSources: [
+            {
+              sourceIndex: 0,
+              network: BASE_SEPOLIA,
+              payTo: PAY_TO,
+              pricingType: "FIXED",
+              scheme: "upto",
+              amounts: [
+                { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect(warn).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(
+      '[agents/x402] dropped unpayable agents: {"unsupported_scheme":20}',
     );
   });
 

@@ -1,8 +1,9 @@
-import type { Prisma } from "@sokosumi/database";
+import { AgentEntryType, AgentStatus, type Prisma } from "@sokosumi/database";
 import {
   CAIP2_EVM_NETWORK_PATTERN,
   EVM_ADDRESS_PATTERN,
 } from "@sokosumi/masumi";
+import { isValidHttpUrl } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
@@ -72,6 +73,34 @@ const X402_MAINNET_ALLOWED_CAIP2_NETWORKS: readonly string[] = [
   // Base mainnet
   "eip155:8453",
 ];
+
+/** Production curates x402 catalog entries; Preprod exposes all online ones. */
+export function requiresX402AgentCuration(
+  network: "Preprod" | "Mainnet",
+): boolean {
+  return network === "Mainnet";
+}
+
+/** Database-visible catalog gates shared by listing and pay lookup. */
+export function getX402AgentCatalogWhere(
+  network: "Preprod" | "Mainnet",
+): Prisma.AgentWhereInput {
+  return {
+    type: AgentEntryType.X402,
+    status: AgentStatus.ONLINE,
+    x402ResourcesUrl: { not: null },
+    ...(requiresX402AgentCuration(network) ? { isShown: true } : {}),
+  };
+}
+
+/** Fail-closed validation for registry-controlled discovery endpoints. */
+export function hasValidX402DiscoveryUrl(agent: {
+  x402ResourcesUrl: string | null;
+}): boolean {
+  return (
+    agent.x402ResourcesUrl !== null && isValidHttpUrl(agent.x402ResourcesUrl)
+  );
+}
 
 export function getAllowedX402Caip2Networks(
   network: "Preprod" | "Mainnet",

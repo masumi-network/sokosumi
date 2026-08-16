@@ -103,6 +103,7 @@ export function createCreditCostRow(unit: string, centsPerUnit: bigint) {
 
 export interface AgentRowOverrides {
   id?: string;
+  x402ResourcesUrl?: string | null;
   metadataOverride?: {
     name: string | null;
     description: string | null;
@@ -117,7 +118,10 @@ export function createAgentRow(overrides: AgentRowOverrides = {}) {
     name: "Registry Name",
     description: "Registry description",
     image: "https://registry.example.com/image.png",
-    x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+    x402ResourcesUrl:
+      overrides.x402ResourcesUrl === undefined
+        ? "https://agent.example.com/.well-known/x402"
+        : overrides.x402ResourcesUrl,
     metadataOverride:
       overrides.metadataOverride === undefined
         ? null

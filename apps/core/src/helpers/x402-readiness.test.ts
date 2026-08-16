@@ -6,6 +6,7 @@ import {
   getAllowedX402Caip2Networks,
   getX402ReadySources,
   isX402NetworkAllowed,
+  requiresX402AgentCuration,
   X402_BUY_SIDE_READINESS_KEY,
 } from "./x402-readiness";
 
@@ -289,6 +290,11 @@ describe("findX402ReadySource", () => {
 });
 
 describe("per-environment network allowlist", () => {
+  it("curates only production catalog entries", () => {
+    expect(requiresX402AgentCuration("Preprod")).toBe(false);
+    expect(requiresX402AgentCuration("Mainnet")).toBe(true);
+  });
+
   it("allows only testnet networks on Preprod", () => {
     expect(getAllowedX402Caip2Networks("Preprod")).toEqual(["eip155:84532"]);
     expect(isX402NetworkAllowed("eip155:84532", "Preprod")).toBe(true);

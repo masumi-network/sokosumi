@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  BASE_MAINNET,
   BASE_SEPOLIA,
   COWORKER_AGENT_CONTEXT,
   createAgentRow,
@@ -23,12 +24,14 @@ const {
   creditCostFindManyMock,
   prismaTransactionMock,
   syncMetadataFindUniqueMock,
+  networkState,
 } = vi.hoisted(() => ({
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
+  networkState: { value: "Preprod" as "Preprod" | "Mainnet" },
 }));
 
 // Pin the environment split without discarding the rest of the config —
@@ -40,7 +43,7 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      NETWORK: "Preprod" as const,
+      NETWORK: networkState.value,
     }),
   };
 });
@@ -60,6 +63,7 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("GET /agents/x402 catalog query", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    networkState.value = "Preprod";
 
     // Batch form: Prisma resolves the array of operations together, which is
     // what gives the page and its count one snapshot. The mock mirrors that
@@ -87,7 +91,7 @@ describe("GET /agents/x402 catalog query", () => {
     agentCountMock.mockResolvedValue(1);
   });
 
-  it("only queries shown, online X402 entries (curation and status gate in SQL)", async () => {
+  it("queries every online X402 entry with a discovery URL on Preprod", async () => {
     const app = createApp(COWORKER_AGENT_CONTEXT);
 
     const response = await app.request("http://localhost/x402");
@@ -98,6 +102,34 @@ describe("GET /agents/x402 catalog query", () => {
         where: {
           type: "X402",
           status: "ONLINE",
+          x402ResourcesUrl: { not: null },
+        },
+      }),
+    );
+  });
+
+  it("requires curated agents in the Mainnet catalog query", async () => {
+    networkState.value = "Mainnet";
+    syncMetadataFindUniqueMock.mockResolvedValue(
+      createReadinessRow([
+        {
+          caip2Network: BASE_MAINNET,
+          asset: USDC_ADDRESS,
+          evmWalletId: "wallet-1",
+        },
+      ]),
+    );
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          type: "X402",
+          status: "ONLINE",
+          x402ResourcesUrl: { not: null },
           isShown: true,
         },
       }),
