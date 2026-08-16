@@ -12,19 +12,33 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getProjectContextMd } from "@/lib/actions/project/action";
-import type { ProjectContextMdMetadata } from "@/lib/clients/generated/core/types.gen";
+import type {
+  ProjectContextMdMetadata,
+  ProjectMemoryModel,
+} from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 interface ProjectMemoryRowProps {
   projectId: string;
   contextMd: ProjectContextMdMetadata | null;
   contextMdUpdating: boolean;
+  memoryEnabled?: boolean;
+  memoryModel?: ProjectMemoryModel | null;
+}
+
+function resolveMemoryModel(
+  contextMd: ProjectContextMdMetadata | null,
+  memoryModel?: ProjectMemoryModel | null,
+): ProjectMemoryModel | null {
+  return memoryModel ?? contextMd?.model ?? null;
 }
 
 export function ProjectMemoryRow({
   projectId,
   contextMd,
   contextMdUpdating,
+  memoryEnabled = true,
+  memoryModel,
 }: ProjectMemoryRowProps) {
   const t = useTranslations("App.Projects.Detail");
   const formatter = useFormatter();
@@ -32,12 +46,8 @@ export function ProjectMemoryRow({
   const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const updatedLabel = contextMd
-    ? t("memory.updated", {
-        when: formatter.relativeTime(new Date(contextMd.updatedAt)),
-      })
-    : null;
+  const model = resolveMemoryModel(contextMd, memoryModel);
+  const modelLabel = model?.label ?? t("memory.defaultModel");
 
   async function handleOpen() {
     if (!contextMd) {
@@ -72,25 +82,38 @@ export function ProjectMemoryRow({
     }
   }
 
+  // Existing memory stays visible even when updates are switched off — the
+  // hint only explains why it will not grow.
+  const notConfiguredHint =
+    memoryEnabled === false ? (
+      <p
+        className="text-muted-foreground/50 text-xs leading-relaxed"
+        data-testid="project-memory-disabled"
+      >
+        {t("memory.notConfigured")}
+      </p>
+    ) : null;
+
   if (!contextMd && !contextMdUpdating) {
     return (
-      <p
-        className="text-muted-foreground/50 text-xs"
-        data-testid="project-memory-empty"
-      >
-        {t("memory.empty")}
-      </p>
+      <div className="space-y-1">
+        <p
+          className="text-muted-foreground/60 text-xs leading-relaxed"
+          data-testid="project-memory-empty"
+        >
+          {t("memory.emptyLine", { model: modelLabel })}
+        </p>
+        {notConfiguredHint}
+      </div>
     );
   }
 
-  const meta = [
-    t("memory.fileName"),
-    contextMd && updatedLabel ? updatedLabel : null,
-    contextMd
-      ? `${contextMd.model.label}${contextMd.model.region === "eu" ? " 🇪🇺" : ""}`
-      : null,
-    contextMdUpdating ? t("memory.updating") : null,
-  ].filter((part): part is string => Boolean(part));
+  const summary = contextMd
+    ? t("memory.updatedLine", {
+        when: formatter.relativeTime(new Date(contextMd.updatedAt)),
+        model: modelLabel,
+      })
+    : t("memory.emptyLine", { model: modelLabel });
 
   return (
     <>
@@ -100,20 +123,21 @@ export function ProjectMemoryRow({
         disabled={!contextMd}
         onClick={() => void handleOpen()}
         className={cn(
-          "text-muted-foreground/70 flex max-w-full items-center gap-1.5 text-left text-xs",
+          "text-muted-foreground/70 flex max-w-full items-start gap-1.5 text-left text-xs leading-relaxed",
           contextMd && "hover:text-muted-foreground transition-colors",
           !contextMd && "cursor-default",
         )}
       >
-        <span className="truncate">{meta.join(" · ")}</span>
+        <span className="text-pretty">{summary}</span>
         {contextMdUpdating ? (
           <span
-            className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
+            className="bg-muted-foreground/40 mt-1.5 size-1.5 shrink-0 animate-pulse rounded-full"
             data-testid="project-memory-updating"
             aria-hidden
           />
         ) : null}
       </button>
+      {notConfiguredHint}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
@@ -122,7 +146,7 @@ export function ProjectMemoryRow({
               {t("memory.title")}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-xs">
-              {meta.join(" · ")}
+              {summary}
             </DialogDescription>
           </div>
 

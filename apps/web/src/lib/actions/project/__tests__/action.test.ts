@@ -45,6 +45,12 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     websiteUrl: null,
     logo: null,
     designMd: null,
+    memoryEnabled: true,
+    memoryModel: {
+      id: "mistral/mistral-medium-latest",
+      label: "Mistral Medium",
+      region: "eu" as const,
+    },
     contextMd: null,
     contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
@@ -81,7 +87,7 @@ describe("project actions", () => {
       websiteUrl: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
-    expect(result).toEqual({ projectId: "project-1" });
+    expect(result.projectId).toBe("project-1");
   });
 
   it("updates a project and revalidates list and detail routes", async () => {

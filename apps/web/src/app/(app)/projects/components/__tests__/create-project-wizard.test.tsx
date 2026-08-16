@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateProjectWizard } from "@/app/projects/components/create-project-wizard";
 import { createProject } from "@/lib/actions/project/action";
+import type { Project } from "@/lib/clients/generated/core/types.gen";
 
 const toastErrorMock = vi.fn();
 const trackMock = vi.fn();
@@ -46,6 +47,27 @@ vi.mock("next-intl", () => ({
   },
 }));
 
+const CREATED_PROJECT = {
+  id: "project-1",
+  workspaceId: "workspace-1",
+  name: "Launch plan",
+  briefing: null,
+  briefingUrl: null,
+  websiteUrl: null,
+  logo: null,
+  designMd: null,
+  contextMd: null,
+  contextMdUpdating: false,
+  memoryEnabled: false,
+  memoryModel: {
+    id: "mistral/mistral-medium-3.5",
+    label: "Mistral Medium",
+    region: "eu",
+  },
+  createdAt: new Date("2026-05-27T10:00:00.000Z"),
+  updatedAt: new Date("2026-05-27T10:00:00.000Z"),
+} satisfies Project;
+
 describe("CreateProjectWizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,7 +77,10 @@ describe("CreateProjectWizard", () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
     const createProjectMock = vi.mocked(createProject);
-    createProjectMock.mockResolvedValue({ projectId: "project-1" });
+    createProjectMock.mockResolvedValue({
+      projectId: "project-1",
+      project: CREATED_PROJECT,
+    });
 
     render(
       <CreateProjectWizard
@@ -103,7 +128,11 @@ describe("CreateProjectWizard", () => {
         websiteUrl: null,
       });
     });
-    expect(onSuccess).toHaveBeenCalledWith("project-1", "Spring launch");
+    expect(onSuccess).toHaveBeenCalledWith(
+      "project-1",
+      "Spring launch",
+      CREATED_PROJECT,
+    );
     expect(trackMock).toHaveBeenCalledWith("Project created", {
       source: "projects_page",
       variant: "wizard",
@@ -114,7 +143,10 @@ describe("CreateProjectWizard", () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
     const createProjectMock = vi.mocked(createProject);
-    createProjectMock.mockResolvedValue({ projectId: "project-1" });
+    createProjectMock.mockResolvedValue({
+      projectId: "project-1",
+      project: CREATED_PROJECT,
+    });
 
     render(
       <CreateProjectWizard

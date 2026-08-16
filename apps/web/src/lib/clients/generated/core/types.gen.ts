@@ -3173,18 +3173,21 @@ export type ProjectDesignMd = {
     extractionId: string | null;
 };
 
+/**
+ * Configured EU model that will write project memory, including before the first update.
+ */
+export type ProjectMemoryModel = {
+    id: string;
+    label: string;
+    region: 'eu';
+};
+
 export type ProjectContextMdMetadata = {
     url: string;
     updatedAt: Date;
     version: number;
     model: ProjectMemoryModel;
     lineCount: number;
-};
-
-export type ProjectMemoryModel = {
-    id: string;
-    label: string;
-    region: 'eu';
 };
 
 export type Project = {
@@ -3199,6 +3202,11 @@ export type Project = {
      * Project-owned brand DESIGN.md, or null when none exists.
      */
     designMd: ProjectDesignMd | null;
+    /**
+     * Whether Core has AI Gateway credentials and can update project memory.
+     */
+    memoryEnabled: boolean;
+    memoryModel: ProjectMemoryModel;
     /**
      * Project memory metadata. Null until the first task completion writes CONTEXT.md.
      */

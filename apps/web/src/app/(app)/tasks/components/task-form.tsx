@@ -45,6 +45,7 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -321,10 +322,16 @@ export function TaskForm({
   );
 
   const handleProjectCreated = useCallback(
-    (result: { projectId: string; name: string }) => {
+    (result: { projectId: string; name: string; project?: Project }) => {
+      // Carry the fresh project's context files so the Context row can offer
+      // Briefing / Memory / Brand right away instead of after a reload.
       const newProject: ProjectFilterOption = {
         id: result.projectId,
         name: result.name,
+        logo: result.project?.logo ?? null,
+        designMd: result.project?.designMd ?? null,
+        briefingUrl: result.project?.briefingUrl ?? null,
+        contextMd: result.project?.contextMd ?? null,
       };
       setInlineCreatedProjects((prev) => [...prev, newProject]);
       handleProjectChange(result.projectId);

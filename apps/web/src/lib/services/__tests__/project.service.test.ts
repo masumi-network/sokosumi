@@ -40,6 +40,12 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     websiteUrl: null,
     logo: null,
     designMd: null,
+    memoryEnabled: true,
+    memoryModel: {
+      id: "mistral/mistral-medium-latest",
+      label: "Mistral Medium",
+      region: "eu" as const,
+    },
     contextMd: null,
     contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),

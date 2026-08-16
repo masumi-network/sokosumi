@@ -1,3 +1,4 @@
+import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
@@ -42,6 +43,10 @@ vi.mock("@/app/projects/components/project-memory-row", () => ({
   ProjectMemoryRow: () => null,
 }));
 
+vi.mock("@/app/projects/components/project-brand-section", () => ({
+  ProjectBrandSection: () => null,
+}));
+
 vi.mock("@/app/projects/components/project-jobs-section", () => ({
   ProjectJobsSection: () => null,
 }));
@@ -60,6 +65,12 @@ function buildProject() {
     websiteUrl: null,
     logo: null,
     designMd: null,
+    memoryEnabled: true,
+    memoryModel: {
+      id: "mistral/mistral-medium-latest",
+      label: "Mistral Medium",
+      region: "eu",
+    },
     contextMd: null,
     contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
@@ -119,7 +130,7 @@ describe("ProjectDetailPage", () => {
 
     const { default: ProjectDetailPage } = await import("../page");
 
-    await ProjectDetailPage({
+    const html = await ProjectDetailPage({
       params: Promise.resolve({ projectId: "project-1" }),
     });
 
@@ -135,6 +146,10 @@ describe("ProjectDetailPage", () => {
       "project-1",
     ]);
     expect(notFoundMock).not.toHaveBeenCalled();
+
+    const { container } = render(html);
+    expect(container.firstChild).toHaveClass("w-full", "px-2");
+    expect(container.querySelector(".max-w-4xl")).toBeNull();
   });
 
   it("calls notFound when stats are missing for an existing project", async () => {

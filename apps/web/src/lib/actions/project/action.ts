@@ -16,7 +16,10 @@ import {
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type { ProjectContextMd } from "@/lib/clients/generated/core/types.gen";
+import type {
+  Project,
+  ProjectContextMd,
+} from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,
@@ -96,7 +99,7 @@ function throwCoreActionError(error: unknown, fallbackMessage: string): never {
 
 export const createProject = withSession<
   CreateProjectParameters,
-  { projectId: string }
+  { projectId: string; project: Project }
 >(async ({ name, briefing, websiteUrl }) => {
   const normalizedName = normalizeProjectName(name);
   if (!normalizedName) {
@@ -111,7 +114,7 @@ export const createProject = withSession<
     });
 
     revalidatePath("/projects");
-    return { projectId: project.id };
+    return { projectId: project.id, project };
   } catch (error) {
     console.error("Failed to create project", error);
     throwCoreActionError(error, "Failed to create project");

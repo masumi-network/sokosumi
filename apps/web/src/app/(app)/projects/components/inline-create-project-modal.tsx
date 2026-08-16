@@ -1,12 +1,18 @@
 "use client";
 
+import type { Project } from "@/lib/clients/generated/core/types.gen";
+
 import { CreateProjectWizard } from "./create-project-wizard";
 
 interface InlineCreateProjectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialName?: string;
-  onCreated: (result: { projectId: string; name: string }) => void;
+  onCreated: (result: {
+    projectId: string;
+    name: string;
+    project?: Project;
+  }) => void;
 }
 
 export function InlineCreateProjectModal({
@@ -15,8 +21,8 @@ export function InlineCreateProjectModal({
   initialName = "",
   onCreated,
 }: InlineCreateProjectModalProps) {
-  function handleSuccess(projectId: string, name: string) {
-    onCreated({ projectId, name });
+  function handleSuccess(projectId: string, name: string, project?: Project) {
+    onCreated({ projectId, name, project });
     onOpenChange(false);
   }
 

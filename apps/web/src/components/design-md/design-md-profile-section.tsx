@@ -77,7 +77,9 @@ export function DesignMdProfileSection({
   const description =
     owner.type === "user"
       ? t("descriptionPersonal")
-      : t("descriptionOrganization");
+      : owner.type === "organization"
+        ? t("descriptionOrganization")
+        : t("descriptionProject");
 
   const handlePersisted = useCallback(
     (persisted: PersistedDesignMd) => {

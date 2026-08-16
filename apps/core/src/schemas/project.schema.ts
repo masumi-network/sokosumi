@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
+import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import {
   sokosumiJobStatusSchema,
@@ -122,6 +123,15 @@ export const projectSchema = z
     designMd: z.union([projectDesignMdSchema, z.null()]).openapi({
       description: "Project-owned brand DESIGN.md, or null when none exists.",
       example: null,
+    }),
+    memoryEnabled: z.boolean().openapi({
+      description:
+        "Whether Core has AI Gateway credentials and can update project memory.",
+      example: true,
+    }),
+    memoryModel: projectMemoryModelSchema.openapi({
+      description:
+        "Configured EU model that will write project memory, including before the first update.",
     }),
     // Union-with-null instead of `.nullable()`: `.nullable()` on a named
     // `.openapi(...)` schema drops `| null` from the generated client and makes
@@ -281,6 +291,7 @@ export function mapProjectForApi(
   project: DatabaseProject,
   now: Date = new Date(),
 ): Project {
+  const env = getEnv();
   const updatingSinceMs = project.contextMdUpdatingSince?.getTime();
   const contextMd = mapProjectContextMdForApi(project);
 
@@ -298,6 +309,14 @@ export function mapProjectForApi(
           extractionId: project.designMdExtractionId,
         }
       : null,
+    memoryEnabled: Boolean(env.AI_GATEWAY_API_KEY),
+    memoryModel: {
+      id: env.PROJECT_MEMORY_MODEL,
+      label:
+        PROJECT_MEMORY_MODEL_LABELS[env.PROJECT_MEMORY_MODEL] ??
+        env.PROJECT_MEMORY_MODEL,
+      region: "eu",
+    },
     contextMd: contextMd
       ? {
           url: contextMd.url,

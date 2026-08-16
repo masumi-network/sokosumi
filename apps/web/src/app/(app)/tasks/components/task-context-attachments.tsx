@@ -59,6 +59,19 @@ function getHostname(url: string): string {
   }
 }
 
+/** Explicit on/off readout so "attached" never has to be inferred from
+ * fill colour alone: a check when on, an empty ring when off. */
+function PillMarker({ pressed }: { pressed: boolean }) {
+  return pressed ? (
+    <Check className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
+  ) : (
+    <span
+      className="border-muted-foreground/50 size-3 shrink-0 rounded-full border"
+      aria-hidden
+    />
+  );
+}
+
 function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
   return (
     <button
@@ -72,6 +85,7 @@ function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
       )}
       onClick={() => onPressedChange(!pressed)}
     >
+      <PillMarker pressed={pressed} />
       {label}
     </button>
   );
@@ -225,6 +239,7 @@ export function TaskContextAttachmentsField({
             });
           }}
         >
+          <PillMarker pressed={brandPressed} />
           {brandAvatar}
           <span className="max-w-36 truncate">{brandLabel}</span>
         </button>

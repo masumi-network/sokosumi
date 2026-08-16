@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createProject } from "@/lib/actions/project/action";
+import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 import type { ProjectCreationSource } from "./project-form";
@@ -31,7 +32,7 @@ interface CreateProjectWizardProps {
   onOpenChange: (open: boolean) => void;
   initialName?: string;
   creationSource?: ProjectCreationSource;
-  onSuccess?: (projectId: string, name: string) => void;
+  onSuccess?: (projectId: string, name: string, project?: Project) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
 }
 
@@ -50,6 +51,7 @@ export function CreateProjectWizard({
   const [briefing, setBriefing] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const [createdProject, setCreatedProject] = useState<Project | null>(null);
   const trimmedName = name.trim();
   const normalizedWebsite = normalizeWebsiteUrl(website);
   const isWebsiteValid = isEmptyOrValidWebsiteUrl(website);
@@ -72,7 +74,7 @@ export function CreateProjectWizard({
     if (!createdProjectId) {
       return;
     }
-    onSuccess?.(createdProjectId, trimmedName);
+    onSuccess?.(createdProjectId, trimmedName, createdProject ?? undefined);
     onOpenChange(false);
   }
 
@@ -98,10 +100,11 @@ export function CreateProjectWizard({
 
       if (normalizedWebsite) {
         setCreatedProjectId(result.projectId);
+        setCreatedProject(result.project);
         return;
       }
 
-      onSuccess?.(result.projectId, trimmedName);
+      onSuccess?.(result.projectId, trimmedName, result.project);
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to create project", error);

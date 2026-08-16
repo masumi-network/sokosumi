@@ -1,11 +1,19 @@
 import type { Project as DatabaseProject } from "@sokosumi/database";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createProjectRequestSchema,
   mapProjectForApi,
   patchProjectRequestSchema,
 } from "./project.schema";
+
+const { getEnvMock } = vi.hoisted(() => ({
+  getEnvMock: vi.fn(),
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: getEnvMock,
+}));
 
 function createDatabaseProject(
   overrides: Partial<DatabaseProject> = {},
@@ -33,6 +41,14 @@ function createDatabaseProject(
 }
 
 describe("project schemas", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({
+      AI_GATEWAY_API_KEY: undefined,
+      PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
+    });
+  });
+
   it("accepts briefings up to 20,000 characters", () => {
     expect(
       createProjectRequestSchema.parse({
@@ -111,12 +127,35 @@ describe("project schemas", () => {
       mapProjectForApi(project, new Date("2026-08-16T10:05:00.000Z")),
     ).toMatchObject({
       briefing: "# Briefing",
+      memoryEnabled: false,
+      memoryModel: {
+        id: "mistral/mistral-medium-3.5",
+        label: "Mistral Medium",
+        region: "eu",
+      },
       contextMd: {
         version: 3,
         lineCount: 2,
         model: { label: "Mistral Medium", region: "eu" },
       },
       contextMdUpdating: true,
+    });
+  });
+
+  it("reports configured memory capability before the first update", () => {
+    getEnvMock.mockReturnValue({
+      AI_GATEWAY_API_KEY: "gateway_key",
+      PROJECT_MEMORY_MODEL: "mistral/custom-eu-model",
+    });
+
+    expect(mapProjectForApi(createDatabaseProject())).toMatchObject({
+      memoryEnabled: true,
+      memoryModel: {
+        id: "mistral/custom-eu-model",
+        label: "mistral/custom-eu-model",
+        region: "eu",
+      },
+      contextMd: null,
     });
   });
 

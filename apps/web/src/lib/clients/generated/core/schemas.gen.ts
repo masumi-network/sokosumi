@@ -10606,6 +10606,32 @@ export const ProjectDesignMdSchema = {
     ]
 } as const;
 
+export const ProjectMemoryModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'mistral/mistral-medium-3.5'
+        },
+        label: {
+            type: 'string',
+            example: 'Mistral Medium'
+        },
+        region: {
+            type: 'string',
+            enum: [
+                'eu'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'region'
+    ],
+    description: 'Configured EU model that will write project memory, including before the first update.'
+} as const;
+
 export const ProjectContextMdMetadataSchema = {
     type: 'object',
     properties: {
@@ -10639,31 +10665,6 @@ export const ProjectContextMdMetadataSchema = {
         'version',
         'model',
         'lineCount'
-    ]
-} as const;
-
-export const ProjectMemoryModelSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'mistral/mistral-medium-3.5'
-        },
-        label: {
-            type: 'string',
-            example: 'Mistral Medium'
-        },
-        region: {
-            type: 'string',
-            enum: [
-                'eu'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'label',
-        'region'
     ]
 } as const;
 
@@ -10727,6 +10728,14 @@ export const ProjectSchema = {
             description: 'Project-owned brand DESIGN.md, or null when none exists.',
             example: null
         },
+        memoryEnabled: {
+            type: 'boolean',
+            description: 'Whether Core has AI Gateway credentials and can update project memory.',
+            example: true
+        },
+        memoryModel: {
+            $ref: '#/components/schemas/ProjectMemoryModel'
+        },
         contextMd: {
             anyOf: [
                 {
@@ -10763,6 +10772,8 @@ export const ProjectSchema = {
         'websiteUrl',
         'logo',
         'designMd',
+        'memoryEnabled',
+        'memoryModel',
         'contextMd',
         'contextMdUpdating',
         'createdAt',

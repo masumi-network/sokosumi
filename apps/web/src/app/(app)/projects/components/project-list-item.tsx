@@ -91,7 +91,7 @@ export function ProjectListItem({
       )}
     >
       <Link
-        href={`/tasks?projectId=${project.id}`}
+        href={`/projects/${project.id}`}
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg px-2 py-3 transition-colors active:scale-[0.995] sm:flex-row sm:items-center sm:gap-4"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
