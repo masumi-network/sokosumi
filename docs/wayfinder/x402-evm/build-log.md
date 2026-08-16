@@ -665,9 +665,7 @@ passed (2 files / 6 skipped); `pnpm typecheck` all workspaces;
 `pnpm check` clean.
 ## Sub-component 4 — readiness wiring + listing endpoint (`x402-4-listing`) — 2026-08-11
 
-**Branch:** `x402-4-listing`, cut from `x402-3-helpers` (clean tree). Three
-feature commits (refactor split, sync wiring, listing route) plus this log
-entry.
+**Branch:** `x402-4-listing`, cut from `x402-3-helpers` (clean tree).
 
 ### Readiness wiring
 
@@ -676,25 +674,13 @@ entry.
 refresh and before the registry replay, with the identical
 `AbortSignal.any([cron signal, AbortSignal.timeout(10_000)])` treatment.
 Imported from `@/services/agent-sync.x402-readiness` directly — NOT through
-`agentSyncService` (the service file is over the ceiling; nothing was added
-to it beyond a one-line import split from the refactor). Decision: an x402
+`agentSyncService` because readiness has no dependency on that service.
+Decision: an x402
 readiness change does **not** reset the registry cursor — the listing reads
 `getX402ReadySources` at request time, nothing readiness-dependent is baked
 into agent rows (Cardano readiness differs: it feeds the projected
 availability filters). `routes/sync/index.test.ts` mock extended; new tests
 pin the sequencing, the abort signal, and the no-reset decision.
-
-### `agent.ts` split (750 ceiling)
-
-The metadata-override getter block moved to
-`apps/core/src/helpers/agent-metadata.ts`: `getAgentImage/Icon/Name/
-Description/AuthorImage/ApiBaseUrl`, `toMasumiAgent`, `toMasumiAgentForJob`,
-`getJobDetailsAgentOverrideFields`. `agent.ts` lands at 622 lines. Imports
-repointed repo-wide (16 sites incl. `schemas/agent.schema.ts`, which breaks
-the old schemas↔helpers/agent import cycle); test mocks for
-`@/helpers/agent` in the agents route suites were split so getter mocks now
-target `@/helpers/agent-metadata`. Tests moved to `agent-metadata.test.ts`
-plus new direct getter coverage.
 
 ### Listing endpoint — `GET /v1/agents/x402`
 
@@ -710,9 +696,9 @@ plus new direct getter coverage.
   `X402AgentPaymentSource`), `x402AgentsSchema` (array).
 - **Fail-closed composition:** empty `getX402ReadySources` (incl.
   never-recorded) returns `[]` before any catalog read; SQL filters
-  `type: X402, status: ONLINE, isShown: true` (curation whitelist identical
-  to the catalog — preprod "lists all" via `SHOW_AGENTS_BY_DEFAULT`, not a
-  gate bypass); per agent `buildX402AgentPaymentSources`
+  `type: X402, status: ONLINE, x402ResourcesUrl != null`; Mainnet also
+  requires `isShown: true`, while Preprod intentionally bypasses curation;
+  per agent `buildX402AgentPaymentSources`
   (`apps/core/src/helpers/x402-agent-listing.ts`) requires EVERY advertised
   source to pass every gate — FIXED pricing with ≥1 amount row, `payTo`
   present, decimals recorded, `isX402NetworkAllowed`, `isX402SourceReady`,
@@ -726,15 +712,14 @@ plus new direct getter coverage.
 
 - `pnpm --filter core test` — 359 files passed (3288 tests), incl. new
   `x402-agent-listing.test.ts` (13), `x402/get.test.ts` (9),
-  `agent-metadata.test.ts` (13), extended sync suite (35).
+  and extended sync suite (35).
 - `pnpm --filter @sokosumi/masumi test` — 14 files, 251 passed.
 - `pnpm typecheck` all workspaces; `pnpm format` + `pnpm check` clean.
 - Mutation-tested (disable → watch fail → restore → green): readiness-pair
   gate, network allowlist, unpriced-asset drop (catch→continue), readiness
   fail-closed early return, authz gate, `isShown` curation filter. Each
   killed by a dedicated test.
-- File sizes: `agent.ts` 622, `agent-metadata.ts` 152, route 111, helper
-  110, schema 68 — all under 750.
+- File sizes: route 111, helper 110, schema 68 — all under 750.
 
 ### What sub-component 5 (pay endpoint) needs to know
 
