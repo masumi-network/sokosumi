@@ -3,12 +3,12 @@ import { AgentEntryType, AgentStatus, agentOrderBy } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
 import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   getAgentDescription,
   getAgentImage,
   getAgentName,
-} from "@/helpers/agent-metadata";
+} from "@/helpers/agent";
 import { forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
