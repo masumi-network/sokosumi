@@ -90,6 +90,8 @@ export interface ComposerWysiwygEditorHandle {
   applyFormat: (command: ComposerFormatCommand) => void;
   insertLink: (text: string, url: string) => void;
   getSelectedPlainText: () => string;
+  /** Flush bare trailing emoticons before submit when Send skips blur. */
+  flushTrailingEmoticon: () => void;
 }
 
 interface ComposerWysiwygEditorProps<TData = unknown> {
@@ -1076,8 +1078,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
       if (key === "enter" && !event.nativeEvent.isComposing) {
         const action = resolveComposerEnterAction({
-          isNarrowViewport:
-            typeof window !== "undefined" && window.innerWidth < 768,
           shiftKey: event.shiftKey,
           metaKey: event.metaKey,
           ctrlKey: event.ctrlKey,
@@ -1216,8 +1216,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
       applyFormat,
       insertLink,
       getSelectedPlainText: () => window.getSelection()?.toString() ?? "",
+      flushTrailingEmoticon: tryFlushTrailingEmoticon,
     }),
-    [applyFormat, insertLink, insertText, openMentions],
+    [
+      applyFormat,
+      insertLink,
+      insertText,
+      openMentions,
+      tryFlushTrailingEmoticon,
+    ],
   );
 
   return (
@@ -1227,6 +1234,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         id={id}
         contentEditable
         suppressContentEditableWarning
+        enterKeyHint="send"
         onInput={handleInput}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}

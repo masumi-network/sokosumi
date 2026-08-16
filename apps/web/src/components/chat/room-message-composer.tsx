@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowUp, Loader2 } from "lucide-react";
-import { type FormEvent, type ReactNode, type Ref } from "react";
+import {
+  type FormEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+  useRef,
+} from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
@@ -59,6 +66,11 @@ interface RoomMessageComposerProps {
   /** When set, replaces the send button (e.g. stop while streaming). */
   submitControl?: ReactNode;
   /**
+   * Runs before pointer/keyboard Send calls `requestSubmit` (e.g. flush
+   * trailing emoticons when Send skips editor blur).
+   */
+  onPrepareSubmit?: () => void;
+  /**
    * Channel-style outer padding. Prefer true as the single padding source;
    * set false only when a parent already applies the same inset.
    */
@@ -93,6 +105,7 @@ export function RoomMessageComposer({
   sendDisabled,
   sendAriaLabel,
   submitControl,
+  onPrepareSubmit,
   withOuterPadding = true,
   withSafeAreaPadding = withOuterPadding,
   formRef,
@@ -101,6 +114,37 @@ export function RoomMessageComposer({
   sendButtonTestId,
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
+  const submittedByPointerRef = useRef(false);
+  const sendBlocked = isSending || sendDisabled;
+
+  function requestComposerSubmit(form: HTMLFormElement | null) {
+    if (!form || sendBlocked) return;
+    onPrepareSubmit?.();
+    form.requestSubmit();
+  }
+
+  function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    // Keep editor focus (same idea as mention toolbar mousedown preventDefault).
+    if (event.button !== 0) return;
+    event.preventDefault();
+    if (sendBlocked) return;
+    submittedByPointerRef.current = true;
+    requestComposerSubmit(event.currentTarget.form);
+  }
+
+  function handleSendMouseDown(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+  }
+
+  function handleSendClick(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (submittedByPointerRef.current) {
+      submittedByPointerRef.current = false;
+      return;
+    }
+    // Keyboard activation (Space/Enter on focused Send) has no pointerdown.
+    requestComposerSubmit(event.currentTarget.form);
+  }
 
   return (
     <form
@@ -142,13 +186,16 @@ export function RoomMessageComposer({
             </div>
             {submitControl ?? (
               <Button
-                type="submit"
+                type="button"
                 variant="primary"
                 size="icon"
                 className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                disabled={isSending || sendDisabled}
+                disabled={sendBlocked}
                 aria-label={sendAriaLabel}
                 data-testid={sendButtonTestId}
+                onPointerDown={handleSendPointerDown}
+                onMouseDown={handleSendMouseDown}
+                onClick={handleSendClick}
               >
                 {isSending ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden />

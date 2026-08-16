@@ -178,6 +178,11 @@ export function RoomSessionComposer({
     }
 
     clearComposeDraft(sentDraftKey);
+
+    // Keep soft keyboard up for the next message (SOK-815).
+    if (ref && typeof ref !== "function") {
+      ref.current?.focus();
+    }
   }
 
   return (

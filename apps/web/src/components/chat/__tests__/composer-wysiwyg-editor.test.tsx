@@ -467,11 +467,36 @@ describe("ComposerWysiwygEditor", () => {
     render(<Harness />);
 
     const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute("enterkeyhint", "send");
+
     fireEvent.keyDown(editor, { key: "Enter" });
     expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
     expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+  });
+
+  it("submits on plain Enter when the viewport is narrow", () => {
+    const onSubmitShortcut = vi.fn();
+    vi.stubGlobal("innerWidth", 390);
+
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          onSubmitShortcut={onSubmitShortcut}
+        />
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+
+    vi.unstubAllGlobals();
   });
 
   it("opens link shortcut on Cmd+K", () => {
@@ -1119,6 +1144,64 @@ describe("ComposerWysiwygEditor", () => {
 
     fireEvent.keyDown(editor, { key: "Enter" });
 
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
+  });
+
+  it("submits flushed emoticon when Send skips blur via prepareSubmit", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      const formRef = useRef<HTMLFormElement>(null);
+      const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
+      return (
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+          <button
+            type="button"
+            aria-label="Send"
+            onMouseDown={(event) => event.preventDefault()}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              editorRef.current?.flushTrailingEmoticon();
+              formRef.current?.requestSubmit();
+            }}
+          >
+            Send
+          </button>
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(document.activeElement).toBe(editor);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Send" }), {
+      button: 0,
+    });
+
+    expect(document.activeElement).toBe(editor);
     expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
     expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
   });
