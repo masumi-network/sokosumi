@@ -66,6 +66,41 @@ export async function resetUnwantedPersonalWorkspace(client, fixtureUser) {
 }
 
 /**
+ * @param {string[]} failedEmails
+ */
+export function throwIfZeroWorkspaceResetFailed(failedEmails) {
+  if (failedEmails.length === 0) {
+    return;
+  }
+  throw new Error(
+    `Auth fixtures committed, but personal workspace reset failed for: ${failedEmails.join(", ")}. Re-seed after deleting jobs/tasks on those workspaces, or reset the agent branch.`,
+  );
+}
+
+/**
+ * Restore the no-organization contract for opt-out fixtures (zero).
+ *
+ * @param {import("pg").PoolClient | import("pg").Client} client
+ * @param {{ userId: string }} fixtureUser
+ */
+export async function clearUnwantedOrganizationMemberships(
+  client,
+  fixtureUser,
+) {
+  await client.query(`DELETE FROM member WHERE "userId" = $1`, [
+    fixtureUser.userId,
+  ]);
+  await client.query(
+    `UPDATE "user" SET "preferredOrganizationId" = NULL WHERE id = $1`,
+    [fixtureUser.userId],
+  );
+  await client.query(
+    `UPDATE session SET "activeOrganizationId" = NULL WHERE "userId" = $1`,
+    [fixtureUser.userId],
+  );
+}
+
+/**
  * Resolve packages that live under apps/core (not hoisted to root).
  * @param {string} specifier
  */
@@ -147,16 +182,16 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
        ON CONFLICT ("userId") DO NOTHING`,
       [randomUUID(), userId, now],
     );
-  } else {
-    // Keep zero-workspace fixtures durable across re-seed after accidental
-    // lazy-create (workspace middleware upsert on other Core routes).
-    await resetUnwantedPersonalWorkspace(client, {
-      userId,
-      email: fixture.email,
-    });
+    return { userId, personalWorkspaceReset: null };
   }
 
-  return userId;
+  // Keep zero-workspace fixtures durable across re-seed after accidental
+  // lazy-create (workspace middleware upsert on other Core routes).
+  const reset = await resetUnwantedPersonalWorkspace(client, {
+    userId,
+    email: fixture.email,
+  });
+  return { userId, personalWorkspaceReset: reset.reset };
 }
 
 /**
@@ -252,8 +287,16 @@ export async function seedAuthFixtures(options = {}) {
 
   try {
     await client.query("BEGIN");
+    const failedPersonalResets = [];
     for (const fixture of AUTH_FIXTURES) {
-      const userId = await upsertFixtureUser(client, fixture, passwordHash);
+      const { userId, personalWorkspaceReset } = await upsertFixtureUser(
+        client,
+        fixture,
+        passwordHash,
+      );
+      if (personalWorkspaceReset === false) {
+        failedPersonalResets.push(fixture.email);
+      }
       const organization = fixture.organization;
       if (fixtureWantsOrganization(fixture) && organization) {
         const organizationId = await upsertFixtureOrganization(
@@ -265,12 +308,14 @@ export async function seedAuthFixtures(options = {}) {
           `Auth fixture ready: ${fixture.email} (org ${organization.slug}=${organizationId})`,
         );
       } else {
+        await clearUnwantedOrganizationMemberships(client, { userId });
         log(
           `Auth fixture ready: ${fixture.email} (no personal workspace, no organization)`,
         );
       }
     }
     await client.query("COMMIT");
+    throwIfZeroWorkspaceResetFailed(failedPersonalResets);
     return { seeded: AUTH_FIXTURES.length, skipped: false };
   } catch (error) {
     await client.query("ROLLBACK");

@@ -13,7 +13,11 @@ import {
   isAgentRunId,
 } from "../names.mjs";
 import { readNeonConfig } from "../neon-api.mjs";
-import { resetUnwantedPersonalWorkspace } from "../seed-auth-fixtures.mjs";
+import {
+  clearUnwantedOrganizationMemberships,
+  resetUnwantedPersonalWorkspace,
+  throwIfZeroWorkspaceResetFailed,
+} from "../seed-auth-fixtures.mjs";
 
 describe("names", () => {
   it("builds agent branch names with stable prefix", () => {
@@ -236,5 +240,36 @@ describe("resetUnwantedPersonalWorkspace", () => {
       false,
       "must not roll back the outer fixture transaction",
     );
+  });
+});
+
+describe("throwIfZeroWorkspaceResetFailed", () => {
+  it("does nothing when every reset succeeded", () => {
+    throwIfZeroWorkspaceResetFailed([]);
+  });
+
+  it("throws after other fixtures would have committed", () => {
+    assert.throws(
+      () => throwIfZeroWorkspaceResetFailed(["zero@sokosumi.test"]),
+      /Auth fixtures committed, but personal workspace reset failed/,
+    );
+  });
+});
+
+describe("clearUnwantedOrganizationMemberships", () => {
+  it("deletes memberships and clears selected-organization state", async () => {
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        return { rowCount: 0 };
+      },
+    };
+
+    await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
+
+    assert.match(queries[0], /DELETE FROM member/);
+    assert.match(queries[1], /preferredOrganizationId/);
+    assert.match(queries[2], /activeOrganizationId/);
   });
 });

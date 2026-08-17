@@ -66,6 +66,20 @@ describe("activateOrganizationWorkspace", () => {
     });
   });
 
+  it("does not persist preferred organization when setActive returns an error", async () => {
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "ORGANIZATION_NOT_FOUND",
+      },
+    });
+
+    await expect(activateOrganizationWorkspace("org-7")).rejects.toThrow(
+      "ORGANIZATION_NOT_FOUND",
+    );
+    expect(updatePreferredOrganization).not.toHaveBeenCalled();
+  });
+
   it("still resolves when persisting the preferred organization fails", async () => {
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
