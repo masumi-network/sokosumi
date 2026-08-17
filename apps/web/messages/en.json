@@ -5377,7 +5377,7 @@
     "identityTitle": "Create your first workspace",
     "identityDescription": "Confirm your name and choose how you want to start.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Organization invitations are waiting for you. Finishing them is not available on this screen yet.",
+    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization. You will skip identity onboarding.",
     "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
     "signOut": "Sign out",
     "unavailableTitle": "We could not check your workspace access",
@@ -5400,6 +5400,15 @@
       "nameUpdateError": "We could not update your display name.",
       "personalCreateError": "We could not create your personal workspace.",
       "personalAlreadyExists": "You already have a personal workspace. Refresh or sign out and sign back in."
+    },
+    "Pending": {
+      "accept": "Accept",
+      "join": "Join",
+      "rejectAll": "Reject all",
+      "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
+      "acceptError": "We could not accept that invitation.",
+      "joinError": "We could not join that organization.",
+      "rejectError": "We could not reject the remaining invitations."
     }
   }
 }

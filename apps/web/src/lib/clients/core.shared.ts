@@ -203,6 +203,7 @@ import {
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
+  getUsersByIdPendingOrganizationInvitations as coreGetUsersByIdPendingOrganizationInvitations,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
@@ -3103,6 +3104,23 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
+   * Non-expired pending organization invitations for the current user
+   * (email match). Chat guest invitations are not included.
+   */
+  async function getMyPendingOrganizationInvitations() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdPendingOrganizationInvitations({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch pending organization invitations",
+    );
+  }
+
+  /**
    * Returns the current user's membership in `organizationId`, or `null` when
    * the user is not a member (Core responds 404 in that case).
    */
@@ -4239,6 +4257,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyWorkspaceAccess,
+    getMyPendingOrganizationInvitations,
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,

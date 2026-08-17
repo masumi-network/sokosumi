@@ -4,6 +4,10 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  applyPendingOrganizationJoinCookie,
+  joinTokenFromJoinPath,
+} from "@/lib/pending-organization-join-cookie";
 import { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } from "@/lib/retired-onboarding-storage";
 
 const EXCLUDED_PATHS = [
@@ -103,6 +107,16 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
   applyDocumentSecurityHeaders(response);
+
+  // Persist `/join/:token` on the response (not an RSC cookies().set).
+  const joinToken = joinTokenFromJoinPath(pathname);
+  if (joinToken) {
+    applyPendingOrganizationJoinCookie(
+      response.cookies,
+      joinToken,
+      request.nextUrl.protocol === "https:",
+    );
+  }
 
   // Skip session check for excluded paths (but still set headers above)
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {

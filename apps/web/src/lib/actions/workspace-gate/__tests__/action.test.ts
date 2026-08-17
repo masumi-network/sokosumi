@@ -4,6 +4,7 @@ import { CommonErrorCode, WorkspaceGateErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const createMyPersonalWorkspaceMock = vi.fn();
+const clearPendingOrganizationJoinTokenMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -20,6 +21,18 @@ vi.mock("@/lib/clients/core.client", async () => {
   };
 });
 
+vi.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => ({
+    NODE_ENV: "development",
+    VERCEL_ENV: undefined,
+  }),
+}));
+
+vi.mock("@/lib/pending-organization-join-cookie", () => ({
+  clearPendingOrganizationJoinToken: (...args: unknown[]) =>
+    clearPendingOrganizationJoinTokenMock(...args),
+}));
+
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     <TArgs, TResult>(
@@ -29,7 +42,10 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler({ ...args, session: { user: { id: "user_1" } } }),
 }));
 
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
+import {
+  clearPendingOrganizationJoinCookieAction,
+  createPersonalWorkspaceAction,
+} from "@/lib/actions/workspace-gate/action";
 
 describe("createPersonalWorkspaceAction", () => {
   beforeEach(() => {
@@ -93,5 +109,19 @@ describe("createPersonalWorkspaceAction", () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+});
+
+describe("clearPendingOrganizationJoinCookieAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("clears the recovered join token", async () => {
+    const result = await clearPendingOrganizationJoinCookieAction({});
+    expect(result.ok).toBe(true);
+    expect(clearPendingOrganizationJoinTokenMock).toHaveBeenCalledWith({
+      secure: false,
+    });
   });
 });

@@ -5377,7 +5377,7 @@
     "identityTitle": "Erstelle deinen ersten Workspace",
     "identityDescription": "Bestätige deinen Namen und wähle, wie du starten möchtest.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
-    "pendingInvitesDescription": "Es warten Organisations-Einladungen auf dich. Sie können auf diesem Bildschirm noch nicht bearbeitet werden.",
+    "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen. Die Identitäts-Einrichtung wird übersprungen.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
     "signOut": "Abmelden",
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
@@ -5400,6 +5400,15 @@
       "nameUpdateError": "Dein Anzeigename konnte nicht aktualisiert werden.",
       "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden.",
       "personalAlreadyExists": "Du hast bereits einen persönlichen Workspace. Aktualisiere die Seite oder melde dich ab und wieder an."
+    },
+    "Pending": {
+      "accept": "Annehmen",
+      "join": "Beitreten",
+      "rejectAll": "Alle ablehnen",
+      "rejectAllHint": "Wenn du alle Einladungen ablehnst, kannst du einen eigenen ersten Workspace erstellen.",
+      "acceptError": "Die Einladung konnte nicht angenommen werden.",
+      "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
+      "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden."
     }
   }
 }
