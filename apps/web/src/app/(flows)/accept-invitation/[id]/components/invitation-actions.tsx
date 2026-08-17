@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +28,9 @@ export default function InvitationActions({
   user,
 }: InvitationActionsProps) {
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
+  const { persistIfNeeded, NameFields } = useCollectUserName(
+    user?.name?.trim() ?? "",
+  );
 
   const { id, email } = invitation;
 
@@ -71,6 +75,11 @@ export default function InvitationActions({
     }
     setLoading(true);
     setAction("accept");
+    if (!(await persistIfNeeded())) {
+      setLoading(false);
+      setAction(null);
+      return;
+    }
     const result = await authClient.organization.acceptInvitation({
       invitationId: id,
     });
@@ -155,19 +164,22 @@ export default function InvitationActions({
   if (user) {
     if (user.email === email) {
       return (
-        <CardFooter className="flex justify-between gap-2 sm:gap-4">
-          <Button variant="outline" onClick={handleReject} disabled={loading}>
-            {loading && action === "reject" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("decline")}
-          </Button>
-          <Button onClick={handleAccept} disabled={loading}>
-            {loading && action === "accept" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("accept")}
-          </Button>
+        <CardFooter className="flex flex-col gap-4">
+          <NameFields disabled={loading} />
+          <div className="flex justify-between gap-2 sm:gap-4">
+            <Button variant="outline" onClick={handleReject} disabled={loading}>
+              {loading && action === "reject" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("decline")}
+            </Button>
+            <Button onClick={handleAccept} disabled={loading}>
+              {loading && action === "accept" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("accept")}
+            </Button>
+          </div>
         </CardFooter>
       );
     } else {

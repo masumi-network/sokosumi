@@ -93,8 +93,8 @@ const messages = {
   },
   WorkspaceGate: {
     Identity: {
-      displayNameLabel: "Display name",
-      displayNamePlaceholder: "Your name",
+      nameLabel: "Name",
+      namePlaceholder: "Your name",
       choiceLabel: "How do you want to start?",
       personalTitle: "Personal workspace",
       personalDescription: "Work on your own.",

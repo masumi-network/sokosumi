@@ -6,10 +6,6 @@ export const signUpFormData: FormData<
   "Auth.Pages.SignUp.Form"
 > = [
   {
-    name: "name",
-    placeholderKey: "Fields.Name.placeholder",
-  },
-  {
     name: "email",
     placeholderKey: "Fields.Email.placeholder",
   },

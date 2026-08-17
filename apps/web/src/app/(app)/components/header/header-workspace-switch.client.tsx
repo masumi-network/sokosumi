@@ -379,7 +379,7 @@ export default function HeaderWorkspaceSwitch({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{tIdentity("displayNameLabel")}</FormLabel>
+                    <FormLabel>{tIdentity("nameLabel")}</FormLabel>
                     <FormControl>
                       <Input {...field} autoComplete="name" />
                     </FormControl>

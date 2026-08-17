@@ -165,10 +165,10 @@ export function IdentityOnboardingForm({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("displayNameLabel")}</FormLabel>
+                  <FormLabel>{t("nameLabel")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={t("displayNamePlaceholder")}
+                      placeholder={t("namePlaceholder")}
                       autoComplete="name"
                       data-testid="workspace-gate-identity-name"
                       {...field}

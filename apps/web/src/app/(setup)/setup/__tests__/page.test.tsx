@@ -142,7 +142,7 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Acme");
-    expect(serialized).not.toContain('"initialName"');
+    expect(serialized).not.toContain("identityTitle");
     expect(serialized).not.toContain("data-workspace-gate-actions");
   });
 
@@ -168,7 +168,7 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Join Co");
-    expect(serialized).not.toContain('"initialName"');
+    expect(serialized).not.toContain("identityTitle");
   });
 
   it("renders unavailable surface when workspace access throws (not identity onboarding)", async () => {

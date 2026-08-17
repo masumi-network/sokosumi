@@ -29,7 +29,6 @@ import {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
   getEmailLocale,
-  getStoredUserName,
   OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
   resolveBetterAuthCookieName,
@@ -377,7 +376,7 @@ export const auth = betterAuth({
         before: async (user, _ctx) => {
           const withName = {
             ...user,
-            name: getStoredUserName(user.name, user.email),
+            name: user.name?.trim() ?? "",
           };
           return {
             data: applyDesignMdMetadataGuardToUserCreate(withName),

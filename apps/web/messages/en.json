@@ -1174,9 +1174,6 @@
             "Email": {
               "placeholder": "Email"
             },
-            "Name": {
-              "placeholder": "Name"
-            },
             "TermsAccepted": {
               "Label": {
                 "iAgreeTo": "I agree to the",
@@ -5195,6 +5192,11 @@
   },
   "Library": {
     "Auth": {
+      "NameField": {
+        "label": "Name",
+        "placeholder": "Your name",
+        "persistError": "We could not update your name."
+      },
       "Schema": {
         "Email": {
           "invalid": "Please enter a valid email address.",
@@ -5390,7 +5392,7 @@
   "WorkspaceGate": {
     "title": "Set up your workspace",
     "identityTitle": "Create your first workspace",
-    "identityDescription": "Confirm your name and choose how you want to start.",
+    "identityDescription": "Enter your name and choose how you want to start.",
     "pendingInvitesTitle": "You have pending invitations",
     "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization. You will skip identity onboarding.",
     "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
@@ -5400,8 +5402,8 @@
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
-      "displayNameLabel": "Display name",
-      "displayNamePlaceholder": "Your name",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your name",
       "choiceLabel": "How do you want to start?",
       "personalTitle": "Personal workspace",
       "personalDescription": "Work on your own. You can join or create an organization later.",
@@ -5409,7 +5411,7 @@
       "organizationDescription": "Set up a shared workspace for your team.",
       "createPersonal": "Create personal workspace",
       "continue": "Continue",
-      "nameUpdateError": "We could not update your display name.",
+      "nameUpdateError": "We could not update your name.",
       "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",
       "personalCreateError": "We could not create your personal workspace."
     },

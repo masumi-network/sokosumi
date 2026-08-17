@@ -1174,9 +1174,6 @@
             "Email": {
               "placeholder": "Email"
             },
-            "Name": {
-              "placeholder": "Nombre"
-            },
             "TermsAccepted": {
               "Label": {
                 "iAgreeTo": "Acepto los",
@@ -5195,6 +5192,11 @@
   },
   "Library": {
     "Auth": {
+      "NameField": {
+        "label": "Nombre",
+        "placeholder": "Tu nombre",
+        "persistError": "No pudimos actualizar tu nombre."
+      },
       "Schema": {
         "Email": {
           "invalid": "Por favor, introduce una dirección de email válida.",
@@ -5390,7 +5392,7 @@
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "Crea tu primer espacio de trabajo",
-    "identityDescription": "Confirma tu nombre y elige cómo quieres empezar.",
+    "identityDescription": "Introduce tu nombre y elige cómo quieres empezar.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización. Se omite la configuración de identidad.",
     "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
@@ -5400,8 +5402,8 @@
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
     "retry": "Reintentar",
     "Identity": {
-      "displayNameLabel": "Nombre para mostrar",
-      "displayNamePlaceholder": "Tu nombre",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Tu nombre",
       "choiceLabel": "¿Cómo quieres empezar?",
       "personalTitle": "Espacio personal",
       "personalDescription": "Trabaja por tu cuenta. Más adelante puedes unirte o crear una organización.",
@@ -5409,7 +5411,7 @@
       "organizationDescription": "Configura un espacio compartido para tu equipo.",
       "createPersonal": "Crear espacio personal",
       "continue": "Continuar",
-      "nameUpdateError": "No pudimos actualizar tu nombre para mostrar.",
+      "nameUpdateError": "No pudimos actualizar tu nombre.",
       "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
       "personalCreateError": "No pudimos crear tu espacio de trabajo personal."
     },

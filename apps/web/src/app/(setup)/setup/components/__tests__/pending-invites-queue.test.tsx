@@ -27,8 +27,11 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const updateUserMock = vi.fn();
+
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
+    updateUser: (...args: unknown[]) => updateUserMock(...args),
     organization: {
       acceptInvitation: (...args: unknown[]) => acceptInvitationMock(...args),
       rejectInvitation: (...args: unknown[]) => rejectInvitationMock(...args),
@@ -54,6 +57,23 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
 import { PendingInvitesQueue } from "../pending-invites-queue.client";
 
 const messages = {
+  Library: {
+    Auth: {
+      NameField: {
+        label: "Name",
+        placeholder: "Your name",
+        persistError: "Name update failed",
+      },
+      Schema: {
+        Name: {
+          invalid: "Invalid name",
+          required: "Name is required",
+          min: "Name must be at least 2 characters",
+          max: "Name is too long",
+        },
+      },
+    },
+  },
   WorkspaceGate: {
     Pending: {
       accept: "Accept",
@@ -67,10 +87,11 @@ const messages = {
   },
 };
 
-function renderQueue() {
+function renderQueue(initialName = "Ada Lovelace") {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <PendingInvitesQueue
+        initialName={initialName}
         items={[
           {
             kind: "invitation",
@@ -92,6 +113,7 @@ function renderQueue() {
 describe("PendingInvitesQueue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    updateUserMock.mockResolvedValue({ error: null });
     activateOrganizationWorkspaceMock.mockResolvedValue(undefined);
     clearPendingOrganizationJoinCookieActionMock.mockResolvedValue({
       ok: true,
@@ -120,6 +142,42 @@ describe("PendingInvitesQueue", () => {
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
     expect(routerReplaceMock).toHaveBeenCalledWith("/");
     expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("collects a name before accepting when the user has none", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+
+    renderQueue("");
+    await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
+    await user.click(
+      screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
+    );
+
+    await waitFor(() => {
+      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+    });
+    expect(acceptInvitationMock).toHaveBeenCalledWith({
+      invitationId: "inv_1",
+    });
+  });
+
+  it("does not accept when the nameless user submits no name", async () => {
+    const user = userEvent.setup();
+    renderQueue("");
+    await user.click(
+      screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Name is required")).toBeInTheDocument();
+    });
+    expect(acceptInvitationMock).not.toHaveBeenCalled();
+    expect(updateUserMock).not.toHaveBeenCalled();
   });
 
   it("joins via the recovered link and leaves the gate", async () => {

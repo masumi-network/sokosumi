@@ -97,7 +97,10 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
           />
         ) : showPendingQueue ? (
-          <PendingInvitesQueue items={queueItems} />
+          <PendingInvitesQueue
+            items={queueItems}
+            initialName={session.user.name?.trim() ?? ""}
+          />
         ) : (
           <p className="text-muted-foreground text-sm">{t(bodyKey)}</p>
         )}

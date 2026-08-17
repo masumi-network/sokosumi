@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
@@ -16,6 +17,7 @@ interface JoinActionsProps {
   organizationName: string;
   organizationSlug: string;
   isAuthenticated: boolean;
+  currentUserName: string;
 }
 
 export function JoinActions({
@@ -23,15 +25,20 @@ export function JoinActions({
   organizationName,
   organizationSlug,
   isAuthenticated,
+  currentUserName,
 }: JoinActionsProps) {
   const t = useTranslations("Join");
   const router = useRouter();
   const [isJoining, setIsJoining] = useState(false);
+  const { persistIfNeeded, NameFields } = useCollectUserName(currentUserName);
 
   const handleJoin = async () => {
     if (isJoining) return;
     setIsJoining(true);
     try {
+      if (!(await persistIfNeeded())) {
+        return;
+      }
       const result = await acceptOrganizationInviteLink({ token });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Error.joinFailed"));
@@ -59,17 +66,20 @@ export function JoinActions({
 
   if (isAuthenticated) {
     return (
-      <Button
-        variant="primary"
-        className="w-full"
-        onClick={handleJoin}
-        disabled={isJoining}
-      >
-        {isJoining && <Loader2 className="size-4 animate-spin" />}
-        {isJoining
-          ? t("joining")
-          : t("join", { organization: organizationName })}
-      </Button>
+      <div className="space-y-4">
+        <NameFields disabled={isJoining} />
+        <Button
+          variant="primary"
+          className="w-full"
+          onClick={handleJoin}
+          disabled={isJoining}
+        >
+          {isJoining && <Loader2 className="size-4 animate-spin" />}
+          {isJoining
+            ? t("joining")
+            : t("join", { organization: organizationName })}
+        </Button>
+      </div>
     );
   }
 

@@ -1349,7 +1349,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("stores the email prefix when a new user is created without a name", async () => {
+  it("stores a blank name when a new user is created without one", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1391,7 +1391,7 @@ describe("core auth config", () => {
       data: {
         email: " magic@example.com ",
         id: "user_123",
-        name: "magic",
+        name: "",
       },
     });
 
@@ -1402,7 +1402,7 @@ describe("core auth config", () => {
     await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: " magic@example.com ",
-      name: "magic",
+      name: "",
       userId: "user_123",
     });
     expect(prismaTransactionMock).toHaveBeenCalled();
@@ -1420,7 +1420,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("falls back to the full email when the local part is empty", async () => {
+  it("does not invent a name from the email when signup omits one", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1457,7 +1457,7 @@ describe("core auth config", () => {
       data: {
         email: "@example.com",
         id: "user_123",
-        name: "@example.com",
+        name: "",
       },
     });
   });

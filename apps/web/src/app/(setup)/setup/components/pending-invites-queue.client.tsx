@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
@@ -31,12 +32,17 @@ export type WorkspaceGateQueueItem =
 
 interface PendingInvitesQueueProps {
   items: WorkspaceGateQueueItem[];
+  initialName: string;
 }
 
-export function PendingInvitesQueue({ items }: PendingInvitesQueueProps) {
+export function PendingInvitesQueue({
+  items,
+  initialName,
+}: PendingInvitesQueueProps) {
   const t = useTranslations("WorkspaceGate.Pending");
   const router = useRouter();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
 
   async function leaveGateAfterOrganization(organizationId: string) {
     try {
@@ -55,6 +61,9 @@ export function PendingInvitesQueue({ items }: PendingInvitesQueueProps) {
     }
     setBusyKey(item.id);
     try {
+      if (!(await persistIfNeeded())) {
+        return;
+      }
       const result = await authClient.organization.acceptInvitation({
         invitationId: item.id,
       });
@@ -79,6 +88,9 @@ export function PendingInvitesQueue({ items }: PendingInvitesQueueProps) {
     }
     setBusyKey(item.token);
     try {
+      if (!(await persistIfNeeded())) {
+        return;
+      }
       const result = await acceptOrganizationInviteLink({ token: item.token });
       if (!result.ok) {
         toast.error(result.error.message ?? t("joinError"));
@@ -126,6 +138,7 @@ export function PendingInvitesQueue({ items }: PendingInvitesQueueProps) {
 
   return (
     <div className="space-y-4" data-testid="workspace-gate-pending-queue">
+      <NameFields disabled={busy} />
       <ul className="space-y-3">
         {items.map((item) => {
           const key = item.kind === "invitation" ? item.id : item.token;
