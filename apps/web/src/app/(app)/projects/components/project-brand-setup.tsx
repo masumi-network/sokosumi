@@ -7,6 +7,10 @@ import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
+  clearPendingProjectBrandJob,
+  savePendingProjectBrandJob,
+} from "@/app/projects/project-brand-job";
+import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
   useDesignMdGeneration,
@@ -64,6 +68,11 @@ export function ProjectBrandSetup({
         },
       });
     },
+    // The wizard may close before the job finishes; the project page resumes
+    // polling from this record so the brand still lands in the background.
+    onJobStarted: (job) =>
+      savePendingProjectBrandJob(projectId, { ...job, url: websiteUrl }),
+    onSettled: () => clearPendingProjectBrandJob(projectId),
     owner,
   });
 

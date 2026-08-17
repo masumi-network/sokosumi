@@ -15,6 +15,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   useTransition,
@@ -22,6 +23,11 @@ import {
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import {
+  clearPendingProjectBrandJob,
+  readPendingProjectBrandJob,
+  savePendingProjectBrandJob,
+} from "@/app/projects/project-brand-job";
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   DesignMdUploadTrigger,
@@ -46,6 +52,7 @@ interface ProjectBrandProviderProps {
   children: ReactNode;
   initialDesignMd: ProjectDesignMd | null;
   projectId: string;
+  websiteUrl?: string | null;
 }
 
 interface ProjectBrandDashboardValue {
@@ -79,6 +86,7 @@ export function ProjectBrandProvider({
   children,
   initialDesignMd,
   projectId,
+  websiteUrl,
 }: ProjectBrandProviderProps) {
   const router = useRouter();
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
@@ -110,8 +118,32 @@ export function ProjectBrandProvider({
   const generation = useDesignMdGeneration({
     messages,
     onCompleted: handleCompleted,
+    onJobStarted: (job) =>
+      websiteUrl
+        ? savePendingProjectBrandJob(projectId, { ...job, url: websiteUrl })
+        : undefined,
+    onSettled: () => clearPendingProjectBrandJob(projectId),
     owner,
   });
+
+  // Background brand setup: the wizard may have closed mid-generation, so pick
+  // up its pending job here; if there is none but the project has a website
+  // and no DESIGN.md yet, kick generation off once so it lands on its own.
+  const { resume, generate, isRunning } = generation;
+  useEffect(() => {
+    if (designMd || isRunning) return;
+    const pending = readPendingProjectBrandJob(projectId);
+    if (pending) {
+      resume(pending);
+      return;
+    }
+    if (!websiteUrl) return;
+    const attemptedKey = `sokosumi:project-brand-autostart:${projectId}`;
+    if (window.sessionStorage.getItem(attemptedKey)) return;
+    window.sessionStorage.setItem(attemptedKey, "1");
+    void generate({ url: websiteUrl });
+  }, [designMd, generate, isRunning, projectId, resume, websiteUrl]);
+
   const value = useMemo(
     () => ({ designMd, generation, setDesignMd }),
     [designMd, generation],

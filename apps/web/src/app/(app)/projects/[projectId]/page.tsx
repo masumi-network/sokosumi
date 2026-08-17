@@ -83,6 +83,7 @@ export default async function ProjectDetailPage({
         key={project.designMd?.url ?? "project-brand-empty"}
         projectId={project.id}
         initialDesignMd={project.designMd}
+        websiteUrl={project.websiteUrl}
       >
         <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
           <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-2">
