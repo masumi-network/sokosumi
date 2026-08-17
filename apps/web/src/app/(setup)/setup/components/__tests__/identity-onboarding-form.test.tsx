@@ -147,6 +147,68 @@ describe("IdentityOnboardingForm", () => {
     expect(screen.getByTestId("workspace-gate-identity-form")).toBeTruthy();
   });
 
+  it("keeps an edited name after Back from the organization placeholder", async () => {
+    const user = userEvent.setup();
+    renderForm("Ada Lovelace");
+
+    const nameInput = screen.getByTestId("workspace-gate-identity-name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Ada Byron");
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await user.click(screen.getByTestId("workspace-gate-identity-back"));
+
+    expect(screen.getByTestId("workspace-gate-identity-name")).toHaveValue(
+      "Ada Byron",
+    );
+  });
+
+  it("does not create when the name update fails", async () => {
+    const user = userEvent.setup();
+    updateUserMock.mockResolvedValue({
+      error: { message: "Name service down" },
+    });
+    renderForm();
+
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Name service down");
+    });
+    expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it("toasts i18n copy for non-409 create errors instead of raw Core text", async () => {
+    const user = userEvent.setup();
+    createPersonalWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "INTERNAL",
+        message: "ECONNRESET from core-internal-host:8787",
+      },
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    renderForm();
+
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Create failed");
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Identity onboarding personal create failed",
+      {
+        code: "INTERNAL",
+        message: "ECONNRESET from core-internal-host:8787",
+      },
+    );
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
   it("leaves the gate when Core reports the personal workspace already exists", async () => {
     const user = userEvent.setup();
     createPersonalWorkspaceActionMock.mockResolvedValue({

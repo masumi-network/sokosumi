@@ -83,7 +83,11 @@ export function IdentityOnboardingForm({
           await leaveGateAfterPersonalWorkspace();
           return;
         }
-        toast.error(createResult.error.message ?? t("personalCreateError"));
+        console.error(
+          "Identity onboarding personal create failed",
+          createResult.error,
+        );
+        toast.error(t("personalCreateError"));
         return;
       }
 
