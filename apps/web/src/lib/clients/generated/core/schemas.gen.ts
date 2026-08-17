@@ -6561,6 +6561,238 @@ export const DeveloperTaskDetailSchema = {
     ]
 } as const;
 
+export const DriveFileUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        uploadUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (before random suffix)'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        method: {
+            type: 'string',
+            enum: [
+                'PUT'
+            ],
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
+        },
+        headers: {
+            type: 'object',
+            properties: {
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
+                }
+            },
+            required: [
+                'Content-Type'
+            ],
+            description: 'Headers the client must send on the PUT'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-17T17:00:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob appends a random suffix to the final pathname'
+        }
+    },
+    required: [
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
+    ]
+} as const;
+
+export const CreateDriveFileUploadSessionRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'report.pdf',
+            description: 'Display name for the file'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'MIME type of the file'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1024000,
+            description: 'File size in bytes'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size',
+        'scope'
+    ]
+} as const;
+
+export const DriveFilesSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DriveFile'
+    }
+} as const;
+
+export const DriveFileSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'drv_123abc',
+            description: 'Drive file ID'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-17T16:00:00.000Z',
+            description: 'When the file was uploaded'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-17T16:00:00.000Z',
+            description: 'When the file metadata was last updated'
+        },
+        name: {
+            type: 'string',
+            example: 'report.pdf',
+            description: 'Display name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/report-abc123.pdf',
+            description: 'Public Blob URL (with random suffix)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Server-generated pathname (before random suffix)'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf',
+            description: 'MIME type'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 1024000,
+            description: 'File size in bytes'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        ownerId: {
+            type: 'string',
+            example: 'user_123',
+            description: 'Owner ID (userId for personal, organizationId for org)'
+        },
+        uploadedByUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'User who uploaded the file (null if uploader deleted)'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'fileUrl',
+        'pathname',
+        'mimeType',
+        'size',
+        'scope',
+        'ownerId',
+        'uploadedByUserId'
+    ]
+} as const;
+
+export const RenameDriveFileRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'renamed_report.pdf',
+            description: 'New display name for the file'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
 export const EnterpriseContractSchema = {
     type: 'object',
     properties: {

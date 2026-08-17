@@ -6,10 +6,10 @@ import type {
   User,
 } from "@sokosumi/database";
 
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { requireUserContext } from "@/middleware/auth";
 
 /**
  * Require user drive file upload access (personal drive only, owner).
@@ -19,7 +19,7 @@ export async function requireUserDriveFileUploadAccess(
   authContext: AuthenticationContext,
   userId: string,
 ): Promise<void> {
-  const userContext = requireUserContext(authContext);
+  const userContext = await requireAuthorizedUserContext(authContext);
 
   if (userContext.userId !== userId) {
     throw forbidden("You can only upload to your own personal drive");
@@ -34,7 +34,7 @@ export async function requireOrganizationDriveFileUploadAccess(
   authContext: AuthenticationContext,
   organizationId: string,
 ): Promise<Organization> {
-  const userContext = requireUserContext(authContext);
+  const userContext = await requireAuthorizedUserContext(authContext);
 
   const member = await prisma.member.findUnique({
     where: {
@@ -69,7 +69,7 @@ export async function requireDriveFileReadAccess(
     organization: (Organization & { members: Member[] }) | null;
   }
 > {
-  const userContext = requireUserContext(authContext);
+  const userContext = await requireAuthorizedUserContext(authContext);
 
   const file = await prisma.driveFile.findUnique({
     where: { id: fileId },
@@ -125,7 +125,7 @@ export async function requireDriveFileWriteAccess(
     organization: (Organization & { members: Member[] }) | null;
   }
 > {
-  const userContext = requireUserContext(authContext);
+  const userContext = await requireAuthorizedUserContext(authContext);
 
   const file = await prisma.driveFile.findUnique({
     where: { id: fileId },

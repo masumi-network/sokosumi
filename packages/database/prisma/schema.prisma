@@ -1643,9 +1643,9 @@ model DriveFile {
   organizationId String?
   organization   Organization? @relation("DriveFileOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
 
-  /// User who uploaded the file (may differ from owner in org drives)
-  uploadedByUserId String
-  uploadedByUser   User   @relation("DriveFileUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  /// User who uploaded the file (may differ from owner in org drives; null if uploader deleted)
+  uploadedByUserId String?
+  uploadedByUser   User?   @relation("DriveFileUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
 
   /// Display name
   name     String

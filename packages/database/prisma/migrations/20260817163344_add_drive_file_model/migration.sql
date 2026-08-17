@@ -5,7 +5,7 @@ CREATE TABLE "drive_file" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" TEXT,
     "organizationId" TEXT,
-    "uploadedByUserId" TEXT NOT NULL,
+    "uploadedByUserId" TEXT,
     "name" TEXT NOT NULL,
     "fileUrl" TEXT NOT NULL,
     "pathname" TEXT NOT NULL,

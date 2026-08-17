@@ -133,9 +133,9 @@ export const driveFileSchema = z
       example: "user_123",
       description: "Owner ID (userId for personal, organizationId for org)",
     }),
-    uploadedByUserId: z.string().openapi({
+    uploadedByUserId: z.string().nullable().openapi({
       example: "user_123",
-      description: "User who uploaded the file",
+      description: "User who uploaded the file (null if uploader deleted)",
     }),
   })
   .openapi("DriveFile");
