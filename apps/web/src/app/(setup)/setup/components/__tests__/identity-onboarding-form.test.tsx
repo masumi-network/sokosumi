@@ -96,7 +96,7 @@ const messages = {
       nameLabel: "Name",
       namePlaceholder: "Your name",
       choiceLabel: "How do you want to start?",
-      personalTitle: "Personal workspace",
+      personalTitle: "Personal",
       personalDescription: "Work on your own.",
       organizationTitle: "Organization",
       organizationDescription: "Set up a shared workspace.",
