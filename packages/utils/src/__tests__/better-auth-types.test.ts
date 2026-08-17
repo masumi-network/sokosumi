@@ -23,12 +23,12 @@ describe("better-auth-types", () => {
         updatedAt: "2025-01-01T00:00:00.000Z",
         termsAccepted: true,
         marketingOptIn: false,
-        onboardingCompleted: false,
       },
     };
 
     expect(session.user.id).toBe("user_1");
     expect(session.session.activeOrganizationId).toBeNull();
+    expect(session.user).not.toHaveProperty("onboardingCompleted");
   });
 
   it("accepts session user with optional admin role", () => {
@@ -41,11 +41,18 @@ describe("better-auth-types", () => {
       updatedAt: "2025-01-01T00:00:00.000Z",
       termsAccepted: true,
       marketingOptIn: true,
-      onboardingCompleted: true,
       role: "admin",
     };
 
     expect(user.role).toBe("admin");
+    expect(user).not.toHaveProperty("onboardingCompleted");
+  });
+
+  it("does not include onboardingCompleted on SessionUser", () => {
+    type HasOnboardingCompleted =
+      "onboardingCompleted" extends keyof SessionUser ? true : false;
+    const hasOnboardingCompleted: HasOnboardingCompleted = false;
+    expect(hasOnboardingCompleted).toBe(false);
   });
 
   it("accepts a linked OAuth account", () => {

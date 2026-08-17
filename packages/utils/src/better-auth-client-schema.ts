@@ -34,11 +34,6 @@ export const betterAuthUserAdditionalFields = {
     defaultValue: null,
     input: false,
   },
-  onboardingCompleted: {
-    type: "boolean",
-    required: true,
-    defaultValue: false,
-  },
 } as const;
 
 export type BetterAuthUserAdditionalFieldKey =

@@ -60,9 +60,6 @@ model User {
   // UTM Attribution
   utmAttribution UTMAttribution?
 
-  // Onboarding
-  onboardingCompleted Boolean @default(false)
-
   // Vendor membership and coworker assignments
   vendorMembers       VendorMember[]
   coworkerAssignments CoworkerAssignment[]

@@ -82,8 +82,6 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout`      | checkout opened                                | billing |
 | `purchase` `{transaction_id, value, currency, items}` | **a subscription / credit purchase succeeds** | `components/billing/purchase-tracker.tsx` |
-| `onboarding_start`    | onboarding shown (once per mount; not the subscription-only gate) | `app/(app)/components/onboarding-dialog.tsx` |
-| `onboarding_complete` | onboarding finished — **excludes skip**, which completes server-side but is not an activation signal | `app/(app)/components/onboarding-dialog.tsx` |
 | `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start`, `doi_confirmed` (defined, not yet fired — no call site) | funnel context | various |
 | `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made | banner |
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
@@ -98,7 +96,7 @@ The two the business cares about most map cleanly:
 - **Subscribing** → `purchase` (with `begin_checkout` as the step before)
 
 Mark `sign_up` and `purchase` as **key events** (conversions) in GA4; add
-`message_start` / `onboarding_complete` if you want them as conversions too.
+`message_start` if you want it as a conversion too.
 Drop any GTM conversion that still keys on `agent_hired`.
 
 ## User-ID

@@ -1,9 +1,7 @@
 import "server-only";
 
-import type { Session } from "@sokosumi/utils";
 import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
-import { updateCurrentUserViaCore } from "@/lib/auth/core-auth-http.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   Member,
@@ -128,66 +126,6 @@ export const userService = (() => {
     },
   );
 
-  /**
-   * Determines whether the onboarding flow should be shown for the current user.
-   *
-   * Logic:
-   * - If the user's `onboardingCompleted` is already true → returns false
-   * - If the user is a member of any organization → sets `onboardingCompleted` and returns false
-   * - Otherwise → returns true (show onboarding)
-   */
-  async function showOnboarding(session: Session): Promise<boolean> {
-    if (!session) {
-      return false;
-    }
-
-    const user = session.user;
-    if (!user) {
-      return false;
-    }
-
-    if (user.onboardingCompleted) {
-      return false;
-    }
-
-    try {
-      const members = await getMyMembersWithOrganizations();
-
-      if (members.length > 0) {
-        // Mark onboarding complete via Core Better Auth HTTP so the session
-        // cookie cache stays in sync — same approach as
-        // markOnboardingCompleteForMe below.
-        await updateCurrentUserViaCore({ onboardingCompleted: true });
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Failed to check/update onboarding status", error);
-      // Return true (show onboarding) on error as a safe default - better to show
-      // onboarding than to silently skip it due to a transient error
-      return true;
-    }
-  }
-
-  /**
-   * Marks the onboarding as completed for a specific user.
-   *
-   * @param userId - The ID of the user to update.
-   * @param cookie - Session cookie for authentication.
-   * @returns Promise that resolves when the update is complete.
-   */
-  async function markOnboardingCompleteForMe(): Promise<void> {
-    const session = await getSession();
-    if (!session) {
-      return;
-    }
-
-    // Update via Core Better Auth HTTP to keep session in sync (cookie cache, etc.)
-    // This has to be done, because the screen wasn't getting synced with the DB causing users to keep in the same screen.
-    await updateCurrentUserViaCore({ onboardingCompleted: true });
-  }
-
   return {
     getActiveOrganizationId,
     getActiveOrganization,
@@ -195,7 +133,5 @@ export const userService = (() => {
     getMyMemberInOrganization,
     getOrganizationMembers,
     getWorkspaceAccess,
-    showOnboarding,
-    markOnboardingCompleteForMe,
   };
 })();

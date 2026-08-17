@@ -92,26 +92,4 @@ export const fireGTMEvent = {
       room_id: roomId,
     });
   },
-
-  /**
-   * A user was shown the onboarding flow. Fires once per mount, so
-   * `onboarding_start` → `onboarding_complete` is a usable funnel rather than
-   * a bare completion count with no denominator.
-   *
-   * Not fired for the subscription-only gate: that is a separate upgrade
-   * prompt, and counting it here would inflate the denominator with people who
-   * were never in onboarding.
-   */
-  onboardingStart() {
-    fireEvent({
-      event: "onboarding_start",
-    });
-  },
-
-  /** A user finished onboarding. */
-  onboardingComplete() {
-    fireEvent({
-      event: "onboarding_complete",
-    });
-  },
 };

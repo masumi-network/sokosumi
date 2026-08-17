@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as userSchemas from "./user.schema";
 import { creditsResponseSchema, userSchema } from "./user.schema";
 
 describe("userSchema", () => {
@@ -16,6 +17,10 @@ describe("userSchema", () => {
     });
 
     expect(result.role).toBe("admin");
+  });
+
+  it("does not export userOnboardingResponseSchema", () => {
+    expect(userSchemas).not.toHaveProperty("userOnboardingResponseSchema");
   });
 });
 

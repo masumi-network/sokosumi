@@ -1040,8 +1040,10 @@ describe("core auth config", () => {
         "logo",
         "metadata",
         "stripeCustomerId",
-        "onboardingCompleted",
       ]),
+    );
+    expect(Object.keys(config.user.additionalFields)).not.toContain(
+      "onboardingCompleted",
     );
     expect(config.user.additionalFields.stripeCustomerId).toEqual({
       type: "string",
