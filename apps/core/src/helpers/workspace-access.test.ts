@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   deriveWorkspaceGate,
-  loadWorkspaceInventory,
-} from "./workspace-inventory.js";
+  loadWorkspaceAccess,
+} from "./workspace-access.js";
 
 describe("deriveWorkspaceGate", () => {
   it("maps empty / empty / empty → identity-onboarding", () => {
@@ -67,7 +67,7 @@ describe("deriveWorkspaceGate", () => {
   });
 });
 
-describe("loadWorkspaceInventory", () => {
+describe("loadWorkspaceAccess", () => {
   const userFindUnique = vi.fn();
   const workspaceFindUnique = vi.fn();
   const memberFindFirst = vi.fn();
@@ -87,7 +87,7 @@ describe("loadWorkspaceInventory", () => {
   it("returns identity-onboarding when the user row is missing", async () => {
     userFindUnique.mockResolvedValue(null);
 
-    await expect(loadWorkspaceInventory("user_x", tx)).resolves.toEqual({
+    await expect(loadWorkspaceAccess("user_x", tx)).resolves.toEqual({
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
       hasPendingOrganizationInvites: false,
@@ -102,7 +102,7 @@ describe("loadWorkspaceInventory", () => {
     memberFindFirst.mockResolvedValue(null);
     invitationFindFirst.mockResolvedValue(null);
 
-    await expect(loadWorkspaceInventory("user_1", tx)).resolves.toEqual({
+    await expect(loadWorkspaceAccess("user_1", tx)).resolves.toEqual({
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
       hasPendingOrganizationInvites: false,
@@ -125,7 +125,7 @@ describe("loadWorkspaceInventory", () => {
     memberFindFirst.mockResolvedValue(null);
     invitationFindFirst.mockResolvedValue({ id: "inv_1" });
 
-    await expect(loadWorkspaceInventory("user_1", tx)).resolves.toEqual({
+    await expect(loadWorkspaceAccess("user_1", tx)).resolves.toEqual({
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
       hasPendingOrganizationInvites: true,
@@ -139,7 +139,7 @@ describe("loadWorkspaceInventory", () => {
     memberFindFirst.mockResolvedValue(null);
     invitationFindFirst.mockResolvedValue({ id: "inv_1" });
 
-    await expect(loadWorkspaceInventory("user_1", tx)).resolves.toEqual({
+    await expect(loadWorkspaceAccess("user_1", tx)).resolves.toEqual({
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,
       hasPendingOrganizationInvites: true,
@@ -153,7 +153,7 @@ describe("loadWorkspaceInventory", () => {
     memberFindFirst.mockResolvedValue({ id: "member_1" });
     invitationFindFirst.mockResolvedValue(null);
 
-    await expect(loadWorkspaceInventory("user_1", tx)).resolves.toEqual({
+    await expect(loadWorkspaceAccess("user_1", tx)).resolves.toEqual({
       hasPersonalWorkspace: false,
       hasOrganizationMembership: true,
       hasPendingOrganizationInvites: false,
@@ -168,7 +168,7 @@ describe("loadWorkspaceInventory", () => {
     memberFindFirst.mockResolvedValue(null);
     invitationFindFirst.mockResolvedValue(null);
 
-    await loadWorkspaceInventory("user_1", tx);
+    await loadWorkspaceAccess("user_1", tx);
     const after = Date.now();
 
     const call = invitationFindFirst.mock.calls[0]?.[0] as {

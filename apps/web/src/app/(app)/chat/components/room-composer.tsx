@@ -478,6 +478,7 @@ export function RoomComposer({
         isSending={isSending}
         sendDisabled={isUploadingFiles || sendDisabled}
         sendAriaLabel={t("send")}
+        onPrepareSubmit={() => editorRef.current?.flushTrailingEmoticon()}
         aboveEditor={
           <>
             {pendingQuote && onClearPendingQuote ? (

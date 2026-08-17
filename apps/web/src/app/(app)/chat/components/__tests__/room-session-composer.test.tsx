@@ -199,4 +199,38 @@ describe("RoomSessionComposer draft clear on send", () => {
     });
     expect(getComposeDraft(draftKey)).toBeNull();
   });
+
+  it("keeps editor focused after send clears the draft", async () => {
+    const onSend = vi.fn().mockResolvedValue({ ok: true });
+
+    render(
+      <RoomSessionComposer
+        roomId={roomId}
+        draftKey={draftKey}
+        mentions={{}}
+        placeholder="Message"
+        pendingQuote={null}
+        isSending={false}
+        onSend={onSend}
+      />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    await act(async () => {
+      editor.focus();
+      editor.innerHTML = "keep the keyboard";
+      fireEvent.input(editor);
+    });
+
+    expect(editor).toHaveFocus();
+    fireEvent.submit(editor.closest("form")!);
+
+    await waitFor(() => {
+      expect(onSend).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(editor.textContent ?? "").toBe("");
+    });
+    expect(document.activeElement).toBe(editor);
+  });
 });

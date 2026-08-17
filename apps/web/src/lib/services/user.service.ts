@@ -10,7 +10,7 @@ import type {
   MemberRecord,
   MemberWithOrganization,
   Organization,
-  WorkspaceInventory,
+  WorkspaceAccess,
 } from "@/lib/clients/generated/core";
 
 /**
@@ -113,17 +113,17 @@ export const userService = (() => {
   );
 
   /**
-   * Current-user workspace inventory and derived gate from Core.
+   * Current-user workspace access from Core.
    * Sole access decision for the workspace gate (not `onboardingCompleted`).
    * Deduplicated per request via React cache().
    */
-  const getWorkspaceInventory = cache(
-    async (): Promise<WorkspaceInventory | null> => {
+  const getWorkspaceAccess = cache(
+    async (): Promise<WorkspaceAccess | null> => {
       const session = await getSession();
       if (!session) {
         return null;
       }
-      const response = await coreClient.getMyWorkspaceInventory();
+      const response = await coreClient.getMyWorkspaceAccess();
       return response.data;
     },
   );
@@ -194,7 +194,7 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getOrganizationMembers,
-    getWorkspaceInventory,
+    getWorkspaceAccess,
     showOnboarding,
     markOnboardingCompleteForMe,
   };

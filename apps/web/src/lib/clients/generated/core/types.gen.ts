@@ -2634,7 +2634,7 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
-export type WorkspaceInventory = {
+export type WorkspaceAccess = {
     gate: WorkspaceGateStatus;
     /**
      * Whether the user owns a personal workspace row
@@ -19279,7 +19279,7 @@ export type PostUsersByIdOnboardingResponses = {
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
 
-export type GetUsersByIdWorkspaceInventoryData = {
+export type GetUsersByIdWorkspaceAccessData = {
     body?: never;
     path: {
         /**
@@ -19288,10 +19288,10 @@ export type GetUsersByIdWorkspaceInventoryData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/workspace-inventory';
+    url: '/users/{id}/workspace-access';
 };
 
-export type GetUsersByIdWorkspaceInventoryErrors = {
+export type GetUsersByIdWorkspaceAccessErrors = {
     /**
      * Unauthorized
      */
@@ -19350,14 +19350,14 @@ export type GetUsersByIdWorkspaceInventoryErrors = {
     };
 };
 
-export type GetUsersByIdWorkspaceInventoryError = GetUsersByIdWorkspaceInventoryErrors[keyof GetUsersByIdWorkspaceInventoryErrors];
+export type GetUsersByIdWorkspaceAccessError = GetUsersByIdWorkspaceAccessErrors[keyof GetUsersByIdWorkspaceAccessErrors];
 
-export type GetUsersByIdWorkspaceInventoryResponses = {
+export type GetUsersByIdWorkspaceAccessResponses = {
     /**
-     * Retrieve the user's workspace inventory and gate
+     * Retrieve the user's workspace access
      */
     200: {
-        data: WorkspaceInventory;
+        data: WorkspaceAccess;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19366,7 +19366,7 @@ export type GetUsersByIdWorkspaceInventoryResponses = {
     };
 };
 
-export type GetUsersByIdWorkspaceInventoryResponse = GetUsersByIdWorkspaceInventoryResponses[keyof GetUsersByIdWorkspaceInventoryResponses];
+export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;
