@@ -37,10 +37,9 @@ describe("matchComposerInputRule", () => {
 });
 
 describe("resolveComposerEnterAction", () => {
-  it("submits on plain Enter on desktop", () => {
+  it("submits on plain Enter on desktop and narrow/mobile", () => {
     expect(
       resolveComposerEnterAction({
-        isNarrowViewport: false,
         shiftKey: false,
         metaKey: false,
         ctrlKey: false,
@@ -49,10 +48,9 @@ describe("resolveComposerEnterAction", () => {
     ).toBe("submit");
   });
 
-  it("inserts newline on Shift/Cmd/Ctrl+Enter and on mobile", () => {
+  it("inserts newline on Shift/Cmd/Ctrl+Enter", () => {
     expect(
       resolveComposerEnterAction({
-        isNarrowViewport: false,
         shiftKey: true,
         metaKey: false,
         ctrlKey: false,
@@ -61,7 +59,6 @@ describe("resolveComposerEnterAction", () => {
     ).toBe("newline");
     expect(
       resolveComposerEnterAction({
-        isNarrowViewport: false,
         shiftKey: false,
         metaKey: true,
         ctrlKey: false,
@@ -70,10 +67,9 @@ describe("resolveComposerEnterAction", () => {
     ).toBe("newline");
     expect(
       resolveComposerEnterAction({
-        isNarrowViewport: true,
         shiftKey: false,
         metaKey: false,
-        ctrlKey: false,
+        ctrlKey: true,
         isSuggestionKeyboardActive: false,
       }),
     ).toBe("newline");
@@ -82,7 +78,6 @@ describe("resolveComposerEnterAction", () => {
   it("ignores Enter while suggestion keyboard is active", () => {
     expect(
       resolveComposerEnterAction({
-        isNarrowViewport: false,
         shiftKey: false,
         metaKey: false,
         ctrlKey: false,

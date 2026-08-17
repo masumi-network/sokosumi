@@ -70,6 +70,7 @@ vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
       applyFormat: () => undefined,
       insertLink: () => undefined,
       getSelectedPlainText: () => "",
+      flushTrailingEmoticon: () => undefined,
     }));
     return <div role="textbox" />;
   },

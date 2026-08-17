@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowUp, Loader2 } from "lucide-react";
-import { type FormEvent, type ReactNode, type Ref } from "react";
+import {
+  type FormEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+  useRef,
+} from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
@@ -10,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
+
+const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
 
 /**
  * Shared editor footprint for live composer + Instant room loading shell.
@@ -59,6 +68,11 @@ interface RoomMessageComposerProps {
   /** When set, replaces the send button (e.g. stop while streaming). */
   submitControl?: ReactNode;
   /**
+   * Runs before pointer/keyboard Send calls `requestSubmit` (e.g. flush
+   * trailing emoticons when Send skips editor blur).
+   */
+  onPrepareSubmit?: () => void;
+  /**
    * Channel-style outer padding. Prefer true as the single padding source;
    * set false only when a parent already applies the same inset.
    */
@@ -93,6 +107,7 @@ export function RoomMessageComposer({
   sendDisabled,
   sendAriaLabel,
   submitControl,
+  onPrepareSubmit,
   withOuterPadding = true,
   withSafeAreaPadding = withOuterPadding,
   formRef,
@@ -101,6 +116,38 @@ export function RoomMessageComposer({
   sendButtonTestId,
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
+  const sendBlocked = isSending || sendDisabled;
+  const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
+
+  function requestComposerSubmit(form: HTMLFormElement | null) {
+    if (!form || sendBlocked) return;
+    onPrepareSubmit?.();
+    form.requestSubmit();
+  }
+
+  function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    // Keep editor focus through the tap so iOS does not blur+jump before click.
+    if (event.button !== 0) return;
+    event.preventDefault();
+    if (sendBlocked) return;
+    lastPointerSubmitAtRef.current = performance.now();
+    requestComposerSubmit(event.currentTarget.form);
+  }
+
+  function handleSendClick(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    // Same-gesture leftover click after pointerdown already submitted.
+    // A later click-only first tap (pointerdown missed Send) must still submit.
+    const sincePointerSubmit =
+      performance.now() - lastPointerSubmitAtRef.current;
+    if (
+      event.detail > 0 &&
+      sincePointerSubmit < POINTER_SUBMIT_CLICK_GUARD_MS
+    ) {
+      return;
+    }
+    requestComposerSubmit(event.currentTarget.form);
+  }
 
   return (
     <form
@@ -142,13 +189,15 @@ export function RoomMessageComposer({
             </div>
             {submitControl ?? (
               <Button
-                type="submit"
+                type="button"
                 variant="primary"
                 size="icon"
                 className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                disabled={isSending || sendDisabled}
+                disabled={sendBlocked}
                 aria-label={sendAriaLabel}
                 data-testid={sendButtonTestId}
+                onPointerDown={handleSendPointerDown}
+                onClick={handleSendClick}
               >
                 {isSending ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden />
