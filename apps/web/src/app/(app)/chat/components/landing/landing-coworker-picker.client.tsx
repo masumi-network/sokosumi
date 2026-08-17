@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 import { CoworkerStrip } from "./coworker-strip.client";
 import { orderStripCoworkers } from "./landing-content";
+import { SearchAgentsStripAction } from "./search-agents-strip-action.client";
 import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
@@ -16,18 +17,8 @@ interface LandingCoworkerPickerProps {
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */
   startChatClassName?: string;
-  /**
-   * Optional trailing action for the strip (mobile only).
-   * Provide both the action component and its ID for selection tracking.
-   */
-  trailingAction?: {
-    id: string;
-    render: (props: {
-      isSelected: boolean;
-      onSelect: () => void;
-      ref: (node: HTMLButtonElement | null) => void;
-    }) => React.ReactNode;
-  };
+  /** Show Search agents as trailing action (mobile only). */
+  showSearchAgents?: boolean;
 }
 
 /**
@@ -45,7 +36,7 @@ export function LandingCoworkerPicker({
   initialSelectedId,
   size = "default",
   startChatClassName,
-  trailingAction,
+  showSearchAgents = false,
 }: LandingCoworkerPickerProps) {
   const [selectedId, setSelectedId] = useState(initialSelectedId);
 
@@ -61,6 +52,28 @@ export function LandingCoworkerPicker({
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
+
+  const trailingAction = showSearchAgents
+    ? {
+        id: "search-agents",
+        render: ({
+          isSelected,
+          onSelect,
+          ref,
+        }: {
+          isSelected: boolean;
+          onSelect: () => void;
+          ref: (node: HTMLButtonElement | null) => void;
+        }) => (
+          <SearchAgentsStripAction
+            size={size}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            ref={ref}
+          />
+        ),
+      }
+    : undefined;
 
   return (
     <div

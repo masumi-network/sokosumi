@@ -5,7 +5,6 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
-import { SearchAgentsStripAction } from "./search-agents-strip-action.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
 interface ChatLandingMobileProps {
@@ -63,17 +62,7 @@ export async function ChatLandingMobile({
               initialSelectedId={featured.id}
               size="compact"
               startChatClassName="w-full"
-              trailingAction={{
-                id: "search-agents",
-                render: ({ isSelected, onSelect, ref }) => (
-                  <SearchAgentsStripAction
-                    size="compact"
-                    isSelected={isSelected}
-                    onSelect={onSelect}
-                    ref={ref}
-                  />
-                ),
-              }}
+              showSearchAgents
             />
           </OpenCoworkerRoomProvider>
         ) : null}
