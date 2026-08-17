@@ -2,7 +2,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
-
+import { HomeCarousel } from "./home-carousel.client";
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
@@ -65,6 +65,10 @@ export async function ChatLandingMobile({
             />
           </OpenCoworkerRoomProvider>
         ) : null}
+
+        <div className="mt-6 shrink-0">
+          <HomeCarousel />
+        </div>
       </div>
 
       <div

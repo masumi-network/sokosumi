@@ -4704,7 +4704,9 @@
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück",
-        "goHome": "Zur Startseite"
+        "goHome": "Zur Startseite",
+        "home": "Startseite",
+        "searchAgents": "Agenten suchen"
       },
       "Actions": {
         "more": "Nachrichtenaktionen",
