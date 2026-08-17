@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 /**
- * Chrome-free Suspense fallback while workspace inventory resolves.
+ * Chrome-free Suspense fallback while workspace access resolves.
  * Must not render sidebar/header — AC: not-ready users never see app chrome.
  * Client-only so layout can stay sync for Instant Nav while still localizing
  * the screen-reader label.
