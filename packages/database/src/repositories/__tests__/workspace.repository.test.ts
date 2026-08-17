@@ -45,7 +45,7 @@ describe("workspaceRepository", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+    const workspace = await workspaceRepository.resolveWorkspaceForContext(
       "user-1",
       null,
       tx,
@@ -101,7 +101,7 @@ describe("workspaceRepository", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+    const workspace = await workspaceRepository.resolveWorkspaceForContext(
       "user-1",
       "org-1",
       tx,
@@ -149,58 +149,9 @@ describe("workspaceRepository", () => {
     } as unknown as Prisma.TransactionClient;
 
     await assert.rejects(
-      () => workspaceRepository.upsertWorkspaceForContext("user-1", null, tx),
+      () => workspaceRepository.resolveWorkspaceForContext("user-1", null, tx),
       PersonalWorkspaceMissingError,
     );
     assert.equal(createCalled, false);
-  });
-
-  it("re-reads the personal workspace after a unique race on create", async () => {
-    let findUniqueCalls = 0;
-    let grantFindUniqueCalls = 0;
-    const tx = {
-      workspace: {
-        findUnique: async () => {
-          findUniqueCalls += 1;
-          if (findUniqueCalls === 1) {
-            return null;
-          }
-
-          return {
-            createdAt: new Date("2026-01-01T00:00:00.000Z"),
-            id: "workspace-user-1",
-            organizationId: null,
-            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-            userId: "user-1",
-          };
-        },
-        create: async () => {
-          throw Object.assign(new Error("Unique constraint failed"), {
-            code: "P2002",
-          });
-        },
-      },
-      vendorGrant: {
-        findUnique: async () => {
-          grantFindUniqueCalls += 1;
-          return null;
-        },
-        create: async () => ({ id: "grant-1" }),
-      },
-      vendor: {
-        findUnique: async () => ({
-          id: "01960001-0001-7001-8001-000000000001",
-        }),
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    const workspace = await workspaceRepository.upsertPersonalWorkspace({
-      userId: "user-1",
-      tx,
-    });
-
-    assert.equal(workspace.id, "workspace-user-1");
-    assert.equal(findUniqueCalls, 2);
-    assert.equal(grantFindUniqueCalls, 1);
   });
 });

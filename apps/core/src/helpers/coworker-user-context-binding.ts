@@ -43,7 +43,7 @@ export async function assertCoworkerUserContextBinding(
 ): Promise<void> {
   let workspace;
   try {
-    workspace = await workspaceRepository.upsertWorkspaceForContext(
+    workspace = await workspaceRepository.resolveWorkspaceForContext(
       userContext.userId,
       userContext.organizationId,
       tx,

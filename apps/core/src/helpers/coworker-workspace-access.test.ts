@@ -37,7 +37,7 @@ const chatRoomCoworkerMemberDeleteMany = vi.fn();
 const chatRoomCoworkerMemberFindMany = vi.fn();
 const chatRoomMentionUpdateMany = vi.fn();
 const recordChannelMembershipStatusMock = vi.fn();
-const upsertWorkspaceForContextMock = vi.fn();
+const resolveWorkspaceForContextMock = vi.fn();
 const createNotificationMock = vi.fn();
 const deletePendingCoworkerAccessNotificationsMock = vi.fn();
 const requireVendorAdminMembershipMock = vi.fn();
@@ -91,8 +91,8 @@ vi.mock("@/routes/v1/chats/rooms/membership-status", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
   },
 }));
 
@@ -196,7 +196,7 @@ describe("coworker-workspace-access helpers", () => {
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({ userId: "user-1" }),
       ).resolves.toBe("ws-personal");
-      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+      expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
     });
 
     it("404 when personal workspace is missing for userId", async () => {
@@ -209,17 +209,17 @@ describe("coworker-workspace-access helpers", () => {
         status: 404,
         cause: { kind: "personal_workspace_missing" },
       });
-      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+      expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
     });
 
     it("upserts organization workspace for organizationId", async () => {
       organizationFindUnique.mockResolvedValue({ id: "org-1" });
-      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-org" });
+      resolveWorkspaceForContextMock.mockResolvedValue({ id: "ws-org" });
 
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({ organizationId: "org-1" }),
       ).resolves.toBe("ws-org");
-      expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+      expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
         "org-1",
         "org-1",
         expect.anything(),
@@ -256,7 +256,7 @@ describe("coworker-workspace-access helpers", () => {
 
     it("resolves organization workspace by slug", async () => {
       organizationFindFirst.mockResolvedValue({ id: "org-1" });
-      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-org" });
+      resolveWorkspaceForContextMock.mockResolvedValue({ id: "ws-org" });
 
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({
@@ -284,7 +284,7 @@ describe("coworker-workspace-access helpers", () => {
           { createIfMissing: false },
         ),
       ).rejects.toMatchObject({ status: 404 });
-      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+      expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
     });
 
     it("find-only returns existing personal workspace", async () => {
@@ -297,7 +297,7 @@ describe("coworker-workspace-access helpers", () => {
           { createIfMissing: false },
         ),
       ).resolves.toBe("ws-existing");
-      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+      expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
       expect(workspaceFindUnique).toHaveBeenCalledWith({
         where: { userId: "user-1" },
         select: { id: true },

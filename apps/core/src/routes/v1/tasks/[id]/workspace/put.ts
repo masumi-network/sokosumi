@@ -92,7 +92,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       let targetWorkspace;
       try {
-        targetWorkspace = await workspaceRepository.upsertWorkspaceForContext(
+        targetWorkspace = await workspaceRepository.resolveWorkspaceForContext(
           userContext.userId,
           targetOrganizationId ?? null,
           tx,

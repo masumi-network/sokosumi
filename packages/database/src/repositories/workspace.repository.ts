@@ -37,40 +37,6 @@ export const workspaceRepository = {
     });
   },
 
-  async upsertPersonalWorkspace({
-    userId,
-    tx,
-  }: {
-    userId: string;
-    tx: Prisma.TransactionClient;
-  }): Promise<Workspace> {
-    const existingWorkspace = await this.findPersonalWorkspace({ userId, tx });
-    if (existingWorkspace) {
-      await ensureServiceplanGrantForWorkspace(existingWorkspace, userId, tx);
-      return existingWorkspace;
-    }
-
-    try {
-      const workspace = await tx.workspace.create({
-        data: { userId },
-      });
-
-      await ensureServiceplanGrantForWorkspace(workspace, userId, tx);
-
-      return workspace;
-    } catch (error) {
-      if (isPrismaUniqueConstraintError(error)) {
-        const racedWorkspace = await this.findPersonalWorkspace({ userId, tx });
-        if (racedWorkspace) {
-          await ensureServiceplanGrantForWorkspace(racedWorkspace, userId, tx);
-          return racedWorkspace;
-        }
-      }
-
-      throw error;
-    }
-  },
-
   async findOrganizationWorkspace({
     organizationId,
     tx,
@@ -123,7 +89,12 @@ export const workspaceRepository = {
     }
   },
 
-  async upsertWorkspaceForContext(
+  /**
+   * Resolve the workspace for a user/org context.
+   * Organization: find or create. Personal: find or throw
+   * {@link PersonalWorkspaceMissingError} — never create.
+   */
+  async resolveWorkspaceForContext(
     userId: string,
     organizationId: string | null,
     tx: Prisma.TransactionClient,

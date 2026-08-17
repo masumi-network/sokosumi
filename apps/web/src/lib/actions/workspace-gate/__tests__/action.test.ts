@@ -156,6 +156,55 @@ describe("deletePersonalWorkspaceAction", () => {
       consoleError.mockRestore();
     }
   });
+
+  it("maps Core dependents 409", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    deleteMyPersonalWorkspaceMock.mockRejectedValue(
+      new CoreApiRequestError(
+        "Cannot delete a personal workspace that still has jobs or tasks",
+        {
+          status: 409,
+          kind: "workspace_has_dependents",
+        },
+      ),
+    );
+
+    try {
+      const result = await deletePersonalWorkspaceAction({});
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe(
+          WorkspaceGateErrorCode.WORKSPACE_HAS_DEPENDENTS,
+        );
+      }
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("does not treat an unclassified 409 as last workspace", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    deleteMyPersonalWorkspaceMock.mockRejectedValue(
+      new CoreApiRequestError("Conflict", { status: 409 }),
+    );
+
+    try {
+      const result = await deletePersonalWorkspaceAction({});
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
+        expect(result.error.code).not.toBe(
+          WorkspaceGateErrorCode.LAST_WORKSPACE,
+        );
+      }
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });
 
 describe("clearPendingOrganizationJoinCookieAction", () => {

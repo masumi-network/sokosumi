@@ -8,7 +8,7 @@ const {
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
   prismaTransactionMock,
-  upsertWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
   memberFindFirstMock,
   userFindUniqueMock,
   memberFindUniqueMock,
@@ -18,7 +18,7 @@ const {
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  upsertWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -68,8 +68,8 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   return {
     ...actual,
     workspaceRepository: {
-      upsertWorkspaceForContext: (...args: unknown[]) =>
-        upsertWorkspaceForContextMock(...args),
+      resolveWorkspaceForContext: (...args: unknown[]) =>
+        resolveWorkspaceForContextMock(...args),
     },
   };
 });
@@ -102,7 +102,7 @@ describe("workspaceMiddleware", () => {
     memberFindFirstMock.mockResolvedValue(null);
     userFindUniqueMock.mockResolvedValue(null);
     memberFindUniqueMock.mockResolvedValue(null);
-    upsertWorkspaceForContextMock.mockResolvedValue({
+    resolveWorkspaceForContextMock.mockResolvedValue({
       id: "workspace_123",
       userId: "user_123",
       organizationId: null,
@@ -143,7 +143,7 @@ describe("workspaceMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+    expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
   it("leaves workspaceContext null when personal workspace is missing", async () => {
@@ -158,7 +158,7 @@ describe("workspaceMiddleware", () => {
         id: "user_123",
       },
     });
-    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
       new PersonalWorkspaceMissingError(),
     );
 
@@ -175,7 +175,7 @@ describe("workspaceMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       null,
       expect.objectContaining({
@@ -198,7 +198,7 @@ describe("workspaceMiddleware", () => {
     memberFindFirstMock.mockResolvedValue({
       organizationId: "org_123",
     });
-    upsertWorkspaceForContextMock.mockResolvedValueOnce({
+    resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "workspace_123",
       userId: "user_123",
       organizationId: "org_123",
@@ -225,7 +225,7 @@ describe("workspaceMiddleware", () => {
         organizationId: "org_123",
       },
     });
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.objectContaining({
@@ -247,7 +247,7 @@ describe("workspaceMiddleware", () => {
         id: "user_123",
       },
     });
-    upsertWorkspaceForContextMock.mockResolvedValueOnce({
+    resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "workspace_created",
       userId: null,
       organizationId: "org_existing",
@@ -281,7 +281,7 @@ describe("workspaceMiddleware", () => {
         id: "user_123",
       },
     });
-    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
       new Error("workspace failed"),
     );
 
@@ -343,7 +343,7 @@ describe("workspaceMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+    expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
   it("resolves workspaceContext for delegated coworker requests", async () => {
@@ -357,7 +357,7 @@ describe("workspaceMiddleware", () => {
       },
     });
     userFindUniqueMock.mockResolvedValue({ id: "user_delegate" });
-    upsertWorkspaceForContextMock.mockResolvedValueOnce({
+    resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "workspace_delegated",
       userId: "user_delegate",
       organizationId: null,
@@ -388,7 +388,7 @@ describe("workspaceMiddleware", () => {
         organizationId: null,
       },
     });
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_delegate",
       null,
       expect.objectContaining({

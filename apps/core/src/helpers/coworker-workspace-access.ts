@@ -173,8 +173,8 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
       throw notFound("Organization not found");
     }
     if (createIfMissing) {
-      // Org branch of upsert ignores userId; pass organization id as placeholder.
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+      // Org branch of resolve upserts the org workspace; userId is unused.
+      const workspace = await workspaceRepository.resolveWorkspaceForContext(
         organization.id,
         organization.id,
         tx,

@@ -88,12 +88,6 @@ function toDeletePersonalWorkspaceError(error: unknown): ActionError {
         message: error.message,
       };
     }
-    if (error.status === 409) {
-      return {
-        code: WorkspaceGateErrorCode.LAST_WORKSPACE,
-        message: error.message,
-      };
-    }
     if (error.status === 401) {
       return { code: CommonErrorCode.UNAUTHENTICATED, message: error.message };
     }

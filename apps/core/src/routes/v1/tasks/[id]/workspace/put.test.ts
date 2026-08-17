@@ -17,7 +17,7 @@ const {
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
-  upsertWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
   taskLinkFindFirstMock,
@@ -31,7 +31,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  upsertWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskLinkFindFirstMock: vi.fn(),
@@ -59,7 +59,7 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   return {
     ...actual,
     workspaceRepository: {
-      upsertWorkspaceForContext: upsertWorkspaceForContextMock,
+      resolveWorkspaceForContext: resolveWorkspaceForContextMock,
     },
   };
 });
@@ -292,7 +292,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
-    upsertWorkspaceForContextMock.mockResolvedValue({
+    resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
       ownerId: null,
       organizationId: "org_target",
@@ -514,7 +514,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         },
       }),
     );
-    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
       new PersonalWorkspaceMissingError(),
     );
 

@@ -15,7 +15,7 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  upsertWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
   serializeJobDetailsMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
@@ -24,7 +24,7 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  upsertWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
 }));
 
@@ -47,7 +47,7 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   return {
     ...actual,
     workspaceRepository: {
-      upsertWorkspaceForContext: upsertWorkspaceForContextMock,
+      resolveWorkspaceForContext: resolveWorkspaceForContextMock,
     },
   };
 });
@@ -224,7 +224,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       role: "member",
     });
-    upsertWorkspaceForContextMock.mockResolvedValue({
+    resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
@@ -291,7 +291,7 @@ describe("PUT /jobs/{id}/workspace", () => {
         workspace: { organizationId: "org_current" },
       }),
     );
-    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
       new PersonalWorkspaceMissingError(),
     );
 
