@@ -30,6 +30,41 @@ function log(message) {
   console.log(`[cloud-agent-db] ${message}`);
 }
 
+const ZERO_WORKSPACE_RESET_SAVEPOINT = "zero_workspace_reset";
+
+/**
+ * Best-effort delete of a personal workspace so zero fixtures stay durable.
+ * Isolated via SAVEPOINT so Job/Task FK failures do not abort the rest of
+ * the fixture transaction (admin/alice/bob password refresh still commits).
+ *
+ * @param {import("pg").PoolClient | import("pg").Client} client
+ * @param {{ userId: string, email: string }} fixtureUser
+ */
+export async function resetUnwantedPersonalWorkspace(client, fixtureUser) {
+  try {
+    await client.query(`SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
+    await client.query(`DELETE FROM workspace WHERE "userId" = $1`, [
+      fixtureUser.userId,
+    ]);
+    await client.query(`RELEASE SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
+    return { reset: true };
+  } catch (error) {
+    try {
+      await client.query(
+        `ROLLBACK TO SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`,
+      );
+    } catch (_rollbackError) {
+      // Outer transaction may already be unusable; caller still rolls back.
+    }
+    log(
+      `Could not reset personal workspace for ${fixtureUser.email}: ${
+        error instanceof Error ? error.message : String(error)
+      }. Other fixtures still commit.`,
+    );
+    return { reset: false };
+  }
+}
+
 /**
  * Resolve packages that live under apps/core (not hoisted to root).
  * @param {string} specifier
@@ -116,7 +151,10 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
   } else {
     // Keep zero-workspace fixtures durable across re-seed after accidental
     // lazy-create (workspace middleware upsert on other Core routes).
-    await client.query(`DELETE FROM workspace WHERE "userId" = $1`, [userId]);
+    await resetUnwantedPersonalWorkspace(client, {
+      userId,
+      email: fixture.email,
+    });
   }
 
   return userId;

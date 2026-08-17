@@ -51,6 +51,16 @@ export function IdentityOnboardingForm({
     },
   });
 
+  async function leaveGateAfterPersonalWorkspace() {
+    try {
+      await activateOrganizationWorkspace(null);
+    } catch (error) {
+      console.error("Identity onboarding personal activation failed", error);
+    }
+    router.replace("/");
+    router.refresh();
+  }
+
   async function handlePersonalSubmit(values: NameFormType) {
     setSubmitting(true);
     try {
@@ -65,18 +75,19 @@ export function IdentityOnboardingForm({
 
       const createResult = await createPersonalWorkspaceAction({});
       if (!createResult.ok) {
-        const message =
+        if (
           createResult.error.code ===
           WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
-            ? t("personalAlreadyExists")
-            : (createResult.error.message ?? t("personalCreateError"));
-        toast.error(message);
+        ) {
+          // Already ready — leave the gate instead of toasting create failure.
+          await leaveGateAfterPersonalWorkspace();
+          return;
+        }
+        toast.error(createResult.error.message ?? t("personalCreateError"));
         return;
       }
 
-      await activateOrganizationWorkspace(null);
-      router.replace("/");
-      router.refresh();
+      await leaveGateAfterPersonalWorkspace();
     } catch (error) {
       console.error("Identity onboarding personal create failed", error);
       toast.error(t("personalCreateError"));

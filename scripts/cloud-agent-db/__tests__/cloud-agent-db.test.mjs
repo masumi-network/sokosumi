@@ -13,6 +13,7 @@ import {
   isAgentRunId,
 } from "../names.mjs";
 import { readNeonConfig } from "../neon-api.mjs";
+import { resetUnwantedPersonalWorkspace } from "../seed-auth-fixtures.mjs";
 
 describe("names", () => {
   it("builds agent branch names with stable prefix", () => {
@@ -183,5 +184,57 @@ describe("auth fixtures", () => {
       slugs.add(fixture.organization.slug);
     }
     assert.ok(slugs.size >= 1, "expected at least one org-enabled fixture");
+  });
+});
+
+describe("resetUnwantedPersonalWorkspace", () => {
+  it("deletes the personal workspace inside a savepoint", async () => {
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        return { rowCount: 1 };
+      },
+    };
+
+    const result = await resetUnwantedPersonalWorkspace(client, {
+      userId: "user-zero",
+      email: "zero@sokosumi.test",
+    });
+
+    assert.equal(result.reset, true);
+    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
+    assert.match(queries[1], /DELETE FROM workspace/);
+    assert.equal(queries[2], "RELEASE SAVEPOINT zero_workspace_reset");
+  });
+
+  it("rolls back only the savepoint when delete hits an FK", async () => {
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        if (String(sql).includes("DELETE FROM workspace")) {
+          throw new Error(
+            'update or delete on table "workspace" violates foreign key constraint',
+          );
+        }
+        return { rowCount: 0 };
+      },
+    };
+
+    const result = await resetUnwantedPersonalWorkspace(client, {
+      userId: "user-zero",
+      email: "zero@sokosumi.test",
+    });
+
+    assert.equal(result.reset, false);
+    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
+    assert.match(queries[1], /DELETE FROM workspace/);
+    assert.equal(queries[2], "ROLLBACK TO SAVEPOINT zero_workspace_reset");
+    assert.equal(
+      queries.includes("ROLLBACK"),
+      false,
+      "must not roll back the outer fixture transaction",
+    );
   });
 });

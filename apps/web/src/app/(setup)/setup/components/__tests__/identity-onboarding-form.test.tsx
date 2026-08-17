@@ -147,7 +147,7 @@ describe("IdentityOnboardingForm", () => {
     expect(screen.getByTestId("workspace-gate-identity-form")).toBeTruthy();
   });
 
-  it("surfaces Core 409 without pretending success", async () => {
+  it("leaves the gate when Core reports the personal workspace already exists", async () => {
     const user = userEvent.setup();
     createPersonalWorkspaceActionMock.mockResolvedValue({
       ok: false,
@@ -161,9 +161,31 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith("Already exists");
+      expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).toHaveBeenCalledOnce();
     });
-    expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("still leaves the gate when activation fails after create", async () => {
+    const user = userEvent.setup();
+    activateOrganizationWorkspaceMock.mockRejectedValue(
+      new Error("setActive failed"),
+    );
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    renderForm();
+
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).toHaveBeenCalledOnce();
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 });
