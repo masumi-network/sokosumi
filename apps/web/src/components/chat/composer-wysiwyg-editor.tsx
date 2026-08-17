@@ -92,6 +92,12 @@ export interface ComposerWysiwygEditorHandle {
   getSelectedPlainText: () => string;
   /** Flush bare trailing emoticons before submit when Send skips blur. */
   flushTrailingEmoticon: () => void;
+  /**
+   * Empty the editor and parent value in the current turn without resigning
+   * first responder. Required for iOS: `innerHTML = ""` / late `focus()` after
+   * `await` cannot keep or reopen the soft keyboard.
+   */
+  clearKeepingFocus: () => void;
 }
 
 interface ComposerWysiwygEditorProps<TData = unknown> {
@@ -128,6 +134,44 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
   "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
 );
+
+/**
+ * Empty a focused contenteditable without `innerHTML` assignment.
+ * Assigning `innerHTML` on iOS Safari resigns first responder and the OSK
+ * cannot be restored outside the originating user gesture.
+ */
+function emptyFocusedComposerEditor(editor: HTMLElement): void {
+  const selection = window.getSelection();
+  if (!selection) {
+    while (editor.firstChild) {
+      editor.removeChild(editor.firstChild);
+    }
+    return;
+  }
+
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  range.deleteContents();
+
+  const caret = document.createRange();
+  caret.selectNodeContents(editor);
+  caret.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(caret);
+}
+
+function isComposerEditorDomEmpty(editor: HTMLElement): boolean {
+  const html = editor.innerHTML;
+  return (
+    html === "" ||
+    html === "<br>" ||
+    html === "<div><br></div>" ||
+    html === "<p><br></p>" ||
+    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
+  );
+}
 
 function restoreCaretAtOffset(root: HTMLElement, offset: number): void {
   const selection = window.getSelection();
@@ -408,11 +452,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const currentHtml = editor.innerHTML;
     const newHtml = markdownToHtml(value, resolveMentionDisplay);
     const isFocused = editor.contains(document.activeElement);
-    const editorLooksEmpty =
-      currentHtml === "" ||
-      currentHtml === "<br>" ||
-      currentHtml === "<div><br></div>" ||
-      currentHtml === "<p><br></p>";
+    const editorLooksEmpty = isComposerEditorDomEmpty(editor);
 
     // Focused non-clear updates skip to keep the caret; still apply into an
     // empty editor (restore after failed send cleared DOM first).
@@ -420,8 +460,14 @@ export function ComposerWysiwygEditor<TData = unknown>({
       currentHtml !== newHtml &&
       (!isFocused || isExternalClear || editorLooksEmpty)
     ) {
-      editor.innerHTML = newHtml || "";
-      // iOS can drop first-responder when emptying a focused contenteditable.
+      if (isFocused && isExternalClear) {
+        // Never assign innerHTML while focused — iOS resigns first responder.
+        if (!editorLooksEmpty) {
+          emptyFocusedComposerEditor(editor);
+        }
+      } else {
+        editor.innerHTML = newHtml || "";
+      }
       if (isFocused) {
         editor.focus({ preventScroll: true });
       }
@@ -1008,6 +1054,42 @@ export function ComposerWysiwygEditor<TData = unknown>({
     });
   }, [syncFromEditor]);
 
+  const clearKeepingFocus = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) {
+      flushSync(() => {
+        isInternalChange.current = true;
+        onChange("");
+      });
+      return;
+    }
+
+    const hadFocus =
+      document.activeElement === editor ||
+      editor.contains(document.activeElement);
+
+    if (hadFocus) {
+      editor.focus({ preventScroll: true });
+    }
+
+    closeSuggestions();
+    if (!isComposerEditorDomEmpty(editor)) {
+      emptyFocusedComposerEditor(editor);
+    }
+
+    // Same user-gesture turn as Send (pointerdown → requestSubmit → onSubmit).
+    // flushSync so React does not defer the "" commit until after `await onSend`.
+    flushSync(() => {
+      isInternalChange.current = true;
+      syncFromEditor();
+    });
+
+    if (hadFocus) {
+      editor.focus({ preventScroll: true });
+    }
+    publishActiveFormats();
+  }, [closeSuggestions, onChange, publishActiveFormats, syncFromEditor]);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLowerCase();
@@ -1223,9 +1305,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertLink,
       getSelectedPlainText: () => window.getSelection()?.toString() ?? "",
       flushTrailingEmoticon: tryFlushTrailingEmoticon,
+      clearKeepingFocus,
     }),
     [
       applyFormat,
+      clearKeepingFocus,
       insertLink,
       insertText,
       openMentions,

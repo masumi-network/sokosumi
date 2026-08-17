@@ -5,8 +5,10 @@ import {
   type Ref,
   useCallback,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
@@ -88,11 +90,22 @@ export function RoomSessionComposer({
   onBeforeSend,
   onSend,
 }: RoomSessionComposerProps) {
+  const composerRef = useRef<RoomComposerHandle | null>(null);
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+
+  function assignComposerRef(handle: RoomComposerHandle | null) {
+    composerRef.current = handle;
+    if (!ref) return;
+    if (typeof ref === "function") {
+      ref(handle);
+    } else {
+      ref.current = handle;
+    }
+  }
 
   const composeDraft = useMemo<ComposeDraft>(
     () => ({
@@ -159,16 +172,20 @@ export function RoomSessionComposer({
     };
     const sentDraftKey = draftKey;
 
-    setComposerValue("");
-    setComposerAttachments([]);
-    setMentionedIds([]);
-    onClearPendingQuote?.();
+    // Clear in the same user-gesture turn as Send (pointerdown → requestSubmit).
+    // Deferring "" to after `await` lets React assign innerHTML later and iOS
+    // resigns first responder; post-await focus() cannot reopen the OSK.
+    flushSync(() => {
+      if (composerRef.current) {
+        composerRef.current.clearKeepingFocus();
+      } else {
+        setComposerValue("");
+      }
+      setComposerAttachments([]);
+      setMentionedIds([]);
+      onClearPendingQuote?.();
+    });
     clearDraft();
-
-    // Keep first responder across draft clear before pin/await (SOK-815).
-    if (ref && typeof ref !== "function") {
-      ref.current?.focus();
-    }
 
     const result = await onSend({
       content,
@@ -183,16 +200,12 @@ export function RoomSessionComposer({
     }
 
     clearComposeDraft(sentDraftKey);
-
-    // Pin/rAF may have run during onSend; restore without scrolling the page.
-    if (ref && typeof ref !== "function") {
-      ref.current?.focus();
-    }
+    // Do not focus() here to reopen the OSK — outside the user gesture on iOS.
   }
 
   return (
     <RoomComposer
-      ref={ref}
+      ref={assignComposerRef}
       roomId={roomId}
       value={composerValue}
       onValueChange={setComposerValue}
