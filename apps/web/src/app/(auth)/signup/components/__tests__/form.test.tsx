@@ -123,6 +123,10 @@ describe("SignUpForm OAuth workflow", () => {
     const user = userEvent.setup();
 
     await user.type(
+      screen.getByPlaceholderText("Fields.Name.placeholder"),
+      "New User",
+    );
+    await user.type(
       screen.getByPlaceholderText("Fields.Email.placeholder"),
       "new-user@example.com",
     );
@@ -145,8 +149,8 @@ describe("SignUpForm OAuth workflow", () => {
       screen.queryByPlaceholderText("Fields.ConfirmPassword.placeholder"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByPlaceholderText("Fields.Name.placeholder"),
-    ).not.toBeInTheDocument();
+      screen.getByPlaceholderText("Fields.Name.placeholder"),
+    ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText("Fields.Password.placeholder"),
     ).toHaveAttribute("type", "password");
@@ -271,7 +275,7 @@ describe("SignUpForm OAuth workflow", () => {
 
     expect(signUpPayload).toEqual(
       expect.objectContaining({
-        name: "",
+        name: "New User",
         email: "new-user@example.com",
         password: "Passw0rd!",
         termsAccepted: true,

@@ -50,6 +50,7 @@ export default function SignUpForm({
     ),
     defaultValues: {
       email: prefilledEmail ?? "",
+      name: "",
       password: "",
       termsAccepted: false,
       marketingOptIn: false,
@@ -75,7 +76,7 @@ export default function SignUpForm({
 
     const result = await signUp.email({
       email: values.email,
-      name: "",
+      name: values.name,
       password: values.password,
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,

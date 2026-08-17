@@ -1174,6 +1174,9 @@
             "Email": {
               "placeholder": "Email"
             },
+            "Name": {
+              "placeholder": "Nombre"
+            },
             "TermsAccepted": {
               "Label": {
                 "iAgreeTo": "Acepto los",

@@ -26,6 +26,7 @@ export type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
 export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
+    name: nameSchema(t),
     email: emailSchema(t),
     password: passwordSchema(t),
     termsAccepted: z.boolean(),

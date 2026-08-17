@@ -1174,6 +1174,9 @@
             "Email": {
               "placeholder": "E-Mail"
             },
+            "Name": {
+              "placeholder": "Name"
+            },
             "TermsAccepted": {
               "Label": {
                 "iAgreeTo": "Ich stimme den",
