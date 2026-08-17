@@ -44,8 +44,8 @@ describe("WorkspaceAccessGate", () => {
 
     await expect(
       WorkspaceAccessGate({ children: <div data-chrome>chrome</div> }),
-    ).rejects.toThrow("REDIRECT:/workspace-gate");
-    expect(redirectMock).toHaveBeenCalledWith("/workspace-gate");
+    ).rejects.toThrow("REDIRECT:/setup");
+    expect(redirectMock).toHaveBeenCalledWith("/setup");
   });
 
   it("redirects when workspace access throws (fail closed, no chrome)", async () => {
@@ -57,7 +57,7 @@ describe("WorkspaceAccessGate", () => {
 
     await expect(
       WorkspaceAccessGate({ children: <div>chrome</div> }),
-    ).rejects.toThrow("REDIRECT:/workspace-gate");
+    ).rejects.toThrow("REDIRECT:/setup");
   });
 
   it("renders children when ready", async () => {

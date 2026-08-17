@@ -10,7 +10,7 @@ interface WorkspaceAccessGateProps {
 
 /**
  * Hard gate before app chrome Suspense. Not-ready / workspace-access failure
- * redirects to `/workspace-gate` without mounting sidebar/header fallbacks.
+ * redirects to `/setup` without mounting sidebar/header fallbacks.
  * Workspace access is React-cached with AuthenticatedAppFrame (one Core hit
  * per request).
  */

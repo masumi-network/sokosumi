@@ -13,6 +13,11 @@ import {
   isAgentRunId,
 } from "../names.mjs";
 import { readNeonConfig } from "../neon-api.mjs";
+import {
+  clearUnwantedOrganizationMemberships,
+  resetUnwantedPersonalWorkspace,
+  throwIfZeroWorkspaceResetFailed,
+} from "../seed-auth-fixtures.mjs";
 
 describe("names", () => {
   it("builds agent branch names with stable prefix", () => {
@@ -156,10 +161,23 @@ describe("auth fixtures", () => {
     assert.equal(admins[0]?.email, "admin@sokosumi.test");
   });
 
-  it("gives each fixture user at least one organization", () => {
+  it("includes a zero-workspace fixture without org or personal workspace", () => {
+    const zero = AUTH_FIXTURES.find(
+      (fixture) => fixture.email === "zero@sokosumi.test",
+    );
+    assert.ok(zero, "missing zero@sokosumi.test fixture");
+    assert.equal(zero.name, "Zero Workspace");
+    assert.equal(zero.role, "user");
+    assert.equal(zero.organization ?? null, null);
+    assert.equal(zero.createPersonalWorkspace, false);
+  });
+
+  it("gives org-enabled fixtures unique organization slugs", () => {
     const slugs = new Set();
     for (const fixture of AUTH_FIXTURES) {
-      assert.ok(fixture.organization, `${fixture.email} missing organization`);
+      if (fixture.organization == null) {
+        continue;
+      }
       assert.match(fixture.organization.slug, /^[a-z0-9-]+$/);
       assert.ok(fixture.organization.name.length >= 1);
       assert.equal(
@@ -169,5 +187,89 @@ describe("auth fixtures", () => {
       );
       slugs.add(fixture.organization.slug);
     }
+    assert.ok(slugs.size >= 1, "expected at least one org-enabled fixture");
+  });
+});
+
+describe("resetUnwantedPersonalWorkspace", () => {
+  it("deletes the personal workspace inside a savepoint", async () => {
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        return { rowCount: 1 };
+      },
+    };
+
+    const result = await resetUnwantedPersonalWorkspace(client, {
+      userId: "user-zero",
+      email: "zero@sokosumi.test",
+    });
+
+    assert.equal(result.reset, true);
+    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
+    assert.match(queries[1], /DELETE FROM workspace/);
+    assert.equal(queries[2], "RELEASE SAVEPOINT zero_workspace_reset");
+  });
+
+  it("rolls back only the savepoint when delete hits an FK", async () => {
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        if (String(sql).includes("DELETE FROM workspace")) {
+          throw new Error(
+            'update or delete on table "workspace" violates foreign key constraint',
+          );
+        }
+        return { rowCount: 0 };
+      },
+    };
+
+    const result = await resetUnwantedPersonalWorkspace(client, {
+      userId: "user-zero",
+      email: "zero@sokosumi.test",
+    });
+
+    assert.equal(result.reset, false);
+    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
+    assert.match(queries[1], /DELETE FROM workspace/);
+    assert.equal(queries[2], "ROLLBACK TO SAVEPOINT zero_workspace_reset");
+    assert.equal(
+      queries.includes("ROLLBACK"),
+      false,
+      "must not roll back the outer fixture transaction",
+    );
+  });
+});
+
+describe("throwIfZeroWorkspaceResetFailed", () => {
+  it("does nothing when every reset succeeded", () => {
+    throwIfZeroWorkspaceResetFailed([]);
+  });
+
+  it("throws after other fixtures would have committed", () => {
+    assert.throws(
+      () => throwIfZeroWorkspaceResetFailed(["zero@sokosumi.test"]),
+      /Auth fixtures committed, but personal workspace reset failed/,
+    );
+  });
+});
+
+describe("clearUnwantedOrganizationMemberships", () => {
+  it("deletes memberships and clears selected-organization state", async () => {
+    const queries = [];
+    const client = {
+      async query(sql) {
+        queries.push(sql);
+        return { rowCount: 0 };
+      },
+    };
+
+    await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
+
+    assert.match(queries[0], /DELETE FROM member/);
+    assert.match(queries[1], /preferredOrganizationId/);
+    assert.match(queries[2], /activeOrganizationId/);
   });
 });
