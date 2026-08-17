@@ -214,7 +214,7 @@ export function ProjectBrandCard({
     <>
       <section
         id="project-brand-card"
-        className="bg-muted/30 border-border/50 scroll-mt-4 rounded-xl border p-4"
+        className="bg-muted/30 border-border/50 scroll-mt-4 self-start rounded-xl border p-4"
         data-testid="project-brand-card"
       >
         <div className="flex items-start justify-between gap-3">
@@ -302,20 +302,22 @@ export function ProjectBrandCard({
           </p>
         ) : null}
 
-        <div className="mt-4 border-t pt-4">
-          <DesignMdUploadTrigger
-            owner={owner}
-            variant="compact"
-            disabled={generation.isRunning || isRemoving}
-            onSaved={(uploadedDesignMd) => {
-              setDesignMd({
-                extractionId: uploadedDesignMd.extractionId,
-                url: uploadedDesignMd.url,
-              });
-              router.refresh();
-            }}
-          />
-        </div>
+        {designMd ? null : (
+          <div className="mt-4 border-t pt-4">
+            <DesignMdUploadTrigger
+              owner={owner}
+              variant="compact"
+              disabled={generation.isRunning || isRemoving}
+              onSaved={(uploadedDesignMd) => {
+                setDesignMd({
+                  extractionId: uploadedDesignMd.extractionId,
+                  url: uploadedDesignMd.url,
+                });
+                router.refresh();
+              }}
+            />
+          </div>
+        )}
       </section>
 
       <AlertDialog

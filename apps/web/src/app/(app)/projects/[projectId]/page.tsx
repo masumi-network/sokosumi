@@ -4,7 +4,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import {
   ProjectBrandCard,
   ProjectBrandProvider,
-  ProjectBrandStatCard,
 } from "@/app/projects/components/project-brand-card";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
@@ -12,9 +11,7 @@ import { ProjectDetailHeader } from "@/app/projects/components/project-detail-he
 import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
-import { ProjectStatsSummary } from "@/app/projects/components/project-stats-summary";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
-import { buildTaskStatusAbbreviationLabels } from "@/app/tasks/utils/task-status-labels";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
@@ -32,27 +29,17 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [projectJobsResult, projectTasksResult, projectStatsResult] =
-    await Promise.all([
-      projectService.listProjectJobs(project.id, {
-        limit: PROJECT_DETAIL_RESOURCE_LIMIT,
-      }),
-      projectService.listProjectTasks(project.id, {
-        limit: PROJECT_DETAIL_RESOURCE_LIMIT,
-      }),
-      projectService.getProjectsStats([project.id]),
-    ]);
-  const projectStats = projectStatsResult.find(
-    (entry) => entry.projectId === project.id,
-  );
+  const [projectJobsResult, projectTasksResult] = await Promise.all([
+    projectService.listProjectJobs(project.id, {
+      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
+    }),
+    projectService.listProjectTasks(project.id, {
+      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
+    }),
+  ]);
 
-  if (!projectStats) {
-    notFound();
-  }
-
-  const [t, statsT, locale] = await Promise.all([
+  const [t, locale] = await Promise.all([
     getTranslations("App.Projects.Detail"),
-    getTranslations("App.Projects.list.stats"),
     getLocale(),
   ]);
 
@@ -97,31 +84,7 @@ export default async function ProjectDetailPage({
         projectId={project.id}
         initialDesignMd={project.designMd}
       >
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <ProjectStatsSummary
-            stats={projectStats}
-            labels={{
-              tasks: statsT("tasks"),
-              jobs: statsT("jobs"),
-              taskStatusLabels: buildTaskStatusAbbreviationLabels((key) =>
-                statsT(`taskStatusAbbreviations.${key}`),
-              ),
-            }}
-          />
-          <ProjectBrandStatCard
-            projectName={project.name}
-            logo={project.logo}
-          />
-          <ProjectMemoryRow
-            projectId={project.id}
-            contextMd={project.contextMd}
-            contextMdUpdating={project.contextMdUpdating}
-            memoryEnabled={project.memoryEnabled}
-            memoryModel={project.memoryModel}
-          />
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
           <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-2">
             <ProjectBriefing
               title={t("briefing")}
@@ -167,7 +130,15 @@ export default async function ProjectDetailPage({
             />
           </div>
 
-          <div className="bg-muted/30 border-border/50 rounded-xl border p-4">
+          <ProjectMemoryRow
+            projectId={project.id}
+            contextMd={project.contextMd}
+            contextMdUpdating={project.contextMdUpdating}
+            memoryEnabled={project.memoryEnabled}
+            memoryModel={project.memoryModel}
+          />
+
+          <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-3">
             <ProjectJobsSection
               projectId={project.id}
               jobs={projectJobsResult.jobs}

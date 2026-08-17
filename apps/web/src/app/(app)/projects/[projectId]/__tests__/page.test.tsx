@@ -99,22 +99,9 @@ describe("ProjectDetailPage", () => {
     expect(notFoundMock).toHaveBeenCalledOnce();
   });
 
-  it("loads jobs, tasks, and stats in parallel after the project exists", async () => {
+  it("loads jobs and tasks in parallel after the project exists", async () => {
     const project = buildProject();
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.getProjectsStats.mockResolvedValue([
-      {
-        projectId: "project-1",
-        tasks: {
-          total: 0,
-          byStatus: [],
-        },
-        jobs: {
-          total: 0,
-          byStatus: [],
-        },
-      },
-    ]);
     projectServiceMock.listProjectJobs.mockResolvedValue({
       jobs: [],
       pagination: null,
@@ -138,9 +125,7 @@ describe("ProjectDetailPage", () => {
       "project-1",
       { limit: 100 },
     );
-    expect(projectServiceMock.getProjectsStats).toHaveBeenCalledWith([
-      "project-1",
-    ]);
+    expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
 
     const { container } = render(html);
@@ -159,44 +144,18 @@ describe("ProjectDetailPage", () => {
       "https://example.com/about",
     );
     expect(
-      screen.getByText("App.Projects.list.stats.tasks"),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", {
         name: "App.Projects.Detail.briefing",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("brand-stat")).toBeInTheDocument();
-    expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
+    expect(screen.queryByTestId("brand-stat")).not.toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
+    expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
     expect(
       screen.getByText("App.Projects.Detail.modules.title"),
     ).toBeInTheDocument();
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
       7,
     );
-  });
-
-  it("calls notFound when stats are missing for an existing project", async () => {
-    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
-    projectServiceMock.getProjectsStats.mockResolvedValue([]);
-    projectServiceMock.listProjectJobs.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    projectServiceMock.listProjectTasks.mockResolvedValue({
-      tasks: [],
-      pagination: null,
-    });
-
-    const { default: ProjectDetailPage } = await import("../page");
-
-    await expect(
-      ProjectDetailPage({
-        params: Promise.resolve({ projectId: "project-1" }),
-      }),
-    ).rejects.toThrow("NOT_FOUND");
-
-    expect(notFoundMock).toHaveBeenCalledOnce();
   });
 });
