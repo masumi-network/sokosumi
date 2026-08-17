@@ -72,20 +72,19 @@ export async function getPendingOrganizationJoinToken(): Promise<
 
 export async function setPendingOrganizationJoinToken(
   token: string,
+  options?: { secure?: boolean },
 ): Promise<void> {
   if (!isUsableJoinToken(token)) {
     return;
   }
 
   const store = await cookies();
-  applyPendingOrganizationJoinCookie(
-    store,
-    token,
-    process.env.NODE_ENV === "production",
-  );
+  applyPendingOrganizationJoinCookie(store, token, options?.secure === true);
 }
 
-export async function clearPendingOrganizationJoinToken(): Promise<void> {
+export async function clearPendingOrganizationJoinToken(options?: {
+  secure?: boolean;
+}): Promise<void> {
   const store = await cookies();
   store.set({
     name: PENDING_ORGANIZATION_JOIN_COOKIE_NAME,
@@ -94,6 +93,6 @@ export async function clearPendingOrganizationJoinToken(): Promise<void> {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
-    secure: process.env.NODE_ENV === "production",
+    secure: options?.secure === true,
   });
 }

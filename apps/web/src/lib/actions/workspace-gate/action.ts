@@ -1,7 +1,7 @@
 "use server";
 
 import { err, ok } from "neverthrow";
-
+import { getEnvSecrets } from "@/config/env.secrets";
 import {
   type ActionResultDto,
   toActionResult,
@@ -71,6 +71,12 @@ export const clearPendingOrganizationJoinCookieAction = withSession<
   AuthenticatedRequest,
   ActionResultDto<null, ActionError>
 >(async () => {
-  await clearPendingOrganizationJoinToken();
+  const env = getEnvSecrets();
+  await clearPendingOrganizationJoinToken({
+    secure:
+      env.NODE_ENV === "production" ||
+      env.VERCEL_ENV === "production" ||
+      env.VERCEL_ENV === "preview",
+  });
   return toActionResult(ok(null));
 });

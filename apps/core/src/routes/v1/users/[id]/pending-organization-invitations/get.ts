@@ -35,7 +35,7 @@ const route = createRoute({
             email: "jane@example.com",
             role: "member",
             status: "pending",
-            expiresAt: "2025-06-08T14:30:00.000Z",
+            expiresAt: "2027-06-08T14:30:00.000Z",
             createdAt: "2025-01-01T00:00:00.000Z",
             organization: {
               id: "org_123",

@@ -21,6 +21,13 @@ vi.mock("@/lib/clients/core.client", async () => {
   };
 });
 
+vi.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => ({
+    NODE_ENV: "development",
+    VERCEL_ENV: undefined,
+  }),
+}));
+
 vi.mock("@/lib/pending-organization-join-cookie", () => ({
   clearPendingOrganizationJoinToken: (...args: unknown[]) =>
     clearPendingOrganizationJoinTokenMock(...args),
@@ -113,6 +120,8 @@ describe("clearPendingOrganizationJoinCookieAction", () => {
   it("clears the recovered join token", async () => {
     const result = await clearPendingOrganizationJoinCookieAction({});
     expect(result.ok).toBe(true);
-    expect(clearPendingOrganizationJoinTokenMock).toHaveBeenCalledOnce();
+    expect(clearPendingOrganizationJoinTokenMock).toHaveBeenCalledWith({
+      secure: false,
+    });
   });
 });
