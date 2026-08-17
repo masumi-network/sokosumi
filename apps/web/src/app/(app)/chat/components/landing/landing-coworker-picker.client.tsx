@@ -56,7 +56,8 @@ export function LandingCoworkerPicker({
     return null;
   }
 
-  const selected =
+  // For Start chat CTA: always target a real coworker, never the trailing action.
+  const selectedCoworker =
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
@@ -79,7 +80,7 @@ export function LandingCoworkerPicker({
           centerOnId={initial.id}
           coworkers={stripCoworkers}
           onSelect={setSelectedId}
-          selectedId={selected.id}
+          selectedId={selectedId}
           size={size}
           trailingAction={trailingAction}
         />
@@ -102,8 +103,8 @@ export function LandingCoworkerPicker({
           <div className="w-full min-w-0" data-testid="landing-start-chat">
             <StartChatButton
               className={cn("w-full", startChatClassName)}
-              coworkerId={selected.id}
-              coworkerName={selected.name}
+              coworkerId={selectedCoworker.id}
+              coworkerName={selectedCoworker.name}
             />
           </div>
         </div>
