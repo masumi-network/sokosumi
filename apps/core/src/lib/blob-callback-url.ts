@@ -26,3 +26,7 @@ export function resolveBlobUploadCallbackUrl(path: string): string {
 /** Path Blob calls after a task-file presigned PUT completes. */
 export const TASK_FILE_UPLOAD_COMPLETED_PATH =
   "/v1/webhooks/tasks/files/uploaded";
+
+/** Path Blob calls after a drive-file presigned PUT completes. */
+export const DRIVE_FILE_UPLOAD_COMPLETED_PATH =
+  "/v1/webhooks/drive/files/uploaded";

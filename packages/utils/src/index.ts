@@ -125,6 +125,17 @@ export {
   isDesignMdBlobUrl,
 } from "./design-md-url.js";
 export {
+  buildOrganizationDriveFilePathname,
+  buildOrganizationDriveFilePrefix,
+  buildUserDriveFilePathname,
+  buildUserDriveFilePrefix,
+  clampDriveFileName,
+  DRIVE_FILE_MAX_NAME_LENGTH,
+  isOwnedOrganizationDriveFileUrl,
+  isOwnedUserDriveFileUrl,
+  sanitizeDriveFileName,
+} from "./drive-file-path.js";
+export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
   getUrlBasename,

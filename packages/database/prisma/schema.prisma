@@ -70,6 +70,8 @@ model User {
   createdTasks       Task[]              @relation("TaskCreatorUser")
   taskEvents         TaskEvent[]
   uploadedTaskFiles  TaskFile[]          @relation("TaskFileUploadedByUser")
+  driveFiles         DriveFile[]         @relation("DriveFileUser")
+  uploadedDriveFiles DriveFile[]         @relation("DriveFileUploadedBy")
   coworkerUsages     CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
 
@@ -221,6 +223,7 @@ model Organization {
   coworkerUsages     CoworkerUsage[]
   orchestratorUsages OrchestratorUsage[]
   chatRooms          ChatRoom[]
+  driveFiles         DriveFile[] @relation("DriveFileOrganization")
 
   stripeCustomerId String?
 
@@ -1622,6 +1625,43 @@ model TaskFile {
   @@index([uploadedByUserId])
   @@index([uploadedByCoworkerId])
   @@map("task_file")
+}
+
+/// Drive file storage (personal and organization).
+/// Owner is exactly one of userId or organizationId.
+/// Unique on (ownerScope, ownerId, fileUrl) for safe concurrent uploads.
+model DriveFile {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Personal drive owner (null if org-owned)
+  userId String?
+  user   User?   @relation("DriveFileUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Organization drive owner (null if user-owned)
+  organizationId String?
+  organization   Organization? @relation("DriveFileOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// User who uploaded the file (may differ from owner in org drives)
+  uploadedByUserId String
+  uploadedByUser   User   @relation("DriveFileUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  /// Display name
+  name     String
+  /// Public Blob URL (with random suffix)
+  fileUrl  String
+  /// Server-generated pathname (before random suffix)
+  pathname String
+  mimeType String?
+  size     BigInt?
+
+  @@unique([userId, fileUrl], name: "drive_file_user_url_key")
+  @@unique([organizationId, fileUrl], name: "drive_file_org_url_key")
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([uploadedByUserId])
+  @@map("drive_file")
 }
 
 enum TaskLinkType {
