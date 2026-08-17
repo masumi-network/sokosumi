@@ -63,7 +63,17 @@ export async function ChatLandingMobile({
               initialSelectedId={featured.id}
               size="compact"
               startChatClassName="w-full"
-              trailingAction={<SearchAgentsStripAction size="compact" />}
+              trailingAction={{
+                id: "search-agents",
+                render: ({ isSelected, onSelect, ref }) => (
+                  <SearchAgentsStripAction
+                    size="compact"
+                    isSelected={isSelected}
+                    onSelect={onSelect}
+                    ref={ref}
+                  />
+                ),
+              }}
             />
           </OpenCoworkerRoomProvider>
         ) : null}

@@ -28,8 +28,18 @@ interface CoworkerStripProps {
   onSelect: (coworkerId: string) => void;
   /** `compact` fits the row inside a 390px viewport. */
   size?: "compact" | "default";
-  /** Optional trailing action rendered after all coworkers (mobile only). */
-  trailingAction?: React.ReactNode;
+  /**
+   * Optional trailing action rendered after all coworkers (mobile only).
+   * Provide both the action component and its ID for selection tracking.
+   */
+  trailingAction?: {
+    id: string;
+    render: (props: {
+      isSelected: boolean;
+      onSelect: () => void;
+      ref: (node: HTMLButtonElement | null) => void;
+    }) => React.ReactNode;
+  };
 }
 
 const STRIP_SIZES = {
@@ -289,7 +299,19 @@ export function CoworkerStrip({
             </button>
           );
         })}
-        {trailingAction}
+        {trailingAction
+          ? trailingAction.render({
+              isSelected: selectedId === trailingAction.id,
+              onSelect: () => handleSelect(trailingAction.id),
+              ref: (node) => {
+                if (node) {
+                  itemRefs.current.set(trailingAction.id, node);
+                } else {
+                  itemRefs.current.delete(trailingAction.id);
+                }
+              },
+            })
+          : null}
       </div>
     </div>
   );

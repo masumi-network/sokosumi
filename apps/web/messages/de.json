@@ -1461,6 +1461,10 @@
           "avatarAlt": "{name}",
           "stripLabel": "Verfügbare Coworker",
           "select": "{name} auswählen"
+        },
+        "searchAgents": {
+          "label": "Suchen",
+          "subtitle": "Spezialisierte Agenten"
         }
       }
     },

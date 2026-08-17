@@ -16,8 +16,18 @@ interface LandingCoworkerPickerProps {
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */
   startChatClassName?: string;
-  /** Optional trailing action for the strip (mobile only). */
-  trailingAction?: React.ReactNode;
+  /**
+   * Optional trailing action for the strip (mobile only).
+   * Provide both the action component and its ID for selection tracking.
+   */
+  trailingAction?: {
+    id: string;
+    render: (props: {
+      isSelected: boolean;
+      onSelect: () => void;
+      ref: (node: HTMLButtonElement | null) => void;
+    }) => React.ReactNode;
+  };
 }
 
 /**
