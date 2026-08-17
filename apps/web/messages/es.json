@@ -1836,17 +1836,17 @@
       "NewTask": {
         "ContextAttachments": {
           "label": "Contexto",
-          "brand": "Marca",
-          "namedBrand": "Marca de {name}",
-          "personalBrand": "Marca personal",
-          "brandMenuAria": "Elegir contexto de marca",
-          "projectBrand": "Marca del proyecto",
-          "organizationBrand": "Marca de la organización",
+          "brand": "Guía de marca",
+          "namedBrand": "Guía de marca de {name}",
+          "personalBrand": "Guía de marca personal",
+          "brandMenuAria": "Elegir guía de marca",
+          "projectBrand": "Guía de marca del proyecto",
+          "organizationBrand": "Guía de marca de la organización",
           "otherWebsite": "Otro sitio web…",
           "briefing": "Briefing",
           "memory": "Memoria",
           "infoAria": "Acerca del contexto del Task",
-          "info": "La marca, el briefing y la memoria se adjuntan como archivos DESIGN.md, BRIEFING.md y CONTEXT.md para que los lea el coworker."
+          "info": "La guía de marca, el briefing y la memoria se adjuntan como archivos DESIGN.md, BRIEFING.md y CONTEXT.md para que los lea el coworker."
         },
         "title": "Nuevo Task",
         "details": "Detalles",

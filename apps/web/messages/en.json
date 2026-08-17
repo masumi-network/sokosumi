@@ -1836,17 +1836,17 @@
       "NewTask": {
         "ContextAttachments": {
           "label": "Context",
-          "brand": "Brand",
-          "namedBrand": "{name} brand",
-          "personalBrand": "Personal brand",
-          "brandMenuAria": "Choose brand context",
-          "projectBrand": "Project brand",
-          "organizationBrand": "Organization brand",
+          "brand": "Brand Guidelines",
+          "namedBrand": "{name} brand guidelines",
+          "personalBrand": "Personal brand guidelines",
+          "brandMenuAria": "Choose brand guidelines",
+          "projectBrand": "Project brand guidelines",
+          "organizationBrand": "Organization brand guidelines",
           "otherWebsite": "Other website…",
           "briefing": "Briefing",
           "memory": "Memory",
           "infoAria": "About task context",
-          "info": "Brand, briefing, and memory are attached as DESIGN.md, BRIEFING.md, and CONTEXT.md files for the coworker to read."
+          "info": "Brand guidelines, briefing, and memory are attached as DESIGN.md, BRIEFING.md, and CONTEXT.md files for the coworker to read."
         },
         "title": "New Task",
         "details": "Details",
