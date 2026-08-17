@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import { setPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
 
 import { JoinCard, JoinInvalidCard } from "./components/join-card";
 
@@ -32,8 +31,6 @@ export default async function JoinPage({
   if (status !== "valid" || !organization) {
     return <JoinInvalidCard status={status} />;
   }
-
-  await setPendingOrganizationJoinToken(token);
 
   return (
     <JoinCard token={token} organization={organization} user={session?.user} />

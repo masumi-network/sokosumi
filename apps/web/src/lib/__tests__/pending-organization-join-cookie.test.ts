@@ -11,8 +11,10 @@ vi.mock("next/headers", () => ({
 }));
 
 import {
+  applyPendingOrganizationJoinCookie,
   clearPendingOrganizationJoinToken,
   getPendingOrganizationJoinToken,
+  joinTokenFromJoinPath,
   PENDING_ORGANIZATION_JOIN_COOKIE_NAME,
   setPendingOrganizationJoinToken,
 } from "../pending-organization-join-cookie";
@@ -63,5 +65,25 @@ describe("pending organization join cookie", () => {
         maxAge: 0,
       }),
     );
+  });
+
+  it("writes a session cookie (no maxAge) onto a response store", () => {
+    const set = vi.fn();
+    applyPendingOrganizationJoinCookie({ set }, "join_token_1", true);
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: PENDING_ORGANIZATION_JOIN_COOKIE_NAME,
+        value: "join_token_1",
+        httpOnly: true,
+        secure: true,
+      }),
+    );
+    expect(set.mock.calls[0]?.[0]).not.toHaveProperty("maxAge");
+  });
+
+  it("parses a usable token from /join/:token", () => {
+    expect(joinTokenFromJoinPath("/join/abc123")).toBe("abc123");
+    expect(joinTokenFromJoinPath("/setup")).toBeNull();
+    expect(joinTokenFromJoinPath("/join/")).toBeNull();
   });
 });

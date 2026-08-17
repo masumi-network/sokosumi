@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldShowPendingInvitesQueue } from "../workspace-gate-queue";
+import {
+  resolveWorkspaceGateSurface,
+  shouldShowPendingInvitesQueue,
+} from "../workspace-gate-queue";
 
 describe("shouldShowPendingInvitesQueue", () => {
   it("shows the queue when Core gate is pending-invites", () => {
@@ -41,5 +44,31 @@ describe("shouldShowPendingInvitesQueue", () => {
         hasJoinLink: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("resolveWorkspaceGateSurface", () => {
+  it("treats a failed invite list as unavailable, not an empty queue", () => {
+    expect(
+      resolveWorkspaceGateSurface({
+        workspaceAccessLoadFailed: false,
+        gate: "pending-invites",
+        invitationCount: 0,
+        invitationsLoadFailed: true,
+        hasJoinLink: false,
+      }),
+    ).toBe("unavailable");
+  });
+
+  it("still shows the queue when a join link recovered after list failure", () => {
+    expect(
+      resolveWorkspaceGateSurface({
+        workspaceAccessLoadFailed: false,
+        gate: "pending-invites",
+        invitationCount: 0,
+        invitationsLoadFailed: true,
+        hasJoinLink: true,
+      }),
+    ).toBe("pending-invites");
   });
 });

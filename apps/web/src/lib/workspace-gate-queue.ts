@@ -13,3 +13,42 @@ export function shouldShowPendingInvitesQueue(input: {
   }
   return input.invitationCount > 0 || input.hasJoinLink;
 }
+
+export type WorkspaceGateSurface =
+  | "unavailable"
+  | "pending-invites"
+  | "identity-onboarding";
+
+/**
+ * `pending-invites` with a failed list and no recovered join item is a
+ * temporary load failure, not an empty queue.
+ */
+export function resolveWorkspaceGateSurface(input: {
+  workspaceAccessLoadFailed: boolean;
+  gate: string | null;
+  invitationCount: number;
+  invitationsLoadFailed: boolean;
+  hasJoinLink: boolean;
+}): WorkspaceGateSurface {
+  if (input.workspaceAccessLoadFailed) {
+    return "unavailable";
+  }
+  if (
+    input.gate === "pending-invites" &&
+    input.invitationCount === 0 &&
+    input.invitationsLoadFailed &&
+    !input.hasJoinLink
+  ) {
+    return "unavailable";
+  }
+  if (
+    shouldShowPendingInvitesQueue({
+      gate: input.gate,
+      invitationCount: input.invitationCount,
+      hasJoinLink: input.hasJoinLink,
+    })
+  ) {
+    return "pending-invites";
+  }
+  return "identity-onboarding";
+}

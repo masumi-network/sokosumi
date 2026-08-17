@@ -4,6 +4,7 @@ const getSessionOrRedirectMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const getMyPendingOrganizationInvitationsMock = vi.fn();
 const getPendingOrganizationJoinTokenMock = vi.fn();
+const clearPendingOrganizationJoinTokenMock = vi.fn();
 const resolveOrganizationInviteLinkMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
@@ -36,7 +37,8 @@ vi.mock("@/lib/services", () => ({
 vi.mock("@/lib/pending-organization-join-cookie", () => ({
   getPendingOrganizationJoinToken: (...args: unknown[]) =>
     getPendingOrganizationJoinTokenMock(...args),
-  clearPendingOrganizationJoinToken: vi.fn(),
+  clearPendingOrganizationJoinToken: (...args: unknown[]) =>
+    clearPendingOrganizationJoinTokenMock(...args),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -190,5 +192,62 @@ describe("WorkspaceGatePage", () => {
 
     expect(redirectMock).not.toHaveBeenCalled();
     expect(JSON.stringify(ui)).toContain("unavailableTitle");
+  });
+
+  it("renders unavailable when pending-invites list fetch fails and there is no join link", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "pending-invites",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: true,
+    });
+    getMyPendingOrganizationInvitationsMock.mockRejectedValue(
+      new Error("list down"),
+    );
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+    const serialized = JSON.stringify(ui);
+
+    expect(serialized).toContain("unavailableTitle");
+    expect(serialized).not.toContain('"initialName"');
+    expect(serialized).not.toContain("pending-invites-queue");
+  });
+
+  it("does not clear a join cookie when resolve throws", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "identity-onboarding",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: false,
+    });
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
+    resolveOrganizationInviteLinkMock.mockRejectedValue(
+      new Error("Core timeout"),
+    );
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+
+    expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
+    expect(JSON.stringify(ui)).toContain("identityTitle");
+  });
+
+  it("does not clear a join cookie when the token is no longer valid", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "identity-onboarding",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: false,
+    });
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
+    resolveOrganizationInviteLinkMock.mockResolvedValue({
+      data: { status: "expired", organization: null },
+    });
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    await WorkspaceGatePage();
+
+    expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
   });
 });

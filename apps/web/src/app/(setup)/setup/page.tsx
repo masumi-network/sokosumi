@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/card";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import {
-  clearPendingOrganizationJoinToken,
-  getPendingOrganizationJoinToken,
-} from "@/lib/pending-organization-join-cookie";
+import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
 import { organizationService, userService } from "@/lib/services";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
-import { shouldShowPendingInvitesQueue } from "@/lib/workspace-gate-queue";
+import {
+  resolveWorkspaceGateSurface,
+  type WorkspaceGateSurface,
+} from "@/lib/workspace-gate-queue";
 
 import { IdentityOnboardingForm } from "./components/identity-onboarding-form.client";
 import {
@@ -26,8 +26,6 @@ import {
 } from "./components/pending-invites-queue.client";
 import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
-
-type GateSurface = "pending-invites" | "identity-onboarding" | "unavailable";
 
 export default async function WorkspaceGatePage() {
   const session = await getSessionOrRedirect();
@@ -55,21 +53,19 @@ export default async function WorkspaceGatePage() {
     redirect("/");
   }
 
-  const queueItems = workspaceAccessLoadFailed
-    ? []
+  const queue = workspaceAccessLoadFailed
+    ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
     : await loadWorkspaceGateQueueItems();
+  const queueItems = queue.items;
 
-  const surface: GateSurface = workspaceAccessLoadFailed
-    ? "unavailable"
-    : shouldShowPendingInvitesQueue({
-          gate,
-          invitationCount: queueItems.filter(
-            (item) => item.kind === "invitation",
-          ).length,
-          hasJoinLink: queueItems.some((item) => item.kind === "join"),
-        })
-      ? "pending-invites"
-      : "identity-onboarding";
+  const surface: WorkspaceGateSurface = resolveWorkspaceGateSurface({
+    workspaceAccessLoadFailed,
+    gate,
+    invitationCount: queueItems.filter((item) => item.kind === "invitation")
+      .length,
+    invitationsLoadFailed: queue.invitationsLoadFailed,
+    hasJoinLink: queueItems.some((item) => item.kind === "join"),
+  });
 
   const t = await getTranslations("WorkspaceGate");
 
@@ -114,10 +110,12 @@ export default async function WorkspaceGatePage() {
   );
 }
 
-async function loadWorkspaceGateQueueItems(): Promise<
-  WorkspaceGateQueueItem[]
-> {
+async function loadWorkspaceGateQueueItems(): Promise<{
+  items: WorkspaceGateQueueItem[];
+  invitationsLoadFailed: boolean;
+}> {
   const items: WorkspaceGateQueueItem[] = [];
+  let invitationsLoadFailed = false;
 
   try {
     const invitations =
@@ -132,11 +130,12 @@ async function loadWorkspaceGateQueueItems(): Promise<
     }
   } catch (error) {
     console.error("Failed to load pending organization invitations", error);
+    invitationsLoadFailed = true;
   }
 
   const joinToken = await getPendingOrganizationJoinToken();
   if (!joinToken) {
-    return items;
+    return { items, invitationsLoadFailed };
   }
 
   try {
@@ -147,13 +146,10 @@ async function loadWorkspaceGateQueueItems(): Promise<
         token: joinToken,
         organizationName: resolved.data.organization.name,
       });
-    } else {
-      await clearPendingOrganizationJoinToken();
     }
   } catch (error) {
     console.error("Failed to resolve pending organization join token", error);
-    await clearPendingOrganizationJoinToken();
   }
 
-  return items;
+  return { items, invitationsLoadFailed };
 }
