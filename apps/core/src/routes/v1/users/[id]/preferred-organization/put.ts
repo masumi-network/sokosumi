@@ -5,7 +5,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { forbidden } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -54,7 +54,9 @@ const route = createRoute({
     403: jsonErrorResponse(
       "Forbidden - The user is not a member of the organization",
     ),
-    404: jsonErrorResponse("Not Found - User not found"),
+    404: jsonErrorResponse(
+      "Not Found - User not found, or personal workspace is missing",
+    ),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -71,7 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         select: { id: true },
       });
       if (!personalWorkspace) {
-        throw forbidden("Personal workspace is missing", {
+        throw notFound("Personal workspace is missing", {
           kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
         });
       }

@@ -246,8 +246,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
       workspaceUpsertMock(...args),
-    upsertPersonalWorkspace: (...args: unknown[]) =>
-      workspaceUpsertMock(...args),
   },
 }));
 

@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { badRequest, notFound } from "@/helpers/error";
@@ -146,7 +147,9 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
       select: { id: true },
     });
     if (!existing) {
-      throw notFound("Workspace not found");
+      throw notFound("Workspace not found", {
+        kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
+      });
     }
     return existing.id;
   }

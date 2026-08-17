@@ -125,10 +125,10 @@ describe("PUT /users/{id}/preferred-organization", () => {
     expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when switching to personal without a personal workspace", async () => {
+  it("returns 404 when switching to personal without a personal workspace", async () => {
     workspaceFindUniqueMock.mockResolvedValue(null);
     const response = await putPreferredOrganization(createApp(), "me", null);
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
     const body = await response.json();
     expect(body.kind).toBe("personal_workspace_missing");
     expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();

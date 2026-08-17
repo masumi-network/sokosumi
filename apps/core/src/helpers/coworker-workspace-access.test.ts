@@ -205,7 +205,10 @@ describe("coworker-workspace-access helpers", () => {
 
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({ userId: "user-1" }),
-      ).rejects.toMatchObject({ status: 404 });
+      ).rejects.toMatchObject({
+        status: 404,
+        cause: { kind: "personal_workspace_missing" },
+      });
       expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
     });
 

@@ -18965,7 +18965,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         };
     };
     /**
-     * Not Found - User not found
+     * Not Found - User not found, or personal workspace is missing
      */
     404: {
         error: string;
