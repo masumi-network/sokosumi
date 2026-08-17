@@ -18,6 +18,8 @@ import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
+const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
+
 /**
  * Shared editor footprint for live composer + Instant room loading shell.
  *
@@ -115,7 +117,7 @@ export function RoomMessageComposer({
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
-  const pointerSubmittedRef = useRef(false);
+  const lastPointerSubmitAtRef = useRef(0);
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
     if (!form || sendBlocked) return;
@@ -128,23 +130,22 @@ export function RoomMessageComposer({
     if (event.button !== 0) return;
     event.preventDefault();
     if (sendBlocked) return;
-    pointerSubmittedRef.current = true;
+    lastPointerSubmitAtRef.current = performance.now();
     requestComposerSubmit(event.currentTarget.form);
-  }
-
-  function handleSendMouseDown(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
   }
 
   function handleSendClick(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     // Same-gesture leftover click after pointerdown already submitted.
-    // A click-only first tap (pointerdown missed Send) must still submit.
-    if (event.detail > 0 && pointerSubmittedRef.current) {
-      pointerSubmittedRef.current = false;
+    // A later click-only first tap (pointerdown missed Send) must still submit.
+    const sincePointerSubmit =
+      performance.now() - lastPointerSubmitAtRef.current;
+    if (
+      event.detail > 0 &&
+      sincePointerSubmit < POINTER_SUBMIT_CLICK_GUARD_MS
+    ) {
       return;
     }
-    pointerSubmittedRef.current = false;
     requestComposerSubmit(event.currentTarget.form);
   }
 
@@ -196,7 +197,6 @@ export function RoomMessageComposer({
                 aria-label={sendAriaLabel}
                 data-testid={sendButtonTestId}
                 onPointerDown={handleSendPointerDown}
-                onMouseDown={handleSendMouseDown}
                 onClick={handleSendClick}
               >
                 {isSending ? (

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RoomMessageComposer } from "../room-message-composer";
 
@@ -14,6 +14,10 @@ vi.mock("@/hooks/use-keyboard-open", () => ({
 }));
 
 describe("RoomMessageComposer send pointer path", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("submits on pointerdown without blurring the editor", () => {
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -51,7 +55,8 @@ describe("RoomMessageComposer send pointer path", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it("still submits via keyboard after pointer submit disables then re-enables Send", () => {
+  it("submits a later click-only tap after pointer submit disables then re-enables Send", () => {
+    vi.useFakeTimers();
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
     });
@@ -90,12 +95,10 @@ describe("RoomMessageComposer send pointer path", () => {
     fireEvent.click(screen.getByRole("button", { name: "re-enable" }));
     expect(send).not.toBeDisabled();
 
-    // Synthetic follow-up pointer click must stay ignored (detail: 1).
-    fireEvent.click(send, { detail: 1 });
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(400);
 
-    // Keyboard activation (detail: 0) must still submit — no stale latch.
-    fireEvent.click(send, { detail: 0 });
+    // After the same-gesture window, a click-only tap must send again.
+    fireEvent.click(send, { detail: 1 });
     expect(onSubmit).toHaveBeenCalledTimes(2);
   });
 
