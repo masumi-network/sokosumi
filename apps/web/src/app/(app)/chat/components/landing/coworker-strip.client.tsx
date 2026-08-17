@@ -28,6 +28,18 @@ interface CoworkerStripProps {
   onSelect: (coworkerId: string) => void;
   /** `compact` fits the row inside a 390px viewport. */
   size?: "compact" | "default";
+  /**
+   * Optional trailing action rendered after all coworkers (mobile only).
+   * Provide both the action component and its ID for selection tracking.
+   */
+  trailingAction?: {
+    id: string;
+    render: (props: {
+      isSelected: boolean;
+      onSelect: () => void;
+      ref: (node: HTMLButtonElement | null) => void;
+    }) => React.ReactNode;
+  };
 }
 
 const STRIP_SIZES = {
@@ -44,8 +56,8 @@ const STRIP_SIZES = {
     otherInitial: "text-xs",
     name: "text-xs",
     title: "text-[0.625rem]",
-    // Half featured width: lets first/last faces reach optical center.
-    edgePad: "px-[max(0.25rem,calc(50%-2.75rem))]",
+    // Half featured width relative to viewport: lets first/last items reach optical center.
+    edgePad: "px-[max(0.25rem,calc(50vw-2.75rem))]",
   },
   default: {
     featured: "size-28 xl:size-32",
@@ -81,6 +93,7 @@ export function CoworkerStrip({
   centerOnId,
   onSelect,
   size = "default",
+  trailingAction,
 }: CoworkerStripProps) {
   const t = useTranslations("App.Chat.Landing");
   const scale = STRIP_SIZES[size];
@@ -286,6 +299,19 @@ export function CoworkerStrip({
             </button>
           );
         })}
+        {trailingAction
+          ? trailingAction.render({
+              isSelected: selectedId === trailingAction.id,
+              onSelect: () => handleSelect(trailingAction.id),
+              ref: (node) => {
+                if (node) {
+                  itemRefs.current.set(trailingAction.id, node);
+                } else {
+                  itemRefs.current.delete(trailingAction.id);
+                }
+              },
+            })
+          : null}
       </div>
     </div>
   );
