@@ -16,6 +16,7 @@ import prisma from "@/lib/db/prisma";
 const driveFileUploadCompletedTokenPayloadSchema = z.object({
   scope: z.enum(["user", "organization"]),
   ownerId: z.string().min(1),
+  fileId: z.string().min(1),
   name: z.string().min(1).max(512),
   mimeType: z.string().min(1).max(255),
   /** Declared size used as the mint-time grant cap; not stored on DriveFile. */
@@ -105,11 +106,11 @@ export async function registerDriveFileFromUploadCompleted(params: {
 
   const displayName = clampDriveFileName(payload.name || "file");
 
-  // Extract pathname from blob URL (before random suffix)
+  // Build pathname with fileId segment
   const pathname =
     payload.scope === "user"
-      ? `drive/users/${payload.ownerId}/${displayName}`
-      : `drive/organizations/${payload.ownerId}/${displayName}`;
+      ? `drive/users/${payload.ownerId}/${payload.fileId}/${displayName}`
+      : `drive/organizations/${payload.ownerId}/${payload.fileId}/${displayName}`;
 
   try {
     await prisma.driveFile.create({

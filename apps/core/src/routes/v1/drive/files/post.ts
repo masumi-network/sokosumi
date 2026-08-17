@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createRoute } from "@hono/zod-openapi";
 import {
   clampDriveFileName,
@@ -131,9 +132,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       DRIVE_FILE_UPLOAD_COMPLETED_PATH,
     );
 
+    // Generate fileId for path segment
+    const fileId = randomUUID();
+
     const session = await createDriveFileUploadSession(
       scope,
       ownerId,
+      fileId,
       {
         filename: displayName,
         contentType: resolvedContentType,

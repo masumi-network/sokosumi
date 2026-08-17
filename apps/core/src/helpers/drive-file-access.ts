@@ -151,7 +151,7 @@ export async function requireDriveFileWriteAccess(
     return file;
   }
 
-  // Org file: uploader or org admin
+  // Org file: uploader or org admin or org owner
   if (file.organizationId) {
     const member = file.organization?.members.find(
       (m) => m.userId === userContext.userId,
@@ -163,13 +163,14 @@ export async function requireDriveFileWriteAccess(
       );
     }
 
-    // Allow if uploader or admin
+    // Allow if uploader, admin, or owner
     const isUploader = file.uploadedByUserId === userContext.userId;
     const isAdmin = member.role === "admin";
+    const isOwner = member.role === "owner";
 
-    if (!isUploader && !isAdmin) {
+    if (!isUploader && !isAdmin && !isOwner) {
       throw forbidden(
-        "You can only modify files you uploaded or if you are an organization admin",
+        "You can only modify files you uploaded or if you are an organization admin or owner",
       );
     }
 

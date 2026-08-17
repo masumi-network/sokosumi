@@ -125,8 +125,10 @@ export {
   isDesignMdBlobUrl,
 } from "./design-md-url.js";
 export {
+  buildOrganizationDriveFileDirectory,
   buildOrganizationDriveFilePathname,
   buildOrganizationDriveFilePrefix,
+  buildUserDriveFileDirectory,
   buildUserDriveFilePathname,
   buildUserDriveFilePrefix,
   clampDriveFileName,

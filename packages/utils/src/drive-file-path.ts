@@ -23,6 +23,28 @@ export function buildOrganizationDriveFilePrefix(
 }
 
 /**
+ * Build Drive file directory for a specific user file.
+ * Example: `drive/users/{userId}/{fileId}/`
+ */
+export function buildUserDriveFileDirectory(
+  userId: string,
+  fileId: string,
+): string {
+  return `${buildUserDriveFilePrefix(userId)}${fileId}/`;
+}
+
+/**
+ * Build Drive file directory for a specific organization file.
+ * Example: `drive/organizations/{orgId}/{fileId}/`
+ */
+export function buildOrganizationDriveFileDirectory(
+  organizationId: string,
+  fileId: string,
+): string {
+  return `${buildOrganizationDriveFilePrefix(organizationId)}${fileId}/`;
+}
+
+/**
  * Sanitize drive file name (reuse user upload sanitization).
  */
 export function sanitizeDriveFileName(fileName: string): string {
@@ -31,24 +53,26 @@ export function sanitizeDriveFileName(fileName: string): string {
 
 /**
  * Build user Drive file pathname.
- * Example: `drive/users/{userId}/report.pdf`
+ * Example: `drive/users/{userId}/{fileId}/report.pdf`
  */
 export function buildUserDriveFilePathname(
   userId: string,
+  fileId: string,
   fileName: string,
 ): string {
-  return `${buildUserDriveFilePrefix(userId)}${sanitizeDriveFileName(fileName)}`;
+  return `${buildUserDriveFileDirectory(userId, fileId)}${sanitizeDriveFileName(fileName)}`;
 }
 
 /**
  * Build organization Drive file pathname.
- * Example: `drive/organizations/{orgId}/report.pdf`
+ * Example: `drive/organizations/{orgId}/{fileId}/report.pdf`
  */
 export function buildOrganizationDriveFilePathname(
   organizationId: string,
+  fileId: string,
   fileName: string,
 ): string {
-  return `${buildOrganizationDriveFilePrefix(organizationId)}${sanitizeDriveFileName(fileName)}`;
+  return `${buildOrganizationDriveFileDirectory(organizationId, fileId)}${sanitizeDriveFileName(fileName)}`;
 }
 
 /**

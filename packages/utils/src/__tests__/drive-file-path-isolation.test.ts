@@ -16,7 +16,11 @@ import { buildUserUploadPathname } from "../user-upload-path.js";
  */
 describe("drive file path isolation", () => {
   it("user drive files never land under tasks/", () => {
-    const drivePath = buildUserDriveFilePathname("user_123", "file.pdf");
+    const drivePath = buildUserDriveFilePathname(
+      "user_123",
+      "file_abc",
+      "file.pdf",
+    );
     const taskPath = buildTaskFilePathname("tsk_123", "file.pdf");
 
     expect(drivePath).toMatch(/^drive\/users\//);
@@ -26,7 +30,11 @@ describe("drive file path isolation", () => {
   });
 
   it("user drive files never land under users/{id}/ (non-drive user uploads)", () => {
-    const drivePath = buildUserDriveFilePathname("user_123", "file.pdf");
+    const drivePath = buildUserDriveFilePathname(
+      "user_123",
+      "file_abc",
+      "file.pdf",
+    );
     const userUploadPath = buildUserUploadPathname("user_123", "file.pdf");
 
     expect(drivePath).toMatch(/^drive\/users\/user_123\//);
@@ -35,7 +43,11 @@ describe("drive file path isolation", () => {
   });
 
   it("org drive files never land under organizations/{id}/logos/", () => {
-    const drivePath = buildOrganizationDriveFilePathname("org_123", "file.pdf");
+    const drivePath = buildOrganizationDriveFilePathname(
+      "org_123",
+      "file_def",
+      "file.pdf",
+    );
     const logoPath = buildOrganizationLogoPathname("org_123", "logo.png");
 
     expect(drivePath).toMatch(/^drive\/organizations\/org_123\//);
@@ -45,9 +57,14 @@ describe("drive file path isolation", () => {
   });
 
   it("drive files never land under reserved prefixes", () => {
-    const userDrivePath = buildUserDriveFilePathname("user_123", "file.pdf");
+    const userDrivePath = buildUserDriveFilePathname(
+      "user_123",
+      "file_abc",
+      "file.pdf",
+    );
     const orgDrivePath = buildOrganizationDriveFilePathname(
       "org_123",
+      "file_def",
       "file.pdf",
     );
 
@@ -70,9 +87,14 @@ describe("drive file path isolation", () => {
   });
 
   it("user and org drive files are isolated from each other", () => {
-    const userDrivePath = buildUserDriveFilePathname("user_123", "file.pdf");
+    const userDrivePath = buildUserDriveFilePathname(
+      "user_123",
+      "file_abc",
+      "file.pdf",
+    );
     const orgDrivePath = buildOrganizationDriveFilePathname(
       "org_123",
+      "file_def",
       "file.pdf",
     );
 

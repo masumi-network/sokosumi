@@ -231,12 +231,13 @@ export async function createChatRoomFileUploadSession(
 
 /**
  * Drive-file direct upload grant (presigned PUT). Path under
- * `drive/users/{userId}/` or `drive/organizations/{orgId}/`.
+ * `drive/users/{userId}/{fileId}/` or `drive/organizations/{orgId}/{fileId}/`.
  * Webhook creates DriveFile row on upload completion.
  */
 export async function createDriveFileUploadSession(
   scope: "user" | "organization",
   ownerId: string,
+  fileId: string,
   file: {
     filename: string;
     contentType: string;
@@ -251,12 +252,13 @@ export async function createDriveFileUploadSession(
 ): Promise<BlobUploadGrant> {
   const pathname =
     scope === "user"
-      ? buildUserDriveFilePathname(ownerId, file.filename)
-      : buildOrganizationDriveFilePathname(ownerId, file.filename);
+      ? buildUserDriveFilePathname(ownerId, fileId, file.filename)
+      : buildOrganizationDriveFilePathname(ownerId, fileId, file.filename);
 
   const tokenPayload = JSON.stringify({
     scope,
     ownerId,
+    fileId,
     name: file.filename,
     mimeType: file.contentType,
     size: file.size,

@@ -27,23 +27,23 @@ describe("drive file path helpers", () => {
       expect(sanitizeDriveFileName("___")).toBe("file");
     });
 
-    it("builds the full user drive pathname", () => {
-      expect(buildUserDriveFilePathname("user_123", "hello world.txt")).toBe(
-        "drive/users/user_123/hello_world.txt",
-      );
+    it("builds the full user drive pathname with fileId", () => {
+      expect(
+        buildUserDriveFilePathname("user_123", "file_abc", "hello world.txt"),
+      ).toBe("drive/users/user_123/file_abc/hello_world.txt");
     });
 
     it("detects owned user drive file URLs", () => {
       expect(
         isOwnedUserDriveFileUrl(
-          "https://blob.example.com/drive/users/user_123/hello_world-abc.txt",
+          "https://blob.example.com/drive/users/user_123/file_abc/hello_world-xyz.txt",
           "user_123",
         ),
       ).toBe(true);
 
       expect(
         isOwnedUserDriveFileUrl(
-          "https://blob.example.com/drive/users/user_456/hello_world-abc.txt",
+          "https://blob.example.com/drive/users/user_456/file_abc/hello_world-xyz.txt",
           "user_123",
         ),
       ).toBe(false);
@@ -66,30 +66,34 @@ describe("drive file path helpers", () => {
       );
     });
 
-    it("builds the full organization drive pathname", () => {
+    it("builds the full organization drive pathname with fileId", () => {
       expect(
-        buildOrganizationDriveFilePathname("org_123", "hello world.txt"),
-      ).toBe("drive/organizations/org_123/hello_world.txt");
+        buildOrganizationDriveFilePathname(
+          "org_123",
+          "file_def",
+          "hello world.txt",
+        ),
+      ).toBe("drive/organizations/org_123/file_def/hello_world.txt");
     });
 
     it("detects owned organization drive file URLs", () => {
       expect(
         isOwnedOrganizationDriveFileUrl(
-          "https://blob.example.com/drive/organizations/org_123/hello_world-abc.txt",
+          "https://blob.example.com/drive/organizations/org_123/file_def/hello_world-xyz.txt",
           "org_123",
         ),
       ).toBe(true);
 
       expect(
         isOwnedOrganizationDriveFileUrl(
-          "https://blob.example.com/drive/organizations/org_456/hello_world-abc.txt",
+          "https://blob.example.com/drive/organizations/org_456/file_def/hello_world-xyz.txt",
           "org_123",
         ),
       ).toBe(false);
 
       expect(
         isOwnedOrganizationDriveFileUrl(
-          "https://blob.example.com/drive/users/user_123/hello_world-abc.txt",
+          "https://blob.example.com/drive/users/user_123/file_abc/hello_world-xyz.txt",
           "org_123",
         ),
       ).toBe(false);
