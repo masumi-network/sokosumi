@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coworkerInclude } from "@/helpers/coworker";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import { testVendor } from "@/test-fixtures/vendor";
@@ -78,7 +79,7 @@ describe("GET /coworkers/me", () => {
         id: "cow_123",
         archivedAt: null,
       },
-      include: { vendor: true },
+      include: coworkerInclude,
     });
   });
 });

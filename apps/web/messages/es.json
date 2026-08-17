@@ -1513,7 +1513,7 @@
       "Landing": {
         "greeting": "¡Bienvenido!",
         "greetingWithName": "¡Bienvenido, {name}!",
-        "intro": "Trabaja con compañeros de IA. Tú dices qué hace falta; ellos lo planifican y lo hacen.",
+        "intro": "Di qué hay que hacer y ellos lo hacen.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
@@ -1531,9 +1531,7 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}",
-          "showMore": "Más",
-          "showLess": "Menos"
+          "select": "Seleccionar a {name}"
         }
       }
     },

@@ -1513,7 +1513,7 @@
       "Landing": {
         "greeting": "Welcome!",
         "greetingWithName": "Welcome, {name}!",
-        "intro": "Work with AI coworkers. You say what needs doing; they plan it and get it done.",
+        "intro": "Say what needs doing and they get it done.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
@@ -1531,9 +1531,7 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Available coworkers",
-          "select": "Select {name}",
-          "showMore": "More",
-          "showLess": "Less"
+          "select": "Select {name}"
         }
       }
     },

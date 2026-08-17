@@ -22,7 +22,7 @@ interface CoworkerStripProps {
   /** Currently selected coworker — larger face, Start chat target. */
   selectedId: string;
   /**
-   * Coworker to optically centre on first paint (Elena / fallback).
+   * Coworker to optically centre on first paint (highest priority).
    */
   centerOnId: string;
   onSelect: (coworkerId: string) => void;
@@ -48,17 +48,18 @@ const STRIP_SIZES = {
     edgePad: "px-[max(0.25rem,calc(50%-2.75rem))]",
   },
   default: {
-    featured: "size-28",
-    other: "size-16",
-    gap: "gap-5",
-    itemWidth: "w-28",
-    featuredSizes: "112px",
-    otherSizes: "64px",
+    featured: "size-28 xl:size-32",
+    other: "size-16 xl:size-20",
+    gap: "gap-5 xl:gap-10 2xl:gap-14",
+    itemWidth: "w-28 xl:w-36",
+    featuredSizes: "(min-width: 1280px) 128px, 112px",
+    otherSizes: "(min-width: 1280px) 80px, 64px",
     featuredInitial: "text-2xl",
     otherInitial: "text-sm",
     name: "text-sm",
     title: "text-xs",
-    edgePad: "px-[max(0.25rem,calc(50%-3.5rem))]",
+    edgePad:
+      "px-[max(0.25rem,calc(50%-3.5rem))] xl:px-[max(1rem,calc(50%-4.5rem))]",
   },
 } as const;
 
@@ -122,7 +123,7 @@ export function CoworkerStrip({
 
     // Keep suppress until scroll settles for both `auto` and `smooth`. A late
     // `scroll` after `scrollIntoView` returns can otherwise overwrite the
-    // intended selection (mount Elena / tap-to-center).
+    // intended selection (mount featured / tap-to-center).
     if (scroll) {
       scroll.addEventListener("scrollend", release, { once: true });
       window.setTimeout(release, 500);
@@ -195,10 +196,9 @@ export function CoworkerStrip({
     >
       <div
         className={cn(
-          // min-w-full + justify-center: when the catalog fits, Elena (middle
-          // of the track) lands in the visual centre. When it overflows, w-max
-          // wins and edgePad lets first/last faces reach optical center.
-          "flex w-max min-w-full items-start justify-center py-1",
+          // w-max + half-chip edge pad: first/last can still scroll to optical
+          // center. justify-evenly + larger xl gaps spread faces when they fit.
+          "flex w-max min-w-full items-start justify-evenly py-1",
           scale.edgePad,
           scale.gap,
         )}
