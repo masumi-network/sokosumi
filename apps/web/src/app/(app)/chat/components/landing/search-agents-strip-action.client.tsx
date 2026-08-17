@@ -1,7 +1,6 @@
 "use client";
 
 import { Bot } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { forwardRef } from "react";
 
@@ -46,13 +45,7 @@ export const SearchAgentsStripAction = forwardRef<
   ref,
 ) {
   const t = useTranslations("App.Chat.Landing");
-  const router = useRouter();
   const scale = SEARCH_AGENTS_STRIP_SCALE[size];
-
-  function handleClick(): void {
-    onSelect();
-    router.push("/agents");
-  }
 
   return (
     <button
@@ -66,7 +59,7 @@ export const SearchAgentsStripAction = forwardRef<
         "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2",
         scale.itemWidth,
       )}
-      onClick={handleClick}
+      onClick={onSelect}
     >
       <span
         className={cn(

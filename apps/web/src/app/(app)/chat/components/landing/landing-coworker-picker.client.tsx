@@ -1,8 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { CoworkerStrip } from "./coworker-strip.client";
@@ -38,6 +41,8 @@ export function LandingCoworkerPicker({
   startChatClassName,
   showSearchAgents = false,
 }: LandingCoworkerPickerProps) {
+  const t = useTranslations("App.Chat.Landing");
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState(initialSelectedId);
 
   const initial =
@@ -47,7 +52,8 @@ export function LandingCoworkerPicker({
     return null;
   }
 
-  // For Start chat CTA: always target a real coworker, never the trailing action.
+  const isSearchSelected = selectedId === "search-agents";
+  // For Start chat CTA: target a real coworker (fallback to initial if Search is selected).
   const selectedCoworker =
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
@@ -118,11 +124,23 @@ export function LandingCoworkerPicker({
           data-testid="landing-selected-cta-stack"
         >
           <div className="w-full min-w-0" data-testid="landing-start-chat">
-            <StartChatButton
-              className={cn("w-full", startChatClassName)}
-              coworkerId={selectedCoworker.id}
-              coworkerName={selectedCoworker.name}
-            />
+            {isSearchSelected ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                className={cn("h-12 w-full px-8 text-base", startChatClassName)}
+                onClick={() => router.push("/agents")}
+              >
+                {t("cta.searchAgents")}
+              </Button>
+            ) : (
+              <StartChatButton
+                className={cn("w-full", startChatClassName)}
+                coworkerId={selectedCoworker.id}
+                coworkerName={selectedCoworker.name}
+              />
+            )}
           </div>
         </div>
       </div>

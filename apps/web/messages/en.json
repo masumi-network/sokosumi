@@ -1446,6 +1446,7 @@
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
+          "searchAgents": "Search Agents",
           "opening": "Opening chat…",
           "error": "Could not open the chat. Please try again."
         },
