@@ -24,9 +24,9 @@ import { cn } from "@/lib/utils";
  * Instant / Suspense fallback: same shell tree as progressive RoomsClient +
  * real composer chrome + left-aligned message-list skeleton.
  *
- * Disabled + aria-hidden so missing/invalid rooms do not flash a usable send
- * control before redirect. Generic `data-placeholder=" "` so empty:before
- * cannot steal mobile LCP from real chrome.
+ * Disabled + aria-hidden + inert so missing/invalid rooms do not flash a
+ * usable send control before redirect. Generic `data-placeholder=" "` so
+ * empty:before cannot steal mobile LCP from real chrome.
  */
 export function RoomOpenLoadingView(): React.ReactElement {
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
@@ -48,7 +48,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
       desktopHeader={null}
       listContent={<RoomMessageListSkeleton />}
       composer={
-        <div className="pointer-events-none" aria-hidden>
+        <div className="pointer-events-none" aria-hidden inert>
           <RoomMessageComposer
             onSubmit={(event) => {
               event.preventDefault();

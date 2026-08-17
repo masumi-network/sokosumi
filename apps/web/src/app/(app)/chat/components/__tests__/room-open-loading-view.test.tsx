@@ -37,6 +37,7 @@ describe("RoomOpenLoadingView", () => {
       container.querySelector("[data-room-composer-mention-anchor]"),
     ).toBeTruthy();
     expect(container.querySelector("form")).toBeTruthy();
+    expect(container.querySelector("form")?.closest("[inert]")).toBeTruthy();
     expect(container.querySelector("[data-placeholder]")).toBeTruthy();
     expect(container.querySelector('[role="toolbar"]')).toBeTruthy();
     expect(container.querySelectorAll("button").length).toBeGreaterThan(5);
