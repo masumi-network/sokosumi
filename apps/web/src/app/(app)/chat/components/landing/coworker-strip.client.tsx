@@ -71,7 +71,7 @@ const STRIP_SIZES = {
     name: "text-sm",
     title: "text-xs",
     edgePad:
-      "px-[max(0.25rem,calc(50vw-3.5rem))] xl:px-[max(1rem,calc(50vw-4.5rem))]",
+      "px-[max(0.25rem,calc(50%-3.5rem))] xl:px-[max(1rem,calc(50%-4.5rem))]",
   },
 } as const;
 
