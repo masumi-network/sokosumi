@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import type { AccountNotice } from "@/app/components/account-notice-state";
@@ -22,7 +22,9 @@ vi.mock("@/app/components/notice-dialog-context", () => ({
 import {
   AccountNoticeHydrator,
   CoworkersHydrator,
+  RetiredOnboardingStorageHydrator,
 } from "@/app/components/shell-hydrators.client";
+import { RETIRED_SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY } from "@/lib/retired-onboarding-storage";
 
 const ACCOUNT_NOTICE: AccountNotice = {
   email: "alice@example.com",
@@ -46,6 +48,10 @@ describe("shell hydrator split", () => {
     hydrateCoworkersMock.mockReset();
   });
 
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
   it("hydrates account notice without touching coworkers", () => {
     render(<AccountNoticeHydrator accountNotice={ACCOUNT_NOTICE} />);
 
@@ -58,5 +64,20 @@ describe("shell hydrator split", () => {
 
     expect(hydrateCoworkersMock).toHaveBeenCalledWith(COWORKERS);
     expect(hydrateAccountNoticeMock).not.toHaveBeenCalled();
+  });
+
+  it("removes retired onboarding localStorage on mount", () => {
+    window.localStorage.setItem(
+      RETIRED_SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+      "sess-1",
+    );
+
+    render(<RetiredOnboardingStorageHydrator />);
+
+    expect(
+      window.localStorage.getItem(
+        RETIRED_SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+      ),
+    ).toBeNull();
   });
 });

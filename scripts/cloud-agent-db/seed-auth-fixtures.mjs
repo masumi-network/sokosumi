@@ -100,8 +100,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
            role = $3,
            banned = false,
            "updatedAt" = $4,
-           "termsAccepted" = true,
-           "onboardingCompleted" = true
+           "termsAccepted" = true
        WHERE id = $1`,
       [userId, fixture.name, fixture.role, now],
     );
@@ -110,8 +109,8 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
     await client.query(
       `INSERT INTO "user" (
          id, name, email, "emailVerified", role, "createdAt", "updatedAt",
-         "marketingOptIn", "termsAccepted", "notificationsOptIn", "onboardingCompleted"
-       ) VALUES ($1, $2, $3, true, $4, $5, $5, false, true, true, true)`,
+         "marketingOptIn", "termsAccepted", "notificationsOptIn"
+       ) VALUES ($1, $2, $3, true, $4, $5, $5, false, true, true)`,
       [userId, fixture.name, fixture.email, fixture.role, now],
     );
   }

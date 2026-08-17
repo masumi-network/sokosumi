@@ -18,7 +18,6 @@ const sessionUser: SessionUser = {
   updatedAt: "2026-01-01T00:00:00.000Z",
   termsAccepted: true,
   marketingOptIn: false,
-  onboardingCompleted: true,
 };
 
 describe("HeaderWorkspaceAvatar", () => {

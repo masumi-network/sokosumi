@@ -126,13 +126,6 @@ export const userPreferencesResponseSchema = z.object({
   }),
 });
 
-export const userOnboardingResponseSchema = z.object({
-  completed: z.boolean().openapi({
-    description: "Whether the user has completed onboarding",
-    example: true,
-  }),
-});
-
 export const utmAttributionRequestSchema = z
   .object({
     utm_source: z.string().min(1).max(255).openapi({

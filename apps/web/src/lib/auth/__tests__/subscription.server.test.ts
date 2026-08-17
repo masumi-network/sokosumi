@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const subscriptionUpgradeMock = vi.fn();
 const subscriptionBillingPortalMock = vi.fn();
-const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
 const headersMock = vi.fn();
 const resolveWebRequestOriginMock = vi.fn(
   () => "https://preprod.sokosumi.com" as string | undefined,
@@ -12,11 +11,6 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
-}));
-
-vi.mock("@/lib/actions/onboarding", () => ({
-  clearSubscriptionOnboardingGateSessionCookie:
-    clearSubscriptionOnboardingGateSessionCookieMock,
 }));
 
 vi.mock("@/lib/auth/auth.server.client", () => ({
@@ -70,9 +64,6 @@ describe("subscription.server", () => {
       successUrl:
         "https://preprod.sokosumi.com/billing?tab=subscription&status=success",
     });
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).toHaveBeenCalledTimes(1);
   });
 
   it("maps auth client upgrade errors by status without leaking the raw message", async () => {
@@ -99,9 +90,6 @@ describe("subscription.server", () => {
       },
       ok: false,
     });
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("maps a 401 auth client error to UNAUTHENTICATED so the login affordance fires", async () => {
@@ -157,9 +145,6 @@ describe("subscription.server", () => {
       },
       ok: false,
     });
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("returns billing portal url from Core auth subscription.billingPortal", async () => {
@@ -185,9 +170,6 @@ describe("subscription.server", () => {
       disableRedirect: true,
       returnUrl: "https://preprod.sokosumi.com/billing?tab=coupon",
     });
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("returns checkout url for organization subscription upgrade", async () => {
@@ -226,9 +208,6 @@ describe("subscription.server", () => {
       successUrl:
         "https://preprod.sokosumi.com/organizations/acme?status=success",
     });
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).toHaveBeenCalledTimes(1);
   });
 
   it("returns billing portal url for organization", async () => {
@@ -276,9 +255,6 @@ describe("subscription.server", () => {
       ok: false,
     });
     expect(subscriptionUpgradeMock).not.toHaveBeenCalled();
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("fails a billing-portal open with INTERNAL_SERVER_ERROR when the request origin is unavailable", async () => {
