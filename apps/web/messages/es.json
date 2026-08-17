@@ -154,6 +154,7 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createOrganization": "Crear organización",
+      "createPersonalWorkspace": "Crear espacio personal",
       "userAvatarAlt": "Avatar del usuario"
     },
     "DataTable": {
@@ -655,6 +656,7 @@
         "confirmLabelSuffix": "para confirmar la eliminación:",
         "Errors": {
           "additionalMembers": "Elimina primero a todos los demás miembros antes de eliminar esta organización.",
+          "lastWorkspace": "No puedes eliminar tu último espacio de trabajo.",
           "unauthorizedAction": "Iniciar sesión"
         },
         "Schema": {
@@ -3773,6 +3775,19 @@
         "confirm": "Sí, eliminar mi cuenta",
         "success": "Cuenta eliminada correctamente",
         "error": "No se pudo eliminar la cuenta"
+      },
+      "DeletePersonal": {
+        "title": "Eliminar espacio personal",
+        "description": "Elimina tu espacio personal. Los espacios de organización se mantienen.",
+        "lastWorkspaceDescription": "No puedes eliminar tu último espacio de trabajo.",
+        "button": "Eliminar espacio personal",
+        "confirmTitle": "¿Eliminar el espacio personal?",
+        "confirmDescription": "Esto elimina tu espacio personal. Los espacios de organización no se ven afectados.",
+        "confirm": "Sí, eliminar espacio personal",
+        "success": "Espacio personal eliminado",
+        "error": "No se pudo eliminar el espacio personal",
+        "lastWorkspaceError": "No puedes eliminar tu último espacio de trabajo.",
+        "dependentsError": "Elimina primero los trabajos y tareas de este espacio."
       },
       "ApiKeys": {
         "title": "API Keys",

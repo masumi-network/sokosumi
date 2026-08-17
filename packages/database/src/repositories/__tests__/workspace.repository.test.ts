@@ -126,6 +126,34 @@ describe("workspaceRepository", () => {
     });
   });
 
+  it("does not create a personal workspace when resolving a missing personal context", async () => {
+    let createCalled = false;
+    const tx = {
+      workspace: {
+        findUnique: async () => null,
+        create: async () => {
+          createCalled = true;
+          throw new Error("create should not be called");
+        },
+      },
+      vendorGrant: {
+        findUnique: async () => null,
+        create: async () => ({ id: "grant-1" }),
+      },
+      vendor: {
+        findUnique: async () => ({
+          id: "01960001-0001-7001-8001-000000000001",
+        }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await assert.rejects(
+      () => workspaceRepository.upsertWorkspaceForContext("user-1", null, tx),
+      /Personal workspace is missing/,
+    );
+    assert.equal(createCalled, false);
+  });
+
   it("re-reads the personal workspace after a unique race on create", async () => {
     let findUniqueCalls = 0;
     let grantFindUniqueCalls = 0;
@@ -165,11 +193,10 @@ describe("workspaceRepository", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      "user-1",
-      null,
+    const workspace = await workspaceRepository.upsertPersonalWorkspace({
+      userId: "user-1",
       tx,
-    );
+    });
 
     assert.equal(workspace.id, "workspace-user-1");
     assert.equal(findUniqueCalls, 2);

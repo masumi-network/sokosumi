@@ -154,6 +154,7 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createOrganization": "Organisation erstellen",
+      "createPersonalWorkspace": "Persönlichen Workspace erstellen",
       "userAvatarAlt": "Nutzer-Avatar"
     },
     "DataTable": {
@@ -655,6 +656,7 @@
         "confirmLabelSuffix": "zur Bestätigung der Löschung:",
         "Errors": {
           "additionalMembers": "Entferne alle anderen Mitglieder, bevor du diese Organisation löschst.",
+          "lastWorkspace": "Du kannst deinen letzten Workspace nicht löschen.",
           "unauthorizedAction": "Anmelden"
         },
         "Schema": {
@@ -3773,6 +3775,19 @@
         "confirm": "Ja, meinen Account löschen",
         "success": "Account erfolgreich gelöscht",
         "error": "Account konnte nicht gelöscht werden"
+      },
+      "DeletePersonal": {
+        "title": "Persönlichen Workspace löschen",
+        "description": "Löscht deinen persönlichen Workspace. Organisations-Workspaces bleiben.",
+        "lastWorkspaceDescription": "Du kannst deinen letzten Workspace nicht löschen.",
+        "button": "Persönlichen Workspace löschen",
+        "confirmTitle": "Persönlichen Workspace löschen?",
+        "confirmDescription": "Damit löschst du deinen persönlichen Workspace. Organisations-Workspaces bleiben unberührt.",
+        "confirm": "Ja, persönlichen Workspace löschen",
+        "success": "Persönlicher Workspace gelöscht",
+        "error": "Persönlicher Workspace konnte nicht gelöscht werden",
+        "lastWorkspaceError": "Du kannst deinen letzten Workspace nicht löschen.",
+        "dependentsError": "Lösche zuerst Jobs und Tasks in diesem Workspace."
       },
       "ApiKeys": {
         "title": "API-Keys",

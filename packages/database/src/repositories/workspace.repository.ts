@@ -129,8 +129,14 @@ export const workspaceRepository = {
   ): Promise<Workspace> {
     if (organizationId) {
       return await this.upsertOrganizationWorkspace({ organizationId, tx });
-    } else {
-      return await this.upsertPersonalWorkspace({ userId, tx });
     }
+
+    const personalWorkspace = await this.findPersonalWorkspace({ userId, tx });
+    if (!personalWorkspace) {
+      throw new Error("Personal workspace is missing");
+    }
+
+    await ensureServiceplanGrantForWorkspace(personalWorkspace, userId, tx);
+    return personalWorkspace;
   },
 };

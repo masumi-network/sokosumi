@@ -28,6 +28,7 @@ export interface HeaderAccountSummary {
 interface HeaderProfileSectionClientProps {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
+  hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
   accountSummaryPromise: Promise<HeaderAccountSummary>;
 }
@@ -82,6 +83,7 @@ function HeaderAccountControlSlot({
 export default function HeaderProfileSectionClient({
   sessionUser,
   members,
+  hasPersonalWorkspace,
   activeOrganizationId: serverActiveOrganizationId,
   accountSummaryPromise,
 }: HeaderProfileSectionClientProps) {
@@ -112,6 +114,7 @@ export default function HeaderProfileSectionClient({
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
         members={members}
+        hasPersonalWorkspace={hasPersonalWorkspace}
         activeOrganizationId={activeOrganizationId}
         isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}

@@ -4,6 +4,7 @@ import { CommonErrorCode, WorkspaceGateErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const createMyPersonalWorkspaceMock = vi.fn();
+const deleteMyPersonalWorkspaceMock = vi.fn();
 const clearPendingOrganizationJoinTokenMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
@@ -17,6 +18,8 @@ vi.mock("@/lib/clients/core.client", async () => {
     coreClient: {
       createMyPersonalWorkspace: (...args: unknown[]) =>
         createMyPersonalWorkspaceMock(...args),
+      deleteMyPersonalWorkspace: (...args: unknown[]) =>
+        deleteMyPersonalWorkspaceMock(...args),
     },
   };
 });
@@ -45,6 +48,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 import {
   clearPendingOrganizationJoinCookieAction,
   createPersonalWorkspaceAction,
+  deletePersonalWorkspaceAction,
 } from "@/lib/actions/workspace-gate/action";
 
 describe("createPersonalWorkspaceAction", () => {
@@ -105,6 +109,48 @@ describe("createPersonalWorkspaceAction", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
+      }
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+});
+
+describe("deletePersonalWorkspaceAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns workspaceId on success", async () => {
+    deleteMyPersonalWorkspaceMock.mockResolvedValue({
+      data: { workspaceId: "ws-1" },
+    });
+
+    const result = await deletePersonalWorkspaceAction({});
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toEqual({ workspaceId: "ws-1" });
+    }
+    expect(deleteMyPersonalWorkspaceMock).toHaveBeenCalledOnce();
+  });
+
+  it("maps Core last-workspace 409", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    deleteMyPersonalWorkspaceMock.mockRejectedValue(
+      new CoreApiRequestError("Cannot delete the user's last workspace", {
+        status: 409,
+        kind: "last_workspace",
+      }),
+    );
+
+    try {
+      const result = await deletePersonalWorkspaceAction({});
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe(WorkspaceGateErrorCode.LAST_WORKSPACE);
       }
     } finally {
       consoleError.mockRestore();

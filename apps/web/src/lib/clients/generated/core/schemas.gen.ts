@@ -9053,6 +9053,21 @@ export const PersonalWorkspaceCreatedSchema = {
     ]
 } as const;
 
+export const PersonalWorkspaceDeletedSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Id of the deleted personal workspace',
+            example: '11111111-1111-7111-8111-111111111111'
+        }
+    },
+    required: [
+        'workspaceId'
+    ]
+} as const;
+
 export const WorkspaceAccessSchema = {
     type: 'object',
     properties: {

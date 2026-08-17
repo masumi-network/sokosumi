@@ -25,7 +25,7 @@ const route = createRoute({
   method: "put",
   path: "/preferred-organization",
   description:
-    "Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Pass a null `organizationId` to switch to the personal workspace. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.",
+    "Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Pass a null `organizationId` to switch to the personal workspace — refused when the personal workspace is missing. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.",
   tags: ["Users"],
   request: {
     params,
@@ -66,6 +66,15 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { organizationId } = c.req.valid("json");
 
     if (!organizationId) {
+      const personalWorkspace = await prisma.workspace.findUnique({
+        where: { userId: resolvedUserId },
+        select: { id: true },
+      });
+      if (!personalWorkspace) {
+        throw forbidden("Personal workspace is missing", {
+          kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
+        });
+      }
       await userRepository.updatePreferredOrganizationId(
         resolvedUserId,
         null,

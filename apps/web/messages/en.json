@@ -152,6 +152,7 @@
       "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
       "createOrganization": "Create Organization",
+      "createPersonalWorkspace": "Create personal workspace",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization",
       "userAvatarAlt": "User avatar"
@@ -671,6 +672,7 @@
         "confirmLabelSuffix": "to confirm deletion:",
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
+          "lastWorkspace": "You cannot delete your last workspace.",
           "unauthorizedAction": "Login"
         },
         "Schema": {
@@ -3804,6 +3806,19 @@
         "confirm": "Yes, delete my account",
         "success": "Account deleted successfully",
         "error": "Failed to delete account"
+      },
+      "DeletePersonal": {
+        "title": "Delete personal workspace",
+        "description": "Remove your personal workspace. Organization workspaces stay.",
+        "lastWorkspaceDescription": "You cannot delete your last workspace.",
+        "button": "Delete personal workspace",
+        "confirmTitle": "Delete personal workspace?",
+        "confirmDescription": "This deletes your personal workspace. Organization workspaces are not affected.",
+        "confirm": "Yes, delete personal workspace",
+        "success": "Personal workspace deleted",
+        "error": "Failed to delete personal workspace",
+        "lastWorkspaceError": "You cannot delete your last workspace.",
+        "dependentsError": "Delete jobs and tasks in this workspace first."
       },
       "ApiKeys": {
         "title": "API Keys",

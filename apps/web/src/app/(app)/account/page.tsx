@@ -9,6 +9,7 @@ import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
+import { userService } from "@/lib/services";
 import { designMdService } from "@/lib/services/design-md.service";
 
 import { AccountSettings } from "./components/account-settings";
@@ -55,6 +56,10 @@ async function AccountPageContent() {
     userMetadata,
     designMdService.getDesignMdPreviewUrl,
   );
+  const [workspaceAccess, members] = await Promise.all([
+    userService.getWorkspaceAccess(),
+    userService.getMyMembersWithOrganizations(),
+  ]);
 
   return (
     <div className="min-h-full w-full">
@@ -79,6 +84,11 @@ async function AccountPageContent() {
           userLogo={session?.user.logo}
           userMetadata={session?.user.metadata}
           marketingOptIn={session?.user.marketingOptIn ?? false}
+          hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
+          hasOrganizationMembership={
+            workspaceAccess?.hasOrganizationMembership ?? members.length > 0
+          }
+          fallbackOrganizationId={members[0]?.organization.id ?? null}
         />
       </div>
     </div>

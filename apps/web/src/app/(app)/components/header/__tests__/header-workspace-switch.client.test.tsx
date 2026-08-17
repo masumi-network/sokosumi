@@ -16,6 +16,16 @@ vi.mock("@/hooks/use-modal", () => ({
   }),
 }));
 
+vi.mock("@/lib/actions/workspace-gate", () => ({
+  createPersonalWorkspaceAction: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    updateUser: vi.fn(),
+  },
+}));
+
 const sessionUser: SessionUser = {
   id: "user-1",
   name: "Test User",
@@ -52,6 +62,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
         members={[]}
+        hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
         onSelectWorkspace={vi.fn()}
@@ -73,6 +84,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
         members={[]}
+        hasPersonalWorkspace={true}
         activeOrganizationId={null}
         isPending={false}
         onSelectWorkspace={vi.fn()}
@@ -90,6 +102,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
         members={[orgMember]}
+        hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
         onSelectWorkspace={vi.fn()}
@@ -100,5 +113,23 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     expect(
       screen.queryByTestId("workspace-switcher-skeleton"),
     ).not.toBeInTheDocument();
+  });
+
+  it("does not treat a null org session as personal when no personal workspace exists", () => {
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={false}
+        activeOrganizationId={null}
+        isPending={false}
+        onSelectWorkspace={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("workspace-switcher-skeleton"),
+    ).toBeInTheDocument();
   });
 });

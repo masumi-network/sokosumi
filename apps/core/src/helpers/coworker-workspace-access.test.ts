@@ -189,18 +189,24 @@ describe("coworker-workspace-access helpers", () => {
       ).resolves.toBe("workspace-1");
     });
 
-    it("upserts personal workspace for userId", async () => {
+    it("resolves personal workspace for userId without creating one", async () => {
       userFindUnique.mockResolvedValue({ id: "user-1" });
-      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-personal" });
+      workspaceFindUnique.mockResolvedValue({ id: "ws-personal" });
 
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({ userId: "user-1" }),
       ).resolves.toBe("ws-personal");
-      expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
-        "user-1",
-        null,
-        expect.anything(),
-      );
+      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+    });
+
+    it("404 when personal workspace is missing for userId", async () => {
+      userFindUnique.mockResolvedValue({ id: "user-1" });
+      workspaceFindUnique.mockResolvedValue(null);
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({ userId: "user-1" }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
     });
 
     it("upserts organization workspace for organizationId", async () => {
@@ -227,7 +233,7 @@ describe("coworker-workspace-access helpers", () => {
 
     it("resolves personal workspace by email", async () => {
       userFindFirst.mockResolvedValue({ id: "user-1" });
-      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-personal" });
+      workspaceFindUnique.mockResolvedValue({ id: "ws-personal" });
 
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({

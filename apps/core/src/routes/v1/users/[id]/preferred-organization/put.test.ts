@@ -16,11 +16,13 @@ const {
   getMemberByUserIdAndOrganizationIdMock,
   transactionMock,
   userFindUniqueMock,
+  workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   updatePreferredOrganizationIdMock: vi.fn(),
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   transactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -37,6 +39,9 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     user: {
       findUnique: userFindUniqueMock,
+    },
+    workspace: {
+      findUnique: workspaceFindUniqueMock,
     },
   },
 }));
@@ -106,6 +111,7 @@ describe("PUT /users/{id}/preferred-organization", () => {
   });
 
   it("clears the preferred organization without a membership check", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ id: "ws_personal" });
     updatePreferredOrganizationIdMock.mockResolvedValue(undefined);
     const response = await putPreferredOrganization(createApp(), "me", null);
     expect(response.status).toBe(200);
@@ -117,6 +123,15 @@ describe("PUT /users/{id}/preferred-organization", () => {
       expect.anything(),
     );
     expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when switching to personal without a personal workspace", async () => {
+    workspaceFindUniqueMock.mockResolvedValue(null);
+    const response = await putPreferredOrganization(createApp(), "me", null);
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.kind).toBe("personal_workspace_missing");
+    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 with a membership kind when the user is not a member", async () => {

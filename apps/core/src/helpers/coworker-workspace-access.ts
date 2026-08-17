@@ -140,14 +140,6 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
     if (!user) {
       throw notFound("User not found");
     }
-    if (createIfMissing) {
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        user.id,
-        null,
-        tx,
-      );
-      return workspace.id;
-    }
     const existing = await tx.workspace.findUnique({
       where: { userId: user.id },
       select: { id: true },
