@@ -1074,6 +1074,16 @@ describe("core auth config", () => {
     });
   });
 
+  it("allows organization create when the user's email is not verified", async () => {
+    await import("./auth");
+
+    const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
+      [{ allowUserToCreateOrganization: boolean }]
+    >;
+
+    expect(organizationConfig.allowUserToCreateOrganization).toBe(true);
+  });
+
   it("configures the magic link plugin", async () => {
     await import("./auth");
 

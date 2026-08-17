@@ -761,9 +761,7 @@ export const auth = betterAuth({
       },
       invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,
-      allowUserToCreateOrganization(user) {
-        return user.emailVerified;
-      },
+      allowUserToCreateOrganization: true,
       organizationLimit: LIMITS.ORGANIZATION_LIMIT,
       invitationExpiresIn: TIME.INVITATION_EXPIRES,
     }),

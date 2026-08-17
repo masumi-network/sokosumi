@@ -135,11 +135,14 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
 interface CreateOrganizationWizardProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
+  /** After the organization exists, Finish or dismiss leaves via this hook. */
+  onOrganizationReady?: (organizationId: string) => void;
 }
 
 export function CreateOrganizationWizard({
   open,
   onOpenChange,
+  onOrganizationReady,
 }: CreateOrganizationWizardProps) {
   const t = useTranslations(
     "Components.Organizations.CreateOrganizationWizard",
@@ -557,22 +560,36 @@ export function CreateOrganizationWizard({
     }
   }, [organizationId, emails, t]);
 
+  const completeOrganization = useCallback(
+    (orgId: string) => {
+      if (onOrganizationReady) {
+        onOrganizationReady(orgId);
+        return;
+      }
+      void handleSelectWorkspace(orgId, {
+        shouldRedirectAgentJobsBasePath: false,
+      });
+    },
+    [handleSelectWorkspace, onOrganizationReady],
+  );
+
   const handleFinish = useCallback(() => {
     if (!organizationId) {
       onOpenChange(false);
       return;
     }
-    void handleSelectWorkspace(organizationId, {
-      shouldRedirectAgentJobsBasePath: false,
-    });
+    completeOrganization(organizationId);
     onOpenChange(false);
-  }, [handleSelectWorkspace, onOpenChange, organizationId]);
+  }, [completeOrganization, onOpenChange, organizationId]);
 
   const isBusy = isCreatingOrg || isUploadingLogo;
   const brandDomain = normalizedUrl ? getDomainLabel(normalizedUrl) : "";
 
   const handleRequestClose = (nextOpen: boolean) => {
     if (isBusy) return;
+    if (!nextOpen && organizationId) {
+      completeOrganization(organizationId);
+    }
     onOpenChange(nextOpen);
   };
 
@@ -1010,6 +1027,18 @@ export function CreateOrganizationWizard({
               className="text-muted-foreground h-11 px-4"
               onClick={() => setStep((current) => current - 1)}
               disabled={isBusy}
+            >
+              <ArrowLeft className="size-4" />
+              {t("Nav.back")}
+            </Button>
+          ) : step === 0 && !organizationId ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-muted-foreground h-11 px-4"
+              onClick={() => handleRequestClose(false)}
+              disabled={isBusy}
+              data-testid="create-org-wizard-back"
             >
               <ArrowLeft className="size-4" />
               {t("Nav.back")}

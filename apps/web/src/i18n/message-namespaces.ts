@@ -28,6 +28,8 @@ export const AUTH_MESSAGE_PATHS = [
   "AcceptInvitation",
   "WorkspaceGate",
   "App.Account",
+  // Create-organization wizard brand step on /setup.
+  "App.DesignMd",
 ] as const;
 
 /**

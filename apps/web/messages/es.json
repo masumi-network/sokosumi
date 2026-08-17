@@ -5394,12 +5394,9 @@
       "organizationDescription": "Configura un espacio compartido para tu equipo.",
       "createPersonal": "Crear espacio personal",
       "continue": "Continuar",
-      "back": "Atrás",
-      "organizationPlaceholderTitle": "La configuración de organización viene después",
-      "organizationPlaceholderBody": "Aún no se pueden crear organizaciones en esta pantalla. Vuelve atrás para elegir un espacio personal, o cierra sesión y vuelve más tarde.",
       "nameUpdateError": "No pudimos actualizar tu nombre para mostrar.",
-      "personalCreateError": "No pudimos crear tu espacio de trabajo personal.",
-      "personalAlreadyExists": "Ya tienes un espacio de trabajo personal. Actualiza la página o cierra sesión y vuelve a entrar."
+      "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
+      "personalCreateError": "No pudimos crear tu espacio de trabajo personal."
     },
     "Pending": {
       "accept": "Aceptar",
