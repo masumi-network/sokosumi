@@ -105,6 +105,7 @@ const messages = {
       nameUpdateError: "Name update failed",
       personalCreateError: "Create failed",
       personalAlreadyExists: "Already exists",
+      organizationActivateError: "Could not switch into that organization",
     },
   },
 };
@@ -227,7 +228,29 @@ describe("IdentityOnboardingForm", () => {
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
   });
 
-  it("still leaves the gate when organization activation fails after the wizard is ready", async () => {
+  it("retries organization activation once before leaving the gate", async () => {
+    const user = userEvent.setup();
+    activateOrganizationWorkspaceMock
+      .mockRejectedValueOnce(new Error("setActive failed"))
+      .mockResolvedValueOnce(undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await user.click(await screen.findByTestId("wizard-complete"));
+
+    await waitFor(() => {
+      expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("toasts and still leaves the gate when organization activation fails twice", async () => {
     const user = userEvent.setup();
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),
@@ -242,10 +265,13 @@ describe("IdentityOnboardingForm", () => {
     await user.click(await screen.findByTestId("wizard-complete"));
 
     await waitFor(() => {
+      expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Could not switch into that organization",
+      );
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
       expect(routerRefreshMock).toHaveBeenCalledOnce();
     });
-    expect(toastErrorMock).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
   });
 

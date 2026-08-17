@@ -5388,6 +5388,7 @@
       "createPersonal": "Crear espacio personal",
       "continue": "Continuar",
       "nameUpdateError": "No pudimos actualizar tu nombre para mostrar.",
+      "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
       "personalCreateError": "No pudimos crear tu espacio de trabajo personal.",
       "personalAlreadyExists": "Ya tienes un espacio de trabajo personal. Actualiza la página o cierra sesión y vuelve a entrar."
     }

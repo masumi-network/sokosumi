@@ -60,6 +60,18 @@ export function IdentityOnboardingForm({
           : "Identity onboarding organization activation failed",
         error,
       );
+
+      if (organizationId !== null) {
+        try {
+          await activateOrganizationWorkspace(organizationId);
+        } catch (retryError) {
+          console.error(
+            "Identity onboarding organization activation retry failed",
+            retryError,
+          );
+          toast.error(t("organizationActivateError"));
+        }
+      }
     }
     router.replace("/");
     router.refresh();

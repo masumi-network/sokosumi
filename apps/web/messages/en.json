@@ -5388,6 +5388,7 @@
       "createPersonal": "Create personal workspace",
       "continue": "Continue",
       "nameUpdateError": "We could not update your display name.",
+      "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",
       "personalCreateError": "We could not create your personal workspace.",
       "personalAlreadyExists": "You already have a personal workspace. Refresh or sign out and sign back in."
     }
