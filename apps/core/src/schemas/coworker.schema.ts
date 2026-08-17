@@ -176,11 +176,6 @@ export const coworkerSchema = z
       description:
         "Sort priority for coworker lists. Higher numbers appear first.",
     }),
-    completedTaskCount: z.number().int().nonnegative().openapi({
-      example: 12,
-      description:
-        "How many assigned tasks this coworker has completed, overall.",
-    }),
     slug: z.string().openapi({ example: "ops-agent" }),
     name: z.string().openapi({ example: "Ops Agent" }),
     caption: z

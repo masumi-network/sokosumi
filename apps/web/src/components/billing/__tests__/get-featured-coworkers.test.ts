@@ -19,7 +19,6 @@ function createCoworker(overrides: Partial<Coworker> = {}): Coworker {
     archivedAt: null,
     isWhitelisted: true,
     priority: 0,
-    completedTaskCount: 0,
     slug: "coworker",
     name: "Coworker",
     vendor: {

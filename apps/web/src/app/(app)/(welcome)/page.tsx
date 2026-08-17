@@ -138,7 +138,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   const activeOrganizationId = await userService.getActiveOrganizationId();
 
   const [coworkerRows, summary] = await Promise.all([
-    coworkerService.listCoworkers("chat", { scope: "all" }),
+    coworkerService.listCoworkers("chat"),
     // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
     taskService.getActivitySummary({
       // In an org the greeting talks about the team, so count the whole

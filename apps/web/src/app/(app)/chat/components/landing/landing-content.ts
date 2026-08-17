@@ -14,24 +14,21 @@ export function resolveLandingGreetingName(
   return getFirstName(userName) ?? null;
 }
 
-function coworkerCompletedTaskCount(
-  coworker: Pick<Coworker, "completedTaskCount">,
-): number {
-  return coworker.completedTaskCount ?? 0;
+function coworkerPriority(coworker: Pick<Coworker, "priority">): number {
+  return coworker.priority ?? 0;
 }
 
 /**
- * Most completed assigned tasks first. Slug is the stable tie-break so the
+ * Higher Core `priority` first. Slug is the stable tie-break so the
  * featured face cannot flicker across renders.
  */
 export function compareCoworkerRank(
-  left: Pick<Coworker, "completedTaskCount" | "slug">,
-  right: Pick<Coworker, "completedTaskCount" | "slug">,
+  left: Pick<Coworker, "priority" | "slug">,
+  right: Pick<Coworker, "priority" | "slug">,
 ): number {
-  const byCompleted =
-    coworkerCompletedTaskCount(right) - coworkerCompletedTaskCount(left);
-  if (byCompleted !== 0) {
-    return byCompleted;
+  const byPriority = coworkerPriority(right) - coworkerPriority(left);
+  if (byPriority !== 0) {
+    return byPriority;
   }
   return (left.slug ?? "").localeCompare(right.slug ?? "");
 }
@@ -40,8 +37,8 @@ export function compareCoworkerRank(
  * Shared between the desktop landing and the mobile welcome so the two cannot
  * disagree about who is featured, which faces appear, or which stats show.
  *
- * Featured = coworker with the most completed assigned tasks. Ties break
- * on slug. Always the optical-middle face on the strip.
+ * Featured = highest Core `priority`. Ties break on slug. Always the
+ * optical-middle face on the strip.
  */
 export function resolveFeaturedCoworker(
   coworkers: Coworker[],
@@ -176,10 +173,10 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 }
 
 /**
- * Diamond around the featured coworker (most completed tasks): next ranks
+ * Diamond around the featured coworker (highest `priority`): next ranks
  * alternate left, then right, walking outward. Always an odd length so the
- * lead face is the exact centre — if the catalog is even, the least-completed
- * coworker is dropped.
+ * lead face is the exact centre — if the catalog is even, the lowest-priority
+ * coworker is dropped. Edges are the lowest remaining ranks. Each face once.
  *
  * Empty when nothing is featured — the strip only renders with a lead face.
  */
@@ -196,7 +193,7 @@ export function orderStripCoworkers(
     .slice()
     .sort(compareCoworkerRank);
 
-  // featured + odd others = even total; drop the least popular so centre is exact.
+  // featured + odd others = even total; drop the lowest rank so centre is exact.
   if (others.length % 2 === 1) {
     others.pop();
   }

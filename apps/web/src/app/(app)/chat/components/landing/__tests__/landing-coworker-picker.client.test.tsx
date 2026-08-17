@@ -115,38 +115,38 @@ describe("LandingCoworkerPicker", () => {
     expect(selected.contains(strip)).toBe(false);
   });
 
-  it("renders the featured coworker in the middle of a popularity-ordered strip", () => {
+  it("renders the highest-priority coworker in the middle of a diamond-ordered strip", () => {
     const catalog = [
       buildCoworker({
         id: "a",
         name: "A",
         slug: "a",
-        completedTaskCount: 4,
+        priority: 4,
       }),
       buildCoworker({
         id: "b",
         name: "B",
         slug: "b",
-        completedTaskCount: 3,
+        priority: 3,
       }),
       buildCoworker({
         id: "elena",
         name: "Elena",
         slug: "elena",
         caption: "Strategy",
-        completedTaskCount: 10,
+        priority: 10,
       }),
       buildCoworker({
         id: "c",
         name: "C",
         slug: "c",
-        completedTaskCount: 2,
+        priority: 2,
       }),
       buildCoworker({
         id: "d",
         name: "D",
         slug: "d",
-        completedTaskCount: 1,
+        priority: 1,
       }),
     ];
 

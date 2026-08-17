@@ -3595,10 +3595,6 @@ export type Coworker = {
      * Sort priority for coworker lists. Higher numbers appear first.
      */
     priority: number;
-    /**
-     * How many assigned tasks this coworker has completed, overall.
-     */
-    completedTaskCount: number;
     slug: string;
     name: string;
     caption?: string | null;

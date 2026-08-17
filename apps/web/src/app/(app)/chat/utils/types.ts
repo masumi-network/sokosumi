@@ -23,10 +23,8 @@ export interface Coworker {
   description: string;
   useCase: string;
   slug: string;
-  /** Core list rank. Higher = more popular / earlier in pickers. */
+  /** Core list rank. Higher = earlier in pickers / welcome strip. */
   priority?: number;
-  /** Assigned tasks with status COMPLETED, overall. */
-  completedTaskCount?: number;
   capabilities?: Array<"chat" | "tasks">;
   archivedAt?: Date | string | null;
   isWhitelisted?: boolean;
