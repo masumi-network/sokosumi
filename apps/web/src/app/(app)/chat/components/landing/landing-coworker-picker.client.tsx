@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import { cn } from "@/lib/utils";
@@ -53,27 +53,31 @@ export function LandingCoworkerPicker({
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
 
-  const trailingAction = showSearchAgents
-    ? {
-        id: "search-agents",
-        render: ({
-          isSelected,
-          onSelect,
-          ref,
-        }: {
-          isSelected: boolean;
-          onSelect: () => void;
-          ref: (node: HTMLButtonElement | null) => void;
-        }) => (
-          <SearchAgentsStripAction
-            size={size}
-            isSelected={isSelected}
-            onSelect={onSelect}
-            ref={ref}
-          />
-        ),
-      }
-    : undefined;
+  const trailingAction = useMemo(
+    () =>
+      showSearchAgents
+        ? {
+            id: "search-agents",
+            render: ({
+              isSelected,
+              onSelect,
+              ref,
+            }: {
+              isSelected: boolean;
+              onSelect: () => void;
+              ref: (node: HTMLButtonElement | null) => void;
+            }) => (
+              <SearchAgentsStripAction
+                size={size}
+                isSelected={isSelected}
+                onSelect={onSelect}
+                ref={ref}
+              />
+            ),
+          }
+        : undefined,
+    [showSearchAgents, size],
+  );
 
   return (
     <div
