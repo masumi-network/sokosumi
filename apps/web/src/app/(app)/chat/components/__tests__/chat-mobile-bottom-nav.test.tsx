@@ -167,6 +167,19 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
+  it("sets aria-current on Home for /agents", () => {
+    mockPathname = "/agents";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
   it("does not set aria-current on any tab for unmatched paths", () => {
     mockPathname = "/account";
     render(<ChatMobileBottomNav />);
