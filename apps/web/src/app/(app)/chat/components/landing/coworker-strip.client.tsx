@@ -22,7 +22,7 @@ interface CoworkerStripProps {
   /** Currently selected coworker — larger face, Start chat target. */
   selectedId: string;
   /**
-   * Coworker to optically centre on first paint (most popular / fallback).
+   * Coworker to optically centre on first paint (highest priority).
    */
   centerOnId: string;
   onSelect: (coworkerId: string) => void;

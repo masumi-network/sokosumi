@@ -11,7 +11,7 @@ import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
   coworkers: Coworker[];
-  /** Most popular coworker — default selection before the user taps. */
+  /** Highest-priority coworker — default selection before the user taps. */
   initialSelectedId: string;
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */

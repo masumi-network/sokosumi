@@ -5,14 +5,10 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
-  clampLandingDescription,
   compareCoworkerRank,
-  LANDING_DESCRIPTION_MAX_CHARS,
   orderStripCoworkers,
   resolveFeaturedCoworker,
   resolveLandingGreetingName,
-  selectedCoworkerDescription,
-  shortLandingSentence,
   toStripCoworker,
 } from "../landing-content";
 
@@ -118,96 +114,6 @@ describe("resolveFeaturedCoworker", () => {
 
   it("returns null when there are no coworkers at all", () => {
     expect(resolveFeaturedCoworker([])).toBeNull();
-  });
-});
-
-describe("selectedCoworkerDescription", () => {
-  it("returns the first sentence of a trimmed description", () => {
-    const elena = buildCoworker({
-      id: "elena",
-      slug: "elena",
-      caption: "Strategy",
-      description: "  Turns goals into work. Then she assigns the rest.  ",
-    });
-    expect(selectedCoworkerDescription(elena)).toBe("Turns goals into work.");
-  });
-
-  it("returns null when description is empty — no caption fallback", () => {
-    const hannah = buildCoworker({
-      id: "hannah",
-      slug: "hannah",
-      caption: "Research",
-      description: "   ",
-    });
-    expect(selectedCoworkerDescription(hannah)).toBeNull();
-  });
-});
-
-describe("shortLandingSentence", () => {
-  it("keeps a short first sentence", () => {
-    expect(shortLandingSentence("Turns goals into work.")).toBe(
-      "Turns goals into work.",
-    );
-  });
-
-  it("drops everything after the first sentence", () => {
-    expect(
-      shortLandingSentence(
-        "Turns goals into work. Then she writes the brief and follows up.",
-      ),
-    ).toBe("Turns goals into work.");
-  });
-
-  it("does not split on an abbreviation like Dr.", () => {
-    expect(shortLandingSentence("Dr. Elena helps teams ship.")).toBe(
-      "Dr. Elena helps teams ship.",
-    );
-  });
-
-  it("does not split on Prof.", () => {
-    expect(
-      shortLandingSentence("Prof. Elena helps teams ship faster than before."),
-    ).toBe("Prof. Elena helps teams ship faster than before.");
-  });
-
-  it("keeps only the first sentence when the clause ends in a short word", () => {
-    expect(
-      shortLandingSentence(
-        "Finds leads for you. Then drafts the outreach and follows up weekly.",
-      ),
-    ).toBe("Finds leads for you.");
-  });
-
-  it("returns an empty string for blank copy", () => {
-    expect(shortLandingSentence("   ")).toBe("");
-  });
-
-  it("clamps a single long sentence near the character budget", () => {
-    const long = "word ".repeat(50).trim();
-    const result = shortLandingSentence(long);
-    expect(result.endsWith("…")).toBe(true);
-    expect(result.length).toBeLessThanOrEqual(
-      LANDING_DESCRIPTION_MAX_CHARS + 1,
-    );
-  });
-});
-
-describe("clampLandingDescription", () => {
-  it("leaves short copy untouched", () => {
-    expect(clampLandingDescription("Short pitch.")).toEqual({
-      isTruncated: false,
-      preview: "Short pitch.",
-    });
-  });
-
-  it("truncates long copy near the character budget with an ellipsis", () => {
-    const long = "word ".repeat(50).trim();
-    const result = clampLandingDescription(long);
-    expect(result.isTruncated).toBe(true);
-    expect(result.preview.endsWith("…")).toBe(true);
-    expect(result.preview.length).toBeLessThanOrEqual(
-      LANDING_DESCRIPTION_MAX_CHARS + 1,
-    );
   });
 });
 
@@ -340,6 +246,12 @@ describe("orderStripCoworkers", () => {
     expect(orderStripCoworkers([featured], featured).map((c) => c.id)).toEqual([
       "elena",
     ]);
+  });
+
+  it("drops the other face when the catalog is two so the lead stays centred", () => {
+    const other = buildCoworker({ id: "a", slug: "a" });
+    const ordered = orderStripCoworkers([featured, other], featured);
+    expect(ordered.map((c) => c.id)).toEqual(["elena"]);
   });
 
   it("orders the flanks by priority: 2nd left, 3rd right, lowest on the edge", () => {
