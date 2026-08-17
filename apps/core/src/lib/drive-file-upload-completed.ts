@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
+  buildOrganizationDriveFilePathname,
+  buildUserDriveFilePathname,
   clampDriveFileName,
   FILE_UPLOAD_MAX_SIZE_BYTES,
   isOwnedOrganizationDriveFileUrl,
@@ -106,11 +108,15 @@ export async function registerDriveFileFromUploadCompleted(params: {
 
   const displayName = clampDriveFileName(payload.name || "file");
 
-  // Build pathname with fileId segment
+  // Build pathname with fileId segment using same sanitization as mint
   const pathname =
     payload.scope === "user"
-      ? `drive/users/${payload.ownerId}/${payload.fileId}/${displayName}`
-      : `drive/organizations/${payload.ownerId}/${payload.fileId}/${displayName}`;
+      ? buildUserDriveFilePathname(payload.ownerId, payload.fileId, displayName)
+      : buildOrganizationDriveFilePathname(
+          payload.ownerId,
+          payload.fileId,
+          displayName,
+        );
 
   try {
     await prisma.driveFile.create({
