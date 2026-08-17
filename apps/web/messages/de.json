@@ -5387,9 +5387,6 @@
       "organizationDescription": "Richte einen gemeinsamen Workspace für dein Team ein.",
       "createPersonal": "Persönlichen Workspace erstellen",
       "continue": "Weiter",
-      "back": "Zurück",
-      "organizationPlaceholderTitle": "Organisationseinrichtung folgt",
-      "organizationPlaceholderBody": "Organisationen können auf diesem Bildschirm noch nicht erstellt werden. Gehe zurück, um einen persönlichen Workspace zu wählen, oder melde dich ab und kehre später zurück.",
       "nameUpdateError": "Dein Anzeigename konnte nicht aktualisiert werden.",
       "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden.",
       "personalAlreadyExists": "Du hast bereits einen persönlichen Workspace. Aktualisiere die Seite oder melde dich ab und wieder an."

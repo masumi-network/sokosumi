@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { CreateOrganizationWizard } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -27,7 +28,6 @@ import { type NameFormType, nameFormSchema } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
 type WorkspaceChoice = "personal" | "organization";
-type IdentityView = "setup" | "organization-placeholder";
 
 interface IdentityOnboardingFormProps {
   initialName: string;
@@ -40,7 +40,7 @@ export function IdentityOnboardingForm({
   const tSchema = useTranslations("Library.Auth.Schema");
   const router = useRouter();
   const [choice, setChoice] = useState<WorkspaceChoice>("personal");
-  const [view, setView] = useState<IdentityView>("setup");
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<NameFormType>({
@@ -50,11 +50,16 @@ export function IdentityOnboardingForm({
     },
   });
 
-  async function leaveGateAfterPersonalWorkspace() {
+  async function leaveGateAfterWorkspace(organizationId: string | null) {
     try {
-      await activateOrganizationWorkspace(null);
+      await activateOrganizationWorkspace(organizationId);
     } catch (error) {
-      console.error("Identity onboarding personal activation failed", error);
+      console.error(
+        organizationId === null
+          ? "Identity onboarding personal activation failed"
+          : "Identity onboarding organization activation failed",
+        error,
+      );
     }
     router.replace("/");
     router.refresh();
@@ -79,7 +84,7 @@ export function IdentityOnboardingForm({
           WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
         ) {
           // Already ready — leave the gate instead of toasting create failure.
-          await leaveGateAfterPersonalWorkspace();
+          await leaveGateAfterWorkspace(null);
           return;
         }
         console.error(
@@ -90,7 +95,7 @@ export function IdentityOnboardingForm({
         return;
       }
 
-      await leaveGateAfterPersonalWorkspace();
+      await leaveGateAfterWorkspace(null);
     } catch (error) {
       console.error("Identity onboarding personal create failed", error);
       toast.error(t("personalCreateError"));
@@ -99,140 +104,147 @@ export function IdentityOnboardingForm({
     }
   }
 
+  async function handleOrganizationContinue(values: NameFormType) {
+    setSubmitting(true);
+    try {
+      const updateUserResult = await authClient.updateUser({
+        name: values.name,
+      });
+
+      if (updateUserResult.error) {
+        toast.error(updateUserResult.error.message ?? t("nameUpdateError"));
+        return;
+      }
+
+      setWizardOpen(true);
+    } catch (error) {
+      console.error(
+        "Identity onboarding organization name persist failed",
+        error,
+      );
+      toast.error(t("nameUpdateError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function handleSetupSubmit(values: NameFormType) {
     if (choice === "organization") {
-      setView("organization-placeholder");
+      void handleOrganizationContinue(values);
       return;
     }
 
     void handlePersonalSubmit(values);
   }
 
-  if (view === "organization-placeholder") {
-    return (
-      <div
-        className="space-y-4"
-        data-testid="workspace-gate-identity-org-placeholder"
-      >
-        <div className="space-y-1">
-          <p className="text-foreground text-sm font-medium">
-            {t("organizationPlaceholderTitle")}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {t("organizationPlaceholderBody")}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setView("setup")}
-          data-testid="workspace-gate-identity-back"
-        >
-          {t("back")}
-        </Button>
-      </div>
-    );
-  }
-
   const { isSubmitting } = form.formState;
   const busy = submitting || isSubmitting;
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleSetupSubmit)}
-        className="space-y-6"
-        data-testid="workspace-gate-identity-form"
-      >
-        <fieldset className="space-y-6" disabled={busy}>
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("displayNameLabel")}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t("displayNamePlaceholder")}
-                    autoComplete="name"
-                    data-testid="workspace-gate-identity-name"
-                    {...field}
+    <>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(handleSetupSubmit)}
+          className="space-y-6"
+          data-testid="workspace-gate-identity-form"
+        >
+          <fieldset className="space-y-6" disabled={busy}>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("displayNameLabel")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t("displayNamePlaceholder")}
+                      autoComplete="name"
+                      data-testid="workspace-gate-identity-name"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-3">
+              <Label id="workspace-gate-choice-label">{t("choiceLabel")}</Label>
+              <RadioGroup
+                value={choice}
+                onValueChange={(value) => {
+                  if (value === "personal" || value === "organization") {
+                    setChoice(value);
+                  }
+                }}
+                aria-labelledby="workspace-gate-choice-label"
+                className="grid gap-3"
+                data-testid="workspace-gate-identity-choice"
+              >
+                <Label
+                  htmlFor="workspace-choice-personal"
+                  className={cn(
+                    "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                    choice === "personal" && "border-primary bg-accent/30",
+                  )}
+                >
+                  <RadioGroupItem
+                    value="personal"
+                    id="workspace-choice-personal"
+                    className="mt-0.5"
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">
+                      {t("personalTitle")}
+                    </span>
+                    <span className="text-muted-foreground block text-sm font-normal">
+                      {t("personalDescription")}
+                    </span>
+                  </span>
+                </Label>
+                <Label
+                  htmlFor="workspace-choice-organization"
+                  className={cn(
+                    "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                    choice === "organization" && "border-primary bg-accent/30",
+                  )}
+                >
+                  <RadioGroupItem
+                    value="organization"
+                    id="workspace-choice-organization"
+                    className="mt-0.5"
+                  />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">
+                      {t("organizationTitle")}
+                    </span>
+                    <span className="text-muted-foreground block text-sm font-normal">
+                      {t("organizationDescription")}
+                    </span>
+                  </span>
+                </Label>
+              </RadioGroup>
+            </div>
 
-          <div className="space-y-3">
-            <Label id="workspace-gate-choice-label">{t("choiceLabel")}</Label>
-            <RadioGroup
-              value={choice}
-              onValueChange={(value) => {
-                if (value === "personal" || value === "organization") {
-                  setChoice(value);
-                }
-              }}
-              aria-labelledby="workspace-gate-choice-label"
-              className="grid gap-3"
-              data-testid="workspace-gate-identity-choice"
+            <Button
+              type="submit"
+              disabled={busy}
+              className="w-full"
+              data-testid="workspace-gate-identity-submit"
             >
-              <Label
-                htmlFor="workspace-choice-personal"
-                className={cn(
-                  "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                  choice === "personal" && "border-primary bg-accent/30",
-                )}
-              >
-                <RadioGroupItem
-                  value="personal"
-                  id="workspace-choice-personal"
-                  className="mt-0.5"
-                />
-                <span className="space-y-1">
-                  <span className="block text-sm font-medium">
-                    {t("personalTitle")}
-                  </span>
-                  <span className="text-muted-foreground block text-sm font-normal">
-                    {t("personalDescription")}
-                  </span>
-                </span>
-              </Label>
-              <Label
-                htmlFor="workspace-choice-organization"
-                className={cn(
-                  "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                  choice === "organization" && "border-primary bg-accent/30",
-                )}
-              >
-                <RadioGroupItem
-                  value="organization"
-                  id="workspace-choice-organization"
-                  className="mt-0.5"
-                />
-                <span className="space-y-1">
-                  <span className="block text-sm font-medium">
-                    {t("organizationTitle")}
-                  </span>
-                  <span className="text-muted-foreground block text-sm font-normal">
-                    {t("organizationDescription")}
-                  </span>
-                </span>
-              </Label>
-            </RadioGroup>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={busy}
-            className="w-full"
-            data-testid="workspace-gate-identity-submit"
-          >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-            {choice === "personal" ? t("createPersonal") : t("continue")}
-          </Button>
-        </fieldset>
-      </form>
-    </Form>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              {choice === "personal" ? t("createPersonal") : t("continue")}
+            </Button>
+          </fieldset>
+        </form>
+      </Form>
+      <CreateOrganizationWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        onOrganizationReady={(organizationId) => {
+          void leaveGateAfterWorkspace(organizationId);
+        }}
+      />
+    </>
   );
 }

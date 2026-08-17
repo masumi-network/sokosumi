@@ -43,6 +43,39 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
     activateOrganizationWorkspaceMock(...args),
 }));
 
+vi.mock("@/components/organizations", () => ({
+  CreateOrganizationWizard: ({
+    open,
+    onOpenChange,
+    onOrganizationReady,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onOrganizationReady?: (organizationId: string) => void;
+  }) =>
+    open ? (
+      <div data-testid="create-org-wizard">
+        <button
+          type="button"
+          data-testid="wizard-back"
+          onClick={() => onOpenChange(false)}
+        >
+          wizard back
+        </button>
+        <button
+          type="button"
+          data-testid="wizard-complete"
+          onClick={() => {
+            onOrganizationReady?.("org-1");
+            onOpenChange(false);
+          }}
+        >
+          wizard complete
+        </button>
+      </div>
+    ) : null,
+}));
+
 import { IdentityOnboardingForm } from "../identity-onboarding-form.client";
 
 const messages = {
@@ -69,9 +102,6 @@ const messages = {
       organizationDescription: "Set up a shared workspace.",
       createPersonal: "Create personal workspace",
       continue: "Continue",
-      back: "Back",
-      organizationPlaceholderTitle: "Organization setup is next",
-      organizationPlaceholderBody: "Not available yet.",
       nameUpdateError: "Name update failed",
       personalCreateError: "Create failed",
       personalAlreadyExists: "Already exists",
@@ -137,17 +167,17 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
-    expect(
-      await screen.findByTestId("workspace-gate-identity-org-placeholder"),
-    ).toBeTruthy();
+    expect(await screen.findByTestId("create-org-wizard")).toBeTruthy();
+    expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
 
-    await user.click(screen.getByTestId("workspace-gate-identity-back"));
+    await user.click(screen.getByTestId("wizard-back"));
     expect(screen.getByTestId("workspace-gate-identity-form")).toBeTruthy();
+    expect(screen.queryByTestId("create-org-wizard")).toBeNull();
   });
 
-  it("keeps an edited name after Back from the organization placeholder", async () => {
+  it("keeps an edited name after Back from the organization wizard", async () => {
     const user = userEvent.setup();
     renderForm("Ada Lovelace");
 
@@ -156,11 +186,67 @@ describe("IdentityOnboardingForm", () => {
     await user.type(nameInput, "Ada Byron");
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
-    await user.click(screen.getByTestId("workspace-gate-identity-back"));
+    await user.click(screen.getByTestId("wizard-back"));
 
     expect(screen.getByTestId("workspace-gate-identity-name")).toHaveValue(
       "Ada Byron",
     );
+  });
+
+  it("does not open the wizard when organization name persist fails", async () => {
+    const user = userEvent.setup();
+    updateUserMock.mockResolvedValue({
+      error: { message: "Name service down" },
+    });
+    renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Name service down");
+    });
+    expect(screen.queryByTestId("create-org-wizard")).toBeNull();
+    expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the gate into the created organization when the wizard is ready", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await user.click(await screen.findByTestId("wizard-complete"));
+
+    await waitFor(() => {
+      expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).toHaveBeenCalledOnce();
+    });
+    expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+  });
+
+  it("still leaves the gate when organization activation fails after the wizard is ready", async () => {
+    const user = userEvent.setup();
+    activateOrganizationWorkspaceMock.mockRejectedValue(
+      new Error("setActive failed"),
+    );
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await user.click(await screen.findByTestId("wizard-complete"));
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).toHaveBeenCalledOnce();
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 
   it("does not create when the name update fails", async () => {

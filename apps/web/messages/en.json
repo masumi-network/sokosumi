@@ -5387,9 +5387,6 @@
       "organizationDescription": "Set up a shared workspace for your team.",
       "createPersonal": "Create personal workspace",
       "continue": "Continue",
-      "back": "Back",
-      "organizationPlaceholderTitle": "Organization setup is next",
-      "organizationPlaceholderBody": "Organization creation is not available on this screen yet. Go back to choose a personal workspace, or sign out and return later.",
       "nameUpdateError": "We could not update your display name.",
       "personalCreateError": "We could not create your personal workspace.",
       "personalAlreadyExists": "You already have a personal workspace. Refresh or sign out and sign back in."
