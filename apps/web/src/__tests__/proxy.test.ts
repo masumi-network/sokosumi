@@ -142,6 +142,8 @@ describe("proxy", () => {
     expect(setCookie).toContain(
       RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
     );
+    expect(setCookie).toMatch(/Max-Age=0/i);
+    expect(setCookie).toMatch(/Path=\//i);
   });
 
   it("does not emit the retired gate cookie when it is already absent", async () => {

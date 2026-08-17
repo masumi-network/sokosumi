@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   expireRetiredOnboardingLocalStorage,
@@ -25,5 +25,19 @@ describe("expireRetiredOnboardingLocalStorage", () => {
       ),
     ).toBeNull();
     expect(window.localStorage.getItem("sokosumi.locale")).toBe("en");
+  });
+
+  it("does not throw when localStorage.removeItem is blocked", () => {
+    const removeItem = vi
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {
+        throw new Error("blocked");
+      });
+
+    try {
+      expect(() => expireRetiredOnboardingLocalStorage()).not.toThrow();
+    } finally {
+      removeItem.mockRestore();
+    }
   });
 });
