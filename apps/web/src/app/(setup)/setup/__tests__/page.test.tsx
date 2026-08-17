@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionOrRedirectMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
+const getMyPendingOrganizationInvitationsMock = vi.fn();
+const getPendingOrganizationJoinTokenMock = vi.fn();
+const resolveOrganizationInviteLinkMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -24,6 +27,23 @@ vi.mock("@/lib/services", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
+  organizationService: {
+    getMyPendingOrganizationInvitations: (...args: unknown[]) =>
+      getMyPendingOrganizationInvitationsMock(...args),
+  },
+}));
+
+vi.mock("@/lib/pending-organization-join-cookie", () => ({
+  getPendingOrganizationJoinToken: (...args: unknown[]) =>
+    getPendingOrganizationJoinTokenMock(...args),
+  clearPendingOrganizationJoinToken: vi.fn(),
+}));
+
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    resolveOrganizationInviteLink: (...args: unknown[]) =>
+      resolveOrganizationInviteLinkMock(...args),
+  },
 }));
 
 vi.mock("../components/workspace-gate-sign-out.client", () => ({
@@ -40,6 +60,18 @@ vi.mock("../components/identity-onboarding-form.client", () => ({
   ),
 }));
 
+vi.mock("../components/pending-invites-queue.client", () => ({
+  PendingInvitesQueue: ({
+    items,
+  }: {
+    items: Array<{ kind: string; organizationName: string }>;
+  }) => (
+    <div data-testid="pending-invites-queue">
+      {items.map((item) => item.organizationName).join(",")}
+    </div>
+  ),
+}));
+
 describe("WorkspaceGatePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -48,6 +80,8 @@ describe("WorkspaceGatePage", () => {
       session: { id: "session-1" },
     });
     getTranslationsMock.mockResolvedValue((key: string) => key);
+    getMyPendingOrganizationInvitationsMock.mockResolvedValue([]);
+    getPendingOrganizationJoinTokenMock.mockResolvedValue(null);
   });
 
   it("redirects ready users away from the gate", async () => {
@@ -83,12 +117,44 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).not.toContain("unavailableTitle");
   });
 
-  it("renders pending-invites copy when workspace access reports pending invites", async () => {
+  it("renders the pending queue instead of identity onboarding", async () => {
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
       hasPendingOrganizationInvites: true,
+    });
+    getMyPendingOrganizationInvitationsMock.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        organization: { name: "Acme" },
+      },
+    ]);
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    const serialized = JSON.stringify(ui);
+    expect(serialized).toContain("pendingInvitesTitle");
+    expect(serialized).toContain("Acme");
+    expect(serialized).not.toContain('"initialName"');
+  });
+
+  it("renders the pending queue when only a recovered join link exists", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "identity-onboarding",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: false,
+    });
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
+    resolveOrganizationInviteLinkMock.mockResolvedValue({
+      data: {
+        status: "valid",
+        organization: { name: "Join Co", slug: "join-co", logo: null },
+      },
     });
 
     const { default: WorkspaceGatePage } = await import("../page");
@@ -97,6 +163,7 @@ describe("WorkspaceGatePage", () => {
     expect(redirectMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
+    expect(serialized).toContain("Join Co");
     expect(serialized).not.toContain('"initialName"');
   });
 
