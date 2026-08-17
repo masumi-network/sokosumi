@@ -102,10 +102,15 @@ export default async function WorkspaceGatePage() {
           <p className="text-muted-foreground text-sm">{t(bodyKey)}</p>
         )}
       </CardContent>
-      <CardFooter className="flex flex-wrap justify-end gap-2">
-        {surface === "unavailable" ? <WorkspaceGateRetry /> : null}
-        <WorkspaceGateSignOut />
-      </CardFooter>
+      {surface === "unavailable" ? (
+        <CardFooter
+          className="flex flex-wrap justify-end gap-2"
+          data-workspace-gate-actions
+        >
+          <WorkspaceGateRetry />
+          <WorkspaceGateSignOut />
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }
