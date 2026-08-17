@@ -244,7 +244,7 @@ export function IdentityOnboardingForm({
               data-testid="workspace-gate-identity-submit"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-              {choice === "personal" ? t("createPersonal") : t("continue")}
+              {t("continue")}
             </Button>
           </fieldset>
         </form>
