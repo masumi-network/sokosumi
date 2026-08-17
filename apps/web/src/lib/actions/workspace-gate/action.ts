@@ -1,7 +1,7 @@
 "use server";
 
 import { err, ok } from "neverthrow";
-
+import { getEnvSecrets } from "@/config/env.secrets";
 import {
   type ActionResultDto,
   toActionResult,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { PersonalWorkspaceCreated } from "@/lib/clients/generated/core";
+import { clearPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -61,4 +62,21 @@ export const createPersonalWorkspaceAction = withSession<
     console.error("Failed to create personal workspace", error);
     return toActionResult(err(toCreatePersonalWorkspaceError(error)));
   }
+});
+
+/**
+ * Drop a recovered `/join` token after accept, join, or reject-all.
+ */
+export const clearPendingOrganizationJoinCookieAction = withSession<
+  AuthenticatedRequest,
+  ActionResultDto<null, ActionError>
+>(async () => {
+  const env = getEnvSecrets();
+  await clearPendingOrganizationJoinToken({
+    secure:
+      env.NODE_ENV === "production" ||
+      env.VERCEL_ENV === "production" ||
+      env.VERCEL_ENV === "preview",
+  });
+  return toActionResult(ok(null));
 });

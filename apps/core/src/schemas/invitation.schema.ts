@@ -57,3 +57,31 @@ export const getInvitationResultSchema = z
     z.object({ kind: z.literal("inviter_not_found") }),
   ])
   .openapi("GetInvitationResult");
+
+const userPendingOrganizationPreviewSchema = z.object({
+  id: z.string().openapi({ example: "org_123" }),
+  name: z.string().openapi({ example: "Acme Inc" }),
+  slug: z.string().openapi({ example: "acme-inc" }),
+  logo: z.string().nullable().openapi({ example: null }),
+});
+
+/**
+ * A pending organization invitation addressed to the current user's email.
+ * Used by the workspace-gate queue. Chat guest invitations are not included.
+ */
+export const userPendingOrganizationInvitationSchema = z
+  .object({
+    id: z.string().openapi({ example: "inv_123" }),
+    organizationId: z.string().openapi({ example: "org_123" }),
+    email: z.string().openapi({ example: "jane@example.com" }),
+    role: memberRoleNullableSchema,
+    status: invitationStatusSchema,
+    expiresAt: dateTimeSchema,
+    createdAt: dateTimeSchema,
+    organization: userPendingOrganizationPreviewSchema,
+  })
+  .openapi("UserPendingOrganizationInvitation");
+
+export const userPendingOrganizationInvitationsSchema = z
+  .array(userPendingOrganizationInvitationSchema)
+  .openapi("UserPendingOrganizationInvitations");

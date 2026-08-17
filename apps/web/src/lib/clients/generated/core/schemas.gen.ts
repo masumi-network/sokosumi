@@ -9094,6 +9094,108 @@ export const WorkspaceGateStatusSchema = {
     example: 'ready'
 } as const;
 
+export const UserPendingOrganizationInvitationsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/UserPendingOrganizationInvitation'
+    }
+} as const;
+
+export const UserPendingOrganizationInvitationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'inv_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        role: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/MemberRole'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'member',
+            description: 'Organization member role, or null when absent'
+        },
+        status: {
+            $ref: '#/components/schemas/InvitationStatus'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        organization: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Inc'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-inc'
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: null
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug',
+                'logo'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'email',
+        'role',
+        'status',
+        'expiresAt',
+        'createdAt',
+        'organization'
+    ]
+} as const;
+
+export const InvitationStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'accepted',
+        'rejected',
+        'canceled'
+    ],
+    example: 'pending',
+    description: 'Invitation lifecycle status stored in the database'
+} as const;
+
 export const NoticeSchema = {
     type: 'object',
     properties: {
@@ -9993,18 +10095,6 @@ export const PendingInvitationSchema = {
         'inviterId',
         'createdAt'
     ]
-} as const;
-
-export const InvitationStatusSchema = {
-    type: 'string',
-    enum: [
-        'pending',
-        'accepted',
-        'rejected',
-        'canceled'
-    ],
-    example: 'pending',
-    description: 'Invitation lifecycle status stored in the database'
 } as const;
 
 export const OrganizationInviteLinkSchema = {

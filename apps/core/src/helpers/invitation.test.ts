@@ -21,6 +21,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
   listPendingInvitationsByOrganizationId,
+  listPendingOrganizationInvitationsForUser,
   lookupPendingInvitationById,
 } from "./invitation.js";
 
@@ -108,5 +109,127 @@ describe("listPendingInvitationsByOrganizationId", () => {
     const result = await listPendingInvitationsByOrganizationId("org_1");
 
     expect(result.map((i) => i.id)).toEqual(["a", "c"]);
+  });
+});
+
+describe("listPendingOrganizationInvitationsForUser", () => {
+  const userFindUnique = vi.fn();
+  const invitationFindMany = vi.fn();
+  const tx = {
+    user: { findUnique: userFindUnique },
+    invitation: { findMany: invitationFindMany },
+  } as never;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns an empty list when the user row is missing", async () => {
+    userFindUnique.mockResolvedValue(null);
+
+    await expect(
+      listPendingOrganizationInvitationsForUser("user_x", tx),
+    ).resolves.toEqual([]);
+    expect(invitationFindMany).not.toHaveBeenCalled();
+  });
+
+  it("returns non-expired pending invitations for the user's email", async () => {
+    userFindUnique.mockResolvedValue({ email: "Ada@Example.com" });
+    invitationFindMany.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        email: "ada@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        organization: {
+          id: "org_1",
+          name: "Acme",
+          slug: "acme",
+          logo: "https://example.com/logo.png",
+        },
+      },
+    ]);
+
+    await expect(
+      listPendingOrganizationInvitationsForUser("user_1", tx),
+    ).resolves.toEqual([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        email: "ada@example.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        organization: {
+          id: "org_1",
+          name: "Acme",
+          slug: "acme",
+          logo: "https://example.com/logo.png",
+        },
+      },
+    ]);
+
+    expect(invitationFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "pending",
+          email: { equals: "ada@example.com", mode: "insensitive" },
+        }),
+      }),
+    );
+  });
+
+  it("queries only invitations that expire after now", async () => {
+    const before = Date.now();
+    userFindUnique.mockResolvedValue({ email: "ada@example.com" });
+    invitationFindMany.mockResolvedValue([]);
+
+    await listPendingOrganizationInvitationsForUser("user_1", tx);
+    const after = Date.now();
+
+    const call = invitationFindMany.mock.calls[0]?.[0] as {
+      where: { expiresAt: { gt: Date } };
+    };
+    const gt = call.where.expiresAt.gt.getTime();
+    expect(gt).toBeGreaterThanOrEqual(before);
+    expect(gt).toBeLessThanOrEqual(after);
+  });
+
+  it("maps only the organization preview fields", async () => {
+    userFindUnique.mockResolvedValue({ email: "ada@example.com" });
+    invitationFindMany.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        email: "ada@example.com",
+        role: null,
+        status: "pending",
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        organization: {
+          id: "org_1",
+          name: "Acme",
+          slug: "acme",
+          logo: null,
+          extra: "ignored",
+        },
+      },
+    ]);
+
+    const result = await listPendingOrganizationInvitationsForUser(
+      "user_1",
+      tx,
+    );
+
+    expect(result[0]?.organization).toEqual({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      logo: null,
+    });
   });
 });

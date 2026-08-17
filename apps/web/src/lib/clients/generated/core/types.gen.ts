@@ -2671,6 +2671,42 @@ export const WorkspaceGateStatus = {
  */
 export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
 
+export type UserPendingOrganizationInvitations = Array<UserPendingOrganizationInvitation>;
+
+export type UserPendingOrganizationInvitation = {
+    id: string;
+    organizationId: string;
+    email: string;
+    /**
+     * Organization member role, or null when absent
+     */
+    role: MemberRole | null;
+    status: InvitationStatus;
+    expiresAt: Date;
+    createdAt: Date;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+        logo: string | null;
+    };
+};
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export const InvitationStatus = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    REJECTED: 'rejected',
+    CANCELED: 'canceled'
+} as const;
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
+
 export type Notice = {
     id: string;
     kind: NoticeKind;
@@ -2957,21 +2993,6 @@ export type PendingInvitation = {
     inviterId: string;
     createdAt: Date;
 };
-
-/**
- * Invitation lifecycle status stored in the database
- */
-export const InvitationStatus = {
-    PENDING: 'pending',
-    ACCEPTED: 'accepted',
-    REJECTED: 'rejected',
-    CANCELED: 'canceled'
-} as const;
-
-/**
- * Invitation lifecycle status stored in the database
- */
-export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
 
 export type OrganizationInviteLink = {
     token: string;
@@ -19289,6 +19310,95 @@ export type GetUsersByIdWorkspaceAccessResponses = {
 };
 
 export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
+
+export type GetUsersByIdPendingOrganizationInvitationsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/pending-organization-invitations';
+};
+
+export type GetUsersByIdPendingOrganizationInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPendingOrganizationInvitationsError = GetUsersByIdPendingOrganizationInvitationsErrors[keyof GetUsersByIdPendingOrganizationInvitationsErrors];
+
+export type GetUsersByIdPendingOrganizationInvitationsResponses = {
+    /**
+     * List pending organization invitations for the user
+     */
+    200: {
+        data: UserPendingOrganizationInvitations;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPendingOrganizationInvitationsResponse = GetUsersByIdPendingOrganizationInvitationsResponses[keyof GetUsersByIdPendingOrganizationInvitationsResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;
