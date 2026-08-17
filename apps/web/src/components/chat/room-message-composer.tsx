@@ -117,7 +117,7 @@ export function RoomMessageComposer({
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
-  const lastPointerSubmitAtRef = useRef(0);
+  const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
     if (!form || sendBlocked) return;

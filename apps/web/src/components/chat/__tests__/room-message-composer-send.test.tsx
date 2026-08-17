@@ -16,6 +16,7 @@ vi.mock("@/hooks/use-keyboard-open", () => ({
 describe("RoomMessageComposer send pointer path", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("submits on pointerdown without blurring the editor", () => {
@@ -130,6 +131,33 @@ describe("RoomMessageComposer send pointer path", () => {
   it("submits on a pointer click when pointerdown never reached Send", () => {
     // iOS first-tap with OSK up: blur + safe-area jump can drop pointerdown
     // on the button. The leftover event is a pointer click (detail >= 1).
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    render(
+      <RoomMessageComposer
+        onSubmit={onSubmit}
+        attachments={[]}
+        onRemoveAttachment={() => undefined}
+        removeAttachmentLabel={(name) => name}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+      >
+        <div role="textbox" contentEditable tabIndex={0} />
+      </RoomMessageComposer>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Send" }), {
+      detail: 1,
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("submits a click-only tap at performance time zero", () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
     });
