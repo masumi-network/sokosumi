@@ -16,6 +16,8 @@ interface LandingCoworkerPickerProps {
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */
   startChatClassName?: string;
+  /** Optional trailing action for the strip (mobile only). */
+  trailingAction?: React.ReactNode;
 }
 
 /**
@@ -33,6 +35,7 @@ export function LandingCoworkerPicker({
   initialSelectedId,
   size = "default",
   startChatClassName,
+  trailingAction,
 }: LandingCoworkerPickerProps) {
   const [selectedId, setSelectedId] = useState(initialSelectedId);
 
@@ -68,6 +71,7 @@ export function LandingCoworkerPicker({
           onSelect={setSelectedId}
           selectedId={selected.id}
           size={size}
+          trailingAction={trailingAction}
         />
       </div>
 

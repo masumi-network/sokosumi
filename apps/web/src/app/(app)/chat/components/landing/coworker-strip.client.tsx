@@ -28,6 +28,8 @@ interface CoworkerStripProps {
   onSelect: (coworkerId: string) => void;
   /** `compact` fits the row inside a 390px viewport. */
   size?: "compact" | "default";
+  /** Optional trailing action rendered after all coworkers (mobile only). */
+  trailingAction?: React.ReactNode;
 }
 
 const STRIP_SIZES = {
@@ -81,6 +83,7 @@ export function CoworkerStrip({
   centerOnId,
   onSelect,
   size = "default",
+  trailingAction,
 }: CoworkerStripProps) {
   const t = useTranslations("App.Chat.Landing");
   const scale = STRIP_SIZES[size];
@@ -286,6 +289,7 @@ export function CoworkerStrip({
             </button>
           );
         })}
+        {trailingAction}
       </div>
     </div>
   );
