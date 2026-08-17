@@ -1,9 +1,11 @@
-import type { Invitation } from "@sokosumi/database";
+import type { Invitation, Prisma } from "@sokosumi/database";
+import { InvitationStatus } from "@sokosumi/database";
 import {
   invitationRepository,
   memberRepository,
 } from "@sokosumi/database/repositories";
 
+import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
 import prisma from "@/lib/db/prisma";
 
 type ResolvedInvitation = {
@@ -103,4 +105,76 @@ export async function listPendingInvitationsByOrganizationId(
     }
   }
   return Array.from(byEmail.values());
+}
+
+export interface UserPendingOrganizationInvitation {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: string | null;
+  status: string;
+  expiresAt: Date;
+  createdAt: Date;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+  };
+}
+
+/**
+ * Lists non-expired pending organization invitations for a user's email.
+ * Chat-room guest invitations live on a different table and are not included.
+ */
+export async function listPendingOrganizationInvitationsForUser(
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<UserPendingOrganizationInvitation[]> {
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+
+  if (!user) {
+    return [];
+  }
+
+  const email = normalizeInvitationEmail(user.email);
+  const invitations = await tx.invitation.findMany({
+    where: {
+      status: InvitationStatus.PENDING,
+      expiresAt: { gt: new Date() },
+      email: { equals: email, mode: "insensitive" },
+    },
+    orderBy: { expiresAt: "desc" },
+    select: {
+      id: true,
+      organizationId: true,
+      email: true,
+      role: true,
+      status: true,
+      expiresAt: true,
+      createdAt: true,
+      organization: {
+        select: { id: true, name: true, slug: true, logo: true },
+      },
+    },
+  });
+
+  return invitations.map((invitation) => ({
+    id: invitation.id,
+    organizationId: invitation.organizationId,
+    email: invitation.email,
+    role: invitation.role,
+    status: invitation.status,
+    expiresAt: invitation.expiresAt,
+    createdAt: invitation.createdAt,
+    organization: {
+      id: invitation.organization.id,
+      name: invitation.organization.name,
+      slug: invitation.organization.slug,
+      logo: invitation.organization.logo,
+    },
+  }));
 }
