@@ -68,7 +68,7 @@ describe("resolveChatMobileActiveTabId", () => {
     ).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
-    expect(resolveChatMobileActiveTabId("/agents")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();
@@ -163,6 +163,19 @@ describe("ChatMobileBottomNav", () => {
       "page",
     );
     expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("sets aria-current on Home for /agents", () => {
+    mockPathname = "/agents";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
       "aria-current",
     );
   });
