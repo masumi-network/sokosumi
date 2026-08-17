@@ -32,7 +32,7 @@ import {
 
 const route = createRoute({
   method: "post",
-  path: "/files",
+  path: "/",
   description: [
     "Mint a direct upload session for a drive file (personal or organization).",
     "Bytes go client → Vercel Blob (not through this API).",

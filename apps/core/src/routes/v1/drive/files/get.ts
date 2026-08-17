@@ -33,7 +33,7 @@ const querySchema = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/files",
+  path: "/",
   description: "List drive files (personal or organization, newest first)",
   tags: ["Drive"],
   request: {
