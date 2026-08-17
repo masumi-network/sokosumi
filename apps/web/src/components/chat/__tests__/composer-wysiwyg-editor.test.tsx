@@ -551,38 +551,6 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor).toHaveFocus();
   });
 
-  it("clearKeepingFocus empties without blurring in the same turn", () => {
-    const editorRef = { current: null as ComposerWysiwygEditorHandle | null };
-
-    function Harness() {
-      const [value, setValue] = useState("keep keyboard please");
-      return (
-        <ComposerWysiwygEditor
-          ref={(handle) => {
-            editorRef.current = handle;
-          }}
-          value={value}
-          onChange={setValue}
-          mentions={{}}
-        />
-      );
-    }
-
-    render(<Harness />);
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    expect(editor).toHaveFocus();
-    expect(editor.textContent).toContain("keep keyboard please");
-
-    act(() => {
-      editorRef.current?.clearKeepingFocus();
-    });
-
-    expect(editor.textContent ?? "").toBe("");
-    expect(editor).toHaveFocus();
-    expect(document.activeElement).toBe(editor);
-  });
-
   it("clears editor DOM after internal input then external clear in the same focused session", () => {
     function Harness() {
       const [value, setValue] = useState("");

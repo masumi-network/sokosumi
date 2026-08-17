@@ -79,8 +79,6 @@ export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
 export interface RoomComposerHandle {
   attachFiles: (files: FileList | File[] | null) => void;
   focus: () => void;
-  /** Empty compose text without resigning first responder (SOK-815 / iOS OSK). */
-  clearKeepingFocus: () => void;
 }
 
 function RoomMentionSuggestion({
@@ -426,9 +424,6 @@ export function RoomComposer({
       },
       focus: () => {
         editorRef.current?.focus();
-      },
-      clearKeepingFocus: () => {
-        editorRef.current?.clearKeepingFocus();
       },
     }),
     [handleFilesSelected],

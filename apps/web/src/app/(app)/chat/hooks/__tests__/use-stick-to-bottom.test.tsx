@@ -1,5 +1,4 @@
 import { act, render, screen } from "@testing-library/react";
-import { useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -61,8 +60,6 @@ function setScrollerMetrics(
 }
 
 function Harness({ resetKey }: { resetKey: string | null }) {
-  const afterPinCountRef = useRef(0);
-  const [, setAfterPinCount] = useState(0);
   const {
     scrollerRef,
     contentRef,
@@ -89,18 +86,9 @@ function Harness({ resetKey }: { resetKey: string | null }) {
       <button type="button" onClick={scrollToBottomIfPinned}>
         pin-scroll
       </button>
-      <button
-        type="button"
-        onClick={() =>
-          pinToBottomAfterOwnSend(() => {
-            afterPinCountRef.current += 1;
-            setAfterPinCount(afterPinCountRef.current);
-          })
-        }
-      >
+      <button type="button" onClick={() => pinToBottomAfterOwnSend()}>
         own-send-pin
       </button>
-      <span data-testid="after-pin-count">{afterPinCountRef.current}</span>
     </div>
   );
 }
@@ -268,59 +256,6 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(1300);
-
-    expect(screen.getByTestId("after-pin-count").textContent).toBe("2");
-
-    rafSpy.mockRestore();
-    cancelSpy.mockRestore();
-  });
-
-  it("calls afterPin after ResizeObserver growth while own-send pin is active", async () => {
-    const rafQueue: FrameRequestCallback[] = [];
-    const rafSpy = vi
-      .spyOn(window, "requestAnimationFrame")
-      .mockImplementation((cb) => {
-        rafQueue.push(cb);
-        return rafQueue.length;
-      });
-    const cancelSpy = vi
-      .spyOn(window, "cancelAnimationFrame")
-      .mockImplementation(() => undefined);
-
-    function flushRaf() {
-      const queued = rafQueue.splice(0, rafQueue.length);
-      for (const cb of queued) {
-        cb(0);
-      }
-    }
-
-    render(<Harness resetKey="room-1" />);
-    const scroller = screen.getByTestId("scroller");
-    let scrollHeight = 1000;
-    Object.defineProperty(scroller, "scrollHeight", {
-      configurable: true,
-      get: () => scrollHeight,
-    });
-    Object.defineProperty(scroller, "clientHeight", {
-      configurable: true,
-      get: () => 400,
-    });
-
-    await act(async () => {
-      flushRaf();
-    });
-
-    act(() => {
-      screen.getByRole("button", { name: "own-send-pin" }).click();
-    });
-    expect(screen.getByTestId("after-pin-count").textContent).toBe("1");
-
-    scrollHeight = 1400;
-    act(() => {
-      fireResize();
-    });
-    expect(scroller.scrollTop).toBe(1400);
-    expect(screen.getByTestId("after-pin-count").textContent).toBe("2");
 
     rafSpy.mockRestore();
     cancelSpy.mockRestore();

@@ -32,7 +32,6 @@ vi.mock("../room-session-composer", () => ({
       focus: () => {
         composerFocus();
       },
-      clearKeepingFocus: () => undefined,
     }));
     return <div data-testid="thread-composer" />;
   },

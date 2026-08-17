@@ -2099,9 +2099,7 @@ export function RoomsClient({
           quote: request.quote,
         });
         if (started) {
-          pinToBottomAfterOwnSend(() => {
-            roomComposerRef.current?.focus();
-          });
+          pinToBottomAfterOwnSend();
         }
         return { ok: started };
       }
@@ -2142,9 +2140,7 @@ export function RoomsClient({
       });
 
       setMessagesState((current) => appendMessage(current, pending));
-      pinToBottomAfterOwnSend(() => {
-        roomComposerRef.current?.focus();
-      });
+      pinToBottomAfterOwnSend();
 
       enqueueClassicChannelJob({
         roomId,

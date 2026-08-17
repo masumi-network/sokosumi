@@ -136,9 +136,7 @@ export function ThreadPanel({
   ): Promise<RoomSessionSendResult> {
     const result = await onSendReply(request);
     if (result.ok) {
-      pinToBottomAfterOwnSend(() => {
-        threadComposerRef.current?.focus();
-      });
+      pinToBottomAfterOwnSend();
     }
     return result;
   }

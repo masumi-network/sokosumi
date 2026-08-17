@@ -130,7 +130,6 @@ vi.mock("../room-session-composer", () => ({
     useImperativeHandle(ref, () => ({
       attachFiles: () => undefined,
       focus: () => undefined,
-      clearKeepingFocus: () => undefined,
     }));
     return <div data-testid="room-session-composer" />;
   },

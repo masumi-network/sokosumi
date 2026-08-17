@@ -7,6 +7,7 @@ import {
   type PointerEvent,
   type ReactNode,
   type Ref,
+  useRef,
 } from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -114,6 +115,7 @@ export function RoomMessageComposer({
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
+  const pointerSubmittedRef = useRef(false);
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
     if (!form || sendBlocked) return;
@@ -122,10 +124,11 @@ export function RoomMessageComposer({
   }
 
   function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
-    // Keep editor focus (same idea as mention toolbar mousedown preventDefault).
+    // Keep editor focus through the tap so iOS does not blur+jump before click.
     if (event.button !== 0) return;
     event.preventDefault();
     if (sendBlocked) return;
+    pointerSubmittedRef.current = true;
     requestComposerSubmit(event.currentTarget.form);
   }
 
@@ -135,9 +138,13 @@ export function RoomMessageComposer({
 
   function handleSendClick(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
-    // Pointer clicks have detail >= 1; keyboard activation has detail 0.
-    // Do not latch across a disabled rerender after draft clear (SOK-815).
-    if (event.detail > 0) return;
+    // Same-gesture leftover click after pointerdown already submitted.
+    // A click-only first tap (pointerdown missed Send) must still submit.
+    if (event.detail > 0 && pointerSubmittedRef.current) {
+      pointerSubmittedRef.current = false;
+      return;
+    }
+    pointerSubmittedRef.current = false;
     requestComposerSubmit(event.currentTarget.form);
   }
 
