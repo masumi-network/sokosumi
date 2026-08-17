@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { CoworkerStrip } from "./coworker-strip.client";
 import { orderStripCoworkers } from "./landing-content";
+import { SearchAgentsStripAction } from "./search-agents-strip-action.client";
 import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
@@ -16,6 +20,8 @@ interface LandingCoworkerPickerProps {
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */
   startChatClassName?: string;
+  /** Show Search agents as trailing action (mobile only). */
+  showSearchAgents?: boolean;
 }
 
 /**
@@ -33,7 +39,9 @@ export function LandingCoworkerPicker({
   initialSelectedId,
   size = "default",
   startChatClassName,
+  showSearchAgents = false,
 }: LandingCoworkerPickerProps) {
+  const t = useTranslations("App.Chat.Landing");
   const [selectedId, setSelectedId] = useState(initialSelectedId);
 
   const initial =
@@ -43,10 +51,38 @@ export function LandingCoworkerPicker({
     return null;
   }
 
-  const selected =
+  const isSearchSelected = selectedId === "search-agents";
+  // For Start chat CTA: target a real coworker (fallback to initial if Search is selected).
+  const selectedCoworker =
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
+
+  const trailingAction = useMemo(
+    () =>
+      showSearchAgents
+        ? {
+            id: "search-agents",
+            render: ({
+              isSelected,
+              onSelect,
+              ref,
+            }: {
+              isSelected: boolean;
+              onSelect: () => void;
+              ref: (node: HTMLButtonElement | null) => void;
+            }) => (
+              <SearchAgentsStripAction
+                size={size}
+                isSelected={isSelected}
+                onSelect={onSelect}
+                ref={ref}
+              />
+            ),
+          }
+        : undefined,
+    [showSearchAgents, size],
+  );
 
   return (
     <div
@@ -66,8 +102,9 @@ export function LandingCoworkerPicker({
           centerOnId={initial.id}
           coworkers={stripCoworkers}
           onSelect={setSelectedId}
-          selectedId={selected.id}
+          selectedId={selectedId}
           size={size}
+          trailingAction={trailingAction}
         />
       </div>
 
@@ -86,11 +123,22 @@ export function LandingCoworkerPicker({
           data-testid="landing-selected-cta-stack"
         >
           <div className="w-full min-w-0" data-testid="landing-start-chat">
-            <StartChatButton
-              className={cn("w-full", startChatClassName)}
-              coworkerId={selected.id}
-              coworkerName={selected.name}
-            />
+            {isSearchSelected ? (
+              <Button
+                asChild
+                variant="primary"
+                size="lg"
+                className={cn("h-12 w-full px-8 text-base", startChatClassName)}
+              >
+                <Link href="/agents">{t("cta.searchAgents")}</Link>
+              </Button>
+            ) : (
+              <StartChatButton
+                className={cn("w-full", startChatClassName)}
+                coworkerId={selectedCoworker.id}
+                coworkerName={selectedCoworker.name}
+              />
+            )}
           </div>
         </div>
       </div>

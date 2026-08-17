@@ -62,6 +62,7 @@ export async function ChatLandingMobile({
               initialSelectedId={featured.id}
               size="compact"
               startChatClassName="w-full"
+              showSearchAgents
             />
           </OpenCoworkerRoomProvider>
         ) : null}

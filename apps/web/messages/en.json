@@ -1446,6 +1446,7 @@
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
+          "searchAgents": "Search Agents",
           "opening": "Opening chat…",
           "error": "Could not open the chat. Please try again."
         },
@@ -1461,6 +1462,10 @@
           "avatarAlt": "{name}",
           "stripLabel": "Available coworkers",
           "select": "Select {name}"
+        },
+        "searchAgents": {
+          "label": "Search",
+          "subtitle": "Specialized Agents"
         }
       }
     },
@@ -4704,7 +4709,9 @@
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
-        "goHome": "Go to home"
+        "goHome": "Go to home",
+        "home": "Home",
+        "searchAgents": "Search agents"
       },
       "Actions": {
         "more": "Message actions",
