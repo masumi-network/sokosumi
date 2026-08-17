@@ -7,8 +7,6 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
-import { activateOrganizationWorkspace } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -23,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import { type NameFormType, nameFormSchema } from "@/lib/schemas";
 import { cn } from "@/lib/utils";

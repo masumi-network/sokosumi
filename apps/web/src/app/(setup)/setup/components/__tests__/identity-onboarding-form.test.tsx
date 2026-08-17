@@ -38,7 +38,7 @@ vi.mock("@/lib/actions/workspace-gate", () => ({
     createPersonalWorkspaceActionMock(...args),
 }));
 
-vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
+vi.mock("@/lib/activate-organization-workspace", () => ({
   activateOrganizationWorkspace: (...args: unknown[]) =>
     activateOrganizationWorkspaceMock(...args),
 }));
