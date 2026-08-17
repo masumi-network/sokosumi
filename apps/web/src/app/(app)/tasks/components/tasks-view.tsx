@@ -1233,11 +1233,6 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TasksProjectSwitcher
-            projectOptions={resolvedProjectOptions}
-            selectedProjectId={selectedProjectId}
-            onProjectCreated={handleProjectCreated}
-          />
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="tasks"
@@ -1267,6 +1262,11 @@ export function TasksView({
               <CircleHelp className="size-4" aria-hidden />
             </Button>
           ) : null}
+          <TasksProjectSwitcher
+            projectOptions={resolvedProjectOptions}
+            selectedProjectId={selectedProjectId}
+            onProjectCreated={handleProjectCreated}
+          />
           {activeTab === "tasks" ? (
             <TasksViewFilters
               activeOrganizationId={activeOrganizationId}
