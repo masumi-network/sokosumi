@@ -77,15 +77,25 @@ export function IdentityOnboardingForm({
     router.refresh();
   }
 
+  async function persistDisplayName(name: string): Promise<boolean> {
+    try {
+      const updateUserResult = await authClient.updateUser({ name });
+      if (updateUserResult.error) {
+        toast.error(updateUserResult.error.message ?? t("nameUpdateError"));
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Identity onboarding name persist failed", error);
+      toast.error(t("nameUpdateError"));
+      return false;
+    }
+  }
+
   async function handlePersonalSubmit(values: NameFormType) {
     setSubmitting(true);
     try {
-      const updateUserResult = await authClient.updateUser({
-        name: values.name,
-      });
-
-      if (updateUserResult.error) {
-        toast.error(updateUserResult.error.message ?? t("nameUpdateError"));
+      if (!(await persistDisplayName(values.name))) {
         return;
       }
 
@@ -119,22 +129,10 @@ export function IdentityOnboardingForm({
   async function handleOrganizationContinue(values: NameFormType) {
     setSubmitting(true);
     try {
-      const updateUserResult = await authClient.updateUser({
-        name: values.name,
-      });
-
-      if (updateUserResult.error) {
-        toast.error(updateUserResult.error.message ?? t("nameUpdateError"));
+      if (!(await persistDisplayName(values.name))) {
         return;
       }
-
       setWizardOpen(true);
-    } catch (error) {
-      console.error(
-        "Identity onboarding organization name persist failed",
-        error,
-      );
-      toast.error(t("nameUpdateError"));
     } finally {
       setSubmitting(false);
     }

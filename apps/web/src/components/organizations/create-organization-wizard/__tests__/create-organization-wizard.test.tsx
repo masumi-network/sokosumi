@@ -113,7 +113,7 @@ describe("CreateOrganizationWizard", () => {
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
   });
 
-  it("creates the organization on name + URL and completes on dismiss", async () => {
+  it("creates the organization on name + URL and completes on Finish", async () => {
     const user = userEvent.setup();
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
 

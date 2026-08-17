@@ -104,7 +104,6 @@ const messages = {
       continue: "Continue",
       nameUpdateError: "Name update failed",
       personalCreateError: "Create failed",
-      personalAlreadyExists: "Already exists",
       organizationActivateError: "Could not switch into that organization",
     },
   },

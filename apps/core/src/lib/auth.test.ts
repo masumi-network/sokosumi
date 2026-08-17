@@ -1078,23 +1078,10 @@ describe("core auth config", () => {
     await import("./auth");
 
     const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          allowUserToCreateOrganization:
-            | boolean
-            | ((user: { emailVerified: boolean }) => boolean);
-        },
-      ]
+      [{ allowUserToCreateOrganization: boolean }]
     >;
 
-    const allow = organizationConfig.allowUserToCreateOrganization;
-    const unverifiedAllowed =
-      typeof allow === "function" ? allow({ emailVerified: false }) : allow;
-    const verifiedAllowed =
-      typeof allow === "function" ? allow({ emailVerified: true }) : allow;
-
-    expect(unverifiedAllowed).toBe(true);
-    expect(verifiedAllowed).toBe(true);
+    expect(organizationConfig.allowUserToCreateOrganization).toBe(true);
   });
 
   it("configures the magic link plugin", async () => {
