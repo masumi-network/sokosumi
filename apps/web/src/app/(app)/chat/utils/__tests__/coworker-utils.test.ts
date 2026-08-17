@@ -34,7 +34,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
         description: "Ops helper",
         archivedAt: null,
         isWhitelisted: false,
-        priority: 0,
+        priority: 7,
         image: null,
         caption: null,
         vendor: {
@@ -59,7 +59,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
       id: "cow_123",
       slug: "elena",
       name: "Elena",
-      priority: 0,
+      priority: 7,
       description: "Ops helper",
       useCase: "",
       archivedAt: null,
