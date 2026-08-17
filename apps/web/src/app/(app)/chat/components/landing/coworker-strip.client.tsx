@@ -56,8 +56,8 @@ const STRIP_SIZES = {
     otherInitial: "text-xs",
     name: "text-xs",
     title: "text-[0.625rem]",
-    // Half featured width: lets first/last faces reach optical center.
-    edgePad: "px-[max(0.25rem,calc(50%-2.75rem))]",
+    // Half featured width relative to viewport: lets first/last items reach optical center.
+    edgePad: "px-[max(0.25rem,calc(50vw-2.75rem))]",
   },
   default: {
     featured: "size-28 xl:size-32",
@@ -71,7 +71,7 @@ const STRIP_SIZES = {
     name: "text-sm",
     title: "text-xs",
     edgePad:
-      "px-[max(0.25rem,calc(50%-3.5rem))] xl:px-[max(1rem,calc(50%-4.5rem))]",
+      "px-[max(0.25rem,calc(50vw-3.5rem))] xl:px-[max(1rem,calc(50vw-4.5rem))]",
   },
 } as const;
 
