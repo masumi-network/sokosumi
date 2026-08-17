@@ -51,6 +51,7 @@ export function IdentityOnboardingForm({
   });
 
   async function leaveGateAfterWorkspace(organizationId: string | null) {
+    setSubmitting(true);
     try {
       await activateOrganizationWorkspace(organizationId);
     } catch (error) {

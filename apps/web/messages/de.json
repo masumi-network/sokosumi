@@ -5388,7 +5388,7 @@
       "createPersonal": "Persönlichen Workspace erstellen",
       "continue": "Weiter",
       "nameUpdateError": "Dein Anzeigename konnte nicht aktualisiert werden.",
-      "organizationActivateError": "Wir konnten dich nicht in diese Organisation wechseln. Du kannst den Workspace wechseln, sobald du im Produkt bist.",
+      "organizationActivateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Workspace wechseln, sobald du im Produkt bist.",
       "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden."
     }
   }

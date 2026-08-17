@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
 
@@ -118,14 +118,21 @@ function renderForm(initialName = "Ada Lovelace") {
 }
 
 describe("IdentityOnboardingForm", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     updateUserMock.mockResolvedValue({ error: null });
     createPersonalWorkspaceActionMock.mockResolvedValue({
       ok: true,
       value: { workspaceId: "ws-1" },
     });
     activateOrganizationWorkspaceMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   it("prefills the display name and requires at least 2 characters", async () => {
@@ -220,11 +227,13 @@ describe("IdentityOnboardingForm", () => {
     await user.click(await screen.findByTestId("wizard-complete"));
 
     await waitFor(() => {
+      expect(activateOrganizationWorkspaceMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
       expect(routerRefreshMock).toHaveBeenCalledOnce();
     });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("workspace-gate-identity-submit")).toBeDisabled();
   });
 
   it("retries organization activation once before leaving the gate", async () => {
@@ -232,9 +241,6 @@ describe("IdentityOnboardingForm", () => {
     activateOrganizationWorkspaceMock
       .mockRejectedValueOnce(new Error("setActive failed"))
       .mockResolvedValueOnce(undefined);
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
@@ -246,7 +252,6 @@ describe("IdentityOnboardingForm", () => {
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("toasts and still leaves the gate when organization activation fails twice", async () => {
@@ -254,9 +259,6 @@ describe("IdentityOnboardingForm", () => {
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),
     );
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
@@ -271,7 +273,6 @@ describe("IdentityOnboardingForm", () => {
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
       expect(routerRefreshMock).toHaveBeenCalledOnce();
     });
-    consoleErrorSpy.mockRestore();
   });
 
   it("does not create when the name update fails", async () => {
@@ -299,9 +300,6 @@ describe("IdentityOnboardingForm", () => {
         message: "ECONNRESET from core-internal-host:8787",
       },
     });
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     renderForm();
 
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -317,7 +315,6 @@ describe("IdentityOnboardingForm", () => {
       },
     );
     expect(routerReplaceMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("leaves the gate when Core reports the personal workspace already exists", async () => {
@@ -346,9 +343,6 @@ describe("IdentityOnboardingForm", () => {
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),
     );
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     renderForm();
 
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -359,6 +353,5 @@ describe("IdentityOnboardingForm", () => {
       expect(routerRefreshMock).toHaveBeenCalledOnce();
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 });
