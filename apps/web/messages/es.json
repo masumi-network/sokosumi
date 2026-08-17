@@ -5394,7 +5394,7 @@
   },
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
-    "identityTitle": "Crea tu primer espacio de trabajo",
+    "identityTitle": "Crea tu espacio de trabajo",
     "identityDescription": "Introduce tu nombre y elige cómo quieres empezar.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización. Se omite la configuración de identidad.",
