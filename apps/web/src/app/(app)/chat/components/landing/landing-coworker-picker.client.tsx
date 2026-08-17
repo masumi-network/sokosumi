@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
@@ -42,7 +42,6 @@ export function LandingCoworkerPicker({
   showSearchAgents = false,
 }: LandingCoworkerPickerProps) {
   const t = useTranslations("App.Chat.Landing");
-  const router = useRouter();
   const [selectedId, setSelectedId] = useState(initialSelectedId);
 
   const initial =
@@ -126,13 +125,12 @@ export function LandingCoworkerPicker({
           <div className="w-full min-w-0" data-testid="landing-start-chat">
             {isSearchSelected ? (
               <Button
-                type="button"
+                asChild
                 variant="primary"
                 size="lg"
                 className={cn("h-12 w-full px-8 text-base", startChatClassName)}
-                onClick={() => router.push("/agents")}
               >
-                {t("cta.searchAgents")}
+                <Link href="/agents">{t("cta.searchAgents")}</Link>
               </Button>
             ) : (
               <StartChatButton
