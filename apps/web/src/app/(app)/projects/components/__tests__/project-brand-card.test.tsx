@@ -5,13 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ProjectBrandCard,
   ProjectBrandProvider,
-  ProjectBrandStatCard,
 } from "@/app/projects/components/project-brand-card";
 import { removeProjectDesignMd } from "@/lib/actions/project/action";
 
-const { generateMock, refreshMock } = vi.hoisted(() => ({
+const { generateMock, refreshMock, resumeMock } = vi.hoisted(() => ({
   generateMock: vi.fn(),
   refreshMock: vi.fn(),
+  resumeMock: vi.fn(),
 }));
 
 const MESSAGES: Record<string, string> = {
@@ -78,6 +78,7 @@ vi.mock("@/components/design-md", () => ({
     generate: generateMock,
     isRunning: false,
     reset: vi.fn(),
+    resume: resumeMock,
     status: "idle",
   }),
 }));
@@ -93,8 +94,11 @@ function renderBrandDashboard({
   websiteUrl?: string | null;
 } = {}) {
   return render(
-    <ProjectBrandProvider projectId="project-1" initialDesignMd={designMd}>
-      <ProjectBrandStatCard projectName="Launch" />
+    <ProjectBrandProvider
+      projectId="project-1"
+      initialDesignMd={designMd}
+      websiteUrl={websiteUrl}
+    >
       <ProjectBrandCard
         projectId="project-1"
         projectName="Launch"
@@ -107,15 +111,14 @@ function renderBrandDashboard({
 describe("ProjectBrandCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("generates with force and exposes existing file actions", async () => {
     const user = userEvent.setup();
     renderBrandDashboard();
 
-    expect(
-      within(screen.getByTestId("project-brand-stat")).getByText("Ready"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
       "href",
       "https://blob.example/DESIGN.md",
@@ -140,9 +143,7 @@ describe("ProjectBrandCard", () => {
     removeMock.mockResolvedValue({ projectId: "project-1" });
     renderBrandDashboard({ designMd: null });
 
-    expect(
-      within(screen.getByTestId("project-brand-stat")).getByText("Not set"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Not set")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Upload existing" }));
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
       "href",
@@ -156,9 +157,60 @@ describe("ProjectBrandCard", () => {
     await waitFor(() => {
       expect(removeMock).toHaveBeenCalledWith({ projectId: "project-1" });
     });
-    expect(
-      within(screen.getByTestId("project-brand-stat")).getByText("Not set"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+  });
+
+  it("does not auto-recreate an existing brand after removal", async () => {
+    const user = userEvent.setup();
+    vi.mocked(removeProjectDesignMd).mockResolvedValue({
+      projectId: "project-1",
+    });
+    renderBrandDashboard();
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Not set")).toBeInTheDocument(),
+    );
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("resumes a pending wizard generation on the project page", async () => {
+    window.sessionStorage.setItem(
+      "sokosumi:project-brand-job:project-1",
+      JSON.stringify({
+        jobId: "job-1",
+        jobToken: "token-1",
+        url: "https://example.com",
+      }),
+    );
+
+    renderBrandDashboard({ designMd: null });
+
+    await waitFor(() =>
+      expect(resumeMock).toHaveBeenCalledWith({
+        jobId: "job-1",
+        jobToken: "token-1",
+        url: "https://example.com",
+      }),
+    );
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("auto-starts once when a website project has no brand job", async () => {
+    renderBrandDashboard({ designMd: null });
+
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        url: "https://example.com",
+      }),
+    );
+    expect(generateMock).toHaveBeenCalledOnce();
   });
 
   it("disables generation and explains when website is missing", () => {

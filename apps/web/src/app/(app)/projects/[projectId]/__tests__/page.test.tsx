@@ -39,7 +39,6 @@ vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-  ProjectBrandStatCard: () => <div data-testid="brand-stat">Brand stat</div>,
   ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
 }));
 
@@ -148,7 +147,6 @@ describe("ProjectDetailPage", () => {
         name: "App.Projects.Detail.briefing",
       }),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("brand-stat")).not.toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
     expect(

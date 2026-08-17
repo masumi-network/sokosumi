@@ -17,6 +17,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -25,6 +26,8 @@ import { toast } from "sonner";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
   clearPendingProjectBrandJob,
+  hasProjectBrandAutoStartAttempted,
+  markProjectBrandAutoStartAttempted,
   readPendingProjectBrandJob,
   savePendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
@@ -61,13 +64,10 @@ interface ProjectBrandDashboardValue {
   setDesignMd: (designMd: ProjectDesignMd | null) => void;
 }
 
-interface ProjectBrandStatCardProps {
+interface ProjectBrandCardProps {
   logo?: string | null;
-  projectName: string;
-}
-
-interface ProjectBrandCardProps extends ProjectBrandStatCardProps {
   projectId: string;
+  projectName: string;
   websiteUrl?: string | null;
 }
 
@@ -93,6 +93,7 @@ export function ProjectBrandProvider({
   const [designMd, setDesignMd] = useState<ProjectDesignMd | null>(
     initialDesignMd,
   );
+  const backgroundGenerationAttempted = useRef(false);
   const owner = useMemo(
     () => ({ type: "project" as const, projectId }),
     [projectId],
@@ -131,16 +132,26 @@ export function ProjectBrandProvider({
   // and no DESIGN.md yet, kick generation off once so it lands on its own.
   const { resume, generate, isRunning } = generation;
   useEffect(() => {
-    if (designMd || isRunning) return;
+    if (designMd) {
+      // Prevent an explicit remove from immediately recreating a brand when
+      // router.refresh remounts this provider in the same browser session.
+      backgroundGenerationAttempted.current = true;
+      markProjectBrandAutoStartAttempted(projectId);
+      return;
+    }
+    if (isRunning) return;
     const pending = readPendingProjectBrandJob(projectId);
     if (pending) {
+      if (backgroundGenerationAttempted.current) return;
+      backgroundGenerationAttempted.current = true;
       resume(pending);
       return;
     }
     if (!websiteUrl) return;
-    const attemptedKey = `sokosumi:project-brand-autostart:${projectId}`;
-    if (window.sessionStorage.getItem(attemptedKey)) return;
-    window.sessionStorage.setItem(attemptedKey, "1");
+    if (backgroundGenerationAttempted.current) return;
+    if (hasProjectBrandAutoStartAttempted(projectId)) return;
+    backgroundGenerationAttempted.current = true;
+    markProjectBrandAutoStartAttempted(projectId);
     void generate({ url: websiteUrl });
   }, [designMd, generate, isRunning, projectId, resume, websiteUrl]);
 
@@ -153,56 +164,6 @@ export function ProjectBrandProvider({
     <ProjectBrandDashboardContext value={value}>
       {children}
     </ProjectBrandDashboardContext>
-  );
-}
-
-export function ProjectBrandStatCard({
-  logo,
-  projectName,
-}: ProjectBrandStatCardProps) {
-  const t = useTranslations("App.Projects.Detail");
-  const { designMd, generation } = useProjectBrandDashboard();
-  const status = generation.isRunning
-    ? t("brandCard.generating")
-    : designMd
-      ? t("brandCard.ready")
-      : t("brandCard.notSet");
-
-  return (
-    <Link
-      href="#project-brand-card"
-      className="bg-muted/30 border-border/50 hover:bg-muted/50 min-w-0 rounded-xl border p-4 transition-colors"
-      data-testid="project-brand-stat"
-    >
-      <p className="text-muted-foreground text-xs font-medium">{t("brand")}</p>
-      <div className="mt-2 flex min-w-0 items-center gap-2.5">
-        <ProjectAvatar name={projectName} logo={logo} className="size-8" />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            {generation.isRunning ? (
-              <Loader2
-                className="text-muted-foreground size-3.5 animate-spin"
-                aria-hidden
-              />
-            ) : designMd ? (
-              <span
-                className="bg-semantic-success size-2 rounded-full"
-                aria-hidden
-              />
-            ) : (
-              <span
-                className="bg-muted-foreground/30 size-2 rounded-full"
-                aria-hidden
-              />
-            )}
-            <span className="truncate text-sm font-medium">{status}</span>
-          </div>
-          <p className="text-muted-foreground mt-1 truncate text-xs">
-            DESIGN.md
-          </p>
-        </div>
-      </div>
-    </Link>
   );
 }
 
