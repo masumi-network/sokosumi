@@ -51,3 +51,4 @@ export * from "./user.repository.js";
 export * from "./utmAttribution.repository.js";
 export * from "./vendor-grant.repository.js";
 export * from "./workspace.repository.js";
+export * from "./workspace-errors.js";

@@ -1,5 +1,6 @@
 import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
+import { rethrowPersonalWorkspaceMissing } from "@/helpers/personal-workspace-error";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -40,11 +41,16 @@ export async function assertCoworkerUserContextBinding(
   userContext: Pick<UserContext, "userId" | "organizationId">,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const workspace = await workspaceRepository.upsertWorkspaceForContext(
-    userContext.userId,
-    userContext.organizationId,
-    tx,
-  );
+  let workspace;
+  try {
+    workspace = await workspaceRepository.upsertWorkspaceForContext(
+      userContext.userId,
+      userContext.organizationId,
+      tx,
+    );
+  } catch (error) {
+    rethrowPersonalWorkspaceMissing(error);
+  }
 
   const grant = await getWorkspaceGrant(
     {

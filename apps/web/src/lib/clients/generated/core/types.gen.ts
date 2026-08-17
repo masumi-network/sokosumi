@@ -3732,7 +3732,7 @@ export type CoworkerWorkspaceAccessTarget = {
      */
     workspaceId?: string;
     /**
-     * User id — resolves (or creates) that user's personal workspace.
+     * User id — resolves that user's personal workspace. Errors if none exists.
      */
     userId?: string;
     /**
@@ -3740,7 +3740,7 @@ export type CoworkerWorkspaceAccessTarget = {
      */
     organizationId?: string;
     /**
-     * User email — resolves (or creates) that user's personal workspace. Prefer for vendor targeting without directory search.
+     * User email — resolves that user's personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.
      */
     email?: string;
     /**

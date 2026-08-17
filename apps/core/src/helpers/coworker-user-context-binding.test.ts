@@ -23,12 +23,17 @@ const {
   taskFindFirstMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
-  },
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: {
+      upsertWorkspaceForContext: (...args: unknown[]) =>
+        upsertWorkspaceForContextMock(...args),
+    },
+  };
+});
 
 vi.mock("./vendor-grants", () => ({
   getWorkspaceGrant: (...args: unknown[]) => getWorkspaceGrantMock(...args),
@@ -208,6 +213,23 @@ describe("assertCoworkerUserContextBinding", () => {
     expect(isGrantDeniedOrRevokedMock).toHaveBeenCalledWith(
       VendorGrantStatus.PENDING,
     );
+  });
+
+  it("404s when personal workspace is missing", async () => {
+    const { PersonalWorkspaceMissingError } = await import(
+      "@sokosumi/database/repositories"
+    );
+    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+      new PersonalWorkspaceMissingError(),
+    );
+
+    await expect(
+      assertCoworkerUserContextBinding(coworkerAuth, {
+        userId: "user_1",
+        organizationId: null,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 });
 

@@ -72,6 +72,25 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         });
       }
 
+      const user = await tx.user.findUnique({
+        where: { id: resolvedUserId },
+        select: { preferredOrganizationId: true },
+      });
+      if (user?.preferredOrganizationId == null) {
+        const remainingMembership = await tx.member.findFirst({
+          where: { userId: resolvedUserId },
+          select: { organizationId: true },
+        });
+        if (remainingMembership) {
+          await tx.user.update({
+            where: { id: resolvedUserId },
+            data: {
+              preferredOrganizationId: remainingMembership.organizationId,
+            },
+          });
+        }
+      }
+
       try {
         await tx.workspace.delete({
           where: { id: existing.id },

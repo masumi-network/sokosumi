@@ -33,6 +33,7 @@ interface AccountSettingsProps {
   hasPersonalWorkspace?: boolean;
   hasOrganizationMembership?: boolean;
   fallbackOrganizationId?: string | null;
+  currentOrganizationId?: string | null;
 }
 
 export function AccountSettings({
@@ -49,6 +50,7 @@ export function AccountSettings({
   hasPersonalWorkspace = false,
   hasOrganizationMembership = false,
   fallbackOrganizationId = null,
+  currentOrganizationId = null,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -117,6 +119,7 @@ export function AccountSettings({
             <DeletePersonalWorkspaceForm
               hasOrganizationMembership={hasOrganizationMembership}
               fallbackOrganizationId={fallbackOrganizationId}
+              currentOrganizationId={currentOrganizationId}
             />
           </div>
         </div>

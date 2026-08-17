@@ -50,6 +50,13 @@ const TX = {
     findUnique: workspaceFindUniqueMock,
     delete: workspaceDeleteMock,
   },
+  user: {
+    findUnique: vi.fn().mockResolvedValue({ preferredOrganizationId: "org_1" }),
+    update: vi.fn(),
+  },
+  member: {
+    findFirst: vi.fn(),
+  },
 };
 
 function createApp(authContext: AuthenticationContext = SESSION_USER) {
@@ -90,6 +97,9 @@ describe("DELETE /users/{id}/personal-workspace", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    TX.user.findUnique.mockResolvedValue({ preferredOrganizationId: "org_1" });
+    TX.user.update.mockResolvedValue({ id: "user_123" });
+    TX.member.findFirst.mockResolvedValue({ organizationId: "org_1" });
     transactionMock.mockImplementation(async (callback) => {
       return await callback(TX);
     });
@@ -149,6 +159,33 @@ describe("DELETE /users/{id}/personal-workspace", () => {
     );
     expect(workspaceDeleteMock).toHaveBeenCalledWith({
       where: { id: "11111111-1111-7111-8111-111111111111" },
+    });
+    expect(TX.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rewrites preferred to a remaining org when preferred is already personal", async () => {
+    workspaceFindUniqueMock.mockResolvedValueOnce({
+      id: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+    });
+    isLastWorkspaceMock.mockResolvedValueOnce(false);
+    TX.user.findUnique.mockResolvedValueOnce({
+      preferredOrganizationId: null,
+    });
+    workspaceDeleteMock.mockResolvedValueOnce({
+      id: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+    });
+
+    const response = await deletePersonalWorkspace(createApp(), "me");
+    expect(response.status).toBe(200);
+    expect(TX.member.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+      select: { organizationId: true },
+    });
+    expect(TX.user.update).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      data: { preferredOrganizationId: "org_1" },
     });
   });
 });

@@ -1424,7 +1424,7 @@ export const patchUsersByIdPreferences = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Pass a null `organizationId` to switch to the personal workspace. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.
+ * Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Pass a null `organizationId` to switch to the personal workspace — refused when the personal workspace is missing. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.
  */
 export const putUsersByIdPreferredOrganization = <ThrowOnError extends boolean = false>(options: Options<PutUsersByIdPreferredOrganizationData, ThrowOnError>): RequestResult<PutUsersByIdPreferredOrganizationResponses, PutUsersByIdPreferredOrganizationErrors, ThrowOnError> => (options.client ?? client).put<PutUsersByIdPreferredOrganizationResponses, PutUsersByIdPreferredOrganizationErrors, ThrowOnError>({
     responseTransformer: putUsersByIdPreferredOrganizationResponseTransformer,

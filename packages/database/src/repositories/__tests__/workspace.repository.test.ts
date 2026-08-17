@@ -5,6 +5,7 @@ import { beforeEach, describe, it } from "vitest";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { vendorGrantRepository } from "../vendor-grant.repository.js";
 import { workspaceRepository } from "../workspace.repository.js";
+import { PersonalWorkspaceMissingError } from "../workspace-errors.js";
 
 describe("workspaceRepository", () => {
   beforeEach(() => {
@@ -149,7 +150,7 @@ describe("workspaceRepository", () => {
 
     await assert.rejects(
       () => workspaceRepository.upsertWorkspaceForContext("user-1", null, tx),
-      /Personal workspace is missing/,
+      PersonalWorkspaceMissingError,
     );
     assert.equal(createCalled, false);
   });

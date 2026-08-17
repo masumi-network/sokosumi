@@ -30,11 +30,13 @@ import { activateOrganizationWorkspace } from "@/lib/activate-organization-works
 interface DeletePersonalWorkspaceFormProps {
   hasOrganizationMembership: boolean;
   fallbackOrganizationId: string | null;
+  currentOrganizationId: string | null;
 }
 
 export function DeletePersonalWorkspaceForm({
   hasOrganizationMembership,
   fallbackOrganizationId,
+  currentOrganizationId,
 }: DeletePersonalWorkspaceFormProps) {
   const t = useTranslations("App.Account.DeletePersonal");
   const router = useRouter();
@@ -59,7 +61,7 @@ export function DeletePersonalWorkspaceForm({
         return;
       }
 
-      if (fallbackOrganizationId) {
+      if (currentOrganizationId === null && fallbackOrganizationId) {
         try {
           await activateOrganizationWorkspace(fallbackOrganizationId);
         } catch (error) {

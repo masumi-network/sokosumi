@@ -1,4 +1,7 @@
-import { workspaceRepository } from "@sokosumi/database/repositories";
+import {
+  isPersonalWorkspaceMissingError,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -87,8 +90,8 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
     try {
       // Avoid wrapping every request in a DB transaction — pool contention under
       // load caused P2028 "Unable to start a transaction in the given time"
-      // (SOKOSUMI-CORE-2J). upsertWorkspaceForContext is idempotent and handles
-      // create races via unique-constraint recovery.
+      // (SOKOSUMI-CORE-2J). Org workspace create is still idempotent via
+      // unique-constraint recovery. Missing personal is fail-closed, not create.
       const workspace = await workspaceRepository.upsertWorkspaceForContext(
         workspaceOwnerContext.userId,
         workspaceOwnerContext.organizationId,
@@ -103,6 +106,10 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
 
       c.set("workspaceContext", workspaceContext);
     } catch (error) {
+      if (isPersonalWorkspaceMissingError(error)) {
+        c.set("workspaceContext", null);
+        return await next();
+      }
       captureExternalServiceError(error, {
         label: "workspace_context_resolution",
         sentry: {

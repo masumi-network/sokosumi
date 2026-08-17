@@ -89,6 +89,7 @@ async function AccountPageContent() {
             workspaceAccess?.hasOrganizationMembership ?? members.length > 0
           }
           fallbackOrganizationId={members[0]?.organization.id ?? null}
+          currentOrganizationId={session?.session.activeOrganizationId ?? null}
         />
       </div>
     </div>

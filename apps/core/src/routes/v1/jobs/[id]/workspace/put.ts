@@ -7,6 +7,7 @@ import { requireJobCollaboration } from "@/helpers/access-control";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { rethrowPersonalWorkspaceMissing } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -113,11 +114,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
 
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        userContext.userId,
-        targetOrganizationId ?? null,
-        tx,
-      );
+      let workspace;
+      try {
+        workspace = await workspaceRepository.upsertWorkspaceForContext(
+          userContext.userId,
+          targetOrganizationId ?? null,
+          tx,
+        );
+      } catch (error) {
+        rethrowPersonalWorkspaceMissing(error);
+      }
 
       await tx.job.update({
         where: {

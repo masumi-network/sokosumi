@@ -62,12 +62,17 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
-  },
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: {
+      upsertWorkspaceForContext: (...args: unknown[]) =>
+        upsertWorkspaceForContextMock(...args),
+    },
+  };
+});
 
 function createApp(includeWorkspaceContext: boolean) {
   const app = new OpenAPIHonoWithAuth({
@@ -139,6 +144,45 @@ describe("workspaceMiddleware", () => {
       workspaceContext: null,
     });
     expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves workspaceContext null when personal workspace is missing", async () => {
+    const { PersonalWorkspaceMissingError } = await import(
+      "@sokosumi/database/repositories"
+    );
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: null,
+      },
+      user: {
+        id: "user_123",
+      },
+    });
+    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+      new PersonalWorkspaceMissingError(),
+    );
+
+    const app = createApp(true);
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      authContext: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      },
+      workspaceContext: null,
+    });
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_123",
+      null,
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+      }),
+    );
+    expect(captureExternalServiceErrorMock).not.toHaveBeenCalled();
   });
 
   it("resolves workspaceContext for user requests when included", async () => {

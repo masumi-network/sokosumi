@@ -8,6 +8,7 @@ import {
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { rethrowPersonalWorkspaceMissing } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -89,12 +90,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
 
-      const targetWorkspace =
-        await workspaceRepository.upsertWorkspaceForContext(
+      let targetWorkspace;
+      try {
+        targetWorkspace = await workspaceRepository.upsertWorkspaceForContext(
           userContext.userId,
           targetOrganizationId ?? null,
           tx,
         );
+      } catch (error) {
+        rethrowPersonalWorkspaceMissing(error);
+      }
 
       const existingLink = await tx.taskLink.findFirst({
         where: {

@@ -1,6 +1,7 @@
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
 
 import { vendorGrantRepository } from "./vendor-grant.repository.js";
+import { PersonalWorkspaceMissingError } from "./workspace-errors.js";
 
 function isPrismaUniqueConstraintError(error: unknown): boolean {
   return (
@@ -133,7 +134,7 @@ export const workspaceRepository = {
 
     const personalWorkspace = await this.findPersonalWorkspace({ userId, tx });
     if (!personalWorkspace) {
-      throw new Error("Personal workspace is missing");
+      throw new PersonalWorkspaceMissingError();
     }
 
     await ensureServiceplanGrantForWorkspace(personalWorkspace, userId, tx);

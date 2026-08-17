@@ -12778,7 +12778,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         userId: {
             type: 'string',
             minLength: 1,
-            description: 'User id — resolves (or creates) that user\'s personal workspace.'
+            description: 'User id — resolves that user\'s personal workspace. Errors if none exists.'
         },
         organizationId: {
             type: 'string',
@@ -12788,7 +12788,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         email: {
             type: 'string',
             format: 'email',
-            description: 'User email — resolves (or creates) that user\'s personal workspace. Prefer for vendor targeting without directory search.',
+            description: 'User email — resolves that user\'s personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.',
             example: 'pilot@example.com'
         },
         organizationSlug: {

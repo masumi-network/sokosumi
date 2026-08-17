@@ -94,7 +94,8 @@ function accessUniqueWhere(coworkerId: string, workspaceId: string) {
 
 export interface ResolveCoworkerAccessTargetOptions {
   /**
-   * When true (create/propose), missing personal/org workspaces are upserted.
+   * When true (create/propose), a missing organization workspace is upserted.
+   * A missing personal workspace always 404s — never created here.
    * When false (force-revoke), missing workspaces 404 — no side-effect create.
    */
   createIfMissing?: boolean;
