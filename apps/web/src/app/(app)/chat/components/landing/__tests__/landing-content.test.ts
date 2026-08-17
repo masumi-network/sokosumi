@@ -5,12 +5,10 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
-  clampLandingDescription,
-  LANDING_DESCRIPTION_MAX_CHARS,
+  compareCoworkerRank,
   orderStripCoworkers,
   resolveFeaturedCoworker,
   resolveLandingGreetingName,
-  selectedCoworkerDescription,
   toStripCoworker,
 } from "../landing-content";
 
@@ -59,70 +57,63 @@ function fakeTranslator(key: string, values?: Record<string, number | string>) {
   return values ? `${key}:${JSON.stringify(values)}` : key;
 }
 
-describe("resolveFeaturedCoworker", () => {
-  it("prefers Elena regardless of list order or slug casing", () => {
-    const coworkers = [
-      buildCoworker({ id: "hannah" }),
-      buildCoworker({ id: "elena-id", slug: "Elena" }),
-      buildCoworker({ id: "alex" }),
-    ];
-
-    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("elena-id");
+describe("compareCoworkerRank", () => {
+  it("ranks higher priority first", () => {
+    expect(
+      compareCoworkerRank(
+        { priority: 1, slug: "a" },
+        { priority: 10, slug: "b" },
+      ),
+    ).toBeGreaterThan(0);
   });
 
-  it("falls back to the default coworker when Elena is not available", () => {
-    // `scope=available` is whitelist ∪ granted access, so Elena can be absent.
+  it("breaks priority ties by slug", () => {
+    expect(
+      compareCoworkerRank(
+        { priority: 0, slug: "alex" },
+        { priority: 0, slug: "elena" },
+      ),
+    ).toBeLessThan(0);
+  });
+
+  it("treats a missing priority as zero", () => {
+    expect(
+      compareCoworkerRank({ slug: "alex" }, { priority: 3, slug: "elena" }),
+    ).toBeGreaterThan(0);
+  });
+});
+
+describe("resolveFeaturedCoworker", () => {
+  it("prefers the coworker with the highest priority regardless of list order", () => {
     const coworkers = [
-      buildCoworker({ id: "hannah" }),
-      buildCoworker({ id: "alex" }),
+      buildCoworker({
+        id: "hannah",
+        slug: "hannah",
+        priority: 2,
+      }),
+      buildCoworker({
+        id: "elena-id",
+        slug: "elena",
+        priority: 1,
+      }),
+      buildCoworker({ id: "alex", slug: "alex", priority: 8 }),
     ];
 
-    expect(resolveFeaturedCoworker(coworkers)).not.toBeNull();
+    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
+  });
+
+  it("does not prefer Elena when every priority is zero", () => {
+    const coworkers = [
+      buildCoworker({ id: "hannah", slug: "hannah" }),
+      buildCoworker({ id: "elena-id", slug: "elena" }),
+      buildCoworker({ id: "alex", slug: "alex" }),
+    ];
+
+    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
   });
 
   it("returns null when there are no coworkers at all", () => {
     expect(resolveFeaturedCoworker([])).toBeNull();
-  });
-});
-
-describe("selectedCoworkerDescription", () => {
-  it("returns a trimmed description", () => {
-    const elena = buildCoworker({
-      id: "elena",
-      slug: "elena",
-      caption: "Strategy",
-      description: "  Turns goals into work.  ",
-    });
-    expect(selectedCoworkerDescription(elena)).toBe("Turns goals into work.");
-  });
-
-  it("returns null when description is empty — no caption fallback", () => {
-    const hannah = buildCoworker({
-      id: "hannah",
-      slug: "hannah",
-      caption: "Research",
-      description: "   ",
-    });
-    expect(selectedCoworkerDescription(hannah)).toBeNull();
-  });
-});
-
-describe("clampLandingDescription", () => {
-  it("leaves short copy untouched", () => {
-    expect(clampLandingDescription("Short pitch.")).toEqual({
-      isTruncated: false,
-      preview: "Short pitch.",
-    });
-  });
-
-  it("truncates long copy near the character budget with an ellipsis", () => {
-    const long = "word ".repeat(50).trim();
-    const result = clampLandingDescription(long);
-    expect(result.isTruncated).toBe(true);
-    expect(result.preview.endsWith("…")).toBe(true);
-    expect(result.preview.length).toBeLessThanOrEqual(
-      LANDING_DESCRIPTION_MAX_CHARS + 1,
-    );
   });
 });
 
@@ -213,29 +204,38 @@ describe("orderStripCoworkers", () => {
   );
 
   it("places the featured coworker at the exact middle for an odd count", () => {
-    // 1 featured + 4 others = 5 → index 2
+    // ranks a,b,c,d by slug → diamond [c, a, featured, b, d]
     const four = others.slice(0, 4);
     const ordered = orderStripCoworkers([featured, ...four], featured);
-    expect(ordered.map((c) => c.id)).toEqual(["a", "b", "elena", "c", "d"]);
+    expect(ordered.map((c) => c.id)).toEqual(["c", "a", "elena", "b", "d"]);
     expect(ordered).toHaveLength(5);
   });
 
-  it("places the featured coworker left-of-centre for an even count", () => {
-    // 1 featured + 3 others = 4 → index 1 (left of the two centre slots)
+  it("drops the lowest-priority coworker when the catalog would be even", () => {
+    // featured + a,b,c = 4 → drop c (last by slug) → [a, elena, b]
     const three = others.slice(0, 3);
     const ordered = orderStripCoworkers([featured, ...three], featured);
-    expect(ordered.map((c) => c.id)).toEqual(["a", "elena", "b", "c"]);
-    expect(ordered).toHaveLength(4);
+    expect(ordered.map((c) => c.id)).toEqual(["a", "elena", "b"]);
+    expect(ordered).toHaveLength(3);
+    expect(ordered.map((c) => c.id)).not.toContain("c");
   });
 
-  it("keeps every coworker — never drops for even flanks", () => {
+  it("drops the last rank from an even catalog so the featured face is centred", () => {
+    // featured + 7 others = 8 → drop g → diamond of 7
     const ordered = orderStripCoworkers([featured, ...others], featured);
-    expect(ordered).toHaveLength(1 + others.length);
-    expect(ordered.map((c) => c.id).sort()).toEqual(
-      ["elena", ...others.map((c) => c.id)].sort(),
-    );
-    // 8 items → index floor(7/2)=3
-    expect(ordered[3]?.id).toBe("elena");
+    expect(ordered).toHaveLength(7);
+    expect(ordered.length % 2).toBe(1);
+    expect(ordered[Math.floor(ordered.length / 2)]?.id).toBe("elena");
+    expect(ordered.map((c) => c.id)).toEqual([
+      "e",
+      "c",
+      "a",
+      "elena",
+      "b",
+      "d",
+      "f",
+    ]);
+    expect(ordered.map((c) => c.id)).not.toContain("g");
   });
 
   it("returns an empty list when nothing is featured", () => {
@@ -246,6 +246,34 @@ describe("orderStripCoworkers", () => {
     expect(orderStripCoworkers([featured], featured).map((c) => c.id)).toEqual([
       "elena",
     ]);
+  });
+
+  it("drops the other face when the catalog is two so the lead stays centred", () => {
+    const other = buildCoworker({ id: "a", slug: "a" });
+    const ordered = orderStripCoworkers([featured, other], featured);
+    expect(ordered.map((c) => c.id)).toEqual(["elena"]);
+  });
+
+  it("orders the flanks by priority: 2nd left, 3rd right, lowest on the edge", () => {
+    const lead = buildCoworker({
+      id: "alex",
+      slug: "alex",
+      priority: 20,
+    });
+    const second = buildCoworker({
+      id: "hannah",
+      slug: "hannah",
+      priority: 5,
+    });
+    const lowest = buildCoworker({
+      id: "blake",
+      slug: "blake",
+      priority: 1,
+    });
+
+    const ordered = orderStripCoworkers([lowest, lead, second], lead);
+    expect(ordered.map((c) => c.id)).toEqual(["hannah", "alex", "blake"]);
+    expect(ordered.length % 2).toBe(1);
   });
 });
 

@@ -6,16 +6,12 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { cn } from "@/lib/utils";
 
 import { CoworkerStrip } from "./coworker-strip.client";
-import {
-  orderStripCoworkers,
-  selectedCoworkerDescription,
-} from "./landing-content";
-import { LandingSelectedDescription } from "./landing-selected-description.client";
+import { orderStripCoworkers } from "./landing-content";
 import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
   coworkers: Coworker[];
-  /** Elena (or fallback) — default selection before the user taps. */
+  /** Highest-priority coworker — default selection before the user taps. */
   initialSelectedId: string;
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */
@@ -27,13 +23,10 @@ interface LandingCoworkerPickerProps {
  *
  * The strip already shows name + role under each avatar and is full-bleed
  * within the landing column (no horizontal page pad on the strip or its
- * overflow ancestors). The selected block below is description → Start chat
- * only — no second identity heading — and keeps `px-4` + `max-w-xs` so copy
- * and CTA stay inset. The picker is viewport-bounded (`w-full min-w-0`) so
- * the strip's w-max track cannot widen Start chat. Collapsed description
- * slots keep fixed min-heights (including empty) so selection cannot jump
- * the CTA. Expanding More grows the description downward and may shift
- * Start chat; Less restores.
+ * overflow ancestors). The selected block is Start chat only — no second
+ * identity heading, no description. `px-4` + `max-w-xs` keep the CTA inset.
+ * The picker is viewport-bounded (`w-full min-w-0`) so the strip's w-max
+ * track cannot widen Start chat.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -54,7 +47,6 @@ export function LandingCoworkerPicker({
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
-  const selectedDescription = selectedCoworkerDescription(selected) ?? "";
 
   return (
     <div
@@ -66,7 +58,7 @@ export function LandingCoworkerPicker({
       <div
         className={cn(
           "w-full min-w-0 max-w-full",
-          size === "compact" ? "mt-6" : "mt-10",
+          size === "compact" ? "mt-6" : "mt-10 lg:mt-14",
         )}
         data-testid="landing-coworker-strip"
       >
@@ -79,14 +71,13 @@ export function LandingCoworkerPicker({
         />
       </div>
 
-      {/* Featured block is its own width budget — never inherits strip track width.
-          Description → CTA only; identity (name + role) lives under the strip
-          avatar. Reserved description slots keep CTA stable across selection;
-          More is the only intentional CTA shift. */}
+      {/* CTA is its own width budget — never inherits strip track width.
+          Identity (name + role) lives under the strip avatar. Extra large-
+          screen margin drops Start chat slightly in the pane. */}
       <div
         className={cn(
           "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center justify-start px-4",
-          size === "compact" ? "mt-4" : "mt-5",
+          size === "compact" ? "mt-6" : "mt-10 lg:mt-16 xl:mt-20",
         )}
         data-testid="landing-selected-block"
       >
@@ -94,13 +85,7 @@ export function LandingCoworkerPicker({
           className="flex w-full shrink-0 flex-col items-center"
           data-testid="landing-selected-cta-stack"
         >
-          <LandingSelectedDescription
-            coworkerId={selected.id}
-            description={selectedDescription}
-            size={size}
-          />
-
-          <div className="mt-4 w-full min-w-0" data-testid="landing-start-chat">
+          <div className="w-full min-w-0" data-testid="landing-start-chat">
             <StartChatButton
               className={cn("w-full", startChatClassName)}
               coworkerId={selected.id}

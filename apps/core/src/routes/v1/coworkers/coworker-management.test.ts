@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coworkerInclude } from "@/helpers/coworker";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -1024,7 +1025,7 @@ describe("coworker management CRUD endpoints", () => {
     );
     expect(coworkerFindFirstTxMock).toHaveBeenCalledWith({
       where: { id: "cow_123" },
-      include: { vendor: true },
+      include: coworkerInclude,
     });
   });
 

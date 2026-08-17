@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { coworkerInclude } from "@/helpers/coworker";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -39,8 +39,6 @@ const coworkerAuth: AuthenticationContext = {
   coworkerId: "cow_456",
   vendorId: "01960001-0001-7001-8001-000000000001",
 };
-
-const coworkerInclude = { vendor: true } as const;
 
 const sampleVendor = {
   id: "01960001-0001-7001-8001-000000000001",
