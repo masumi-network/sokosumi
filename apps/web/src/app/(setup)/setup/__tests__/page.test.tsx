@@ -34,11 +34,17 @@ vi.mock("../components/workspace-gate-retry.client", () => ({
   WorkspaceGateRetry: () => <button type="button">Try again</button>,
 }));
 
+vi.mock("../components/identity-onboarding-form.client", () => ({
+  IdentityOnboardingForm: ({ initialName }: { initialName: string }) => (
+    <div data-testid="identity-onboarding-form">{initialName}</div>
+  ),
+}));
+
 describe("WorkspaceGatePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionOrRedirectMock.mockResolvedValue({
-      user: { id: "user-1" },
+      user: { id: "user-1", name: "Ada Lovelace" },
       session: { id: "session-1" },
     });
     getTranslationsMock.mockResolvedValue((key: string) => key);
@@ -58,7 +64,7 @@ describe("WorkspaceGatePage", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
-  it("renders the identity gate when workspace access is not ready", async () => {
+  it("renders the identity form when workspace access is identity-onboarding", async () => {
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
@@ -71,8 +77,10 @@ describe("WorkspaceGatePage", () => {
 
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
-    expect(JSON.stringify(ui)).toContain("identityTitle");
-    expect(JSON.stringify(ui)).not.toContain("unavailableTitle");
+    const serialized = JSON.stringify(ui);
+    expect(serialized).toContain("identityTitle");
+    expect(serialized).toContain('"initialName":"Ada Lovelace"');
+    expect(serialized).not.toContain("unavailableTitle");
   });
 
   it("renders pending-invites copy when workspace access reports pending invites", async () => {
@@ -87,7 +95,9 @@ describe("WorkspaceGatePage", () => {
     const ui = await WorkspaceGatePage();
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(JSON.stringify(ui)).toContain("pendingInvitesTitle");
+    const serialized = JSON.stringify(ui);
+    expect(serialized).toContain("pendingInvitesTitle");
+    expect(serialized).not.toContain('"initialName"');
   });
 
   it("renders unavailable surface when workspace access throws (not identity onboarding)", async () => {
@@ -102,6 +112,7 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).toContain("unavailableBody");
     expect(serialized).toContain('"data-gate":"unavailable"');
     expect(serialized).not.toContain("identityTitle");
+    expect(serialized).not.toContain('"initialName"');
   });
 
   it("renders unavailable surface when workspace access is null for a signed-in user", async () => {

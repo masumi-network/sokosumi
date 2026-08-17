@@ -124,7 +124,7 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Workspace gate (not ready → /workspace-gate) is enforced server-side in
+  // Workspace gate (not ready → /setup) is enforced server-side in
   // AuthenticatedAppFrame via Core workspace access.
 
   return expireRetiredOnboardingGateCookie(request, response);

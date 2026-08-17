@@ -64,8 +64,9 @@ provision upserts disposable Better Auth credential accounts:
 | `admin@sokosumi.test` | `Password123!` | Platform admin (`role: admin`) + personal workspace + owner of `admin-fixture` org |
 | `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `alice-fixture` org |
 | `bob@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `bob-fixture` org |
+| `zero@sokosumi.test` | `Password123!` | Regular user with credential account only — **no** personal workspace, **no** organization / membership (identity-onboarding fixture) |
 
-Each fixture also gets an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
+Fixtures opt into personal workspace + org by default. Set `createPersonalWorkspace: false` and omit / null `organization` in `scripts/cloud-agent-db/fixtures.mjs` to seed a zero-workspace user. Org fixtures still get an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
 
 **Guards:** fixtures run only when provision state has a `cloud-agent-*` branch
 name (and a `DATABASE_URL`). They refuse `main` / other non-agent branches.

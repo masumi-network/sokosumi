@@ -7,11 +7,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-
-import { activateOrganizationWorkspace } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
