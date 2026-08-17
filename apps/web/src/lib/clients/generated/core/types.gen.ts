@@ -1526,6 +1526,14 @@ export type ChatRoomThread = {
      * createdAt of the newest qualifying unread reply, or null when none.
      */
     lastUnreadReplyAt: Date | null;
+    /**
+     * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
+     */
+    hasLooked: boolean;
+    /**
+     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.
+     */
+    attentionReplyCount: number;
 };
 
 export type ChatRoomMessage = {
@@ -1627,6 +1635,13 @@ export type ChatRoomMessageUnfurl = {
     description: string | null;
     imageUrl: string | null;
     siteName: string | null;
+};
+
+export type ChatRoomThreadsAttentionCount = {
+    /**
+     * Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.
+     */
+    count: number;
 };
 
 export type ChatRoomThreadsMarkAll = {
@@ -2626,7 +2641,7 @@ export type PersonalWorkspaceCreated = {
     workspaceId: string;
 };
 
-export type WorkspaceInventory = {
+export type WorkspaceAccess = {
     gate: WorkspaceGateStatus;
     /**
      * Whether the user owns a personal workspace row
@@ -12275,7 +12290,7 @@ export type GetChatsRoomsByIdThreadsData = {
          */
         limit?: number;
         /**
-         * When `true`, only unread threads (prior look + newer non-self replies). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.
+         * When `true`, only attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). `cursor` and `limit` are ignored. When omitted or `false`, attention threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
@@ -12372,6 +12387,112 @@ export type GetChatsRoomsByIdThreadsResponses = {
 };
 
 export type GetChatsRoomsByIdThreadsResponse = GetChatsRoomsByIdThreadsResponses[keyof GetChatsRoomsByIdThreadsResponses];
+
+export type GetChatsRoomsByIdThreadsAttentionCountData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/threads/attention-count';
+};
+
+export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdThreadsAttentionCountError = GetChatsRoomsByIdThreadsAttentionCountErrors[keyof GetChatsRoomsByIdThreadsAttentionCountErrors];
+
+export type GetChatsRoomsByIdThreadsAttentionCountResponses = {
+    /**
+     * Attention thread count
+     */
+    200: {
+        data: ChatRoomThreadsAttentionCount;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdThreadsAttentionCountResponse = GetChatsRoomsByIdThreadsAttentionCountResponses[keyof GetChatsRoomsByIdThreadsAttentionCountResponses];
 
 export type PostChatsRoomsByIdThreadsReadData = {
     body?: never;
@@ -19268,7 +19389,7 @@ export type PostUsersByIdOnboardingResponses = {
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
 
-export type GetUsersByIdWorkspaceInventoryData = {
+export type GetUsersByIdWorkspaceAccessData = {
     body?: never;
     path: {
         /**
@@ -19277,10 +19398,10 @@ export type GetUsersByIdWorkspaceInventoryData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/workspace-inventory';
+    url: '/users/{id}/workspace-access';
 };
 
-export type GetUsersByIdWorkspaceInventoryErrors = {
+export type GetUsersByIdWorkspaceAccessErrors = {
     /**
      * Unauthorized
      */
@@ -19339,14 +19460,14 @@ export type GetUsersByIdWorkspaceInventoryErrors = {
     };
 };
 
-export type GetUsersByIdWorkspaceInventoryError = GetUsersByIdWorkspaceInventoryErrors[keyof GetUsersByIdWorkspaceInventoryErrors];
+export type GetUsersByIdWorkspaceAccessError = GetUsersByIdWorkspaceAccessErrors[keyof GetUsersByIdWorkspaceAccessErrors];
 
-export type GetUsersByIdWorkspaceInventoryResponses = {
+export type GetUsersByIdWorkspaceAccessResponses = {
     /**
-     * Retrieve the user's workspace inventory and gate
+     * Retrieve the user's workspace access
      */
     200: {
-        data: WorkspaceInventory;
+        data: WorkspaceAccess;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19355,7 +19476,7 @@ export type GetUsersByIdWorkspaceInventoryResponses = {
     };
 };
 
-export type GetUsersByIdWorkspaceInventoryResponse = GetUsersByIdWorkspaceInventoryResponses[keyof GetUsersByIdWorkspaceInventoryResponses];
+export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;

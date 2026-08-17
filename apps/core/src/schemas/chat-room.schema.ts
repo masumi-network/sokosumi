@@ -500,8 +500,10 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 /**
  * A top-level room message that has ≥1 non-deleted reply, with per-user look
- * metadata. Unread counts require a prior look row (thread lastReadAt);
- * never-looked threads are not unread (ADR-0005).
+ * metadata. `unreadReplyCount` requires a prior look row (ADR-0005).
+ * `attentionReplyCount` uses the sidebar dual-baseline; Threads badge
+ * (`GET …/threads/attention-count`), `unread=true`, and overview Mark all
+ * use that count (SOK-811).
  */
 export const chatRoomThreadSchema = z
   .object({
@@ -523,6 +525,16 @@ export const chatRoomThreadSchema = z
       description:
         "createdAt of the newest qualifying unread reply, or null when none.",
       example: "2026-07-02T12:00:00.000Z",
+    }),
+    hasLooked: z.boolean().openapi({
+      description:
+        "True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.",
+      example: true,
+    }),
+    attentionReplyCount: z.number().int().min(0).openapi({
+      description:
+        "Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.",
+      example: 3,
     }),
   })
   .openapi("ChatRoomThread");
@@ -547,6 +559,17 @@ export const chatRoomThreadsMarkAllSchema = z
   })
   .openapi("ChatRoomThreadsMarkAll");
 
+/** Cheap Threads-badge count. Same dual-baseline set as `unread=true`. */
+export const chatRoomThreadsAttentionCountSchema = z
+  .object({
+    count: z.number().int().min(0).openapi({
+      description:
+        "Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.",
+      example: 4,
+    }),
+  })
+  .openapi("ChatRoomThreadsAttentionCount");
+
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
@@ -561,4 +584,7 @@ export type ChatRoomThreadReadState = z.infer<
 >;
 export type ChatRoomThreadsMarkAll = z.infer<
   typeof chatRoomThreadsMarkAllSchema
+>;
+export type ChatRoomThreadsAttentionCount = z.infer<
+  typeof chatRoomThreadsAttentionCountSchema
 >;

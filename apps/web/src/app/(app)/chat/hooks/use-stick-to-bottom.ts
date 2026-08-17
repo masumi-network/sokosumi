@@ -59,7 +59,6 @@ export function useStickToBottom({
       scrollToBottom();
     });
   }, [scrollToBottom]);
-
   const scrollToBottomIfPinned = useCallback(() => {
     if (!stickToBottomRef.current) {
       return;

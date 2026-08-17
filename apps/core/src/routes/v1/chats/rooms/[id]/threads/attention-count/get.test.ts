@@ -8,22 +8,20 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountPostChatRoomThreadsRead from "./post";
+import mountGetChatRoomThreadsAttentionCount from "./get";
 
 const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   queryRawUnsafeMock,
-  threadReadUpsertMock,
-  prismaTransactionMock,
+  messageFindManyMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
-  threadReadUpsertMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
+  messageFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -38,27 +36,16 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: memberFindUniqueMock,
     },
     $queryRawUnsafe: queryRawUnsafeMock,
-    chatRoomThreadReadState: {
-      upsert: threadReadUpsertMock,
+    chatRoomMessage: {
+      findMany: messageFindManyMock,
     },
-    $transaction: prismaTransactionMock,
   },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
-const PARENT_ID_1 = "550e8400-e29b-41d4-a716-446655440001";
-const PARENT_ID_2 = "550e8400-e29b-41d4-a716-446655440002";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
 const COWORKER_ID = "cow_123";
-
-const tx = {
-  chatRoom: { findFirst: roomFindFirstMock },
-  organization: { findUnique: organizationFindUniqueMock },
-  member: { findUnique: memberFindUniqueMock },
-  $queryRawUnsafe: queryRawUnsafeMock,
-  chatRoomThreadReadState: { upsert: threadReadUpsertMock },
-};
 
 function createApp(authContext: AuthVariables["authContext"]) {
   const app = new OpenAPIHono<{
@@ -68,14 +55,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_mark_chat_room_threads_read");
+    c.set("requestId", "req_get_chat_room_threads_attention_count");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountPostChatRoomThreadsRead(app as unknown as OpenAPIHonoWithAuth);
+  mountGetChatRoomThreadsAttentionCount(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -121,96 +108,53 @@ function room() {
   };
 }
 
-function unreadAggregate(parentMessageId: string) {
-  return {
-    parentMessageId,
-  };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  threadReadUpsertMock.mockResolvedValue({});
+  queryRawUnsafeMock.mockResolvedValue([{ count: 4 }]);
 });
 
-describe("POST /chats/rooms/{id}/threads/read", () => {
-  it("upserts look state for dual-baseline attention parents and returns markedCount", async () => {
-    queryRawUnsafeMock.mockResolvedValue([
-      unreadAggregate(PARENT_ID_1),
-      unreadAggregate(PARENT_ID_2),
-    ]);
-
+describe("GET /chats/rooms/{id}/threads/attention-count", () => {
+  it("returns the attention thread count without hydrating parents", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/threads/read`,
-      { method: "POST" },
+      `/${ROOM_ID}/threads/attention-count`,
     );
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).toHaveBeenCalledOnce();
-    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
-    const sql = String(queryRawUnsafeMock.mock.calls[0]?.[0]);
-    expect(sql).toContain('room_read."createdAt"');
-    expect(sql).toContain("'-infinity'::timestamp");
-    expect(sql).toContain('thread_read."lastReadAt"');
-    expect(threadReadUpsertMock).toHaveBeenCalledTimes(2);
-    expect(threadReadUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId_parentMessageId: {
-            userId: USER_ID,
-            parentMessageId: PARENT_ID_1,
-          },
-        },
-        update: { lastReadAt: expect.any(Date) },
-        create: expect.objectContaining({
-          userId: USER_ID,
-          parentMessageId: PARENT_ID_1,
-          lastReadAt: expect.any(Date),
-        }),
-      }),
-    );
-    expect(threadReadUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId_parentMessageId: {
-            userId: USER_ID,
-            parentMessageId: PARENT_ID_2,
-          },
-        },
-      }),
-    );
-
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
-    expect(body.data).toEqual({ markedCount: 2 });
+    expect(body.data).toEqual({ count: 4 });
+    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    expect(messageFindManyMock).not.toHaveBeenCalled();
+    const sql = String(queryRawUnsafeMock.mock.calls[0]?.[0]);
+    expect(sql).toContain("COUNT(DISTINCT parent.id)");
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).not.toContain('"unreadReplyCount"');
   });
 
-  it("returns markedCount 0 when no unread threads exist", async () => {
-    queryRawUnsafeMock.mockResolvedValue([]);
-
+  it("rejects a malformed room id with 422", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/threads/read`,
-      { method: "POST" },
+      "/not-a-uuid/threads/attention-count",
     );
 
-    expect(response.status).toBe(200);
-    expect(threadReadUpsertMock).not.toHaveBeenCalled();
-
+    expect(response.status).toBe(422);
     const body = await response.json();
-    expect(body.data).toEqual({ markedCount: 0 });
+    expect(body.error).toBeDefined();
+    expect(body.message).toBeDefined();
+    expect(roomFindFirstMock).not.toHaveBeenCalled();
+    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker auth with 403", async () => {
     const response = await createApp(coworkerAuthContext).request(
-      `/${ROOM_ID}/threads/read`,
-      { method: "POST" },
+      `/${ROOM_ID}/threads/attention-count`,
     );
 
     expect(response.status).toBe(403);
     expect(roomFindFirstMock).not.toHaveBeenCalled();
     expect(queryRawUnsafeMock).not.toHaveBeenCalled();
-    expect(threadReadUpsertMock).not.toHaveBeenCalled();
+    expect(messageFindManyMock).not.toHaveBeenCalled();
   });
 });

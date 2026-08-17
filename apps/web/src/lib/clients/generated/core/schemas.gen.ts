@@ -5431,6 +5431,17 @@ export const ChatRoomThreadSchema = {
             format: 'date-time',
             example: '2026-07-02T12:00:00.000Z',
             description: 'createdAt of the newest qualifying unread reply, or null when none.'
+        },
+        hasLooked: {
+            type: 'boolean',
+            description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
+            example: true
+        },
+        attentionReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.',
+            example: 3
         }
     },
     required: [
@@ -5438,7 +5449,9 @@ export const ChatRoomThreadSchema = {
         'replyCount',
         'lastReplyAt',
         'unreadReplyCount',
-        'lastUnreadReplyAt'
+        'lastUnreadReplyAt',
+        'hasLooked',
+        'attentionReplyCount'
     ]
 } as const;
 
@@ -5883,6 +5896,21 @@ export const ChatRoomMessageUnfurlSchema = {
         'description',
         'imageUrl',
         'siteName'
+    ]
+} as const;
+
+export const ChatRoomThreadsAttentionCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.',
+            example: 4
+        }
+    },
+    required: [
+        'count'
     ]
 } as const;
 
@@ -9025,7 +9053,7 @@ export const PersonalWorkspaceCreatedSchema = {
     ]
 } as const;
 
-export const WorkspaceInventorySchema = {
+export const WorkspaceAccessSchema = {
     type: 'object',
     properties: {
         gate: {

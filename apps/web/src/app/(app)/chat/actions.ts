@@ -702,14 +702,14 @@ export async function listThreadsAction(
   }
 }
 
-export async function listUnreadThreadsAction(
+export async function countAttentionThreadsAction(
   roomId: string,
-): Promise<RoomActionResult<ChatRoomThread[]>> {
+): Promise<RoomActionResult<number>> {
   try {
-    const items = await chatRoomService.listUnreadThreads(roomId);
-    return roomOk(items);
+    const count = await chatRoomService.countAttentionThreads(roomId);
+    return roomOk(count);
   } catch (error) {
-    return roomCatch(error, "Could not load unread threads.");
+    return roomCatch(error, "Could not load attention thread count.");
   }
 }
 

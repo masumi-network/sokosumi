@@ -79,11 +79,11 @@ export function matchComposerInputRule(
 export type ComposerEnterAction = "submit" | "newline" | "ignore";
 
 /**
- * Room composer Enter policy (inverted vs tasks MarkdownEditor):
- * desktop Enter → send; Shift/Cmd/Ctrl+Enter → newline; mobile Enter → newline.
+ * Room composer Enter policy (SOK-815):
+ * Enter → send (desktop and mobile); Shift/Cmd/Ctrl+Enter → newline;
+ * suggestion keyboard still owns Enter (ignore).
  */
 export function resolveComposerEnterAction(options: {
-  isNarrowViewport: boolean;
   shiftKey: boolean;
   metaKey: boolean;
   ctrlKey: boolean;
@@ -94,7 +94,6 @@ export function resolveComposerEnterAction(options: {
   if (options.shiftKey || options.metaKey || options.ctrlKey) {
     return "newline";
   }
-  if (options.isNarrowViewport) return "newline";
   return "submit";
 }
 

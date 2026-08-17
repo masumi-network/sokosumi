@@ -7,6 +7,10 @@ import {
   markAllUnreadThreadsReadAction,
 } from "@/app/chat/actions";
 import { messageSender } from "@/app/chat/components/room-helpers";
+import {
+  threadNeedsOverviewAttention,
+  threadOverviewAttentionReplyCount,
+} from "@/app/chat/utils/thread-overview-attention";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { Button } from "@/components/ui/button";
 import type {
@@ -147,9 +151,11 @@ export function ThreadListPanel({
     }
   }
 
-  const unreadCount = items.filter((item) => item.unreadReplyCount > 0).length;
+  const attentionCount = items.filter((item) =>
+    threadNeedsOverviewAttention(item),
+  ).length;
   const showEmpty = !isLoading && !error && items.length === 0;
-  const showMarkAll = unreadCount > 0;
+  const showMarkAll = attentionCount > 0;
 
   return (
     <aside
@@ -216,21 +222,41 @@ export function ThreadListPanel({
           const preview =
             formatUnreadThreadsPreview(item.parentMessage.content) ||
             sender.name;
-          const isUnread = item.unreadReplyCount > 0;
+          const needsAttention = threadNeedsOverviewAttention(item);
+          const attentionReplyLabelCount =
+            threadOverviewAttentionReplyCount(item);
           return (
             <button
               key={item.parentMessage.id}
               type="button"
               className={cn(
                 "hover:bg-accent flex w-full flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm",
+                needsAttention && "bg-accent/40",
               )}
               onClick={() => {
                 void onOpenThread(item.parentMessage);
               }}
               data-testid="thread-list-item"
+              data-needs-attention={needsAttention ? "true" : "false"}
             >
               <div className="flex items-start gap-2">
-                <span className="line-clamp-2 min-w-0 flex-1 font-medium">
+                {needsAttention ? (
+                  <span
+                    aria-hidden="true"
+                    data-testid="thread-list-unread-dot"
+                    className="bg-primary mt-1.5 size-2 shrink-0 rounded-full"
+                  />
+                ) : (
+                  <span className="mt-1.5 size-2 shrink-0" aria-hidden />
+                )}
+                <span
+                  className={cn(
+                    "line-clamp-2 min-w-0 flex-1",
+                    needsAttention
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground font-normal",
+                  )}
+                >
                   {preview}
                 </span>
                 <span className="text-muted-foreground shrink-0 text-xs">
@@ -239,12 +265,19 @@ export function ThreadListPanel({
                   )}
                 </span>
               </div>
-              <p className="text-muted-foreground truncate text-xs">
+              <p
+                className={cn(
+                  "truncate pl-4 text-xs",
+                  needsAttention
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground",
+                )}
+              >
                 {labels.startedBy(sender.name)}
                 <span aria-hidden="true"> · </span>
-                <span className="text-foreground font-medium">
-                  {isUnread
-                    ? labels.unreadReplies(item.unreadReplyCount)
+                <span>
+                  {needsAttention
+                    ? labels.unreadReplies(attentionReplyLabelCount)
                     : labels.replies(item.replyCount)}
                 </span>
               </p>

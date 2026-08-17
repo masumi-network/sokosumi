@@ -8,10 +8,10 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomThreadsMarkAllSchema } from "@/schemas/chat-room.schema";
+import { chatRoomThreadsAttentionCountSchema } from "@/schemas/chat-room.schema";
 
 import {
-  markAllChatRoomThreadsRead,
+  countChatRoomAttentionThreads,
   requireChatRoomUserAccess,
 } from "../../../helpers";
 
@@ -27,22 +27,23 @@ const paramsSchema = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-    method: "post",
-    path: "/{id}/threads/read",
+    method: "get",
+    path: "/{id}/threads/attention-count",
     description:
-      "Mark every thread that still needs a look in this room for the current user: looked threads with newer replies, and never-looked threads with replies after the dual-baseline (join / -infinity). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
+      "Count attention threads in a room (dual-baseline `attentionReplyCount`, including qualifying never-looked). Cheap Threads-badge path: returns a count only, no thread items. Same eligibility as `unread=true`, thread overview, and Mark all. Independent of room mark-read.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
       200: jsonSuccessResponse(
-        chatRoomThreadsMarkAllSchema,
-        "Unread threads marked looked",
+        chatRoomThreadsAttentionCountSchema,
+        "Attention thread count",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -58,10 +59,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const markedCount = await prisma.$transaction((tx) =>
-      markAllChatRoomThreadsRead(room.id, userContext.userId, tx),
+    const count = await countChatRoomAttentionThreads(
+      room.id,
+      userContext.userId,
+      prisma,
     );
 
-    return ok(c, chatRoomThreadsMarkAllSchema.parse({ markedCount }));
+    c.header("Cache-Control", "no-store");
+    return ok(c, chatRoomThreadsAttentionCountSchema.parse({ count }));
   });
 }

@@ -33,7 +33,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
         <AuthSessionGuard />
-        {/* Outer Suspense: inventory gate — chrome-free fallback (no sidebar). */}
+        {/* Outer Suspense: workspace-access gate — chrome-free fallback (no sidebar). */}
         <Suspense fallback={<AppAccessCheckingFallback />}>
           <WorkspaceAccessGate>
             <SidebarProvider

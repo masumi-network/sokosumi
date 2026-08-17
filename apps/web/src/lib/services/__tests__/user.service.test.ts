@@ -8,7 +8,7 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
-const getMyWorkspaceInventoryMock = vi.fn();
+const getMyWorkspaceAccessMock = vi.fn();
 const getOrganizationByIdMock = vi.fn();
 const updateCurrentUserViaCoreMock = vi.fn();
 
@@ -35,8 +35,8 @@ vi.mock("@/lib/clients/core.client", () => {
         getMyMembersWithOrganizationsMock(...args),
       getMyMemberInOrganization: (...args: unknown[]) =>
         getMyMemberInOrganizationMock(...args),
-      getMyWorkspaceInventory: (...args: unknown[]) =>
-        getMyWorkspaceInventoryMock(...args),
+      getMyWorkspaceAccess: (...args: unknown[]) =>
+        getMyWorkspaceAccessMock(...args),
       getOrganizationById: (...args: unknown[]) =>
         getOrganizationByIdMock(...args),
     },
@@ -205,35 +205,35 @@ describe("user.service", () => {
     });
   });
 
-  describe("getWorkspaceInventory", () => {
+  describe("getWorkspaceAccess", () => {
     it("returns null when there is no session", async () => {
       getSessionMock.mockResolvedValue(null);
 
       const { userService } = await import("../user.service");
-      const result = await userService.getWorkspaceInventory();
+      const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspaceInventoryMock).not.toHaveBeenCalled();
+      expect(getMyWorkspaceAccessMock).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
 
-    it("returns Core inventory for the session user", async () => {
+    it("returns Core workspace gate for the session user", async () => {
       getSessionMock.mockResolvedValue({
         session: { id: "session-1" },
         user: { id: "user-1" },
       });
-      const inventory = {
+      const workspaceAccess = {
         gate: "ready",
         hasPersonalWorkspace: true,
         hasOrganizationMembership: false,
         hasPendingOrganizationInvites: false,
       };
-      getMyWorkspaceInventoryMock.mockResolvedValue({ data: inventory });
+      getMyWorkspaceAccessMock.mockResolvedValue({ data: workspaceAccess });
 
       const { userService } = await import("../user.service");
-      const result = await userService.getWorkspaceInventory();
+      const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspaceInventoryMock).toHaveBeenCalled();
-      expect(result).toEqual(inventory);
+      expect(getMyWorkspaceAccessMock).toHaveBeenCalled();
+      expect(result).toEqual(workspaceAccess);
     });
   });
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionOrRedirectMock = vi.fn();
-const getWorkspaceInventoryMock = vi.fn();
+const getWorkspaceAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -21,8 +21,7 @@ vi.mock("@/lib/auth/has-admin-role", () => ({
 
 vi.mock("@/lib/services", () => ({
   userService: {
-    getWorkspaceInventory: (...args: unknown[]) =>
-      getWorkspaceInventoryMock(...args),
+    getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
 }));
 
@@ -98,7 +97,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
   });
 
   it("redirects not-ready users to the workspace gate before chrome", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -115,8 +114,8 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     expect(redirectMock).toHaveBeenCalledWith("/setup");
   });
 
-  it("redirects when inventory is missing (fail closed)", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue(null);
+  it("redirects when workspace access is missing (fail closed)", async () => {
+    getWorkspaceAccessMock.mockResolvedValue(null);
 
     const { default: AuthenticatedAppFrame } = await import(
       "../authenticated-app-frame"
@@ -128,7 +127,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
   });
 
   it("allows ready users through to the app chrome", async () => {
-    getWorkspaceInventoryMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,

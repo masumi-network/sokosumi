@@ -342,13 +342,11 @@ export const chatRoomService = (() => {
     };
   });
 
-  const listUnreadThreads = cache(async function listUnreadThreads(
+  const countAttentionThreads = cache(async function countAttentionThreads(
     roomId: string,
-  ): Promise<ChatRoomThread[]> {
-    const response = await coreClient.getChatRoomThreads(roomId, {
-      unread: "true",
-    });
-    return response.data;
+  ): Promise<number> {
+    const response = await coreClient.getChatRoomThreadsAttentionCount(roomId);
+    return response.data.count;
   });
 
   async function markThreadRead(
@@ -431,7 +429,7 @@ export const chatRoomService = (() => {
     listRoomInvitations,
     listRooms,
     listThreads,
-    listUnreadThreads,
+    countAttentionThreads,
     listThreadMessages,
     leaveRoom,
     removeMember,

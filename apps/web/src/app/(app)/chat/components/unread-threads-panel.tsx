@@ -2,7 +2,7 @@
 
 import { MessagesSquare } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { listUnreadThreadsAction } from "@/app/chat/actions";
+import { countAttentionThreadsAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 
 export interface UnreadThreadsPanelLabels {
@@ -14,7 +14,7 @@ interface UnreadThreadsPanelProps {
   labels: UnreadThreadsPanelLabels;
   /**
    * Monotonic epoch from the parent. Values > 0 trigger a debounced
-   * unread-count refetch.
+   * attention-count refetch (same dual-baseline set as overview Mark all).
    */
   attentionRefreshToken: number;
   isOpen: boolean;
@@ -49,14 +49,14 @@ export function UnreadThreadsPanel({
 
   const loadUnreadCount = useEffectEvent(async () => {
     const requestId = ++requestIdRef.current;
-    const result = await listUnreadThreadsAction(roomId);
+    const result = await countAttentionThreadsAction(roomId);
     if (requestId !== requestIdRef.current) {
       return;
     }
     if (!result.ok) {
       return;
     }
-    setBadgeCount(result.value.length);
+    setBadgeCount(result.value);
   });
 
   useEffect(() => {
