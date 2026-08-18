@@ -32,11 +32,11 @@ import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile } from "@/lib/clients/generated/core";
 import {
   deleteDriveFilesDelete,
-  getDriveFiles,
   getUsersByIdOrganizations,
   patchDriveFilesRename,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { listDriveFiles } from "@/lib/utils/drive-file-list.client";
 import {
   getDriveFileUploadErrorMessage,
   uploadDriveFile,
@@ -145,37 +145,18 @@ export default function DrivePage(): ReactElement {
     setLoading(true);
     setError(null);
     try {
-      // Don't call org list without an organizationId
       if (scope === "org" && !activeOrganizationId) {
         setFiles([]);
-        setLoading(false);
         return;
       }
 
-      const allFiles: DriveFile[] = [];
-      let cursor: string | undefined;
-
-      // Follow nextCursor until all files are loaded
-      do {
-        const response = await getDriveFiles({
-          client: getBrowserCoreClient(),
-          query: {
-            scope,
-            limit: 100,
-            ...(cursor ? { cursor } : {}),
-            ...(scope === "org" && activeOrganizationId
-              ? { organizationId: activeOrganizationId }
-              : {}),
-          },
-          throwOnError: true,
-        });
-
-        const pageFiles = (response.data?.data as DriveFile[]) || [];
-        allFiles.push(...pageFiles);
-        cursor = response.data?.meta?.pagination?.nextCursor ?? undefined;
-      } while (cursor);
-
-      setFiles(allFiles);
+      const loaded = await listDriveFiles({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+      });
+      setFiles(loaded);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load files");
     } finally {
