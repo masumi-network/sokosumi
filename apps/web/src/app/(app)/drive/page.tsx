@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  Check,
-  Download,
-  Edit3,
-  HardDrive,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { getExtensionFromUrl } from "@sokosumi/utils";
+import { Check, Download, Edit3, Trash2, Upload, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactElement, useCallback, useEffect, useState } from "react";
 import {
   AlertDialog,
@@ -29,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -40,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile } from "@/lib/clients/generated/core";
@@ -49,6 +44,7 @@ import {
   getUsersByIdOrganizations,
   patchDriveFilesRename,
 } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import {
   getDriveFileUploadErrorMessage,
   uploadDriveFile,
@@ -70,6 +66,7 @@ export default function DrivePage(): ReactElement {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -84,6 +81,11 @@ export default function DrivePage(): ReactElement {
   const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null);
 
   const scope = (searchParams.get("scope") as "me" | "org") || "me";
+
+  useRegisterBreadcrumbOverride({
+    pathname,
+    segments: [{ label: "Drive", href: "/drive" }],
+  });
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -243,38 +245,9 @@ export default function DrivePage(): ReactElement {
   const emptyState = !loading && files.length === 0;
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <HardDrive className="size-8" />
-          <div>
-            <h1 className="text-3xl font-bold">Drive</h1>
-            <p className="text-muted-foreground text-sm">
-              Manage your files and documents
-            </p>
-          </div>
-        </div>
-        <div>
-          <Label htmlFor="file-upload" className="cursor-pointer">
-            <Button disabled={uploading} asChild>
-              <span>
-                <Upload className="size-4 mr-2" />
-                {uploading ? `Uploading... ${uploadProgress}%` : "Upload File"}
-              </span>
-            </Button>
-          </Label>
-          <Input
-            id="file-upload"
-            type="file"
-            className="hidden"
-            onChange={handleUpload}
-            disabled={uploading}
-          />
-        </div>
-      </div>
-
+    <div className="w-full px-2">
       {error && (
-        <Card className="border-destructive">
+        <Card className="mb-6 border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive text-sm">{error}</p>
           </CardContent>
@@ -282,16 +255,38 @@ export default function DrivePage(): ReactElement {
       )}
 
       <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
-        <TabsList>
-          <TabsTrigger value="me">My Drive</TabsTrigger>
-          {activeOrganizationId && (
-            <TabsTrigger value="org">
-              {organizationName || "Organization"}
-            </TabsTrigger>
-          )}
-        </TabsList>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <TabsList>
+            <TabsTrigger value="me">My Drive</TabsTrigger>
+            {activeOrganizationId && (
+              <TabsTrigger value="org">
+                {organizationName || "Organization"}
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        <TabsContent value={scope} className="mt-6">
+          <div>
+            <Label htmlFor="file-upload" className="cursor-pointer">
+              <Button disabled={uploading} asChild>
+                <span>
+                  <Upload className="size-4 mr-2" />
+                  {uploading
+                    ? `Uploading... ${uploadProgress}%`
+                    : "Upload File"}
+                </span>
+              </Button>
+            </Label>
+            <Input
+              id="file-upload"
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </div>
+        </div>
+
+        <TabsContent value={scope} className="mt-0">
           {emptyState ? (
             <Card>
               <CardHeader>
@@ -303,10 +298,11 @@ export default function DrivePage(): ReactElement {
             </Card>
           ) : (
             <Card>
-              <CardContent className="p-0">
+              <CardContent className={cn("p-0", "md:px-6")}>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12"></TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Size</TableHead>
                       <TableHead>Uploaded</TableHead>
@@ -316,109 +312,121 @@ export default function DrivePage(): ReactElement {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
+                        <TableCell colSpan={5} className="text-center py-8">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : (
-                      files.map((file) => (
-                        <TableRow key={file.pathname}>
-                          <TableCell>
-                            {editingFilePathname === file.pathname ? (
-                              <Input
-                                value={editingFileName}
-                                onChange={(e) =>
-                                  setEditingFileName(e.target.value)
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    void handleRename(
-                                      file.pathname,
-                                      editingFileName,
-                                    );
-                                  } else if (e.key === "Escape") {
-                                    cancelEdit();
-                                  }
-                                }}
-                                className="h-8"
-                                autoFocus
-                              />
-                            ) : (
-                              <span className="font-medium">{file.name}</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {file.size ? formatBytes(file.size) : "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatDate(file.uploadedAt)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingFilePathname === file.pathname ? (
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    void handleRename(
-                                      file.pathname,
-                                      editingFileName,
-                                    )
-                                  }
-                                  title="Save"
-                                >
-                                  <Check className="size-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={cancelEdit}
-                                  title="Cancel"
-                                >
-                                  <X className="size-4" />
-                                </Button>
+                      files.map((file) => {
+                        const extension = getExtensionFromUrl(file.name);
+                        return (
+                          <TableRow key={file.pathname}>
+                            <TableCell className="w-12">
+                              <div className="flex items-center justify-center">
+                                <div className="flex size-6 items-center justify-center">
+                                  <FileTypeIcon
+                                    extension={extension || "file"}
+                                  />
+                                </div>
                               </div>
-                            ) : (
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    handleDownload(file.fileUrl, file.name)
+                            </TableCell>
+                            <TableCell>
+                              {editingFilePathname === file.pathname ? (
+                                <Input
+                                  value={editingFileName}
+                                  onChange={(e) =>
+                                    setEditingFileName(e.target.value)
                                   }
-                                  title="Download"
-                                >
-                                  <Download className="size-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => startEdit(file)}
-                                  title="Rename"
-                                  disabled={editingFilePathname !== null}
-                                >
-                                  <Edit3 className="size-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openDeleteDialog(file)}
-                                  title="Delete"
-                                  disabled={editingFilePathname !== null}
-                                >
-                                  <Trash2 className="size-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      void handleRename(
+                                        file.pathname,
+                                        editingFileName,
+                                      );
+                                    } else if (e.key === "Escape") {
+                                      cancelEdit();
+                                    }
+                                  }}
+                                  className="h-8"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span className="font-medium">{file.name}</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {file.size ? formatBytes(file.size) : "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(file.uploadedAt)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {editingFilePathname === file.pathname ? (
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      void handleRename(
+                                        file.pathname,
+                                        editingFileName,
+                                      )
+                                    }
+                                    title="Save"
+                                  >
+                                    <Check className="size-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={cancelEdit}
+                                    title="Cancel"
+                                  >
+                                    <X className="size-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      handleDownload(file.fileUrl, file.name)
+                                    }
+                                    title="Download"
+                                  >
+                                    <Download className="size-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => startEdit(file)}
+                                    title="Rename"
+                                    disabled={editingFilePathname !== null}
+                                  >
+                                    <Edit3 className="size-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openDeleteDialog(file)}
+                                    title="Delete"
+                                    disabled={editingFilePathname !== null}
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
