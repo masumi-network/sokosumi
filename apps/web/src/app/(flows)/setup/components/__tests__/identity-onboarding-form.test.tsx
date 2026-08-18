@@ -11,6 +11,7 @@ const createPersonalWorkspaceActionMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
 const routerReplaceMock = vi.fn();
 const routerRefreshMock = vi.fn();
+const locationAssignMock = vi.fn();
 
 vi.mock("sonner", () => ({
   toast: {
@@ -125,6 +126,11 @@ describe("IdentityOnboardingForm", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    locationAssignMock.mockReset();
+    vi.stubGlobal("location", {
+      ...window.location,
+      assign: locationAssignMock,
+    });
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     updateUserMock.mockResolvedValue({ error: null });
     createPersonalWorkspaceActionMock.mockResolvedValue({
@@ -136,6 +142,7 @@ describe("IdentityOnboardingForm", () => {
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it("prefills the display name and requires at least 2 characters", async () => {
@@ -166,7 +173,8 @@ describe("IdentityOnboardingForm", () => {
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).toHaveBeenCalledOnce();
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).not.toHaveBeenCalled();
     });
   });
 
@@ -258,10 +266,12 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
     });
-    expect(routerRefreshMock).toHaveBeenCalled();
+    expect(routerRefreshMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId("workspace-gate-identity-form")).toBeNull();
+    expect(screen.getByTestId("workspace-gate-leaving")).toBeTruthy();
   });
 
   it("keeps the organization wizard mounted when workspace becomes ready", async () => {
@@ -316,7 +326,8 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).toHaveBeenCalledOnce();
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).not.toHaveBeenCalled();
     });
   });
 
@@ -332,7 +343,8 @@ describe("IdentityOnboardingForm", () => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).toHaveBeenCalledOnce();
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).not.toHaveBeenCalled();
     });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("workspace-gate-identity-submit")).toBeDisabled();
@@ -373,7 +385,8 @@ describe("IdentityOnboardingForm", () => {
         "Could not switch into that organization",
       );
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).toHaveBeenCalledOnce();
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).not.toHaveBeenCalled();
     });
   });
 
@@ -438,7 +451,8 @@ describe("IdentityOnboardingForm", () => {
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).toHaveBeenCalledOnce();
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).not.toHaveBeenCalled();
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
@@ -455,7 +469,8 @@ describe("IdentityOnboardingForm", () => {
     await waitFor(() => {
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).toHaveBeenCalledOnce();
+      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).not.toHaveBeenCalled();
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });

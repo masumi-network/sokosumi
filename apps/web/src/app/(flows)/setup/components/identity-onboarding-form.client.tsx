@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { CreateOrganizationWizard } from "@/components/organizations";
@@ -53,13 +53,21 @@ export function IdentityOnboardingForm({
     },
   });
 
+  const leaveToApp = useCallback(() => {
+    router.replace("/");
+    // activateOrganizationWorkspace persists preferred org via a server
+    // action, which refreshes the current URL. router.refresh() after
+    // replace("/") does the same. Either one remounts /setup and cancels
+    // the leave. Hard navigation survives that refresh.
+    window.location.assign("/");
+  }, [router]);
+
   useEffect(() => {
     if (!workspaceReady || wizardOpen || leavingGateRef.current) {
       return;
     }
-    router.replace("/");
-    router.refresh();
-  }, [workspaceReady, wizardOpen, router]);
+    leaveToApp();
+  }, [workspaceReady, wizardOpen, leaveToApp]);
 
   async function leaveGateAfterWorkspace(organizationId: string | null) {
     leavingGateRef.current = true;
@@ -86,8 +94,7 @@ export function IdentityOnboardingForm({
         }
       }
     }
-    router.replace("/");
-    router.refresh();
+    leaveToApp();
   }
 
   async function persistDisplayName(name: string): Promise<boolean> {
@@ -271,7 +278,14 @@ export function IdentityOnboardingForm({
             </fieldset>
           </form>
         </Form>
-      ) : null}
+      ) : (
+        <div
+          className="flex justify-center py-6"
+          data-testid="workspace-gate-leaving"
+        >
+          <Loader2 className="size-4 animate-spin" />
+        </div>
+      )}
       <CreateOrganizationWizard
         open={wizardOpen}
         onOpenChange={setWizardOpen}
