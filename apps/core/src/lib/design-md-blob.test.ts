@@ -83,6 +83,32 @@ describe("uploadDesignMdContent", () => {
     );
   });
 
+  it("puts under design-md/projects/{projectId}/", async () => {
+    const content = "# Project Brand";
+    const hash = crypto.createHash("sha256").update(content).digest("hex");
+    putMock.mockResolvedValueOnce({
+      url: `https://blob.example/design-md/projects/project_99/${hash}.md`,
+    });
+
+    const url = await uploadDesignMdContent({
+      content,
+      owner: { kind: "project", id: "project_99" },
+    });
+
+    expect(putMock).toHaveBeenCalledWith(
+      `design-md/projects/project_99/${hash}.md`,
+      content,
+      expect.objectContaining({
+        contentType: "text/markdown; charset=utf-8",
+        allowOverwrite: true,
+        addRandomSuffix: false,
+      }),
+    );
+    expect(url).toBe(
+      `https://blob.example/design-md/projects/project_99/${hash}.md`,
+    );
+  });
+
   it("puts under design-md/adhoc/{userId}/ for an ad hoc, non-persisted store", async () => {
     const content = "# Ad hoc Brand";
     const hash = crypto.createHash("sha256").update(content).digest("hex");

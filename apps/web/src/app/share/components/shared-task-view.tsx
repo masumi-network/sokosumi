@@ -1,4 +1,8 @@
-import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
+import {
+  extractFileLikeLinks,
+  extractHttpLinks,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter } from "next-intl";
@@ -67,6 +71,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
     );
   const latestStatusEventId =
     visibleEvents.find((event) => event.status)?.id ?? null;
+  const publicDescription = task.description
+    ? removeTaskContextAttachmentLinks(task.description)
+    : "";
 
   function TaskSharePropertiesPanel() {
     const formatter = useFormatter();
@@ -156,9 +163,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
               <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
                 {task.name}
               </h1>
-              {task.description ? (
+              {publicDescription ? (
                 <ExpandableMarkdown
-                  content={task.description}
+                  content={publicDescription}
                   className="prose prose-sm max-w-none"
                   expandLabel={tTaskDetail("expand")}
                   collapseLabel={tTaskDetail("collapse")}

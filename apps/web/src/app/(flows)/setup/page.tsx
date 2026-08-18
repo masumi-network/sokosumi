@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import {
@@ -13,6 +12,7 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
 import { organizationService, userService } from "@/lib/services";
+import { cn } from "@/lib/utils";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {
   isJoinLinkDuplicateOfInvitation,
@@ -49,23 +49,28 @@ export default async function WorkspaceGatePage() {
     workspaceAccessLoadFailed = true;
   }
 
-  if (!workspaceAccessLoadFailed && isWorkspaceReady(gate)) {
-    redirect("/");
-  }
+  // Org create flips the gate to ready while the wizard is still open.
+  // Stay on this page and keep the identity form mounted so client state
+  // survives the server-action refresh. The form leaves when the wizard
+  // is not open.
+  const workspaceReady = !workspaceAccessLoadFailed && isWorkspaceReady(gate);
 
-  const queue = workspaceAccessLoadFailed
-    ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
-    : await loadWorkspaceGateQueueItems();
+  const queue =
+    workspaceAccessLoadFailed || workspaceReady
+      ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
+      : await loadWorkspaceGateQueueItems();
   const queueItems = queue.items;
 
-  const surface: WorkspaceGateSurface = resolveWorkspaceGateSurface({
-    workspaceAccessLoadFailed,
-    gate,
-    invitationCount: queueItems.filter((item) => item.kind === "invitation")
-      .length,
-    invitationsLoadFailed: queue.invitationsLoadFailed,
-    hasJoinLink: queueItems.some((item) => item.kind === "join"),
-  });
+  const surface: WorkspaceGateSurface = workspaceReady
+    ? "identity-onboarding"
+    : resolveWorkspaceGateSurface({
+        workspaceAccessLoadFailed,
+        gate,
+        invitationCount: queueItems.filter((item) => item.kind === "invitation")
+          .length,
+        invitationsLoadFailed: queue.invitationsLoadFailed,
+        hasJoinLink: queueItems.some((item) => item.kind === "join"),
+      });
 
   const t = await getTranslations("WorkspaceGate");
 
@@ -88,15 +93,26 @@ export default async function WorkspaceGatePage() {
   const showPendingQueue = surface === "pending-invites";
 
   return (
-    <Card className="w-full" data-workspace-gate-page data-gate={surface}>
-      <CardHeader>
-        <CardTitle>{t(titleKey)}</CardTitle>
-        <CardDescription>{t(descriptionKey)}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card
+      className={cn(
+        "w-full",
+        workspaceReady && "border-0 bg-transparent py-0 shadow-none",
+      )}
+      data-workspace-gate-page
+      data-gate={surface}
+    >
+      {workspaceReady ? null : (
+        <CardHeader>
+          <CardTitle>{t(titleKey)}</CardTitle>
+          <CardDescription>{t(descriptionKey)}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent className={cn("space-y-4", workspaceReady && "px-0")}>
         {showIdentityForm ? (
           <IdentityOnboardingForm
+            key="identity-onboarding"
             initialName={session.user.name?.trim() ?? ""}
+            workspaceReady={workspaceReady}
           />
         ) : showPendingQueue ? (
           <PendingInvitesQueue

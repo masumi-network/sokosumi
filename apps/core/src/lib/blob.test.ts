@@ -13,6 +13,7 @@ import {
   uploadGeneratedChatImage,
   uploadOrganizationLogoBytes,
   uploadProfileImage,
+  uploadProjectLogoBytes,
 } from "./blob";
 
 const {
@@ -540,6 +541,45 @@ describe("uploadOrganizationLogoBytes", () => {
       }),
     ).resolves.toBeNull();
     expect(putMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("uploadProjectLogoBytes", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("writes under projects/{projectId}/logos/{sha256}", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/projects/project_123/logos/hash",
+    });
+
+    const bytes = Buffer.from("project-logo-bytes");
+    const crypto = await import("node:crypto");
+    const expectedHash = crypto
+      .createHash("sha256")
+      .update(bytes)
+      .digest("hex");
+
+    const url = await uploadProjectLogoBytes({
+      projectId: "project_123",
+      bytes,
+      contentType: "image/png",
+    });
+
+    expect(url).toBe("https://blob.example/projects/project_123/logos/hash");
+    expect(putMock).toHaveBeenCalledWith(
+      `projects/project_123/logos/${expectedHash}`,
+      bytes,
+      expect.objectContaining({
+        access: "public",
+        contentType: "image/png",
+        token: "rw_token",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      }),
+    );
   });
 });
 

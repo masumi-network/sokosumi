@@ -962,8 +962,7 @@ export function TaskDetailActions({
               projectId,
               status,
               schedule,
-              skipDesignMdAttachment,
-              designMdAttachmentOverride,
+              context,
             }) => {
               const result = await createTaskAndLink({
                 taskId,
@@ -972,8 +971,7 @@ export function TaskDetailActions({
                 projectId,
                 status,
                 schedule,
-                skipDesignMdAttachment,
-                designMdAttachmentOverride,
+                context,
                 relation: selectedCreateRelatedOption.relation,
               });
 
