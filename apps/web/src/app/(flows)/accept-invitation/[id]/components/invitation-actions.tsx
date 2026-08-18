@@ -11,7 +11,7 @@ import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
@@ -100,13 +100,14 @@ export default function InvitationActions({
         toast.error(errorMessage);
       }
     } else {
-      try {
-        await activateOrganizationWorkspace(result.data.member.organizationId);
-      } catch (error) {
-        console.error("Failed to switch organization workspace:", error);
+      const activated = await activateOrganizationWorkspaceWithRetry(
+        result.data.member.organizationId,
+      );
+      if (!activated) {
+        toast.error(t("Error.activate"));
+      } else {
+        toast.success(t("Success.accept"));
       }
-
-      toast.success(t("Success.accept"));
       router.push(`/organizations/${organizationSlug}`);
     }
     setLoading(false);

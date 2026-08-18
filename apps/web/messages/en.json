@@ -832,6 +832,7 @@
     "Error": {
       "joinFailed": "Failed to join the organization",
       "declineFailed": "We could not decline this invite.",
+      "activateFailed": "We could not switch you into that organization. You can switch workspaces after you enter.",
       "unauthorizedAction": "Login"
     },
     "Invalid": {
@@ -872,7 +873,8 @@
         },
         "Error": {
           "accept": "Failed to accept invitation",
-          "decline": "Failed to decline invitation"
+          "decline": "Failed to decline invitation",
+          "activate": "We could not switch you into that organization. You can switch workspaces after you enter."
         },
         "Errors": {
           "unauthorizedAction": "Login"
@@ -5428,7 +5430,8 @@
       "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
       "acceptError": "We could not accept that invitation.",
       "joinError": "We could not join that organization.",
-      "rejectError": "We could not reject the remaining invitations."
+      "rejectError": "We could not reject the remaining invitations.",
+      "activateError": "We could not switch you into that organization. You can switch workspaces after you enter."
     }
   }
 }

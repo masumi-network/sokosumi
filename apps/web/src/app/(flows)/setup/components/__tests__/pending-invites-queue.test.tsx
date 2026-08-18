@@ -50,7 +50,7 @@ vi.mock("@/lib/actions/workspace-gate", () => ({
 }));
 
 vi.mock("@/lib/activate-organization-workspace", () => ({
-  activateOrganizationWorkspace: (...args: unknown[]) =>
+  activateOrganizationWorkspaceWithRetry: (...args: unknown[]) =>
     activateOrganizationWorkspaceMock(...args),
 }));
 
@@ -83,6 +83,7 @@ const messages = {
       acceptError: "Accept failed",
       joinError: "Join failed",
       rejectError: "Reject failed",
+      activateError: "Could not switch into that organization",
     },
   },
 };
@@ -116,7 +117,7 @@ describe("PendingInvitesQueue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     updateUserMock.mockResolvedValue({ error: null });
-    activateOrganizationWorkspaceMock.mockResolvedValue(undefined);
+    activateOrganizationWorkspaceMock.mockResolvedValue(true);
     clearPendingOrganizationJoinCookieActionMock.mockResolvedValue({
       ok: true,
       value: null,
@@ -240,5 +241,27 @@ describe("PendingInvitesQueue", () => {
     });
     expect(routerReplaceMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
+  });
+
+  it("toasts and still leaves the gate when organization activation fails", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+    activateOrganizationWorkspaceMock.mockResolvedValue(false);
+
+    renderQueue();
+    await user.click(
+      screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Could not switch into that organization",
+      );
+    });
+    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
   });
 });

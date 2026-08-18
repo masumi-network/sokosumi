@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JoinActions } from "../join-actions";
@@ -41,7 +42,7 @@ vi.mock("@/lib/actions/workspace-gate", () => ({
 }));
 
 vi.mock("@/lib/activate-organization-workspace", () => ({
-  activateOrganizationWorkspace: (...args: unknown[]) =>
+  activateOrganizationWorkspaceWithRetry: (...args: unknown[]) =>
     activateOrganizationWorkspaceMock(...args),
 }));
 
@@ -70,7 +71,11 @@ const messages = {
     register: "Register",
     decline: "Decline",
     signedOutHint: "Sign in to join",
-    Error: { joinFailed: "Join failed", declineFailed: "Decline failed" },
+    Error: {
+      joinFailed: "Join failed",
+      declineFailed: "Decline failed",
+      activateFailed: "Could not switch into that organization",
+    },
   },
 };
 
@@ -96,7 +101,7 @@ describe("JoinActions name collection", () => {
       ok: true,
       value: { organizationId: "org_join" },
     });
-    activateOrganizationWorkspaceMock.mockResolvedValue(undefined);
+    activateOrganizationWorkspaceMock.mockResolvedValue(true);
     clearPendingOrganizationJoinCookieActionMock.mockResolvedValue({
       ok: true,
       value: null,
@@ -144,5 +149,21 @@ describe("JoinActions name collection", () => {
     });
     expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
     expect(routerPushMock).toHaveBeenCalledWith("/setup");
+  });
+
+  it("toasts and still navigates when organization activation fails", async () => {
+    const user = userEvent.setup();
+    activateOrganizationWorkspaceMock.mockResolvedValue(false);
+    renderJoin("Ada Lovelace");
+
+    await user.click(screen.getByRole("button", { name: /Join Join Co/ }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not switch into that organization",
+      );
+    });
+    expect(routerPushMock).toHaveBeenCalledWith("/organizations/join-co");
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
   });
 });

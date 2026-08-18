@@ -35,7 +35,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 vi.mock("@/lib/activate-organization-workspace", () => ({
-  activateOrganizationWorkspace: (...args: unknown[]) =>
+  activateOrganizationWorkspaceWithRetry: (...args: unknown[]) =>
     activateOrganizationWorkspaceMock(...args),
 }));
 
@@ -102,7 +102,7 @@ describe("InvitationActions name collection", () => {
       data: { member: { organizationId: "org_1" } },
       error: null,
     });
-    activateOrganizationWorkspaceMock.mockResolvedValue(undefined);
+    activateOrganizationWorkspaceMock.mockResolvedValue(true);
   });
 
   it("collects a name before accept when the user has none", async () => {

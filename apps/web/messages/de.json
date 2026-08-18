@@ -832,6 +832,7 @@
     "Error": {
       "joinFailed": "Der Organisation konnte nicht beigetreten werden",
       "declineFailed": "Die Einladung konnte nicht abgelehnt werden.",
+      "activateFailed": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Arbeitsbereich wechseln, sobald du im Produkt bist.",
       "unauthorizedAction": "Anmelden"
     },
     "Invalid": {
@@ -872,7 +873,8 @@
         },
         "Error": {
           "accept": "Einladung konnte nicht akzeptiert werden",
-          "decline": "Einladung konnte nicht abgelehnt werden"
+          "decline": "Einladung konnte nicht abgelehnt werden",
+          "activate": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Arbeitsbereich wechseln, sobald du im Produkt bist."
         },
         "Errors": {
           "unauthorizedAction": "Anmelden"
@@ -5428,7 +5430,8 @@
       "rejectAllHint": "Wenn du alle Einladungen ablehnst, kannst du einen eigenen ersten Workspace erstellen.",
       "acceptError": "Die Einladung konnte nicht angenommen werden.",
       "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
-      "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden."
+      "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
+      "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Arbeitsbereich wechseln, sobald du im Produkt bist."
     }
   }
 }

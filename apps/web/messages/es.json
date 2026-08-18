@@ -832,6 +832,7 @@
     "Error": {
       "joinFailed": "No se pudo unir a la organización",
       "declineFailed": "No pudimos rechazar esta invitación.",
+      "activateFailed": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
       "unauthorizedAction": "Iniciar sesión"
     },
     "Invalid": {
@@ -872,7 +873,8 @@
         },
         "Error": {
           "accept": "No se pudo aceptar la invitación",
-          "decline": "No se pudo rechazar la invitación"
+          "decline": "No se pudo rechazar la invitación",
+          "activate": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres."
         },
         "Errors": {
           "unauthorizedAction": "Iniciar sesión"
@@ -5428,7 +5430,8 @@
       "rejectAllHint": "Si rechazas todas las invitaciones, podrás crear tu primer espacio de trabajo.",
       "acceptError": "No pudimos aceptar esa invitación.",
       "joinError": "No pudimos unirte a esa organización.",
-      "rejectError": "No pudimos rechazar las invitaciones restantes."
+      "rejectError": "No pudimos rechazar las invitaciones restantes.",
+      "activateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres."
     }
   }
 }

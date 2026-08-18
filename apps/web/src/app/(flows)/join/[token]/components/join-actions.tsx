@@ -9,7 +9,7 @@ import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface JoinActionsProps {
@@ -46,10 +46,11 @@ export function JoinActions({
         toast.error(result.error.message ?? t("Error.joinFailed"));
         return;
       }
-      try {
-        await activateOrganizationWorkspace(result.value.organizationId);
-      } catch (error) {
-        console.error("Failed to switch organization workspace:", error);
+      const activated = await activateOrganizationWorkspaceWithRetry(
+        result.value.organizationId,
+      );
+      if (!activated) {
+        toast.error(t("Error.activateFailed"));
       }
       await clearPendingOrganizationJoinCookieAction({});
       router.push(`/organizations/${encodeURIComponent(organizationSlug)}`);

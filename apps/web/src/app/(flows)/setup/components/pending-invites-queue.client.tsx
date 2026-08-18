@@ -10,7 +10,7 @@ import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 
 export type WorkspaceGateQueueInvitation = {
@@ -47,10 +47,10 @@ export function PendingInvitesQueue({
   const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
 
   async function leaveGateAfterOrganization(organizationId: string) {
-    try {
-      await activateOrganizationWorkspace(organizationId);
-    } catch (error) {
-      console.error("Workspace gate organization activation failed", error);
+    const activated =
+      await activateOrganizationWorkspaceWithRetry(organizationId);
+    if (!activated) {
+      toast.error(t("activateError"));
     }
     await clearPendingOrganizationJoinCookieAction({});
     router.replace("/");
