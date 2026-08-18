@@ -4,7 +4,7 @@ import {
   buildUserDriveFilePathname,
   clampDriveFileName,
 } from "@sokosumi/utils";
-import { copy, del, head } from "@vercel/blob";
+import { head, rename } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
@@ -80,6 +80,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? buildUserDriveFilePathname(ownerId, sanitizedName)
         : buildOrganizationDriveFilePathname(ownerId, sanitizedName);
 
+    // Get source blob metadata for preservation
+    const sourceMetadata = await head(oldPathname, { token });
+
     // Check if target already exists
     try {
       await head(newPathname, { token });
@@ -87,7 +90,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("Target pathname already exists");
     } catch (error) {
       // If head throws, check if it's a not-found error (expected)
-      // BlobNotFoundError has a specific shape
       if (
         error instanceof Error &&
         (error.message.includes("Blob not found") ||
@@ -108,18 +110,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // Copy to new pathname
-    await copy(oldPathname, newPathname, {
+    // Rename (copy + delete atomically)
+    const renamedBlob = await rename(oldPathname, newPathname, {
       token,
       access: "public",
       addRandomSuffix: false,
+      // Preserve metadata from source
+      contentType: sourceMetadata.contentType,
+      cacheControlMaxAge: parseCacheControlMaxAge(sourceMetadata.cacheControl),
     });
-
-    // Delete old pathname
-    await del(oldPathname, { token });
-
-    // Get blob metadata via head
-    const blobMetadata = await head(newPathname, { token });
 
     // Extract filename from new pathname
     const pathSegments = newPathname.split("/");
@@ -129,11 +128,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       driveFileSchema.parse({
         name,
-        fileUrl: blobMetadata.url,
-        pathname: blobMetadata.pathname,
-        size: blobMetadata.size,
-        uploadedAt: blobMetadata.uploadedAt.toISOString(),
+        fileUrl: renamedBlob.url,
+        pathname: renamedBlob.pathname,
+        size: sourceMetadata.size,
+        uploadedAt: sourceMetadata.uploadedAt.toISOString(),
       }),
     );
   });
+}
+
+/**
+ * Parse max-age from Cache-Control header.
+ * Example: "public, max-age=31536000" → 31536000
+ */
+function parseCacheControlMaxAge(cacheControl: string): number | undefined {
+  const match = /max-age=(\d+)/.exec(cacheControl);
+  return match ? Number.parseInt(match[1], 10) : undefined;
 }
