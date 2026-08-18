@@ -5301,7 +5301,9 @@
       "renameError": "Failed to rename file",
       "deleteError": "Failed to delete file",
       "organizationTabFallback": "Organization",
-      "uploadDuplicateError": "A file with this name already exists. Rename it and try again."
+      "uploadDuplicateError": "A file with this name already exists. Rename it and try again.",
+      "moreActions": "More actions",
+      "uploadFab": "Upload file"
     }
   },
   "Share": {

@@ -5301,7 +5301,9 @@
       "renameError": "Datei konnte nicht umbenannt werden",
       "deleteError": "Datei konnte nicht gelöscht werden",
       "organizationTabFallback": "Organisation",
-      "uploadDuplicateError": "Eine Datei mit diesem Namen existiert bereits. Benenne sie um und versuche es erneut."
+      "uploadDuplicateError": "Eine Datei mit diesem Namen existiert bereits. Benenne sie um und versuche es erneut.",
+      "moreActions": "Weitere Aktionen",
+      "uploadFab": "Datei hochladen"
     }
   },
   "Share": {

@@ -5301,7 +5301,9 @@
       "renameError": "No se pudo renombrar el archivo",
       "deleteError": "No se pudo eliminar el archivo",
       "organizationTabFallback": "Organización",
-      "uploadDuplicateError": "Ya existe un archivo con este nombre. Cámbiale el nombre e inténtalo de nuevo."
+      "uploadDuplicateError": "Ya existe un archivo con este nombre. Cámbiale el nombre e inténtalo de nuevo.",
+      "moreActions": "Más acciones",
+      "uploadFab": "Subir archivo"
     }
   },
   "Share": {

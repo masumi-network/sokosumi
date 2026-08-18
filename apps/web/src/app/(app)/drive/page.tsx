@@ -1,7 +1,14 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { Check, Download, Edit3, Trash2, Upload, X } from "lucide-react";
+import {
+  Check,
+  Download,
+  Edit3,
+  MoreHorizontal,
+  Trash2,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -12,6 +19,8 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -28,10 +37,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
@@ -134,7 +148,7 @@ export default function DrivePage(): ReactElement {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [_uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [editingFilePathname, setEditingFilePathname] = useState<string | null>(
     null,
@@ -347,10 +361,16 @@ export default function DrivePage(): ReactElement {
   const emptyState = !loading && files.length === 0;
   const hasFiles = files.length > 0;
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFabOpen() {
+    fileInputRef.current?.click();
+  }
+
   return (
-    <div className="w-full px-2">
+    <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-6">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="me"
@@ -367,32 +387,16 @@ export default function DrivePage(): ReactElement {
               </TabsTrigger>
             )}
           </TabsList>
-
-          <div>
-            <Label htmlFor="file-upload" className="cursor-pointer">
-              <Button
-                disabled={uploading}
-                size="sm"
-                className="gap-1.5"
-                asChild
-              >
-                <span>
-                  <Upload className="size-4" aria-hidden />
-                  {uploading
-                    ? t("uploadingProgress", { progress: uploadProgress })
-                    : t("uploadButton")}
-                </span>
-              </Button>
-            </Label>
-            <Input
-              id="file-upload"
-              type="file"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-          </div>
         </div>
+
+        <Input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleUpload}
+          disabled={uploading}
+          aria-label={t("uploadFab")}
+        />
 
         {error && (
           <div className="bg-destructive/10 text-destructive mb-6 rounded-lg border border-destructive/20 px-4 py-3 text-sm">
@@ -413,14 +417,14 @@ export default function DrivePage(): ReactElement {
                   <article
                     key={i}
                     className={cn(
-                      "-mx-2 flex items-center gap-2 rounded-lg px-2",
+                      "-mx-2 flex items-center gap-1 px-2",
                       PROJECTS_LIST_ROW_LAYOUT_CLASS,
                     )}
                   >
-                    <div className="flex size-6 shrink-0 items-center justify-center px-1">
-                      <Skeleton className="size-4" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                      <div className="flex size-6 shrink-0 items-center justify-center">
+                        <Skeleton className="size-4" />
+                      </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
                         <Skeleton className="h-4 w-32 sm:w-48" />
                         <div className="flex items-center gap-3">
@@ -428,11 +432,9 @@ export default function DrivePage(): ReactElement {
                           <Skeleton className="h-3 w-24" />
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Skeleton className="size-8" />
-                        <Skeleton className="size-8" />
-                        <Skeleton className="size-8" />
-                      </div>
+                    </div>
+                    <div className="shrink-0 pl-2">
+                      <Skeleton className="size-8" />
                     </div>
                   </article>
                 ))}
@@ -475,15 +477,15 @@ export default function DrivePage(): ReactElement {
                     <article
                       key={file.pathname}
                       className={cn(
-                        "-mx-2 flex items-center gap-2 rounded-lg px-2 hover:bg-muted/50",
+                        "-mx-2 flex items-center gap-1 px-2 hover:bg-muted/50",
                         PROJECTS_LIST_ROW_LAYOUT_CLASS,
                       )}
                     >
-                      <div className="flex size-6 shrink-0 items-center justify-center px-1">
-                        <FileTypeIcon extension={extension || "file"} />
-                      </div>
+                      <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                        <div className="flex size-6 shrink-0 items-center justify-center">
+                          <FileTypeIcon extension={extension || "file"} />
+                        </div>
 
-                      <div className="flex min-w-0 flex-1 items-center gap-4 py-3">
                         {isEditing ? (
                           <Input
                             value={editingFileName}
@@ -545,70 +547,85 @@ export default function DrivePage(): ReactElement {
                             </div>
                           </>
                         )}
+                      </div>
 
-                        <div className="flex shrink-0 items-center gap-1">
-                          {isEditing ? (
-                            <>
+                      <div className="shrink-0 pl-2">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                void handleRename(
+                                  file.pathname,
+                                  editingFileName,
+                                )
+                              }
+                              title={t("saveAction")}
+                            >
+                              <Check className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={cancelEdit}
+                              title={t("cancelAction")}
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <Button
                                 type="button"
-                                size="sm"
                                 variant="ghost"
-                                onClick={() =>
-                                  void handleRename(
-                                    file.pathname,
-                                    editingFileName,
-                                  )
-                                }
-                                title={t("saveAction")}
+                                size="icon"
+                                className="size-8"
+                                aria-label={t("moreActions")}
                               >
-                                <Check className="size-4" />
+                                <MoreHorizontal
+                                  className="size-4"
+                                  aria-hidden
+                                />
                               </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={cancelEdit}
-                                title={t("cancelAction")}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  handleDownload(file.fileUrl, file.name);
+                                }}
                               >
-                                <X className="size-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() =>
-                                  handleDownload(file.fileUrl, file.name)
-                                }
-                                title={t("downloadAction")}
-                              >
-                                <Download className="size-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEdit(file)}
-                                title={t("renameAction")}
+                                <Download className="size-4" aria-hidden />
+                                {t("downloadAction")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  startEdit(file);
+                                }}
                                 disabled={editingFilePathname !== null}
                               >
-                                <Edit3 className="size-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openDeleteDialog(file)}
-                                title={t("deleteAction")}
+                                <Edit3 className="size-4" aria-hidden />
+                                {t("renameAction")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  openDeleteDialog(file);
+                                }}
                                 disabled={editingFilePathname !== null}
                               >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                                <Trash2 className="size-4" aria-hidden />
+                                {t("deleteAction")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </article>
                   );
@@ -618,6 +635,8 @@ export default function DrivePage(): ReactElement {
           ) : null}
         </TabsContent>
       </Tabs>
+
+      <ListMobileCreateFab ariaLabel={t("uploadFab")} onOpen={handleFabOpen} />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
