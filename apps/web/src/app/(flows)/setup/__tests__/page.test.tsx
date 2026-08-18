@@ -110,7 +110,7 @@ describe("WorkspaceGatePage", () => {
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
-    expect(serialized).toContain("identityTitle");
+    expect(serialized).not.toContain("identityTitle");
     expect(serialized).toContain('"initialName":"Ada Lovelace"');
     expect(serialized).toContain('"workspaceReady":true');
     expect(serialized).not.toContain("pendingInvitesTitle");
@@ -137,7 +137,7 @@ describe("WorkspaceGatePage", () => {
     expect(redirectMock).not.toHaveBeenCalled();
     expect(getMyPendingOrganizationInvitationsMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
-    expect(serialized).toContain("identityTitle");
+    expect(serialized).not.toContain("identityTitle");
     expect(serialized).toContain('"workspaceReady":true');
     expect(serialized).not.toContain("pendingInvitesTitle");
     expect(serialized).not.toContain("Acme");

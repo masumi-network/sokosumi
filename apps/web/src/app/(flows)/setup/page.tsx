@@ -12,6 +12,7 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
 import { organizationService, userService } from "@/lib/services";
+import { cn } from "@/lib/utils";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {
   resolveWorkspaceGateSurface,
@@ -91,12 +92,21 @@ export default async function WorkspaceGatePage() {
   const showPendingQueue = surface === "pending-invites";
 
   return (
-    <Card className="w-full" data-workspace-gate-page data-gate={surface}>
-      <CardHeader>
-        <CardTitle>{t(titleKey)}</CardTitle>
-        <CardDescription>{t(descriptionKey)}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card
+      className={cn(
+        "w-full",
+        workspaceReady && "border-0 bg-transparent py-0 shadow-none",
+      )}
+      data-workspace-gate-page
+      data-gate={surface}
+    >
+      {workspaceReady ? null : (
+        <CardHeader>
+          <CardTitle>{t(titleKey)}</CardTitle>
+          <CardDescription>{t(descriptionKey)}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent className={cn("space-y-4", workspaceReady && "px-0")}>
         {showIdentityForm ? (
           <IdentityOnboardingForm
             initialName={session.user.name?.trim() ?? ""}
