@@ -15,7 +15,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile } from "@/lib/clients/generated/core";
-import { getDriveFiles } from "@/lib/clients/generated/core";
+import {
+  getDriveFiles,
+  getUsersByIdOrganizations,
+} from "@/lib/clients/generated/core";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 interface DriveFilePickerProps {
@@ -42,6 +45,7 @@ export function DriveFilePicker({
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -70,6 +74,31 @@ export function DriveFilePicker({
     }
   }, [open, loadFiles]);
 
+  useEffect(() => {
+    async function fetchOrganizationName() {
+      if (!activeOrganizationId || !session?.user?.id) {
+        setOrganizationName(null);
+        return;
+      }
+
+      try {
+        const response = await getUsersByIdOrganizations({
+          client: getBrowserCoreClient(),
+          path: { id: session.user.id },
+        });
+        const orgs = response.data?.data || [];
+        const activeOrg = orgs.find((org) => org.id === activeOrganizationId);
+        setOrganizationName(activeOrg?.name ?? null);
+      } catch {
+        setOrganizationName(null);
+      }
+    }
+
+    if (open) {
+      void fetchOrganizationName();
+    }
+  }, [open, activeOrganizationId, session?.user?.id]);
+
   function handleFileClick(file: DriveFile) {
     onSelect(file);
     onOpenChange(false);
@@ -92,7 +121,7 @@ export function DriveFilePicker({
             </TabsTrigger>
             {activeOrganizationId && (
               <TabsTrigger value="org" className="flex-1">
-                Organization Drive
+                {organizationName || "Organization"}
               </TabsTrigger>
             )}
           </TabsList>
