@@ -140,6 +140,9 @@ export default function HeaderWorkspaceSwitch({
   const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
   const tIdentity = useTranslations("WorkspaceGate.Identity");
   const canCreatePersonal = !hasPersonalWorkspace;
+  const effectiveChoice: WorkspaceChoice = canCreatePersonal
+    ? workspaceChoice
+    : "organization";
 
   async function activateCreatedPersonalWorkspace(): Promise<void> {
     try {
@@ -183,9 +186,8 @@ export default function HeaderWorkspaceSwitch({
   }
 
   function handleChoiceContinue() {
-    const nextChoice = canCreatePersonal ? workspaceChoice : "organization";
     setIsChoiceDialogOpen(false);
-    if (nextChoice === "personal") {
+    if (effectiveChoice === "personal") {
       void handleCreatePersonalWorkspace();
       return;
     }
@@ -329,7 +331,7 @@ export default function HeaderWorkspaceSwitch({
             </DialogTitle>
           </DialogHeader>
           <RadioGroup
-            value={canCreatePersonal ? workspaceChoice : "organization"}
+            value={effectiveChoice}
             onValueChange={(value) => {
               if (value === "personal" || value === "organization") {
                 setWorkspaceChoice(value);
@@ -367,8 +369,8 @@ export default function HeaderWorkspaceSwitch({
               htmlFor="switcher-workspace-choice-organization"
               className={cn(
                 "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                (canCreatePersonal ? workspaceChoice : "organization") ===
-                  "organization" && "border-primary bg-accent/30",
+                effectiveChoice === "organization" &&
+                  "border-primary bg-accent/30",
               )}
             >
               <RadioGroupItem

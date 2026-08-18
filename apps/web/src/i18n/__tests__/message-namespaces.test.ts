@@ -21,6 +21,13 @@ describe("message namespaces", () => {
     expect(APP_MESSAGE_PATHS).toContain("App.Account");
     expect(APP_MESSAGE_PATHS).toContain("App.Tasks");
     expect(APP_MESSAGE_PATHS).toContain("Components");
+    expect(APP_MESSAGE_PATHS).toContain("WorkspaceGate");
+  });
+
+  it("includes WorkspaceGate on app chrome bags for the switcher create dialog", () => {
+    expect(APP_SHELL_MESSAGE_PATHS).toContain("WorkspaceGate");
+    expect(HERMES_MESSAGE_PATHS).toContain("WorkspaceGate");
+    expect(ADMIN_MESSAGE_PATHS).toContain("WorkspaceGate");
   });
 
   it("builds Hermes bag from APP_SHELL + App.Hermes", () => {
