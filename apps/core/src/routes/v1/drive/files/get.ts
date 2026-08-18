@@ -7,7 +7,11 @@ import { list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { badRequest, serviceUnavailable } from "@/helpers/error";
+import {
+  badRequest,
+  serviceUnavailable,
+  unprocessableEntity,
+} from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -43,7 +47,8 @@ const querySchema = z
 const route = createRoute({
   method: "get",
   path: "/",
-  description: "List drive files (personal or organization, newest first)",
+  description:
+    "List drive files (personal or organization, lexicographic order by pathname)",
   tags: ["Drive"],
   request: {
     query: querySchema,
@@ -54,6 +59,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -82,7 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prefix = buildUserDriveFilePrefix(ownerId);
     } else if (query.scope === "org") {
       if (!query.organizationId) {
-        throw badRequest("organizationId is required when scope=org");
+        throw unprocessableEntity("organizationId is required when scope=org");
       }
       // Org drive (verify membership)
       ownerId = query.organizationId;
@@ -123,21 +129,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     });
 
-    // Sort by uploadedAt descending (newest first)
-    apiFiles.sort(
-      (a, b) =>
-        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
-    );
+    // Blob list() returns lexicographic pathname order; keep that order for valid cursor pagination.
+    // Do not sort by uploadedAt — that breaks cursor across pages.
 
-    // Vercel Blob list() doesn't return total count; estimate from hasMore
-    // For true count, we'd need to drain all pages (expensive)
-    const estimatedTotal = hasMore ? blobs.length + 1 : blobs.length;
+    // Vercel Blob list() doesn't return total count.
+    // When this is the complete result (!hasMore && no incoming cursor), we know the exact count.
+    // Otherwise, total is unknown — draining all pages is forbidden.
+    const total = !hasMore && !cursor ? blobs.length : 0; // 0 = unknown, not estimatedTotal
 
     // Create pagination metadata using Vercel Blob's cursor
     const paginationMeta = {
       cursor: cursor ?? null,
       limit: take,
-      total: estimatedTotal,
+      total,
       nextCursor: hasMore ? (nextCursor ?? null) : null,
     };
 

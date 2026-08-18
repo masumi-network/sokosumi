@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { del, head } from "@vercel/blob";
+import { BlobNotFoundError, del, head } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
@@ -37,6 +37,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -68,11 +69,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     try {
       await head(pathname, { token });
     } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.includes("Blob not found") ||
-          error.message.includes("not found"))
-      ) {
+      if (error instanceof BlobNotFoundError) {
         throw notFound("Drive file not found");
       }
       throw error;
