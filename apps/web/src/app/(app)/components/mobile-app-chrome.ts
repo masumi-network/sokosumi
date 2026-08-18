@@ -12,19 +12,19 @@ import {
 const MOBILE_TAB_LIST_PATHS = [
   "/tasks",
   "/agents",
+  "/drive",
   "/projects",
   "/history",
 ] as const;
 
 /**
- * Non-tab hub list roots (PA / admin / notifications / drive): tab bar at root;
+ * Non-tab hub list roots (PA / admin / notifications): tab bar at root;
  * root back → Chats; nested → list root.
  */
 const MOBILE_NON_TAB_HUB_LIST_PATHS = [
   "/personal-assistant",
   "/admin",
   "/notifications",
-  "/drive",
 ] as const;
 
 const MAIN_APP_MOBILE_LIST_PATHS = [
@@ -87,7 +87,7 @@ export function resolveMobileAppBackTarget(
     return null;
   }
   if (pathname === root) {
-    if (root === "/agents") {
+    if (root === "/agents" || root === "/drive") {
       return { href: "/", labelKey: "back" };
     }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
