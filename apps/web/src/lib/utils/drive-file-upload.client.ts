@@ -111,50 +111,101 @@ export async function uploadDriveFile(
     );
   }
 
-  // Upload to Blob storage
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": headers["Content-Type"] ?? file.type,
-    },
-    body: file,
-  });
+  // Upload to Blob storage with XHR for progress tracking
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let hasRealProgress = false;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+    let fallbackProgress = 0;
 
-  if (!uploadResponse.ok) {
-    const status = uploadResponse.status;
+    // Fallback progress estimator if lengthComputable is false or no events fire
+    const startFallbackProgress = () => {
+      fallbackInterval = setInterval(() => {
+        if (!hasRealProgress && fallbackProgress < 90) {
+          fallbackProgress = Math.min(fallbackProgress + 10, 90);
+          onUploadProgress?.({ percentage: fallbackProgress });
+        }
+      }, 1000);
+    };
 
-    // Check for duplicate on Blob 409 or 400 with "already exists" message
-    if (status === 409) {
-      throw new DriveFileUploadError(
-        "duplicate",
-        "A file with this name already exists",
-      );
-    }
+    const stopFallbackProgress = () => {
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+    };
 
-    if (status === 400) {
-      try {
-        const bodyText = await uploadResponse.text();
-        if (/already exists?/i.test(bodyText)) {
-          throw new DriveFileUploadError(
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        hasRealProgress = true;
+        stopFallbackProgress();
+        const percentage = Math.round((event.loaded / event.total) * 100);
+        onUploadProgress?.({ percentage });
+      }
+    });
+
+    xhr.addEventListener("load", async () => {
+      stopFallbackProgress();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onUploadProgress?.({ percentage: 100 });
+        resolve();
+        return;
+      }
+
+      // Check for duplicate on Blob 409 or 400 with "already exists" message
+      if (xhr.status === 409) {
+        reject(
+          new DriveFileUploadError(
             "duplicate",
             "A file with this name already exists",
-          );
-        }
-      } catch (parseErr) {
-        // If DriveFileUploadError, rethrow it
-        if (parseErr instanceof DriveFileUploadError) {
-          throw parseErr;
-        }
-        // Otherwise, treat as internal error and fall through
+          ),
+        );
+        return;
       }
-    }
 
-    // All other Blob PUT failures are internal
-    throw new DriveFileUploadError(
-      "internal",
-      "Failed to upload file to storage",
-    );
-  }
+      if (xhr.status === 400) {
+        const bodyText = xhr.responseText;
+        if (/already exists?/i.test(bodyText)) {
+          reject(
+            new DriveFileUploadError(
+              "duplicate",
+              "A file with this name already exists",
+            ),
+          );
+          return;
+        }
+      }
 
-  onUploadProgress?.({ percentage: 100 });
+      // All other Blob PUT failures are internal
+      reject(
+        new DriveFileUploadError(
+          "internal",
+          "Failed to upload file to storage",
+        ),
+      );
+    });
+
+    xhr.addEventListener("error", () => {
+      stopFallbackProgress();
+      reject(
+        new DriveFileUploadError(
+          "internal",
+          "Failed to upload file to storage",
+        ),
+      );
+    });
+
+    xhr.addEventListener("abort", () => {
+      stopFallbackProgress();
+      reject(new DriveFileUploadError("internal", "Upload was aborted"));
+    });
+
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", headers["Content-Type"] ?? file.type);
+
+    // Start fallback progress estimator
+    startFallbackProgress();
+
+    xhr.send(file);
+  });
 }

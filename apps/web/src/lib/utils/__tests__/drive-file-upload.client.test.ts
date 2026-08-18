@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const postDriveFilesMock = vi.fn();
 const getBrowserCoreClientMock = vi.fn(() => ({ id: "browser-core-client" }));
@@ -35,18 +35,54 @@ function grantSession(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function mockXHR(status: number, responseText = "") {
+  let lastInstance: Record<string, unknown> | null = null;
+
+  const constructor = function XMLHttpRequestMock(
+    this: Record<string, unknown>,
+  ) {
+    lastInstance = this;
+    this.open = vi.fn();
+    this.send = vi.fn();
+    this.setRequestHeader = vi.fn();
+    this.status = status;
+    this.responseText = responseText;
+    this.upload = {
+      addEventListener: vi.fn(),
+    };
+    this.addEventListener = vi.fn(
+      (event: string, handler: (...args: unknown[]) => void) => {
+        if (event === "load") {
+          setTimeout(() => {
+            handler();
+          }, 0);
+        }
+      },
+    );
+  } as unknown as typeof XMLHttpRequest;
+
+  return { constructor, getInstance: () => lastInstance };
+}
+
 describe("uploadDriveFile", () => {
+  let originalXHR: typeof XMLHttpRequest;
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    originalXHR = globalThis.XMLHttpRequest;
+  });
+
+  afterEach(() => {
+    globalThis.XMLHttpRequest = originalXHR;
   });
 
   it("mints a session and PUTs the file to the presigned URL", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
-    vi.stubGlobal("fetch", fetchMock);
+    const { constructor, getInstance } = mockXHR(200);
+    vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
 
@@ -55,6 +91,7 @@ describe("uploadDriveFile", () => {
       onUploadProgress,
     });
 
+    const xhrInstance = getInstance();
     expect(postDriveFilesMock).toHaveBeenCalledWith({
       client: { id: "browser-core-client" },
       body: {
@@ -65,16 +102,15 @@ describe("uploadDriveFile", () => {
       },
       throwOnError: true,
     });
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(xhrInstance?.open).toHaveBeenCalledWith(
+      "PUT",
       "https://blob.example/upload?sig=1",
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/pdf",
-        },
-        body: file,
-      },
     );
+    expect(xhrInstance?.setRequestHeader).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/pdf",
+    );
+    expect(xhrInstance?.send).toHaveBeenCalledWith(file);
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
   });
 
@@ -82,8 +118,8 @@ describe("uploadDriveFile", () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409 });
-    vi.stubGlobal("fetch", fetchMock);
+    const { constructor } = mockXHR(409);
+    vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
 
@@ -104,8 +140,8 @@ describe("uploadDriveFile", () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
-    vi.stubGlobal("fetch", fetchMock);
+    const { constructor } = mockXHR(500);
+    vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
 
@@ -124,10 +160,8 @@ describe("uploadDriveFile", () => {
 
   it("includes organizationId when minting an org-scope upload", async () => {
     const file = new File(["x"], "notes.txt", { type: "text/plain" });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, status: 200 }),
-    );
+    const { constructor } = mockXHR(200);
+    vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(
       grantSession({
         uploadUrl: "https://blob.example/upload?sig=org",
@@ -157,8 +191,8 @@ describe("uploadDriveFile", () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    const { constructor, getInstance } = mockXHR(200);
+    vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession({ uploadUrl: "" }));
 
     await expect(uploadDriveFile(file, { scope: "me" })).rejects.toThrow(
@@ -172,7 +206,8 @@ describe("uploadDriveFile", () => {
       expect(err).toBeInstanceOf(DriveFileUploadError);
     }
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    const xhrInstance = getInstance();
+    expect(xhrInstance?.send || vi.fn()).not.toHaveBeenCalled();
   });
 
   it("detects duplicate from mint 409", async () => {
@@ -195,12 +230,11 @@ describe("uploadDriveFile", () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      text: async () => "BlobAlreadyExists: The blob already exists.",
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    const { constructor } = mockXHR(
+      400,
+      "BlobAlreadyExists: The blob already exists.",
+    );
+    vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
 
     try {

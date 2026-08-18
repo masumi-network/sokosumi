@@ -13,19 +13,25 @@ export interface ListMobileCreateFabProps {
   onOpen: () => void;
   /** Optional icon component (defaults to Plus) */
   icon?: LucideIcon;
+  /** Optional upload progress (0-100). Shows animated ring + percent. */
+  progress?: number;
 }
 
 /**
  * Fixed + FAB below md, above bottom nav.
  * No speed-dial. One click → onOpen.
  * Visibility is mount-based (only render on list roots).
+ * Optional progress ring for uploads.
  */
 export function ListMobileCreateFab({
   ariaLabel,
   onOpen,
   icon: Icon = Plus,
+  progress,
 }: ListMobileCreateFabProps): React.ReactElement {
   const isApple = useIsApplePlatform();
+  const isUploading = progress !== undefined && progress < 100;
+  const showProgress = progress !== undefined;
 
   return (
     <div
@@ -37,14 +43,54 @@ export function ListMobileCreateFab({
       data-list-mobile-create-fab
     >
       <div className="relative z-50 flex h-14 justify-end">
-        <button
-          type="button"
-          aria-label={ariaLabel}
-          onClick={onOpen}
-          className="bg-primary text-primary-foreground pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg"
-        >
-          <Icon className="size-6" aria-hidden />
-        </button>
+        <div className="relative">
+          {showProgress && (
+            <svg
+              className="absolute inset-0 size-14 -rotate-90"
+              aria-hidden="true"
+            >
+              <circle
+                cx="28"
+                cy="28"
+                r="26"
+                className="stroke-background/40"
+                strokeWidth="2"
+                fill="none"
+              />
+              <circle
+                cx="28"
+                cy="28"
+                r="26"
+                className="stroke-background transition-all duration-300 ease-out"
+                strokeWidth="2"
+                fill="none"
+                strokeDasharray={`${2 * Math.PI * 26}`}
+                strokeDashoffset={`${2 * Math.PI * 26 * (1 - (progress ?? 0) / 100)}`}
+                strokeLinecap="round"
+              />
+            </svg>
+          )}
+          <button
+            type="button"
+            aria-label={ariaLabel}
+            onClick={onOpen}
+            disabled={isUploading}
+            className={cn(
+              "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-all duration-300",
+              isUploading
+                ? "bg-foreground text-background cursor-not-allowed"
+                : "bg-primary text-primary-foreground",
+            )}
+          >
+            {showProgress ? (
+              <span className="text-sm font-semibold" aria-hidden>
+                {Math.round(progress ?? 0)}%
+              </span>
+            ) : (
+              <Icon className="size-6" aria-hidden />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
