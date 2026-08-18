@@ -5421,7 +5421,8 @@
       "continue": "Continuar",
       "nameUpdateError": "No pudimos actualizar tu nombre.",
       "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
-      "personalCreateError": "No pudimos crear tu espacio de trabajo personal."
+      "personalCreateError": "No pudimos crear tu espacio de trabajo personal.",
+      "personalActivateError": "Espacio personal creado, pero no pudimos cambiarte a él. Usa el selector de espacios."
     },
     "Pending": {
       "accept": "Aceptar",

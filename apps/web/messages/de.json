@@ -3781,18 +3781,18 @@
         "error": "Account konnte nicht gelöscht werden"
       },
       "DeletePersonal": {
-        "title": "Persönlichen Workspace löschen",
-        "description": "Löscht deinen persönlichen Workspace. Organisations-Workspaces bleiben.",
-        "lastWorkspaceDescription": "Du kannst deinen letzten Workspace nicht löschen.",
-        "button": "Persönlichen Workspace löschen",
-        "confirmTitle": "Persönlichen Workspace löschen?",
-        "confirmDescription": "Damit löschst du deinen persönlichen Workspace. Organisations-Workspaces bleiben unberührt.",
-        "confirm": "Ja, persönlichen Workspace löschen",
-        "success": "Persönlicher Workspace gelöscht",
-        "error": "Persönlicher Workspace konnte nicht gelöscht werden",
-        "activateError": "Persönlicher Workspace gelöscht, aber der Wechsel zur Organisation ist fehlgeschlagen. Nutze den Workspace-Wechsler.",
-        "lastWorkspaceError": "Du kannst deinen letzten Workspace nicht löschen.",
-        "dependentsError": "Lösche zuerst Jobs und Tasks in diesem Workspace."
+        "title": "Persönlichen Arbeitsbereich löschen",
+        "description": "Löscht deinen persönlichen Arbeitsbereich. Organisations-Arbeitsbereiche bleiben.",
+        "lastWorkspaceDescription": "Du kannst deinen letzten Arbeitsbereich nicht löschen.",
+        "button": "Persönlichen Arbeitsbereich löschen",
+        "confirmTitle": "Persönlichen Arbeitsbereich löschen?",
+        "confirmDescription": "Damit löschst du deinen persönlichen Arbeitsbereich. Organisations-Arbeitsbereiche bleiben unberührt.",
+        "confirm": "Ja, persönlichen Arbeitsbereich löschen",
+        "success": "Persönlicher Arbeitsbereich gelöscht",
+        "error": "Persönlicher Arbeitsbereich konnte nicht gelöscht werden",
+        "activateError": "Persönlicher Arbeitsbereich gelöscht, aber der Wechsel zur Organisation ist fehlgeschlagen. Nutze den Arbeitsbereich-Wechsler.",
+        "lastWorkspaceError": "Du kannst deinen letzten Arbeitsbereich nicht löschen.",
+        "dependentsError": "Lösche zuerst Jobs und Tasks in diesem Arbeitsbereich."
       },
       "ApiKeys": {
         "title": "API-Keys",
@@ -5421,7 +5421,8 @@
       "continue": "Weiter",
       "nameUpdateError": "Wir konnten deinen Namen nicht aktualisieren.",
       "organizationActivateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Workspace wechseln, sobald du im Produkt bist.",
-      "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden."
+      "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden.",
+      "personalActivateError": "Persönlicher Arbeitsbereich erstellt, aber der Wechsel ist fehlgeschlagen. Nutze den Arbeitsbereich-Wechsler."
     },
     "Pending": {
       "accept": "Annehmen",

@@ -5421,7 +5421,8 @@
       "continue": "Continue",
       "nameUpdateError": "We could not update your name.",
       "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",
-      "personalCreateError": "We could not create your personal workspace."
+      "personalCreateError": "We could not create your personal workspace.",
+      "personalActivateError": "Personal workspace created, but we could not switch you to it. Use the workspace switcher."
     },
     "Pending": {
       "accept": "Accept",

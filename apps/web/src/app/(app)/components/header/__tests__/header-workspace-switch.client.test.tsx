@@ -1,6 +1,7 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
 import { authClient } from "@/lib/auth/auth.client";
@@ -21,6 +22,13 @@ vi.mock("@/hooks/use-modal", () => ({
 
 vi.mock("@/lib/actions/workspace-gate", () => ({
   createPersonalWorkspaceAction: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -183,6 +191,40 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
 
     expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
     expect(onSelectWorkspace).toHaveBeenCalledWith(null);
+  });
+
+  it("toasts when create succeeds but activation throws", async () => {
+    const user = userEvent.setup();
+    const onSelectWorkspace = vi
+      .fn()
+      .mockRejectedValue(new Error("setActive failed"));
+    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue({
+      ok: true,
+      value: { workspaceId: "ws-1" },
+    } as never);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={false}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={onSelectWorkspace}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+    await user.click(screen.getByText("createPersonalWorkspace"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("personalActivateError");
+    });
+    expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
+    consoleErrorSpy.mockRestore();
   });
 
   it("collects a name first when the user has none, then creates and activates", async () => {

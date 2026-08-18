@@ -50,7 +50,7 @@ interface HeaderWorkspaceSwitchProps {
   hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
   isPending: boolean;
-  onSelectWorkspace: (workspaceId: string | null) => void;
+  onSelectWorkspace: (workspaceId: string | null) => void | Promise<void>;
 }
 
 interface WorkspaceItem {
@@ -185,7 +185,12 @@ export default function HeaderWorkspaceSwitch({
       toast.error(tIdentity("personalCreateError"));
       return;
     }
-    onSelectWorkspace(null);
+    try {
+      await onSelectWorkspace(null);
+    } catch (error) {
+      console.error("Create personal workspace activation failed", error);
+      toast.error(tIdentity("personalActivateError"));
+    }
   }
 
   async function handleCreatePersonalWorkspace() {
