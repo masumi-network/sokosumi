@@ -61,7 +61,17 @@ export async function uploadDriveFile(
   } catch (err: unknown) {
     // Detect mint 409 or "already exists" message
     if (err && typeof err === "object") {
-      const status = "status" in err ? (err.status as number) : undefined;
+      // Check for status in error or error.response
+      const status =
+        "status" in err
+          ? (err.status as number)
+          : "response" in err &&
+              err.response &&
+              typeof err.response === "object" &&
+              "status" in err.response
+            ? (err.response.status as number)
+            : undefined;
+
       const message =
         "message" in err && typeof err.message === "string"
           ? err.message
