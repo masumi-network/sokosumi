@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -150,29 +150,27 @@ export default function HeaderWorkspaceSwitch({
     }
   }
 
-  async function createAndActivatePersonal(): Promise<void> {
-    const createResult = await createPersonalWorkspaceAction({});
-    if (!createResult.ok) {
-      if (
-        createResult.error.code ===
-        WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
-      ) {
-        await activateCreatedPersonalWorkspace();
-        return;
-      }
-      console.error("Create personal workspace failed", createResult.error);
-      toast.error(tIdentity("personalCreateError"));
-      return;
-    }
-    await activateCreatedPersonalWorkspace();
-  }
-
-  async function handleCreatePersonalWorkspace() {
-    setIsCreatingPersonal(true);
+  async function createAndActivatePersonal(): Promise<boolean> {
     try {
-      await createAndActivatePersonal();
-    } finally {
-      setIsCreatingPersonal(false);
+      const createResult = await createPersonalWorkspaceAction({});
+      if (!createResult.ok) {
+        if (
+          createResult.error.code ===
+          WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
+        ) {
+          await activateCreatedPersonalWorkspace();
+          return true;
+        }
+        console.error("Create personal workspace failed", createResult.error);
+        toast.error(tIdentity("personalCreateError"));
+        return false;
+      }
+      await activateCreatedPersonalWorkspace();
+      return true;
+    } catch (error) {
+      console.error("Create personal workspace failed", error);
+      toast.error(tIdentity("personalCreateError"));
+      return false;
     }
   }
 
@@ -186,13 +184,21 @@ export default function HeaderWorkspaceSwitch({
     setIsChoiceDialogOpen(true);
   }
 
-  function handleChoiceContinue() {
-    setIsChoiceDialogOpen(false);
-    if (workspaceChoice === "personal") {
-      void handleCreatePersonalWorkspace();
+  async function handleChoiceContinue() {
+    if (workspaceChoice === "organization") {
+      setIsChoiceDialogOpen(false);
+      showCreateOrganizationModal();
       return;
     }
-    showCreateOrganizationModal();
+
+    setIsCreatingPersonal(true);
+    try {
+      if (await createAndActivatePersonal()) {
+        setIsChoiceDialogOpen(false);
+      }
+    } finally {
+      setIsCreatingPersonal(false);
+    }
   }
 
   const personalWorkspace = useMemo<WorkspaceItem>(
@@ -341,6 +347,7 @@ export default function HeaderWorkspaceSwitch({
             aria-label={tIdentity("choiceLabel")}
             className="grid gap-3"
             data-testid="workspace-switcher-create-choice"
+            disabled={isCreatingPersonal}
           >
             <Label
               htmlFor="switcher-workspace-choice-personal"
@@ -390,8 +397,13 @@ export default function HeaderWorkspaceSwitch({
             <Button
               type="button"
               disabled={isCreatingPersonal}
-              onClick={handleChoiceContinue}
+              onClick={() => {
+                void handleChoiceContinue();
+              }}
             >
+              {isCreatingPersonal ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
               {tIdentity("continue")}
             </Button>
           </DialogFooter>
