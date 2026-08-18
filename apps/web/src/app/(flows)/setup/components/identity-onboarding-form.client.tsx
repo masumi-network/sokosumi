@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -40,7 +39,6 @@ export function IdentityOnboardingForm({
 }: IdentityOnboardingFormProps) {
   const t = useTranslations("WorkspaceGate.Identity");
   const tSchema = useTranslations("Library.Auth.Schema");
-  const router = useRouter();
   const [choice, setChoice] = useState<WorkspaceChoice>("personal");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,13 +52,12 @@ export function IdentityOnboardingForm({
   });
 
   const leaveToApp = useCallback(() => {
-    router.replace("/");
     // activateOrganizationWorkspace persists preferred org via a server
-    // action, which refreshes the current URL. router.refresh() after
-    // replace("/") does the same. Either one remounts /setup and cancels
-    // the leave. Hard navigation survives that refresh.
-    window.location.assign("/");
-  }, [router]);
+    // action, which refreshes the current URL. Soft router.replace +
+    // refresh remounts /setup and cancels the leave. replace (not assign)
+    // keeps /setup off the history stack so Back does not bounce-loop.
+    window.location.replace("/");
+  }, []);
 
   useEffect(() => {
     if (!workspaceReady || wizardOpen || leavingGateRef.current) {

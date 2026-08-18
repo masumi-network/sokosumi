@@ -9,23 +9,13 @@ const toastErrorMock = vi.fn();
 const updateUserMock = vi.fn();
 const createPersonalWorkspaceActionMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
-const routerReplaceMock = vi.fn();
-const routerRefreshMock = vi.fn();
-const locationAssignMock = vi.fn();
+const locationReplaceMock = vi.fn();
 
 vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => toastErrorMock(...args),
     success: vi.fn(),
   },
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: routerReplaceMock,
-    refresh: routerRefreshMock,
-    push: vi.fn(),
-  }),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -126,10 +116,10 @@ describe("IdentityOnboardingForm", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    locationAssignMock.mockReset();
+    locationReplaceMock.mockReset();
     vi.stubGlobal("location", {
       ...window.location,
-      assign: locationAssignMock,
+      replace: locationReplaceMock,
     });
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     updateUserMock.mockResolvedValue({ error: null });
@@ -172,9 +162,7 @@ describe("IdentityOnboardingForm", () => {
       expect(updateUserMock).not.toHaveBeenCalled();
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).not.toHaveBeenCalled();
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
   });
 
@@ -208,7 +196,7 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("wizard-back"));
     expect(screen.getByTestId("workspace-gate-identity-form")).toBeTruthy();
     expect(screen.queryByTestId("create-org-wizard")).toBeNull();
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
   it("keeps an edited name after Back from the organization wizard", async () => {
@@ -245,7 +233,7 @@ describe("IdentityOnboardingForm", () => {
     });
     expect(screen.queryByTestId("create-org-wizard")).toBeNull();
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
   it("does not navigate away when the organization wizard opens", async () => {
@@ -258,17 +246,15 @@ describe("IdentityOnboardingForm", () => {
     await waitFor(() => {
       expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
     });
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
   it("leaves the gate when workspace is already ready and the wizard is closed", async () => {
     renderForm("Ada Lovelace", true);
 
     await waitFor(() => {
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
-    expect(routerRefreshMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId("workspace-gate-identity-form")).toBeNull();
     expect(screen.getByTestId("workspace-gate-leaving")).toBeTruthy();
@@ -291,7 +277,7 @@ describe("IdentityOnboardingForm", () => {
     );
 
     expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
   it("activates the organization before leaving when the wizard finishes after the gate is ready", async () => {
@@ -320,14 +306,12 @@ describe("IdentityOnboardingForm", () => {
     await user.click(await screen.findByTestId("wizard-complete"));
 
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
 
     resolveActivate();
 
     await waitFor(() => {
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).not.toHaveBeenCalled();
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
   });
 
@@ -342,9 +326,7 @@ describe("IdentityOnboardingForm", () => {
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).not.toHaveBeenCalled();
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("workspace-gate-identity-submit")).toBeDisabled();
@@ -363,7 +345,7 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
@@ -384,9 +366,7 @@ describe("IdentityOnboardingForm", () => {
       expect(toastErrorMock).toHaveBeenCalledWith(
         "Could not switch into that organization",
       );
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).not.toHaveBeenCalled();
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
   });
 
@@ -406,7 +386,7 @@ describe("IdentityOnboardingForm", () => {
       expect(toastErrorMock).toHaveBeenCalledWith("Name service down");
     });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
   it("toasts i18n copy for non-409 create errors instead of raw Core text", async () => {
@@ -432,7 +412,7 @@ describe("IdentityOnboardingForm", () => {
         message: "ECONNRESET from core-internal-host:8787",
       },
     );
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
   it("leaves the gate when Core reports the personal workspace already exists", async () => {
@@ -450,9 +430,7 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).not.toHaveBeenCalled();
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
@@ -468,9 +446,7 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
-      expect(routerReplaceMock).toHaveBeenCalledWith("/");
-      expect(locationAssignMock).toHaveBeenCalledWith("/");
-      expect(routerRefreshMock).not.toHaveBeenCalled();
+      expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
