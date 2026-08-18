@@ -5,6 +5,10 @@ import { Check, Download, Edit3, Trash2, Upload, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactElement, useCallback, useEffect, useState } from "react";
 import {
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
+} from "@/app/projects/constants";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -15,24 +19,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
@@ -156,7 +145,6 @@ export default function DrivePage(): ReactElement {
         },
       });
 
-      // Refetch immediately after upload (no 2s wait)
       await loadFiles();
     } catch (err) {
       setError(getDriveFileUploadErrorMessage(err));
@@ -243,23 +231,24 @@ export default function DrivePage(): ReactElement {
   }
 
   const emptyState = !loading && files.length === 0;
+  const hasFiles = files.length > 0;
 
   return (
     <div className="w-full px-2">
-      {error && (
-        <Card className="mb-6 border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-destructive text-sm">{error}</p>
-          </CardContent>
-        </Card>
-      )}
-
       <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
         <div className="mb-6 flex items-center justify-between gap-4">
-          <TabsList>
-            <TabsTrigger value="me">My Drive</TabsTrigger>
+          <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
+            <TabsTrigger
+              value="me"
+              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+            >
+              My Drive
+            </TabsTrigger>
             {activeOrganizationId && (
-              <TabsTrigger value="org">
+              <TabsTrigger
+                value="org"
+                className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              >
                 {organizationName || "Organization"}
               </TabsTrigger>
             )}
@@ -286,153 +275,165 @@ export default function DrivePage(): ReactElement {
           </div>
         </div>
 
+        {error && (
+          <div className="bg-destructive/10 text-destructive mb-6 rounded-lg border border-destructive/20 px-4 py-3 text-sm">
+            {error}
+          </div>
+        )}
+
         <TabsContent value={scope} className="mt-0">
-          {emptyState ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No files yet</CardTitle>
-                <CardDescription>
+          {loading ? (
+            <div
+              className={cn(
+                "bg-muted/30 border-border/50 flex items-center justify-center rounded-xl border px-6 py-12",
+                PROJECTS_LIST_CARD_MIN_H_CLASS,
+              )}
+            >
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            </div>
+          ) : emptyState ? (
+            <div
+              className={cn(
+                "bg-muted/30 border-border/50 flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+                PROJECTS_LIST_CARD_MIN_H_CLASS,
+              )}
+            >
+              <div className="max-w-sm">
+                <h2 className="text-foreground text-lg font-semibold">
+                  No files yet
+                </h2>
+                <p className="text-muted-foreground mt-2 text-sm">
                   Upload your first file to get started
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className={cn("p-0", "md:px-6")}>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Uploaded</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          Loading...
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      files.map((file) => {
-                        const extension = getExtensionFromUrl(file.name);
-                        return (
-                          <TableRow key={file.pathname}>
-                            <TableCell className="w-12">
-                              <div className="flex items-center justify-center">
-                                <div className="flex size-6 items-center justify-center">
-                                  <FileTypeIcon
-                                    extension={extension || "file"}
-                                  />
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {editingFilePathname === file.pathname ? (
-                                <Input
-                                  value={editingFileName}
-                                  onChange={(e) =>
-                                    setEditingFileName(e.target.value)
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      void handleRename(
-                                        file.pathname,
-                                        editingFileName,
-                                      );
-                                    } else if (e.key === "Escape") {
-                                      cancelEdit();
-                                    }
-                                  }}
-                                  className="h-8"
-                                  autoFocus
-                                />
-                              ) : (
-                                <span className="font-medium">{file.name}</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {file.size ? formatBytes(file.size) : "—"}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatDate(file.uploadedAt)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {editingFilePathname === file.pathname ? (
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      void handleRename(
-                                        file.pathname,
-                                        editingFileName,
-                                      )
-                                    }
-                                    title="Save"
-                                  >
-                                    <Check className="size-4" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={cancelEdit}
-                                    title="Cancel"
-                                  >
-                                    <X className="size-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      handleDownload(file.fileUrl, file.name)
-                                    }
-                                    title="Download"
-                                  >
-                                    <Download className="size-4" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => startEdit(file)}
-                                    title="Rename"
-                                    disabled={editingFilePathname !== null}
-                                  >
-                                    <Edit3 className="size-4" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openDeleteDialog(file)}
-                                    title="Delete"
-                                    disabled={editingFilePathname !== null}
-                                  >
-                                    <Trash2 className="size-4" />
-                                  </Button>
-                                </div>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+                </p>
+              </div>
+            </div>
+          ) : hasFiles ? (
+            <div
+              className={cn(
+                "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+                PROJECTS_LIST_CARD_MIN_H_CLASS,
+              )}
+            >
+              <div className="divide-border/50 divide-y px-2">
+                {files.map((file) => {
+                  const extension = getExtensionFromUrl(file.name);
+                  const isEditing = editingFilePathname === file.pathname;
+
+                  return (
+                    <article
+                      key={file.pathname}
+                      className={cn(
+                        "-mx-2 flex items-center gap-2 rounded-lg px-2 hover:bg-muted/50",
+                        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                      )}
+                    >
+                      <div className="flex size-6 shrink-0 items-center justify-center">
+                        <FileTypeIcon extension={extension || "file"} />
+                      </div>
+
+                      <div className="flex min-w-0 flex-1 items-center gap-4 py-3">
+                        {isEditing ? (
+                          <Input
+                            value={editingFileName}
+                            onChange={(e) => setEditingFileName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void handleRename(
+                                  file.pathname,
+                                  editingFileName,
+                                );
+                              } else if (e.key === "Escape") {
+                                cancelEdit();
+                              }
+                            }}
+                            className="h-8 flex-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">
+                            <span className="text-foreground line-clamp-1 text-sm font-medium">
+                              {file.name}
+                            </span>
+                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs">
+                              <span>
+                                {file.size ? formatBytes(file.size) : "—"}
+                              </span>
+                              <span>{formatDate(file.uploadedAt)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  void handleRename(
+                                    file.pathname,
+                                    editingFileName,
+                                  )
+                                }
+                                title="Save"
+                              >
+                                <Check className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={cancelEdit}
+                                title="Cancel"
+                              >
+                                <X className="size-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  handleDownload(file.fileUrl, file.name)
+                                }
+                                title="Download"
+                              >
+                                <Download className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => startEdit(file)}
+                                title="Rename"
+                                disabled={editingFilePathname !== null}
+                              >
+                                <Edit3 className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openDeleteDialog(file)}
+                                title="Delete"
+                                disabled={editingFilePathname !== null}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </TabsContent>
       </Tabs>
 
