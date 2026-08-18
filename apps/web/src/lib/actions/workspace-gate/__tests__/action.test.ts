@@ -262,4 +262,24 @@ describe("clearPendingOrganizationJoinCookieAction", () => {
     expect(result.ok).toBe(true);
     expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
   });
+
+  it("clears the cookie when a different token resolves to the accepted org", async () => {
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("tok_other");
+    resolveOrganizationInviteLinkMock.mockResolvedValue({
+      data: {
+        status: "valid",
+        organization: { name: "Acme", slug: "acme", logo: null },
+      },
+    });
+
+    const result = await clearPendingOrganizationJoinCookieAction({
+      organizationSlug: "acme",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(resolveOrganizationInviteLinkMock).toHaveBeenCalledWith("tok_other");
+    expect(clearPendingOrganizationJoinTokenMock).toHaveBeenCalledWith({
+      secure: false,
+    });
+  });
 });
