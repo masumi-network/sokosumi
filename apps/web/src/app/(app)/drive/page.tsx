@@ -145,16 +145,37 @@ export default function DrivePage(): ReactElement {
     setLoading(true);
     setError(null);
     try {
-      const response = await getDriveFiles({
-        client: getBrowserCoreClient(),
-        query: {
-          scope,
-          ...(scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-        },
-      });
-      setFiles((response.data?.data as DriveFile[]) || []);
+      // Don't call org list without an organizationId
+      if (scope === "org" && !activeOrganizationId) {
+        setFiles([]);
+        setLoading(false);
+        return;
+      }
+
+      const allFiles: DriveFile[] = [];
+      let cursor: string | undefined;
+
+      // Follow nextCursor until all files are loaded
+      do {
+        const response = await getDriveFiles({
+          client: getBrowserCoreClient(),
+          query: {
+            scope,
+            limit: 100,
+            ...(cursor ? { cursor } : {}),
+            ...(scope === "org" && activeOrganizationId
+              ? { organizationId: activeOrganizationId }
+              : {}),
+          },
+          throwOnError: true,
+        });
+
+        const pageFiles = (response.data?.data as DriveFile[]) || [];
+        allFiles.push(...pageFiles);
+        cursor = response.data?.meta?.pagination?.nextCursor ?? undefined;
+      } while (cursor);
+
+      setFiles(allFiles);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load files");
     } finally {
@@ -233,7 +254,9 @@ export default function DrivePage(): ReactElement {
           oldPathname: pathname,
           newFilename: newName.trim(),
         },
+        throwOnError: true,
       });
+
       setEditingFilePathname(null);
       setEditingFileName("");
       await loadFiles();
@@ -259,7 +282,9 @@ export default function DrivePage(): ReactElement {
         body: {
           pathname: fileToDelete.pathname,
         },
+        throwOnError: true,
       });
+
       setDeleteDialogOpen(false);
       setFileToDelete(null);
       await loadFiles();
