@@ -287,7 +287,8 @@
       "api-keys": "API Keys",
       "coworkers": "Coworkers",
       "vendors": "Vendors",
-      "docs": "Documentation"
+      "docs": "Documentation",
+      "drive": "Drive"
     },
     "Jobs": {
       "StatusBadge": {
@@ -5278,6 +5279,28 @@
     },
     "WorkspaceAccess": {
       "checking": "Checking workspace access"
+    },
+    "Drive": {
+      "breadcrumb": "Drive",
+      "myDriveTab": "My Drive",
+      "uploadButton": "Upload",
+      "uploadingProgress": "{progress}%",
+      "emptyTitle": "No files yet",
+      "emptyDescription": "Upload your first file to get started",
+      "downloadAction": "Download",
+      "renameAction": "Rename",
+      "deleteAction": "Delete",
+      "saveAction": "Save",
+      "cancelAction": "Cancel",
+      "deleteDialogTitle": "Delete file",
+      "deleteDialogDescription": "Are you sure you want to delete {fileName}? This action cannot be undone.",
+      "deleteDialogCancel": "Cancel",
+      "deleteDialogConfirm": "Delete",
+      "loadFilesError": "Failed to load files",
+      "uploadError": "Failed to upload file",
+      "renameError": "Failed to rename file",
+      "deleteError": "Failed to delete file",
+      "organizationTabFallback": "Organization"
     }
   },
   "Share": {
@@ -5525,27 +5548,6 @@
     "marketingTitle": "Marketing",
     "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
     "settings": "Cookie settings"
-  },
-  "Drive": {
-    "breadcrumb": "Drive",
-    "myDriveTab": "My Drive",
-    "uploadButton": "Upload",
-    "uploadingProgress": "{progress}%",
-    "emptyTitle": "No files yet",
-    "emptyDescription": "Upload your first file to get started",
-    "downloadAction": "Download",
-    "renameAction": "Rename",
-    "deleteAction": "Delete",
-    "saveAction": "Save",
-    "cancelAction": "Cancel",
-    "deleteDialogTitle": "Delete file",
-    "deleteDialogDescription": "Are you sure you want to delete {fileName}? This action cannot be undone.",
-    "deleteDialogCancel": "Cancel",
-    "deleteDialogConfirm": "Delete",
-    "loadFilesError": "Failed to load files",
-    "uploadError": "Failed to upload file",
-    "renameError": "Failed to rename file",
-    "deleteError": "Failed to delete file"
   },
   "WorkspaceGate": {
     "title": "Set up your workspace",
