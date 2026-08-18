@@ -282,4 +282,28 @@ describe("clearPendingOrganizationJoinCookieAction", () => {
       secure: false,
     });
   });
+
+  it("keeps the cookie when invite-link resolution fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("tok_other");
+    resolveOrganizationInviteLinkMock.mockRejectedValue(
+      new Error("Core backend timeout"),
+    );
+
+    try {
+      const result = await clearPendingOrganizationJoinCookieAction({
+        organizationSlug: "acme",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(resolveOrganizationInviteLinkMock).toHaveBeenCalledWith(
+        "tok_other",
+      );
+      expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });
