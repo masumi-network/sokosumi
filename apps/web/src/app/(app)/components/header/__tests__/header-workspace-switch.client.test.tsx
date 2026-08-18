@@ -10,6 +10,10 @@ import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import HeaderWorkspaceSwitch from "../header-workspace-switch.client";
 
+const { showCreateOrganizationModal } = vi.hoisted(() => ({
+  showCreateOrganizationModal: vi.fn(),
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
@@ -17,7 +21,7 @@ vi.mock("next-intl", () => ({
 vi.mock("@/hooks/use-modal", () => ({
   default: () => ({
     Component: null,
-    showModal: vi.fn(),
+    showModal: showCreateOrganizationModal,
   }),
 }));
 
@@ -42,11 +46,6 @@ const createdPersonalWorkspace = {
   ok: true as const,
   value: { workspaceId: "ws-1" },
 } satisfies Awaited<ReturnType<typeof createPersonalWorkspaceAction>>;
-
-const updatedUser = {
-  data: null,
-  error: null,
-} satisfies Awaited<ReturnType<typeof authClient.updateUser>>;
 
 const sessionUser: SessionUser = {
   id: "user-1",
@@ -159,7 +158,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     ).toBeInTheDocument();
   });
 
-  it("lists create personal instead of a Personal row for org-only users", async () => {
+  it("lists one create workspace action instead of split create rows", async () => {
     const user = userEvent.setup();
     render(
       <HeaderWorkspaceSwitch
@@ -174,11 +173,13 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
 
-    expect(screen.getByText("createPersonalWorkspace")).toBeInTheDocument();
+    expect(screen.getByText("createWorkspace")).toBeInTheDocument();
+    expect(screen.queryByText("createPersonalWorkspace")).toBeNull();
+    expect(screen.queryByText("createOrganization")).toBeNull();
     expect(screen.queryByRole("menuitem", { name: /Test User/ })).toBeNull();
   });
 
-  it("creates and activates personal when the user already has a name", async () => {
+  it("creates and activates personal after choosing Personal and Continue", async () => {
     const user = userEvent.setup();
     const onSelectWorkspace = vi.fn();
     vi.mocked(createPersonalWorkspaceAction).mockResolvedValue(
@@ -197,10 +198,84 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
-    await user.click(screen.getByText("createPersonalWorkspace"));
+    await user.click(screen.getByText("createWorkspace"));
+    await user.click(screen.getByRole("button", { name: "continue" }));
 
-    expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
+    });
     expect(onSelectWorkspace).toHaveBeenCalledWith(null);
+    expect(showCreateOrganizationModal).not.toHaveBeenCalled();
+    expect(authClient.updateUser).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("workspace-switcher-create-choice"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("toasts and keeps the choice dialog open when personal create fails", async () => {
+    const user = userEvent.setup();
+    const onSelectWorkspace = vi.fn();
+    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue({
+      ok: false,
+      error: {
+        code: WorkspaceGateErrorCode.LAST_WORKSPACE,
+      },
+    } satisfies Awaited<ReturnType<typeof createPersonalWorkspaceAction>>);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={false}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={onSelectWorkspace}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+    await user.click(screen.getByText("createWorkspace"));
+    await user.click(screen.getByRole("button", { name: "continue" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("personalCreateError");
+    });
+    expect(onSelectWorkspace).not.toHaveBeenCalled();
+    expect(showCreateOrganizationModal).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId("workspace-switcher-create-choice"),
+    ).toBeInTheDocument();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("opens the organization wizard after choosing Organization and Continue", async () => {
+    const user = userEvent.setup();
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={false}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+    await user.click(screen.getByText("createWorkspace"));
+
+    expect(screen.getByText("personalTitle")).toBeInTheDocument();
+    expect(screen.getByText("organizationTitle")).toBeInTheDocument();
+    expect(screen.getByText("choiceHint")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: /organizationTitle/ }));
+    await user.click(screen.getByRole("button", { name: "continue" }));
+
+    expect(showCreateOrganizationModal).toHaveBeenCalledOnce();
+    expect(createPersonalWorkspaceAction).not.toHaveBeenCalled();
   });
 
   it("toasts when create succeeds but activation throws", async () => {
@@ -227,7 +302,8 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
-    await user.click(screen.getByText("createPersonalWorkspace"));
+    await user.click(screen.getByText("createWorkspace"));
+    await user.click(screen.getByRole("button", { name: "continue" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("personalActivateError");
@@ -236,14 +312,13 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("collects a name first when the user has none, then creates and activates", async () => {
+  it("creates personal without a name dialog when the user has no name", async () => {
     const user = userEvent.setup();
     const onSelectWorkspace = vi.fn();
     const namelessUser: SessionUser = { ...sessionUser, name: "" };
     vi.mocked(createPersonalWorkspaceAction).mockResolvedValue(
       createdPersonalWorkspace,
     );
-    vi.mocked(authClient.updateUser).mockResolvedValue(updatedUser);
 
     render(
       <HeaderWorkspaceSwitch
@@ -257,21 +332,16 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
-    await user.click(screen.getByText("createPersonalWorkspace"));
+    await user.click(screen.getByText("createWorkspace"));
 
-    expect(createPersonalWorkspaceAction).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox")).toBeNull();
 
-    await user.type(screen.getByRole("textbox"), "Ada Lovelace");
-    await user.click(
-      screen.getByRole("button", { name: "createPersonalWorkspace" }),
-    );
+    await user.click(screen.getByRole("button", { name: "continue" }));
 
     await waitFor(() => {
-      expect(authClient.updateUser).toHaveBeenCalledWith({
-        name: "Ada Lovelace",
-      });
+      expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
     });
-    expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
+    expect(authClient.updateUser).not.toHaveBeenCalled();
     expect(onSelectWorkspace).toHaveBeenCalledWith(null);
   });
 
@@ -302,7 +372,8 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
-    await user.click(screen.getByText("createPersonalWorkspace"));
+    await user.click(screen.getByText("createWorkspace"));
+    await user.click(screen.getByRole("button", { name: "continue" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("personalActivateError");
@@ -328,8 +399,29 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
 
     expect(screen.getByText("Test User")).toBeInTheDocument();
     expect(screen.getAllByText("Org A").length).toBeGreaterThan(0);
-    expect(
-      screen.queryByText("createPersonalWorkspace"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("createWorkspace")).toBeInTheDocument();
+    expect(screen.queryByText("createPersonalWorkspace")).toBeNull();
+    expect(screen.queryByText("createOrganization")).toBeNull();
+  });
+
+  it("opens the organization wizard directly when a personal workspace already exists", async () => {
+    const user = userEvent.setup();
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={true}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+    await user.click(screen.getByText("createWorkspace"));
+
+    expect(showCreateOrganizationModal).toHaveBeenCalledOnce();
+    expect(createPersonalWorkspaceAction).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("workspace-switcher-create-choice")).toBeNull();
   });
 });
