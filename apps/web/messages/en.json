@@ -5300,7 +5300,8 @@
       "uploadError": "Failed to upload file",
       "renameError": "Failed to rename file",
       "deleteError": "Failed to delete file",
-      "organizationTabFallback": "Organization"
+      "organizationTabFallback": "Organization",
+      "uploadDuplicateError": "A file with this name already exists. Rename it and try again."
     }
   },
   "Share": {

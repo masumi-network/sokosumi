@@ -15184,6 +15184,20 @@ export type PostDriveFilesErrors = {
         };
     };
     /**
+     * Conflict - target pathname already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Payload Too Large
      */
     413: {
