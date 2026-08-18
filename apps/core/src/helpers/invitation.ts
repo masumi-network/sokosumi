@@ -178,3 +178,36 @@ export async function listPendingOrganizationInvitationsForUser(
     },
   }));
 }
+
+/**
+ * Drops leftover email invitations after the user joined the same org
+ * through another path (invite link). Idempotent.
+ */
+export async function cancelPendingOrganizationInvitationsForUser(
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+
+  if (!user) {
+    return 0;
+  }
+
+  const result = await tx.invitation.updateMany({
+    where: {
+      organizationId,
+      status: InvitationStatus.PENDING,
+      email: {
+        equals: normalizeInvitationEmail(user.email),
+        mode: "insensitive",
+      },
+    },
+    data: { status: InvitationStatus.CANCELED },
+  });
+
+  return result.count;
+}

@@ -11,6 +11,7 @@ import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
@@ -118,6 +119,7 @@ export default function InvitationActions({
       return;
     }
     setRetryOrganizationId(null);
+    await clearPendingOrganizationJoinCookieAction({ organizationSlug });
     toast.success(t("Success.accept"));
     router.push(`/organizations/${organizationSlug}`);
   }

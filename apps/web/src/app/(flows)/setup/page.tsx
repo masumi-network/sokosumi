@@ -15,6 +15,7 @@ import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join
 import { organizationService, userService } from "@/lib/services";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {
+  isJoinLinkDuplicateOfInvitation,
   resolveWorkspaceGateSurface,
   type WorkspaceGateSurface,
 } from "@/lib/workspace-gate-queue";
@@ -153,12 +154,22 @@ async function loadWorkspaceGateQueueItems(): Promise<{
   try {
     const resolved = await coreClient.resolveOrganizationInviteLink(joinToken);
     if (resolved.data.status === "valid" && resolved.data.organization) {
-      items.push({
-        kind: "join",
-        token: joinToken,
-        organizationName: resolved.data.organization.name,
-        organizationSlug: resolved.data.organization.slug,
-      });
+      const joinSlug = resolved.data.organization.slug;
+      if (
+        !isJoinLinkDuplicateOfInvitation(
+          items
+            .filter((item) => item.kind === "invitation")
+            .map((item) => item.organizationSlug),
+          joinSlug,
+        )
+      ) {
+        items.push({
+          kind: "join",
+          token: joinToken,
+          organizationName: resolved.data.organization.name,
+          organizationSlug: joinSlug,
+        });
+      }
     }
   } catch (error) {
     console.error("Failed to resolve pending organization join token", error);

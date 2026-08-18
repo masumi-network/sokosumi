@@ -195,6 +195,69 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).not.toContain("identityTitle");
   });
 
+  it("does not add a join row when the cookie org already has an invitation", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "pending-invites",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: true,
+    });
+    getMyPendingOrganizationInvitationsMock.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        organization: { name: "Acme", slug: "acme" },
+      },
+    ]);
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
+    resolveOrganizationInviteLinkMock.mockResolvedValue({
+      data: {
+        status: "valid",
+        organization: { name: "Acme", slug: "acme", logo: null },
+      },
+    });
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+    const serialized = JSON.stringify(ui);
+
+    expect(serialized).toContain('"kind":"invitation"');
+    expect(serialized).toContain("Acme");
+    expect(serialized).not.toContain('"kind":"join"');
+  });
+
+  it("keeps a join row when the cookie org is not already invited", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "pending-invites",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: true,
+    });
+    getMyPendingOrganizationInvitationsMock.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        organization: { name: "Acme", slug: "acme" },
+      },
+    ]);
+    getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
+    resolveOrganizationInviteLinkMock.mockResolvedValue({
+      data: {
+        status: "valid",
+        organization: { name: "Join Co", slug: "join-co", logo: null },
+      },
+    });
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+    const serialized = JSON.stringify(ui);
+
+    expect(serialized).toContain('"kind":"invitation"');
+    expect(serialized).toContain("Acme");
+    expect(serialized).toContain('"kind":"join"');
+    expect(serialized).toContain("Join Co");
+  });
+
   it("renders unavailable surface when workspace access throws (not identity onboarding)", async () => {
     getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 

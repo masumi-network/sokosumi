@@ -106,6 +106,15 @@ vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
     upgradeGuestChatRoomMembershipsToMemberMock,
 }));
 
+const { cancelPendingOrganizationInvitationsForUserMock } = vi.hoisted(() => ({
+  cancelPendingOrganizationInvitationsForUserMock: vi.fn().mockResolvedValue(0),
+}));
+
+vi.mock("@/helpers/invitation", () => ({
+  cancelPendingOrganizationInvitationsForUser: (...args: unknown[]) =>
+    cancelPendingOrganizationInvitationsForUserMock(...args),
+}));
+
 const NOW = Date.now();
 
 function liveLink(overrides: Record<string, unknown> = {}) {
@@ -151,6 +160,7 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     tryConsumeInviteLinkMock.mockResolvedValue(true);
     createMemberMock.mockResolvedValue(undefined);
     upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
+    cancelPendingOrganizationInvitationsForUserMock.mockResolvedValue(0);
   });
 
   it("rejects an unauthenticated caller with 401", async () => {
@@ -216,6 +226,9 @@ describe("POST /organization-invite-links/{token}/accept", () => {
       "org_1",
       expect.anything(),
     );
+    expect(
+      cancelPendingOrganizationInvitationsForUserMock,
+    ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
   });
 
   it("does not consume a use or sync seats when already a member", async () => {
@@ -230,6 +243,9 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(tryConsumeInviteLinkMock).not.toHaveBeenCalled();
     expect(createMemberMock).not.toHaveBeenCalled();
     expect(syncSeatsMock).not.toHaveBeenCalled();
+    expect(
+      cancelPendingOrganizationInvitationsForUserMock,
+    ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
   });
 
   it("treats a concurrent unique-violation as already_member", async () => {
@@ -243,6 +259,9 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(body.data.status).toBe("already_member");
     // A rolled-back join must not sync seats.
     expect(syncSeatsMock).not.toHaveBeenCalled();
+    expect(
+      cancelPendingOrganizationInvitationsForUserMock,
+    ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
   });
 
   it("returns 400 when the link is depleted at consume time", async () => {

@@ -9,6 +9,7 @@ import InvitationActions from "../invitation-actions";
 const acceptInvitationMock = vi.fn();
 const updateUserMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
+const clearPendingOrganizationJoinCookieActionMock = vi.fn();
 const routerPushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -38,6 +39,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
 vi.mock("@/lib/activate-organization-workspace", () => ({
   activateOrganizationWorkspaceWithRetry: (...args: unknown[]) =>
     activateOrganizationWorkspaceMock(...args),
+}));
+
+vi.mock("@/lib/actions/workspace-gate", () => ({
+  clearPendingOrganizationJoinCookieAction: (...args: unknown[]) =>
+    clearPendingOrganizationJoinCookieActionMock(...args),
 }));
 
 const messages = {
@@ -105,6 +111,10 @@ describe("InvitationActions name collection", () => {
       error: null,
     });
     activateOrganizationWorkspaceMock.mockResolvedValue(true);
+    clearPendingOrganizationJoinCookieActionMock.mockResolvedValue({
+      ok: true,
+      value: null,
+    });
   });
 
   it("collects a name before accept when the user has none", async () => {
@@ -147,6 +157,9 @@ describe("InvitationActions name collection", () => {
       expect(acceptInvitationMock).toHaveBeenCalled();
     });
     expect(updateUserMock).not.toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
+      organizationSlug: "acme",
+    });
   });
 
   it("does not navigate and offers retry when activation fails", async () => {

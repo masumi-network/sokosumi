@@ -3,6 +3,14 @@
  * still has an org-entry item: Core email invitations or a recovered join
  * link. Chat guest invitations never appear here.
  */
+/** Invitation row wins when a recovered join cookie points at the same org. */
+export function isJoinLinkDuplicateOfInvitation(
+  invitationSlugs: readonly string[],
+  joinSlug: string,
+): boolean {
+  return invitationSlugs.includes(joinSlug);
+}
+
 export function shouldShowPendingInvitesQueue(input: {
   gate: string | null;
   invitationCount: number;

@@ -1,9 +1,26 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isJoinLinkDuplicateOfInvitation,
   resolveWorkspaceGateSurface,
   shouldShowPendingInvitesQueue,
 } from "../workspace-gate-queue";
+
+describe("isJoinLinkDuplicateOfInvitation", () => {
+  it("is true when the join slug already has an invitation row", () => {
+    expect(isJoinLinkDuplicateOfInvitation(["acme", "other"], "acme")).toBe(
+      true,
+    );
+  });
+
+  it("is false when the join slug is a different organization", () => {
+    expect(isJoinLinkDuplicateOfInvitation(["acme"], "join-co")).toBe(false);
+  });
+
+  it("is false when there are no invitation rows", () => {
+    expect(isJoinLinkDuplicateOfInvitation([], "acme")).toBe(false);
+  });
+});
 
 describe("shouldShowPendingInvitesQueue", () => {
   it("shows the queue when Core gate is pending-invites", () => {

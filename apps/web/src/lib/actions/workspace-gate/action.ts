@@ -17,7 +17,11 @@ import type {
   PersonalWorkspaceCreated,
   PersonalWorkspaceDeleted,
 } from "@/lib/clients/generated/core";
-import { clearPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
+import {
+  clearPendingOrganizationJoinToken,
+  getPendingOrganizationJoinToken,
+  shouldClearPendingJoinCookie,
+} from "@/lib/pending-organization-join-cookie";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -124,19 +128,77 @@ export const deletePersonalWorkspaceAction = withSession<
   }
 });
 
+interface ClearPendingOrganizationJoinCookieParameters
+  extends AuthenticatedRequest {
+  organizationSlug?: string;
+  acceptedJoinToken?: string;
+}
+
 /**
- * Drop a recovered `/join` token after accept, join, or reject-all.
+ * Drop a recovered `/join` token after reject-all / decline, or after
+ * accept/join when the cookie is that same org (or the accepted token).
  */
 export const clearPendingOrganizationJoinCookieAction = withSession<
-  AuthenticatedRequest,
+  ClearPendingOrganizationJoinCookieParameters,
   ActionResultDto<null, ActionError>
->(async () => {
+>(async ({ organizationSlug, acceptedJoinToken }) => {
   const env = getEnvSecrets();
-  await clearPendingOrganizationJoinToken({
-    secure:
-      env.NODE_ENV === "production" ||
-      env.VERCEL_ENV === "production" ||
-      env.VERCEL_ENV === "preview",
-  });
+  const secure =
+    env.NODE_ENV === "production" ||
+    env.VERCEL_ENV === "production" ||
+    env.VERCEL_ENV === "preview";
+
+  if (!organizationSlug && !acceptedJoinToken) {
+    await clearPendingOrganizationJoinToken({ secure });
+    return toActionResult(ok(null));
+  }
+
+  const cookieToken = await getPendingOrganizationJoinToken();
+  if (!cookieToken) {
+    return toActionResult(ok(null));
+  }
+
+  if (
+    shouldClearPendingJoinCookie({
+      cookieToken,
+      acceptedJoinToken,
+      joinedOrganizationSlug: organizationSlug ?? "",
+    })
+  ) {
+    await clearPendingOrganizationJoinToken({ secure });
+    return toActionResult(ok(null));
+  }
+
+  let cookieOrganizationSlug: string | null = null;
+  if (organizationSlug) {
+    try {
+      const resolved =
+        await coreClient.resolveOrganizationInviteLink(cookieToken);
+      if (
+        resolved.data.status === "valid" &&
+        resolved.data.organization?.slug
+      ) {
+        cookieOrganizationSlug = resolved.data.organization.slug;
+      }
+    } catch (error) {
+      console.error(
+        "Failed to resolve pending organization join token for cookie clear",
+        error,
+      );
+    }
+  }
+
+  if (
+    !shouldClearPendingJoinCookie({
+      cookieToken,
+      acceptedJoinToken,
+      cookieOrganizationSlug,
+      joinedOrganizationSlug: organizationSlug ?? "",
+    })
+  ) {
+    return toActionResult(ok(null));
+  }
+
+  await clearPendingOrganizationJoinToken({ secure });
   return toActionResult(ok(null));
 });
