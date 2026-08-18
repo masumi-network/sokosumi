@@ -5394,8 +5394,8 @@
   },
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
-    "identityTitle": "Crea tu espacio de trabajo",
-    "identityDescription": "Introduce tu nombre y elige cómo quieres empezar.",
+    "identityTitle": "¿Cómo quieres trabajar?",
+    "identityDescription": "Introduce tu nombre y elige una opción.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización. Se omite la configuración de identidad.",
     "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
@@ -5407,8 +5407,8 @@
     "Identity": {
       "nameLabel": "Nombre",
       "namePlaceholder": "Tu nombre",
-      "choiceLabel": "¿Cómo quieres empezar?",
-      "choiceHint": "Puedes crear más espacios de trabajo en cualquier momento.",
+      "choiceLabel": "¿Cómo quieres trabajar?",
+      "choiceHint": "Puedes añadir otro espacio o un equipo en cualquier momento.",
       "personalTitle": "Personal",
       "personalDescription": "Trabaja por tu cuenta.",
       "organizationTitle": "Organización",

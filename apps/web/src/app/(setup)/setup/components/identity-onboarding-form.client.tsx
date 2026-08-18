@@ -180,7 +180,6 @@ export function IdentityOnboardingForm({
             />
 
             <div className="space-y-3">
-              <Label id="workspace-gate-choice-label">{t("choiceLabel")}</Label>
               <RadioGroup
                 value={choice}
                 onValueChange={(value) => {
@@ -188,7 +187,7 @@ export function IdentityOnboardingForm({
                     setChoice(value);
                   }
                 }}
-                aria-labelledby="workspace-gate-choice-label"
+                aria-label={t("choiceLabel")}
                 className="grid gap-3"
                 data-testid="workspace-gate-identity-choice"
               >

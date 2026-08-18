@@ -95,8 +95,8 @@ const messages = {
     Identity: {
       nameLabel: "Name",
       namePlaceholder: "Your name",
-      choiceLabel: "How do you want to start?",
-      choiceHint: "You can create additional workspaces at any time.",
+      choiceLabel: "How do you want to work?",
+      choiceHint: "You can add another space or a team at any time.",
       personalTitle: "Personal",
       personalDescription: "Work on your own.",
       organizationTitle: "Organization",

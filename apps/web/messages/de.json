@@ -5394,8 +5394,8 @@
   },
   "WorkspaceGate": {
     "title": "Workspace einrichten",
-    "identityTitle": "Erstelle deinen Workspace",
-    "identityDescription": "Gib deinen Namen ein und wähle, wie du starten möchtest.",
+    "identityTitle": "Wie möchtest du arbeiten?",
+    "identityDescription": "Gib deinen Namen ein und wähle eine Option.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen. Die Identitäts-Einrichtung wird übersprungen.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
@@ -5407,8 +5407,8 @@
     "Identity": {
       "nameLabel": "Name",
       "namePlaceholder": "Dein Name",
-      "choiceLabel": "Wie möchtest du starten?",
-      "choiceHint": "Weitere Workspaces kannst du jederzeit erstellen.",
+      "choiceLabel": "Wie möchtest du arbeiten?",
+      "choiceHint": "Du kannst jederzeit einen weiteren Bereich oder ein Team hinzufügen.",
       "personalTitle": "Persönlich",
       "personalDescription": "Arbeite für dich allein.",
       "organizationTitle": "Organisation",
