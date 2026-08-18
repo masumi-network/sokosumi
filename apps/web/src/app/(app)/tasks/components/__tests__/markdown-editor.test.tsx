@@ -9,6 +9,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: () => "",
+  }),
+}));
+
 function setCaretToEnd(element: HTMLElement): void {
   element.focus();
   const selection = window.getSelection();
