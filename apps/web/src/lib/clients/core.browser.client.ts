@@ -26,4 +26,12 @@ function getBrowserGeneratedClient() {
   return browserGeneratedClient;
 }
 
+/**
+ * Raw generated Core API client (browser).
+ * Use for calling generated SDK functions that aren't wrapped in coreClient.
+ */
+export function getBrowserCoreClient() {
+  return getBrowserGeneratedClient();
+}
+
 export const coreClient = createCoreClient(getBrowserGeneratedClient);
