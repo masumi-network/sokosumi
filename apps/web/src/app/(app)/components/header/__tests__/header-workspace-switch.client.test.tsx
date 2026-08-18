@@ -353,7 +353,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     expect(screen.queryByText("createOrganization")).toBeNull();
   });
 
-  it("does not offer Personal when a personal workspace already exists", async () => {
+  it("opens the organization wizard directly when a personal workspace already exists", async () => {
     const user = userEvent.setup();
     render(
       <HeaderWorkspaceSwitch
@@ -369,14 +369,8 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     await user.click(screen.getByRole("button", { name: /Org A/i }));
     await user.click(screen.getByText("createWorkspace"));
 
-    expect(screen.queryByRole("radio", { name: /personalTitle/ })).toBeNull();
-    expect(
-      screen.getByRole("radio", { name: /organizationTitle/ }),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "continue" }));
-
     expect(showCreateOrganizationModal).toHaveBeenCalledOnce();
     expect(createPersonalWorkspaceAction).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("workspace-switcher-create-choice")).toBeNull();
   });
 });

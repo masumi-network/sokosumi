@@ -140,9 +140,6 @@ export default function HeaderWorkspaceSwitch({
   const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
   const tIdentity = useTranslations("WorkspaceGate.Identity");
   const canCreatePersonal = !hasPersonalWorkspace;
-  const effectiveChoice: WorkspaceChoice = canCreatePersonal
-    ? workspaceChoice
-    : "organization";
 
   async function activateCreatedPersonalWorkspace(): Promise<void> {
     try {
@@ -181,13 +178,17 @@ export default function HeaderWorkspaceSwitch({
 
   function handleOpenCreateWorkspace() {
     setIsDropdownOpen(false);
-    setWorkspaceChoice(canCreatePersonal ? "personal" : "organization");
+    if (!canCreatePersonal) {
+      showCreateOrganizationModal();
+      return;
+    }
+    setWorkspaceChoice("personal");
     setIsChoiceDialogOpen(true);
   }
 
   function handleChoiceContinue() {
     setIsChoiceDialogOpen(false);
-    if (effectiveChoice === "personal") {
+    if (workspaceChoice === "personal") {
       void handleCreatePersonalWorkspace();
       return;
     }
@@ -331,7 +332,7 @@ export default function HeaderWorkspaceSwitch({
             </DialogTitle>
           </DialogHeader>
           <RadioGroup
-            value={effectiveChoice}
+            value={workspaceChoice}
             onValueChange={(value) => {
               if (value === "personal" || value === "organization") {
                 setWorkspaceChoice(value);
@@ -341,35 +342,32 @@ export default function HeaderWorkspaceSwitch({
             className="grid gap-3"
             data-testid="workspace-switcher-create-choice"
           >
-            {canCreatePersonal ? (
-              <Label
-                htmlFor="switcher-workspace-choice-personal"
-                className={cn(
-                  "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                  workspaceChoice === "personal" &&
-                    "border-primary bg-accent/30",
-                )}
-              >
-                <RadioGroupItem
-                  value="personal"
-                  id="switcher-workspace-choice-personal"
-                  className="mt-0.5"
-                />
-                <span className="space-y-1">
-                  <span className="block text-sm font-medium">
-                    {tIdentity("personalTitle")}
-                  </span>
-                  <span className="text-muted-foreground block text-sm font-normal">
-                    {tIdentity("personalDescription")}
-                  </span>
+            <Label
+              htmlFor="switcher-workspace-choice-personal"
+              className={cn(
+                "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                workspaceChoice === "personal" && "border-primary bg-accent/30",
+              )}
+            >
+              <RadioGroupItem
+                value="personal"
+                id="switcher-workspace-choice-personal"
+                className="mt-0.5"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  {tIdentity("personalTitle")}
                 </span>
-              </Label>
-            ) : null}
+                <span className="text-muted-foreground block text-sm font-normal">
+                  {tIdentity("personalDescription")}
+                </span>
+              </span>
+            </Label>
             <Label
               htmlFor="switcher-workspace-choice-organization"
               className={cn(
                 "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                effectiveChoice === "organization" &&
+                workspaceChoice === "organization" &&
                   "border-primary bg-accent/30",
               )}
             >
