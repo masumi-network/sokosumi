@@ -1,3 +1,5 @@
+import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
+
 export const PROJECT_NAME_MAX_LENGTH = 200;
 export const PROJECT_BRIEFING_MAX_LENGTH = 20_000;
 export const BRIEFING_WORD_TARGET = 300;
@@ -26,12 +28,8 @@ export function countBriefingWords(text: string): number {
 }
 
 export function previewProjectBriefing(briefing?: string | null): string {
-  const text = briefing
-    ?.replace(/^#+\s*/gm, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return text || "—";
+  const stripped = stripMarkdownToText(briefing);
+  return stripped || "—";
 }
 
 export function insertBriefingHeading(value: string, heading: string): string {

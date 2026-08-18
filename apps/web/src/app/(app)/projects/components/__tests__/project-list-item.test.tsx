@@ -63,7 +63,7 @@ describe("ProjectListItem", () => {
     );
   });
 
-  it("renders markdown in briefing subtitle with inline formatting", () => {
+  it("strips markdown from briefing subtitle to plain text", () => {
     const projectWithMarkdown = {
       ...project,
       briefing:
@@ -78,16 +78,17 @@ describe("ProjectListItem", () => {
       />,
     );
 
-    const briefingContainer = screen.getByText(
+    const briefingElement = screen.getByText(
       /Campaign briefing — Begin Wallet/,
-    ).parentElement;
+    );
 
-    expect(briefingContainer).toBeInTheDocument();
-    expect(briefingContainer?.textContent).toContain("Working title:");
-    expect(briefingContainer?.textContent).not.toContain("**Working title:**");
+    expect(briefingElement).toBeInTheDocument();
+    expect(briefingElement.textContent).toContain("Working title:");
+    expect(briefingElement.textContent).not.toContain("**Working title:**");
+    expect(briefingElement.textContent).not.toContain("**Status:**");
 
-    const strongElements = briefingContainer?.querySelectorAll("strong");
-    expect(strongElements?.length).toBeGreaterThan(0);
+    const strongElements = briefingElement.querySelectorAll("strong");
+    expect(strongElements.length).toBe(0);
   });
 
   it("shows em dash when briefing is empty", () => {
