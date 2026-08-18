@@ -6,6 +6,7 @@ import {
   buildCoworkerImagePathname,
   buildOrganizationLogoContentHashPathname,
   buildOrganizationLogoPathname,
+  buildProjectLogoContentHashPathname,
   buildTaskFilePathname,
   buildUserChatRoomFilePathname,
   buildUserUploadPathname,
@@ -462,6 +463,43 @@ export async function uploadOrganizationLogoBytes(params: {
   } catch (error) {
     Sentry.captureException(error, {
       tags: { function: "uploadOrganizationLogoBytes" },
+    });
+    return null;
+  }
+}
+
+/** Persist scraped favicon/logo bytes under a project-owned logo prefix. */
+export async function uploadProjectLogoBytes(params: {
+  projectId: string;
+  bytes: ArrayBuffer | Buffer;
+  contentType: string;
+}): Promise<string | null> {
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping project logo upload",
+    );
+    return null;
+  }
+
+  const buffer = Buffer.isBuffer(params.bytes)
+    ? params.bytes
+    : Buffer.from(params.bytes);
+  const hash = crypto.createHash("sha256").update(buffer).digest("hex");
+  const pathname = buildProjectLogoContentHashPathname(params.projectId, hash);
+
+  try {
+    const blob = await put(pathname, buffer, {
+      access: "public",
+      contentType: params.contentType,
+      token: env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { function: "uploadProjectLogoBytes" },
     });
     return null;
   }

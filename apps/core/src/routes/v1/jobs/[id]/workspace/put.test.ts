@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler.js";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -14,7 +15,7 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  upsertWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
   serializeJobDetailsMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
@@ -23,7 +24,7 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  upsertWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
 }));
 
@@ -40,11 +41,16 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: {
-    upsertWorkspaceForContext: upsertWorkspaceForContextMock,
-  },
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: {
+      resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    },
+  };
+});
 
 vi.mock("@/types/job", () => ({
   serializeJobDetails: serializeJobDetailsMock,
@@ -154,10 +160,13 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
 
 function createApp(activeOrganizationId: string | null = null) {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & { requestId: string };
   }>();
 
+  app.onError(errorHandler);
+
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
@@ -215,7 +224,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       role: "member",
     });
-    upsertWorkspaceForContextMock.mockResolvedValue({
+    resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
@@ -271,6 +280,36 @@ describe("PUT /jobs/{id}/workspace", () => {
         projectId: null,
       },
     });
+  });
+
+  it("returns 404 when moving to a missing personal workspace", async () => {
+    const { PersonalWorkspaceMissingError } = await import(
+      "@sokosumi/database/repositories"
+    );
+    jobFindFirstMock.mockResolvedValue(
+      createCurrentJobRecord({
+        workspace: { organizationId: "org_current" },
+      }),
+    );
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
+      new PersonalWorkspaceMissingError(),
+    );
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/job_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: null,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.kind).toBe("personal_workspace_missing");
+    expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 for task-attached jobs", async () => {

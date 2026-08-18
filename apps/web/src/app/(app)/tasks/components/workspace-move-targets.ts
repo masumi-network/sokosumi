@@ -9,10 +9,11 @@ export interface WorkspaceMoveTargetBase {
 export function buildWorkspaceMoveTargets(
   currentOrganizationId: string | null | undefined,
   organizations: MemberWithOrganization[] | undefined,
+  hasPersonalWorkspace = false,
 ): WorkspaceMoveTargetBase[] {
   const members = organizations ?? [];
   const options: WorkspaceMoveTargetBase[] = [];
-  if (currentOrganizationId != null) {
+  if (currentOrganizationId != null && hasPersonalWorkspace) {
     options.push({ id: "personal", organizationId: null });
   }
   for (const member of members) {
@@ -30,6 +31,11 @@ export function buildWorkspaceMoveTargets(
 export function getWorkspaceMoveTargetCount(
   currentOrganizationId: string | null | undefined,
   organizations: MemberWithOrganization[] | undefined,
+  hasPersonalWorkspace = false,
 ): number {
-  return buildWorkspaceMoveTargets(currentOrganizationId, organizations).length;
+  return buildWorkspaceMoveTargets(
+    currentOrganizationId,
+    organizations,
+    hasPersonalWorkspace,
+  ).length;
 }

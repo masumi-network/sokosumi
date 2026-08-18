@@ -39,6 +39,18 @@ export const createDriveFileUploadSessionRequestSchema = z
       description: "Organization ID (required when scope=org)",
     }),
   })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "organizationId is required when scope=org",
+      path: ["organizationId"],
+    },
+  )
   .openapi("CreateDriveFileUploadSessionRequest");
 
 /**

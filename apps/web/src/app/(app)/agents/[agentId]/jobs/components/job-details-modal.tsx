@@ -25,6 +25,7 @@ interface JobDetailsModalProps {
   agentId: string;
   job: Job;
   organizations?: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel?: string;
   projectName?: string | null;
   readOnly: boolean;
@@ -34,6 +35,7 @@ export function JobDetailsModal({
   agentId,
   job,
   organizations,
+  hasPersonalWorkspace = false,
   personalWorkspaceLabel,
   projectName,
   readOnly,
@@ -135,6 +137,7 @@ export function JobDetailsModal({
             <JobDetails
               job={job}
               organizations={organizations}
+              hasPersonalWorkspace={hasPersonalWorkspace}
               personalWorkspaceLabel={personalWorkspaceLabel}
               projectName={projectName}
               readOnly={readOnly}

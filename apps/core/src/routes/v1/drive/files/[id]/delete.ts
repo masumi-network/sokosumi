@@ -1,10 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-import { buildUserDriveFilePrefix } from "@sokosumi/utils";
-import { del } from "@vercel/blob";
+import { del, head } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { badRequest, serviceUnavailable } from "@/helpers/error";
+import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -55,34 +55,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { pathname } = body;
 
-    // Determine scope and owner from pathname
-    const userPrefix = buildUserDriveFilePrefix(userContext.userId);
-    const isUserFile = pathname.startsWith(userPrefix);
+    // Parse pathname to determine scope and owner
+    const { scope, ownerId } = parseDriveFilePathname(
+      pathname,
+      userContext.userId,
+    );
 
-    let scope: "user" | "organization";
-    let ownerId: string;
+    // Verify access
+    await requireDriveFileAccess(authContext, scope, ownerId);
 
-    if (isUserFile) {
-      // Personal drive
-      scope = "user";
-      ownerId = userContext.userId;
-      await requireDriveFileAccess(authContext, scope, ownerId);
-    } else {
-      // Organization drive - extract orgId from pathname
-      // pathname format: drive/organizations/{orgId}/{filename}
-      const pathParts = pathname.split("/");
+    // Check if file exists
+    try {
+      await head(pathname, { token });
+    } catch (error) {
       if (
-        pathParts.length < 4 ||
-        pathParts[0] !== "drive" ||
-        pathParts[1] !== "organizations"
+        error instanceof Error &&
+        (error.message.includes("Blob not found") ||
+          error.message.includes("not found"))
       ) {
-        throw badRequest("Invalid pathname format");
+        throw notFound("Drive file not found");
       }
-
-      const orgId = pathParts[2];
-      scope = "organization";
-      ownerId = orgId;
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      throw error;
     }
 
     // Delete the blob

@@ -132,6 +132,7 @@ interface TaskDetailActionsProps {
   labels: TaskDetailActionsLabels;
   currentOrganizationId?: string | null;
   organizations?: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
   canCancel?: boolean;
@@ -155,6 +156,7 @@ export function TaskDetailActions({
   labels,
   currentOrganizationId,
   organizations,
+  hasPersonalWorkspace = false,
   personalWorkspaceLabel,
   isReadOnly = false,
   canCancel = false,
@@ -241,7 +243,11 @@ export function TaskDetailActions({
   const canMove =
     canMutateTask &&
     !isFinalized &&
-    getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
+    getWorkspaceMoveTargetCount(
+      currentOrganizationId,
+      organizations,
+      hasPersonalWorkspace,
+    ) > 0;
   // Manual parent only — schedule_series is system-managed and not removable.
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
@@ -903,6 +909,7 @@ export function TaskDetailActions({
           taskId={taskId}
           currentOrganizationId={currentOrganizationId ?? null}
           organizations={organizations ?? []}
+          hasPersonalWorkspace={hasPersonalWorkspace}
           personalWorkspaceLabel={personalWorkspaceLabel}
         />
       ) : null}
@@ -955,8 +962,7 @@ export function TaskDetailActions({
               projectId,
               status,
               schedule,
-              skipDesignMdAttachment,
-              designMdAttachmentOverride,
+              context,
             }) => {
               const result = await createTaskAndLink({
                 taskId,
@@ -965,8 +971,7 @@ export function TaskDetailActions({
                 projectId,
                 status,
                 schedule,
-                skipDesignMdAttachment,
-                designMdAttachmentOverride,
+                context,
                 relation: selectedCreateRelatedOption.relation,
               });
 
