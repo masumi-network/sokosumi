@@ -6,6 +6,7 @@ import {
   FILE_UPLOAD_MAX_SIZE_BYTES,
   resolveUserUploadContentType,
 } from "@sokosumi/utils";
+import { BlobNotFoundError, head } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/helpers/drive-file-access";
 import {
   badRequest,
+  conflict,
   payloadTooLarge,
   serviceUnavailable,
   unprocessableEntity,
@@ -35,7 +37,7 @@ const route = createRoute({
     "Mint a direct upload session for a drive file (personal or organization).",
     "Bytes go client → Vercel Blob (not through this API).",
     "Drive uses exact pathnames (addRandomSuffix: false).",
-    "Blob rejects overwrites; the client must ensure unique filenames.",
+    "409 if target pathname already exists.",
     "",
     "Agent / REST:",
     "1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).",
@@ -64,6 +66,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict - target pathname already exists"),
     413: jsonErrorResponse("Payload Too Large"),
     422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
@@ -118,6 +121,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname = buildOrganizationDriveFilePathname(ownerId, displayName);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
+    }
+
+    // Check if target pathname already exists
+    try {
+      await head(pathname, { token });
+      // If head succeeds, target exists
+      throw conflict("Target pathname already exists");
+    } catch (error) {
+      // If it's a not-found error, target doesn't exist (expected)
+      if (error instanceof BlobNotFoundError) {
+        // Target doesn't exist, proceed with mint
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "kind" in error &&
+        error.kind === "conflict"
+      ) {
+        // Re-throw our own conflict errors
+        throw error;
+      } else {
+        // Unexpected error from head
+        throw error;
+      }
     }
 
     const grant = await createBlobUploadGrant({
