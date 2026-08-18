@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import {
@@ -27,13 +26,8 @@ import {
 import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
 
-export default async function WorkspaceGatePage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ creating?: string }>;
-} = {}) {
+export default async function WorkspaceGatePage() {
   const session = await getSessionOrRedirect();
-  const creatingOrganization = (await searchParams)?.creating === "1";
 
   let gate: string | null = null;
   let workspaceAccessLoadFailed = false;
@@ -53,20 +47,19 @@ export default async function WorkspaceGatePage({
     workspaceAccessLoadFailed = true;
   }
 
-  if (
-    !workspaceAccessLoadFailed &&
-    isWorkspaceReady(gate) &&
-    !creatingOrganization
-  ) {
-    redirect("/");
-  }
+  // Org create flips the gate to ready while the wizard is still open.
+  // Stay on this page and keep the identity form mounted so client state
+  // survives the server-action refresh. The form leaves when the wizard
+  // is not open.
+  const workspaceReady = !workspaceAccessLoadFailed && isWorkspaceReady(gate);
 
-  const queue = workspaceAccessLoadFailed
-    ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
-    : await loadWorkspaceGateQueueItems();
+  const queue =
+    workspaceAccessLoadFailed || workspaceReady
+      ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
+      : await loadWorkspaceGateQueueItems();
   const queueItems = queue.items;
 
-  const surface: WorkspaceGateSurface = creatingOrganization
+  const surface: WorkspaceGateSurface = workspaceReady
     ? "identity-onboarding"
     : resolveWorkspaceGateSurface({
         workspaceAccessLoadFailed,
@@ -107,6 +100,7 @@ export default async function WorkspaceGatePage({
         {showIdentityForm ? (
           <IdentityOnboardingForm
             initialName={session.user.name?.trim() ?? ""}
+            workspaceReady={workspaceReady}
           />
         ) : showPendingQueue ? (
           <PendingInvitesQueue

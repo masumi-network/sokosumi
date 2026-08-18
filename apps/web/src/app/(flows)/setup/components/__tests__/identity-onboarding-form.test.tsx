@@ -109,10 +109,13 @@ const messages = {
   },
 };
 
-function renderForm(initialName = "Ada Lovelace") {
+function renderForm(initialName = "Ada Lovelace", workspaceReady = false) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <IdentityOnboardingForm initialName={initialName} />
+      <IdentityOnboardingForm
+        initialName={initialName}
+        workspaceReady={workspaceReady}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -197,7 +200,7 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("wizard-back"));
     expect(screen.getByTestId("workspace-gate-identity-form")).toBeTruthy();
     expect(screen.queryByTestId("create-org-wizard")).toBeNull();
-    expect(routerReplaceMock).toHaveBeenCalledWith("/setup");
+    expect(routerReplaceMock).not.toHaveBeenCalled();
   });
 
   it("keeps an edited name after Back from the organization wizard", async () => {
@@ -237,7 +240,7 @@ describe("IdentityOnboardingForm", () => {
     expect(routerReplaceMock).not.toHaveBeenCalled();
   });
 
-  it("keeps /setup from bouncing while the organization wizard is open", async () => {
+  it("does not navigate away when the organization wizard opens", async () => {
     const user = userEvent.setup();
     renderForm();
 
@@ -247,8 +250,74 @@ describe("IdentityOnboardingForm", () => {
     await waitFor(() => {
       expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
     });
-    expect(routerReplaceMock).toHaveBeenCalledWith("/setup?creating=1");
-    expect(routerReplaceMock).not.toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the gate when workspace is already ready and the wizard is closed", async () => {
+    renderForm("Ada Lovelace", true);
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    });
+    expect(routerRefreshMock).toHaveBeenCalled();
+    expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("workspace-gate-identity-form")).toBeNull();
+  });
+
+  it("keeps the organization wizard mounted when workspace becomes ready", async () => {
+    const user = userEvent.setup();
+    const view = renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() => {
+      expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
+    });
+
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm initialName="Ada Lovelace" workspaceReady />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it("activates the organization before leaving when the wizard finishes after the gate is ready", async () => {
+    const user = userEvent.setup();
+    let resolveActivate: () => void = () => {};
+    activateOrganizationWorkspaceMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveActivate = resolve;
+        }),
+    );
+    const view = renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() => {
+      expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
+    });
+
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm initialName="Ada Lovelace" workspaceReady />
+      </NextIntlClientProvider>,
+    );
+
+    await user.click(await screen.findByTestId("wizard-complete"));
+
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+
+    resolveActivate();
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+      expect(routerRefreshMock).toHaveBeenCalledOnce();
+    });
   });
 
   it("leaves the gate into the created organization when the wizard is ready", async () => {

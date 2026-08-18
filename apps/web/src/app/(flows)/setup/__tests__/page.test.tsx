@@ -57,8 +57,17 @@ vi.mock("../components/workspace-gate-retry.client", () => ({
 }));
 
 vi.mock("../components/identity-onboarding-form.client", () => ({
-  IdentityOnboardingForm: ({ initialName }: { initialName: string }) => (
-    <div data-testid="identity-onboarding-form">{initialName}</div>
+  IdentityOnboardingForm: ({
+    initialName,
+    workspaceReady,
+  }: {
+    initialName: string;
+    workspaceReady: boolean;
+  }) => (
+    <div data-testid="identity-onboarding-form">
+      {initialName}
+      {workspaceReady ? "workspace-ready" : ""}
+    </div>
   ),
 }));
 
@@ -86,21 +95,7 @@ describe("WorkspaceGatePage", () => {
     getPendingOrganizationJoinTokenMock.mockResolvedValue(null);
   });
 
-  it("redirects ready users away from the gate", async () => {
-    getWorkspaceAccessMock.mockResolvedValue({
-      gate: "ready",
-      hasPersonalWorkspace: true,
-      hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
-    });
-
-    const { default: WorkspaceGatePage } = await import("../page");
-
-    await expect(WorkspaceGatePage()).rejects.toThrow("REDIRECT:/");
-    expect(redirectMock).toHaveBeenCalledWith("/");
-  });
-
-  it("does not bounce a ready user who is still finishing the organization wizard", async () => {
+  it("keeps a ready user on the identity form so an open wizard can survive refresh", async () => {
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: false,
@@ -110,15 +105,42 @@ describe("WorkspaceGatePage", () => {
 
     const { default: WorkspaceGatePage } = await import("../page");
 
-    const ui = await WorkspaceGatePage({
-      searchParams: Promise.resolve({ creating: "1" }),
-    });
+    const ui = await WorkspaceGatePage();
 
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("identityTitle");
     expect(serialized).toContain('"initialName":"Ada Lovelace"');
+    expect(serialized).toContain('"workspaceReady":true');
+    expect(serialized).not.toContain("pendingInvitesTitle");
+  });
+
+  it("does not swap a ready user onto the pending-invites queue", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "ready",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: true,
+      hasPendingOrganizationInvites: true,
+    });
+    getMyPendingOrganizationInvitationsMock.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        organization: { name: "Acme", slug: "acme" },
+      },
+    ]);
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(getMyPendingOrganizationInvitationsMock).not.toHaveBeenCalled();
+    const serialized = JSON.stringify(ui);
+    expect(serialized).toContain("identityTitle");
+    expect(serialized).toContain('"workspaceReady":true');
+    expect(serialized).not.toContain("pendingInvitesTitle");
+    expect(serialized).not.toContain("Acme");
   });
 
   it("renders the identity form when workspace access is identity-onboarding", async () => {
