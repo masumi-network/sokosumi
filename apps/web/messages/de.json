@@ -3788,6 +3788,7 @@
         "confirm": "Ja, persönlichen Workspace löschen",
         "success": "Persönlicher Workspace gelöscht",
         "error": "Persönlicher Workspace konnte nicht gelöscht werden",
+        "activateError": "Persönlicher Workspace gelöscht, aber der Wechsel zur Organisation ist fehlgeschlagen. Nutze den Workspace-Wechsler.",
         "lastWorkspaceError": "Du kannst deinen letzten Workspace nicht löschen.",
         "dependentsError": "Lösche zuerst Jobs und Tasks in diesem Workspace."
       },

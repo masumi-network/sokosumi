@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DeletePersonalWorkspaceForm } from "../delete-personal-workspace-form";
@@ -85,6 +86,52 @@ describe("DeletePersonalWorkspaceForm", () => {
         "org-fallback",
       );
     });
+    expect(toast.success).toHaveBeenCalledWith("success");
+    expect(routerRefreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("toasts success when fallback org activation succeeds on retry", async () => {
+    activateOrganizationWorkspaceMock
+      .mockRejectedValueOnce(new Error("setActive failed"))
+      .mockResolvedValueOnce(undefined);
+
+    render(
+      <DeletePersonalWorkspaceForm
+        hasOrganizationMembership={true}
+        fallbackOrganizationId="org-fallback"
+        currentOrganizationId={null}
+      />,
+    );
+
+    await confirmDelete();
+
+    await waitFor(() => {
+      expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
+    });
+    expect(toast.success).toHaveBeenCalledWith("success");
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(routerRefreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not toast success when fallback org activation fails", async () => {
+    activateOrganizationWorkspaceMock.mockRejectedValue(
+      new Error("setActive failed"),
+    );
+
+    render(
+      <DeletePersonalWorkspaceForm
+        hasOrganizationMembership={true}
+        fallbackOrganizationId="org-fallback"
+        currentOrganizationId={null}
+      />,
+    );
+
+    await confirmDelete();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("activateError");
+    });
+    expect(toast.success).not.toHaveBeenCalled();
     expect(routerRefreshMock).toHaveBeenCalledOnce();
   });
 });

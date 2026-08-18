@@ -3788,6 +3788,7 @@
         "confirm": "Sí, eliminar espacio personal",
         "success": "Espacio personal eliminado",
         "error": "No se pudo eliminar el espacio personal",
+        "activateError": "Espacio personal eliminado, pero no pudimos cambiarte a una organización. Usa el selector de espacios.",
         "lastWorkspaceError": "No puedes eliminar tu último espacio de trabajo.",
         "dependentsError": "Elimina primero los trabajos y tareas de este espacio."
       },

@@ -3819,6 +3819,7 @@
         "confirm": "Yes, delete personal workspace",
         "success": "Personal workspace deleted",
         "error": "Failed to delete personal workspace",
+        "activateError": "Personal workspace deleted, but we could not switch you to an organization. Use the workspace switcher.",
         "lastWorkspaceError": "You cannot delete your last workspace.",
         "dependentsError": "Delete jobs and tasks in this workspace first."
       },

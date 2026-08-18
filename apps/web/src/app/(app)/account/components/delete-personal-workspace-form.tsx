@@ -69,6 +69,17 @@ export function DeletePersonalWorkspaceForm({
             "Failed to activate remaining organization after personal delete",
             error,
           );
+          try {
+            await activateOrganizationWorkspace(fallbackOrganizationId);
+          } catch (retryError) {
+            console.error(
+              "Failed to activate remaining organization after personal delete retry",
+              retryError,
+            );
+            toast.error(t("activateError"));
+            router.refresh();
+            return;
+          }
         }
       }
 
