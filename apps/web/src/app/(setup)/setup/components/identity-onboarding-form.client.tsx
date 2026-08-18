@@ -235,6 +235,7 @@ export function IdentityOnboardingForm({
                   </span>
                 </Label>
               </RadioGroup>
+              <p className="text-muted-foreground text-sm">{t("choiceHint")}</p>
             </div>
 
             <Button
