@@ -3,7 +3,14 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Check, Download, Edit3, Trash2, Upload, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type ReactElement, useCallback, useEffect, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -44,14 +51,14 @@ import {
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
-function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(typeof date === "string" ? new Date(date) : date);
+function appendDownloadParam(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("download", "1");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
 
 interface FileNameWithPreviewProps {
@@ -116,6 +123,8 @@ function FileNameWithPreview({
 }
 
 export default function DrivePage(): ReactElement {
+  const t = useTranslations("Drive");
+  const formatter = useFormatter();
   const { data: session } = useSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const router = useRouter();
@@ -134,19 +143,29 @@ export default function DrivePage(): ReactElement {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null);
 
-  const scope = (searchParams.get("scope") as "me" | "org") || "me";
+  const loadFilesAbortRef = useRef<AbortController | null>(null);
+  const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+
+  const scopeParam = searchParams.get("scope");
+  const scope: "me" | "org" = scopeParam === "org" ? "org" : "me";
 
   useRegisterBreadcrumbOverride({
     pathname,
-    segments: [{ label: "Drive", href: "/drive" }],
+    segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
 
   const loadFiles = useCallback(async () => {
+    loadFilesAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadFilesAbortRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
       if (scope === "org" && !activeOrganizationId) {
-        setFiles([]);
+        if (!controller.signal.aborted) {
+          setFiles([]);
+        }
         return;
       }
 
@@ -156,13 +175,20 @@ export default function DrivePage(): ReactElement {
           ? { organizationId: activeOrganizationId }
           : {}),
       });
-      setFiles(loaded);
+
+      if (!controller.signal.aborted) {
+        setFiles(loaded);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load files");
+      if (!controller.signal.aborted) {
+        setError(err instanceof Error ? err.message : t("loadFilesError"));
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  }, [scope, activeOrganizationId]);
+  }, [scope, activeOrganizationId, t]);
 
   useEffect(() => {
     void loadFiles();
@@ -170,8 +196,14 @@ export default function DrivePage(): ReactElement {
 
   useEffect(() => {
     async function fetchOrganizationName() {
+      fetchOrgNameAbortRef.current?.abort();
+      const controller = new AbortController();
+      fetchOrgNameAbortRef.current = controller;
+
       if (!activeOrganizationId || !session?.user?.id) {
-        setOrganizationName(null);
+        if (!controller.signal.aborted) {
+          setOrganizationName(null);
+        }
         return;
       }
 
@@ -182,9 +214,13 @@ export default function DrivePage(): ReactElement {
         });
         const orgs = response.data?.data || [];
         const activeOrg = orgs.find((org) => org.id === activeOrganizationId);
-        setOrganizationName(activeOrg?.name ?? null);
+        if (!controller.signal.aborted) {
+          setOrganizationName(activeOrg?.name ?? null);
+        }
       } catch {
-        setOrganizationName(null);
+        if (!controller.signal.aborted) {
+          setOrganizationName(null);
+        }
       }
     }
 
@@ -214,7 +250,7 @@ export default function DrivePage(): ReactElement {
 
       await loadFiles();
     } catch (err) {
-      setError(getDriveFileUploadErrorMessage(err));
+      setError(getDriveFileUploadErrorMessage(err) || t("uploadError"));
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -242,7 +278,7 @@ export default function DrivePage(): ReactElement {
       setEditingFileName("");
       await loadFiles();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to rename file");
+      setError(err instanceof Error ? err.message : t("renameError"));
     }
   }
 
@@ -270,13 +306,13 @@ export default function DrivePage(): ReactElement {
       setFileToDelete(null);
       await loadFiles();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete file");
+      setError(err instanceof Error ? err.message : t("deleteError"));
     }
   }
 
   function handleDownload(fileUrl: string, fileName: string) {
     const link = document.createElement("a");
-    link.href = fileUrl;
+    link.href = appendDownloadParam(fileUrl);
     link.download = fileName;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -313,7 +349,7 @@ export default function DrivePage(): ReactElement {
               value="me"
               className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
             >
-              My Drive
+              {t("myDriveTab")}
             </TabsTrigger>
             {activeOrganizationId && (
               <TabsTrigger
@@ -335,7 +371,9 @@ export default function DrivePage(): ReactElement {
               >
                 <span>
                   <Upload className="size-4" aria-hidden />
-                  {uploading ? `${uploadProgress}%` : "Upload"}
+                  {uploading
+                    ? t("uploadingProgress", { progress: uploadProgress })
+                    : t("uploadButton")}
                 </span>
               </Button>
             </Label>
@@ -402,10 +440,10 @@ export default function DrivePage(): ReactElement {
             >
               <div className="max-w-sm">
                 <h2 className="text-foreground text-lg font-semibold">
-                  No files yet
+                  {t("emptyTitle")}
                 </h2>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  Upload your first file to get started
+                  {t("emptyDescription")}
                 </p>
               </div>
             </div>
@@ -470,14 +508,33 @@ export default function DrivePage(): ReactElement {
                                 <span>
                                   {file.size ? formatBytes(file.size) : "—"}
                                 </span>
-                                <span>{formatDate(file.uploadedAt)}</span>
+                                <span>
+                                  {formatter.dateTime(
+                                    new Date(file.uploadedAt),
+                                    {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </span>
                               </div>
                             </div>
                             <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
                               <span>
                                 {file.size ? formatBytes(file.size) : "—"}
                               </span>
-                              <span>{formatDate(file.uploadedAt)}</span>
+                              <span>
+                                {formatter.dateTime(new Date(file.uploadedAt), {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
                             </div>
                           </>
                         )}
@@ -495,7 +552,7 @@ export default function DrivePage(): ReactElement {
                                     editingFileName,
                                   )
                                 }
-                                title="Save"
+                                title={t("saveAction")}
                               >
                                 <Check className="size-4" />
                               </Button>
@@ -504,7 +561,7 @@ export default function DrivePage(): ReactElement {
                                 size="sm"
                                 variant="ghost"
                                 onClick={cancelEdit}
-                                title="Cancel"
+                                title={t("cancelAction")}
                               >
                                 <X className="size-4" />
                               </Button>
@@ -518,7 +575,7 @@ export default function DrivePage(): ReactElement {
                                 onClick={() =>
                                   handleDownload(file.fileUrl, file.name)
                                 }
-                                title="Download"
+                                title={t("downloadAction")}
                               >
                                 <Download className="size-4" />
                               </Button>
@@ -527,7 +584,7 @@ export default function DrivePage(): ReactElement {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => startEdit(file)}
-                                title="Rename"
+                                title={t("renameAction")}
                                 disabled={editingFilePathname !== null}
                               >
                                 <Edit3 className="size-4" />
@@ -537,7 +594,7 @@ export default function DrivePage(): ReactElement {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => openDeleteDialog(file)}
-                                title="Delete"
+                                title={t("deleteAction")}
                                 disabled={editingFilePathname !== null}
                               >
                                 <Trash2 className="size-4" />
@@ -558,15 +615,15 @@ export default function DrivePage(): ReactElement {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete file</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteDialogTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <strong>{fileToDelete?.name}</strong>? This action cannot be
-              undone.
+              {t("deleteDialogDescription", {
+                fileName: fileToDelete?.name || "",
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("deleteDialogCancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={(event) => {
@@ -574,7 +631,7 @@ export default function DrivePage(): ReactElement {
                 void handleDeleteConfirm();
               }}
             >
-              Delete
+              {t("deleteDialogConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
