@@ -115,7 +115,7 @@ export function DriveFilePicker({
                 <div className="space-y-1">
                   {files.map((file) => (
                     <Button
-                      key={file.id}
+                      key={file.pathname}
                       variant="ghost"
                       className="h-auto w-full justify-start p-3 hover:bg-accent"
                       onClick={() => handleFileClick(file)}
@@ -130,7 +130,7 @@ export function DriveFilePicker({
                             {file.size ? (
                               <span>{formatBytes(file.size)}</span>
                             ) : null}
-                            <span>{formatDate(file.createdAt)}</span>
+                            <span>{formatDate(file.uploadedAt)}</span>
                           </div>
                         </div>
                       </div>
