@@ -4,12 +4,12 @@ import {
   buildUserDriveFilePathname,
   clampDriveFileName,
 } from "@sokosumi/utils";
-import { head, rename } from "@vercel/blob";
+import { BlobNotFoundError, head, rename } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
-import { conflict, serviceUnavailable } from "@/helpers/error";
+import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -46,6 +46,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict - target pathname already exists"),
+    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -81,7 +82,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : buildOrganizationDriveFilePathname(ownerId, sanitizedName);
 
     // Get source blob metadata for preservation
-    const sourceMetadata = await head(oldPathname, { token });
+    let sourceMetadata;
+    try {
+      sourceMetadata = await head(oldPathname, { token });
+    } catch (error) {
+      if (error instanceof BlobNotFoundError) {
+        throw notFound("Source file not found");
+      }
+      throw error;
+    }
 
     // Check if target already exists
     try {
@@ -89,12 +98,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // If head succeeds, target exists
       throw conflict("Target pathname already exists");
     } catch (error) {
-      // If head throws, check if it's a not-found error (expected)
-      if (
-        error instanceof Error &&
-        (error.message.includes("Blob not found") ||
-          error.message.includes("not found"))
-      ) {
+      // If it's a not-found error, target doesn't exist (expected)
+      if (error instanceof BlobNotFoundError) {
         // Target doesn't exist, proceed with rename
       } else if (
         error &&
@@ -102,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "kind" in error &&
         error.kind === "conflict"
       ) {
-        // Re-throw conflict errors
+        // Re-throw our own conflict errors
         throw error;
       } else {
         // Unexpected error from head
@@ -111,14 +116,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Rename (copy + delete atomically)
-    const renamedBlob = await rename(oldPathname, newPathname, {
-      token,
-      access: "public",
-      addRandomSuffix: false,
-      // Preserve metadata from source
-      contentType: sourceMetadata.contentType,
-      cacheControlMaxAge: parseCacheControlMaxAge(sourceMetadata.cacheControl),
-    });
+    let renamedBlob;
+    try {
+      renamedBlob = await rename(oldPathname, newPathname, {
+        token,
+        access: "public",
+        addRandomSuffix: false,
+        // Preserve metadata from source
+        contentType: sourceMetadata.contentType,
+        cacheControlMaxAge: parseCacheControlMaxAge(
+          sourceMetadata.cacheControl,
+        ),
+      });
+    } catch (error) {
+      // Map Blob errors to HTTP responses
+      if (error instanceof BlobNotFoundError) {
+        throw notFound("Source file not found");
+      }
+      // Check for conflict/already-exists errors from rename
+      if (
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof error.message === "string" &&
+        error.message.toLowerCase().includes("already exists")
+      ) {
+        throw conflict("Target pathname already exists");
+      }
+      throw error;
+    }
 
     // Extract filename from new pathname
     const pathSegments = newPathname.split("/");

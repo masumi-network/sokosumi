@@ -1,6 +1,6 @@
 import { buildUserDriveFilePrefix } from "@sokosumi/utils";
 
-import { badRequest } from "@/helpers/error";
+import { unprocessableEntity } from "@/helpers/error";
 
 export interface ParsedDriveFilePathname {
   scope: "user" | "organization";
@@ -12,7 +12,7 @@ export interface ParsedDriveFilePathname {
  * @param pathname - Blob pathname (e.g. "drive/users/{userId}/{filename}" or "drive/organizations/{orgId}/{filename}")
  * @param userId - Current user ID (for detecting user scope)
  * @returns Parsed scope and owner ID
- * @throws badRequest if pathname format is invalid
+ * @throws unprocessableEntity if pathname format is invalid
  */
 export function parseDriveFilePathname(
   pathname: string,
@@ -36,7 +36,7 @@ export function parseDriveFilePathname(
     pathParts[0] !== "drive" ||
     pathParts[1] !== "organizations"
   ) {
-    throw badRequest("Invalid pathname format");
+    throw unprocessableEntity("Invalid pathname format");
   }
 
   const orgId = pathParts[2];
