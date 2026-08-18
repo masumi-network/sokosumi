@@ -828,8 +828,10 @@
     "noAccount": "New to Sokosumi?",
     "signIn": "Sign in to join",
     "register": "Create an account",
+    "decline": "Decline",
     "Error": {
       "joinFailed": "Failed to join the organization",
+      "declineFailed": "We could not decline this invite.",
       "unauthorizedAction": "Login"
     },
     "Invalid": {

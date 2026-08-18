@@ -30,10 +30,12 @@ export function JoinActions({
   const t = useTranslations("Join");
   const router = useRouter();
   const [isJoining, setIsJoining] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
   const { persistIfNeeded, NameFields } = useCollectUserName(currentUserName);
+  const busy = isJoining || isDeclining;
 
   const handleJoin = async () => {
-    if (isJoining) return;
+    if (busy) return;
     setIsJoining(true);
     try {
       if (!(await persistIfNeeded())) {
@@ -59,6 +61,20 @@ export function JoinActions({
     }
   };
 
+  const handleDecline = async () => {
+    if (busy) return;
+    setIsDeclining(true);
+    try {
+      await clearPendingOrganizationJoinCookieAction({});
+      router.push("/setup");
+    } catch (error) {
+      console.error("Failed to decline organization join link", error);
+      toast.error(t("Error.declineFailed"));
+    } finally {
+      setIsDeclining(false);
+    }
+  };
+
   const goToAuth = (path: "/signin" | "/signup") => {
     const returnUrl = getReturnUrlFromCurrentLocation();
     router.push(`${path}?returnUrl=${encodeURIComponent(returnUrl)}`);
@@ -67,17 +83,29 @@ export function JoinActions({
   if (isAuthenticated) {
     return (
       <div className="space-y-4">
-        <NameFields disabled={isJoining} />
+        <NameFields disabled={busy} />
         <Button
           variant="primary"
           className="w-full"
           onClick={handleJoin}
-          disabled={isJoining}
+          disabled={busy}
         >
           {isJoining && <Loader2 className="size-4 animate-spin" />}
           {isJoining
             ? t("joining")
             : t("join", { organization: organizationName })}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            void handleDecline();
+          }}
+          disabled={busy}
+        >
+          {isDeclining && <Loader2 className="size-4 animate-spin" />}
+          {t("decline")}
         </Button>
       </div>
     );

@@ -828,8 +828,10 @@
     "noAccount": "¿Nuevo en Sokosumi?",
     "signIn": "Iniciar sesión para unirte",
     "register": "Crear una cuenta",
+    "decline": "Rechazar",
     "Error": {
       "joinFailed": "No se pudo unir a la organización",
+      "declineFailed": "No pudimos rechazar esta invitación.",
       "unauthorizedAction": "Iniciar sesión"
     },
     "Invalid": {

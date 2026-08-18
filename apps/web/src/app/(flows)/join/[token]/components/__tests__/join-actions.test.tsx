@@ -9,10 +9,11 @@ const acceptOrganizationInviteLinkMock = vi.fn();
 const updateUserMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
 const clearPendingOrganizationJoinCookieActionMock = vi.fn();
+const routerPushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: routerPushMock,
   }),
 }));
 
@@ -67,8 +68,9 @@ const messages = {
     joining: "Joining",
     signIn: "Sign in",
     register: "Register",
+    decline: "Decline",
     signedOutHint: "Sign in to join",
-    Error: { joinFailed: "Join failed" },
+    Error: { joinFailed: "Join failed", declineFailed: "Decline failed" },
   },
 };
 
@@ -127,5 +129,20 @@ describe("JoinActions name collection", () => {
       expect(acceptOrganizationInviteLinkMock).toHaveBeenCalled();
     });
     expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the join cookie and opens setup when declined", async () => {
+    const user = userEvent.setup();
+    renderJoin("Ada Lovelace");
+
+    await user.click(screen.getByRole("button", { name: "Decline" }));
+
+    await waitFor(() => {
+      expect(
+        clearPendingOrganizationJoinCookieActionMock,
+      ).toHaveBeenCalledOnce();
+    });
+    expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+    expect(routerPushMock).toHaveBeenCalledWith("/setup");
   });
 });

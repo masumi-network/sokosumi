@@ -828,8 +828,10 @@
     "noAccount": "Neu bei Sokosumi?",
     "signIn": "Anmelden und beitreten",
     "register": "Konto erstellen",
+    "decline": "Ablehnen",
     "Error": {
       "joinFailed": "Der Organisation konnte nicht beigetreten werden",
+      "declineFailed": "Die Einladung konnte nicht abgelehnt werden.",
       "unauthorizedAction": "Anmelden"
     },
     "Invalid": {
