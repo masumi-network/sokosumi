@@ -29,9 +29,15 @@ describe("mobile-app-chrome", () => {
   describe("resolveMobileAppBackTarget", () => {
     it("returns null on tab list roots (no leading back)", () => {
       expect(resolveMobileAppBackTarget("/tasks")).toBeNull();
-      expect(resolveMobileAppBackTarget("/agents")).toBeNull();
       expect(resolveMobileAppBackTarget("/projects")).toBeNull();
       expect(resolveMobileAppBackTarget("/history")).toBeNull();
+    });
+
+    it("sends agents root back to home", () => {
+      expect(resolveMobileAppBackTarget("/agents")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
     });
 
     it("sends non-tab hub roots back to Chats", () => {
@@ -136,12 +142,11 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileBrandLeading("/", new URLSearchParams("welcome=1")),
       ).toBe(true);
       expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
-      expect(shouldShowMobileBrandLeading("/agents")).toBe(true);
       expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
       expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
-    it("hides brand for rooms, drafts, hubs, and nested detail", () => {
+    it("hides brand for rooms, drafts, hubs, nested detail, and agents", () => {
       expect(shouldShowMobileBrandLeading("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBrandLeading(
@@ -153,6 +158,7 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileBrandLeading("/", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/agents")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
     });
