@@ -96,7 +96,7 @@ const messages = {
       nameLabel: "Name",
       namePlaceholder: "Your name",
       choiceLabel: "How do you want to work?",
-      choiceHint: "You can add another at any time.",
+      choiceHint: "You can add another workspace at any time.",
       personalTitle: "Personal",
       personalDescription: "Work on your own.",
       organizationTitle: "Organization",
