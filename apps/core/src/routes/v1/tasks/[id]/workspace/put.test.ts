@@ -3,6 +3,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler.js";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -16,7 +17,7 @@ const {
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
-  upsertWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
   taskLinkFindFirstMock,
@@ -30,7 +31,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  upsertWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskLinkFindFirstMock: vi.fn(),
@@ -52,11 +53,16 @@ vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: {
-    upsertWorkspaceForContext: upsertWorkspaceForContextMock,
-  },
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: {
+      resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    },
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -201,10 +207,13 @@ function createApp(
   },
 ) {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
+    Variables: AuthVariables & WorkspaceVariables & { requestId: string };
   }>();
 
+  app.onError(errorHandler);
+
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     c.set("workspaceContext", {
@@ -283,7 +292,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
-    upsertWorkspaceForContextMock.mockResolvedValue({
+    resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
       ownerId: null,
       organizationId: "org_target",
@@ -491,6 +500,39 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(200);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when moving to a missing personal workspace", async () => {
+    const { PersonalWorkspaceMissingError } = await import(
+      "@sokosumi/database/repositories"
+    );
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        organizationId: "org_current",
+        workspace: {
+          organizationId: "org_current",
+        },
+      }),
+    );
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
+      new PersonalWorkspaceMissingError(),
+    );
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: null,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.kind).toBe("personal_workspace_missing");
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("moves an organization task into another organization when the user is a member", async () => {

@@ -5,6 +5,7 @@ import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Job } from "@/lib/clients/generated/core";
+import { userService } from "@/lib/services";
 import { projectService } from "@/lib/services/project.service";
 import { getJobQueryKey, getQueryClient } from "@/queries";
 
@@ -17,6 +18,7 @@ interface LoadJobDetailsResult {
   activeOrganizationId: string | null;
   dehydratedState: ReturnType<typeof dehydrate>;
   job: Job;
+  hasPersonalWorkspace: boolean;
   personalWorkspaceLabel: string | null;
   projectName: string | null;
   readOnly: boolean;
@@ -54,14 +56,18 @@ export async function loadJobDetails({
 
   const queryClient = getQueryClient();
   queryClient.setQueryData(getJobQueryKey(jobId), job);
-  const project = job.projectId
-    ? await projectService.getProjectById(job.projectId)
-    : null;
+  const [project, workspaceAccess] = await Promise.all([
+    job.projectId
+      ? projectService.getProjectById(job.projectId)
+      : Promise.resolve(null),
+    userService.getWorkspaceAccess(),
+  ]);
 
   return {
     activeOrganizationId: session.session.activeOrganizationId ?? null,
     dehydratedState: dehydrate(queryClient),
     job,
+    hasPersonalWorkspace: workspaceAccess?.hasPersonalWorkspace ?? false,
     personalWorkspaceLabel:
       session.user.name?.trim() || session.user.email?.trim() || null,
     projectName: project?.name ?? null,

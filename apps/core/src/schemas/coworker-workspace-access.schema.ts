@@ -56,14 +56,14 @@ export const coworkerWorkspaceAccessWorkspaceIdBodySchema = z
     }),
     userId: z.string().min(1).optional().openapi({
       description:
-        "User id — resolves (or creates) that user's personal workspace.",
+        "User id — resolves that user's personal workspace. Errors if none exists.",
     }),
     organizationId: z.string().min(1).optional().openapi({
       description: "Organization id — resolves (or creates) the org workspace.",
     }),
     email: z.string().email().optional().openapi({
       description:
-        "User email — resolves (or creates) that user's personal workspace. Prefer for vendor targeting without directory search.",
+        "User email — resolves that user's personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.",
       example: "pilot@example.com",
     }),
     organizationSlug: z.string().min(1).optional().openapi({

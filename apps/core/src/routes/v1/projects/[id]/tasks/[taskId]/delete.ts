@@ -11,7 +11,7 @@ import {
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { projectSchema } from "@/schemas/project.schema";
+import { mapProjectForApi, projectSchema } from "@/schemas/project.schema";
 
 const paramsSchema = z.object({
   id: z
@@ -79,6 +79,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project or task link not found");
     }
 
-    return ok(c, projectSchema.parse(project));
+    return ok(c, mapProjectForApi(project));
   });
 }

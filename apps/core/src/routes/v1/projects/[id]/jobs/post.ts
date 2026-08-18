@@ -12,6 +12,7 @@ import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   addProjectJobRequestSchema,
+  mapProjectForApi,
   projectSchema,
 } from "@/schemas/project.schema";
 
@@ -90,6 +91,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    return ok(c, projectSchema.parse(project));
+    return ok(c, mapProjectForApi(project));
   });
 }

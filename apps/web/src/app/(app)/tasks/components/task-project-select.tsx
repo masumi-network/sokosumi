@@ -3,6 +3,7 @@
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import {
@@ -101,13 +102,22 @@ export function TaskProjectSelect({
           aria-label={projectLabel}
           className="w-full justify-between gap-2"
         >
-          <span
-            className={cn(
-              "truncate",
-              value ? "text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {selectedLabel}
+          <span className="flex min-w-0 flex-1 items-center gap-2">
+            {selectedProject ? (
+              <ProjectAvatar
+                name={selectedProject.name}
+                logo={selectedProject.logo}
+                className="size-5 shrink-0"
+              />
+            ) : null}
+            <span
+              className={cn(
+                "truncate",
+                value ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {selectedLabel}
+            </span>
           </span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
         </Button>
@@ -146,6 +156,11 @@ export function TaskProjectSelect({
                 keywords={[project.name]}
                 onSelect={() => handleSelect(project.id)}
               >
+                <ProjectAvatar
+                  name={project.name}
+                  logo={project.logo}
+                  className="size-5 shrink-0"
+                />
                 <span className="flex-1 truncate">{project.name}</span>
                 <Check
                   className={cn(

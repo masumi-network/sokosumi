@@ -1,6 +1,7 @@
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
 
 import { vendorGrantRepository } from "./vendor-grant.repository.js";
+import { PersonalWorkspaceMissingError } from "./workspace-errors.js";
 
 function isPrismaUniqueConstraintError(error: unknown): boolean {
   return (
@@ -34,40 +35,6 @@ export const workspaceRepository = {
     return await tx.workspace.findUnique({
       where: { userId },
     });
-  },
-
-  async upsertPersonalWorkspace({
-    userId,
-    tx,
-  }: {
-    userId: string;
-    tx: Prisma.TransactionClient;
-  }): Promise<Workspace> {
-    const existingWorkspace = await this.findPersonalWorkspace({ userId, tx });
-    if (existingWorkspace) {
-      await ensureServiceplanGrantForWorkspace(existingWorkspace, userId, tx);
-      return existingWorkspace;
-    }
-
-    try {
-      const workspace = await tx.workspace.create({
-        data: { userId },
-      });
-
-      await ensureServiceplanGrantForWorkspace(workspace, userId, tx);
-
-      return workspace;
-    } catch (error) {
-      if (isPrismaUniqueConstraintError(error)) {
-        const racedWorkspace = await this.findPersonalWorkspace({ userId, tx });
-        if (racedWorkspace) {
-          await ensureServiceplanGrantForWorkspace(racedWorkspace, userId, tx);
-          return racedWorkspace;
-        }
-      }
-
-      throw error;
-    }
   },
 
   async findOrganizationWorkspace({
@@ -122,15 +89,26 @@ export const workspaceRepository = {
     }
   },
 
-  async upsertWorkspaceForContext(
+  /**
+   * Resolve the workspace for a user/org context.
+   * Organization: find or create. Personal: find or throw
+   * {@link PersonalWorkspaceMissingError} — never create.
+   */
+  async resolveWorkspaceForContext(
     userId: string,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<Workspace> {
     if (organizationId) {
       return await this.upsertOrganizationWorkspace({ organizationId, tx });
-    } else {
-      return await this.upsertPersonalWorkspace({ userId, tx });
     }
+
+    const personalWorkspace = await this.findPersonalWorkspace({ userId, tx });
+    if (!personalWorkspace) {
+      throw new PersonalWorkspaceMissingError();
+    }
+
+    await ensureServiceplanGrantForWorkspace(personalWorkspace, userId, tx);
+    return personalWorkspace;
   },
 };

@@ -8,23 +8,6 @@ export function extractTaskAttachmentUrls(markdown: string): string[] {
   return extractFileLikeLinks(markdown);
 }
 
-export function formatTaskAttachmentMarkdown(
-  fileName: string,
-  url: string,
-): string {
-  return `[${fileName}](${escapeMarkdownLinkUrl(url)})\n`;
-}
-
-export function descriptionIncludesTaskAttachmentLink(
-  markdown: string,
-  fileName: string,
-  url: string,
-): boolean {
-  return markdown.includes(
-    formatTaskAttachmentMarkdown(fileName, url).trimEnd(),
-  );
-}
-
 export function sanitizeTaskAttachmentLabel(
   fileName: string,
   fallbackLabel = "file",

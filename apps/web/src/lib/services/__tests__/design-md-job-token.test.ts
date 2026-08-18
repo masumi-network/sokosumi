@@ -64,6 +64,34 @@ describe("design-md job token", () => {
     ).toBe(false);
   });
 
+  it("scopes project tokens to the project id", () => {
+    const token = createDesignMdJobToken(
+      secret,
+      "user-1",
+      { type: "project", projectId: "project-1" },
+      "job_1",
+    );
+
+    expect(
+      verifyDesignMdJobToken(
+        secret,
+        "user-1",
+        { type: "project", projectId: "project-1" },
+        "job_1",
+        token,
+      ),
+    ).toBe(true);
+    expect(
+      verifyDesignMdJobToken(
+        secret,
+        "user-1",
+        { type: "project", projectId: "project-2" },
+        "job_1",
+        token,
+      ),
+    ).toBe(false);
+  });
+
   it("rejects malformed tokens", () => {
     expect(
       verifyDesignMdJobToken(

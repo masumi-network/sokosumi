@@ -1,6 +1,9 @@
 import { ssrfSafeFetch } from "@sokosumi/net";
 
-import { uploadOrganizationLogoBytes } from "@/lib/blob";
+import {
+  uploadOrganizationLogoBytes,
+  uploadProjectLogoBytes,
+} from "@/lib/blob";
 
 /** Only the head matters for icon links, so we never parse beyond this. */
 const MAX_HTML_BYTES = 512 * 1024;
@@ -200,9 +203,12 @@ async function fetchIconBytes(
  * SSRF-guarded end to end — the page HTML and every icon are fetched via
  * `ssrfSafeFetch`, so a hostile URL can't reach private networks.
  */
-export async function resolveSiteIconAsOrganizationLogo(
+async function resolveSiteIcon(
   rawUrl: string,
-  organizationId: string,
+  storeIcon: (icon: {
+    bytes: ArrayBuffer;
+    contentType: string;
+  }) => Promise<string | null>,
 ): Promise<string | null> {
   let pageUrl: URL;
   try {
@@ -248,11 +254,7 @@ export async function resolveSiteIconAsOrganizationLogo(
   )) {
     const icon = await fetchIconBytes(candidate.url);
     if (!icon) continue;
-    const url = await uploadOrganizationLogoBytes({
-      organizationId,
-      bytes: icon.bytes,
-      contentType: icon.contentType,
-    });
+    const url = await storeIcon(icon);
     if (url) return url;
     // Bytes were fine but storage refused them — retrying other candidates
     // will hit the same wall, so stop and let the caller fall back.
@@ -264,4 +266,22 @@ export async function resolveSiteIconAsOrganizationLogo(
 
   console.warn(`[site-icon] no usable icon found for ${pageUrl.origin}`);
   return null;
+}
+
+export function resolveSiteIconAsOrganizationLogo(
+  rawUrl: string,
+  organizationId: string,
+): Promise<string | null> {
+  return resolveSiteIcon(rawUrl, (icon) =>
+    uploadOrganizationLogoBytes({ organizationId, ...icon }),
+  );
+}
+
+export function resolveSiteIconAsProjectLogo(
+  rawUrl: string,
+  projectId: string,
+): Promise<string | null> {
+  return resolveSiteIcon(rawUrl, (icon) =>
+    uploadProjectLogoBytes({ projectId, ...icon }),
+  );
 }

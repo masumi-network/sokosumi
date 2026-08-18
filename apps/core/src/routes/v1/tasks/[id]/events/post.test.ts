@@ -21,6 +21,7 @@ const {
   orchestratorFindFirstMock,
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
+  projectMemoryRefreshMock,
   publishTaskEventDataMock,
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
@@ -46,6 +47,7 @@ const {
     user: { notificationsOptIn: true },
   }),
   prismaTransactionMock: vi.fn(),
+  projectMemoryRefreshMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
@@ -108,6 +110,12 @@ vi.mock("@/helpers/agent", async (importOriginal) => {
 vi.mock("@/services/task-payment-claim.service", () => ({
   createTaskPaymentClaim: createTaskPaymentClaimMock,
   processTaskPaymentClaim: processTaskPaymentClaimMock,
+}));
+
+vi.mock("@/services/project-memory.service", () => ({
+  projectMemoryService: {
+    refreshAfterTaskCompleted: projectMemoryRefreshMock,
+  },
 }));
 
 const TASK_ID = "tsk_123";
@@ -184,6 +192,7 @@ function createTask(
     assigneeId: string | null;
     status: TaskStatus;
     ownerId: string;
+    projectId: string | null;
   }> = {},
 ) {
   return {
@@ -192,6 +201,7 @@ function createTask(
     assigneeId: COWORKER_ID,
     ownerId: USER_ID,
     organizationId: null,
+    projectId: null,
     ...overrides,
   };
 }
@@ -323,6 +333,7 @@ describe("POST /{id}/events", () => {
       status: "purchased",
       purchaseId: "pur_task_1",
     });
+    projectMemoryRefreshMock.mockResolvedValue({ status: "updated" });
     createTaskPaymentClaimMock.mockResolvedValue("claim-task-1");
     prismaTaskFindUniqueMock.mockResolvedValue({
       id: "tsk_123",
@@ -1848,6 +1859,46 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalled();
+  });
+
+  it("queues a project memory refresh after a project task completes", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.COMPLETED,
+            cents: null,
+            transactionId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ projectId: "proj_123" }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.COMPLETED }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(projectMemoryRefreshMock).toHaveBeenCalledWith({
+      projectId: "proj_123",
+      taskId: TASK_ID,
+    });
+    await Promise.all(waitUntilCapturedPromises);
   });
 
   it("charges credits on RUNNING events", async () => {

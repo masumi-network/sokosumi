@@ -1,18 +1,20 @@
 "use client";
 
 import {
+  Briefcase,
   Eye,
   ListTodo,
   type LucideIcon,
   MoreHorizontal,
   Pencil,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
+import { previewProjectBriefing } from "@/app/projects/project-briefing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +69,7 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const description = project.description?.trim() || "—";
+  const briefing = previewProjectBriefing(project.briefing);
 
   function handleDeleteProject() {
     startDeleteTransition(async () => {
@@ -89,16 +91,17 @@ export function ProjectListItem({
       )}
     >
       <Link
-        href={`/tasks?projectId=${project.id}`}
+        href={`/projects/${project.id}`}
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg px-2 py-3 transition-colors active:scale-[0.995] sm:flex-row sm:items-center sm:gap-4"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <ProjectAvatar name={project.name} logo={project.logo} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {project.name}
             </span>
             <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
-              {description}
+              {briefing}
             </p>
           </div>
         </div>
@@ -194,7 +197,7 @@ function ProjectResourceCounts({
         total={project.taskCount}
       />
       <ResourceCountPill
-        icon={Sparkles}
+        icon={Briefcase}
         ariaLabel={labels.jobs}
         total={project.jobCount}
       />

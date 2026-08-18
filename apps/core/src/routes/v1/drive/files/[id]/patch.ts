@@ -2,14 +2,14 @@ import { createRoute } from "@hono/zod-openapi";
 import {
   buildOrganizationDriveFilePathname,
   buildUserDriveFilePathname,
-  buildUserDriveFilePrefix,
   clampDriveFileName,
 } from "@sokosumi/utils";
-import { copy, del, list } from "@vercel/blob";
+import { BlobNotFoundError, head, rename } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { badRequest, conflict, serviceUnavailable } from "@/helpers/error";
+import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -46,6 +46,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict - target pathname already exists"),
+    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -64,89 +65,109 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { oldPathname, newFilename } = body;
 
-    // Determine scope and owner from pathname
-    const userPrefix = buildUserDriveFilePrefix(userContext.userId);
-    const isUserFile = oldPathname.startsWith(userPrefix);
+    // Parse pathname to determine scope and owner
+    const { scope, ownerId } = parseDriveFilePathname(
+      oldPathname,
+      userContext.userId,
+    );
 
-    let scope: "user" | "organization";
-    let ownerId: string;
-    let newPathname: string;
+    // Verify access
+    await requireDriveFileAccess(authContext, scope, ownerId);
 
-    if (isUserFile) {
-      // Personal drive
-      scope = "user";
-      ownerId = userContext.userId;
-      await requireDriveFileAccess(authContext, scope, ownerId);
+    // Build new pathname
+    const sanitizedName = clampDriveFileName(newFilename);
+    const newPathname =
+      scope === "user"
+        ? buildUserDriveFilePathname(ownerId, sanitizedName)
+        : buildOrganizationDriveFilePathname(ownerId, sanitizedName);
 
-      const sanitizedName = clampDriveFileName(newFilename);
-      newPathname = buildUserDriveFilePathname(ownerId, sanitizedName);
-    } else {
-      // Organization drive - extract orgId from pathname
-      // pathname format: drive/organizations/{orgId}/{filename}
-      const pathParts = oldPathname.split("/");
-      if (
-        pathParts.length < 4 ||
-        pathParts[0] !== "drive" ||
-        pathParts[1] !== "organizations"
-      ) {
-        throw badRequest("Invalid pathname format");
+    // Get source blob metadata for preservation
+    let sourceMetadata;
+    try {
+      sourceMetadata = await head(oldPathname, { token });
+    } catch (error) {
+      if (error instanceof BlobNotFoundError) {
+        throw notFound("Source file not found");
       }
-
-      const orgId = pathParts[2];
-      scope = "organization";
-      ownerId = orgId;
-      await requireDriveFileAccess(authContext, scope, ownerId);
-
-      const sanitizedName = clampDriveFileName(newFilename);
-      newPathname = buildOrganizationDriveFilePathname(ownerId, sanitizedName);
+      throw error;
     }
 
-    // Check if target already exists (copy will fail if it does)
-    // We rely on Blob's behavior: copy fails if target exists
-
+    // Check if target already exists
     try {
-      // Copy to new pathname
-      const copiedBlob = await copy(oldPathname, newPathname, {
+      await head(newPathname, { token });
+      // If head succeeds, target exists
+      throw conflict("Target pathname already exists");
+    } catch (error) {
+      // If it's a not-found error, target doesn't exist (expected)
+      if (error instanceof BlobNotFoundError) {
+        // Target doesn't exist, proceed with rename
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "kind" in error &&
+        error.kind === "conflict"
+      ) {
+        // Re-throw our own conflict errors
+        throw error;
+      } else {
+        // Unexpected error from head
+        throw error;
+      }
+    }
+
+    // Rename (copy + delete atomically)
+    let renamedBlob;
+    try {
+      renamedBlob = await rename(oldPathname, newPathname, {
         token,
         access: "public",
         addRandomSuffix: false,
+        // Preserve metadata from source
+        contentType: sourceMetadata.contentType,
+        cacheControlMaxAge: parseCacheControlMaxAge(
+          sourceMetadata.cacheControl,
+        ),
       });
-
-      // Delete old pathname
-      await del(oldPathname, { token });
-
-      // Get blob metadata via list to get size and uploadedAt
-      const { blobs } = await list({
-        prefix: copiedBlob.pathname,
-        token,
-        limit: 1,
-      });
-
-      const blobMetadata = blobs[0];
-      if (!blobMetadata) {
-        throw new Error("Failed to retrieve blob metadata after copy");
-      }
-
-      // Extract filename from new pathname
-      const pathSegments = copiedBlob.pathname.split("/");
-      const name = pathSegments[pathSegments.length - 1] || "unnamed";
-
-      return ok(
-        c,
-        driveFileSchema.parse({
-          name,
-          fileUrl: copiedBlob.url,
-          pathname: copiedBlob.pathname,
-          size: blobMetadata.size,
-          uploadedAt: blobMetadata.uploadedAt.toISOString(),
-        }),
-      );
     } catch (error) {
-      // Check if it's a conflict (target already exists)
-      if (error instanceof Error && error.message.includes("already exists")) {
+      // Map Blob errors to HTTP responses
+      if (error instanceof BlobNotFoundError) {
+        throw notFound("Source file not found");
+      }
+      // Check for conflict/already-exists errors from rename
+      if (
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof error.message === "string" &&
+        error.message.toLowerCase().includes("already exists")
+      ) {
         throw conflict("Target pathname already exists");
       }
       throw error;
     }
+
+    // Extract filename from new pathname
+    const pathSegments = newPathname.split("/");
+    const name = pathSegments[pathSegments.length - 1] || "unnamed";
+
+    return ok(
+      c,
+      driveFileSchema.parse({
+        name,
+        fileUrl: renamedBlob.url,
+        pathname: renamedBlob.pathname,
+        size: sourceMetadata.size,
+        uploadedAt: sourceMetadata.uploadedAt.toISOString(),
+      }),
+    );
   });
+}
+
+/**
+ * Parse max-age from Cache-Control header.
+ * Example: "public, max-age=31536000" → 31536000
+ */
+function parseCacheControlMaxAge(cacheControl: string): number | undefined {
+  const match = /max-age=(\d+)/.exec(cacheControl);
+  return match ? Number.parseInt(match[1], 10) : undefined;
 }
