@@ -188,4 +188,22 @@ describe("DELETE /users/{id}/personal-workspace", () => {
       data: { preferredOrganizationId: "org_1" },
     });
   });
+
+  it("returns 409 workspace_has_dependents when delete hits a foreign key", async () => {
+    workspaceFindUniqueMock.mockResolvedValueOnce({
+      id: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+    });
+    isLastWorkspaceMock.mockResolvedValueOnce(false);
+    workspaceDeleteMock.mockRejectedValueOnce(
+      Object.assign(new Error("Foreign key constraint failed"), {
+        code: "P2003",
+      }),
+    );
+
+    const response = await deletePersonalWorkspace(createApp(), "me");
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.kind).toBe("workspace_has_dependents");
+  });
 });

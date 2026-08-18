@@ -84,7 +84,6 @@ export default async function WorkspaceGatePage() {
         : hasName
           ? "identityDescriptionConfirm"
           : "identityDescriptionEnter";
-  const bodyKey = surface === "unavailable" ? "unavailableBody" : "body";
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
 
@@ -105,7 +104,9 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
           />
         ) : (
-          <p className="text-muted-foreground text-sm">{t(bodyKey)}</p>
+          <p className="text-muted-foreground text-sm">
+            {t("unavailableBody")}
+          </p>
         )}
       </CardContent>
       {surface === "unavailable" ? (

@@ -29,6 +29,9 @@ export type LastWorkspaceRemoval =
  * True when removing this workspace would leave the user with zero workspaces.
  * Personal delete needs any remaining org membership. Organization delete
  * needs a personal workspace or another org membership.
+ *
+ * Org membership is enough: organization create upserts the workspace row.
+ * Do not require that row here or last-workspace can disagree with create.
  */
 export async function isLastWorkspace(
   userId: string,

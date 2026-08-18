@@ -159,11 +159,26 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+      expect(updateUserMock).not.toHaveBeenCalled();
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
       expect(routerRefreshMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("persists an edited name before creating a personal workspace", async () => {
+    const user = userEvent.setup();
+    renderForm("Ada Lovelace");
+
+    const nameInput = screen.getByTestId("workspace-gate-identity-name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Ada Byron");
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Byron" });
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
     });
   });
 
@@ -175,7 +190,7 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
     expect(await screen.findByTestId("create-org-wizard")).toBeTruthy();
-    expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+    expect(updateUserMock).not.toHaveBeenCalled();
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
 
@@ -205,8 +220,11 @@ describe("IdentityOnboardingForm", () => {
     updateUserMock.mockResolvedValue({
       error: { message: "Name service down" },
     });
-    renderForm();
+    renderForm("Ada Lovelace");
 
+    const nameInput = screen.getByTestId("workspace-gate-identity-name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Ada Byron");
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
@@ -280,8 +298,11 @@ describe("IdentityOnboardingForm", () => {
     updateUserMock.mockResolvedValue({
       error: { message: "Name service down" },
     });
-    renderForm();
+    renderForm("Ada Lovelace");
 
+    const nameInput = screen.getByTestId("workspace-gate-identity-name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Ada Byron");
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
     await waitFor(() => {

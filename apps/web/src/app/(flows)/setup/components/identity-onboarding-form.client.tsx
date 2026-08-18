@@ -79,6 +79,10 @@ export function IdentityOnboardingForm({
   }
 
   async function persistDisplayName(name: string): Promise<boolean> {
+    if (name.trim() === initialName.trim()) {
+      return true;
+    }
+
     try {
       const updateUserResult = await authClient.updateUser({ name });
       if (updateUserResult.error) {
