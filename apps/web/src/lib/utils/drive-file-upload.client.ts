@@ -116,15 +116,38 @@ export async function uploadDriveFile(
 
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let hasRealProgress = false;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+    let fallbackProgress = 0;
+
+    // Fallback progress estimator if lengthComputable is false or no events fire
+    const startFallbackProgress = () => {
+      fallbackInterval = setInterval(() => {
+        if (!hasRealProgress && fallbackProgress < 90) {
+          fallbackProgress = Math.min(fallbackProgress + 10, 90);
+          onUploadProgress?.({ percentage: fallbackProgress });
+        }
+      }, 1000);
+    };
+
+    const stopFallbackProgress = () => {
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+    };
 
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {
+        hasRealProgress = true;
+        stopFallbackProgress();
         const percentage = Math.round((event.loaded / event.total) * 100);
         onUploadProgress?.({ percentage });
       }
     });
 
     xhr.addEventListener("load", async () => {
+      stopFallbackProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
         onUploadProgress?.({ percentage: 100 });
         resolve();
@@ -165,6 +188,7 @@ export async function uploadDriveFile(
     });
 
     xhr.addEventListener("error", () => {
+      stopFallbackProgress();
       reject(
         new DriveFileUploadError(
           "internal",
@@ -174,11 +198,16 @@ export async function uploadDriveFile(
     });
 
     xhr.addEventListener("abort", () => {
+      stopFallbackProgress();
       reject(new DriveFileUploadError("internal", "Upload was aborted"));
     });
 
     xhr.open("PUT", uploadUrl);
     xhr.setRequestHeader("Content-Type", headers["Content-Type"] ?? file.type);
+
+    // Start fallback progress estimator
+    startFallbackProgress();
+
     xhr.send(file);
   });
 }
