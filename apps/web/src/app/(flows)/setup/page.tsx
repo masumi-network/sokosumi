@@ -48,7 +48,6 @@ export default async function WorkspaceGatePage() {
     workspaceAccessLoadFailed = true;
   }
 
-  // Ready users never land on the gate.
   if (!workspaceAccessLoadFailed && isWorkspaceReady(gate)) {
     redirect("/");
   }

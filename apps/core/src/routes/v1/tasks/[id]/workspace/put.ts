@@ -1,6 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { workspaceRepository } from "@sokosumi/database/repositories";
-
 import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
@@ -8,7 +6,7 @@ import {
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { rethrowPersonalWorkspaceMissing } from "@/helpers/personal-workspace-error";
+import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -90,16 +88,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
 
-      let targetWorkspace;
-      try {
-        targetWorkspace = await workspaceRepository.resolveWorkspaceForContext(
-          userContext.userId,
-          targetOrganizationId ?? null,
-          tx,
-        );
-      } catch (error) {
-        rethrowPersonalWorkspaceMissing(error);
-      }
+      const targetWorkspace = await resolveWorkspaceForContextOrNotFound(
+        userContext.userId,
+        targetOrganizationId ?? null,
+        tx,
+      );
 
       const existingLink = await tx.taskLink.findFirst({
         where: {

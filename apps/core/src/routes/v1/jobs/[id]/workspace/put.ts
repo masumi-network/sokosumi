@@ -1,13 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
-import { workspaceRepository } from "@sokosumi/database/repositories";
-
 import { requireJobCollaboration } from "@/helpers/access-control";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { rethrowPersonalWorkspaceMissing } from "@/helpers/personal-workspace-error";
+import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -114,16 +112,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
 
-      let workspace;
-      try {
-        workspace = await workspaceRepository.resolveWorkspaceForContext(
-          userContext.userId,
-          targetOrganizationId ?? null,
-          tx,
-        );
-      } catch (error) {
-        rethrowPersonalWorkspaceMissing(error);
-      }
+      const workspace = await resolveWorkspaceForContextOrNotFound(
+        userContext.userId,
+        targetOrganizationId ?? null,
+        tx,
+      );
 
       await tx.job.update({
         where: {

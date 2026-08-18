@@ -33,6 +33,23 @@ interface DeletePersonalWorkspaceFormProps {
   currentOrganizationId: string | null;
 }
 
+async function activateFallbackOrganization(
+  organizationId: string,
+): Promise<boolean> {
+  for (const label of [
+    "Failed to activate remaining organization after personal delete",
+    "Failed to activate remaining organization after personal delete retry",
+  ] as const) {
+    try {
+      await activateOrganizationWorkspace(organizationId);
+      return true;
+    } catch (error) {
+      console.error(label, error);
+    }
+  }
+  return false;
+}
+
 export function DeletePersonalWorkspaceForm({
   hasOrganizationMembership,
   fallbackOrganizationId,
@@ -62,24 +79,13 @@ export function DeletePersonalWorkspaceForm({
       }
 
       if (currentOrganizationId === null && fallbackOrganizationId) {
-        try {
-          await activateOrganizationWorkspace(fallbackOrganizationId);
-        } catch (error) {
-          console.error(
-            "Failed to activate remaining organization after personal delete",
-            error,
-          );
-          try {
-            await activateOrganizationWorkspace(fallbackOrganizationId);
-          } catch (retryError) {
-            console.error(
-              "Failed to activate remaining organization after personal delete retry",
-              retryError,
-            );
-            toast.error(t("activateError"));
-            router.refresh();
-            return;
-          }
+        const activated = await activateFallbackOrganization(
+          fallbackOrganizationId,
+        );
+        if (!activated) {
+          toast.error(t("activateError"));
+          router.refresh();
+          return;
         }
       }
 

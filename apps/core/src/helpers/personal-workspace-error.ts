@@ -1,4 +1,8 @@
-import { isPersonalWorkspaceMissingError } from "@sokosumi/database/repositories";
+import type { Prisma, Workspace } from "@sokosumi/database";
+import {
+  isPersonalWorkspaceMissingError,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { notFound } from "@/helpers/error";
@@ -11,4 +15,20 @@ export function rethrowPersonalWorkspaceMissing(error: unknown): never {
   }
 
   throw error;
+}
+
+export async function resolveWorkspaceForContextOrNotFound(
+  userId: string,
+  organizationId: string | null,
+  tx: Prisma.TransactionClient,
+): Promise<Workspace> {
+  try {
+    return await workspaceRepository.resolveWorkspaceForContext(
+      userId,
+      organizationId,
+      tx,
+    );
+  } catch (error) {
+    rethrowPersonalWorkspaceMissing(error);
+  }
 }
