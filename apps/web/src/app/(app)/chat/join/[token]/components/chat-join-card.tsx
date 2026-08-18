@@ -29,7 +29,7 @@ export function ChatJoinCard({ token, room, user }: ChatJoinCardProps) {
   return (
     <div className="flex min-h-[50vh] items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="items-center text-center">
+        <CardHeader className="justify-items-center text-center">
           <div className="bg-muted mb-2 flex size-16 items-center justify-center overflow-hidden rounded-2xl">
             <Hash className="text-muted-foreground size-7" />
           </div>
