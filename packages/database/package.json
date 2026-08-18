@@ -65,6 +65,7 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
+    "data-migration:better-auth-1-7-harvest": "tsx --env-file=../../apps/core/.env scripts/better-auth-1-7-harvest.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"

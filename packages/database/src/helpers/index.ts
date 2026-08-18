@@ -29,6 +29,7 @@
  * ```
  */
 
+export * from "./better-auth-1-7-account-identity.js";
 export * from "./credit.js";
 export * from "./credit-bucket-scope.js";
 export * from "./enterprise-contract.js";
