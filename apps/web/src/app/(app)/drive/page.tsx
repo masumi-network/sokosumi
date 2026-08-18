@@ -19,7 +19,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +41,7 @@ import {
   getDriveFileUploadErrorMessage,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 function formatDate(date: Date | string): string {
@@ -49,6 +52,67 @@ function formatDate(date: Date | string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(typeof date === "string" ? new Date(date) : date);
+}
+
+interface FileNameWithPreviewProps {
+  file: DriveFile;
+  isPreviewable: boolean;
+  isImage: boolean;
+  documentKind: "office" | "pdf" | "text" | null;
+}
+
+function FileNameWithPreview({
+  file,
+  isPreviewable,
+  isImage,
+  documentKind,
+}: FileNameWithPreviewProps) {
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
+
+  if (!isPreviewable) {
+    return (
+      <span className="text-foreground line-clamp-1 text-sm font-medium">
+        {file.name}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (isImage) {
+            setIsImageViewerOpen(true);
+          } else if (documentKind) {
+            setIsDocumentViewerOpen(true);
+          }
+        }}
+        className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+      >
+        {file.name}
+      </button>
+      {isImage && (
+        <ImageViewer
+          open={isImageViewerOpen}
+          onOpenChange={setIsImageViewerOpen}
+          src={file.fileUrl}
+          alt={file.name}
+          downloadFilename={file.name}
+        />
+      )}
+      {documentKind && (
+        <DocumentViewer
+          open={isDocumentViewerOpen}
+          onOpenChange={setIsDocumentViewerOpen}
+          url={file.fileUrl}
+          fileName={file.name}
+          kind={documentKind}
+        />
+      )}
+    </>
+  );
 }
 
 export default function DrivePage(): ReactElement {
@@ -350,6 +414,11 @@ export default function DrivePage(): ReactElement {
                 {files.map((file) => {
                   const extension = getExtensionFromUrl(file.name);
                   const isEditing = editingFilePathname === file.pathname;
+                  const { isImage, documentKind } = classifyFilePreview(
+                    file.fileUrl,
+                    file.name,
+                  );
+                  const isPreviewable = isImage || documentKind !== null;
 
                   return (
                     <article
@@ -383,17 +452,28 @@ export default function DrivePage(): ReactElement {
                             autoFocus
                           />
                         ) : (
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">
-                            <span className="text-foreground line-clamp-1 text-sm font-medium">
-                              {file.name}
-                            </span>
-                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs">
+                          <>
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <FileNameWithPreview
+                                file={file}
+                                isPreviewable={isPreviewable}
+                                isImage={isImage}
+                                documentKind={documentKind}
+                              />
+                              <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                                <span>
+                                  {file.size ? formatBytes(file.size) : "—"}
+                                </span>
+                                <span>{formatDate(file.uploadedAt)}</span>
+                              </div>
+                            </div>
+                            <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
                               <span>
                                 {file.size ? formatBytes(file.size) : "—"}
                               </span>
                               <span>{formatDate(file.uploadedAt)}</span>
                             </div>
-                          </div>
+                          </>
                         )}
 
                         <div className="flex shrink-0 items-center gap-1">
