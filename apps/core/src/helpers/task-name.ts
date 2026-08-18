@@ -1,4 +1,4 @@
-import { removeDesignMdAttachmentLinks } from "@sokosumi/utils";
+import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 
 import { openrouterClient } from "@/clients/openrouter.client";
 
@@ -19,7 +19,7 @@ export async function resolveTaskName(input: {
     return provided;
   }
 
-  const namingSource = removeDesignMdAttachmentLinks(
+  const namingSource = removeTaskContextAttachmentLinks(
     input.description ?? "",
   ).trim();
   if (!namingSource) {

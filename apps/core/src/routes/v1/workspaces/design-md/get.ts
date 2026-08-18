@@ -1,20 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
-import {
-  memberRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
+import { DESIGN_MD_ATTACHMENT_LABEL } from "@sokosumi/utils";
+
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import {
-  readOrganizationDesignMd,
-  readUserDesignMd,
-} from "@/helpers/design-md";
+import { resolveEffectiveDesignMd } from "@/helpers/design-md-effective";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { effectiveDesignMdSchema } from "@/schemas/design-md.schema";
-
-const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
 
 const route = createRoute({
   method: "get",
@@ -56,55 +48,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.var.authContext,
     );
 
-    if (organizationId) {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId,
-        prisma,
-      );
+    const designMd = await resolveEffectiveDesignMd({
+      userId,
+      organizationId,
+    });
 
-      if (member) {
-        const organization = await prisma.organization.findUnique({
-          where: { id: organizationId },
-          select: { metadata: true, name: true, logo: true },
-        });
-        const organizationDesignMd = readOrganizationDesignMd(
-          organization?.metadata,
-        );
-
-        if (organizationDesignMd && organization) {
-          return ok(
-            c,
-            effectiveDesignMdSchema.parse({
-              designMd: {
-                label: DESIGN_MD_ATTACHMENT_LABEL,
-                url: organizationDesignMd.url,
-                owner: {
-                  type: "organization",
-                  name: organization.name,
-                  logo: organization.logo,
-                },
-              },
-            }),
-          );
-        }
-      }
-    }
-
-    const user = await userRepository.getUserById(userId, prisma);
-    const userDesignMd = readUserDesignMd(user?.metadata);
-
-    return ok(
-      c,
-      effectiveDesignMdSchema.parse({
-        designMd: userDesignMd
-          ? {
-              label: DESIGN_MD_ATTACHMENT_LABEL,
-              url: userDesignMd.url,
-              owner: { type: "user" },
-            }
-          : null,
-      }),
-    );
+    return ok(c, effectiveDesignMdSchema.parse({ designMd }));
   });
 }

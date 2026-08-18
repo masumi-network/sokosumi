@@ -381,8 +381,15 @@ vi.mock("@/app/tasks/components/task-form", () => ({
       description: string;
       assigneeId: string | null;
       status: TaskStatus;
-      skipDesignMdAttachment?: boolean;
-      designMdAttachmentOverride?: { label: string; url: string };
+      context: {
+        brand: {
+          enabled: boolean;
+          source: "project" | "default" | "custom";
+          custom?: { url: string } | null;
+        };
+        briefingEnabled: boolean;
+        contextMdEnabled: boolean;
+      };
     }) => Promise<{ taskId: string }>;
     onSuccess?: (taskId: string) => void;
   }) => (
@@ -401,10 +408,11 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
             status: TaskStatus.READY,
-            skipDesignMdAttachment: initialDesignMdAttachment
-              ? false
-              : undefined,
-            designMdAttachmentOverride: undefined,
+            context: {
+              brand: { enabled: true, source: "default", custom: null },
+              briefingEnabled: true,
+              contextMdEnabled: true,
+            },
           });
           onSuccess?.(result.taskId);
         }}
@@ -1346,8 +1354,11 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
-        skipDesignMdAttachment: undefined,
-        designMdAttachmentOverride: undefined,
+        context: {
+          brand: { enabled: true, source: "default", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       });
     });
 
@@ -1393,8 +1404,11 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
-        skipDesignMdAttachment: false,
-        designMdAttachmentOverride: undefined,
+        context: {
+          brand: { enabled: true, source: "default", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       });
     });
   });
@@ -1685,8 +1699,11 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
-        skipDesignMdAttachment: undefined,
-        designMdAttachmentOverride: undefined,
+        context: {
+          brand: { enabled: true, source: "default", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       });
     });
 

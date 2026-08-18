@@ -133,6 +133,10 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     (project) => ({
       id: project.id,
       name: project.name,
+      logo: project.logo,
+      designMd: project.designMd,
+      briefingUrl: project.briefingUrl,
+      contextMd: project.contextMd,
     }),
   );
   if (
@@ -144,7 +148,14 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     );
     if (selectedProject) {
       projectOptions = [
-        { id: selectedProject.id, name: selectedProject.name },
+        {
+          id: selectedProject.id,
+          name: selectedProject.name,
+          logo: selectedProject.logo,
+          designMd: selectedProject.designMd,
+          briefingUrl: selectedProject.briefingUrl,
+          contextMd: selectedProject.contextMd,
+        },
         ...projectOptions,
       ];
     }
@@ -297,7 +308,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),
-            projectLabel: t("Filters.projectLabel"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),

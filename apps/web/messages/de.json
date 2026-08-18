@@ -1542,7 +1542,6 @@
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "statusLabel": "Status",
-        "projectLabel": "Projekt",
         "statusOptions": {
           "DRAFT": "Entwurf",
           "QUEUED": "In Warteschlange",
@@ -1559,6 +1558,13 @@
           "FAILED": "Fehlgeschlagen",
           "CANCELED": "Abgebrochen"
         }
+      },
+      "ProjectSwitcher": {
+        "ariaLabel": "Projekt",
+        "allProjects": "Alle Projekte",
+        "searchPlaceholder": "Projekte suchen...",
+        "empty": "Keine Projekte gefunden.",
+        "create": "Projekt erstellen..."
       },
       "Jobs": {
         "filterButton": "Filter",
@@ -1764,17 +1770,19 @@
         "files": "Dateien"
       },
       "NewTask": {
-        "DesignMdAttachment": {
-          "organizationLabel": "{organization} Markendesign",
-          "personalLabel": "Dein Markendesign",
-          "customLabel": "{hostname} Markendesign",
-          "tooltip": "DESIGN.md ist ein Markenleitfaden, der vom Inhaber bereits für {organization} erstellt wurde. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
-          "tooltipPersonal": "DESIGN.md ist ein Markenleitfaden, den du bereits erstellt hast. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
-          "tooltipCustom": "DESIGN.md, erzeugt von {hostname}, nur für diese Aufgabe. Mit dieser Anlage wendet der Agent dieses Branding an. Es wird nichts in deinem Profil gespeichert.",
-          "learnMore": "Mehr über DESIGN.md erfahren",
-          "infoAria": "Über diese Anlage",
-          "useDifferentBranding": "Anderes Branding verwenden",
-          "resetToDefault": "Branding zurücksetzen"
+        "ContextAttachments": {
+          "label": "Kontext",
+          "brand": "Markenrichtlinien",
+          "namedBrand": "Markenrichtlinien von {name}",
+          "personalBrand": "Persönliche Markenrichtlinien",
+          "brandMenuAria": "Markenrichtlinien auswählen",
+          "projectBrand": "Projekt-Markenrichtlinien",
+          "organizationBrand": "Organisations-Markenrichtlinien",
+          "otherWebsite": "Andere Website…",
+          "briefing": "Briefing",
+          "memory": "Gedächtnis",
+          "infoAria": "Über den Task-Kontext",
+          "info": "Markenrichtlinien, Briefing und Gedächtnis werden als DESIGN.md-, BRIEFING.md- und CONTEXT.md-Dateien angehängt, die der Coworker liest."
         },
         "title": "Neuer Task",
         "details": "Details",
@@ -1955,6 +1963,7 @@
             "DRAFT": "Entwurf",
             "QUEUED": "Geplant",
             "READY": "Bereit",
+            "GRANT_PENDING": "Freigabe",
             "INPUT_REQUIRED": "Eingabe",
             "APPROVAL_REQUIRED": "Genehmigung",
             "AUTHENTICATION_REQUIRED": "Auth",
@@ -1982,25 +1991,73 @@
           }
         }
       },
-      "NewProject": {
+      "Briefing": {
+        "label": "Briefing",
+        "placeholder": "Beschreibe die Kampagne oder Initiative…",
+        "guidance": "Beschreibe Kampagne/Initiative: Ziele, Zielgruppe, Kanäle, Zeitplan, Ton & Stimme, KPIs, Must-haves / Must-avoids.",
+        "wordCount": "{count, plural, =0 {0 Wörter} =1 {1 Wort} other {# Wörter}}",
+        "encouragement": "Gute Briefings haben 300+ Wörter — je mehr du schreibst, desto besser wird jeder Task.",
+        "encouragementMet": "Starkes Briefing — jeder Task hat den nötigen Kontext.",
+        "chips": {
+          "goals": "Ziele",
+          "audience": "Zielgruppe",
+          "channels": "Kanäle",
+          "timeline": "Zeitplan",
+          "tone": "Ton & Stimme",
+          "kpis": "KPIs",
+          "mustHaves": "Must-haves",
+          "mustAvoids": "Must-avoids"
+        }
+      },
+      "Wizard": {
         "title": "Neues Projekt",
-        "details": "Details",
-        "detailsDescription": "Gib dem Projekt einen Namen und optionalen Kontext.",
+        "stepLabel": "{current} / {total}",
+        "name": {
+          "title": "Projekt benennen",
+          "subtitle": "Ein kurzer Titel für die Kampagne oder Initiative.",
+          "websiteLabel": "Website",
+          "websitePlaceholder": "example.com",
+          "websiteHint": "Optional. Wird für Logo und Markenrichtlinien verwendet."
+        },
+        "briefing": {
+          "title": "Briefing schreiben",
+          "subtitle": "Je mehr du schreibst, desto besser wird jeder Task in diesem Projekt."
+        },
+        "review": {
+          "title": "Prüfen und erstellen",
+          "subtitle": "Du kannst das Briefing jederzeit bearbeiten.",
+          "nameLabel": "Name",
+          "websiteLabel": "Website",
+          "briefingLabel": "Briefing",
+          "emptyWebsite": "Keine Website",
+          "emptyBriefing": "Noch kein Briefing — du kannst es nach dem Erstellen ergänzen.",
+          "contextNote": "Jeder Task in diesem Projekt startet mit deinem Briefing, deiner Marke und dem Projektgedächtnis."
+        },
+        "brand": {
+          "title": "Marke wird eingerichtet",
+          "fetching": "Marke wird geladen…",
+          "ready": "Marke ist bereit. Du kannst das Projekt jederzeit öffnen.",
+          "failed": "Die Marke konnte gerade nicht fertiggestellt werden. Du kannst es später im Projekt erneut versuchen.",
+          "logoFailed": "Logo konnte nicht geladen werden. Du kannst es später hinzufügen."
+        },
+        "nav": {
+          "next": "Weiter",
+          "back": "Zurück",
+          "create": "Projekt erstellen",
+          "creating": "Wird erstellt…",
+          "openProject": "Projekt öffnen"
+        }
+      },
+      "NewProject": {
         "name": "Projektname",
-        "namePlaceholder": "Kurzen Titel eingeben",
-        "description": "Beschreibung",
-        "descriptionPlaceholder": "Projektkontext hinzufügen...",
-        "createProject": "Projekt erstellen",
-        "cancel": "Abbrechen"
+        "namePlaceholder": "Kurzen Titel eingeben"
       },
       "EditProject": {
         "title": "Projekt bearbeiten",
         "details": "Details",
-        "detailsDescription": "Aktualisiere die Projektdetails.",
+        "detailsDescription": "Aktualisiere Name, Website und Briefing des Projekts.",
         "name": "Projektname",
         "namePlaceholder": "Kurzen Titel eingeben",
-        "description": "Beschreibung",
-        "descriptionPlaceholder": "Projektkontext aktualisieren...",
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
@@ -2010,8 +2067,43 @@
           "updated": "Aktualisiert",
           "created": "Erstellt"
         },
-        "description": "Beschreibung",
-        "emptyDescription": "Noch keine Beschreibung.",
+        "briefing": "Briefing",
+        "emptyBriefing": "Noch kein Briefing.",
+        "editBriefing": "Bearbeiten",
+        "writeBriefing": "Briefing verfassen",
+        "showMore": "Mehr anzeigen",
+        "showLess": "Weniger anzeigen",
+        "brand": "Marke",
+        "brandCard": {
+          "ready": "Bereit",
+          "generating": "Wird erstellt…",
+          "notSet": "Nicht eingerichtet",
+          "generate": "Aus Website erstellen",
+          "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
+          "open": "Öffnen",
+          "edit": "Bearbeiten",
+          "remove": "Entfernen",
+          "removed": "Markenkontext entfernt",
+          "removeDialog": {
+            "title": "Markenkontext entfernen?",
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+          }
+        },
+        "backToProject": "Zurück zum Projekt",
+        "memory": {
+          "fileName": "Gedächtnis",
+          "updated": "Aktualisiert {when}",
+          "updating": "Wird aktualisiert…",
+          "loading": "Wird geladen…",
+          "empty": "Wächst mit abgeschlossenen Tasks",
+          "modelLine": "{model} · gehostet in der EU 🇪🇺",
+          "defaultModel": "Mistral Medium",
+          "notConfigured": "Nicht konfiguriert (AI_GATEWAY_API_KEY)",
+          "title": "Projektgedächtnis",
+          "copyLink": "Link kopieren",
+          "openRaw": "Rohdatei öffnen",
+          "copied": "Kopiert"
+        },
         "jobs": {
           "title": "Jobs",
           "empty": "Diesem Projekt sind noch keine Jobs zugeordnet.",
@@ -2037,6 +2129,38 @@
           "pickerLoading": "Tasks werden geladen...",
           "pickerError": "Tasks konnten nicht geladen werden."
         },
+        "modules": {
+          "title": "Arbeitsbereich",
+          "comingSoon": "Demnächst",
+          "seo": {
+            "title": "SEO",
+            "description": "Keywords, Rankings, Audits"
+          },
+          "socialMedia": {
+            "title": "Social Media",
+            "description": "Beiträge, Kalender, Interaktion"
+          },
+          "email": {
+            "title": "E-Mail",
+            "description": "Kampagnen und Sequenzen"
+          },
+          "paidAdvertising": {
+            "title": "Bezahlte Werbung",
+            "description": "Anzeigen, Budgets, Leistung"
+          },
+          "content": {
+            "title": "Content",
+            "description": "Briefings, Entwürfe, Veröffentlichung"
+          },
+          "pr": {
+            "title": "PR",
+            "description": "Presse, Kontakte, Berichterstattung"
+          },
+          "fileBrowser": {
+            "title": "Dateibrowser",
+            "description": "Alle Dateien aus diesem Projekt"
+          }
+        },
         "actions": {
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
@@ -2060,7 +2184,9 @@
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
           "removeTask": "Task konnte nicht entfernt werden",
-          "loadMore": "Weitere Projekte konnten nicht geladen werden"
+          "loadMore": "Weitere Projekte konnten nicht geladen werden",
+          "contextMd": "Projektgedächtnis konnte nicht geladen werden",
+          "brand": "Projekt-Markenkontext konnte nicht aktualisiert werden"
         }
       }
     },
@@ -4525,6 +4651,7 @@
       "removeSelectedUpload": "Ausgewählte Datei entfernen",
       "descriptionPersonal": "Erstelle und verwalte die DESIGN.md, die für Tasks aus deinem persönlichen Workspace verwendet wird.",
       "descriptionOrganization": "Erstelle und verwalte die DESIGN.md, die für Tasks dieser Organisation verwendet wird.",
+      "descriptionProject": "Erstelle und verwalte die Marken-DESIGN.md für Tasks in diesem Projekt.",
       "editPageTitle": "DESIGN.md bearbeiten",
       "editTab": "Bearbeiten",
       "previewTab": "Vorschau",

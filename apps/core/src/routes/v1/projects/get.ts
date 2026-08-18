@@ -16,7 +16,10 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { projectListItemSchema } from "@/schemas/project.schema";
+import {
+  mapProjectForApi,
+  projectListItemSchema,
+} from "@/schemas/project.schema";
 import { createProjectListCountsInclude } from "@/types/project";
 
 const query = cursorPaginationQuerySchema;
@@ -70,7 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const hasMore = projects.length === takePlusOne;
     const pagedProjects = projects.slice(0, take);
     const projectsWithCounts = pagedProjects.map(({ _count, ...project }) => ({
-      ...project,
+      ...mapProjectForApi(project),
       taskCount: _count.tasks,
       jobCount: _count.jobs,
     }));
