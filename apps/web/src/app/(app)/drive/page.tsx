@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -45,7 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 import { listDriveFiles } from "@/lib/utils/drive-file-list.client";
 import {
-  getDriveFileUploadErrorMessage,
+  isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
@@ -250,7 +251,16 @@ export default function DrivePage(): ReactElement {
 
       await loadFiles();
     } catch (err) {
-      setError(getDriveFileUploadErrorMessage(err) || t("uploadError"));
+      if (isDriveFileUploadDuplicate(err)) {
+        const errorMessage = t("uploadDuplicateError");
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else {
+        console.error("Failed to upload file", err);
+        const errorMessage = t("uploadError");
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setUploading(false);
       setUploadProgress(0);

@@ -12,7 +12,8 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 }));
 
 import {
-  getDriveFileUploadErrorMessage,
+  DriveFileUploadError,
+  isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 
@@ -62,6 +63,7 @@ describe("uploadDriveFile", () => {
         size: 5,
         scope: "me",
       },
+      throwOnError: true,
     });
     expect(fetchMock).toHaveBeenCalledWith(
       "https://blob.example/upload?sig=1",
@@ -76,7 +78,7 @@ describe("uploadDriveFile", () => {
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
   });
 
-  it("rejects when the Blob PUT returns a non-2xx status", async () => {
+  it("rejects with duplicate error when Blob PUT returns 409", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
@@ -87,7 +89,36 @@ describe("uploadDriveFile", () => {
 
     await expect(
       uploadDriveFile(file, { scope: "me", onUploadProgress }),
-    ).rejects.toThrow("Blob upload failed with status 409.");
+    ).rejects.toThrow(DriveFileUploadError);
+
+    try {
+      await uploadDriveFile(file, { scope: "me", onUploadProgress });
+    } catch (err) {
+      expect(isDriveFileUploadDuplicate(err)).toBe(true);
+    }
+
+    expect(onUploadProgress).not.toHaveBeenCalled();
+  });
+
+  it("rejects with internal error when Blob PUT returns 500", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal("fetch", fetchMock);
+    postDriveFilesMock.mockResolvedValue(grantSession());
+    const onUploadProgress = vi.fn();
+
+    await expect(
+      uploadDriveFile(file, { scope: "me", onUploadProgress }),
+    ).rejects.toThrow(DriveFileUploadError);
+
+    try {
+      await uploadDriveFile(file, { scope: "me", onUploadProgress });
+    } catch (err) {
+      expect(isDriveFileUploadDuplicate(err)).toBe(false);
+    }
+
     expect(onUploadProgress).not.toHaveBeenCalled();
   });
 
@@ -118,6 +149,7 @@ describe("uploadDriveFile", () => {
         scope: "org",
         organizationId: "org_123",
       },
+      throwOnError: true,
     });
   });
 
@@ -130,24 +162,51 @@ describe("uploadDriveFile", () => {
     postDriveFilesMock.mockResolvedValue(grantSession({ uploadUrl: "" }));
 
     await expect(uploadDriveFile(file, { scope: "me" })).rejects.toThrow(
-      "Upload session missing uploadUrl",
+      DriveFileUploadError,
     );
+
+    try {
+      await uploadDriveFile(file, { scope: "me" });
+    } catch (err) {
+      expect(isDriveFileUploadDuplicate(err)).toBe(false);
+      expect(err).toBeInstanceOf(DriveFileUploadError);
+    }
+
     expect(fetchMock).not.toHaveBeenCalled();
   });
-});
 
-describe("getDriveFileUploadErrorMessage", () => {
-  it("returns the Error message", () => {
-    expect(
-      getDriveFileUploadErrorMessage(
-        new Error("Blob upload failed with status 413."),
-      ),
-    ).toBe("Blob upload failed with status 413.");
+  it("detects duplicate from mint 409", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    postDriveFilesMock.mockRejectedValue({
+      status: 409,
+      message: "Conflict",
+    });
+
+    try {
+      await uploadDriveFile(file, { scope: "me" });
+    } catch (err) {
+      expect(isDriveFileUploadDuplicate(err)).toBe(true);
+    }
   });
 
-  it("falls back for unknown values", () => {
-    expect(getDriveFileUploadErrorMessage("nope")).toBe(
-      "Failed to upload file",
-    );
+  it("detects duplicate from Blob PUT 400 with 'already exists' body", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => "BlobAlreadyExists: The blob already exists.",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    postDriveFilesMock.mockResolvedValue(grantSession());
+
+    try {
+      await uploadDriveFile(file, { scope: "me" });
+    } catch (err) {
+      expect(isDriveFileUploadDuplicate(err)).toBe(true);
+    }
   });
 });
