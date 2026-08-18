@@ -5414,7 +5414,7 @@
       "personalTitle": "Personal",
       "personalDescription": "Work on your own.",
       "organizationTitle": "Organization",
-      "organizationDescription": "Set up a shared workspace for your team.",
+      "organizationDescription": "Work with your team.",
       "continue": "Continue",
       "nameUpdateError": "We could not update your name.",
       "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",

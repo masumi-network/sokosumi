@@ -100,7 +100,7 @@ const messages = {
       personalTitle: "Personal",
       personalDescription: "Work on your own.",
       organizationTitle: "Organization",
-      organizationDescription: "Set up a shared workspace.",
+      organizationDescription: "Work with your team.",
       continue: "Continue",
       nameUpdateError: "Name update failed",
       personalCreateError: "Create failed",
