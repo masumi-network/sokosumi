@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
@@ -288,11 +289,39 @@ export default function DrivePage(): ReactElement {
           {loading ? (
             <div
               className={cn(
-                "bg-muted/30 border-border/50 flex items-center justify-center rounded-xl border px-6 py-12",
+                "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
                 PROJECTS_LIST_CARD_MIN_H_CLASS,
               )}
             >
-              <p className="text-muted-foreground text-sm">Loading...</p>
+              <div className="divide-border/50 divide-y px-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <article
+                    key={i}
+                    className={cn(
+                      "-mx-2 flex items-center gap-2 rounded-lg px-2",
+                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                    )}
+                  >
+                    <div className="flex size-6 shrink-0 items-center justify-center px-1">
+                      <Skeleton className="size-4" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                        <Skeleton className="h-4 w-32 sm:w-48" />
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-3 w-12" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Skeleton className="size-8" />
+                        <Skeleton className="size-8" />
+                        <Skeleton className="size-8" />
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           ) : emptyState ? (
             <div
