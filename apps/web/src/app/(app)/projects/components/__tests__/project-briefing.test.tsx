@@ -45,14 +45,12 @@ describe("ProjectBriefing", () => {
 
     const toggle = screen.getByRole("button", { name: "Show more" });
     expect(toggle).toBeInTheDocument();
-    const collapsed = screen.getByTestId("project-briefing-content");
-    expect(collapsed).toHaveAttribute("inert");
-    await user.click(toggle);
-    expect(
-      screen.getByRole("button", { name: "Show less" }),
-    ).toBeInTheDocument();
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("project-briefing-content")).not.toHaveAttribute(
       "inert",
     );
+    await user.click(toggle);
+    const expandedToggle = screen.getByRole("button", { name: "Show less" });
+    expect(expandedToggle).toHaveAttribute("aria-expanded", "true");
   });
 });

@@ -53,18 +53,20 @@ export function ProjectBriefing({
       {content ? (
         <div className="space-y-2">
           <div
+            id="project-briefing-content"
             data-testid="project-briefing-content"
             className={cn(
               "text-foreground/80",
               isLong && !expanded && "max-h-64 overflow-hidden",
             )}
-            inert={isLong && !expanded ? true : undefined}
           >
             <Markdown>{content}</Markdown>
           </div>
           {isLong ? (
             <button
               type="button"
+              aria-expanded={expanded}
+              aria-controls="project-briefing-content"
               className="text-muted-foreground hover:text-foreground text-xs transition-colors"
               onClick={() => setExpanded((current) => !current)}
             >
