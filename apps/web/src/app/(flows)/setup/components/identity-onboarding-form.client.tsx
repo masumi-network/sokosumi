@@ -171,7 +171,7 @@ export function IdentityOnboardingForm({
   const { isSubmitting } = form.formState;
   const busy = submitting || isSubmitting;
 
-  const showIdentityFields = !workspaceReady || wizardOpen;
+  const showIdentityFields = !workspaceReady;
 
   return (
     <>

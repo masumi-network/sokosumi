@@ -6,14 +6,7 @@ const getMyPendingOrganizationInvitationsMock = vi.fn();
 const getPendingOrganizationJoinTokenMock = vi.fn();
 const clearPendingOrganizationJoinTokenMock = vi.fn();
 const resolveOrganizationInviteLinkMock = vi.fn();
-const redirectMock = vi.fn((path: string) => {
-  throw new Error(`REDIRECT:${path}`);
-});
 const getTranslationsMock = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  redirect: (path: string) => redirectMock(path),
-}));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: (...args: unknown[]) => getTranslationsMock(...args),
@@ -107,7 +100,6 @@ describe("WorkspaceGatePage", () => {
 
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
     expect(serialized).not.toContain("identityTitle");
@@ -134,7 +126,6 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     expect(getMyPendingOrganizationInvitationsMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
     expect(serialized).not.toContain("identityTitle");
@@ -154,7 +145,6 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("identityTitle");
@@ -203,7 +193,6 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Acme");
@@ -230,7 +219,6 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Join Co");
@@ -244,7 +232,6 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("unavailableTitle");
     expect(serialized).toContain("unavailableBody");
@@ -260,7 +247,6 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
 
-    expect(redirectMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("unavailableTitle");
     expect(serialized).toContain("data-workspace-gate-actions");

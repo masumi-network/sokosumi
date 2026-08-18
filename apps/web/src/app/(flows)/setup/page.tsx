@@ -109,6 +109,7 @@ export default async function WorkspaceGatePage() {
       <CardContent className={cn("space-y-4", workspaceReady && "px-0")}>
         {showIdentityForm ? (
           <IdentityOnboardingForm
+            key="identity-onboarding"
             initialName={session.user.name?.trim() ?? ""}
             workspaceReady={workspaceReady}
           />

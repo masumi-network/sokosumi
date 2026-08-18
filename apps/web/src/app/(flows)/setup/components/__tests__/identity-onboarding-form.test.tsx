@@ -277,6 +277,8 @@ describe("IdentityOnboardingForm", () => {
     );
 
     expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
+    expect(screen.queryByTestId("workspace-gate-identity-form")).toBeNull();
+    expect(screen.getByTestId("workspace-gate-leaving")).toBeTruthy();
     expect(locationReplaceMock).not.toHaveBeenCalled();
   });
 
