@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { type LucideIcon, Plus } from "lucide-react";
 
 import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -11,6 +11,8 @@ export interface ListMobileCreateFabProps {
   ariaLabel: string;
   /** Opens the in-tree create modal (handleOpen from useCreate*Modal) */
   onOpen: () => void;
+  /** Optional icon component (defaults to Plus) */
+  icon?: LucideIcon;
 }
 
 /**
@@ -21,6 +23,7 @@ export interface ListMobileCreateFabProps {
 export function ListMobileCreateFab({
   ariaLabel,
   onOpen,
+  icon: Icon = Plus,
 }: ListMobileCreateFabProps): React.ReactElement {
   const isApple = useIsApplePlatform();
 
@@ -40,7 +43,7 @@ export function ListMobileCreateFab({
           onClick={onOpen}
           className="bg-primary text-primary-foreground pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg"
         >
-          <Plus className="size-6" aria-hidden />
+          <Icon className="size-6" aria-hidden />
         </button>
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
   Edit3,
   MoreHorizontal,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -46,6 +47,7 @@ import {
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
@@ -370,7 +372,7 @@ export default function DrivePage(): ReactElement {
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="me"
@@ -387,16 +389,33 @@ export default function DrivePage(): ReactElement {
               </TabsTrigger>
             )}
           </TabsList>
-        </div>
 
-        <Input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={handleUpload}
-          disabled={uploading}
-          aria-label={t("uploadFab")}
-        />
+          <div className="hidden md:flex">
+            <Label htmlFor="file-upload" className="cursor-pointer">
+              <Button
+                disabled={uploading}
+                size="sm"
+                className="gap-1.5"
+                asChild
+              >
+                <span>
+                  <Upload className="size-4" aria-hidden />
+                  {uploading
+                    ? t("uploadingProgress", { progress: _uploadProgress })
+                    : t("uploadButton")}
+                </span>
+              </Button>
+            </Label>
+            <Input
+              id="file-upload"
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </div>
+        </div>
 
         {error && (
           <div className="bg-destructive/10 text-destructive mb-6 rounded-lg border border-destructive/20 px-4 py-3 text-sm">
@@ -417,12 +436,12 @@ export default function DrivePage(): ReactElement {
                   <article
                     key={i}
                     className={cn(
-                      "-mx-2 flex items-center gap-1 px-2",
+                      "-mx-2 flex items-center gap-1 rounded-lg px-2",
                       PROJECTS_LIST_ROW_LAYOUT_CLASS,
                     )}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-6 shrink-0 items-center justify-center">
+                      <div className="flex size-8 shrink-0 items-center justify-center">
                         <Skeleton className="size-4" />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
@@ -477,12 +496,12 @@ export default function DrivePage(): ReactElement {
                     <article
                       key={file.pathname}
                       className={cn(
-                        "-mx-2 flex items-center gap-1 px-2 hover:bg-muted/50",
+                        "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
                         PROJECTS_LIST_ROW_LAYOUT_CLASS,
                       )}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                        <div className="flex size-6 shrink-0 items-center justify-center">
+                        <div className="flex size-8 shrink-0 items-center justify-center">
                           <FileTypeIcon extension={extension || "file"} />
                         </div>
 
@@ -636,7 +655,11 @@ export default function DrivePage(): ReactElement {
         </TabsContent>
       </Tabs>
 
-      <ListMobileCreateFab ariaLabel={t("uploadFab")} onOpen={handleFabOpen} />
+      <ListMobileCreateFab
+        ariaLabel={t("uploadFab")}
+        onOpen={handleFabOpen}
+        icon={Upload}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
