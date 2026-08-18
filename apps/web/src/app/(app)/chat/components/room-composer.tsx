@@ -41,6 +41,8 @@ import {
   RoomMessageComposer,
   type RoomMessageComposerAttachment,
 } from "@/components/chat/room-message-composer";
+import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,7 @@ import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomUserParticipant,
+  DriveFile,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -290,6 +293,7 @@ export function RoomComposer({
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const onChromeResizeRef = useRef(onChromeResize);
   onChromeResizeRef.current = onChromeResize;
   const composerMentions = showMentionShortcut ? mentions : {};
@@ -456,6 +460,16 @@ export function RoomComposer({
     editorRef.current?.focus();
   }
 
+  function handleDriveFileSelect(file: DriveFile) {
+    const driveAttachment: RoomComposerAttachment = {
+      url: file.fileUrl,
+      fileName: file.name,
+      mediaType: null,
+    };
+    onAttachmentsChange((current) => [...current, driveAttachment]);
+    editorRef.current?.focus();
+  }
+
   return (
     <>
       <RoomMessageComposer
@@ -511,22 +525,27 @@ export function RoomComposer({
                     void handleFilesSelected(event.currentTarget.files);
                   }}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                  title={t("Toolbar.attach")}
-                  aria-label={t("Toolbar.attach")}
+                <AttachmentSubmenu
+                  onUploadClick={() => fileInputRef.current?.click()}
+                  onDriveClick={() => setDrivePickerOpen(true)}
                   disabled={isUploadingFiles}
-                  onClick={() => fileInputRef.current?.click()}
                 >
-                  {isUploadingFiles ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Paperclip className="size-4" aria-hidden />
-                  )}
-                </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                    title={t("Toolbar.attach")}
+                    aria-label={t("Toolbar.attach")}
+                    disabled={isUploadingFiles}
+                  >
+                    {isUploadingFiles ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Paperclip className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                </AttachmentSubmenu>
               </>
             ) : null}
             <Button
@@ -610,6 +629,11 @@ export function RoomComposer({
         initialText={linkInitialText}
         initialUrl={linkInitialUrl}
         onSave={handleLinkSave}
+      />
+      <DriveFilePicker
+        open={drivePickerOpen}
+        onOpenChange={setDrivePickerOpen}
+        onSelect={handleDriveFileSelect}
       />
     </>
   );

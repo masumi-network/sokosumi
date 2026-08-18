@@ -22,7 +22,8 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-
+import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Button } from "@/components/ui/button";
 import {
   createMentionSpan,
@@ -42,6 +43,7 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import type { DriveFile } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   htmlToMarkdown,
@@ -106,6 +108,7 @@ export const MarkdownEditor = forwardRef<
   const [activeIndex, setActiveIndex] = useState(0);
   const [triggerPosition, setTriggerPosition] =
     useState<TriggerPosition | null>(null);
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
 
   const normalizedMentions = useMemo(() => {
     const entries = Object.entries(mentions);
@@ -440,6 +443,11 @@ export const MarkdownEditor = forwardRef<
     execCommand("insertOrderedList");
   };
 
+  function handleDriveFileSelect(file: DriveFile) {
+    insertLink(file.name, file.fileUrl);
+    insertText("\n");
+  }
+
   const getCurrentTriggerAtCaret = useCallback(() => {
     if (!editorRef.current) return null;
     const { text, caret } = serializeEditor(editorRef.current);
@@ -666,17 +674,23 @@ export const MarkdownEditor = forwardRef<
           <ListOrdered className="size-3.5" />
         </Button>
         {onAttachClick ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={onAttachClick}
-            title={attachLabel}
-            aria-label={attachLabel}
+          <AttachmentSubmenu
+            onUploadClick={onAttachClick}
+            onDriveClick={() => setDrivePickerOpen(true)}
+            disabled={isAttachmentUploading}
           >
-            <Paperclip className="size-3.5" />
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              title={attachLabel}
+              aria-label={attachLabel}
+              disabled={isAttachmentUploading}
+            >
+              <Paperclip className="size-3.5" />
+            </Button>
+          </AttachmentSubmenu>
         ) : null}
         {isAttachmentUploading ? (
           <div className="ml-auto inline-flex items-center pr-1">
@@ -767,6 +781,11 @@ export const MarkdownEditor = forwardRef<
           </div>,
           document.body,
         )}
+      <DriveFilePicker
+        open={drivePickerOpen}
+        onOpenChange={setDrivePickerOpen}
+        onSelect={handleDriveFileSelect}
+      />
     </div>
   );
 });
