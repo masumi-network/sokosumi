@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   buildOrganizationDriveFilePrefix,
   buildUserDriveFilePrefix,
+  sanitizeDriveFileName,
 } from "@sokosumi/utils";
 import { list } from "@vercel/blob";
 
@@ -43,6 +44,15 @@ const querySchema = z
         param: { name: "organizationId", in: "query" },
         example: "org_123",
         description: "Organization ID (required when scope=org)",
+      }),
+    q: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        example: "report",
+        description:
+          "Search query for filename filtering (prefix or contains match)",
       }),
   })
   .merge(cursorPaginationQuerySchema);
@@ -105,20 +115,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Parse pagination parameters
     const { cursor, take } = parseCursorPagination(query);
 
+    // Apply search query to prefix if it looks like a filename prefix
+    let searchPrefix = prefix;
+    const searchQuery = query.q?.trim();
+    if (searchQuery) {
+      const sanitized = sanitizeDriveFileName(searchQuery);
+      if (sanitized) {
+        searchPrefix = `${prefix}${sanitized}`;
+      }
+    }
+
     // List blobs with pagination (single page)
     const {
       blobs,
       cursor: nextCursor,
       hasMore,
     } = await list({
-      prefix,
+      prefix: searchPrefix,
       token,
       cursor,
       limit: take,
     });
 
     // Map to API schema
-    const apiFiles: DriveFile[] = blobs.map((blob) => {
+    let apiFiles: DriveFile[] = blobs.map((blob) => {
       // Extract filename from pathname (last segment after /)
       const pathSegments = blob.pathname.split("/");
       const name = pathSegments[pathSegments.length - 1] || "unnamed";
@@ -131,6 +151,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         uploadedAt: blob.uploadedAt.toISOString(),
       };
     });
+
+    // For contains matching, filter by filename or pathname
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      apiFiles = apiFiles.filter(
+        (file) =>
+          file.name.toLowerCase().includes(lowerQuery) ||
+          file.pathname.toLowerCase().includes(lowerQuery),
+      );
+    }
 
     // Blob list() returns lexicographic pathname order; keep that order for valid cursor pagination.
     // Do not sort by uploadedAt — that breaks cursor across pages.

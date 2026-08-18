@@ -1,6 +1,7 @@
 "use client";
 
-import { FileIcon, Loader2 } from "lucide-react";
+import { FileIcon, Loader2, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "@/lib/auth/auth.client";
@@ -44,6 +46,8 @@ export function DriveFilePicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const t = useTranslations("App.Drive");
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -59,6 +63,7 @@ export function DriveFilePicker({
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
+        ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
       });
       setFiles(loaded);
     } catch (err) {
@@ -66,7 +71,7 @@ export function DriveFilePicker({
     } finally {
       setLoading(false);
     }
-  }, [scope, activeOrganizationId]);
+  }, [scope, activeOrganizationId, searchQuery]);
 
   useEffect(() => {
     if (open) {
@@ -115,16 +120,28 @@ export function DriveFilePicker({
         </DialogHeader>
 
         <Tabs value={scope} onValueChange={(v) => setScope(v as "me" | "org")}>
-          <TabsList className="w-full">
-            <TabsTrigger value="me" className="flex-1">
-              My Drive
-            </TabsTrigger>
-            {activeOrganizationId && (
-              <TabsTrigger value="org" className="flex-1">
-                {organizationName || "Organization"}
+          <div className="flex items-center gap-2">
+            <TabsList className="flex-1">
+              <TabsTrigger value="me" className="flex-1">
+                {t("myDriveTab")}
               </TabsTrigger>
-            )}
-          </TabsList>
+              {activeOrganizationId && (
+                <TabsTrigger value="org" className="flex-1">
+                  {organizationName || t("organizationTabFallback")}
+                </TabsTrigger>
+              )}
+            </TabsList>
+            <div className="relative flex-1">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 pl-8"
+              />
+            </div>
+          </div>
 
           <TabsContent value={scope} className="mt-4">
             {error ? (
@@ -137,7 +154,9 @@ export function DriveFilePicker({
               </div>
             ) : files.length === 0 ? (
               <div className="text-muted-foreground text-center py-8 text-sm">
-                No files in this Drive
+                {searchQuery.trim()
+                  ? t("noMatchTitle")
+                  : t("pickerEmptyMessage")}
               </div>
             ) : (
               <ScrollArea className="h-[400px] pr-4">

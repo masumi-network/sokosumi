@@ -1,7 +1,15 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { Check, Download, Edit3, Trash2, Upload, X } from "lucide-react";
+import {
+  Check,
+  Download,
+  Edit3,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -142,6 +150,7 @@ export default function DrivePage(): ReactElement {
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
@@ -174,6 +183,7 @@ export default function DrivePage(): ReactElement {
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
+        ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
       });
 
       if (!controller.signal.aborted) {
@@ -188,7 +198,7 @@ export default function DrivePage(): ReactElement {
         setLoading(false);
       }
     }
-  }, [scope, activeOrganizationId, t]);
+  }, [scope, activeOrganizationId, searchQuery, t]);
 
   useEffect(() => {
     void loadFiles();
@@ -361,7 +371,17 @@ export default function DrivePage(): ReactElement {
             )}
           </TabsList>
 
-          <div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-64 pl-8"
+              />
+            </div>
             <Label htmlFor="file-upload" className="cursor-pointer">
               <Button
                 disabled={uploading}
@@ -440,10 +460,12 @@ export default function DrivePage(): ReactElement {
             >
               <div className="max-w-sm">
                 <h2 className="text-foreground text-lg font-semibold">
-                  {t("emptyTitle")}
+                  {searchQuery.trim() ? t("noMatchTitle") : t("emptyTitle")}
                 </h2>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  {t("emptyDescription")}
+                  {searchQuery.trim()
+                    ? t("noMatchDescription")
+                    : t("emptyDescription")}
                 </p>
               </div>
             </div>
