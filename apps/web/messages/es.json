@@ -5304,7 +5304,15 @@
       "uploadError": "No se pudo subir el archivo",
       "renameError": "No se pudo renombrar el archivo",
       "deleteError": "No se pudo eliminar el archivo",
-      "organizationTabFallback": "Organización"
+      "organizationTabFallback": "Organización",
+      "uploadDuplicateError": "Ya existe un archivo con este nombre. Cámbiale el nombre e inténtalo de nuevo.",
+      "selectTitle": "Seleccionar desde Drive",
+      "selectDescription": "Elige un archivo de tu Drive personal o de la organización",
+      "emptyPicker": "No hay archivos en este Drive",
+      "uploadFile": "Subir archivo",
+      "fromDrive": "Desde Drive",
+      "moreActions": "Más acciones",
+      "uploadFab": "Subir archivo"
     }
   },
   "Share": {

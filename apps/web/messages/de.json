@@ -5304,7 +5304,15 @@
       "uploadError": "Datei konnte nicht hochgeladen werden",
       "renameError": "Datei konnte nicht umbenannt werden",
       "deleteError": "Datei konnte nicht gelöscht werden",
-      "organizationTabFallback": "Organisation"
+      "organizationTabFallback": "Organisation",
+      "uploadDuplicateError": "Eine Datei mit diesem Namen existiert bereits. Benenne sie um und versuche es erneut.",
+      "selectTitle": "Aus Drive auswählen",
+      "selectDescription": "Wähle eine Datei aus deinem persönlichen oder Organisations-Drive",
+      "emptyPicker": "Keine Dateien in diesem Drive",
+      "uploadFile": "Datei hochladen",
+      "fromDrive": "Aus Drive",
+      "moreActions": "Weitere Aktionen",
+      "uploadFab": "Datei hochladen"
     }
   },
   "Share": {

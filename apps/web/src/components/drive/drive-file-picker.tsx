@@ -1,8 +1,8 @@
 "use client";
 
 import { FileIcon, Loader2, Search } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "@/lib/auth/auth.client";
@@ -27,18 +26,13 @@ interface DriveFilePickerProps {
   onSelect: (file: DriveFile) => void;
 }
 
-function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(typeof date === "string" ? new Date(date) : date);
-}
-
 export function DriveFilePicker({
   open,
   onOpenChange,
   onSelect,
 }: DriveFilePickerProps) {
+  const t = useTranslations("App.Drive");
+  const formatter = useFormatter();
   const { data: session } = useSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const [scope, setScope] = useState<"me" | "org">("me");
@@ -47,14 +41,22 @@ export function DriveFilePicker({
   const [error, setError] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const t = useTranslations("App.Drive");
+
+  const loadFilesAbortRef = useRef<AbortController | null>(null);
+  const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
 
   const loadFiles = useCallback(async () => {
+    loadFilesAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadFilesAbortRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
       if (scope === "org" && !activeOrganizationId) {
-        setFiles([]);
+        if (!controller.signal.aborted) {
+          setFiles([]);
+        }
         return;
       }
 
@@ -65,13 +67,19 @@ export function DriveFilePicker({
           : {}),
         ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
       });
-      setFiles(loaded);
+      if (!controller.signal.aborted) {
+        setFiles(loaded);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load files");
+      if (!controller.signal.aborted) {
+        setError(err instanceof Error ? err.message : t("loadFilesError"));
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  }, [scope, activeOrganizationId, searchQuery]);
+  }, [scope, activeOrganizationId, searchQuery, t]);
 
   useEffect(() => {
     if (open) {
@@ -81,8 +89,14 @@ export function DriveFilePicker({
 
   useEffect(() => {
     async function fetchOrganizationName() {
+      fetchOrgNameAbortRef.current?.abort();
+      const controller = new AbortController();
+      fetchOrgNameAbortRef.current = controller;
+
       if (!activeOrganizationId || !session?.user?.id) {
-        setOrganizationName(null);
+        if (!controller.signal.aborted) {
+          setOrganizationName(null);
+        }
         return;
       }
 
@@ -93,9 +107,13 @@ export function DriveFilePicker({
         });
         const orgs = response.data?.data || [];
         const activeOrg = orgs.find((org) => org.id === activeOrganizationId);
-        setOrganizationName(activeOrg?.name ?? null);
+        if (!controller.signal.aborted) {
+          setOrganizationName(activeOrg?.name ?? null);
+        }
       } catch {
-        setOrganizationName(null);
+        if (!controller.signal.aborted) {
+          setOrganizationName(null);
+        }
       }
     }
 
@@ -109,19 +127,23 @@ export function DriveFilePicker({
     onOpenChange(false);
   }
 
+  function handleTabChange(value: string) {
+    if (value === "me" || value === "org") {
+      setScope(value);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Select from Drive</DialogTitle>
-          <DialogDescription>
-            Choose a file from your personal or organization Drive
-          </DialogDescription>
+          <DialogTitle>{t("selectTitle")}</DialogTitle>
+          <DialogDescription>{t("selectDescription")}</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={scope} onValueChange={(v) => setScope(v as "me" | "org")}>
-          <div className="flex items-center gap-2">
-            <TabsList className="flex-1">
+        <Tabs value={scope} onValueChange={handleTabChange}>
+          <div className="space-y-3">
+            <TabsList className="w-full">
               <TabsTrigger value="me" className="flex-1">
                 {t("myDriveTab")}
               </TabsTrigger>
@@ -131,14 +153,14 @@ export function DriveFilePicker({
                 </TabsTrigger>
               )}
             </TabsList>
-            <div className="relative flex-1">
+            <div className="relative">
               <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-              <Input
+              <input
                 type="text"
                 placeholder={t("searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-8"
+                className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 pl-8 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>
@@ -154,9 +176,7 @@ export function DriveFilePicker({
               </div>
             ) : files.length === 0 ? (
               <div className="text-muted-foreground text-center py-8 text-sm">
-                {searchQuery.trim()
-                  ? t("noMatchTitle")
-                  : t("pickerEmptyMessage")}
+                {searchQuery ? t("noMatchTitle") : t("pickerEmptyMessage")}
               </div>
             ) : (
               <ScrollArea className="h-[400px] pr-4">
@@ -178,7 +198,12 @@ export function DriveFilePicker({
                             {file.size ? (
                               <span>{formatBytes(file.size)}</span>
                             ) : null}
-                            <span>{formatDate(file.uploadedAt)}</span>
+                            <span>
+                              {formatter.dateTime(new Date(file.uploadedAt), {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </span>
                           </div>
                         </div>
                       </div>
