@@ -64,6 +64,12 @@ const messages = {
         accept: "Accept",
         decline: "Decline",
         activateRetry: "Try switching again",
+        signedOutHint: "Sign in or create an account to accept this invite.",
+        signIn: "Sign in to join",
+        register: "Create an account",
+        emailMismatch: "You are not the invited user.",
+        logout: "Logout",
+        ignore: "Ignore",
         Success: { accept: "Accepted" },
         Error: { accept: "Accept failed", activate: "Activate failed" },
         Errors: { unauthorizedAction: "Login" },
@@ -84,13 +90,13 @@ const user: SessionUser = {
   marketingOptIn: false,
 };
 
-function renderActions(sessionUser: SessionUser = user) {
+function renderActions(sessionUser: SessionUser | null = user) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <InvitationActions
         invitation={{ id: "inv_1", email: "ada@example.com" }}
         organizationSlug="acme"
-        user={sessionUser}
+        user={sessionUser ?? undefined}
       />
     </NextIntlClientProvider>,
   );
@@ -170,5 +176,65 @@ describe("InvitationActions name collection", () => {
       expect(routerPushMock).toHaveBeenCalledWith("/organizations/acme");
     });
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("InvitationActions join-like layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    updateUserMock.mockResolvedValue({ error: null });
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+    activateOrganizationWorkspaceMock.mockResolvedValue(true);
+  });
+
+  it("stacks primary Accept above outline Decline", () => {
+    renderActions({ ...user, name: "Ada Lovelace" });
+
+    const accept = screen.getByRole("button", { name: "Accept" });
+    const decline = screen.getByRole("button", { name: "Decline" });
+
+    expect(accept.compareDocumentPosition(decline)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(accept.className).toContain("w-full");
+    expect(decline.className).toContain("w-full");
+  });
+
+  it("shows the join signed-out hint and stacked auth actions", async () => {
+    const actor = userEvent.setup();
+    renderActions(null);
+
+    expect(
+      screen.getByText("Sign in or create an account to accept this invite."),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/If you already have an account/i),
+    ).not.toBeInTheDocument();
+
+    await actor.click(screen.getByRole("button", { name: "Sign in to join" }));
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/signin\?.*email=ada%40example.com/),
+    );
+
+    await actor.click(
+      screen.getByRole("button", { name: "Create an account" }),
+    );
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/signup\?.*invitationId=inv_1/),
+    );
+  });
+
+  it("keeps email mismatch as invitation-only logout / ignore", () => {
+    renderActions({ ...user, email: "other@example.com", name: "Other" });
+
+    expect(screen.getByText("You are not the invited user.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Ignore" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Accept" }),
+    ).not.toBeInTheDocument();
   });
 });
