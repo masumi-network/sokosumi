@@ -252,14 +252,11 @@ export default function DrivePage(): ReactElement {
       await loadFiles();
     } catch (err) {
       if (isDriveFileUploadDuplicate(err)) {
-        const errorMessage = t("uploadDuplicateError");
-        setError(errorMessage);
-        toast.error(errorMessage);
+        setError(null);
+        toast.error(t("uploadDuplicateError"));
       } else {
         console.error("Failed to upload file", err);
-        const errorMessage = t("uploadError");
-        setError(errorMessage);
-        toast.error(errorMessage);
+        toast.error(t("uploadError"));
       }
     } finally {
       setUploading(false);
