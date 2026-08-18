@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import InvitationActions from "../invitation-actions";
 
 const acceptInvitationMock = vi.fn();
+const rejectInvitationMock = vi.fn();
 const updateUserMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
 const routerPushMock = vi.fn();
@@ -29,7 +30,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
     updateUser: (...args: unknown[]) => updateUserMock(...args),
     organization: {
       acceptInvitation: (...args: unknown[]) => acceptInvitationMock(...args),
-      rejectInvitation: vi.fn(),
+      rejectInvitation: (...args: unknown[]) => rejectInvitationMock(...args),
     },
     signOut: vi.fn(),
   },
@@ -70,8 +71,12 @@ const messages = {
         emailMismatch: "You are not the invited user.",
         logout: "Logout",
         ignore: "Ignore",
-        Success: { accept: "Accepted" },
-        Error: { accept: "Accept failed", activate: "Activate failed" },
+        Success: { accept: "Accepted", decline: "Declined" },
+        Error: {
+          accept: "Accept failed",
+          decline: "Decline failed",
+          activate: "Activate failed",
+        },
         Errors: { unauthorizedAction: "Login" },
       },
     },
@@ -110,6 +115,7 @@ describe("InvitationActions name collection", () => {
       data: { member: { organizationId: "org_1" } },
       error: null,
     });
+    rejectInvitationMock.mockResolvedValue({ error: null });
     activateOrganizationWorkspaceMock.mockResolvedValue(true);
   });
 
@@ -187,6 +193,7 @@ describe("InvitationActions join-like layout", () => {
       data: { member: { organizationId: "org_1" } },
       error: null,
     });
+    rejectInvitationMock.mockResolvedValue({ error: null });
     activateOrganizationWorkspaceMock.mockResolvedValue(true);
   });
 
@@ -222,9 +229,26 @@ describe("InvitationActions join-like layout", () => {
     await actor.click(
       screen.getByRole("button", { name: "Create an account" }),
     );
-    expect(routerPushMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/signup\?.*invitationId=inv_1/),
-    );
+    const signupUrl = String(routerPushMock.mock.calls.at(-1)?.[0]);
+    const signup = new URL(signupUrl, "http://localhost");
+    expect(signup.pathname).toBe("/signup");
+    expect(signup.searchParams.get("email")).toBe("ada@example.com");
+    expect(signup.searchParams.get("invitationId")).toBe("inv_1");
+  });
+
+  it("rejects the invitation instead of clearing a join cookie", async () => {
+    const actor = userEvent.setup();
+    renderActions({ ...user, name: "Ada Lovelace" });
+
+    await actor.click(screen.getByRole("button", { name: "Decline" }));
+
+    await waitFor(() => {
+      expect(rejectInvitationMock).toHaveBeenCalledWith({
+        invitationId: "inv_1",
+      });
+    });
+    expect(acceptInvitationMock).not.toHaveBeenCalled();
+    expect(routerPushMock).toHaveBeenCalledWith("/");
   });
 
   it("keeps email mismatch as invitation-only logout / ignore", () => {
