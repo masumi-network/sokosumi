@@ -5306,7 +5306,9 @@
       "selectDescription": "Elige un archivo de tu Drive personal o de la organización",
       "emptyPicker": "No hay archivos en este Drive",
       "uploadFile": "Subir archivo",
-      "fromDrive": "Desde Drive"
+      "fromDrive": "Desde Drive",
+      "moreActions": "Más acciones",
+      "uploadFab": "Subir archivo"
     }
   },
   "Share": {

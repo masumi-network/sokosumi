@@ -70,6 +70,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/drive")).toBe("home");
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();
   });

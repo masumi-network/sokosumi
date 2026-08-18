@@ -5306,7 +5306,9 @@
       "selectDescription": "Choose a file from your personal or organization Drive",
       "emptyPicker": "No files in this Drive",
       "uploadFile": "Upload file",
-      "fromDrive": "From Drive"
+      "fromDrive": "From Drive",
+      "moreActions": "More actions",
+      "uploadFab": "Upload file"
     }
   },
   "Share": {

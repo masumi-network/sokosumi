@@ -5306,7 +5306,9 @@
       "selectDescription": "Wähle eine Datei aus deinem persönlichen oder Organisations-Drive",
       "emptyPicker": "Keine Dateien in diesem Drive",
       "uploadFile": "Datei hochladen",
-      "fromDrive": "Aus Drive"
+      "fromDrive": "Aus Drive",
+      "moreActions": "Weitere Aktionen",
+      "uploadFab": "Datei hochladen"
     }
   },
   "Share": {
