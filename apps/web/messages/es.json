@@ -154,6 +154,7 @@
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
       "createOrganization": "Crear organización",
+      "createPersonalWorkspace": "Crear espacio personal",
       "userAvatarAlt": "Avatar del usuario"
     },
     "DataTable": {
@@ -655,6 +656,7 @@
         "confirmLabelSuffix": "para confirmar la eliminación:",
         "Errors": {
           "additionalMembers": "Elimina primero a todos los demás miembros antes de eliminar esta organización.",
+          "lastWorkspace": "No puedes eliminar tu último espacio de trabajo.",
           "unauthorizedAction": "Iniciar sesión"
         },
         "Schema": {
@@ -826,8 +828,12 @@
     "noAccount": "¿Nuevo en Sokosumi?",
     "signIn": "Iniciar sesión para unirte",
     "register": "Crear una cuenta",
+    "decline": "Rechazar",
+    "activateRetry": "Intentar cambiar de nuevo",
     "Error": {
       "joinFailed": "No se pudo unir a la organización",
+      "declineFailed": "No pudimos rechazar esta invitación.",
+      "activateFailed": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "unauthorizedAction": "Iniciar sesión"
     },
     "Invalid": {
@@ -855,6 +861,7 @@
         "decline": "Rechazar",
         "logout": "Cerrar sesión",
         "ignore": "Ignorar",
+        "activateRetry": "Intentar cambiar de nuevo",
         "emailMismatch": "No eres el usuario invitado.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "Si ya tienes una cuenta, inicia sesión para aceptar la invitación.",
@@ -868,7 +875,8 @@
         },
         "Error": {
           "accept": "No se pudo aceptar la invitación",
-          "decline": "No se pudo rechazar la invitación"
+          "decline": "No se pudo rechazar la invitación",
+          "activate": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar."
         },
         "Errors": {
           "unauthorizedAction": "Iniciar sesión"
@@ -3900,6 +3908,20 @@
         "success": "Cuenta eliminada correctamente",
         "error": "No se pudo eliminar la cuenta"
       },
+      "DeletePersonal": {
+        "title": "Eliminar espacio personal",
+        "description": "Elimina tu espacio personal. Los espacios de organización se mantienen.",
+        "lastWorkspaceDescription": "No puedes eliminar tu último espacio de trabajo.",
+        "button": "Eliminar espacio personal",
+        "confirmTitle": "¿Eliminar el espacio personal?",
+        "confirmDescription": "Esto elimina tu espacio personal. Los espacios de organización no se ven afectados.",
+        "confirm": "Sí, eliminar espacio personal",
+        "success": "Espacio personal eliminado",
+        "error": "No se pudo eliminar el espacio personal",
+        "activateError": "Espacio personal eliminado, pero no pudimos cambiarte a una organización. Usa el selector de espacios.",
+        "lastWorkspaceError": "No puedes eliminar tu último espacio de trabajo.",
+        "dependentsError": "Elimina primero los trabajos y tareas de este espacio."
+      },
       "ApiKeys": {
         "title": "API Keys",
         "description": "Gestiona tus API Keys para acceso programático",
@@ -5307,6 +5329,11 @@
   },
   "Library": {
     "Auth": {
+      "NameField": {
+        "label": "Nombre",
+        "placeholder": "Tu nombre",
+        "persistError": "No pudimos actualizar tu nombre."
+      },
       "Schema": {
         "Email": {
           "invalid": "Por favor, introduce una dirección de email válida.",
@@ -5501,29 +5528,31 @@
   },
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
-    "identityTitle": "Crea tu primer espacio de trabajo",
-    "identityDescription": "Confirma tu nombre y elige cómo quieres empezar.",
+    "identityTitle": "¿Cómo quieres trabajar?",
+    "identityDescriptionConfirm": "Confirma tu nombre y elige una opción.",
+    "identityDescriptionEnter": "Introduce tu nombre.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
-    "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización. Se omite la configuración de identidad.",
-    "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
+    "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización.",
     "signOut": "Cerrar sesión",
+    "signOutError": "No pudimos cerrar la sesión. Inténtalo de nuevo.",
     "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
     "unavailableDescription": "Sokosumi no pudo cargar el estado de tu espacio de trabajo ahora. Es temporal: no estás bloqueado por no tener un espacio de trabajo.",
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
     "retry": "Reintentar",
     "Identity": {
-      "displayNameLabel": "Nombre para mostrar",
-      "displayNamePlaceholder": "Tu nombre",
-      "choiceLabel": "¿Cómo quieres empezar?",
-      "personalTitle": "Espacio personal",
-      "personalDescription": "Trabaja por tu cuenta. Más adelante puedes unirte o crear una organización.",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Tu nombre",
+      "choiceLabel": "¿Cómo quieres trabajar?",
+      "choiceHint": "Puedes añadir otro espacio de trabajo en cualquier momento.",
+      "personalTitle": "Personal",
+      "personalDescription": "Trabaja por tu cuenta.",
       "organizationTitle": "Organización",
-      "organizationDescription": "Configura un espacio compartido para tu equipo.",
-      "createPersonal": "Crear espacio personal",
+      "organizationDescription": "Trabaja con tu equipo.",
       "continue": "Continuar",
-      "nameUpdateError": "No pudimos actualizar tu nombre para mostrar.",
+      "nameUpdateError": "No pudimos actualizar tu nombre.",
       "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
-      "personalCreateError": "No pudimos crear tu espacio de trabajo personal."
+      "personalCreateError": "No pudimos crear tu espacio de trabajo personal.",
+      "personalActivateError": "Espacio personal creado, pero no pudimos cambiarte a él. Usa el selector de espacios."
     },
     "Pending": {
       "accept": "Aceptar",
@@ -5532,7 +5561,9 @@
       "rejectAllHint": "Si rechazas todas las invitaciones, podrás crear tu primer espacio de trabajo.",
       "acceptError": "No pudimos aceptar esa invitación.",
       "joinError": "No pudimos unirte a esa organización.",
-      "rejectError": "No pudimos rechazar las invitaciones restantes."
+      "rejectError": "No pudimos rechazar las invitaciones restantes.",
+      "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
+      "activateRetry": "Intentar cambiar de nuevo"
     }
   }
 }

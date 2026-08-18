@@ -9053,6 +9053,21 @@ export const PersonalWorkspaceCreatedSchema = {
     ]
 } as const;
 
+export const PersonalWorkspaceDeletedSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Id of the deleted personal workspace',
+            example: '11111111-1111-7111-8111-111111111111'
+        }
+    },
+    required: [
+        'workspaceId'
+    ]
+} as const;
+
 export const WorkspaceAccessSchema = {
     type: 'object',
     properties: {
@@ -12995,7 +13010,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         userId: {
             type: 'string',
             minLength: 1,
-            description: 'User id — resolves (or creates) that user\'s personal workspace.'
+            description: 'User id — resolves that user\'s personal workspace. Errors if none exists.'
         },
         organizationId: {
             type: 'string',
@@ -13005,7 +13020,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         email: {
             type: 'string',
             format: 'email',
-            description: 'User email — resolves (or creates) that user\'s personal workspace. Prefer for vendor targeting without directory search.',
+            description: 'User email — resolves that user\'s personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.',
             example: 'pilot@example.com'
         },
         organizationSlug: {

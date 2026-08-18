@@ -50,6 +50,7 @@ export interface JobDetailsViewProps {
   readOnly?: boolean;
   className?: string;
   organizations?: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel?: string;
   projectName?: string | null;
   showAgentHeader?: boolean;
@@ -62,6 +63,7 @@ export default function JobDetailsView({
   readOnly = false,
   className,
   organizations,
+  hasPersonalWorkspace = false,
   personalWorkspaceLabel,
   projectName,
   showAgentHeader = true,
@@ -117,6 +119,7 @@ export default function JobDetailsView({
                       editing={nameController.editing}
                       onEdit={nameController.startEditing}
                       organizations={organizations}
+                      hasPersonalWorkspace={hasPersonalWorkspace}
                       personalWorkspaceLabel={personalWorkspaceLabel}
                     />
                   ) : undefined
@@ -127,6 +130,7 @@ export default function JobDetailsView({
               <JobDetailsHeader
                 job={job}
                 organizations={organizations}
+                hasPersonalWorkspace={hasPersonalWorkspace}
                 personalWorkspaceLabel={personalWorkspaceLabel}
                 readOnly={readOnly}
                 showInlineActions={!showAgentHeader}
@@ -187,6 +191,7 @@ export default function JobDetailsView({
 function JobDetailsHeader({
   job,
   organizations,
+  hasPersonalWorkspace = false,
   personalWorkspaceLabel,
   readOnly,
   showInlineActions,
@@ -194,6 +199,7 @@ function JobDetailsHeader({
 }: {
   job: Job;
   organizations?: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel?: string;
   readOnly: boolean;
   showInlineActions: boolean;
@@ -208,6 +214,7 @@ function JobDetailsHeader({
             editing={controller.editing}
             onEdit={controller.startEditing}
             organizations={organizations}
+            hasPersonalWorkspace={hasPersonalWorkspace}
             personalWorkspaceLabel={personalWorkspaceLabel}
           />
         </div>
@@ -227,12 +234,14 @@ function JobDetailsTopBarActions({
   job,
   editing,
   organizations,
+  hasPersonalWorkspace = false,
   onEdit,
   personalWorkspaceLabel,
 }: {
   job: Job;
   editing: boolean;
   organizations?: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   onEdit: () => void;
   personalWorkspaceLabel?: string;
 }) {
@@ -243,6 +252,7 @@ function JobDetailsTopBarActions({
   const moveTargetCount = getWorkspaceMoveTargetCount(
     currentOrganizationId,
     organizations,
+    hasPersonalWorkspace,
   );
   const canMoveStandaloneJob =
     !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
@@ -313,6 +323,7 @@ function JobDetailsTopBarActions({
           onOpenChange={setIsMoveOpen}
           open={isMoveOpen}
           organizations={organizations ?? []}
+          hasPersonalWorkspace={hasPersonalWorkspace}
           personalWorkspaceLabel={personalWorkspaceLabel}
         />
       ) : null}

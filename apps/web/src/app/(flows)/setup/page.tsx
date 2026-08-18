@@ -48,7 +48,6 @@ export default async function WorkspaceGatePage() {
     workspaceAccessLoadFailed = true;
   }
 
-  // Ready users never land on the gate.
   if (!workspaceAccessLoadFailed && isWorkspaceReady(gate)) {
     redirect("/");
   }
@@ -75,13 +74,15 @@ export default async function WorkspaceGatePage() {
       : surface === "pending-invites"
         ? "pendingInvitesTitle"
         : "identityTitle";
+  const hasName = Boolean(session.user.name?.trim());
   const descriptionKey =
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
         ? "pendingInvitesDescription"
-        : "identityDescription";
-  const bodyKey = surface === "unavailable" ? "unavailableBody" : "body";
+        : hasName
+          ? "identityDescriptionConfirm"
+          : "identityDescriptionEnter";
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
 
@@ -97,15 +98,25 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
           />
         ) : showPendingQueue ? (
-          <PendingInvitesQueue items={queueItems} />
+          <PendingInvitesQueue
+            items={queueItems}
+            initialName={session.user.name?.trim() ?? ""}
+          />
         ) : (
-          <p className="text-muted-foreground text-sm">{t(bodyKey)}</p>
+          <p className="text-muted-foreground text-sm">
+            {t("unavailableBody")}
+          </p>
         )}
       </CardContent>
-      <CardFooter className="flex flex-wrap justify-end gap-2">
-        {surface === "unavailable" ? <WorkspaceGateRetry /> : null}
-        <WorkspaceGateSignOut />
-      </CardFooter>
+      {surface === "unavailable" ? (
+        <CardFooter
+          className="flex flex-wrap justify-end gap-2"
+          data-workspace-gate-actions
+        >
+          <WorkspaceGateRetry />
+          <WorkspaceGateSignOut />
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }
@@ -126,6 +137,7 @@ async function loadWorkspaceGateQueueItems(): Promise<{
         id: invitation.id,
         organizationId: invitation.organizationId,
         organizationName: invitation.organization.name,
+        organizationSlug: invitation.organization.slug,
       });
     }
   } catch (error) {
@@ -145,6 +157,7 @@ async function loadWorkspaceGateQueueItems(): Promise<{
         kind: "join",
         token: joinToken,
         organizationName: resolved.data.organization.name,
+        organizationSlug: resolved.data.organization.slug,
       });
     }
   } catch (error) {

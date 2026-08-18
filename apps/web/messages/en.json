@@ -152,6 +152,7 @@
       "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
       "createOrganization": "Create Organization",
+      "createPersonalWorkspace": "Create personal workspace",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization",
       "userAvatarAlt": "User avatar"
@@ -671,6 +672,7 @@
         "confirmLabelSuffix": "to confirm deletion:",
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
+          "lastWorkspace": "You cannot delete your last workspace.",
           "unauthorizedAction": "Login"
         },
         "Schema": {
@@ -826,8 +828,12 @@
     "noAccount": "New to Sokosumi?",
     "signIn": "Sign in to join",
     "register": "Create an account",
+    "decline": "Decline",
+    "activateRetry": "Try switching again",
     "Error": {
       "joinFailed": "Failed to join the organization",
+      "declineFailed": "We could not decline this invite.",
+      "activateFailed": "We could not switch you into that organization. Try again before continuing.",
       "unauthorizedAction": "Login"
     },
     "Invalid": {
@@ -855,6 +861,7 @@
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
+        "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
@@ -868,7 +875,8 @@
         },
         "Error": {
           "accept": "Failed to accept invitation",
-          "decline": "Failed to decline invitation"
+          "decline": "Failed to decline invitation",
+          "activate": "We could not switch you into that organization. Try again before continuing."
         },
         "Errors": {
           "unauthorizedAction": "Login"
@@ -3931,6 +3939,20 @@
         "success": "Account deleted successfully",
         "error": "Failed to delete account"
       },
+      "DeletePersonal": {
+        "title": "Delete personal workspace",
+        "description": "Remove your personal workspace. Organization workspaces stay.",
+        "lastWorkspaceDescription": "You cannot delete your last workspace.",
+        "button": "Delete personal workspace",
+        "confirmTitle": "Delete personal workspace?",
+        "confirmDescription": "This deletes your personal workspace. Organization workspaces are not affected.",
+        "confirm": "Yes, delete personal workspace",
+        "success": "Personal workspace deleted",
+        "error": "Failed to delete personal workspace",
+        "activateError": "Personal workspace deleted, but we could not switch you to an organization. Use the workspace switcher.",
+        "lastWorkspaceError": "You cannot delete your last workspace.",
+        "dependentsError": "Delete jobs and tasks in this workspace first."
+      },
       "ApiKeys": {
         "title": "API Keys",
         "description": "Manage your API keys for programmatic access",
@@ -5307,6 +5329,11 @@
   },
   "Library": {
     "Auth": {
+      "NameField": {
+        "label": "Name",
+        "placeholder": "Your name",
+        "persistError": "We could not update your name."
+      },
       "Schema": {
         "Email": {
           "invalid": "Please enter a valid email address.",
@@ -5501,29 +5528,31 @@
   },
   "WorkspaceGate": {
     "title": "Set up your workspace",
-    "identityTitle": "Create your first workspace",
-    "identityDescription": "Confirm your name and choose how you want to start.",
+    "identityTitle": "How do you want to work?",
+    "identityDescriptionConfirm": "Confirm your name and choose an option.",
+    "identityDescriptionEnter": "Enter your name.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization. You will skip identity onboarding.",
-    "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
+    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization.",
     "signOut": "Sign out",
+    "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",
     "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
-      "displayNameLabel": "Display name",
-      "displayNamePlaceholder": "Your name",
-      "choiceLabel": "How do you want to start?",
-      "personalTitle": "Personal workspace",
-      "personalDescription": "Work on your own. You can join or create an organization later.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your name",
+      "choiceLabel": "How do you want to work?",
+      "choiceHint": "You can add another workspace at any time.",
+      "personalTitle": "Personal",
+      "personalDescription": "Work on your own.",
       "organizationTitle": "Organization",
-      "organizationDescription": "Set up a shared workspace for your team.",
-      "createPersonal": "Create personal workspace",
+      "organizationDescription": "Work with your team.",
       "continue": "Continue",
-      "nameUpdateError": "We could not update your display name.",
+      "nameUpdateError": "We could not update your name.",
       "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",
-      "personalCreateError": "We could not create your personal workspace."
+      "personalCreateError": "We could not create your personal workspace.",
+      "personalActivateError": "Personal workspace created, but we could not switch you to it. Use the workspace switcher."
     },
     "Pending": {
       "accept": "Accept",
@@ -5532,7 +5561,9 @@
       "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
       "acceptError": "We could not accept that invitation.",
       "joinError": "We could not join that organization.",
-      "rejectError": "We could not reject the remaining invitations."
+      "rejectError": "We could not reject the remaining invitations.",
+      "activateError": "We could not switch you into that organization. Try again before continuing.",
+      "activateRetry": "Try switching again"
     }
   }
 }

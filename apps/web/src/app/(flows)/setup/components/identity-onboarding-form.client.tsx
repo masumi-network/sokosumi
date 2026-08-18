@@ -79,6 +79,10 @@ export function IdentityOnboardingForm({
   }
 
   async function persistDisplayName(name: string): Promise<boolean> {
+    if (name.trim() === initialName.trim()) {
+      return true;
+    }
+
     try {
       const updateUserResult = await authClient.updateUser({ name });
       if (updateUserResult.error) {
@@ -165,10 +169,10 @@ export function IdentityOnboardingForm({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("displayNameLabel")}</FormLabel>
+                  <FormLabel>{t("nameLabel")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={t("displayNamePlaceholder")}
+                      placeholder={t("namePlaceholder")}
                       autoComplete="name"
                       data-testid="workspace-gate-identity-name"
                       {...field}
@@ -180,7 +184,6 @@ export function IdentityOnboardingForm({
             />
 
             <div className="space-y-3">
-              <Label id="workspace-gate-choice-label">{t("choiceLabel")}</Label>
               <RadioGroup
                 value={choice}
                 onValueChange={(value) => {
@@ -188,7 +191,7 @@ export function IdentityOnboardingForm({
                     setChoice(value);
                   }
                 }}
-                aria-labelledby="workspace-gate-choice-label"
+                aria-label={t("choiceLabel")}
                 className="grid gap-3"
                 data-testid="workspace-gate-identity-choice"
               >
@@ -235,6 +238,7 @@ export function IdentityOnboardingForm({
                   </span>
                 </Label>
               </RadioGroup>
+              <p className="text-muted-foreground text-sm">{t("choiceHint")}</p>
             </div>
 
             <Button
@@ -244,7 +248,7 @@ export function IdentityOnboardingForm({
               data-testid="workspace-gate-identity-submit"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-              {choice === "personal" ? t("createPersonal") : t("continue")}
+              {t("continue")}
             </Button>
           </fieldset>
         </form>

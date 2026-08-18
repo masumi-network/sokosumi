@@ -120,6 +120,7 @@ import {
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
+  deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
@@ -2272,6 +2273,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /**
+   * Delete the current user's personal workspace. Core returns 409 when it is
+   * the last workspace, or when jobs/tasks still reference it.
+   */
+  async function deleteMyPersonalWorkspace() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteUsersByIdPersonalWorkspace({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to delete personal workspace",
+    );
+  }
+
   async function getMyBillingDetails() {
     return executeCoreOperation(
       getClient,
@@ -4325,6 +4343,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyOrganizations,
     createMyStripeCustomer,
     createMyPersonalWorkspace,
+    deleteMyPersonalWorkspace,
     createOrganizationStripeCustomer,
     getMyBillingDetails,
     getUserBillingDetails,

@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
@@ -17,9 +18,17 @@ export function WorkspaceGateSignOut() {
   async function handleSignOut() {
     setLoading(true);
     try {
-      await authClient.signOut();
-      const returnUrl = getReturnUrlFromCurrentLocation();
-      router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
+      await authClient.signOut({
+        fetchOptions: {
+          onError: () => {
+            toast.error(t("signOutError"));
+          },
+          onSuccess: () => {
+            const returnUrl = getReturnUrlFromCurrentLocation();
+            router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
+          },
+        },
+      });
     } finally {
       setLoading(false);
     }
