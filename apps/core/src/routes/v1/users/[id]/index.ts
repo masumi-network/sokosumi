@@ -23,6 +23,7 @@ import mountGetUserOrganizationCredits from "./organizations/[organizationId]/cr
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPendingOrganizationInvitations from "./pending-organization-invitations/get.js";
+import mountDeleteUserPersonalWorkspace from "./personal-workspace/delete.js";
 import mountPostUserPersonalWorkspace from "./personal-workspace/post.js";
 import mountGetUserPreferences from "./preferences/get.js";
 import mountPatchUserPreferences from "./preferences/patch.js";
@@ -54,6 +55,7 @@ mountGetUserPreferences(app);
 mountPatchUserPreferences(app);
 mountPutUserPreferredOrganization(app);
 mountPostUserPersonalWorkspace(app);
+mountDeleteUserPersonalWorkspace(app);
 mountDeleteUserOauthConsent(app);
 mountGetUserWorkspaceAccess(app);
 mountGetUserPendingOrganizationInvitations(app);

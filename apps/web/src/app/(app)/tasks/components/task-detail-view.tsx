@@ -89,6 +89,7 @@ export async function TaskDetailView({
   const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
+  const workspaceAccessPromise = userService.getWorkspaceAccess();
   const sessionPromise = getSession();
   const localePromise = getLocale();
   // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
@@ -147,6 +148,7 @@ export async function TaskDetailView({
                 coworkersPromise={coworkersPromise}
                 agentsPromise={agentsPromise}
                 membersPromise={membersPromise}
+                workspaceAccessPromise={workspaceAccessPromise}
                 sessionPromise={sessionPromise}
               />
             </Suspense>
@@ -423,6 +425,7 @@ async function TaskDetailActionsSlot({
   coworkersPromise,
   agentsPromise,
   membersPromise,
+  workspaceAccessPromise,
   sessionPromise,
 }: {
   taskId: string;
@@ -431,17 +434,28 @@ async function TaskDetailActionsSlot({
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
   membersPromise: Promise<MembersResult>;
+  workspaceAccessPromise: Promise<
+    Awaited<ReturnType<typeof userService.getWorkspaceAccess>>
+  >;
   sessionPromise: Promise<SessionResult>;
 }) {
-  const [coworkers, agents, members, session, t, tMembersTableHeader] =
-    await Promise.all([
-      coworkersPromise,
-      agentsPromise,
-      membersPromise,
-      sessionPromise,
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("Components.MembersTable.Header"),
-    ]);
+  const [
+    coworkers,
+    agents,
+    members,
+    workspaceAccess,
+    session,
+    t,
+    tMembersTableHeader,
+  ] = await Promise.all([
+    coworkersPromise,
+    agentsPromise,
+    membersPromise,
+    workspaceAccessPromise,
+    sessionPromise,
+    getTranslations("App.Tasks.Detail"),
+    getTranslations("Components.MembersTable.Header"),
+  ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
@@ -489,6 +503,7 @@ async function TaskDetailActionsSlot({
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
+      hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
       canCancel={canCancelTask}

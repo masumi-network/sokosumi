@@ -154,6 +154,7 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createOrganization": "Organisation erstellen",
+      "createPersonalWorkspace": "Persönlichen Workspace erstellen",
       "userAvatarAlt": "Nutzer-Avatar"
     },
     "DataTable": {
@@ -655,6 +656,7 @@
         "confirmLabelSuffix": "zur Bestätigung der Löschung:",
         "Errors": {
           "additionalMembers": "Entferne alle anderen Mitglieder, bevor du diese Organisation löschst.",
+          "lastWorkspace": "Du kannst deinen letzten Workspace nicht löschen.",
           "unauthorizedAction": "Anmelden"
         },
         "Schema": {
@@ -826,8 +828,12 @@
     "noAccount": "Neu bei Sokosumi?",
     "signIn": "Anmelden und beitreten",
     "register": "Konto erstellen",
+    "decline": "Ablehnen",
+    "activateRetry": "Wechsel erneut versuchen",
     "Error": {
       "joinFailed": "Der Organisation konnte nicht beigetreten werden",
+      "declineFailed": "Die Einladung konnte nicht abgelehnt werden.",
+      "activateFailed": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "unauthorizedAction": "Anmelden"
     },
     "Invalid": {
@@ -855,6 +861,7 @@
         "decline": "Ablehnen",
         "logout": "Abmelden",
         "ignore": "Ignorieren",
+        "activateRetry": "Wechsel erneut versuchen",
         "emailMismatch": "Du bist nicht der eingeladene Nutzer.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "Wenn du bereits ein Konto hast, kannst du dich anmelden und die Einladung akzeptieren.",
@@ -868,7 +875,8 @@
         },
         "Error": {
           "accept": "Einladung konnte nicht akzeptiert werden",
-          "decline": "Einladung konnte nicht abgelehnt werden"
+          "decline": "Einladung konnte nicht abgelehnt werden",
+          "activate": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst."
         },
         "Errors": {
           "unauthorizedAction": "Anmelden"
@@ -3774,6 +3782,20 @@
         "success": "Account erfolgreich gelöscht",
         "error": "Account konnte nicht gelöscht werden"
       },
+      "DeletePersonal": {
+        "title": "Persönlichen Arbeitsbereich löschen",
+        "description": "Löscht deinen persönlichen Arbeitsbereich. Organisations-Arbeitsbereiche bleiben.",
+        "lastWorkspaceDescription": "Du kannst deinen letzten Arbeitsbereich nicht löschen.",
+        "button": "Persönlichen Arbeitsbereich löschen",
+        "confirmTitle": "Persönlichen Arbeitsbereich löschen?",
+        "confirmDescription": "Damit löschst du deinen persönlichen Arbeitsbereich. Organisations-Arbeitsbereiche bleiben unberührt.",
+        "confirm": "Ja, persönlichen Arbeitsbereich löschen",
+        "success": "Persönlicher Arbeitsbereich gelöscht",
+        "error": "Persönlicher Arbeitsbereich konnte nicht gelöscht werden",
+        "activateError": "Persönlicher Arbeitsbereich gelöscht, aber der Wechsel zur Organisation ist fehlgeschlagen. Nutze den Arbeitsbereich-Wechsler.",
+        "lastWorkspaceError": "Du kannst deinen letzten Arbeitsbereich nicht löschen.",
+        "dependentsError": "Lösche zuerst Jobs und Tasks in diesem Arbeitsbereich."
+      },
       "ApiKeys": {
         "title": "API-Keys",
         "description": "Verwalte deine API-Keys für den programmatischen Zugriff",
@@ -5180,6 +5202,11 @@
   },
   "Library": {
     "Auth": {
+      "NameField": {
+        "label": "Name",
+        "placeholder": "Dein Name",
+        "persistError": "Wir konnten deinen Namen nicht aktualisieren."
+      },
       "Schema": {
         "Email": {
           "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
@@ -5374,29 +5401,31 @@
   },
   "WorkspaceGate": {
     "title": "Workspace einrichten",
-    "identityTitle": "Erstelle deinen ersten Workspace",
-    "identityDescription": "Bestätige deinen Namen und wähle, wie du starten möchtest.",
+    "identityTitle": "Wie möchtest du arbeiten?",
+    "identityDescriptionConfirm": "Bestätige deinen Namen und wähle eine Option.",
+    "identityDescriptionEnter": "Gib deinen Namen ein.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
-    "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen. Die Identitäts-Einrichtung wird übersprungen.",
-    "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
+    "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen.",
     "signOut": "Abmelden",
+    "signOutError": "Abmelden ist fehlgeschlagen. Versuche es erneut.",
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
     "unavailableDescription": "Sokosumi konnte deinen Workspace-Status gerade nicht laden. Das ist vorübergehend — du bist nicht wegen eines fehlenden Workspace ausgesperrt.",
     "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
     "retry": "Erneut versuchen",
     "Identity": {
-      "displayNameLabel": "Anzeigename",
-      "displayNamePlaceholder": "Dein Name",
-      "choiceLabel": "Wie möchtest du starten?",
-      "personalTitle": "Persönlicher Workspace",
-      "personalDescription": "Arbeite für dich allein. Du kannst später einer Organisation beitreten oder eine erstellen.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Dein Name",
+      "choiceLabel": "Wie möchtest du arbeiten?",
+      "choiceHint": "Du kannst jederzeit einen weiteren Arbeitsbereich hinzufügen.",
+      "personalTitle": "Persönlich",
+      "personalDescription": "Arbeite für dich allein.",
       "organizationTitle": "Organisation",
-      "organizationDescription": "Richte einen gemeinsamen Workspace für dein Team ein.",
-      "createPersonal": "Persönlichen Workspace erstellen",
+      "organizationDescription": "Arbeite mit deinem Team.",
       "continue": "Weiter",
-      "nameUpdateError": "Dein Anzeigename konnte nicht aktualisiert werden.",
+      "nameUpdateError": "Wir konnten deinen Namen nicht aktualisieren.",
       "organizationActivateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Workspace wechseln, sobald du im Produkt bist.",
-      "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden."
+      "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden.",
+      "personalActivateError": "Persönlicher Arbeitsbereich erstellt, aber der Wechsel ist fehlgeschlagen. Nutze den Arbeitsbereich-Wechsler."
     },
     "Pending": {
       "accept": "Annehmen",
@@ -5405,7 +5434,9 @@
       "rejectAllHint": "Wenn du alle Einladungen ablehnst, kannst du einen eigenen ersten Workspace erstellen.",
       "acceptError": "Die Einladung konnte nicht angenommen werden.",
       "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
-      "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden."
+      "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
+      "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
+      "activateRetry": "Wechsel erneut versuchen"
     }
   }
 }

@@ -149,6 +149,9 @@ describe("SignUpForm OAuth workflow", () => {
       screen.queryByPlaceholderText("Fields.ConfirmPassword.placeholder"),
     ).not.toBeInTheDocument();
     expect(
+      screen.getByPlaceholderText("Fields.Name.placeholder"),
+    ).toBeInTheDocument();
+    expect(
       screen.getByPlaceholderText("Fields.Password.placeholder"),
     ).toHaveAttribute("type", "password");
   });

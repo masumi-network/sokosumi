@@ -115,8 +115,31 @@ describe("WorkspaceGatePage", () => {
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("identityTitle");
+    expect(serialized).toContain("identityDescriptionConfirm");
+    expect(serialized).not.toContain("identityDescriptionEnter");
     expect(serialized).toContain('"initialName":"Ada Lovelace"');
     expect(serialized).not.toContain("unavailableTitle");
+    expect(serialized).not.toContain("data-workspace-gate-actions");
+  });
+
+  it("asks a nameless user to enter their name", async () => {
+    getSessionOrRedirectMock.mockResolvedValue({
+      user: { id: "user-1", name: "" },
+      session: { id: "session-1" },
+    });
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "identity-onboarding",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: false,
+    });
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+    const serialized = JSON.stringify(ui);
+
+    expect(serialized).toContain("identityDescriptionEnter");
+    expect(serialized).not.toContain("identityDescriptionConfirm");
   });
 
   it("renders the pending queue instead of identity onboarding", async () => {
@@ -130,7 +153,7 @@ describe("WorkspaceGatePage", () => {
       {
         id: "inv_1",
         organizationId: "org_1",
-        organization: { name: "Acme" },
+        organization: { name: "Acme", slug: "acme" },
       },
     ]);
 
@@ -141,7 +164,9 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Acme");
-    expect(serialized).not.toContain('"initialName"');
+    expect(serialized).toContain("acme");
+    expect(serialized).not.toContain("identityTitle");
+    expect(serialized).not.toContain("data-workspace-gate-actions");
   });
 
   it("renders the pending queue when only a recovered join link exists", async () => {
@@ -166,7 +191,8 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Join Co");
-    expect(serialized).not.toContain('"initialName"');
+    expect(serialized).toContain("join-co");
+    expect(serialized).not.toContain("identityTitle");
   });
 
   it("renders unavailable surface when workspace access throws (not identity onboarding)", async () => {
@@ -180,6 +206,7 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).toContain("unavailableTitle");
     expect(serialized).toContain("unavailableBody");
     expect(serialized).toContain('"data-gate":"unavailable"');
+    expect(serialized).toContain("data-workspace-gate-actions");
     expect(serialized).not.toContain("identityTitle");
     expect(serialized).not.toContain('"initialName"');
   });
@@ -191,7 +218,9 @@ describe("WorkspaceGatePage", () => {
     const ui = await WorkspaceGatePage();
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(JSON.stringify(ui)).toContain("unavailableTitle");
+    const serialized = JSON.stringify(ui);
+    expect(serialized).toContain("unavailableTitle");
+    expect(serialized).toContain("data-workspace-gate-actions");
   });
 
   it("renders unavailable when pending-invites list fetch fails and there is no join link", async () => {

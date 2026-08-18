@@ -1,5 +1,5 @@
 import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
-import { workspaceRepository } from "@sokosumi/database/repositories";
+import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -40,7 +40,7 @@ export async function assertCoworkerUserContextBinding(
   userContext: Pick<UserContext, "userId" | "organizationId">,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const workspace = await workspaceRepository.upsertWorkspaceForContext(
+  const workspace = await resolveWorkspaceForContextOrNotFound(
     userContext.userId,
     userContext.organizationId,
     tx,

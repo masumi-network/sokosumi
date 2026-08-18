@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface JoinActionsProps {
@@ -16,6 +17,7 @@ interface JoinActionsProps {
   organizationName: string;
   organizationSlug: string;
   isAuthenticated: boolean;
+  currentUserName: string;
 }
 
 export function JoinActions({
@@ -23,32 +25,75 @@ export function JoinActions({
   organizationName,
   organizationSlug,
   isAuthenticated,
+  currentUserName,
 }: JoinActionsProps) {
   const t = useTranslations("Join");
   const router = useRouter();
   const [isJoining, setIsJoining] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
+  const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
+    null,
+  );
+  const { persistIfNeeded, NameFields } = useCollectUserName(currentUserName);
+  const busy = isJoining || isDeclining;
 
   const handleJoin = async () => {
-    if (isJoining) return;
+    if (busy) return;
     setIsJoining(true);
     try {
+      if (!(await persistIfNeeded())) {
+        return;
+      }
       const result = await acceptOrganizationInviteLink({ token });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Error.joinFailed"));
         return;
       }
-      try {
-        await activateOrganizationWorkspace(result.value.organizationId);
-      } catch (error) {
-        console.error("Failed to switch organization workspace:", error);
-      }
-      await clearPendingOrganizationJoinCookieAction({});
-      router.push(`/organizations/${encodeURIComponent(organizationSlug)}`);
+      await finishAfterJoin(result.value.organizationId);
     } catch (error) {
       console.error("Failed to join organization", error);
       toast.error(t("Error.joinFailed"));
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  async function finishAfterJoin(organizationId: string) {
+    const activated =
+      await activateOrganizationWorkspaceWithRetry(organizationId);
+    if (!activated) {
+      toast.error(t("Error.activateFailed"));
+      setRetryOrganizationId(organizationId);
+      return;
+    }
+    setRetryOrganizationId(null);
+    await clearPendingOrganizationJoinCookieAction({});
+    router.push(`/organizations/${encodeURIComponent(organizationSlug)}`);
+  }
+
+  const handleRetryActivation = async () => {
+    if (busy || !retryOrganizationId) {
+      return;
+    }
+    setIsJoining(true);
+    try {
+      await finishAfterJoin(retryOrganizationId);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    if (busy) return;
+    setIsDeclining(true);
+    try {
+      await clearPendingOrganizationJoinCookieAction({});
+      router.push("/setup");
+    } catch (error) {
+      console.error("Failed to decline organization join link", error);
+      toast.error(t("Error.declineFailed"));
+    } finally {
+      setIsDeclining(false);
     }
   };
 
@@ -59,17 +104,48 @@ export function JoinActions({
 
   if (isAuthenticated) {
     return (
-      <Button
-        variant="primary"
-        className="w-full"
-        onClick={handleJoin}
-        disabled={isJoining}
-      >
-        {isJoining && <Loader2 className="size-4 animate-spin" />}
-        {isJoining
-          ? t("joining")
-          : t("join", { organization: organizationName })}
-      </Button>
+      <div className="space-y-4">
+        <NameFields disabled={busy} />
+        <Button
+          variant="primary"
+          className="w-full"
+          onClick={handleJoin}
+          disabled={busy || retryOrganizationId !== null}
+        >
+          {isJoining && !retryOrganizationId && (
+            <Loader2 className="size-4 animate-spin" />
+          )}
+          {isJoining && !retryOrganizationId
+            ? t("joining")
+            : t("join", { organization: organizationName })}
+        </Button>
+        {retryOrganizationId ? (
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => {
+              void handleRetryActivation();
+            }}
+            disabled={busy}
+            data-testid="join-retry-activation"
+          >
+            {isJoining && <Loader2 className="size-4 animate-spin" />}
+            {t("activateRetry")}
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            void handleDecline();
+          }}
+          disabled={busy}
+        >
+          {isDeclining && <Loader2 className="size-4 animate-spin" />}
+          {t("decline")}
+        </Button>
+      </div>
     );
   }
 

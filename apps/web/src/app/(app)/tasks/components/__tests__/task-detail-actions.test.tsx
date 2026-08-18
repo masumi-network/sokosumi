@@ -1010,12 +1010,13 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows move for an organization task even when memberships are empty (personal is still a target)", async () => {
+  it("shows move for an organization task when the user has a personal workspace and no other orgs", async () => {
     const user = userEvent.setup();
 
     renderActions({
       currentOrganizationId: "org-current",
       organizations: [],
+      hasPersonalWorkspace: true,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
@@ -1023,6 +1024,22 @@ describe("TaskDetailActions", () => {
     expect(
       screen.getByRole("menuitem", { name: "Move to workspace" }),
     ).toBeInTheDocument();
+  });
+
+  it("hides move for an organization task when there is no personal workspace and no other orgs", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      currentOrganizationId: "org-current",
+      organizations: [],
+      hasPersonalWorkspace: false,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides move for a personal task when the user has no organizations", async () => {

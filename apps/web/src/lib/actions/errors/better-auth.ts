@@ -3,6 +3,8 @@ import * as z from "zod";
 export const ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE =
   "ORGANIZATION_HAS_ADDITIONAL_MEMBERS";
 
+export const LAST_WORKSPACE_ERROR_CODE = "LAST_WORKSPACE";
+
 export const betterAuthApiErrorSchema = z.object({
   status: z.string(),
   statusCode: z.number(),

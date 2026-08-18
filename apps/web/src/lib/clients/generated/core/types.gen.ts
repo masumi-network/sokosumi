@@ -2641,6 +2641,13 @@ export type PersonalWorkspaceCreated = {
     workspaceId: string;
 };
 
+export type PersonalWorkspaceDeleted = {
+    /**
+     * Id of the deleted personal workspace
+     */
+    workspaceId: string;
+};
+
 export type WorkspaceAccess = {
     gate: WorkspaceGateStatus;
     /**
@@ -3725,7 +3732,7 @@ export type CoworkerWorkspaceAccessTarget = {
      */
     workspaceId?: string;
     /**
-     * User id — resolves (or creates) that user's personal workspace.
+     * User id — resolves that user's personal workspace. Errors if none exists.
      */
     userId?: string;
     /**
@@ -3733,7 +3740,7 @@ export type CoworkerWorkspaceAccessTarget = {
      */
     organizationId?: string;
     /**
-     * User email — resolves (or creates) that user's personal workspace. Prefer for vendor targeting without directory search.
+     * User email — resolves that user's personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.
      */
     email?: string;
     /**
@@ -18958,7 +18965,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         };
     };
     /**
-     * Not Found - User not found
+     * Not Found - User not found, or personal workspace is missing
      */
     404: {
         error: string;
@@ -19004,6 +19011,109 @@ export type PutUsersByIdPreferredOrganizationResponses = {
 };
 
 export type PutUsersByIdPreferredOrganizationResponse = PutUsersByIdPreferredOrganizationResponses[keyof PutUsersByIdPreferredOrganizationResponses];
+
+export type DeleteUsersByIdPersonalWorkspaceData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/personal-workspace';
+};
+
+export type DeleteUsersByIdPersonalWorkspaceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Personal workspace is missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - Last workspace, or dependents prevent delete
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdPersonalWorkspaceError = DeleteUsersByIdPersonalWorkspaceErrors[keyof DeleteUsersByIdPersonalWorkspaceErrors];
+
+export type DeleteUsersByIdPersonalWorkspaceResponses = {
+    /**
+     * Personal workspace deleted
+     */
+    200: {
+        data: PersonalWorkspaceDeleted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdPersonalWorkspaceResponse = DeleteUsersByIdPersonalWorkspaceResponses[keyof DeleteUsersByIdPersonalWorkspaceResponses];
 
 export type PostUsersByIdPersonalWorkspaceData = {
     body?: never;

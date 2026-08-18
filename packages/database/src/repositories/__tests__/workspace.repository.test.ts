@@ -5,6 +5,7 @@ import { beforeEach, describe, it } from "vitest";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { vendorGrantRepository } from "../vendor-grant.repository.js";
 import { workspaceRepository } from "../workspace.repository.js";
+import { PersonalWorkspaceMissingError } from "../workspace-errors.js";
 
 describe("workspaceRepository", () => {
   beforeEach(() => {
@@ -44,7 +45,7 @@ describe("workspaceRepository", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+    const workspace = await workspaceRepository.resolveWorkspaceForContext(
       "user-1",
       null,
       tx,
@@ -100,7 +101,7 @@ describe("workspaceRepository", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+    const workspace = await workspaceRepository.resolveWorkspaceForContext(
       "user-1",
       "org-1",
       tx,
@@ -126,36 +127,18 @@ describe("workspaceRepository", () => {
     });
   });
 
-  it("re-reads the personal workspace after a unique race on create", async () => {
-    let findUniqueCalls = 0;
-    let grantFindUniqueCalls = 0;
+  it("does not create a personal workspace when resolving a missing personal context", async () => {
+    let createCalled = false;
     const tx = {
       workspace: {
-        findUnique: async () => {
-          findUniqueCalls += 1;
-          if (findUniqueCalls === 1) {
-            return null;
-          }
-
-          return {
-            createdAt: new Date("2026-01-01T00:00:00.000Z"),
-            id: "workspace-user-1",
-            organizationId: null,
-            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-            userId: "user-1",
-          };
-        },
+        findUnique: async () => null,
         create: async () => {
-          throw Object.assign(new Error("Unique constraint failed"), {
-            code: "P2002",
-          });
+          createCalled = true;
+          throw new Error("create should not be called");
         },
       },
       vendorGrant: {
-        findUnique: async () => {
-          grantFindUniqueCalls += 1;
-          return null;
-        },
+        findUnique: async () => null,
         create: async () => ({ id: "grant-1" }),
       },
       vendor: {
@@ -165,14 +148,10 @@ describe("workspaceRepository", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      "user-1",
-      null,
-      tx,
+    await assert.rejects(
+      () => workspaceRepository.resolveWorkspaceForContext("user-1", null, tx),
+      PersonalWorkspaceMissingError,
     );
-
-    assert.equal(workspace.id, "workspace-user-1");
-    assert.equal(findUniqueCalls, 2);
-    assert.equal(grantFindUniqueCalls, 1);
+    assert.equal(createCalled, false);
   });
 });
