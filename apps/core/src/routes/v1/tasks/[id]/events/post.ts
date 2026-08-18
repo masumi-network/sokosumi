@@ -60,6 +60,7 @@ import {
   isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
+import { projectMemoryService } from "@/services/project-memory.service";
 import {
   createTaskPaymentClaim,
   processTaskPaymentClaim,
@@ -682,6 +683,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
+        projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
@@ -701,11 +703,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       userId,
+      projectId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
       cascadedChildTaskIds,
     } = transactionResult;
+
+    if (event.status === TaskStatus.COMPLETED && projectId) {
+      waitUntil(
+        projectMemoryService
+          .refreshAfterTaskCompleted({ projectId, taskId })
+          .catch((error) => {
+            console.error("Project memory refresh failed", {
+              projectId,
+              taskId,
+              error,
+            });
+            Sentry.captureException(error, {
+              tags: { error_type: "project_memory_refresh_failed" },
+              extra: { projectId, taskId },
+            });
+          }),
+      );
+    }
 
     if (event.status) {
       const taskEventId = event.id;

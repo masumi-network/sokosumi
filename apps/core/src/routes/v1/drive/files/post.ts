@@ -16,6 +16,7 @@ import {
   badRequest,
   payloadTooLarge,
   serviceUnavailable,
+  unprocessableEntity,
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -64,6 +65,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     413: jsonErrorResponse("Payload Too Large"),
+    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -108,7 +110,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname = buildUserDriveFilePathname(ownerId, displayName);
     } else if (body.scope === "org") {
       if (!body.organizationId) {
-        throw badRequest("organizationId is required when scope=org");
+        throw unprocessableEntity("organizationId is required when scope=org");
       }
       const ownerId = body.organizationId;
       // Verifies membership

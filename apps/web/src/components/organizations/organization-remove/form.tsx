@@ -21,7 +21,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
+import {
+  LAST_WORKSPACE_ERROR_CODE,
+  ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+} from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import {
@@ -64,7 +67,9 @@ export default function OrganizationRemoveForm({
       const errorMessage =
         result.error.code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE
           ? t("Errors.additionalMembers")
-          : (result.error.message ?? t("error"));
+          : result.error.code === LAST_WORKSPACE_ERROR_CODE
+            ? t("Errors.lastWorkspace")
+            : (result.error.message ?? t("error"));
       if (result.error.status === 401) {
         toast.error(errorMessage, {
           action: {

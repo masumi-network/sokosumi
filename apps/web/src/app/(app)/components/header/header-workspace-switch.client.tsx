@@ -1,11 +1,21 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { CreateOrganizationWizard } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,18 +24,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import useModal from "@/hooks/use-modal";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
 
+type WorkspaceChoice = "personal" | "organization";
+
 interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
+  hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
   isPending: boolean;
-  onSelectWorkspace: (workspaceId: string | null) => void;
+  onSelectWorkspace: (workspaceId: string | null) => void | Promise<void>;
 }
 
 interface WorkspaceItem {
@@ -105,6 +122,7 @@ function WorkspaceMenuItem({
 export default function HeaderWorkspaceSwitch({
   sessionUser,
   members,
+  hasPersonalWorkspace,
   activeOrganizationId,
   isPending,
   onSelectWorkspace,
@@ -117,6 +135,72 @@ export default function HeaderWorkspaceSwitch({
     showModal: showCreateOrganizationModal,
   } = useModal(CreateOrganizationWizard);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isChoiceDialogOpen, setIsChoiceDialogOpen] = useState(false);
+  const [workspaceChoice, setWorkspaceChoice] =
+    useState<WorkspaceChoice>("personal");
+  const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
+  const tIdentity = useTranslations("WorkspaceGate.Identity");
+  const canCreatePersonal = !hasPersonalWorkspace;
+
+  async function activateCreatedPersonalWorkspace(): Promise<void> {
+    try {
+      await onSelectWorkspace(null);
+    } catch (error) {
+      console.error("Create personal workspace activation failed", error);
+      toast.error(tIdentity("personalActivateError"));
+    }
+  }
+
+  async function createAndActivatePersonal(): Promise<boolean> {
+    try {
+      const createResult = await createPersonalWorkspaceAction({});
+      if (!createResult.ok) {
+        if (
+          createResult.error.code ===
+          WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
+        ) {
+          await activateCreatedPersonalWorkspace();
+          return true;
+        }
+        console.error("Create personal workspace failed", createResult.error);
+        toast.error(tIdentity("personalCreateError"));
+        return false;
+      }
+      await activateCreatedPersonalWorkspace();
+      return true;
+    } catch (error) {
+      console.error("Create personal workspace failed", error);
+      toast.error(tIdentity("personalCreateError"));
+      return false;
+    }
+  }
+
+  function handleOpenCreateWorkspace() {
+    setIsDropdownOpen(false);
+    if (!canCreatePersonal) {
+      showCreateOrganizationModal();
+      return;
+    }
+    setWorkspaceChoice("personal");
+    setIsChoiceDialogOpen(true);
+  }
+
+  async function handleChoiceContinue() {
+    if (workspaceChoice === "organization") {
+      setIsChoiceDialogOpen(false);
+      showCreateOrganizationModal();
+      return;
+    }
+
+    setIsCreatingPersonal(true);
+    try {
+      if (await createAndActivatePersonal()) {
+        setIsChoiceDialogOpen(false);
+      }
+    } finally {
+      setIsCreatingPersonal(false);
+    }
+  }
 
   const personalWorkspace = useMemo<WorkspaceItem>(
     () => ({
@@ -144,19 +228,19 @@ export default function HeaderWorkspaceSwitch({
 
   const activeWorkspace =
     activeOrganizationId === null
-      ? personalWorkspace
+      ? hasPersonalWorkspace
+        ? personalWorkspace
+        : null
       : (organizationWorkspaces.find(
           (workspace) => workspace.id === activeOrganizationId,
         ) ?? null);
 
   const handleWorkspaceSelect = (workspaceId: string | null) => {
+    if (workspaceId === null && !hasPersonalWorkspace) {
+      return;
+    }
     setIsDropdownOpen(false);
     onSelectWorkspace(workspaceId);
-  };
-
-  const handleCreateOrganization = () => {
-    setIsDropdownOpen(false);
-    showCreateOrganizationModal();
   };
 
   return (
@@ -207,16 +291,18 @@ export default function HeaderWorkspaceSwitch({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end">
-          <WorkspaceMenuItem
-            sessionUser={sessionUser}
-            workspace={personalWorkspace}
-            isSelected={activeOrganizationId === null}
-            isPending={isPending}
-            onSelect={handleWorkspaceSelect}
-          />
+          {hasPersonalWorkspace ? (
+            <WorkspaceMenuItem
+              sessionUser={sessionUser}
+              workspace={personalWorkspace}
+              isSelected={activeOrganizationId === null}
+              isPending={isPending || isCreatingPersonal}
+              onSelect={handleWorkspaceSelect}
+            />
+          ) : null}
           {organizationWorkspaces.length > 0 ? (
             <>
-              <DropdownMenuSeparator />
+              {hasPersonalWorkspace ? <DropdownMenuSeparator /> : null}
               <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
                 {tOrganizationSwitcher("organizationsHeading")}
               </DropdownMenuLabel>
@@ -226,7 +312,7 @@ export default function HeaderWorkspaceSwitch({
                   sessionUser={sessionUser}
                   workspace={workspace}
                   isSelected={workspace.id === activeOrganizationId}
-                  isPending={isPending}
+                  isPending={isPending || isCreatingPersonal}
                   onSelect={handleWorkspaceSelect}
                 />
               ))}
@@ -235,15 +321,96 @@ export default function HeaderWorkspaceSwitch({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2 py-2"
-            onClick={handleCreateOrganization}
+            disabled={isPending || isCreatingPersonal}
+            onClick={handleOpenCreateWorkspace}
           >
             <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
               <Plus className="text-primary size-4" />
             </Avatar>
-            <span>{tOrganizationSwitcher("createOrganization")}</span>
+            <span>{tOrganizationSwitcher("createWorkspace")}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Dialog open={isChoiceDialogOpen} onOpenChange={setIsChoiceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {tOrganizationSwitcher("createWorkspace")}
+            </DialogTitle>
+            <DialogDescription>{tIdentity("choiceHint")}</DialogDescription>
+          </DialogHeader>
+          <RadioGroup
+            value={workspaceChoice}
+            onValueChange={(value) => {
+              if (value === "personal" || value === "organization") {
+                setWorkspaceChoice(value);
+              }
+            }}
+            aria-label={tIdentity("choiceLabel")}
+            className="grid gap-3"
+            data-testid="workspace-switcher-create-choice"
+            disabled={isCreatingPersonal}
+          >
+            <Label
+              htmlFor="switcher-workspace-choice-personal"
+              className={cn(
+                "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                workspaceChoice === "personal" && "border-primary bg-accent/30",
+              )}
+            >
+              <RadioGroupItem
+                value="personal"
+                id="switcher-workspace-choice-personal"
+                className="mt-0.5"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  {tIdentity("personalTitle")}
+                </span>
+                <span className="text-muted-foreground block text-sm font-normal">
+                  {tIdentity("personalDescription")}
+                </span>
+              </span>
+            </Label>
+            <Label
+              htmlFor="switcher-workspace-choice-organization"
+              className={cn(
+                "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                workspaceChoice === "organization" &&
+                  "border-primary bg-accent/30",
+              )}
+            >
+              <RadioGroupItem
+                value="organization"
+                id="switcher-workspace-choice-organization"
+                className="mt-0.5"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  {tIdentity("organizationTitle")}
+                </span>
+                <span className="text-muted-foreground block text-sm font-normal">
+                  {tIdentity("organizationDescription")}
+                </span>
+              </span>
+            </Label>
+          </RadioGroup>
+          <DialogFooter>
+            <Button
+              type="button"
+              disabled={isCreatingPersonal}
+              onClick={() => {
+                void handleChoiceContinue();
+              }}
+            >
+              {isCreatingPersonal ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
+              {tIdentity("continue")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

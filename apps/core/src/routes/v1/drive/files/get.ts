@@ -8,7 +8,11 @@ import { list } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { badRequest, serviceUnavailable } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -17,21 +21,24 @@ import {
   driveFileScopeSchema,
   driveFilesSchema,
 } from "@/schemas/drive-file.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-const querySchema = z.object({
-  scope: driveFileScopeSchema.openapi({
-    param: { name: "scope", in: "query" },
-    description: "Drive scope: 'me' for personal, 'org' for organization",
-  }),
-  organizationId: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "organizationId", in: "query" },
-      example: "org_123",
-      description: "Organization ID (required when scope=org)",
+const querySchema = z
+  .object({
+    scope: driveFileScopeSchema.openapi({
+      param: { name: "scope", in: "query" },
+      description: "Drive scope: 'me' for personal, 'org' for organization",
     }),
-});
+    organizationId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "organizationId", in: "query" },
+        example: "org_123",
+        description: "Organization ID (required when scope=org)",
+      }),
+  })
+  .merge(cursorPaginationQuerySchema);
 
 const route = createRoute({
   method: "get",
@@ -42,7 +49,7 @@ const route = createRoute({
     query: querySchema,
   },
   responses: {
-    200: jsonSuccessResponse(driveFilesSchema, "Drive files"),
+    200: jsonPaginatedSuccessResponse(driveFilesSchema, "Drive files"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -86,32 +93,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // List all blobs with the prefix (paginate through all results)
-    const blobs: Awaited<ReturnType<typeof list>>["blobs"] = [];
-    for (let cursor: string | undefined; ; ) {
-      const {
-        blobs: pageBlobs,
-        hasMore,
-        cursor: nextCursor,
-      } = await list({
-        prefix,
-        token,
-        cursor,
-      });
-      blobs.push(...pageBlobs);
+    // Parse pagination parameters
+    const { cursor, take } = parseCursorPagination(query);
 
-      if (!hasMore) {
-        break;
-      }
-
-      if (!nextCursor) {
-        throw new Error(
-          "Blob list pagination is invalid: hasMore=true without cursor",
-        );
-      }
-
-      cursor = nextCursor;
-    }
+    // List blobs with pagination (single page)
+    const {
+      blobs,
+      cursor: nextCursor,
+      hasMore,
+    } = await list({
+      prefix,
+      token,
+      cursor,
+      limit: take,
+    });
 
     // Map to API schema
     const apiFiles: DriveFile[] = blobs.map((blob) => {
@@ -134,6 +129,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
     );
 
-    return ok(c, driveFilesSchema.parse(apiFiles));
+    // Vercel Blob list() doesn't return total count; estimate from hasMore
+    // For true count, we'd need to drain all pages (expensive)
+    const estimatedTotal = hasMore ? blobs.length + 1 : blobs.length;
+
+    // Create pagination metadata using Vercel Blob's cursor
+    const paginationMeta = {
+      cursor: cursor ?? null,
+      limit: take,
+      total: estimatedTotal,
+      nextCursor: hasMore ? (nextCursor ?? null) : null,
+    };
+
+    return ok(c, driveFilesSchema.parse(apiFiles), paginationMeta);
   });
 }

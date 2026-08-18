@@ -29,7 +29,6 @@ import {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
   getEmailLocale,
-  getStoredUserName,
   OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
   resolveBetterAuthCookieName,
@@ -70,6 +69,7 @@ import {
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
+import { isLastWorkspace } from "@/helpers/workspace-access";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
@@ -92,6 +92,7 @@ const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
 const ORGANIZATION_HAS_ADDITIONAL_MEMBERS =
   "ORGANIZATION_HAS_ADDITIONAL_MEMBERS";
+const LAST_WORKSPACE = "LAST_WORKSPACE";
 
 const env = getEnv();
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
@@ -137,32 +138,6 @@ async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
       },
       extra: {
         userId,
-      },
-    });
-  }
-}
-
-async function ensureWorkspaceForCreatedUser(user: {
-  email: string;
-  id: string;
-  name: string;
-}): Promise<void> {
-  try {
-    await prisma.$transaction(async (tx) => {
-      await workspaceRepository.upsertPersonalWorkspace({
-        userId: user.id,
-        tx,
-      });
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        context: "workspace_user_creation",
-      },
-      extra: {
-        email: user.email,
-        name: user.name,
-        userId: user.id,
       },
     });
   }
@@ -401,14 +376,13 @@ export const auth = betterAuth({
         before: async (user, _ctx) => {
           const withName = {
             ...user,
-            name: getStoredUserName(user.name, user.email),
+            name: user.name?.trim() ?? "",
           };
           return {
             data: applyDesignMdMetadataGuardToUserCreate(withName),
           };
         },
         after: async (user, _ctx) => {
-          await ensureWorkspaceForCreatedUser(user);
           waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient
@@ -723,6 +697,18 @@ export const auth = betterAuth({
             organization.id,
             user.id,
           );
+          if (
+            await isLastWorkspace(
+              user.id,
+              { type: "organization", organizationId: organization.id },
+              prisma,
+            )
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: LAST_WORKSPACE,
+              message: "Cannot delete the user's last workspace.",
+            });
+          }
         },
       },
       schema: {

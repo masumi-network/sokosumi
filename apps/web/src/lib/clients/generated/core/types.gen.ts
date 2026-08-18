@@ -2744,6 +2744,13 @@ export type PersonalWorkspaceCreated = {
     workspaceId: string;
 };
 
+export type PersonalWorkspaceDeleted = {
+    /**
+     * Id of the deleted personal workspace
+     */
+    workspaceId: string;
+};
+
 export type WorkspaceAccess = {
     gate: WorkspaceGateStatus;
     /**
@@ -3299,18 +3306,64 @@ export type ProjectListItem = Project & {
     jobCount: number;
 };
 
+export type ProjectDesignMd = {
+    url: string;
+    extractionId: string | null;
+};
+
+/**
+ * Configured EU model that will write project memory, including before the first update.
+ */
+export type ProjectMemoryModel = {
+    id: string;
+    label: string;
+    region: 'eu';
+};
+
+export type ProjectContextMdMetadata = {
+    url: string;
+    updatedAt: Date;
+    version: number;
+    model: ProjectMemoryModel;
+    lineCount: number;
+};
+
 export type Project = {
     id: string;
     workspaceId: string;
     name: string;
-    description: string | null;
+    briefing: string | null;
+    briefingUrl: string | null;
+    websiteUrl: string | null;
+    logo: string | null;
+    /**
+     * Project-owned brand DESIGN.md, or null when none exists.
+     */
+    designMd: ProjectDesignMd | null;
+    /**
+     * Whether Core has both AI Gateway and Blob storage credentials and can update project memory.
+     */
+    memoryEnabled: boolean;
+    memoryModel: ProjectMemoryModel;
+    /**
+     * Project memory metadata. Null until the first task completion writes CONTEXT.md.
+     */
+    contextMd: ProjectContextMdMetadata | null;
+    contextMdUpdating: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
 
 export type CreateProjectRequest = {
     name: string;
+    briefing?: string | null;
+    /**
+     * Deprecated. Use briefing instead.
+     *
+     * @deprecated
+     */
     description?: string | null;
+    websiteUrl?: string | null;
 };
 
 export type ProjectStatsBatch = {
@@ -3347,9 +3400,26 @@ export type AddProjectTaskRequest = {
     taskId: string;
 };
 
+export type ProjectContextMd = ProjectContextMdMetadata & {
+    content: string;
+};
+
+export type ProjectDesignMdWrite = {
+    content: string;
+    extractionId?: string | null;
+};
+
 export type PatchProjectRequest = {
     name?: string;
+    briefing?: string | null;
+    /**
+     * Deprecated. Use briefing instead.
+     *
+     * @deprecated
+     */
     description?: string | null;
+    websiteUrl?: string | null;
+    logo?: string | null;
 };
 
 export type ProjectDeleted = {
@@ -3828,7 +3898,7 @@ export type CoworkerWorkspaceAccessTarget = {
      */
     workspaceId?: string;
     /**
-     * User id — resolves (or creates) that user's personal workspace.
+     * User id — resolves that user's personal workspace. Errors if none exists.
      */
     userId?: string;
     /**
@@ -3836,7 +3906,7 @@ export type CoworkerWorkspaceAccessTarget = {
      */
     organizationId?: string;
     /**
-     * User email — resolves (or creates) that user's personal workspace. Prefer for vendor targeting without directory search.
+     * User email — resolves that user's personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.
      */
     email?: string;
     /**
@@ -3960,6 +4030,18 @@ export type TaskActivitySummary = {
      * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
      */
     workedMinutes: number;
+};
+
+/**
+ * Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.
+ */
+export type CreateTaskContext = {
+    brand?: boolean | {
+        url: string;
+    };
+    brandSource?: 'project' | 'workspace';
+    briefing?: boolean;
+    memory?: boolean;
 };
 
 export const UserWritableTaskLinkRelation = {
@@ -19483,7 +19565,7 @@ export type PutUsersByIdPreferredOrganizationErrors = {
         };
     };
     /**
-     * Not Found - User not found
+     * Not Found - User not found, or personal workspace is missing
      */
     404: {
         error: string;
@@ -19529,6 +19611,109 @@ export type PutUsersByIdPreferredOrganizationResponses = {
 };
 
 export type PutUsersByIdPreferredOrganizationResponse = PutUsersByIdPreferredOrganizationResponses[keyof PutUsersByIdPreferredOrganizationResponses];
+
+export type DeleteUsersByIdPersonalWorkspaceData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/personal-workspace';
+};
+
+export type DeleteUsersByIdPersonalWorkspaceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Personal workspace is missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - Last workspace, or dependents prevent delete
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdPersonalWorkspaceError = DeleteUsersByIdPersonalWorkspaceErrors[keyof DeleteUsersByIdPersonalWorkspaceErrors];
+
+export type DeleteUsersByIdPersonalWorkspaceResponses = {
+    /**
+     * Personal workspace deleted
+     */
+    200: {
+        data: PersonalWorkspaceDeleted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdPersonalWorkspaceResponse = DeleteUsersByIdPersonalWorkspaceResponses[keyof DeleteUsersByIdPersonalWorkspaceResponses];
 
 export type PostUsersByIdPersonalWorkspaceData = {
     body?: never;
@@ -25543,6 +25728,278 @@ export type DeleteProjectsByIdTasksByTaskIdResponses = {
 
 export type DeleteProjectsByIdTasksByTaskIdResponse = DeleteProjectsByIdTasksByTaskIdResponses[keyof DeleteProjectsByIdTasksByTaskIdResponses];
 
+export type GetProjectsByIdContextMdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/context-md';
+};
+
+export type GetProjectsByIdContextMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdContextMdError = GetProjectsByIdContextMdErrors[keyof GetProjectsByIdContextMdErrors];
+
+export type GetProjectsByIdContextMdResponses = {
+    /**
+     * Project CONTEXT.md
+     */
+    200: {
+        data: ProjectContextMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
+
+export type DeleteProjectsByIdDesignMdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/design-md';
+};
+
+export type DeleteProjectsByIdDesignMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdDesignMdError = DeleteProjectsByIdDesignMdErrors[keyof DeleteProjectsByIdDesignMdErrors];
+
+export type DeleteProjectsByIdDesignMdResponses = {
+    /**
+     * Project DESIGN.md cleared
+     */
+    200: {
+        data: Project;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdDesignMdResponse = DeleteProjectsByIdDesignMdResponses[keyof DeleteProjectsByIdDesignMdResponses];
+
+export type PutProjectsByIdDesignMdData = {
+    body?: ProjectDesignMdWrite;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/design-md';
+};
+
+export type PutProjectsByIdDesignMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdDesignMdError = PutProjectsByIdDesignMdErrors[keyof PutProjectsByIdDesignMdErrors];
+
+export type PutProjectsByIdDesignMdResponses = {
+    /**
+     * Project DESIGN.md updated
+     */
+    200: {
+        data: Project;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdDesignMdResponse = PutProjectsByIdDesignMdResponses[keyof PutProjectsByIdDesignMdResponses];
+
 export type DeleteProjectsByIdData = {
     body?: never;
     headers?: {
@@ -29420,6 +29877,7 @@ export type PostTasksData = {
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
+        context?: CreateTaskContext;
     };
     headers?: {
         /**
@@ -29487,6 +29945,20 @@ export type PostTasksErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -32222,9 +32694,13 @@ export type GetToolsSiteIconData = {
          */
         url: string;
         /**
-         * Organization that will own the scraped logo blob under organizations/{id}/logos/.
+         * Organization that will own the logo under organizations/{id}/logos/.
          */
-        organizationId: string;
+        organizationId?: string;
+        /**
+         * Project that will own the logo under projects/{id}/logos/.
+         */
+        projectId?: string;
     };
     url: '/tools/site-icon';
 };
@@ -32248,6 +32724,34 @@ export type GetToolsSiteIconErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;

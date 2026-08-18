@@ -77,7 +77,9 @@ export function DesignMdProfileSection({
   const description =
     owner.type === "user"
       ? t("descriptionPersonal")
-      : t("descriptionOrganization");
+      : owner.type === "organization"
+        ? t("descriptionOrganization")
+        : t("descriptionProject");
 
   const handlePersisted = useCallback(
     (persisted: PersistedDesignMd) => {
@@ -109,7 +111,9 @@ export function DesignMdProfileSection({
   const autoToggleId =
     owner.type === "user"
       ? "design-md-auto-user"
-      : `design-md-auto-${owner.organizationId}`;
+      : owner.type === "organization"
+        ? `design-md-auto-${owner.organizationId}`
+        : `design-md-auto-${owner.projectId}`;
   const websiteSource = hasWebsiteUrl
     ? t("websiteSource", { websiteUrl: sourceWebsiteUrl })
     : null;

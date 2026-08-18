@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/node";
 import {
   buildAdHocDesignMdPathname,
   buildOrganizationDesignMdPathname,
+  buildProjectDesignMdPathname,
   buildUserDesignMdPathname,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
@@ -15,6 +16,7 @@ export interface UploadDesignMdContentOptions {
   owner:
     | { kind: "user"; id: string }
     | { kind: "organization"; id: string }
+    | { kind: "project"; id: string }
     | { kind: "adhoc"; id: string };
   extractionId?: string | null;
 }
@@ -52,6 +54,9 @@ export async function uploadDesignMdContent({
       break;
     case "organization":
       pathname = buildOrganizationDesignMdPathname(owner.id, fileName);
+      break;
+    case "project":
+      pathname = buildProjectDesignMdPathname(owner.id, fileName);
       break;
     case "adhoc":
       pathname = buildAdHocDesignMdPathname(owner.id, fileName);

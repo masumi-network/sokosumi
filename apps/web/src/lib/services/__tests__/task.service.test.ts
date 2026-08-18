@@ -309,6 +309,12 @@ describe("task.service", () => {
       name: "Test task",
       description: null,
       assigneeId: null,
+      context: {
+        brand: true,
+        brandSource: "project",
+        briefing: true,
+        memory: false,
+      },
       status: TaskStatus.READY,
     });
     const updated = await taskService.patchTask("task-1", {
@@ -320,6 +326,12 @@ describe("task.service", () => {
       name: "Test task",
       description: null,
       assigneeId: null,
+      context: {
+        brand: true,
+        brandSource: "project",
+        briefing: true,
+        memory: false,
+      },
       status: TaskStatus.READY,
     });
     expect(coreClientMock.patchTask).toHaveBeenCalledWith("task-1", {

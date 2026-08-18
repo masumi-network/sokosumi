@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import {
   createContext,
   useCallback,
@@ -10,9 +9,7 @@ import {
   useTransition,
 } from "react";
 
-import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
-
-import { ProjectForm } from "./project-form";
+import { CreateProjectWizard } from "./create-project-wizard";
 
 interface CreateProjectModalContextType {
   open: boolean;
@@ -76,9 +73,6 @@ export function CreateProjectModal() {
   const { open, handleClose, formInstanceKey } = useCreateProjectModal();
   const router = useRouter();
   const pathname = usePathname();
-  const t = useTranslations("App.Projects");
-  const [isDismissDisabled, setIsDismissDisabled] = useState(false);
-  // Mount form only after first open so idle /projects stays light.
   const [hasOpened, setHasOpened] = useState(open);
 
   if (open && !hasOpened) {
@@ -101,10 +95,6 @@ export function CreateProjectModal() {
     handleClose();
   }, [handleClose, stripCreateProjectSearchParams]);
 
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) handleDismiss();
-  }
-
   function handleSuccess() {
     handleClose();
     stripCreateProjectSearchParams();
@@ -116,36 +106,14 @@ export function CreateProjectModal() {
   }
 
   return (
-    <TaskFormModal
+    <CreateProjectWizard
+      key={formInstanceKey}
       open={open}
-      onOpenChange={handleOpenChange}
-      title={t("NewProject.title")}
-      cancelLabel={t("NewProject.cancel")}
-      isDismissDisabled={isDismissDisabled}
-    >
-      {open ? (
-        <ProjectForm
-          key={formInstanceKey}
-          mode="create"
-          variant="modal"
-          creationSource="projects_page"
-          showCancel={false}
-          labels={{
-            details: t("NewProject.details"),
-            detailsDescription: t("NewProject.detailsDescription"),
-            name: t("NewProject.name"),
-            namePlaceholder: t("NewProject.namePlaceholder"),
-            description: t("NewProject.description"),
-            descriptionPlaceholder: t("NewProject.descriptionPlaceholder"),
-            submit: t("NewProject.createProject"),
-            cancel: t("NewProject.cancel"),
-            error: t("Detail.errors.create"),
-          }}
-          onCancel={handleDismiss}
-          onSubmittingChange={setIsDismissDisabled}
-          onSuccess={handleSuccess}
-        />
-      ) : null}
-    </TaskFormModal>
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) handleDismiss();
+      }}
+      creationSource="projects_page"
+      onSuccess={handleSuccess}
+    />
   );
 }

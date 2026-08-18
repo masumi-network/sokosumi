@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CircleDashed, FolderKanban, Sparkles } from "lucide-react";
+import { Building2, CircleDashed, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
@@ -31,7 +31,6 @@ interface TasksViewFiltersProps {
     scopeWorkspace: string;
     coworkerLabel: string;
     statusLabel: string;
-    projectLabel: string;
     statusOptions: Record<TaskStatus, string>;
   };
 }
@@ -156,23 +155,6 @@ export function TasksViewFilters({
       })),
     });
 
-    nextSections.push({
-      id: "project",
-      label: labels.projectLabel,
-      icon: FolderKanban,
-      value: filters.projectId,
-      allLabel: labels.all,
-      onChange: (projectId) =>
-        handleFilterChange({
-          projectId,
-        }),
-      options: projectOptions.map((project) => ({
-        value: project.id,
-        label: project.name,
-        searchKeywords: [project.name],
-      })),
-    });
-
     return nextSections;
   }, [
     activeOrganizationId,
@@ -181,13 +163,11 @@ export function TasksViewFilters({
     handleFilterChange,
     labels.all,
     labels.coworkerLabel,
-    labels.projectLabel,
     labels.scopeLabel,
     labels.scopeOwned,
     labels.scopeWorkspace,
     labels.statusLabel,
     labels.statusOptions,
-    projectOptions,
   ]);
 
   return (
