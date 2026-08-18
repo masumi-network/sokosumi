@@ -45,8 +45,8 @@ import {
 
 describe("resolveChatMobileActiveTabId", () => {
   it("marks each tab active only on its exact list-root pathname", () => {
+    expect(resolveChatMobileActiveTabId("/")).toBe("home");
     expect(resolveChatMobileActiveTabId("/tasks")).toBe("tasks");
-    expect(resolveChatMobileActiveTabId("/agents")).toBe("agents");
     expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
     expect(resolveChatMobileActiveTabId("/history")).toBe("search");
@@ -68,6 +68,7 @@ describe("resolveChatMobileActiveTabId", () => {
     ).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();
@@ -82,23 +83,23 @@ describe("ChatMobileBottomNav", () => {
     mockShowUnreadDot = false;
   });
 
-  it("renders Tasks, Agents, Chats, Projects, Search in order with Spec hrefs", () => {
+  it("renders Home, Tasks, Chats, Projects, Search in order with Spec hrefs", () => {
     render(<ChatMobileBottomNav />);
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/",
       "/tasks",
-      "/agents",
       "/chat",
       "/projects",
       "/history",
     ]);
+    expect(screen.getByRole("link", { name: "home" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "tasks" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "agents" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "chats" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "projects" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "search" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "home" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "agents" })).toBeNull();
   });
 
   it("sets aria-current on the Chats link for /chat", () => {
@@ -130,13 +131,16 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  it("sets aria-current on Agents for /agents", () => {
-    mockPathname = "/agents";
+  it("sets aria-current on Home for /", () => {
+    mockPathname = "/";
     render(<ChatMobileBottomNav />);
 
-    expect(screen.getByRole("link", { name: "agents" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
       "page",
+    );
+    expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
+      "aria-current",
     );
   });
 
@@ -163,11 +167,24 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  it("does not set aria-current on any tab for Welcome home", () => {
-    mockPathname = "/";
+  it("sets aria-current on Home for /agents", () => {
+    mockPathname = "/agents";
     render(<ChatMobileBottomNav />);
 
-    for (const name of ["tasks", "agents", "chats", "projects", "search"]) {
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("does not set aria-current on any tab for unmatched paths", () => {
+    mockPathname = "/account";
+    render(<ChatMobileBottomNav />);
+
+    for (const name of ["home", "tasks", "chats", "projects", "search"]) {
       expect(screen.getByRole("link", { name })).not.toHaveAttribute(
         "aria-current",
       );

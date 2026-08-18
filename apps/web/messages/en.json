@@ -1254,77 +1254,6 @@
       }
     }
   },
-  "Onboarding": {
-    "Metadata": {
-      "title": "Welcome to Sokosumi",
-      "description": "Invite your colleagues and earn $10 in credits for each, up to a maximum of $40."
-    },
-    "Dialog": {
-      "navigation": {
-        "skip": "Skip",
-        "back": "Back",
-        "next": "Next",
-        "getStarted": "Get Started",
-        "subscribe": "Subscribe"
-      },
-      "coworkerTooltip": "{name} · {role}",
-      "defaultRole": "Coworker",
-      "alt": {
-        "coworkerAvatar": "{name} avatar"
-      },
-      "welcome": {
-        "coworkersSummary": "{first}, {second} & more"
-      },
-      "intro": {
-        "welcome": {
-          "title": "Welcome to Sokosumi",
-          "description": "Your AI marketing hub. Meet your new coworkers - they are ready to get to work."
-        },
-        "chat": {
-          "title": "Tell Them What You Need",
-          "description": "Chat naturally with your coworkers. Describe what you need and they will take it from there."
-        },
-        "taskboard": {
-          "title": "Work Gets Organized",
-          "description": "Your coworker creates tasks, tracks progress on the Taskboard, and keeps everything on track."
-        },
-        "orchestration": {
-          "title": "They Handle the Rest",
-          "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
-        },
-        "plans": {
-          "title": "Pick the plan that helps you grow faster",
-          "description": "Start with a paid plan to unlock more credits, more capable coworkers, and premium features from day one."
-        }
-      },
-      "visuals": {
-        "chat": {
-          "userMessage": "Create a marketing campaign for our product launch",
-          "reply": "On it! I will research the market and draft a campaign strategy."
-        },
-        "taskboard": {
-          "taskTitle": "Marketing campaign",
-          "todo": "Todo",
-          "inProgress": "In Progress"
-        },
-        "orchestration": {
-          "hires": "Hires",
-          "workDelivered": "Work delivered",
-          "agents": {
-            "research": "Research",
-            "writing": "Writing",
-            "analytics": "Analytics"
-          }
-        }
-      }
-    },
-    "Actions": {
-      "Errors": {
-        "failedToComplete": "Failed to complete onboarding",
-        "unexpectedError": "An unexpected error occurred"
-      }
-    }
-  },
   "App": {
     "enabled": "Enabled",
     "disabled": "Disabled",
@@ -1513,10 +1442,11 @@
       "Landing": {
         "greeting": "Welcome!",
         "greetingWithName": "Welcome, {name}!",
-        "intro": "Work with AI coworkers. You say what needs doing; they plan it and get it done.",
+        "intro": "Say what needs doing and they get it done.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
+          "searchAgents": "Search Agents",
           "opening": "Opening chat…",
           "error": "Could not open the chat. Please try again."
         },
@@ -1531,9 +1461,11 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Available coworkers",
-          "select": "Select {name}",
-          "showMore": "More",
-          "showLess": "Less"
+          "select": "Select {name}"
+        },
+        "searchAgents": {
+          "label": "Search",
+          "subtitle": "Specialized Agents"
         }
       }
     },
@@ -4904,7 +4836,9 @@
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
-        "goHome": "Go to home"
+        "goHome": "Go to home",
+        "home": "Home",
+        "searchAgents": "Search agents"
       },
       "Actions": {
         "more": "Message actions",
@@ -5568,14 +5502,37 @@
   "WorkspaceGate": {
     "title": "Set up your workspace",
     "identityTitle": "Create your first workspace",
-    "identityDescription": "You need a workspace before you can use Sokosumi.",
+    "identityDescription": "Confirm your name and choose how you want to start.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Organization invitations are waiting for you. Finishing them is not available on this screen yet.",
+    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization. You will skip identity onboarding.",
     "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
     "signOut": "Sign out",
     "unavailableTitle": "We could not check your workspace access",
     "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "Identity": {
+      "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "Your name",
+      "choiceLabel": "How do you want to start?",
+      "personalTitle": "Personal workspace",
+      "personalDescription": "Work on your own. You can join or create an organization later.",
+      "organizationTitle": "Organization",
+      "organizationDescription": "Set up a shared workspace for your team.",
+      "createPersonal": "Create personal workspace",
+      "continue": "Continue",
+      "nameUpdateError": "We could not update your display name.",
+      "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",
+      "personalCreateError": "We could not create your personal workspace."
+    },
+    "Pending": {
+      "accept": "Accept",
+      "join": "Join",
+      "rejectAll": "Reject all",
+      "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
+      "acceptError": "We could not accept that invitation.",
+      "joinError": "We could not join that organization.",
+      "rejectError": "We could not reject the remaining invitations."
+    }
   }
 }

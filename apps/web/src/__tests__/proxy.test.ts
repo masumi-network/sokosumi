@@ -118,4 +118,75 @@ describe("proxy", () => {
       CROSS_ORIGIN_OPENER_POLICY,
     );
   });
+
+  it("expires the retired subscription onboarding gate cookie when present", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../proxy");
+    const { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } = await import(
+      "@/lib/retired-onboarding-storage"
+    );
+    const request = new NextRequest(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/agents",
+    );
+    request.cookies.set(
+      RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
+      "sess-1",
+    );
+
+    const response = await proxy(request);
+    const setCookie = [
+      ...response.headers.getSetCookie(),
+      response.headers.get("set-cookie") ?? "",
+    ].join("\n");
+
+    expect(setCookie).toContain(
+      RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
+    );
+    expect(setCookie).toMatch(/Max-Age=0/i);
+    expect(setCookie).toMatch(/Path=\//i);
+  });
+
+  it("sets a session join cookie on /join/:token without requiring a session", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../proxy");
+    const { PENDING_ORGANIZATION_JOIN_COOKIE_NAME } = await import(
+      "@/lib/pending-organization-join-cookie"
+    );
+    getSessionCookieMock.mockReturnValue(null);
+    const request = new NextRequest(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/join/join_token_1",
+    );
+
+    const response = await proxy(request);
+    const setCookie = [
+      ...response.headers.getSetCookie(),
+      response.headers.get("set-cookie") ?? "",
+    ].join("\n");
+
+    expect(setCookie).toContain(PENDING_ORGANIZATION_JOIN_COOKIE_NAME);
+    expect(setCookie).toContain("join_token_1");
+    expect(setCookie).toMatch(/HttpOnly/i);
+    expect(setCookie).not.toMatch(/Max-Age=/i);
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it("does not emit the retired gate cookie when it is already absent", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../proxy");
+    const { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } = await import(
+      "@/lib/retired-onboarding-storage"
+    );
+    const request = new NextRequest(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/agents",
+    );
+
+    const response = await proxy(request);
+
+    expect(
+      response.cookies.get(RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME),
+    ).toBeUndefined();
+    expect(response.headers.getSetCookie().join("\n")).not.toContain(
+      RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
+    );
+  });
 });

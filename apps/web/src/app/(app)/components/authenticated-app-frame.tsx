@@ -27,6 +27,7 @@ import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
+import { RetiredOnboardingStorageHydrator } from "./shell-hydrators.client";
 
 const EMPTY_COWORKERS: Coworker[] = [];
 const EMPTY_NOTICES: Notice[] = [];
@@ -71,6 +72,7 @@ export default async function AuthenticatedAppFrame({
             >
               <NotificationToaster />
               <LoginAccountNoticeToast />
+              <RetiredOnboardingStorageHydrator />
               <HistorySearchDialogProvider
                 activeOrganizationId={activeOrganizationId}
               >
@@ -81,7 +83,7 @@ export default async function AuthenticatedAppFrame({
                     adminMenuEnabled={adminMenuEnabled}
                   />
                   <Suspense fallback={null}>
-                    <AppShellOverlays session={session} />
+                    <AppShellOverlays />
                   </Suspense>
                   <div
                     className="flex min-w-0 flex-1 overflow-clip"

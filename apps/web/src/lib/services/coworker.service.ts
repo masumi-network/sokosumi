@@ -12,8 +12,8 @@ export const coworkerService = (() => {
     capability?: CoworkerCapability,
   ): Promise<Coworker[]> {
     const response = await coreClient.getCoworkers({
-      // Product pickers: whitelist ∪ GRANTED for active workspace.
-      // Admin/developer owned|all scopes use other services.
+      // Product pickers: whitelist ∪ GRANTED for active workspace, then
+      // chat-capable + runnable endpoint (`coworkerCanChat`).
       scope: "available",
       ...(capability && {
         capability: [capability],

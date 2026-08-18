@@ -49,5 +49,8 @@ describe("isCoworkerAllowedUserSubpath", () => {
       false,
     );
     expect(isCoworkerAllowedUserSubpath("/files")).toBe(false);
+    expect(
+      isCoworkerAllowedUserSubpath("/pending-organization-invitations"),
+    ).toBe(false);
   });
 });

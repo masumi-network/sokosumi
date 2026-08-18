@@ -1,9 +1,6 @@
 import { getFirstName } from "@sokosumi/utils";
 
-import {
-  findDefaultCoworker,
-  getCoworkerImageUrl,
-} from "@/app/chat/utils/coworker-utils";
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { canUseNextImageSrc } from "@/config/next-image";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
@@ -17,62 +14,42 @@ export function resolveLandingGreetingName(
   return getFirstName(userName) ?? null;
 }
 
-/**
- * Elena fronts the product: she is the coworker who takes a goal and turns it
- * into work, which is the idea the welcome exists to land.
- */
-const FEATURED_COWORKER_SLUG = "elena";
+function coworkerPriority(coworker: Pick<Coworker, "priority">): number {
+  return coworker.priority ?? 0;
+}
 
-function isElenaCoworker(coworker: Pick<Coworker, "slug">): boolean {
-  return coworker.slug?.toLowerCase() === FEATURED_COWORKER_SLUG;
+/**
+ * Higher Core `priority` first. Slug is the stable tie-break so the
+ * featured face cannot flicker across renders.
+ */
+export function compareCoworkerRank(
+  left: Pick<Coworker, "priority" | "slug">,
+  right: Pick<Coworker, "priority" | "slug">,
+): number {
+  const byPriority = coworkerPriority(right) - coworkerPriority(left);
+  if (byPriority !== 0) {
+    return byPriority;
+  }
+  return (left.slug ?? "").localeCompare(right.slug ?? "");
 }
 
 /**
  * Shared between the desktop landing and the mobile welcome so the two cannot
  * disagree about who is featured, which faces appear, or which stats show.
+ *
+ * Featured = highest Core `priority`. Ties break on slug. Always the
+ * optical-middle face on the strip.
  */
 export function resolveFeaturedCoworker(
   coworkers: Coworker[],
 ): Coworker | null {
-  const featured = coworkers.find((coworker) => isElenaCoworker(coworker));
-
-  // Elena is not guaranteed: `scope=available` is whitelist ∪ granted access,
-  // and chat additionally needs a runnable endpoint. Lead with whoever is there.
-  return featured ?? findDefaultCoworker(coworkers);
-}
-
-/**
- * Body copy above Start chat. DB `description` only — never caption/useCase.
- * Name + role stay under the strip avatar; the selected block does not repeat them.
- */
-export function selectedCoworkerDescription(
-  coworker: Pick<Coworker, "description">,
-): string | null {
-  return nonEmptySpecialty(coworker.description);
-}
-
-/** Collapsed landing description budget (~3 lines of body copy). */
-export const LANDING_DESCRIPTION_MAX_CHARS = 180;
-
-/**
- * Truncate a landing description for the collapsed state.
- * Returns the full string when it already fits; otherwise a word-aware preview
- * capped near `maxChars` with an ellipsis, and `isTruncated: true`.
- */
-export function clampLandingDescription(
-  description: string,
-  maxChars: number = LANDING_DESCRIPTION_MAX_CHARS,
-): { isTruncated: boolean; preview: string } {
-  if (description.length <= maxChars) {
-    return { isTruncated: false, preview: description };
+  if (coworkers.length === 0) {
+    return null;
   }
 
-  const slice = description.slice(0, maxChars);
-  const lastSpace = slice.lastIndexOf(" ");
-  const cut =
-    lastSpace > Math.floor(maxChars * 0.6) ? slice.slice(0, lastSpace) : slice;
-
-  return { isTruncated: true, preview: `${cut.trimEnd()}…` };
+  return coworkers.reduce((best, current) =>
+    compareCoworkerRank(current, best) < 0 ? current : best,
+  );
 }
 
 function nonEmptySpecialty(value: null | string | undefined): null | string {
@@ -99,9 +76,10 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 }
 
 /**
- * Full catalog ordered with the featured coworker (Elena / fallback) in the
- * optical middle. Odd counts → exact centre; even → left of the two centre
- * slots (`floor(others/2)` flanks left). Never drops anyone.
+ * Diamond around the featured coworker (highest `priority`): next ranks
+ * alternate left, then right, walking outward. Always an odd length so the
+ * lead face is the exact centre — if the catalog is even, the lowest-priority
+ * coworker is dropped. Edges are the lowest remaining ranks. Each face once.
  *
  * Empty when nothing is featured — the strip only renders with a lead face.
  */
@@ -113,10 +91,25 @@ export function orderStripCoworkers(
     return [];
   }
 
-  const others = coworkers.filter((coworker) => coworker.id !== featured.id);
-  const leftCount = Math.floor(others.length / 2);
-  const left = others.slice(0, leftCount);
-  const right = others.slice(leftCount);
+  const others = coworkers
+    .filter((coworker) => coworker.id !== featured.id)
+    .slice()
+    .sort(compareCoworkerRank);
+
+  // featured + odd others = even total; drop the lowest rank so centre is exact.
+  if (others.length % 2 === 1) {
+    others.pop();
+  }
+
+  const left: Coworker[] = [];
+  const right: Coworker[] = [];
+  for (const [index, coworker] of others.entries()) {
+    if (index % 2 === 0) {
+      left.unshift(coworker);
+    } else {
+      right.push(coworker);
+    }
+  }
 
   return [...left, featured, ...right].map(toStripCoworker);
 }

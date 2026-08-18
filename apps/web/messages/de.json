@@ -1254,77 +1254,6 @@
       }
     }
   },
-  "Onboarding": {
-    "Metadata": {
-      "title": "Willkommen bei Sokosumi",
-      "description": "Lade Kolleg:innen ein und erhalte 10 $ in Credits pro Person, bis zu maximal 40 $."
-    },
-    "Dialog": {
-      "navigation": {
-        "skip": "Überspringen",
-        "back": "Zurück",
-        "next": "Weiter",
-        "getStarted": "Loslegen",
-        "subscribe": "Abonnieren"
-      },
-      "coworkerTooltip": "{name} · {role}",
-      "defaultRole": "Coworker",
-      "alt": {
-        "coworkerAvatar": "{name}-Avatar"
-      },
-      "welcome": {
-        "coworkersSummary": "{first}, {second} & mehr"
-      },
-      "intro": {
-        "welcome": {
-          "title": "Willkommen bei Sokosumi",
-          "description": "Dein KI-Marketing-Hub. Lerne deine neuen Mitarbeiter kennen – sie sind bereit loszulegen."
-        },
-        "chat": {
-          "title": "Sag ihnen, was du brauchst",
-          "description": "Chatte natürlich mit deinen Coworkern. Beschreibe, was du brauchst, und sie erledigen den Rest."
-        },
-        "taskboard": {
-          "title": "Arbeit wird organisiert",
-          "description": "Dein Coworker erstellt Tasks, verfolgt den Fortschritt im Taskboard und behält alles im Blick."
-        },
-        "orchestration": {
-          "title": "Sie übernehmen den Rest",
-          "description": "Dein Coworker beauftragt spezialisierte Agents zum Recherchieren, Schreiben, Analysieren – je nach Aufgabe."
-        },
-        "plans": {
-          "title": "Wähle den Plan, mit dem du schneller wachsen kannst",
-          "description": "Starte mit einem kostenpflichtigen Plan, um mehr Credits, leistungsstärkere Coworker und Premium-Funktionen ab dem ersten Tag freizuschalten."
-        }
-      },
-      "visuals": {
-        "chat": {
-          "userMessage": "Erstelle eine Marketingkampagne für unseren Produktlaunch",
-          "reply": "Ich kümmere mich darum! Ich recherchiere den Markt und entwerfe eine Kampagnenstrategie."
-        },
-        "taskboard": {
-          "taskTitle": "Marketingkampagne",
-          "todo": "Offen",
-          "inProgress": "In Bearbeitung"
-        },
-        "orchestration": {
-          "hires": "Beauftragt",
-          "workDelivered": "Arbeit geliefert",
-          "agents": {
-            "research": "Recherche",
-            "writing": "Texterstellung",
-            "analytics": "Analytics"
-          }
-        }
-      }
-    },
-    "Actions": {
-      "Errors": {
-        "failedToComplete": "Onboarding konnte nicht abgeschlossen werden",
-        "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten"
-      }
-    }
-  },
   "App": {
     "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
@@ -1513,10 +1442,11 @@
       "Landing": {
         "greeting": "Willkommen!",
         "greetingWithName": "Willkommen, {name}!",
-        "intro": "Arbeite mit KI-Coworkern. Du sagst, was zu tun ist; sie planen es und erledigen es.",
+        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
+          "searchAgents": "Agenten suchen",
           "opening": "Chat wird geöffnet…",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
@@ -1531,9 +1461,11 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen",
-          "showMore": "Mehr",
-          "showLess": "Weniger"
+          "select": "{name} auswählen"
+        },
+        "searchAgents": {
+          "label": "Suchen",
+          "subtitle": "Spezialisierte Agenten"
         }
       }
     },
@@ -4904,7 +4836,9 @@
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück",
-        "goHome": "Zur Startseite"
+        "goHome": "Zur Startseite",
+        "home": "Startseite",
+        "searchAgents": "Agenten suchen"
       },
       "Actions": {
         "more": "Nachrichtenaktionen",
@@ -5568,14 +5502,37 @@
   "WorkspaceGate": {
     "title": "Workspace einrichten",
     "identityTitle": "Erstelle deinen ersten Workspace",
-    "identityDescription": "Du brauchst einen Workspace, bevor du Sokosumi nutzen kannst.",
+    "identityDescription": "Bestätige deinen Namen und wähle, wie du starten möchtest.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
-    "pendingInvitesDescription": "Es warten Organisations-Einladungen auf dich. Sie können auf diesem Bildschirm noch nicht bearbeitet werden.",
+    "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen. Die Identitäts-Einrichtung wird übersprungen.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
     "signOut": "Abmelden",
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
     "unavailableDescription": "Sokosumi konnte deinen Workspace-Status gerade nicht laden. Das ist vorübergehend — du bist nicht wegen eines fehlenden Workspace ausgesperrt.",
     "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "Identity": {
+      "displayNameLabel": "Anzeigename",
+      "displayNamePlaceholder": "Dein Name",
+      "choiceLabel": "Wie möchtest du starten?",
+      "personalTitle": "Persönlicher Workspace",
+      "personalDescription": "Arbeite für dich allein. Du kannst später einer Organisation beitreten oder eine erstellen.",
+      "organizationTitle": "Organisation",
+      "organizationDescription": "Richte einen gemeinsamen Workspace für dein Team ein.",
+      "createPersonal": "Persönlichen Workspace erstellen",
+      "continue": "Weiter",
+      "nameUpdateError": "Dein Anzeigename konnte nicht aktualisiert werden.",
+      "organizationActivateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Workspace wechseln, sobald du im Produkt bist.",
+      "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden."
+    },
+    "Pending": {
+      "accept": "Annehmen",
+      "join": "Beitreten",
+      "rejectAll": "Alle ablehnen",
+      "rejectAllHint": "Wenn du alle Einladungen ablehnst, kannst du einen eigenen ersten Workspace erstellen.",
+      "acceptError": "Die Einladung konnte nicht angenommen werden.",
+      "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
+      "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden."
+    }
   }
 }

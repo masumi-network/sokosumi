@@ -52,4 +52,17 @@ describe("users routes OpenAPI contract", () => {
       doc.paths?.["/{id}/organizations/{organizationId}/credits"]?.get,
     ).toBeDefined();
   });
+
+  it("does not mount GET/POST /{id}/onboarding (onboardingCompleted retired)", () => {
+    const doc = usersRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Users API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(doc.paths?.["/{id}/onboarding"]?.get).toBeUndefined();
+    expect(doc.paths?.["/{id}/onboarding"]?.post).toBeUndefined();
+  });
 });

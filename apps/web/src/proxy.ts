@@ -4,6 +4,11 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  applyPendingOrganizationJoinCookie,
+  joinTokenFromJoinPath,
+} from "@/lib/pending-organization-join-cookie";
+import { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } from "@/lib/retired-onboarding-storage";
 
 const EXCLUDED_PATHS = [
   "/auth/",
@@ -31,6 +36,23 @@ const EXCLUDED_PATHS = [
   "/composio/callback",
 ];
 
+function expireRetiredOnboardingGateCookie(
+  request: NextRequest,
+  response: NextResponse,
+): NextResponse {
+  if (request.cookies.has(RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME)) {
+    response.cookies.set({
+      name: RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
+      value: "",
+      path: "/",
+      maxAge: 0,
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+    });
+  }
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
@@ -45,13 +67,19 @@ export async function proxy(request: NextRequest) {
   const isMaintenanceMode = env.MAINTENANCE_MODE;
   if (isMaintenanceMode) {
     if (pathname.startsWith("/api")) {
-      return NextResponse.json(
-        { error: "Service is under maintenance" },
-        { status: 503 },
+      return expireRetiredOnboardingGateCookie(
+        request,
+        NextResponse.json(
+          { error: "Service is under maintenance" },
+          { status: 503 },
+        ),
       );
     }
     if (pathname !== "/maintenance") {
-      return NextResponse.redirect(new URL("/maintenance", request.url));
+      return expireRetiredOnboardingGateCookie(
+        request,
+        NextResponse.redirect(new URL("/maintenance", request.url)),
+      );
     }
   }
 
@@ -70,7 +98,7 @@ export async function proxy(request: NextRequest) {
         new URL(`/signin?returnUrl=${returnUrl}`, request.url),
       );
       applyDocumentSecurityHeaders(redirectResponse);
-      return redirectResponse;
+      return expireRetiredOnboardingGateCookie(request, redirectResponse);
     }
   }
 
@@ -80,9 +108,19 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-search-params", searchParams);
   applyDocumentSecurityHeaders(response);
 
+  // Persist `/join/:token` on the response (not an RSC cookies().set).
+  const joinToken = joinTokenFromJoinPath(pathname);
+  if (joinToken) {
+    applyPendingOrganizationJoinCookie(
+      response.cookies,
+      joinToken,
+      request.nextUrl.protocol === "https:",
+    );
+  }
+
   // Skip session check for excluded paths (but still set headers above)
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
-    return response;
+    return expireRetiredOnboardingGateCookie(request, response);
   }
 
   // Check session for protected routes
@@ -92,16 +130,18 @@ export async function proxy(request: NextRequest) {
   if (!sessionCookie) {
     const currentUrl = pathname + searchParams;
     const returnUrl = encodeURIComponent(currentUrl);
-    return NextResponse.redirect(
-      new URL(`/signin?returnUrl=${returnUrl}`, request.url),
+    return expireRetiredOnboardingGateCookie(
+      request,
+      NextResponse.redirect(
+        new URL(`/signin?returnUrl=${returnUrl}`, request.url),
+      ),
     );
   }
 
-  // Workspace gate (not ready → /workspace-gate) is enforced server-side in
-  // AuthenticatedAppFrame via Core workspace access. Legacy intro onboarding
-  // still mounts as an in-app dialog for ready users until SOK-799.
+  // Workspace gate (not ready → /setup) is enforced server-side in
+  // AuthenticatedAppFrame via Core workspace access.
 
-  return response;
+  return expireRetiredOnboardingGateCookie(request, response);
 }
 
 export const config = {

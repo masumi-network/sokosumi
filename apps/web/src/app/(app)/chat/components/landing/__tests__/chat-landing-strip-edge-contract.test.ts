@@ -35,6 +35,17 @@ describe("chat landing coworker strip edge-to-edge contract", () => {
     },
   );
 
+  it("desktop landing cancels app-main p-4 and does not cap strip width", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "chat-landing.tsx"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/-mx-4/);
+    expect(source).not.toMatch(/max-w-6xl/);
+    expect(source).not.toMatch(/overflow-y-auto[^\n]*max-w-/);
+  });
+
   it("mobile section itself is not the horizontal pad wrapper", () => {
     const source = readFileSync(
       join(import.meta.dirname, "..", "chat-landing.mobile.tsx"),

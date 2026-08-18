@@ -25,8 +25,8 @@ interface ChatLandingProps {
  * decisions from `landing-content`, larger strip and type. Owns `/chat` at
  * `md` and up.
  *
- * Middle column is top-aligned so description length cannot re-center Start
- * chat. Stats stay `shrink-0` at the bottom of the viewport-tall column —
+ * Middle column is top-aligned so Start chat stays put across coworker
+ * selection. Stats stay `shrink-0` at the bottom of the viewport-tall column —
  * always mounted, including zero chips — so the first view keeps the row.
  */
 export async function ChatLanding({
@@ -43,10 +43,10 @@ export async function ChatLanding({
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
-    // No middle-column `px-*`: pad pitch + stats + selected block only so the
-    // coworker strip can span the full content width. Padding on an overflow-y
-    // ancestor clips edge faces (overflow-x becomes auto with overflow-y).
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch">
+    // `-mx-4` cancels app-main `p-4` so the strip can use the full content
+    // pane. No middle-column `px-*` / `max-w-*`: pad pitch + stats + CTA only.
+    // Padding on an overflow-y ancestor clips edge faces.
+    <div className="-mx-4 flex h-full min-h-0 w-[calc(100%+2rem)] min-w-0 flex-1 flex-col items-stretch pt-10 lg:pt-16">
       <SokosumiIcon
         animated={false}
         className="text-foreground shrink-0 self-center"
@@ -54,12 +54,12 @@ export async function ChatLanding({
         width={48}
       />
 
-      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-start overflow-y-auto py-6 text-center">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-8 text-center lg:py-12">
         <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance md:text-4xl">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 
-        <p className="text-muted-foreground mx-auto mt-4 max-w-[62ch] shrink-0 px-4 text-base leading-[1.65] text-balance md:text-lg">
+        <p className="text-muted-foreground mt-4 shrink-0 px-4 text-base leading-[1.65] md:mt-6 md:text-lg md:whitespace-nowrap">
           {t("intro")}
         </p>
 

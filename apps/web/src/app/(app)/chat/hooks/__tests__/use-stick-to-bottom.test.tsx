@@ -86,7 +86,7 @@ function Harness({ resetKey }: { resetKey: string | null }) {
       <button type="button" onClick={scrollToBottomIfPinned}>
         pin-scroll
       </button>
-      <button type="button" onClick={pinToBottomAfterOwnSend}>
+      <button type="button" onClick={() => pinToBottomAfterOwnSend()}>
         own-send-pin
       </button>
     </div>

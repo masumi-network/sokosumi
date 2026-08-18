@@ -116,25 +116,6 @@ export const userRepository = {
   },
 
   /**
-   * Updates the onboarding completed flag for a user.
-   *
-   * @param userId - The unique identifier of the user.
-   * @param onboardingCompleted - The new onboarding completed status.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to the updated User object.
-   */
-  updateUserOnboardingCompleted: async (
-    userId: string,
-    onboardingCompleted: boolean,
-    tx: Prisma.TransactionClient,
-  ): Promise<User> => {
-    return tx.user.update({
-      where: { id: userId },
-      data: { onboardingCompleted },
-    });
-  },
-
-  /**
    * Updates the preferred organization for a user.
    *
    * @param userId - The unique identifier of the user.

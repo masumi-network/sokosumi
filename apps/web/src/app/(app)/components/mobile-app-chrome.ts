@@ -73,7 +73,7 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
 
 /**
  * Back target for main list routes and their nested pages.
- * Tab list roots → null; non-tab hub roots → Chats; nested → list root.
+ * Tab list roots → null; Agents root → home; non-tab hub roots → Chats; nested → list root.
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
@@ -86,6 +86,9 @@ export function resolveMobileAppBackTarget(
     return null;
   }
   if (pathname === root) {
+    if (root === "/agents") {
+      return { href: "/", labelKey: "back" };
+    }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
       return null;
     }
@@ -125,7 +128,7 @@ export function shouldShowMobileBottomNav(
 
 /**
  * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
- * root (Tasks / Agents / Projects / Search). Nested pages keep back.
+ * root (Tasks / Projects / Search). Agents shows back to home. Nested pages keep back.
  */
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,
@@ -136,6 +139,9 @@ export function shouldShowMobileBrandLeading(
     return true;
   }
   if (!pathname) {
+    return false;
+  }
+  if (pathname === "/agents") {
     return false;
   }
   return MOBILE_TAB_LIST_PATH_SET.has(pathname);

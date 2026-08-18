@@ -2634,6 +2634,13 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
+export type PersonalWorkspaceCreated = {
+    /**
+     * Id of the newly created personal workspace
+     */
+    workspaceId: string;
+};
+
 export type WorkspaceAccess = {
     gate: WorkspaceGateStatus;
     /**
@@ -2663,6 +2670,42 @@ export const WorkspaceGateStatus = {
  * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
  */
 export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
+
+export type UserPendingOrganizationInvitations = Array<UserPendingOrganizationInvitation>;
+
+export type UserPendingOrganizationInvitation = {
+    id: string;
+    organizationId: string;
+    email: string;
+    /**
+     * Organization member role, or null when absent
+     */
+    role: MemberRole | null;
+    status: InvitationStatus;
+    expiresAt: Date;
+    createdAt: Date;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+        logo: string | null;
+    };
+};
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export const InvitationStatus = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    REJECTED: 'rejected',
+    CANCELED: 'canceled'
+} as const;
+
+/**
+ * Invitation lifecycle status stored in the database
+ */
+export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
 
 export type Notice = {
     id: string;
@@ -2950,21 +2993,6 @@ export type PendingInvitation = {
     inviterId: string;
     createdAt: Date;
 };
-
-/**
- * Invitation lifecycle status stored in the database
- */
-export const InvitationStatus = {
-    PENDING: 'pending',
-    ACCEPTED: 'accepted',
-    REJECTED: 'rejected',
-    CANCELED: 'canceled'
-} as const;
-
-/**
- * Invitation lifecycle status stored in the database
- */
-export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
 
 export type OrganizationInviteLink = {
     token: string;
@@ -19052,6 +19080,109 @@ export type PutUsersByIdPreferredOrganizationResponses = {
 
 export type PutUsersByIdPreferredOrganizationResponse = PutUsersByIdPreferredOrganizationResponses[keyof PutUsersByIdPreferredOrganizationResponses];
 
+export type PostUsersByIdPersonalWorkspaceData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/personal-workspace';
+};
+
+export type PostUsersByIdPersonalWorkspaceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - Personal workspace already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdPersonalWorkspaceError = PostUsersByIdPersonalWorkspaceErrors[keyof PostUsersByIdPersonalWorkspaceErrors];
+
+export type PostUsersByIdPersonalWorkspaceResponses = {
+    /**
+     * Personal workspace created
+     */
+    201: {
+        data: PersonalWorkspaceCreated;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdPersonalWorkspaceResponse = PostUsersByIdPersonalWorkspaceResponses[keyof PostUsersByIdPersonalWorkspaceResponses];
+
 export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
@@ -19166,194 +19297,6 @@ export type DeleteUsersByIdOauthConsentsByConsentIdResponses = {
 
 export type DeleteUsersByIdOauthConsentsByConsentIdResponse = DeleteUsersByIdOauthConsentsByConsentIdResponses[keyof DeleteUsersByIdOauthConsentsByConsentIdResponses];
 
-export type GetUsersByIdOnboardingData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/onboarding';
-};
-
-export type GetUsersByIdOnboardingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdOnboardingError = GetUsersByIdOnboardingErrors[keyof GetUsersByIdOnboardingErrors];
-
-export type GetUsersByIdOnboardingResponses = {
-    /**
-     * Retrieve the user's onboarding status
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdOnboardingResponse = GetUsersByIdOnboardingResponses[keyof GetUsersByIdOnboardingResponses];
-
-export type PostUsersByIdOnboardingData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/onboarding';
-};
-
-export type PostUsersByIdOnboardingErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdOnboardingError = PostUsersByIdOnboardingErrors[keyof PostUsersByIdOnboardingErrors];
-
-export type PostUsersByIdOnboardingResponses = {
-    /**
-     * Complete onboarding for the user
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
-
 export type GetUsersByIdWorkspaceAccessData = {
     body?: never;
     path: {
@@ -19442,6 +19385,95 @@ export type GetUsersByIdWorkspaceAccessResponses = {
 };
 
 export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
+
+export type GetUsersByIdPendingOrganizationInvitationsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/pending-organization-invitations';
+};
+
+export type GetUsersByIdPendingOrganizationInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPendingOrganizationInvitationsError = GetUsersByIdPendingOrganizationInvitationsErrors[keyof GetUsersByIdPendingOrganizationInvitationsErrors];
+
+export type GetUsersByIdPendingOrganizationInvitationsResponses = {
+    /**
+     * List pending organization invitations for the user
+     */
+    200: {
+        data: UserPendingOrganizationInvitations;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPendingOrganizationInvitationsResponse = GetUsersByIdPendingOrganizationInvitationsResponses[keyof GetUsersByIdPendingOrganizationInvitationsResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;

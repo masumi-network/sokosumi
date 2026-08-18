@@ -1254,77 +1254,6 @@
       }
     }
   },
-  "Onboarding": {
-    "Metadata": {
-      "title": "Bienvenido a Sokosumi",
-      "description": "Invita a compañeros y recibe $10 en Credits por persona, hasta un máximo de $40."
-    },
-    "Dialog": {
-      "navigation": {
-        "skip": "Omitir",
-        "back": "Atrás",
-        "next": "Siguiente",
-        "getStarted": "Empezar",
-        "subscribe": "Suscribirse"
-      },
-      "coworkerTooltip": "{name} · {role}",
-      "defaultRole": "Coworker",
-      "alt": {
-        "coworkerAvatar": "Avatar de {name}"
-      },
-      "welcome": {
-        "coworkersSummary": "{first}, {second} y más"
-      },
-      "intro": {
-        "welcome": {
-          "title": "Bienvenido a Sokosumi",
-          "description": "Tu hub de marketing con AI. Conoce a tus nuevos compañeros de trabajo, listos para ponerse en marcha."
-        },
-        "chat": {
-          "title": "Diles lo que necesitas",
-          "description": "Chatea de forma natural con tus Coworkers. Describe lo que necesitas y ellos se encargan del resto."
-        },
-        "taskboard": {
-          "title": "El trabajo se organiza solo",
-          "description": "Tu Coworker crea Tasks, hace seguimiento del progreso en el taskboard y lo mantiene todo bajo control."
-        },
-        "orchestration": {
-          "title": "Ellos se encargan del resto",
-          "description": "Tu Coworker contrata Agents especializados para investigar, escribir, analizar, según la tarea."
-        },
-        "plans": {
-          "title": "Elige el plan que te ayude a crecer más rápido",
-          "description": "Empieza con un plan de pago para desbloquear más Credits, Coworkers más capaces y funciones premium desde el primer día."
-        }
-      },
-      "visuals": {
-        "chat": {
-          "userMessage": "Crea una campaña de marketing para nuestro lanzamiento de producto",
-          "reply": "¡Me encargo! Voy a investigar el mercado y diseñar una estrategia de campaña."
-        },
-        "taskboard": {
-          "taskTitle": "Campaña de marketing",
-          "todo": "Por hacer",
-          "inProgress": "En proceso"
-        },
-        "orchestration": {
-          "hires": "Contratado",
-          "workDelivered": "Trabajo entregado",
-          "agents": {
-            "research": "Investigación",
-            "writing": "Redacción",
-            "analytics": "Analytics"
-          }
-        }
-      }
-    },
-    "Actions": {
-      "Errors": {
-        "failedToComplete": "No se pudo completar el onboarding",
-        "unexpectedError": "Ocurrió un error inesperado"
-      }
-    }
-  },
   "App": {
     "enabled": "Activado",
     "disabled": "Desactivado",
@@ -1513,10 +1442,11 @@
       "Landing": {
         "greeting": "¡Bienvenido!",
         "greetingWithName": "¡Bienvenido, {name}!",
-        "intro": "Trabaja con compañeros de IA. Tú dices qué hace falta; ellos lo planifican y lo hacen.",
+        "intro": "Di qué hay que hacer y ellos lo hacen.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
+          "searchAgents": "Buscar Agentes",
           "opening": "Abriendo el chat…",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
@@ -1531,9 +1461,11 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}",
-          "showMore": "Más",
-          "showLess": "Menos"
+          "select": "Seleccionar a {name}"
+        },
+        "searchAgents": {
+          "label": "Buscar",
+          "subtitle": "Agentes Especializados"
         }
       }
     },
@@ -4904,7 +4836,9 @@
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
         "back": "Volver",
-        "goHome": "Ir al inicio"
+        "goHome": "Ir al inicio",
+        "home": "Inicio",
+        "searchAgents": "Buscar agentes"
       },
       "Actions": {
         "more": "Acciones del mensaje",
@@ -5568,14 +5502,37 @@
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "Crea tu primer espacio de trabajo",
-    "identityDescription": "Necesitas un espacio de trabajo antes de usar Sokosumi.",
+    "identityDescription": "Confirma tu nombre y elige cómo quieres empezar.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
-    "pendingInvitesDescription": "Hay invitaciones de organización pendientes. Aún no se pueden gestionar en esta pantalla.",
+    "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización. Se omite la configuración de identidad.",
     "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
     "signOut": "Cerrar sesión",
     "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
     "unavailableDescription": "Sokosumi no pudo cargar el estado de tu espacio de trabajo ahora. Es temporal: no estás bloqueado por no tener un espacio de trabajo.",
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "Identity": {
+      "displayNameLabel": "Nombre para mostrar",
+      "displayNamePlaceholder": "Tu nombre",
+      "choiceLabel": "¿Cómo quieres empezar?",
+      "personalTitle": "Espacio personal",
+      "personalDescription": "Trabaja por tu cuenta. Más adelante puedes unirte o crear una organización.",
+      "organizationTitle": "Organización",
+      "organizationDescription": "Configura un espacio compartido para tu equipo.",
+      "createPersonal": "Crear espacio personal",
+      "continue": "Continuar",
+      "nameUpdateError": "No pudimos actualizar tu nombre para mostrar.",
+      "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
+      "personalCreateError": "No pudimos crear tu espacio de trabajo personal."
+    },
+    "Pending": {
+      "accept": "Aceptar",
+      "join": "Unirse",
+      "rejectAll": "Rechazar todas",
+      "rejectAllHint": "Si rechazas todas las invitaciones, podrás crear tu primer espacio de trabajo.",
+      "acceptError": "No pudimos aceptar esa invitación.",
+      "joinError": "No pudimos unirte a esa organización.",
+      "rejectError": "No pudimos rechazar las invitaciones restantes."
+    }
   }
 }

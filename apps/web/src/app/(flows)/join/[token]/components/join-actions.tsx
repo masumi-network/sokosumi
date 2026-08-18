@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
-import { activateOrganizationWorkspace } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface JoinActionsProps {
@@ -42,6 +42,7 @@ export function JoinActions({
       } catch (error) {
         console.error("Failed to switch organization workspace:", error);
       }
+      await clearPendingOrganizationJoinCookieAction({});
       router.push(`/organizations/${encodeURIComponent(organizationSlug)}`);
     } catch (error) {
       console.error("Failed to join organization", error);

@@ -1,4 +1,3 @@
-import type { Session } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 export {};
@@ -10,7 +9,6 @@ const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const getMyWorkspaceAccessMock = vi.fn();
 const getOrganizationByIdMock = vi.fn();
-const updateCurrentUserViaCoreMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => {
   class CoreApiRequestError extends Error {
@@ -45,11 +43,6 @@ vi.mock("@/lib/clients/core.client", () => {
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
-}));
-
-vi.mock("@/lib/auth/core-auth-http.server", () => ({
-  updateCurrentUserViaCore: (...args: unknown[]) =>
-    updateCurrentUserViaCoreMock(...args),
 }));
 
 vi.mock("next/headers", () => ({
@@ -234,68 +227,6 @@ describe("user.service", () => {
 
       expect(getMyWorkspaceAccessMock).toHaveBeenCalled();
       expect(result).toEqual(workspaceAccess);
-    });
-  });
-
-  describe("showOnboarding", () => {
-    // Minimal session double narrowed to the fields showOnboarding reads.
-    const session = {
-      session: { id: "session-1" },
-      user: { id: "user-1", onboardingCompleted: false },
-    } as Session;
-
-    it("returns false when onboarding is already completed", async () => {
-      const { userService } = await import("../user.service");
-      const result = await userService.showOnboarding({
-        ...session,
-        user: { id: "user-1", onboardingCompleted: true },
-      } as Session);
-
-      expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
-      expect(result).toBe(false);
-    });
-
-    it("marks onboarding complete via Core Better Auth HTTP and returns false when the user has a membership", async () => {
-      getSessionMock.mockResolvedValue(session);
-      getMyMembersWithOrganizationsMock.mockResolvedValue({
-        data: [{ id: "member-1", organizationId: "org-1", role: "member" }],
-      });
-      updateCurrentUserViaCoreMock.mockResolvedValue({});
-
-      const { userService } = await import("../user.service");
-      const result = await userService.showOnboarding(session);
-
-      expect(updateCurrentUserViaCoreMock).toHaveBeenCalledWith({
-        onboardingCompleted: true,
-      });
-      expect(result).toBe(false);
-    });
-
-    it("returns true (show onboarding) when the user has no memberships", async () => {
-      getSessionMock.mockResolvedValue(session);
-      getMyMembersWithOrganizationsMock.mockResolvedValue({ data: [] });
-
-      const { userService } = await import("../user.service");
-      const result = await userService.showOnboarding(session);
-
-      expect(updateCurrentUserViaCoreMock).not.toHaveBeenCalled();
-      expect(result).toBe(true);
-    });
-
-    it("returns true as a safe default when the membership check fails", async () => {
-      getSessionMock.mockResolvedValue(session);
-      getMyMembersWithOrganizationsMock.mockRejectedValue(
-        new Error("Core unavailable"),
-      );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
-      const { userService } = await import("../user.service");
-      const result = await userService.showOnboarding(session);
-
-      expect(result).toBe(true);
-      consoleErrorSpy.mockRestore();
     });
   });
 });

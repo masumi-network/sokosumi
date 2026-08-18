@@ -80,7 +80,6 @@ export default function SignUpForm({
       password: values.password,
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
-      onboardingCompleted: false,
       callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
     });
 

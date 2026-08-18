@@ -19,7 +19,6 @@ const cookieStore = await cookies();
 const session = await getSessionOrRedirect();
 const isTaskManagerMenuEnabled = await taskManagerMenuEnabled();
 const pendingInvitationId = await userService.getFirstPendingInvitationId();
-const shouldShowOnboarding = await userService.showOnboarding(session);
 ```
 
 **Impact:** Each `await` adds full round-trip latency. This layout runs on every (app) page load, so it directly affects LCP and perceived sluggishness.
@@ -32,7 +31,6 @@ const shouldShowOnboarding = await userService.showOnboarding(session);
 - After `session` is available, run in parallel:
   - `taskManagerMenuEnabled()`
   - `userService.getFirstPendingInvitationId()`
-  - `userService.showOnboarding(session)`
 - Optionally start `cookies()` and `getSessionOrRedirect()` in parallel (session uses `headers()`, not `cookies()` for auth).
 
 **Example:**
@@ -45,12 +43,10 @@ const [
   cookieStore,
   isTaskManagerMenuEnabled,
   pendingInvitationId,
-  shouldShowOnboarding,
 ] = await Promise.all([
   cookieStorePromise,
   taskManagerMenuEnabled(),
   userService.getFirstPendingInvitationId(),
-  userService.showOnboarding(session),
 ]);
 const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 ```

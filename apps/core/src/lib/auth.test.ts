@@ -1040,8 +1040,10 @@ describe("core auth config", () => {
         "logo",
         "metadata",
         "stripeCustomerId",
-        "onboardingCompleted",
       ]),
+    );
+    expect(Object.keys(config.user.additionalFields)).not.toContain(
+      "onboardingCompleted",
     );
     expect(config.user.additionalFields.stripeCustomerId).toEqual({
       type: "string",
@@ -1070,6 +1072,16 @@ describe("core auth config", () => {
         input: false,
       },
     });
+  });
+
+  it("allows organization create when the user's email is not verified", async () => {
+    await import("./auth");
+
+    const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
+      [{ allowUserToCreateOrganization: boolean }]
+    >;
+
+    expect(organizationConfig.allowUserToCreateOrganization).toBe(true);
   });
 
   it("configures the magic link plugin", async () => {

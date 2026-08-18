@@ -7,7 +7,9 @@ import type { AccountNotice } from "@/app/components/account-notice-state";
 import { useNoticeDialogHydration } from "@/app/components/notice-dialog-context";
 import { useAccountNoticeHydration } from "@/contexts/account-notice-provider";
 import { useCoworkersHydration } from "@/contexts/coworkers-context";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { Notice } from "@/lib/clients/generated/core";
+import { expireRetiredOnboardingLocalStorage } from "@/lib/retired-onboarding-storage";
 
 interface AccountNoticeHydratorProps {
   accountNotice: AccountNotice | null;
@@ -60,6 +62,15 @@ export function NoticeDialogHydrator({
   useEffect(() => {
     hydrateNotices({ announcementNotices, legalNotices });
   }, [announcementNotices, hydrateNotices, legalNotices]);
+
+  return null;
+}
+
+/** Drops unread SOK-799 localStorage left by the retired intro dialog. */
+export function RetiredOnboardingStorageHydrator() {
+  useMountEffect(() => {
+    expireRetiredOnboardingLocalStorage();
+  });
 
   return null;
 }

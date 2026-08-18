@@ -4,7 +4,7 @@ import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "../workspace-gate";
 
 describe("workspace-gate", () => {
   it("exposes the dedicated gate path", () => {
-    expect(WORKSPACE_GATE_PATH).toBe("/workspace-gate");
+    expect(WORKSPACE_GATE_PATH).toBe("/setup");
   });
 
   it("treats only ready as product-ready", () => {

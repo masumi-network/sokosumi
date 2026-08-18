@@ -16,13 +16,88 @@ import {
   assertAgentFixtureSafety,
   checkAgentFixtureSafety,
 } from "./assert-agent-database.mjs";
-import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "./fixtures.mjs";
+import {
+  AUTH_FIXTURES,
+  FIXTURE_PASSWORD,
+  fixtureWantsOrganization,
+  fixtureWantsPersonalWorkspace,
+} from "./fixtures.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
 function log(message) {
   console.log(`[cloud-agent-db] ${message}`);
+}
+
+const ZERO_WORKSPACE_RESET_SAVEPOINT = "zero_workspace_reset";
+
+/**
+ * Best-effort delete of a personal workspace so zero fixtures stay durable.
+ * Isolated via SAVEPOINT so Job/Task FK failures do not abort the rest of
+ * the fixture transaction (admin/alice/bob password refresh still commits).
+ *
+ * @param {import("pg").PoolClient | import("pg").Client} client
+ * @param {{ userId: string, email: string }} fixtureUser
+ */
+export async function resetUnwantedPersonalWorkspace(client, fixtureUser) {
+  try {
+    await client.query(`SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
+    await client.query(`DELETE FROM workspace WHERE "userId" = $1`, [
+      fixtureUser.userId,
+    ]);
+    await client.query(`RELEASE SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`);
+    return { reset: true };
+  } catch (error) {
+    try {
+      await client.query(
+        `ROLLBACK TO SAVEPOINT ${ZERO_WORKSPACE_RESET_SAVEPOINT}`,
+      );
+    } catch (_rollbackError) {
+      // Outer transaction may already be unusable; caller still rolls back.
+    }
+    log(
+      `Could not reset personal workspace for ${fixtureUser.email}: ${
+        error instanceof Error ? error.message : String(error)
+      }. Other fixtures still commit.`,
+    );
+    return { reset: false };
+  }
+}
+
+/**
+ * @param {string[]} failedEmails
+ */
+export function throwIfZeroWorkspaceResetFailed(failedEmails) {
+  if (failedEmails.length === 0) {
+    return;
+  }
+  throw new Error(
+    `Auth fixtures committed, but personal workspace reset failed for: ${failedEmails.join(", ")}. Re-seed after deleting jobs/tasks on those workspaces, or reset the agent branch.`,
+  );
+}
+
+/**
+ * Restore the no-organization contract for opt-out fixtures (zero).
+ *
+ * @param {import("pg").PoolClient | import("pg").Client} client
+ * @param {{ userId: string }} fixtureUser
+ */
+export async function clearUnwantedOrganizationMemberships(
+  client,
+  fixtureUser,
+) {
+  await client.query(`DELETE FROM member WHERE "userId" = $1`, [
+    fixtureUser.userId,
+  ]);
+  await client.query(
+    `UPDATE "user" SET "preferredOrganizationId" = NULL WHERE id = $1`,
+    [fixtureUser.userId],
+  );
+  await client.query(
+    `UPDATE session SET "activeOrganizationId" = NULL WHERE "userId" = $1`,
+    [fixtureUser.userId],
+  );
 }
 
 /**
@@ -60,8 +135,7 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
            role = $3,
            banned = false,
            "updatedAt" = $4,
-           "termsAccepted" = true,
-           "onboardingCompleted" = true
+           "termsAccepted" = true
        WHERE id = $1`,
       [userId, fixture.name, fixture.role, now],
     );
@@ -70,8 +144,8 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
     await client.query(
       `INSERT INTO "user" (
          id, name, email, "emailVerified", role, "createdAt", "updatedAt",
-         "marketingOptIn", "termsAccepted", "notificationsOptIn", "onboardingCompleted"
-       ) VALUES ($1, $2, $3, true, $4, $5, $5, false, true, true, true)`,
+         "marketingOptIn", "termsAccepted", "notificationsOptIn"
+       ) VALUES ($1, $2, $3, true, $4, $5, $5, false, true, true)`,
       [userId, fixture.name, fixture.email, fixture.role, now],
     );
   }
@@ -101,14 +175,23 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
     );
   }
 
-  await client.query(
-    `INSERT INTO workspace (id, "userId", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, $3)
-     ON CONFLICT ("userId") DO NOTHING`,
-    [randomUUID(), userId, now],
-  );
+  if (fixtureWantsPersonalWorkspace(fixture)) {
+    await client.query(
+      `INSERT INTO workspace (id, "userId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $3)
+       ON CONFLICT ("userId") DO NOTHING`,
+      [randomUUID(), userId, now],
+    );
+    return { userId, personalWorkspaceReset: null };
+  }
 
-  return userId;
+  // Keep zero-workspace fixtures durable across re-seed after accidental
+  // lazy-create (workspace middleware upsert on other Core routes).
+  const reset = await resetUnwantedPersonalWorkspace(client, {
+    userId,
+    email: fixture.email,
+  });
+  return { userId, personalWorkspaceReset: reset.reset };
 }
 
 /**
@@ -204,18 +287,35 @@ export async function seedAuthFixtures(options = {}) {
 
   try {
     await client.query("BEGIN");
+    const failedPersonalResets = [];
     for (const fixture of AUTH_FIXTURES) {
-      const userId = await upsertFixtureUser(client, fixture, passwordHash);
-      const organizationId = await upsertFixtureOrganization(
+      const { userId, personalWorkspaceReset } = await upsertFixtureUser(
         client,
-        userId,
-        fixture.organization,
+        fixture,
+        passwordHash,
       );
-      log(
-        `Auth fixture ready: ${fixture.email} (org ${fixture.organization.slug}=${organizationId})`,
-      );
+      if (personalWorkspaceReset === false) {
+        failedPersonalResets.push(fixture.email);
+      }
+      const organization = fixture.organization;
+      if (fixtureWantsOrganization(fixture) && organization) {
+        const organizationId = await upsertFixtureOrganization(
+          client,
+          userId,
+          organization,
+        );
+        log(
+          `Auth fixture ready: ${fixture.email} (org ${organization.slug}=${organizationId})`,
+        );
+      } else {
+        await clearUnwantedOrganizationMemberships(client, { userId });
+        log(
+          `Auth fixture ready: ${fixture.email} (no personal workspace, no organization)`,
+        );
+      }
     }
     await client.query("COMMIT");
+    throwIfZeroWorkspaceResetFailed(failedPersonalResets);
     return { seeded: AUTH_FIXTURES.length, skipped: false };
   } catch (error) {
     await client.query("ROLLBACK");

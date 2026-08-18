@@ -277,9 +277,9 @@ describe("SignUpForm OAuth workflow", () => {
         password: "Passw0rd!",
         termsAccepted: true,
         marketingOptIn: false,
-        onboardingCompleted: false,
       }),
     );
+    expect(signUpPayload).not.toHaveProperty("onboardingCompleted");
 
     expect(signUpPayload.callbackURL).toContain("/oauth/consent?");
     expect(signUpPayload.callbackURL).toContain("client_id=test-client");

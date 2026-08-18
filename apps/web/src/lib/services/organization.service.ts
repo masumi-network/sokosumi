@@ -7,6 +7,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   OrganizationInviteLink,
   PendingInvitation,
+  UserPendingOrganizationInvitation,
 } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
 
@@ -94,6 +95,13 @@ export const organizationService = (() => {
     return data;
   }
 
+  async function getMyPendingOrganizationInvitations(): Promise<
+    UserPendingOrganizationInvitation[]
+  > {
+    const { data } = await coreClient.getMyPendingOrganizationInvitations();
+    return data;
+  }
+
   async function getOrganizationInviteLinks(
     organizationId: string,
   ): Promise<OrganizationInviteLink[]> {
@@ -144,6 +152,7 @@ export const organizationService = (() => {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
+    getMyPendingOrganizationInvitations,
     getOrganizationInviteLinks,
     inviteMultipleMembers,
   };

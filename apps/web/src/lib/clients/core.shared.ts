@@ -206,6 +206,7 @@ import {
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
+  getUsersByIdPendingOrganizationInvitations as coreGetUsersByIdPendingOrganizationInvitations,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
@@ -302,6 +303,7 @@ import {
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdPersonalWorkspace as corePostUsersByIdPersonalWorkspace,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
@@ -2253,6 +2255,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /**
+   * Create-once personal workspace for the current user. Core returns 409 when
+   * a personal workspace already exists.
+   */
+  async function createMyPersonalWorkspace() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdPersonalWorkspace({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to create personal workspace",
+    );
+  }
+
   async function getMyBillingDetails() {
     return executeCoreOperation(
       getClient,
@@ -3126,6 +3145,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch workspace access",
+    );
+  }
+
+  /**
+   * Non-expired pending organization invitations for the current user
+   * (email match). Chat guest invitations are not included.
+   */
+  async function getMyPendingOrganizationInvitations() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdPendingOrganizationInvitations({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch pending organization invitations",
     );
   }
 
@@ -4284,9 +4320,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyWorkspaceAccess,
+    getMyPendingOrganizationInvitations,
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,
+    createMyPersonalWorkspace,
     createOrganizationStripeCustomer,
     getMyBillingDetails,
     getUserBillingDetails,

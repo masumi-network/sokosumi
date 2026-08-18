@@ -51,7 +51,7 @@ export async function ChatLandingMobile({
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 
-        <p className="text-muted-foreground mx-auto mt-2 max-w-[42ch] shrink-0 px-4 text-sm leading-[1.6] text-balance">
+        <p className="text-muted-foreground mt-2 shrink-0 px-4 text-sm leading-[1.6]">
           {t("intro")}
         </p>
 
@@ -62,6 +62,7 @@ export async function ChatLandingMobile({
               initialSelectedId={featured.id}
               size="compact"
               startChatClassName="w-full"
+              showSearchAgents
             />
           </OpenCoworkerRoomProvider>
         ) : null}

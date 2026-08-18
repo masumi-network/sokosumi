@@ -11,7 +11,8 @@ export const FIXTURE_PASSWORD = "Password123!";
  *   email: string,
  *   name: string,
  *   role: string,
- *   organization: AuthFixtureOrganization,
+ *   organization?: AuthFixtureOrganization | null,
+ *   createPersonalWorkspace?: boolean,
  * }} AuthFixture
  */
 
@@ -44,4 +45,29 @@ export const AUTH_FIXTURES = [
       slug: "bob-fixture",
     },
   },
+  {
+    email: "zero@sokosumi.test",
+    name: "Zero Workspace",
+    role: "user",
+    organization: null,
+    createPersonalWorkspace: false,
+  },
 ];
+
+/**
+ * Whether this fixture should receive a personal workspace row.
+ * Defaults to true when omitted.
+ * @param {AuthFixture} fixture
+ */
+export function fixtureWantsPersonalWorkspace(fixture) {
+  return fixture.createPersonalWorkspace !== false;
+}
+
+/**
+ * Whether this fixture should receive an organization + membership.
+ * Defaults to true when `organization` is a non-null object.
+ * @param {AuthFixture} fixture
+ */
+export function fixtureWantsOrganization(fixture) {
+  return fixture.organization != null;
+}

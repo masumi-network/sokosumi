@@ -4,10 +4,17 @@ import {
   ADMIN_MESSAGE_PATHS,
   APP_MESSAGE_PATHS,
   APP_SHELL_MESSAGE_PATHS,
+  AUTH_MESSAGE_PATHS,
   HERMES_MESSAGE_PATHS,
 } from "@/i18n/message-namespaces";
 
 describe("message namespaces", () => {
+  it("includes DesignMd on the auth bag so the setup wizard can generate brand copy", () => {
+    expect(AUTH_MESSAGE_PATHS).toContain("App.DesignMd");
+    expect(AUTH_MESSAGE_PATHS).toContain("Components");
+    expect(AUTH_MESSAGE_PATHS).toContain("WorkspaceGate");
+  });
+
   it("excludes Hermes and Admin from the default APP bag", () => {
     expect(APP_MESSAGE_PATHS).not.toContain("App.Hermes");
     expect(APP_MESSAGE_PATHS).not.toContain("App.Admin");

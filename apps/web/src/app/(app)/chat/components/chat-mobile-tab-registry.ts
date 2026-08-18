@@ -1,6 +1,6 @@
 import {
-  Bot,
   FolderKanban,
+  Home,
   ListTodo,
   type LucideIcon,
   MessageCircle,
@@ -112,14 +112,14 @@ export function chatMobileHeightShellClass(
 }
 
 export type ChatMobileTabId =
+  | "home"
   | "tasks"
-  | "agents"
   | "chats"
   | "projects"
   | "search";
 export type ChatMobileTabLabelKey =
+  | "home"
   | "tasks"
-  | "agents"
   | "chats"
   | "projects"
   | "search";
@@ -127,7 +127,7 @@ export type ChatMobileTabLabelKey =
 export interface ChatMobileTab {
   kind: "link";
   id: ChatMobileTabId;
-  href: "/tasks" | "/agents" | "/chat" | "/projects" | "/history";
+  href: "/" | "/tasks" | "/chat" | "/projects" | "/history";
   labelKey: ChatMobileTabLabelKey;
   icon: LucideIcon;
   isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
@@ -135,20 +135,22 @@ export interface ChatMobileTab {
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
+    id: "home",
+    kind: "link",
+    href: "/",
+    labelKey: "home",
+    icon: Home,
+    isActive: (pathname, searchParams) =>
+      classifyChatChromeSurface(pathname, searchParams) === "home" ||
+      pathname === "/agents",
+  },
+  {
     id: "tasks",
     kind: "link",
     href: "/tasks",
     labelKey: "tasks",
     icon: ListTodo,
     isActive: (pathname) => pathname === "/tasks",
-  },
-  {
-    id: "agents",
-    kind: "link",
-    href: "/agents",
-    labelKey: "agents",
-    icon: Bot,
-    isActive: (pathname) => pathname === "/agents",
   },
   {
     id: "chats",

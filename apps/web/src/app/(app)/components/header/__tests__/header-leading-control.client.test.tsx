@@ -118,8 +118,8 @@ describe("HeaderLeadingControl", () => {
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
   });
 
-  it("shows brand link to home on agents, projects, and search tab roots", () => {
-    for (const path of ["/agents", "/projects", "/history"]) {
+  it("shows brand link to home on projects and search tab roots", () => {
+    for (const path of ["/projects", "/history"]) {
       mockPathname = path;
       const { unmount } = render(<HeaderLeadingControl />);
       expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
@@ -129,6 +129,13 @@ describe("HeaderLeadingControl", () => {
       expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
       unmount();
     }
+  });
+
+  it("shows back to home on agents root", () => {
+    mockPathname = "/agents";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/");
   });
 
   it("shows back to chats on personal-assistant root", () => {
