@@ -171,6 +171,15 @@ export default function HeaderWorkspaceSwitch({
     }
   }
 
+  async function activateCreatedPersonalWorkspace(): Promise<void> {
+    try {
+      await onSelectWorkspace(null);
+    } catch (error) {
+      console.error("Create personal workspace activation failed", error);
+      toast.error(tIdentity("personalActivateError"));
+    }
+  }
+
   async function createAndActivatePersonal(): Promise<void> {
     const createResult = await createPersonalWorkspaceAction({});
     if (!createResult.ok) {
@@ -178,19 +187,14 @@ export default function HeaderWorkspaceSwitch({
         createResult.error.code ===
         WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
       ) {
-        onSelectWorkspace(null);
+        await activateCreatedPersonalWorkspace();
         return;
       }
       console.error("Create personal workspace failed", createResult.error);
       toast.error(tIdentity("personalCreateError"));
       return;
     }
-    try {
-      await onSelectWorkspace(null);
-    } catch (error) {
-      console.error("Create personal workspace activation failed", error);
-      toast.error(tIdentity("personalActivateError"));
-    }
+    await activateCreatedPersonalWorkspace();
   }
 
   async function handleCreatePersonalWorkspace() {

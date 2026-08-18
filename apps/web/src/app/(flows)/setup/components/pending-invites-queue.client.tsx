@@ -13,20 +13,20 @@ import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspac
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 
-export type WorkspaceGateQueueInvitation = {
+export interface WorkspaceGateQueueInvitation {
   kind: "invitation";
   id: string;
   organizationId: string;
   organizationName: string;
   organizationSlug: string;
-};
+}
 
-export type WorkspaceGateQueueJoinLink = {
+export interface WorkspaceGateQueueJoinLink {
   kind: "join";
   token: string;
   organizationName: string;
   organizationSlug: string;
-};
+}
 
 export type WorkspaceGateQueueItem =
   | WorkspaceGateQueueInvitation
@@ -44,6 +44,9 @@ export function PendingInvitesQueue({
   const t = useTranslations("WorkspaceGate.Pending");
   const router = useRouter();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
+    null,
+  );
   const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
 
   async function leaveGateAfterOrganization(organizationId: string) {
@@ -51,10 +54,25 @@ export function PendingInvitesQueue({
       await activateOrganizationWorkspaceWithRetry(organizationId);
     if (!activated) {
       toast.error(t("activateError"));
+      setRetryOrganizationId(organizationId);
+      return;
     }
+    setRetryOrganizationId(null);
     await clearPendingOrganizationJoinCookieAction({});
     router.replace("/");
     router.refresh();
+  }
+
+  async function handleRetryActivation() {
+    if (busyKey || !retryOrganizationId) {
+      return;
+    }
+    setBusyKey("retry-activation");
+    try {
+      await leaveGateAfterOrganization(retryOrganizationId);
+    } finally {
+      setBusyKey(null);
+    }
   }
 
   async function handleAcceptInvitation(item: WorkspaceGateQueueInvitation) {
@@ -137,10 +155,11 @@ export function PendingInvitesQueue({
   }
 
   const busy = busyKey !== null;
+  const awaitingActivationRetry = retryOrganizationId !== null;
 
   return (
     <div className="space-y-4" data-testid="workspace-gate-pending-queue">
-      <NameFields disabled={busy} />
+      <NameFields disabled={busy || awaitingActivationRetry} />
       <ul className="space-y-3">
         {items.map((item) => {
           const key = item.kind === "invitation" ? item.id : item.token;
@@ -158,7 +177,7 @@ export function PendingInvitesQueue({
               </div>
               <Button
                 type="button"
-                disabled={busy}
+                disabled={busy || awaitingActivationRetry}
                 onClick={() => {
                   if (item.kind === "invitation") {
                     void handleAcceptInvitation(item);
@@ -175,12 +194,27 @@ export function PendingInvitesQueue({
           );
         })}
       </ul>
+      {retryOrganizationId ? (
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void handleRetryActivation();
+          }}
+          data-testid="workspace-gate-retry-activation"
+        >
+          {busyKey === "retry-activation" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : null}
+          {t("activateRetry")}
+        </Button>
+      ) : null}
       <div className="space-y-2">
         <p className="text-muted-foreground text-sm">{t("rejectAllHint")}</p>
         <Button
           type="button"
           variant="outline"
-          disabled={busy}
+          disabled={busy || awaitingActivationRetry}
           onClick={() => {
             void handleRejectAll();
           }}

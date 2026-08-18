@@ -829,10 +829,11 @@
     "signIn": "Iniciar sesión para unirte",
     "register": "Crear una cuenta",
     "decline": "Rechazar",
+    "activateRetry": "Intentar cambiar de nuevo",
     "Error": {
       "joinFailed": "No se pudo unir a la organización",
       "declineFailed": "No pudimos rechazar esta invitación.",
-      "activateFailed": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
+      "activateFailed": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
       "unauthorizedAction": "Iniciar sesión"
     },
     "Invalid": {
@@ -860,6 +861,7 @@
         "decline": "Rechazar",
         "logout": "Cerrar sesión",
         "ignore": "Ignorar",
+        "activateRetry": "Intentar cambiar de nuevo",
         "emailMismatch": "No eres el usuario invitado.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "Si ya tienes una cuenta, inicia sesión para aceptar la invitación.",
@@ -874,7 +876,7 @@
         "Error": {
           "accept": "No se pudo aceptar la invitación",
           "decline": "No se pudo rechazar la invitación",
-          "activate": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres."
+          "activate": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar."
         },
         "Errors": {
           "unauthorizedAction": "Iniciar sesión"
@@ -5405,6 +5407,7 @@
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización.",
     "signOut": "Cerrar sesión",
+    "signOutError": "No pudimos cerrar la sesión. Inténtalo de nuevo.",
     "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
     "unavailableDescription": "Sokosumi no pudo cargar el estado de tu espacio de trabajo ahora. Es temporal: no estás bloqueado por no tener un espacio de trabajo.",
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
@@ -5432,7 +5435,8 @@
       "acceptError": "No pudimos aceptar esa invitación.",
       "joinError": "No pudimos unirte a esa organización.",
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
-      "activateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres."
+      "activateError": "No pudimos cambiarte a esa organización. Inténtalo de nuevo antes de continuar.",
+      "activateRetry": "Intentar cambiar de nuevo"
     }
   }
 }

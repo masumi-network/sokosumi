@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+
 import { authClient } from "@/lib/auth/auth.client";
 
 export function userHasName(name: string | null | undefined): boolean {
@@ -6,15 +8,15 @@ export function userHasName(name: string | null | undefined): boolean {
 
 export async function persistUserName(
   name: string,
-): Promise<{ ok: true } | { ok: false; message?: string }> {
+): Promise<Result<void, string | undefined>> {
   try {
     const result = await authClient.updateUser({ name });
     if (result.error) {
-      return { ok: false, message: result.error.message };
+      return err(result.error.message);
     }
-    return { ok: true };
+    return ok(undefined);
   } catch (error) {
     console.error("Persist user name failed", error);
-    return { ok: false };
+    return err(undefined);
   }
 }

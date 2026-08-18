@@ -70,6 +70,7 @@ const messages = {
     signIn: "Sign in",
     register: "Register",
     decline: "Decline",
+    activateRetry: "Try switching again",
     signedOutHint: "Sign in to join",
     Error: {
       joinFailed: "Join failed",
@@ -110,6 +111,14 @@ describe("JoinActions name collection", () => {
 
   it("collects a name before join when the user has none", async () => {
     const user = userEvent.setup();
+    let resolveUpdate: (value: { error: null }) => void = () => {};
+    updateUserMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+
     renderJoin("");
 
     await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
@@ -118,8 +127,14 @@ describe("JoinActions name collection", () => {
     await waitFor(() => {
       expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
     });
-    expect(acceptOrganizationInviteLinkMock).toHaveBeenCalledWith({
-      token: "join_token_1",
+    expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+
+    resolveUpdate({ error: null });
+
+    await waitFor(() => {
+      expect(acceptOrganizationInviteLinkMock).toHaveBeenCalledWith({
+        token: "join_token_1",
+      });
     });
   });
 
@@ -151,9 +166,11 @@ describe("JoinActions name collection", () => {
     expect(routerPushMock).toHaveBeenCalledWith("/setup");
   });
 
-  it("toasts and still navigates when organization activation fails", async () => {
+  it("does not navigate and offers retry when organization activation fails", async () => {
     const user = userEvent.setup();
-    activateOrganizationWorkspaceMock.mockResolvedValue(false);
+    activateOrganizationWorkspaceMock
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
     renderJoin("Ada Lovelace");
 
     await user.click(screen.getByRole("button", { name: /Join Join Co/ }));
@@ -163,7 +180,15 @@ describe("JoinActions name collection", () => {
         "Could not switch into that organization",
       );
     });
-    expect(routerPushMock).toHaveBeenCalledWith("/organizations/join-co");
+    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("join-retry-activation"));
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/organizations/join-co");
+    });
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
   });
 });

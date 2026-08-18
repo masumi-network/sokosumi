@@ -84,6 +84,7 @@ const messages = {
       joinError: "Join failed",
       rejectError: "Reject failed",
       activateError: "Could not switch into that organization",
+      activateRetry: "Try switching again",
     },
   },
 };
@@ -156,6 +157,13 @@ describe("PendingInvitesQueue", () => {
       data: { member: { organizationId: "org_1" } },
       error: null,
     });
+    let resolveUpdate: (value: { error: null }) => void = () => {};
+    updateUserMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
 
     renderQueue("");
     await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
@@ -166,8 +174,14 @@ describe("PendingInvitesQueue", () => {
     await waitFor(() => {
       expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
     });
-    expect(acceptInvitationMock).toHaveBeenCalledWith({
-      invitationId: "inv_1",
+    expect(acceptInvitationMock).not.toHaveBeenCalled();
+
+    resolveUpdate({ error: null });
+
+    await waitFor(() => {
+      expect(acceptInvitationMock).toHaveBeenCalledWith({
+        invitationId: "inv_1",
+      });
     });
   });
 
@@ -243,13 +257,15 @@ describe("PendingInvitesQueue", () => {
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
   });
 
-  it("toasts and still leaves the gate when organization activation fails", async () => {
+  it("stays on the queue and offers retry when organization activation fails", async () => {
     const user = userEvent.setup();
     acceptInvitationMock.mockResolvedValue({
       data: { member: { organizationId: "org_1" } },
       error: null,
     });
-    activateOrganizationWorkspaceMock.mockResolvedValue(false);
+    activateOrganizationWorkspaceMock
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
 
     renderQueue();
     await user.click(
@@ -261,7 +277,15 @@ describe("PendingInvitesQueue", () => {
         "Could not switch into that organization",
       );
     });
-    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("workspace-gate-retry-activation"));
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    });
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
   });
 });

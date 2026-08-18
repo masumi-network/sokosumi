@@ -35,8 +35,8 @@ export function useCollectUserName(initialName: string) {
       return false;
     }
     const result = await persistUserName(form.getValues("name"));
-    if (!result.ok) {
-      toast.error(result.message ?? tName("persistError"));
+    if (result.isErr()) {
+      toast.error(result.error ?? tName("persistError"));
       return false;
     }
     return true;

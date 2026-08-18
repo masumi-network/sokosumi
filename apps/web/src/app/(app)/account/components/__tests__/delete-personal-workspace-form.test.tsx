@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+
 import { DeletePersonalWorkspaceForm } from "../delete-personal-workspace-form";
 
 const deletePersonalWorkspaceActionMock = vi.fn();
@@ -133,5 +135,77 @@ describe("DeletePersonalWorkspaceForm", () => {
     });
     expect(toast.success).not.toHaveBeenCalled();
     expect(routerRefreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not activate fallback when last-workspace delete is refused", async () => {
+    deletePersonalWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error: { code: WorkspaceGateErrorCode.LAST_WORKSPACE },
+    });
+
+    render(
+      <DeletePersonalWorkspaceForm
+        hasOrganizationMembership={true}
+        fallbackOrganizationId="org-fallback"
+        currentOrganizationId={null}
+      />,
+    );
+
+    await confirmDelete();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("lastWorkspaceError");
+    });
+    expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
+    expect(routerRefreshMock).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("does not activate fallback when the workspace still has dependents", async () => {
+    deletePersonalWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error: { code: WorkspaceGateErrorCode.WORKSPACE_HAS_DEPENDENTS },
+    });
+
+    render(
+      <DeletePersonalWorkspaceForm
+        hasOrganizationMembership={true}
+        fallbackOrganizationId="org-fallback"
+        currentOrganizationId={null}
+      />,
+    );
+
+    await confirmDelete();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("dependentsError");
+    });
+    expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
+    expect(routerRefreshMock).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("does not activate fallback when deletion fails generically", async () => {
+    deletePersonalWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR" },
+    });
+
+    render(
+      <DeletePersonalWorkspaceForm
+        hasOrganizationMembership={true}
+        fallbackOrganizationId="org-fallback"
+        currentOrganizationId={null}
+      />,
+    );
+
+    await confirmDelete();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("error");
+    });
+    expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
+    expect(routerRefreshMock).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

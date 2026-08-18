@@ -39,6 +39,9 @@ export default function InvitationActions({
   const [action, setAction] = useState<"accept" | "reject" | "logout" | null>(
     null,
   );
+  const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
+    null,
+  );
 
   // Detect client-side rendering without setState in useEffect
   const isClient = useSyncExternalStore(
@@ -100,16 +103,32 @@ export default function InvitationActions({
         toast.error(errorMessage);
       }
     } else {
-      const activated = await activateOrganizationWorkspaceWithRetry(
-        result.data.member.organizationId,
-      );
-      if (!activated) {
-        toast.error(t("Error.activate"));
-      } else {
-        toast.success(t("Success.accept"));
-      }
-      router.push(`/organizations/${organizationSlug}`);
+      await finishAfterAccept(result.data.member.organizationId);
     }
+    setLoading(false);
+    setAction(null);
+  };
+
+  async function finishAfterAccept(organizationId: string) {
+    const activated =
+      await activateOrganizationWorkspaceWithRetry(organizationId);
+    if (!activated) {
+      toast.error(t("Error.activate"));
+      setRetryOrganizationId(organizationId);
+      return;
+    }
+    setRetryOrganizationId(null);
+    toast.success(t("Success.accept"));
+    router.push(`/organizations/${organizationSlug}`);
+  }
+
+  const handleRetryActivation = async () => {
+    if (loading || !retryOrganizationId) {
+      return;
+    }
+    setLoading(true);
+    setAction("accept");
+    await finishAfterAccept(retryOrganizationId);
     setLoading(false);
     setAction(null);
   };
@@ -174,13 +193,28 @@ export default function InvitationActions({
               )}
               {t("decline")}
             </Button>
-            <Button onClick={handleAccept} disabled={loading}>
-              {loading && action === "accept" && (
+            <Button
+              onClick={handleAccept}
+              disabled={loading || retryOrganizationId !== null}
+            >
+              {loading && action === "accept" && !retryOrganizationId && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
               {t("accept")}
             </Button>
           </div>
+          {retryOrganizationId ? (
+            <Button
+              onClick={handleRetryActivation}
+              disabled={loading}
+              data-testid="invitation-retry-activation"
+            >
+              {loading && action === "accept" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("activateRetry")}
+            </Button>
+          ) : null}
         </CardFooter>
       );
     } else {

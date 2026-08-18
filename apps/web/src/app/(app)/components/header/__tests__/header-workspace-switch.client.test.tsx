@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
 import { authClient } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
@@ -36,6 +37,16 @@ vi.mock("@/lib/auth/auth.client", () => ({
     updateUser: vi.fn(),
   },
 }));
+
+const createdPersonalWorkspace = {
+  ok: true as const,
+  value: { workspaceId: "ws-1" },
+} satisfies Awaited<ReturnType<typeof createPersonalWorkspaceAction>>;
+
+const updatedUser = {
+  data: null,
+  error: null,
+} satisfies Awaited<ReturnType<typeof authClient.updateUser>>;
 
 const sessionUser: SessionUser = {
   id: "user-1",
@@ -170,10 +181,9 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
   it("creates and activates personal when the user already has a name", async () => {
     const user = userEvent.setup();
     const onSelectWorkspace = vi.fn();
-    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue({
-      ok: true,
-      value: { workspaceId: "ws-1" },
-    } as never);
+    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue(
+      createdPersonalWorkspace,
+    );
 
     render(
       <HeaderWorkspaceSwitch
@@ -198,10 +208,9 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     const onSelectWorkspace = vi
       .fn()
       .mockRejectedValue(new Error("setActive failed"));
-    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue({
-      ok: true,
-      value: { workspaceId: "ws-1" },
-    } as never);
+    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue(
+      createdPersonalWorkspace,
+    );
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -231,13 +240,10 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     const user = userEvent.setup();
     const onSelectWorkspace = vi.fn();
     const namelessUser: SessionUser = { ...sessionUser, name: "" };
-    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue({
-      ok: true,
-      value: { workspaceId: "ws-1" },
-    } as never);
-    vi.mocked(authClient.updateUser).mockResolvedValue({
-      error: null,
-    } as never);
+    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue(
+      createdPersonalWorkspace,
+    );
+    vi.mocked(authClient.updateUser).mockResolvedValue(updatedUser);
 
     render(
       <HeaderWorkspaceSwitch
@@ -267,6 +273,42 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     });
     expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
     expect(onSelectWorkspace).toHaveBeenCalledWith(null);
+  });
+
+  it("toasts when the workspace already exists and activation throws", async () => {
+    const user = userEvent.setup();
+    const onSelectWorkspace = vi
+      .fn()
+      .mockRejectedValue(new Error("setActive failed"));
+    vi.mocked(createPersonalWorkspaceAction).mockResolvedValue({
+      ok: false,
+      error: {
+        code: WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS,
+      },
+    } satisfies Awaited<ReturnType<typeof createPersonalWorkspaceAction>>);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={false}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={onSelectWorkspace}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Org A/i }));
+    await user.click(screen.getByText("createPersonalWorkspace"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("personalActivateError");
+    });
+    expect(onSelectWorkspace).toHaveBeenCalledWith(null);
+    consoleErrorSpy.mockRestore();
   });
 
   it("lists personal and org workspaces when both exist", async () => {

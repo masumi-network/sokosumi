@@ -829,10 +829,11 @@
     "signIn": "Sign in to join",
     "register": "Create an account",
     "decline": "Decline",
+    "activateRetry": "Try switching again",
     "Error": {
       "joinFailed": "Failed to join the organization",
       "declineFailed": "We could not decline this invite.",
-      "activateFailed": "We could not switch you into that organization. You can switch workspaces after you enter.",
+      "activateFailed": "We could not switch you into that organization. Try again before continuing.",
       "unauthorizedAction": "Login"
     },
     "Invalid": {
@@ -860,6 +861,7 @@
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
+        "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
@@ -874,7 +876,7 @@
         "Error": {
           "accept": "Failed to accept invitation",
           "decline": "Failed to decline invitation",
-          "activate": "We could not switch you into that organization. You can switch workspaces after you enter."
+          "activate": "We could not switch you into that organization. Try again before continuing."
         },
         "Errors": {
           "unauthorizedAction": "Login"
@@ -5405,6 +5407,7 @@
     "pendingInvitesTitle": "You have pending invitations",
     "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization.",
     "signOut": "Sign out",
+    "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",
     "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
@@ -5432,7 +5435,8 @@
       "acceptError": "We could not accept that invitation.",
       "joinError": "We could not join that organization.",
       "rejectError": "We could not reject the remaining invitations.",
-      "activateError": "We could not switch you into that organization. You can switch workspaces after you enter."
+      "activateError": "We could not switch you into that organization. Try again before continuing.",
+      "activateRetry": "Try switching again"
     }
   }
 }

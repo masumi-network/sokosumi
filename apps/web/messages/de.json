@@ -829,10 +829,11 @@
     "signIn": "Anmelden und beitreten",
     "register": "Konto erstellen",
     "decline": "Ablehnen",
+    "activateRetry": "Wechsel erneut versuchen",
     "Error": {
       "joinFailed": "Der Organisation konnte nicht beigetreten werden",
       "declineFailed": "Die Einladung konnte nicht abgelehnt werden.",
-      "activateFailed": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Arbeitsbereich wechseln, sobald du im Produkt bist.",
+      "activateFailed": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "unauthorizedAction": "Anmelden"
     },
     "Invalid": {
@@ -860,6 +861,7 @@
         "decline": "Ablehnen",
         "logout": "Abmelden",
         "ignore": "Ignorieren",
+        "activateRetry": "Wechsel erneut versuchen",
         "emailMismatch": "Du bist nicht der eingeladene Nutzer.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "Wenn du bereits ein Konto hast, kannst du dich anmelden und die Einladung akzeptieren.",
@@ -874,7 +876,7 @@
         "Error": {
           "accept": "Einladung konnte nicht akzeptiert werden",
           "decline": "Einladung konnte nicht abgelehnt werden",
-          "activate": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Arbeitsbereich wechseln, sobald du im Produkt bist."
+          "activate": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst."
         },
         "Errors": {
           "unauthorizedAction": "Anmelden"
@@ -5405,6 +5407,7 @@
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen.",
     "signOut": "Abmelden",
+    "signOutError": "Abmelden ist fehlgeschlagen. Versuche es erneut.",
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
     "unavailableDescription": "Sokosumi konnte deinen Workspace-Status gerade nicht laden. Das ist vorübergehend — du bist nicht wegen eines fehlenden Workspace ausgesperrt.",
     "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
@@ -5432,7 +5435,8 @@
       "acceptError": "Die Einladung konnte nicht angenommen werden.",
       "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
-      "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Arbeitsbereich wechseln, sobald du im Produkt bist."
+      "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
+      "activateRetry": "Wechsel erneut versuchen"
     }
   }
 }
