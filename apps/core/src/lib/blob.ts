@@ -4,20 +4,16 @@ import * as Sentry from "@sentry/node";
 import {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerImagePathname,
-  buildOrganizationDriveFilePathname,
   buildOrganizationLogoContentHashPathname,
   buildOrganizationLogoPathname,
   buildTaskFilePathname,
   buildUserChatRoomFilePathname,
-  buildUserDriveFilePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
   buildVendorLogoPathname,
   isOwnedCoworkerImageUrl,
-  isOwnedOrganizationDriveFileUrl,
   isOwnedOrganizationLogoUrl,
   isOwnedTaskFileUrl,
-  isOwnedUserDriveFileUrl,
   isOwnedVendorLogoUrl,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
 } from "@sokosumi/utils";
@@ -226,57 +222,6 @@ export async function createChatRoomFileUploadSession(
     access: "public",
     addRandomSuffix: true,
     token,
-  });
-}
-
-/**
- * Drive-file direct upload grant (presigned PUT). Path under
- * `drive/users/{userId}/{fileId}/` or `drive/organizations/{orgId}/{fileId}/`.
- * Webhook creates DriveFile row on upload completion.
- */
-export async function createDriveFileUploadSession(
-  scope: "user" | "organization",
-  ownerId: string,
-  fileId: string,
-  file: {
-    filename: string;
-    contentType: string;
-    size: number;
-    maxSizeBytes: number;
-  },
-  token: string,
-  options: {
-    uploadedByUserId: string;
-    callbackUrl: string;
-  },
-): Promise<BlobUploadGrant> {
-  const pathname =
-    scope === "user"
-      ? buildUserDriveFilePathname(ownerId, fileId, file.filename)
-      : buildOrganizationDriveFilePathname(ownerId, fileId, file.filename);
-
-  const tokenPayload = JSON.stringify({
-    scope,
-    ownerId,
-    fileId,
-    name: file.filename,
-    mimeType: file.contentType,
-    size: file.size,
-    uploadedByUserId: options.uploadedByUserId,
-  });
-
-  return createBlobUploadGrant({
-    pathname,
-    contentType: file.contentType,
-    maximumSizeInBytes: file.size,
-    maxSizeBytes: file.maxSizeBytes,
-    access: "public",
-    addRandomSuffix: true,
-    token,
-    onUploadCompleted: {
-      callbackUrl: options.callbackUrl,
-      tokenPayload,
-    },
   });
 }
 
@@ -689,70 +634,6 @@ export async function deleteTaskFileIfOwned(
       },
       extra: {
         taskId,
-        url,
-      },
-    });
-  }
-}
-
-/**
- * Best-effort delete of a user drive file when the URL is under
- * `drive/users/{userId}/`. Used by ACL-checked delete endpoint.
- */
-export async function deleteUserDriveFileIfOwned(
-  url: string | null | undefined,
-  userId: string,
-): Promise<void> {
-  if (!url || !isOwnedUserDriveFileUrl(url, userId)) {
-    return;
-  }
-
-  const env = getEnv();
-  if (!env.BLOB_READ_WRITE_TOKEN) {
-    return;
-  }
-
-  try {
-    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        function: "deleteUserDriveFileIfOwned",
-      },
-      extra: {
-        userId,
-        url,
-      },
-    });
-  }
-}
-
-/**
- * Best-effort delete of an organization drive file when the URL is under
- * `drive/organizations/{orgId}/`. Used by ACL-checked delete endpoint.
- */
-export async function deleteOrganizationDriveFileIfOwned(
-  url: string | null | undefined,
-  organizationId: string,
-): Promise<void> {
-  if (!url || !isOwnedOrganizationDriveFileUrl(url, organizationId)) {
-    return;
-  }
-
-  const env = getEnv();
-  if (!env.BLOB_READ_WRITE_TOKEN) {
-    return;
-  }
-
-  try {
-    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        function: "deleteOrganizationDriveFileIfOwned",
-      },
-      extra: {
-        organizationId,
         url,
       },
     });

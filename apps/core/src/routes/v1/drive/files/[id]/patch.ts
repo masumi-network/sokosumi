@@ -1,35 +1,35 @@
-import { createRoute, z } from "@hono/zod-openapi";
-import { clampDriveFileName } from "@sokosumi/utils";
+import { createRoute } from "@hono/zod-openapi";
+import {
+  buildOrganizationDriveFilePathname,
+  buildUserDriveFilePathname,
+  buildUserDriveFilePrefix,
+  clampDriveFileName,
+} from "@sokosumi/utils";
+import { copy, del, list } from "@vercel/blob";
 
-import { requireDriveFileWriteAccess } from "@/helpers/drive-file-access";
+import { getEnv } from "@/config/env";
+import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { badRequest, conflict, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { DriveFile } from "@/schemas/drive-file.schema";
+import { requireUserContext } from "@/middleware/auth";
 import {
   driveFileSchema,
   renameDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
 
-const paramsSchema = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    example: "drv_123abc",
-  }),
-});
-
 const route = createRoute({
   method: "patch",
-  path: "/{id}",
+  path: "/rename",
   description: [
-    "Rename a drive file.",
+    "Rename a drive file (copy to new pathname, then delete old).",
     "Personal: owner only.",
-    "Organization: uploader or org admin.",
+    "Organization: any member.",
+    "409 if target pathname already exists.",
   ].join("\n"),
   tags: ["Drive"],
   request: {
-    params: paramsSchema,
     body: {
       required: true,
       content: {
@@ -45,42 +45,108 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict - target pathname already exists"),
+    503: jsonErrorResponse("Service Unavailable"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { id: fileId } = c.req.valid("param");
+    const userContext = requireUserContext(authContext);
     const body = c.req.valid("json");
 
-    // ACL check
-    await requireDriveFileWriteAccess(authContext, fileId);
+    const env = getEnv();
+    const token = env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
+      throw serviceUnavailable("Blob storage is not configured");
+    }
 
-    const newName = clampDriveFileName(body.name);
+    const { oldPathname, newFilename } = body;
 
-    const updated = await prisma.driveFile.update({
-      where: { id: fileId },
-      data: { name: newName },
-    });
+    // Determine scope and owner from pathname
+    const userPrefix = buildUserDriveFilePrefix(userContext.userId);
+    const isUserFile = oldPathname.startsWith(userPrefix);
 
-    const scope = updated.userId ? "me" : "org";
-    const ownerId = updated.userId ?? updated.organizationId!;
+    let scope: "user" | "organization";
+    let ownerId: string;
+    let newPathname: string;
 
-    const apiFile: DriveFile = {
-      id: updated.id,
-      createdAt: updated.createdAt.toISOString(),
-      updatedAt: updated.updatedAt.toISOString(),
-      name: updated.name,
-      fileUrl: updated.fileUrl,
-      pathname: updated.pathname,
-      mimeType: updated.mimeType,
-      size: updated.size ? Number(updated.size) : null,
-      scope,
-      ownerId,
-      uploadedByUserId: updated.uploadedByUserId,
-    };
+    if (isUserFile) {
+      // Personal drive
+      scope = "user";
+      ownerId = userContext.userId;
+      await requireDriveFileAccess(authContext, scope, ownerId);
 
-    return ok(c, driveFileSchema.parse(apiFile));
+      const sanitizedName = clampDriveFileName(newFilename);
+      newPathname = buildUserDriveFilePathname(ownerId, sanitizedName);
+    } else {
+      // Organization drive - extract orgId from pathname
+      // pathname format: drive/organizations/{orgId}/{filename}
+      const pathParts = oldPathname.split("/");
+      if (
+        pathParts.length < 4 ||
+        pathParts[0] !== "drive" ||
+        pathParts[1] !== "organizations"
+      ) {
+        throw badRequest("Invalid pathname format");
+      }
+
+      const orgId = pathParts[2];
+      scope = "organization";
+      ownerId = orgId;
+      await requireDriveFileAccess(authContext, scope, ownerId);
+
+      const sanitizedName = clampDriveFileName(newFilename);
+      newPathname = buildOrganizationDriveFilePathname(ownerId, sanitizedName);
+    }
+
+    // Check if target already exists (copy will fail if it does)
+    // We rely on Blob's behavior: copy fails if target exists
+
+    try {
+      // Copy to new pathname
+      const copiedBlob = await copy(oldPathname, newPathname, {
+        token,
+        access: "public",
+        addRandomSuffix: false,
+      });
+
+      // Delete old pathname
+      await del(oldPathname, { token });
+
+      // Get blob metadata via list to get size and uploadedAt
+      const { blobs } = await list({
+        prefix: copiedBlob.pathname,
+        token,
+        limit: 1,
+      });
+
+      const blobMetadata = blobs[0];
+      if (!blobMetadata) {
+        throw new Error("Failed to retrieve blob metadata after copy");
+      }
+
+      // Extract filename from new pathname
+      const pathSegments = copiedBlob.pathname.split("/");
+      const name = pathSegments[pathSegments.length - 1] || "unnamed";
+
+      return ok(
+        c,
+        driveFileSchema.parse({
+          name,
+          fileUrl: copiedBlob.url,
+          pathname: copiedBlob.pathname,
+          size: blobMetadata.size,
+          uploadedAt: blobMetadata.uploadedAt.toISOString(),
+        }),
+      );
+    } catch (error) {
+      // Check if it's a conflict (target already exists)
+      if (error instanceof Error && error.message.includes("already exists")) {
+        throw conflict("Target pathname already exists");
+      }
+      throw error;
+    }
   });
 }

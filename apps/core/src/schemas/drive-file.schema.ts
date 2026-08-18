@@ -20,7 +20,7 @@ export const createDriveFileUploadSessionRequestSchema = z
   .object({
     filename: z.string().min(1).max(255).openapi({
       example: "report.pdf",
-      description: "Display name for the file",
+      description: "File name (becomes part of the blob pathname)",
     }),
     contentType: z.string().min(1).max(255).openapi({
       example: "application/pdf",
@@ -43,7 +43,6 @@ export const createDriveFileUploadSessionRequestSchema = z
 
 /**
  * Drive file upload session (presigned PUT grant).
- * Same shape as TaskFile/UserFile upload sessions (BlobUploadGrant).
  */
 export const driveFileUploadSessionSchema = z
   .object({
@@ -54,7 +53,8 @@ export const driveFileUploadSessionSchema = z
     }),
     pathname: z.string().openapi({
       example: "drive/users/user_123/report.pdf",
-      description: "Server-generated upload pathname (before random suffix)",
+      description:
+        "Server-generated upload pathname (no random suffix for Drive)",
     }),
     access: z.literal("public").openapi({
       example: "public",
@@ -74,7 +74,7 @@ export const driveFileUploadSessionSchema = z
         description: "Headers the client must send on the PUT",
       }),
     expiresAt: z.string().datetime().openapi({
-      example: "2026-08-17T17:00:00.000Z",
+      example: "2026-08-18T12:00:00.000Z",
       description: "When the presigned upload URL expires (ISO-8601)",
     }),
     maxSizeBytes: z.number().int().positive().openapi({
@@ -82,8 +82,8 @@ export const driveFileUploadSessionSchema = z
       description: "Maximum supported file size for this upload policy",
     }),
     addRandomSuffix: z.boolean().openapi({
-      example: true,
-      description: "Whether Blob appends a random suffix to the final pathname",
+      example: false,
+      description: "Drive files use exact pathnames (no random suffix)",
     }),
   })
   .openapi("DriveFileUploadSession");
@@ -93,49 +93,26 @@ export const driveFileUploadSessionSchema = z
  */
 export const driveFileSchema = z
   .object({
-    id: z.string().openapi({
-      example: "drv_123abc",
-      description: "Drive file ID",
-    }),
-    createdAt: dateTimeSchema.openapi({
-      example: "2026-08-17T16:00:00.000Z",
-      description: "When the file was uploaded",
-    }),
-    updatedAt: dateTimeSchema.openapi({
-      example: "2026-08-17T16:00:00.000Z",
-      description: "When the file metadata was last updated",
-    }),
     name: z.string().openapi({
       example: "report.pdf",
-      description: "Display name",
+      description: "File name (extracted from pathname)",
     }),
     fileUrl: z.string().url().openapi({
       example:
-        "https://store.public.blob.vercel-storage.com/drive/users/user_123/report-abc123.pdf",
-      description: "Public Blob URL (with random suffix)",
+        "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf",
+      description: "Public Blob URL",
     }),
     pathname: z.string().openapi({
       example: "drive/users/user_123/report.pdf",
-      description: "Server-generated pathname (before random suffix)",
+      description: "Blob pathname",
     }),
-    mimeType: z.string().nullable().openapi({
-      example: "application/pdf",
-      description: "MIME type",
-    }),
-    size: z.number().int().nullable().openapi({
+    size: z.number().int().openapi({
       example: 1024000,
       description: "File size in bytes",
     }),
-    scope: driveFileScopeSchema.openapi({
-      description: "Owner scope: 'me' for personal, 'org' for organization",
-    }),
-    ownerId: z.string().openapi({
-      example: "user_123",
-      description: "Owner ID (userId for personal, organizationId for org)",
-    }),
-    uploadedByUserId: z.string().nullable().openapi({
-      example: "user_123",
-      description: "User who uploaded the file (null if uploader deleted)",
+    uploadedAt: dateTimeSchema.openapi({
+      example: "2026-08-18T10:00:00.000Z",
+      description: "When the file was uploaded to Blob storage",
     }),
   })
   .openapi("DriveFile");
@@ -152,9 +129,25 @@ export const driveFilesSchema = z.array(driveFileSchema).openapi("DriveFiles");
  */
 export const renameDriveFileRequestSchema = z
   .object({
-    name: z.string().min(1).max(255).openapi({
+    oldPathname: z.string().min(1).openapi({
+      example: "drive/users/user_123/report.pdf",
+      description: "Current blob pathname",
+    }),
+    newFilename: z.string().min(1).max(255).openapi({
       example: "renamed_report.pdf",
-      description: "New display name for the file",
+      description: "New file name (sanitized and used in new pathname)",
     }),
   })
   .openapi("RenameDriveFileRequest");
+
+/**
+ * Delete drive file request.
+ */
+export const deleteDriveFileRequestSchema = z
+  .object({
+    pathname: z.string().min(1).openapi({
+      example: "drive/users/user_123/report.pdf",
+      description: "Blob pathname to delete",
+    }),
+  })
+  .openapi("DeleteDriveFileRequest");

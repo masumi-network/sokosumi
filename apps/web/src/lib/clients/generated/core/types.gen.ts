@@ -1846,7 +1846,7 @@ export type DriveFileUploadSession = {
      */
     uploadUrl: string;
     /**
-     * Server-generated upload pathname (before random suffix)
+     * Server-generated upload pathname (no random suffix for Drive)
      */
     pathname: string;
     /**
@@ -1872,14 +1872,14 @@ export type DriveFileUploadSession = {
      */
     maxSizeBytes: number;
     /**
-     * Whether Blob appends a random suffix to the final pathname
+     * Drive files use exact pathnames (no random suffix)
      */
     addRandomSuffix: boolean;
 };
 
 export type CreateDriveFileUploadSessionRequest = {
     /**
-     * Display name for the file
+     * File name (becomes part of the blob pathname)
      */
     filename: string;
     /**
@@ -1904,56 +1904,43 @@ export type DriveFiles = Array<DriveFile>;
 
 export type DriveFile = {
     /**
-     * Drive file ID
-     */
-    id: string;
-    /**
-     * When the file was uploaded
-     */
-    createdAt: Date;
-    /**
-     * When the file metadata was last updated
-     */
-    updatedAt: Date;
-    /**
-     * Display name
+     * File name (extracted from pathname)
      */
     name: string;
     /**
-     * Public Blob URL (with random suffix)
+     * Public Blob URL
      */
     fileUrl: string;
     /**
-     * Server-generated pathname (before random suffix)
+     * Blob pathname
      */
     pathname: string;
     /**
-     * MIME type
-     */
-    mimeType: string | null;
-    /**
      * File size in bytes
      */
-    size: number | null;
+    size: number;
     /**
-     * Owner scope: 'me' for personal, 'org' for organization
+     * When the file was uploaded to Blob storage
      */
-    scope: 'me' | 'org';
-    /**
-     * Owner ID (userId for personal, organizationId for org)
-     */
-    ownerId: string;
-    /**
-     * User who uploaded the file (null if uploader deleted)
-     */
-    uploadedByUserId: string | null;
+    uploadedAt: Date;
 };
 
 export type RenameDriveFileRequest = {
     /**
-     * New display name for the file
+     * Current blob pathname
      */
-    name: string;
+    oldPathname: string;
+    /**
+     * New file name (sanitized and used in new pathname)
+     */
+    newFilename: string;
+};
+
+export type DeleteDriveFileRequest = {
+    /**
+     * Blob pathname to delete
+     */
+    pathname: string;
 };
 
 export type EnterpriseContract = {
@@ -14994,6 +14981,20 @@ export type GetDriveFilesErrors = {
             method: string;
         };
     };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type GetDriveFilesError = GetDriveFilesErrors[keyof GetDriveFilesErrors];
@@ -15126,81 +15127,14 @@ export type PostDriveFilesResponses = {
 
 export type PostDriveFilesResponse = PostDriveFilesResponses[keyof PostDriveFilesResponses];
 
-export type DeleteDriveFilesByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/drive/files/{id}';
-};
-
-export type DeleteDriveFilesByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteDriveFilesByIdError = DeleteDriveFilesByIdErrors[keyof DeleteDriveFilesByIdErrors];
-
-export type DeleteDriveFilesByIdResponses = {
-    /**
-     * Drive file deleted
-     */
-    204: void;
-};
-
-export type DeleteDriveFilesByIdResponse = DeleteDriveFilesByIdResponses[keyof DeleteDriveFilesByIdResponses];
-
-export type PatchDriveFilesByIdData = {
+export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;
-    path: {
-        id: string;
-    };
+    path?: never;
     query?: never;
-    url: '/drive/files/{id}';
+    url: '/drive/files/rename';
 };
 
-export type PatchDriveFilesByIdErrors = {
+export type PatchDriveFilesRenameErrors = {
     /**
      * Bad Request
      */
@@ -15257,11 +15191,39 @@ export type PatchDriveFilesByIdErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict - target pathname already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
-export type PatchDriveFilesByIdError = PatchDriveFilesByIdErrors[keyof PatchDriveFilesByIdErrors];
+export type PatchDriveFilesRenameError = PatchDriveFilesRenameErrors[keyof PatchDriveFilesRenameErrors];
 
-export type PatchDriveFilesByIdResponses = {
+export type PatchDriveFilesRenameResponses = {
     /**
      * Drive file renamed
      */
@@ -15275,7 +15237,98 @@ export type PatchDriveFilesByIdResponses = {
     };
 };
 
-export type PatchDriveFilesByIdResponse = PatchDriveFilesByIdResponses[keyof PatchDriveFilesByIdResponses];
+export type PatchDriveFilesRenameResponse = PatchDriveFilesRenameResponses[keyof PatchDriveFilesRenameResponses];
+
+export type DeleteDriveFilesDeleteData = {
+    body: DeleteDriveFileRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files/delete';
+};
+
+export type DeleteDriveFilesDeleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveFilesDeleteError = DeleteDriveFilesDeleteErrors[keyof DeleteDriveFilesDeleteErrors];
+
+export type DeleteDriveFilesDeleteResponses = {
+    /**
+     * Drive file deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[keyof DeleteDriveFilesDeleteResponses];
 
 export type GetEnterpriseContractsData = {
     body?: never;
@@ -33655,73 +33708,6 @@ export type PostWebhooksTasksFilesUploadedResponses = {
 };
 
 export type PostWebhooksTasksFilesUploadedResponse = PostWebhooksTasksFilesUploadedResponses[keyof PostWebhooksTasksFilesUploadedResponses];
-
-export type PostWebhooksDriveFilesUploadedData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/webhooks/drive/files/uploaded';
-};
-
-export type PostWebhooksDriveFilesUploadedErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostWebhooksDriveFilesUploadedError = PostWebhooksDriveFilesUploadedErrors[keyof PostWebhooksDriveFilesUploadedErrors];
-
-export type PostWebhooksDriveFilesUploadedResponses = {
-    /**
-     * Upload completion handled
-     */
-    200: {
-        type: string;
-        response?: string;
-        [key: string]: unknown;
-    };
-};
-
-export type PostWebhooksDriveFilesUploadedResponse = PostWebhooksDriveFilesUploadedResponses[keyof PostWebhooksDriveFilesUploadedResponses];
 
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;

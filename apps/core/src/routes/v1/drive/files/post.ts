@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { createRoute } from "@hono/zod-openapi";
 import {
+  buildOrganizationDriveFilePathname,
+  buildUserDriveFilePathname,
   clampDriveFileName,
   FILE_UPLOAD_MAX_SIZE_BYTES,
   resolveUserUploadContentType,
@@ -18,11 +19,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { createDriveFileUploadSession } from "@/lib/blob";
-import {
-  DRIVE_FILE_UPLOAD_COMPLETED_PATH,
-  resolveBlobUploadCallbackUrl,
-} from "@/lib/blob-callback-url";
+import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
@@ -36,16 +33,15 @@ const route = createRoute({
   description: [
     "Mint a direct upload session for a drive file (personal or organization).",
     "Bytes go client → Vercel Blob (not through this API).",
-    "When the Blob PUT completes, Core auto-creates the DriveFile row via",
-    "`POST /v1/webhooks/drive/files/uploaded` (Blob `onUploadCompleted` webhook).",
+    "Drive uses exact pathnames (addRandomSuffix: false).",
+    "Blob rejects overwrites; the client must ensure unique filenames.",
     "",
     "Agent / REST:",
     "1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).",
-    "2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.",
-    "3. Done — no register call. DriveFile appears via webhook; refresh the list if you need the row.",
+    "2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.",
+    "3. Done — file is immediately available via pathname.",
     "",
     `Max size: ${FILE_UPLOAD_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads (including SVG for drive).`,
-    "Requires public Core URL for the completion callback (production / tunnel).",
   ].join("\n"),
   tags: ["Drive"],
   request: {
@@ -82,11 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!token) {
       throw serviceUnavailable("Blob storage is not configured");
     }
-    if (!env.BLOB_WEBHOOK_PUBLIC_KEY) {
-      throw serviceUnavailable(
-        "Blob upload completion is not configured (BLOB_WEBHOOK_PUBLIC_KEY)",
-      );
-    }
 
     const body = c.req.valid("json");
 
@@ -109,48 +100,46 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const displayName = clampDriveFileName(body.filename || "file");
 
     // ACL checks and owner resolution
-    let scope: "user" | "organization";
-    let ownerId: string;
+    let pathname: string;
 
     if (body.scope === "me") {
-      scope = "user";
-      ownerId = userContext.userId;
+      const ownerId = userContext.userId;
       await requireUserDriveFileUploadAccess(authContext, ownerId);
+      pathname = buildUserDriveFilePathname(ownerId, displayName);
     } else if (body.scope === "org") {
       if (!body.organizationId) {
         throw badRequest("organizationId is required when scope=org");
       }
-      scope = "organization";
-      ownerId = body.organizationId;
+      const ownerId = body.organizationId;
       // Verifies membership
       await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
+      pathname = buildOrganizationDriveFilePathname(ownerId, displayName);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    const callbackUrl = resolveBlobUploadCallbackUrl(
-      DRIVE_FILE_UPLOAD_COMPLETED_PATH,
-    );
-
-    // Generate fileId for path segment
-    const fileId = randomUUID();
-
-    const session = await createDriveFileUploadSession(
-      scope,
-      ownerId,
-      fileId,
-      {
-        filename: displayName,
-        contentType: resolvedContentType,
-        size: body.size,
-        maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
-      },
+    const grant = await createBlobUploadGrant({
+      pathname,
+      access: "public",
+      contentType: resolvedContentType,
+      maximumSizeInBytes: body.size,
+      maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+      addRandomSuffix: false,
       token,
-      {
-        uploadedByUserId: userContext.userId,
-        callbackUrl,
+    });
+
+    const session = {
+      uploadUrl: grant.uploadUrl,
+      pathname: grant.pathname,
+      access: grant.access,
+      method: "PUT" as const,
+      headers: {
+        "Content-Type": resolvedContentType,
       },
-    );
+      expiresAt: grant.expiresAt,
+      maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+      addRandomSuffix: false,
+    };
 
     return created(c, driveFileUploadSessionSchema.parse(session));
   });
