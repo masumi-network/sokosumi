@@ -98,11 +98,13 @@ function renderQueue(initialName = "Ada Lovelace") {
             id: "inv_1",
             organizationId: "org_1",
             organizationName: "Acme",
+            organizationSlug: "acme",
           },
           {
             kind: "join",
             token: "join_token_1",
             organizationName: "Join Co",
+            organizationSlug: "join-co",
           },
         ]}
       />
@@ -129,6 +131,8 @@ describe("PendingInvitesQueue", () => {
     });
 
     renderQueue();
+    expect(screen.getByText("acme")).toBeInTheDocument();
+    expect(screen.getByText("join-co")).toBeInTheDocument();
     await user.click(
       screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
     );

@@ -131,7 +131,7 @@ describe("WorkspaceGatePage", () => {
       {
         id: "inv_1",
         organizationId: "org_1",
-        organization: { name: "Acme" },
+        organization: { name: "Acme", slug: "acme" },
       },
     ]);
 
@@ -142,6 +142,7 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Acme");
+    expect(serialized).toContain("acme");
     expect(serialized).not.toContain("identityTitle");
     expect(serialized).not.toContain("data-workspace-gate-actions");
   });
@@ -168,6 +169,7 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
     expect(serialized).toContain("Join Co");
+    expect(serialized).toContain("join-co");
     expect(serialized).not.toContain("identityTitle");
   });
 

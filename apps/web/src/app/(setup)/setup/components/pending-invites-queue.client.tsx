@@ -18,12 +18,14 @@ export type WorkspaceGateQueueInvitation = {
   id: string;
   organizationId: string;
   organizationName: string;
+  organizationSlug: string;
 };
 
 export type WorkspaceGateQueueJoinLink = {
   kind: "join";
   token: string;
   organizationName: string;
+  organizationSlug: string;
 };
 
 export type WorkspaceGateQueueItem =
@@ -148,7 +150,12 @@ export function PendingInvitesQueue({
               key={`${item.kind}:${key}`}
               className="border-input flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
             >
-              <p className="text-sm font-medium">{item.organizationName}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{item.organizationName}</p>
+                <p className="text-muted-foreground truncate text-sm">
+                  {item.organizationSlug}
+                </p>
+              </div>
               <Button
                 type="button"
                 disabled={busy}

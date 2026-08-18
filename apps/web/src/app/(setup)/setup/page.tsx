@@ -134,6 +134,7 @@ async function loadWorkspaceGateQueueItems(): Promise<{
         id: invitation.id,
         organizationId: invitation.organizationId,
         organizationName: invitation.organization.name,
+        organizationSlug: invitation.organization.slug,
       });
     }
   } catch (error) {
@@ -153,6 +154,7 @@ async function loadWorkspaceGateQueueItems(): Promise<{
         kind: "join",
         token: joinToken,
         organizationName: resolved.data.organization.name,
+        organizationSlug: resolved.data.organization.slug,
       });
     }
   } catch (error) {
