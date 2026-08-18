@@ -967,7 +967,7 @@ export const getDriveFiles = <ThrowOnError extends boolean = false>(options: Opt
  * Mint a direct upload session for a drive file (personal or organization).
  * Bytes go client → Vercel Blob (not through this API).
  * Drive uses exact pathnames (addRandomSuffix: false).
- * Blob rejects overwrites; the client must ensure unique filenames.
+ * 409 if target pathname already exists.
  *
  * Agent / REST:
  * 1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).
