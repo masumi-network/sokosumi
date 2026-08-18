@@ -35,7 +35,6 @@ const labels = {
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",
-  projectLabel: "Project",
   statusOptions: {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.QUEUED]: "Queued",
@@ -96,7 +95,6 @@ describe("TasksViewFilters", () => {
       "scope",
       "coworker",
       "status",
-      "project",
     ]);
   });
 
@@ -106,7 +104,6 @@ describe("TasksViewFilters", () => {
     expect(props.sections.map((section) => section.id)).toEqual([
       "coworker",
       "status",
-      "project",
     ]);
   });
 });

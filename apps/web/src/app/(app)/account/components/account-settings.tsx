@@ -9,6 +9,7 @@ import { AccountVendorGrants } from "./account-vendor-grants";
 import { BrandProfileSection } from "./brand-profile-section";
 
 import { DeleteAccountForm } from "./delete-account-form";
+import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 import { EmailForm } from "./email-form";
 import { EmailPreferences } from "./email-preferences";
 import { NameForm } from "./name-form";
@@ -29,6 +30,10 @@ interface AccountSettingsProps {
   userLogo?: null | string;
   userMetadata?: null | string;
   marketingOptIn: boolean;
+  hasPersonalWorkspace?: boolean;
+  hasOrganizationMembership?: boolean;
+  fallbackOrganizationId?: string | null;
+  currentOrganizationId?: string | null;
 }
 
 export function AccountSettings({
@@ -42,6 +47,10 @@ export function AccountSettings({
   userLogo,
   userMetadata,
   marketingOptIn,
+  hasPersonalWorkspace = false,
+  hasOrganizationMembership = false,
+  fallbackOrganizationId = null,
+  currentOrganizationId = null,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -103,6 +112,18 @@ export function AccountSettings({
           <AccountBillingDetails billingDetails={billingDetails} />
         ) : null}
       </div>
+
+      {hasPersonalWorkspace ? (
+        <div className="border-t pt-8">
+          <div className="mx-auto w-full">
+            <DeletePersonalWorkspaceForm
+              hasOrganizationMembership={hasOrganizationMembership}
+              fallbackOrganizationId={fallbackOrganizationId}
+              currentOrganizationId={currentOrganizationId}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <div className="border-t pt-8">
         <div className="mx-auto w-full">

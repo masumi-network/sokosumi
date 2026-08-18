@@ -9,6 +9,7 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.READY]: "Ready",
   [TaskStatus.INPUT_REQUIRED]: "Input required",
   [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
+  [TaskStatus.GRANT_PENDING]: "Grant pending",
   [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
   [TaskStatus.OUT_OF_CREDITS]: "Paused: credits needed",
   [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
@@ -43,6 +44,11 @@ const STATUS_PILL_STYLES: Partial<
     dot: "bg-orange-500",
   },
   [TaskStatus.APPROVAL_REQUIRED]: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
+  [TaskStatus.GRANT_PENDING]: {
     bg: "bg-amber-500/10",
     text: "text-amber-600 dark:text-amber-400",
     dot: "bg-amber-500",

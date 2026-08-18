@@ -44,6 +44,21 @@ describe("resolveTaskName", () => {
     expect(generateTaskNameMock).toHaveBeenCalledWith("Build landing page");
   });
 
+  it("strips BRIEFING.md and CONTEXT.md project links before naming", async () => {
+    generateTaskNameMock.mockResolvedValue(null);
+    expect(
+      await resolveTaskName({
+        description: [
+          "[BRIEFING.md](https://blob.example/projects/p1/BRIEFING.md)",
+          "",
+          "[CONTEXT.md](https://blob.example/projects/p1/CONTEXT.md)",
+          "",
+          "Draft the LinkedIn launch post",
+        ].join("\n"),
+      }),
+    ).toBe("Draft the LinkedIn launch post");
+  });
+
   it("falls back to the first non-empty line when generation returns null", async () => {
     generateTaskNameMock.mockResolvedValue(null);
     expect(await resolveTaskName({ description: "First line\nsecond" })).toBe(

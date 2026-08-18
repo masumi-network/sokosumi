@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { updatePreferredOrganization } from "@/lib/actions/organization";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import {
+  activateOrganizationWorkspace,
+  activateOrganizationWorkspaceWithRetry,
+} from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -110,6 +113,49 @@ describe("activateOrganizationWorkspace", () => {
       },
     );
 
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("retries setActive once and reports failure after two errors", async () => {
+    vi.mocked(authClient.organization.setActive).mockResolvedValue({
+      data: null,
+      error: { message: "setActive failed" },
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    await expect(activateOrganizationWorkspaceWithRetry("org-7")).resolves.toBe(
+      false,
+    );
+
+    expect(authClient.organization.setActive).toHaveBeenCalledTimes(2);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("succeeds on the second setActive attempt", async () => {
+    vi.mocked(authClient.organization.setActive)
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "setActive failed" },
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: { organizationId: "org-7" },
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    await expect(activateOrganizationWorkspaceWithRetry("org-7")).resolves.toBe(
+      true,
+    );
+
+    expect(authClient.organization.setActive).toHaveBeenCalledTimes(2);
     consoleErrorSpy.mockRestore();
   });
 });

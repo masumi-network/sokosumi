@@ -9053,6 +9053,21 @@ export const PersonalWorkspaceCreatedSchema = {
     ]
 } as const;
 
+export const PersonalWorkspaceDeletedSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Id of the deleted personal workspace',
+            example: '11111111-1111-7111-8111-111111111111'
+        }
+    },
+    required: [
+        'workspaceId'
+    ]
+} as const;
+
 export const WorkspaceAccessSchema = {
     type: 'object',
     properties: {
@@ -10691,6 +10706,88 @@ export const ProjectListItemSchema = {
     ]
 } as const;
 
+export const ProjectDesignMdSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'url',
+        'extractionId'
+    ]
+} as const;
+
+export const ProjectMemoryModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'mistral/mistral-medium-3.5'
+        },
+        label: {
+            type: 'string',
+            example: 'Mistral Medium'
+        },
+        region: {
+            type: 'string',
+            enum: [
+                'eu'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'region'
+    ],
+    description: 'Configured EU model that will write project memory, including before the first update.'
+} as const;
+
+export const ProjectContextMdMetadataSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/CONTEXT.md'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        version: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        model: {
+            $ref: '#/components/schemas/ProjectMemoryModel'
+        },
+        lineCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 42
+        }
+    },
+    required: [
+        'url',
+        'updatedAt',
+        'version',
+        'model',
+        'lineCount'
+    ]
+} as const;
+
 export const ProjectSchema = {
     type: 'object',
     properties: {
@@ -10708,12 +10805,72 @@ export const ProjectSchema = {
             type: 'string',
             example: 'Q1 research'
         },
-        description: {
+        briefing: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'Notes'
+            example: 'Campaign briefing'
+        },
+        briefingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        },
+        designMd: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectDesignMd'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Project-owned brand DESIGN.md, or null when none exists.',
+            example: null
+        },
+        memoryEnabled: {
+            type: 'boolean',
+            description: 'Whether Core has both AI Gateway and Blob storage credentials and can update project memory.',
+            example: true
+        },
+        memoryModel: {
+            $ref: '#/components/schemas/ProjectMemoryModel'
+        },
+        contextMd: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectContextMdMetadata'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Project memory metadata. Null until the first task completion writes CONTEXT.md.',
+            example: null
+        },
+        contextMdUpdating: {
+            type: 'boolean',
+            example: false
         },
         createdAt: {
             type: 'string',
@@ -10730,7 +10887,15 @@ export const ProjectSchema = {
         'id',
         'workspaceId',
         'name',
-        'description',
+        'briefing',
+        'briefingUrl',
+        'websiteUrl',
+        'logo',
+        'designMd',
+        'memoryEnabled',
+        'memoryModel',
+        'contextMd',
+        'contextMdUpdating',
         'createdAt',
         'updatedAt'
     ]
@@ -10745,13 +10910,31 @@ export const CreateProjectRequestSchema = {
             maxLength: 200,
             example: 'Q1 research'
         },
+        briefing: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            example: 'Optional campaign briefing'
+        },
         description: {
             type: [
                 'string',
                 'null'
             ],
-            maxLength: 10000,
-            example: 'Optional description'
+            maxLength: 20000,
+            deprecated: true,
+            description: 'Deprecated. Use briefing instead.',
+            example: 'Legacy campaign briefing'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048,
+            format: 'uri'
         }
     },
     required: [
@@ -10903,6 +11086,46 @@ export const AddProjectTaskRequestSchema = {
     ]
 } as const;
 
+export const ProjectContextMdSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectContextMdMetadata'
+        },
+        {
+            type: 'object',
+            properties: {
+                content: {
+                    type: 'string',
+                    example: '# Project context'
+                }
+            },
+            required: [
+                'content'
+            ]
+        }
+    ]
+} as const;
+
+export const ProjectDesignMdWriteSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            example: '# DESIGN.md\n\nBrand guidelines…'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '12345'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -10911,12 +11134,36 @@ export const PatchProjectRequestSchema = {
             minLength: 1,
             maxLength: 200
         },
+        briefing: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000
+        },
         description: {
             type: [
                 'string',
                 'null'
             ],
-            maxLength: 10000
+            maxLength: 20000,
+            deprecated: true,
+            description: 'Deprecated. Use briefing instead.'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048,
+            format: 'uri'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
         }
     }
 } as const;
@@ -12763,7 +13010,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         userId: {
             type: 'string',
             minLength: 1,
-            description: 'User id — resolves (or creates) that user\'s personal workspace.'
+            description: 'User id — resolves that user\'s personal workspace. Errors if none exists.'
         },
         organizationId: {
             type: 'string',
@@ -12773,7 +13020,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         email: {
             type: 'string',
             format: 'email',
-            description: 'User email — resolves (or creates) that user\'s personal workspace. Prefer for vendor targeting without directory search.',
+            description: 'User email — resolves that user\'s personal workspace. Errors if none exists. Prefer for vendor targeting without directory search.',
             example: 'pilot@example.com'
         },
         organizationSlug: {
@@ -13165,6 +13412,45 @@ export const TaskActivitySummarySchema = {
         'basis',
         'workedMinutes'
     ]
+} as const;
+
+export const CreateTaskContextSchema = {
+    type: 'object',
+    properties: {
+        brand: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            format: 'uri'
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                }
+            ]
+        },
+        brandSource: {
+            type: 'string',
+            enum: [
+                'project',
+                'workspace'
+            ]
+        },
+        briefing: {
+            type: 'boolean'
+        },
+        memory: {
+            type: 'boolean'
+        }
+    },
+    description: 'Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.'
 } as const;
 
 export const UserWritableTaskLinkRelationSchema = {

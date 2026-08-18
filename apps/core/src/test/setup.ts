@@ -40,6 +40,7 @@ const envDefaults: Record<string, string> = {
   JOB_FAILURE_NOTIFICATION_EMAILS: "",
   OPENROUTER_CHAT_API_KEY:
     "sk-or-v1-test-0000000000000000000000000000000000000000",
+  PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {

@@ -27,7 +27,7 @@ export function JoinCard({ token, organization, user }: JoinCardProps) {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="items-center text-center">
+      <CardHeader className="flex flex-col items-center text-center">
         <div className="bg-muted mb-2 flex size-16 items-center justify-center overflow-hidden rounded-2xl">
           {organization.logo ? (
             <Image
@@ -52,6 +52,7 @@ export function JoinCard({ token, organization, user }: JoinCardProps) {
           organizationName={organization.name}
           organizationSlug={organization.slug}
           isAuthenticated={Boolean(user)}
+          currentUserName={user?.name?.trim() ?? ""}
         />
       </CardContent>
     </Card>

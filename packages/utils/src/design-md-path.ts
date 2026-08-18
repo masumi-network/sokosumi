@@ -1,6 +1,7 @@
 const DESIGN_MD_DIR = "design-md";
 const USERS_SEGMENT = "users";
 const ORGANIZATIONS_SEGMENT = "organizations";
+const PROJECTS_SEGMENT = "projects";
 const AD_HOC_SEGMENT = "adhoc";
 
 /**
@@ -43,6 +44,25 @@ export function buildOrganizationDesignMdPathname(
   fileName: string,
 ): string {
   return `${buildOrganizationDesignMdPrefix(organizationId)}${fileName}`;
+}
+
+/**
+ * Prefix for project-owned DESIGN.md blobs.
+ * Example: `design-md/projects/{projectId}/`
+ */
+export function buildProjectDesignMdPrefix(projectId: string): string {
+  return `${DESIGN_MD_DIR}/${PROJECTS_SEGMENT}/${projectId}/`;
+}
+
+/**
+ * Content-hash pathname for a project DESIGN.md put (no random suffix).
+ * Example: `design-md/projects/{projectId}/{extractionId-}{sha256}.md`
+ */
+export function buildProjectDesignMdPathname(
+  projectId: string,
+  fileName: string,
+): string {
+  return `${buildProjectDesignMdPrefix(projectId)}${fileName}`;
 }
 
 /**

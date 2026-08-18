@@ -5,7 +5,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-
+import mountGetProjectContextMd from "./context-md/get.js";
 import mountDeleteProject from "./delete.js";
 import mountGetProject from "./get.js";
 import mountDeleteProjectJob from "./jobs/[jobId]/delete.js";
@@ -19,6 +19,10 @@ const {
   jobFindFirstMock,
   jobUpdateMock,
   jobUpdateManyMock,
+  deleteProjectBlobsMock,
+  deleteProjectBriefingBlobMock,
+  ensureProjectFilesTokenMock,
+  uploadProjectBriefingFileMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
@@ -26,6 +30,17 @@ const {
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
+  deleteProjectBlobsMock: vi.fn(),
+  deleteProjectBriefingBlobMock: vi.fn(),
+  ensureProjectFilesTokenMock: vi.fn(),
+  uploadProjectBriefingFileMock: vi.fn(),
+}));
+
+vi.mock("@/lib/project-files-blob", () => ({
+  deleteProjectBlobs: deleteProjectBlobsMock,
+  deleteProjectBriefingBlob: deleteProjectBriefingBlobMock,
+  ensureProjectFilesToken: ensureProjectFilesTokenMock,
+  uploadProjectBriefingFile: uploadProjectBriefingFileMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -66,7 +81,19 @@ const sampleProject = {
   id: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
   name: "P",
-  description: null,
+  filesToken: "secret_token",
+  websiteUrl: null,
+  logo: null,
+  designMdUrl: null,
+  designMdExtractionId: null,
+  briefing: null,
+  briefingUrl: null,
+  contextMd: null,
+  contextMdUrl: null,
+  contextMdUpdatedAt: null,
+  contextMdModel: null,
+  contextMdUpdatingSince: null,
+  contextMdVersion: 0,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
@@ -119,12 +146,66 @@ describe("GET /projects/{id}", () => {
   });
 });
 
-describe("PATCH /projects/{id}", () => {
+describe("GET /projects/{id}/context-md", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  it("returns 404 when project has no memory", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    const app = createApp();
+    mountGetProjectContextMd(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}/context-md`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns read-only project memory", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      contextMd: "# Context\n\nDecision",
+      contextMdUrl: "https://blob.example/projects/project_1/CONTEXT.md",
+      contextMdUpdatedAt: new Date("2026-04-03T09:00:00.000Z"),
+      contextMdModel: "mistral/mistral-medium-latest",
+      contextMdVersion: 2,
+    });
+    const app = createApp();
+    mountGetProjectContextMd(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}/context-md`);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        content: string;
+        lineCount: number;
+        model: { id: string; label: string; region: string };
+      };
+    };
+    expect(body.data).toMatchObject({
+      content: "# Context\n\nDecision",
+      lineCount: 3,
+      model: {
+        id: "mistral/mistral-medium-latest",
+        label: "Mistral Medium",
+        region: "eu",
+      },
+    });
+  });
+});
+
+describe("PATCH /projects/{id}", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureProjectFilesTokenMock.mockResolvedValue("secret_token");
+    uploadProjectBriefingFileMock.mockResolvedValue(
+      "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+    );
+  });
+
   it("returns 404 when update matches no row", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
     projectUpdateManyMock.mockResolvedValue({ count: 0 });
     const app = createApp();
     mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
@@ -154,6 +235,158 @@ describe("PATCH /projects/{id}", () => {
     expect(body.data.name).toBe("New");
   });
 
+  it("uploads a briefing before one scoped project update", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock
+      .mockResolvedValueOnce(sampleProject)
+      .mockResolvedValueOnce({
+        ...sampleProject,
+        briefing: "Updated briefing",
+        briefingUrl:
+          "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+      });
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing: "Updated briefing" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(uploadProjectBriefingFileMock).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "secret_token",
+      "Updated briefing",
+    );
+    expect(projectUpdateManyMock).toHaveBeenCalledOnce();
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: {
+        briefing: "Updated briefing",
+        briefingUrl:
+          "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+      },
+    });
+  });
+
+  it("clears whitespace-only briefing and deletes its blob", async () => {
+    const oldBriefingUrl =
+      "https://blob.example/projects/project_1/secret_token/BRIEFING.md";
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock
+      .mockResolvedValueOnce({
+        ...sampleProject,
+        briefing: "Old briefing",
+        briefingUrl: oldBriefingUrl,
+      })
+      .mockResolvedValueOnce(sampleProject);
+
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing: "   " }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: { briefing: null, briefingUrl: null },
+    });
+    expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
+  });
+
+  it("nulls the URL when a briefing upload fails", async () => {
+    const oldBriefingUrl =
+      "https://blob.example/projects/project_1/secret_token/BRIEFING.md";
+    projectFindFirstMock
+      .mockResolvedValueOnce({
+        ...sampleProject,
+        briefing: "Old briefing",
+        briefingUrl: oldBriefingUrl,
+      })
+      .mockResolvedValueOnce({
+        ...sampleProject,
+        briefing: "Updated briefing",
+        briefingUrl: null,
+      });
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    uploadProjectBriefingFileMock.mockResolvedValue(null);
+
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing: "Updated briefing" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: { briefing: "Updated briefing", briefingUrl: null },
+    });
+    expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
+  });
+
+  it("does not upload a briefing when the scoped project lookup misses", async () => {
+    projectFindFirstMock.mockResolvedValue(null);
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing: "Unauthorized briefing" }),
+    });
+
+    expect(res.status).toBe(404);
+    expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps logo and DESIGN.md when website URL changes", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      websiteUrl: "https://new.example.com",
+    });
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ websiteUrl: "https://new.example.com" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: { websiteUrl: "https://new.example.com" },
+    });
+  });
+
+  it("rejects a logo owned by another project", async () => {
+    const app = createApp();
+    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        logo: "https://abc.public.blob.vercel-storage.com/projects/another-project/logos/hash.png",
+      }),
+    });
+
+    expect(res.status).toBe(422);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("rejects coworker context even with X-Context-User-Id", async () => {
     const app = createApp(COWORKER_CONTEXT_AUTH);
     mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
@@ -180,6 +413,7 @@ describe("DELETE /projects/{id}", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
+    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 
   it("returns deleted payload", async () => {
@@ -192,6 +426,7 @@ describe("DELETE /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { deleted: boolean } };
     expect(body.data.deleted).toBe(true);
+    expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

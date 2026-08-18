@@ -10,6 +10,7 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
+import type { Project } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
@@ -142,12 +143,16 @@ export default async function EditTaskPage({
 }
 
 async function buildProjectOptions(
-  projects: Array<{ id: string; name: string }>,
+  projects: Project[],
   selectedProjectId: string | null,
 ): Promise<ProjectFilterOption[]> {
   const projectOptions = projects.map((project) => ({
     id: project.id,
     name: project.name,
+    logo: project.logo,
+    designMd: project.designMd,
+    briefingUrl: project.briefingUrl,
+    contextMd: project.contextMd,
   }));
 
   if (
@@ -164,7 +169,14 @@ async function buildProjectOptions(
   }
 
   return [
-    { id: selectedProject.id, name: selectedProject.name },
+    {
+      id: selectedProject.id,
+      name: selectedProject.name,
+      logo: selectedProject.logo,
+      designMd: selectedProject.designMd,
+      briefingUrl: selectedProject.briefingUrl,
+      contextMd: selectedProject.contextMd,
+    },
     ...projectOptions,
   ];
 }

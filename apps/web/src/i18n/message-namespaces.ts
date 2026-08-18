@@ -42,6 +42,8 @@ export const APP_SHELL_MESSAGE_PATHS = [
   // Account Legal drill reopens the banner; nested app/Hermes/Admin
   // boundaries replace the global bag, so CookieConsent must travel with them.
   "CookieConsent",
+  // Header switcher create dialog reuses WorkspaceGate.Identity cards.
+  "WorkspaceGate",
   "App.Sidebar",
   "App.Header",
   "App.Error",
@@ -72,6 +74,7 @@ export const APP_MESSAGE_PATHS = [
   "Components",
   "Library",
   "CookieConsent",
+  "WorkspaceGate",
   "notifications",
   ...appMessagePathsExcluding(APP_FEATURE_EXCLUSIONS),
 ] as const;

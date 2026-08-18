@@ -20,6 +20,9 @@ export const CORE_API_ERROR_KINDS = {
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",
   SUBSCRIPTION_SEATS_BELOW_ASSIGNED: "subscription_seats_below_assigned",
   FREE_CREDIT_INVALID: "free_credit_invalid",
+  LAST_WORKSPACE: "last_workspace",
+  PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
+  WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
 } as const;
 
 export type CoreApiErrorKind =
