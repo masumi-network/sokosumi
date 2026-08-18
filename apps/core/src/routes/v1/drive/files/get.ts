@@ -25,7 +25,10 @@ import {
   driveFileScopeSchema,
   driveFilesSchema,
 } from "@/schemas/drive-file.schema";
-import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import {
+  type CursorPaginationMeta,
+  cursorPaginationQuerySchema,
+} from "@/schemas/pagination.schema";
 
 const querySchema = z
   .object({
@@ -133,17 +136,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Do not sort by uploadedAt — that breaks cursor across pages.
 
     // Vercel Blob list() doesn't return total count.
-    // When this is the complete result (!hasMore && no incoming cursor), we know the exact count.
-    // Otherwise, total is unknown — draining all pages is forbidden.
-    const total = !hasMore && !cursor ? blobs.length : 0; // 0 = unknown, not estimatedTotal
+    // Only include total when this is the complete result (!hasMore && no incoming cursor).
+    // Otherwise omit it — draining all pages is forbidden. Never send 0 or fake values.
+    const hasRealTotal = !hasMore && !cursor;
 
     // Create pagination metadata using Vercel Blob's cursor
+    // Type assertion: ok() expects CursorPaginationMeta but we conditionally omit total
     const paginationMeta = {
       cursor: cursor ?? null,
       limit: take,
-      total,
+      ...(hasRealTotal ? { total: blobs.length } : {}),
       nextCursor: hasMore ? (nextCursor ?? null) : null,
-    };
+    } as CursorPaginationMeta;
 
     return ok(c, driveFilesSchema.parse(apiFiles), paginationMeta);
   });
