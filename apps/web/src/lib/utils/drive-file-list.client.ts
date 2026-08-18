@@ -14,19 +14,6 @@ interface ListDriveFilesOptions {
   organizationId?: string;
 }
 
-function driveFilesListErrorMessage(error: unknown): string {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string" &&
-    error.message.length > 0
-  ) {
-    return error.message;
-  }
-  return "Failed to load files";
-}
-
 export async function listDriveFiles(
   options: ListDriveFilesOptions,
 ): Promise<DriveFile[]> {
@@ -46,10 +33,6 @@ export async function listDriveFiles(
       },
       throwOnError: true,
     });
-
-    if (response.error) {
-      throw new Error(driveFilesListErrorMessage(response.error));
-    }
 
     files.push(...(response.data?.data ?? []));
 

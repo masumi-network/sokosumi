@@ -121,14 +121,6 @@ describe("listDriveFiles", () => {
     expect(getDriveFilesMock).toHaveBeenCalledTimes(DRIVE_FILES_MAX_PAGES);
   });
 
-  it("throws when Core returns an error envelope", async () => {
-    getDriveFilesMock.mockResolvedValue({
-      error: { message: "Forbidden" },
-    });
-
-    await expect(listDriveFiles({ scope: "me" })).rejects.toThrow("Forbidden");
-  });
-
   it("propagates SDK throws from throwOnError", async () => {
     getDriveFilesMock.mockRejectedValue(new Error("Unauthorized"));
 
