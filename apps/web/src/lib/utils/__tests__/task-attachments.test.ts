@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
   descriptionIncludesTaskAttachmentLink,
-  extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+} from "@sokosumi/utils";
+import { describe, expect, it } from "vitest";
+import {
+  extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";

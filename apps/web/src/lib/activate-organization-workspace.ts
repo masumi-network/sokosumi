@@ -31,3 +31,20 @@ export async function activateOrganizationWorkspace(
     console.error("Failed to persist preferred organization:", error);
   }
 }
+
+export async function activateOrganizationWorkspaceWithRetry(
+  organizationId: string,
+): Promise<boolean> {
+  for (const label of [
+    "Organization workspace activation failed",
+    "Organization workspace activation retry failed",
+  ] as const) {
+    try {
+      await activateOrganizationWorkspace(organizationId);
+      return true;
+    } catch (error) {
+      console.error(label, error);
+    }
+  }
+  return false;
+}

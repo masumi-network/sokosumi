@@ -5,12 +5,15 @@ import {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildOrganizationDesignMdPrefix,
+  buildProjectDesignMdPathname,
+  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
   buildUserDesignMdPrefix,
 } from "../design-md-path.js";
 
 const USER_ID = "user_123";
 const ORG_ID = "01960001-0001-7001-8001-000000000099";
+const PROJECT_ID = "01960001-0001-7001-8001-000000000088";
 const HASH = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 describe("buildUserDesignMdPrefix", () => {
@@ -53,6 +56,20 @@ describe("buildOrganizationDesignMdPathname", () => {
   it("keeps an extractionId-prefixed hash filename", () => {
     expect(buildOrganizationDesignMdPathname(ORG_ID, `55-${HASH}.md`)).toBe(
       `design-md/organizations/${ORG_ID}/55-${HASH}.md`,
+    );
+  });
+});
+
+describe("project DESIGN.md paths", () => {
+  it("builds the project prefix", () => {
+    expect(buildProjectDesignMdPrefix(PROJECT_ID)).toBe(
+      `design-md/projects/${PROJECT_ID}/`,
+    );
+  });
+
+  it("appends the hash filename under the project prefix", () => {
+    expect(buildProjectDesignMdPathname(PROJECT_ID, `42-${HASH}.md`)).toBe(
+      `design-md/projects/${PROJECT_ID}/42-${HASH}.md`,
     );
   });
 });

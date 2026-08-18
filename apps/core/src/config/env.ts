@@ -86,6 +86,13 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
+  // Project memory (Vercel AI Gateway, Mistral EU provider only)
+  AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  PROJECT_MEMORY_MODEL: z
+    .string()
+    .startsWith("mistral/")
+    .default("mistral/mistral-medium-3.5"),
+
   // Hermes Orchestrator (Core → Hermes outbound)
   HERMES_ORCH_BASE_URL: z.url(),
   HERMES_ORCH_TOKEN: z.string().min(1),

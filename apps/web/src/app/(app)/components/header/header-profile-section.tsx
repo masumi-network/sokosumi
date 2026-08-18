@@ -8,6 +8,7 @@ import {
 import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { userService } from "@/lib/services";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import { HeaderNotificationBell } from "./header-notification-bell.client";
@@ -89,15 +90,19 @@ async function HeaderProfileSectionInner({
   // members. Notification Center is a sibling of this Suspense and does not
   // wait. Credits stay on accountSummaryPromise.
   const accountSummaryPromise = loadHeaderAccountSummary(adminMenuEnabled);
-  const { members } = await getPrivateCachedChatListChrome({
-    userId: session.user.id,
-    activeOrganizationId,
-  });
+  const [{ members }, workspaceAccess] = await Promise.all([
+    getPrivateCachedChatListChrome({
+      userId: session.user.id,
+      activeOrganizationId,
+    }),
+    userService.getWorkspaceAccess(),
+  ]);
 
   return (
     <HeaderProfileSectionClient
       sessionUser={session.user}
       members={members}
+      hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
       activeOrganizationId={activeOrganizationId}
       accountSummaryPromise={accountSummaryPromise}
     />

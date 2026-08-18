@@ -2,6 +2,7 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
+  CreateTaskContext,
   JobSummary,
   Task,
   TaskActivitySummary,
@@ -39,6 +40,7 @@ interface CreateTaskInput {
   description: string | null;
   assigneeId: string | null;
   projectId?: string | null;
+  context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 

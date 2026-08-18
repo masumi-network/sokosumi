@@ -30,6 +30,7 @@ interface MoveJobToWorkspaceDialogProps {
   onOpenChange: (open: boolean) => void;
   open: boolean;
   organizations: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   personalWorkspaceLabel: string;
 }
 
@@ -47,6 +48,7 @@ export function MoveJobToWorkspaceDialog({
   onOpenChange,
   open,
   organizations,
+  hasPersonalWorkspace = false,
   personalWorkspaceLabel,
 }: MoveJobToWorkspaceDialogProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.Actions");
@@ -57,6 +59,7 @@ export function MoveJobToWorkspaceDialog({
   const workspaceOptions: WorkspaceOption[] = buildWorkspaceMoveTargets(
     currentOrganizationId,
     organizations,
+    hasPersonalWorkspace,
   ).map((target) =>
     target.id === "personal"
       ? {

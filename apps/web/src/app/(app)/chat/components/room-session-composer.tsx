@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import {
   type FormEvent,
   type Ref,
@@ -14,7 +15,6 @@ import {
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
-import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 
 import {
   RoomComposer,

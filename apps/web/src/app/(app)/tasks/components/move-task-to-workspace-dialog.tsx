@@ -30,6 +30,7 @@ interface MoveTaskToWorkspaceDialogProps {
   taskId: string;
   currentOrganizationId: string | null;
   organizations: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   /** Label for the personal workspace row (e.g. the signed-in user's name). */
   personalWorkspaceLabel: string;
 }
@@ -47,6 +48,7 @@ export function MoveTaskToWorkspaceDialog({
   taskId,
   currentOrganizationId,
   organizations,
+  hasPersonalWorkspace = false,
   personalWorkspaceLabel,
 }: MoveTaskToWorkspaceDialogProps) {
   const t = useTranslations("App.Tasks.Detail.actions");
@@ -57,6 +59,7 @@ export function MoveTaskToWorkspaceDialog({
   const workspaceOptions: WorkspaceOption[] = buildWorkspaceMoveTargets(
     currentOrganizationId,
     organizations,
+    hasPersonalWorkspace,
   ).map((target) =>
     target.id === "personal"
       ? {

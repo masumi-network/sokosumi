@@ -151,7 +151,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
-      "createOrganization": "Create Organization",
+      "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization",
       "userAvatarAlt": "User avatar"
@@ -671,6 +671,7 @@
         "confirmLabelSuffix": "to confirm deletion:",
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
+          "lastWorkspace": "You cannot delete your last workspace.",
           "unauthorizedAction": "Login"
         },
         "Schema": {
@@ -826,8 +827,12 @@
     "noAccount": "New to Sokosumi?",
     "signIn": "Sign in to join",
     "register": "Create an account",
+    "decline": "Decline",
+    "activateRetry": "Try switching again",
     "Error": {
       "joinFailed": "Failed to join the organization",
+      "declineFailed": "We could not decline this invite.",
+      "activateFailed": "We could not switch you into that organization. Try again before continuing.",
       "unauthorizedAction": "Login"
     },
     "Invalid": {
@@ -855,6 +860,7 @@
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
+        "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
@@ -868,7 +874,8 @@
         },
         "Error": {
           "accept": "Failed to accept invitation",
-          "decline": "Failed to decline invitation"
+          "decline": "Failed to decline invitation",
+          "activate": "We could not switch you into that organization. Try again before continuing."
         },
         "Errors": {
           "unauthorizedAction": "Login"
@@ -1538,7 +1545,6 @@
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "statusLabel": "Status",
-        "projectLabel": "Project",
         "statusOptions": {
           "DRAFT": "Draft",
           "QUEUED": "Queued",
@@ -1555,6 +1561,13 @@
           "FAILED": "Failed",
           "CANCELED": "Canceled"
         }
+      },
+      "ProjectSwitcher": {
+        "ariaLabel": "Project",
+        "allProjects": "All projects",
+        "searchPlaceholder": "Search projects...",
+        "empty": "No projects found.",
+        "create": "Create project..."
       },
       "Jobs": {
         "filterButton": "Filters",
@@ -1760,17 +1773,19 @@
         "files": "Files"
       },
       "NewTask": {
-        "DesignMdAttachment": {
-          "organizationLabel": "{organization} Brand Design",
-          "personalLabel": "Your Brand Design",
-          "customLabel": "{hostname} Brand Design",
-          "tooltip": "DESIGN.md is a brand guide already created for {organization} by its owner. Attaching it here helps this agent apply your branding automatically.",
-          "tooltipPersonal": "DESIGN.md is a brand guide you already created. Attaching it here helps this agent apply your branding automatically.",
-          "tooltipCustom": "DESIGN.md generated from {hostname} for this task only. Attaching it here helps this agent apply that branding. Nothing is saved to your profile.",
-          "learnMore": "Learn more about DESIGN.md",
-          "infoAria": "About this attachment",
-          "useDifferentBranding": "Use different branding",
-          "resetToDefault": "Reset branding"
+        "ContextAttachments": {
+          "label": "Context",
+          "brand": "Brand Guidelines",
+          "namedBrand": "{name} brand guidelines",
+          "personalBrand": "Personal brand guidelines",
+          "brandMenuAria": "Choose brand guidelines",
+          "projectBrand": "Project brand guidelines",
+          "organizationBrand": "Organization brand guidelines",
+          "otherWebsite": "Other website…",
+          "briefing": "Briefing",
+          "memory": "Memory",
+          "infoAria": "About task context",
+          "info": "Brand guidelines, briefing, and memory are attached as DESIGN.md, BRIEFING.md, and CONTEXT.md files for the coworker to read."
         },
         "title": "New Task",
         "details": "Details",
@@ -1951,6 +1966,7 @@
             "DRAFT": "Draft",
             "QUEUED": "Scheduled",
             "READY": "Ready",
+            "GRANT_PENDING": "Grant",
             "INPUT_REQUIRED": "Input",
             "APPROVAL_REQUIRED": "Approval",
             "AUTHENTICATION_REQUIRED": "Auth",
@@ -1978,25 +1994,73 @@
           }
         }
       },
+      "Briefing": {
+        "label": "Briefing",
+        "placeholder": "Describe the campaign or initiative…",
+        "guidance": "Describe the campaign/initiative: goals, audience, channels, timeline, tone & voice, KPIs, must-haves / must-avoids.",
+        "wordCount": "{count, plural, =0 {0 words} =1 {1 word} other {# words}}",
+        "encouragement": "Great briefings are 300+ words — the more you write, the better every task turns out.",
+        "encouragementMet": "Strong briefing — every task will have the context it needs.",
+        "chips": {
+          "goals": "Goals",
+          "audience": "Audience",
+          "channels": "Channels",
+          "timeline": "Timeline",
+          "tone": "Tone & voice",
+          "kpis": "KPIs",
+          "mustHaves": "Must-haves",
+          "mustAvoids": "Must-avoids"
+        }
+      },
+      "Wizard": {
+        "title": "New project",
+        "stepLabel": "{current} / {total}",
+        "name": {
+          "title": "Name this project",
+          "subtitle": "A short title for the campaign or initiative.",
+          "websiteLabel": "Website",
+          "websitePlaceholder": "example.com",
+          "websiteHint": "Optional. Used to fetch the logo and brand guidelines."
+        },
+        "briefing": {
+          "title": "Write the briefing",
+          "subtitle": "The more you write, the better every task in this project turns out."
+        },
+        "review": {
+          "title": "Review and create",
+          "subtitle": "You can edit the briefing anytime.",
+          "nameLabel": "Name",
+          "websiteLabel": "Website",
+          "briefingLabel": "Briefing",
+          "emptyWebsite": "No website",
+          "emptyBriefing": "No briefing yet — you can add one after creating.",
+          "contextNote": "Every task in this project starts with your briefing, your brand, and the project's memory."
+        },
+        "brand": {
+          "title": "Setting up brand",
+          "fetching": "Fetching brand…",
+          "ready": "Brand is ready. You can open the project anytime.",
+          "failed": "We couldn't finish the brand just now. You can try again from the project later.",
+          "logoFailed": "Couldn't fetch the logo. You can add it later."
+        },
+        "nav": {
+          "next": "Continue",
+          "back": "Back",
+          "create": "Create project",
+          "creating": "Creating…",
+          "openProject": "Open project"
+        }
+      },
       "NewProject": {
-        "title": "New Project",
-        "details": "Details",
-        "detailsDescription": "Name the project and add optional context.",
         "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Add project context...",
-        "createProject": "Create Project",
-        "cancel": "Cancel"
+        "namePlaceholder": "Enter a short title"
       },
       "EditProject": {
         "title": "Edit Project",
         "details": "Details",
-        "detailsDescription": "Update the project details.",
+        "detailsDescription": "Update the project name, website, and briefing.",
         "name": "Project name",
         "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Update project context...",
         "save": "Save",
         "cancel": "Cancel"
       },
@@ -2006,8 +2070,43 @@
           "updated": "Updated",
           "created": "Created"
         },
-        "description": "Description",
-        "emptyDescription": "No description yet.",
+        "briefing": "Briefing",
+        "emptyBriefing": "No briefing yet.",
+        "editBriefing": "Edit",
+        "writeBriefing": "Write briefing",
+        "showMore": "Show more",
+        "showLess": "Show less",
+        "brand": "Brand",
+        "brandCard": {
+          "ready": "Ready",
+          "generating": "Generating…",
+          "notSet": "Not set",
+          "generate": "Generate from website",
+          "missingWebsite": "Add a project website before generating brand context.",
+          "open": "Open",
+          "edit": "Edit",
+          "remove": "Remove",
+          "removed": "Brand context removed",
+          "removeDialog": {
+            "title": "Remove brand context?",
+            "description": "This removes the project's DESIGN.md file."
+          }
+        },
+        "backToProject": "Back to project",
+        "memory": {
+          "fileName": "Memory",
+          "updated": "Updated {when}",
+          "updating": "Updating…",
+          "loading": "Loading…",
+          "empty": "Builds as tasks complete",
+          "modelLine": "{model} · hosted in the EU 🇪🇺",
+          "defaultModel": "Mistral Medium",
+          "notConfigured": "Not configured (AI_GATEWAY_API_KEY)",
+          "title": "Project memory",
+          "copyLink": "Copy link",
+          "openRaw": "Open raw",
+          "copied": "Copied"
+        },
         "jobs": {
           "title": "Jobs",
           "empty": "No jobs linked to this project yet.",
@@ -2033,6 +2132,38 @@
           "pickerLoading": "Loading tasks...",
           "pickerError": "Failed to load tasks."
         },
+        "modules": {
+          "title": "Workspace",
+          "comingSoon": "Coming soon",
+          "seo": {
+            "title": "SEO",
+            "description": "Keywords, rankings, audits"
+          },
+          "socialMedia": {
+            "title": "Social Media",
+            "description": "Posts, calendar, engagement"
+          },
+          "email": {
+            "title": "Email",
+            "description": "Campaigns and sequences"
+          },
+          "paidAdvertising": {
+            "title": "Paid Advertising",
+            "description": "Ads, budgets, performance"
+          },
+          "content": {
+            "title": "Content",
+            "description": "Briefs, drafts, publishing"
+          },
+          "pr": {
+            "title": "PR",
+            "description": "Press, outreach, coverage"
+          },
+          "fileBrowser": {
+            "title": "File Browser",
+            "description": "Every file this project produced"
+          }
+        },
         "actions": {
           "moreActions": "More actions",
           "viewDetails": "View details",
@@ -2056,7 +2187,9 @@
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
           "removeTask": "Failed to remove task",
-          "loadMore": "Failed to load more projects"
+          "loadMore": "Failed to load more projects",
+          "contextMd": "Couldn't load project memory",
+          "brand": "Couldn't update project brand context"
         }
       }
     },
@@ -3805,6 +3938,20 @@
         "success": "Account deleted successfully",
         "error": "Failed to delete account"
       },
+      "DeletePersonal": {
+        "title": "Delete personal workspace",
+        "description": "Remove your personal workspace. Organization workspaces stay.",
+        "lastWorkspaceDescription": "You cannot delete your last workspace.",
+        "button": "Delete personal workspace",
+        "confirmTitle": "Delete personal workspace?",
+        "confirmDescription": "This deletes your personal workspace. Organization workspaces are not affected.",
+        "confirm": "Yes, delete personal workspace",
+        "success": "Personal workspace deleted",
+        "error": "Failed to delete personal workspace",
+        "activateError": "Personal workspace deleted, but we could not switch you to an organization. Use the workspace switcher.",
+        "lastWorkspaceError": "You cannot delete your last workspace.",
+        "dependentsError": "Delete jobs and tasks in this workspace first."
+      },
       "ApiKeys": {
         "title": "API Keys",
         "description": "Manage your API keys for programmatic access",
@@ -4507,6 +4654,7 @@
       "removeSelectedUpload": "Remove selected file",
       "descriptionPersonal": "Create and manage the DESIGN.md used for tasks from your personal workspace.",
       "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization.",
+      "descriptionProject": "Create and manage the brand DESIGN.md used for tasks in this project.",
       "editPageTitle": "Edit DESIGN.md",
       "editTab": "Edit",
       "previewTab": "Preview",
@@ -5180,6 +5328,11 @@
   },
   "Library": {
     "Auth": {
+      "NameField": {
+        "label": "Name",
+        "placeholder": "Your name",
+        "persistError": "We could not update your name."
+      },
       "Schema": {
         "Email": {
           "invalid": "Please enter a valid email address.",
@@ -5374,29 +5527,31 @@
   },
   "WorkspaceGate": {
     "title": "Set up your workspace",
-    "identityTitle": "Create your first workspace",
-    "identityDescription": "Confirm your name and choose how you want to start.",
+    "identityTitle": "How do you want to work?",
+    "identityDescriptionConfirm": "Confirm your name and choose an option.",
+    "identityDescriptionEnter": "Enter your name.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization. You will skip identity onboarding.",
-    "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
+    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization.",
     "signOut": "Sign out",
+    "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",
     "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
-      "displayNameLabel": "Display name",
-      "displayNamePlaceholder": "Your name",
-      "choiceLabel": "How do you want to start?",
-      "personalTitle": "Personal workspace",
-      "personalDescription": "Work on your own. You can join or create an organization later.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your name",
+      "choiceLabel": "How do you want to work?",
+      "choiceHint": "You can add another workspace at any time.",
+      "personalTitle": "Personal",
+      "personalDescription": "Work on your own.",
       "organizationTitle": "Organization",
-      "organizationDescription": "Set up a shared workspace for your team.",
-      "createPersonal": "Create personal workspace",
+      "organizationDescription": "Work with your team.",
       "continue": "Continue",
-      "nameUpdateError": "We could not update your display name.",
+      "nameUpdateError": "We could not update your name.",
       "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",
-      "personalCreateError": "We could not create your personal workspace."
+      "personalCreateError": "We could not create your personal workspace.",
+      "personalActivateError": "Personal workspace created, but we could not switch you to it. Use the workspace switcher."
     },
     "Pending": {
       "accept": "Accept",
@@ -5405,7 +5560,9 @@
       "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
       "acceptError": "We could not accept that invitation.",
       "joinError": "We could not join that organization.",
-      "rejectError": "We could not reject the remaining invitations."
+      "rejectError": "We could not reject the remaining invitations.",
+      "activateError": "We could not switch you into that organization. Try again before continuing.",
+      "activateRetry": "Try switching again"
     }
   }
 }

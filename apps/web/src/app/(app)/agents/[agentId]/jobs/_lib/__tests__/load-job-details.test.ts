@@ -18,8 +18,16 @@ class MockCoreApiRequestError extends Error {
   }
 }
 
+const getWorkspaceAccessMock = vi.fn();
+
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: getSessionMock,
+}));
+
+vi.mock("@/lib/services", () => ({
+  userService: {
+    getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
+  },
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -38,6 +46,12 @@ vi.mock("@tanstack/react-query", () => ({
   dehydrate: vi.fn(() => "dehydrated-state"),
 }));
 
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    getProjectById: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 vi.mock("@/queries", () => ({
   getJobQueryKey: (jobId: string) => ["jobs", jobId],
   getQueryClient: () => ({
@@ -49,6 +63,9 @@ describe("loadJobDetails", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    getWorkspaceAccessMock.mockResolvedValue({
+      hasPersonalWorkspace: true,
+    });
   });
 
   it("returns workspace-visible jobs in read-only mode", async () => {
@@ -81,6 +98,7 @@ describe("loadJobDetails", () => {
       activeOrganizationId: "org-1",
       dehydratedState: "dehydrated-state",
       personalWorkspaceLabel: "Ada Lovelace",
+      hasPersonalWorkspace: true,
     });
   });
 

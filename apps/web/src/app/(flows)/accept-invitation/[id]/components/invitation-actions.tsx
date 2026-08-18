@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
@@ -27,12 +28,18 @@ export default function InvitationActions({
   user,
 }: InvitationActionsProps) {
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
+  const { persistIfNeeded, NameFields } = useCollectUserName(
+    user?.name?.trim() ?? "",
+  );
 
   const { id, email } = invitation;
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState<"accept" | "reject" | "logout" | null>(
+    null,
+  );
+  const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
     null,
   );
 
@@ -71,6 +78,11 @@ export default function InvitationActions({
     }
     setLoading(true);
     setAction("accept");
+    if (!(await persistIfNeeded())) {
+      setLoading(false);
+      setAction(null);
+      return;
+    }
     const result = await authClient.organization.acceptInvitation({
       invitationId: id,
     });
@@ -91,15 +103,32 @@ export default function InvitationActions({
         toast.error(errorMessage);
       }
     } else {
-      try {
-        await activateOrganizationWorkspace(result.data.member.organizationId);
-      } catch (error) {
-        console.error("Failed to switch organization workspace:", error);
-      }
-
-      toast.success(t("Success.accept"));
-      router.push(`/organizations/${organizationSlug}`);
+      await finishAfterAccept(result.data.member.organizationId);
     }
+    setLoading(false);
+    setAction(null);
+  };
+
+  async function finishAfterAccept(organizationId: string) {
+    const activated =
+      await activateOrganizationWorkspaceWithRetry(organizationId);
+    if (!activated) {
+      toast.error(t("Error.activate"));
+      setRetryOrganizationId(organizationId);
+      return;
+    }
+    setRetryOrganizationId(null);
+    toast.success(t("Success.accept"));
+    router.push(`/organizations/${organizationSlug}`);
+  }
+
+  const handleRetryActivation = async () => {
+    if (loading || !retryOrganizationId) {
+      return;
+    }
+    setLoading(true);
+    setAction("accept");
+    await finishAfterAccept(retryOrganizationId);
     setLoading(false);
     setAction(null);
   };
@@ -155,19 +184,37 @@ export default function InvitationActions({
   if (user) {
     if (user.email === email) {
       return (
-        <CardFooter className="flex justify-between gap-2 sm:gap-4">
-          <Button variant="outline" onClick={handleReject} disabled={loading}>
-            {loading && action === "reject" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("decline")}
-          </Button>
-          <Button onClick={handleAccept} disabled={loading}>
-            {loading && action === "accept" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("accept")}
-          </Button>
+        <CardFooter className="flex flex-col gap-4">
+          <NameFields disabled={loading} />
+          <div className="flex justify-between gap-2 sm:gap-4">
+            <Button variant="outline" onClick={handleReject} disabled={loading}>
+              {loading && action === "reject" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("decline")}
+            </Button>
+            <Button
+              onClick={handleAccept}
+              disabled={loading || retryOrganizationId !== null}
+            >
+              {loading && action === "accept" && !retryOrganizationId && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("accept")}
+            </Button>
+          </div>
+          {retryOrganizationId ? (
+            <Button
+              onClick={handleRetryActivation}
+              disabled={loading}
+              data-testid="invitation-retry-activation"
+            >
+              {loading && action === "accept" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("activateRetry")}
+            </Button>
+          ) : null}
         </CardFooter>
       );
     } else {

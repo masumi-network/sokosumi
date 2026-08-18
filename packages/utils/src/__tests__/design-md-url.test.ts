@@ -23,6 +23,11 @@ describe("isDesignMdBlobUrl", () => {
         "https://public.blob.vercel-storage.com/design-md/nested/file.md",
       ),
     ).toBe(true);
+    expect(
+      isDesignMdBlobUrl(
+        "https://abc123.public.blob.vercel-storage.com/design-md/projects/project_123/hash.md",
+      ),
+    ).toBe(true);
   });
 
   it("rejects non-https, foreign hosts, and non-design-md paths", () => {

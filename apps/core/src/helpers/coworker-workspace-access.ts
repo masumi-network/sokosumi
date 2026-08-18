@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { badRequest, notFound } from "@/helpers/error";
@@ -94,7 +95,8 @@ function accessUniqueWhere(coworkerId: string, workspaceId: string) {
 
 export interface ResolveCoworkerAccessTargetOptions {
   /**
-   * When true (create/propose), missing personal/org workspaces are upserted.
+   * When true (create/propose), a missing organization workspace is upserted.
+   * A missing personal workspace always 404s — never created here.
    * When false (force-revoke), missing workspaces 404 — no side-effect create.
    */
   createIfMissing?: boolean;
@@ -140,20 +142,14 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
     if (!user) {
       throw notFound("User not found");
     }
-    if (createIfMissing) {
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        user.id,
-        null,
-        tx,
-      );
-      return workspace.id;
-    }
     const existing = await tx.workspace.findUnique({
       where: { userId: user.id },
       select: { id: true },
     });
     if (!existing) {
-      throw notFound("Workspace not found");
+      throw notFound("Workspace not found", {
+        kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
+      });
     }
     return existing.id;
   }
@@ -177,8 +173,8 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
       throw notFound("Organization not found");
     }
     if (createIfMissing) {
-      // Org branch of upsert ignores userId; pass organization id as placeholder.
-      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+      // Org branch of resolve upserts the org workspace; userId is unused.
+      const workspace = await workspaceRepository.resolveWorkspaceForContext(
         organization.id,
         organization.id,
         tx,

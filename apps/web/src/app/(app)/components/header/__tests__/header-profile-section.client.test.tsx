@@ -101,6 +101,7 @@ const accountSummary: HeaderAccountSummary = {
 async function renderProfileSection(props: {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
+  hasPersonalWorkspace?: boolean;
   activeOrganizationId: string | null;
   accountSummaryPromise?: Promise<HeaderAccountSummary>;
 }) {
@@ -109,6 +110,7 @@ async function renderProfileSection(props: {
     render(
       <HeaderProfileSectionClient
         {...rest}
+        hasPersonalWorkspace={rest.hasPersonalWorkspace ?? true}
         accountSummaryPromise={
           accountSummaryPromise ?? Promise.resolve(accountSummary)
         }
@@ -282,6 +284,7 @@ describe("HeaderProfileSectionClient", () => {
         <HeaderProfileSectionClient
           sessionUser={sessionUser}
           members={members}
+          hasPersonalWorkspace
           activeOrganizationId="org-a"
           accountSummaryPromise={new Promise<HeaderAccountSummary>(() => {})}
         />,
