@@ -43,13 +43,17 @@ export async function uploadDriveFile(
   }
 
   // Upload to Blob storage
-  await fetch(uploadUrl, {
+  const uploadResponse = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
       "Content-Type": headers["Content-Type"] ?? file.type,
     },
     body: file,
   });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`Blob upload failed with status ${uploadResponse.status}.`);
+  }
 
   onUploadProgress?.({ percentage: 100 });
 }
