@@ -5397,7 +5397,7 @@
     "identityTitle": "How do you want to work?",
     "identityDescription": "Enter your name, then pick one.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization. You will skip identity onboarding.",
+    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization.",
     "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
     "signOut": "Sign out",
     "unavailableTitle": "We could not check your workspace access",
