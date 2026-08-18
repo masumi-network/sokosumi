@@ -5397,7 +5397,8 @@
   "WorkspaceGate": {
     "title": "Workspace einrichten",
     "identityTitle": "Wie möchtest du arbeiten?",
-    "identityDescription": "Gib deinen Namen ein und wähle eine Option.",
+    "identityDescriptionConfirm": "Bestätige deinen Namen und wähle eine Option.",
+    "identityDescriptionEnter": "Gib deinen Namen ein.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",

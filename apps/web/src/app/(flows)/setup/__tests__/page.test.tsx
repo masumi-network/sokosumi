@@ -115,9 +115,31 @@ describe("WorkspaceGatePage", () => {
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("identityTitle");
+    expect(serialized).toContain("identityDescriptionConfirm");
+    expect(serialized).not.toContain("identityDescriptionEnter");
     expect(serialized).toContain('"initialName":"Ada Lovelace"');
     expect(serialized).not.toContain("unavailableTitle");
     expect(serialized).not.toContain("data-workspace-gate-actions");
+  });
+
+  it("asks a nameless user to enter their name", async () => {
+    getSessionOrRedirectMock.mockResolvedValue({
+      user: { id: "user-1", name: "" },
+      session: { id: "session-1" },
+    });
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "identity-onboarding",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+      hasPendingOrganizationInvites: false,
+    });
+
+    const { default: WorkspaceGatePage } = await import("../page");
+    const ui = await WorkspaceGatePage();
+    const serialized = JSON.stringify(ui);
+
+    expect(serialized).toContain("identityDescriptionEnter");
+    expect(serialized).not.toContain("identityDescriptionConfirm");
   });
 
   it("renders the pending queue instead of identity onboarding", async () => {

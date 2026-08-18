@@ -75,12 +75,15 @@ export default async function WorkspaceGatePage() {
       : surface === "pending-invites"
         ? "pendingInvitesTitle"
         : "identityTitle";
+  const hasName = Boolean(session.user.name?.trim());
   const descriptionKey =
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
         ? "pendingInvitesDescription"
-        : "identityDescription";
+        : hasName
+          ? "identityDescriptionConfirm"
+          : "identityDescriptionEnter";
   const bodyKey = surface === "unavailable" ? "unavailableBody" : "body";
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
