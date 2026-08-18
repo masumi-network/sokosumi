@@ -62,4 +62,48 @@ describe("ProjectListItem", () => {
       "/projects/project-1",
     );
   });
+
+  it("renders markdown in briefing subtitle with inline formatting", () => {
+    const projectWithMarkdown = {
+      ...project,
+      briefing:
+        "Campaign briefing — Begin Wallet **Working title:** Your crypto journey begins here **Status:** Draft",
+    };
+
+    render(
+      <ProjectListItem
+        project={projectWithMarkdown}
+        labels={labels}
+        onDeleted={vi.fn()}
+      />,
+    );
+
+    const briefingContainer = screen.getByText(
+      /Campaign briefing — Begin Wallet/,
+    ).parentElement;
+
+    expect(briefingContainer).toBeInTheDocument();
+    expect(briefingContainer?.textContent).toContain("Working title:");
+    expect(briefingContainer?.textContent).not.toContain("**Working title:**");
+
+    const strongElements = briefingContainer?.querySelectorAll("strong");
+    expect(strongElements?.length).toBeGreaterThan(0);
+  });
+
+  it("shows em dash when briefing is empty", () => {
+    const projectWithoutBriefing = {
+      ...project,
+      briefing: null,
+    };
+
+    render(
+      <ProjectListItem
+        project={projectWithoutBriefing}
+        labels={labels}
+        onDeleted={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
 });

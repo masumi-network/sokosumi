@@ -14,7 +14,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
-import { previewProjectBriefing } from "@/app/projects/project-briefing";
+import Markdown from "@/components/markdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,7 +69,6 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const briefing = previewProjectBriefing(project.briefing);
 
   function handleDeleteProject() {
     startDeleteTransition(async () => {
@@ -100,9 +99,9 @@ export function ProjectListItem({
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {project.name}
             </span>
-            <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
-              {briefing}
-            </p>
+            <div className="text-muted-foreground/70 line-clamp-1 text-xs break-all [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline [&_h4]:inline [&_h5]:inline [&_h6]:inline [&_ul]:inline [&_ol]:inline [&_li]:inline [&_li]:before:content-none [&_li]:marker:content-none">
+              {project.briefing ? <Markdown>{project.briefing}</Markdown> : "—"}
+            </div>
           </div>
         </div>
 
