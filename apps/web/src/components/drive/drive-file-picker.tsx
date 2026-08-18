@@ -13,12 +13,15 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "@/lib/auth/auth.client";
-import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile } from "@/lib/clients/generated/core";
+
+import { listDriveFiles } from "@/lib/utils/drive-file-list.client";
+
 import {
   getDriveFiles,
   getUsersByIdOrganizations,
 } from "@/lib/clients/generated/core";
+
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 interface DriveFilePickerProps {
@@ -51,16 +54,18 @@ export function DriveFilePicker({
     setLoading(true);
     setError(null);
     try {
-      const response = await getDriveFiles({
-        client: getBrowserCoreClient(),
-        query: {
-          scope,
-          ...(scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-        },
+      if (scope === "org" && !activeOrganizationId) {
+        setFiles([]);
+        return;
+      }
+
+      const loaded = await listDriveFiles({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
       });
-      setFiles((response.data?.data as DriveFile[]) || []);
+      setFiles(loaded);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load files");
     } finally {
