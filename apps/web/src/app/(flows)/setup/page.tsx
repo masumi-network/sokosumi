@@ -27,8 +27,13 @@ import {
 import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
 
-export default async function WorkspaceGatePage() {
+export default async function WorkspaceGatePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ creating?: string }>;
+} = {}) {
   const session = await getSessionOrRedirect();
+  const creatingOrganization = (await searchParams)?.creating === "1";
 
   let gate: string | null = null;
   let workspaceAccessLoadFailed = false;
@@ -48,7 +53,11 @@ export default async function WorkspaceGatePage() {
     workspaceAccessLoadFailed = true;
   }
 
-  if (!workspaceAccessLoadFailed && isWorkspaceReady(gate)) {
+  if (
+    !workspaceAccessLoadFailed &&
+    isWorkspaceReady(gate) &&
+    !creatingOrganization
+  ) {
     redirect("/");
   }
 
@@ -57,14 +66,16 @@ export default async function WorkspaceGatePage() {
     : await loadWorkspaceGateQueueItems();
   const queueItems = queue.items;
 
-  const surface: WorkspaceGateSurface = resolveWorkspaceGateSurface({
-    workspaceAccessLoadFailed,
-    gate,
-    invitationCount: queueItems.filter((item) => item.kind === "invitation")
-      .length,
-    invitationsLoadFailed: queue.invitationsLoadFailed,
-    hasJoinLink: queueItems.some((item) => item.kind === "join"),
-  });
+  const surface: WorkspaceGateSurface = creatingOrganization
+    ? "identity-onboarding"
+    : resolveWorkspaceGateSurface({
+        workspaceAccessLoadFailed,
+        gate,
+        invitationCount: queueItems.filter((item) => item.kind === "invitation")
+          .length,
+        invitationsLoadFailed: queue.invitationsLoadFailed,
+        hasJoinLink: queueItems.some((item) => item.kind === "join"),
+      });
 
   const t = await getTranslations("WorkspaceGate");
 

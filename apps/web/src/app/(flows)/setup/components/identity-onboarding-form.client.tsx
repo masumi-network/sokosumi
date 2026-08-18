@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { CreateOrganizationWizard } from "@/components/organizations";
@@ -42,6 +42,7 @@ export function IdentityOnboardingForm({
   const [choice, setChoice] = useState<WorkspaceChoice>("personal");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const leavingGateRef = useRef(false);
 
   const form = useForm<NameFormType>({
     resolver: zodResolver(nameFormSchema(tSchema)),
@@ -51,6 +52,7 @@ export function IdentityOnboardingForm({
   });
 
   async function leaveGateAfterWorkspace(organizationId: string | null) {
+    leavingGateRef.current = true;
     setSubmitting(true);
     try {
       await activateOrganizationWorkspace(organizationId);
@@ -137,6 +139,7 @@ export function IdentityOnboardingForm({
       if (!(await persistDisplayName(values.name))) {
         return;
       }
+      router.replace("/setup?creating=1");
       setWizardOpen(true);
     } finally {
       setSubmitting(false);
@@ -255,7 +258,12 @@ export function IdentityOnboardingForm({
       </Form>
       <CreateOrganizationWizard
         open={wizardOpen}
-        onOpenChange={setWizardOpen}
+        onOpenChange={(open) => {
+          setWizardOpen(open);
+          if (!open && !leavingGateRef.current) {
+            router.replace("/setup");
+          }
+        }}
         onOrganizationReady={(organizationId) => {
           void leaveGateAfterWorkspace(organizationId);
         }}

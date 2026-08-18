@@ -100,6 +100,27 @@ describe("WorkspaceGatePage", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
+  it("does not bounce a ready user who is still finishing the organization wizard", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "ready",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: true,
+      hasPendingOrganizationInvites: false,
+    });
+
+    const { default: WorkspaceGatePage } = await import("../page");
+
+    const ui = await WorkspaceGatePage({
+      searchParams: Promise.resolve({ creating: "1" }),
+    });
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(ui).toBeTruthy();
+    const serialized = JSON.stringify(ui);
+    expect(serialized).toContain("identityTitle");
+    expect(serialized).toContain('"initialName":"Ada Lovelace"');
+  });
+
   it("renders the identity form when workspace access is identity-onboarding", async () => {
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",

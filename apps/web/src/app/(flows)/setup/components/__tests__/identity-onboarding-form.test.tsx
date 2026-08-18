@@ -197,6 +197,7 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("wizard-back"));
     expect(screen.getByTestId("workspace-gate-identity-form")).toBeTruthy();
     expect(screen.queryByTestId("create-org-wizard")).toBeNull();
+    expect(routerReplaceMock).toHaveBeenCalledWith("/setup");
   });
 
   it("keeps an edited name after Back from the organization wizard", async () => {
@@ -234,6 +235,20 @@ describe("IdentityOnboardingForm", () => {
     expect(screen.queryByTestId("create-org-wizard")).toBeNull();
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
     expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps /setup from bouncing while the organization wizard is open", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("create-org-wizard")).toBeTruthy();
+    });
+    expect(routerReplaceMock).toHaveBeenCalledWith("/setup?creating=1");
+    expect(routerReplaceMock).not.toHaveBeenCalledWith("/");
   });
 
   it("leaves the gate into the created organization when the wizard is ready", async () => {
