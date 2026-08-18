@@ -123,7 +123,7 @@ function FileNameWithPreview({
 }
 
 export default function DrivePage(): ReactElement {
-  const t = useTranslations("Drive");
+  const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -356,7 +356,7 @@ export default function DrivePage(): ReactElement {
                 value="org"
                 className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
               >
-                {organizationName || "Organization"}
+                {organizationName || t("organizationTabFallback")}
               </TabsTrigger>
             )}
           </TabsList>
