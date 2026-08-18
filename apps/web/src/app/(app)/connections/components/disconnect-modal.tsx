@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth/auth.client";
+import { unlinkSocialAccountInput } from "@/lib/auth/unlink-social-account";
 
 interface DisconnectModalProps {
   account: Account;
@@ -44,9 +45,9 @@ export default function DisconnectModal({
 
   const handleDisconnect = async () => {
     setLoading(true);
-    const result = await authClient.unlinkAccount({
-      providerId,
-    });
+    const result = await authClient.unlinkAccount(
+      unlinkSocialAccountInput(account),
+    );
     if (result.error) {
       const errorMessage =
         result.error.message ?? t("error", { provider: providerId });

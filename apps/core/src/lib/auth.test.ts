@@ -994,9 +994,10 @@ describe("core auth config", () => {
           advanced: {
             database: {
               generateId: string;
+              joins?: boolean;
             };
           };
-          experimental: {
+          experimental?: {
             joins: boolean;
           };
           rateLimit: {
@@ -1007,7 +1008,8 @@ describe("core auth config", () => {
     >;
 
     expect(config.advanced.database.generateId).toBe("uuid");
-    expect(config.experimental.joins).toBe(true);
+    expect(config.advanced.database.joins).toBe(true);
+    expect(config.experimental).toBeUndefined();
     expect(config.rateLimit.storage).toBe("database");
   });
 

@@ -6,7 +6,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { MemberRole, type User } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/database";
 import {
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
   ensureInitialLocalFreeSubscriptionPeriod,
@@ -302,6 +302,7 @@ export const auth = betterAuth({
   advanced: {
     database: {
       generateId: "uuid",
+      joins: true,
     },
     cookiePrefix: betterAuthCookiePrefix,
     ...(env.BETTER_AUTH_COOKIE_DOMAIN
@@ -315,9 +316,6 @@ export const auth = betterAuth({
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
-  },
-  experimental: {
-    joins: true,
   },
   session: {
     cookieCache: {
@@ -795,12 +793,6 @@ export const auth = betterAuth({
         refreshToken: "soko_refresh_token_",
         clientSecret: "soko_client_secret_",
       },
-      // RFC 8414 metadata is served from the well-known + auth routers, so the
-      // startup reminder to expose `/.well-known/oauth-authorization-server/auth`
-      // is satisfied; silence it to keep boot logs clean.
-      silenceWarnings: {
-        oauthAuthServerConfig: true,
-      },
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
@@ -870,7 +862,16 @@ export const auth = betterAuth({
   ],
 });
 
-async function mapProfileToUser(profile: { name: string; picture: string }) {
+interface MappedSocialProfile {
+  name: string;
+  image?: string;
+  [key: string]: unknown;
+}
+
+async function mapProfileToUser(profile: {
+  name: string;
+  picture: string;
+}): Promise<MappedSocialProfile> {
   try {
     return await pTimeout(mapProfileToUserInner(profile), {
       milliseconds: env.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
@@ -894,7 +895,7 @@ async function mapProfileToUser(profile: { name: string; picture: string }) {
 async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
-}): Promise<Partial<User>> {
+}): Promise<MappedSocialProfile> {
   const profilePicture = profile.picture;
 
   if (!profilePicture) {
@@ -914,6 +915,6 @@ async function mapProfileToUserInner(profile: {
   const imageURL = await uploadProfileImage(profilePicture);
   return {
     name: profile.name,
-    image: imageURL,
+    image: imageURL ?? undefined,
   };
 }
