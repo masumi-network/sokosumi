@@ -151,8 +151,7 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
-      "createOrganization": "Create Organization",
-      "createPersonalWorkspace": "Create personal workspace",
+      "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization",
       "userAvatarAlt": "User avatar"

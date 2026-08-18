@@ -153,8 +153,7 @@
       "personalAccount": "Persönlicher Account",
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
-      "createOrganization": "Organisation erstellen",
-      "createPersonalWorkspace": "Persönlichen Workspace erstellen",
+      "createWorkspace": "Workspace erstellen",
       "userAvatarAlt": "Nutzer-Avatar"
     },
     "DataTable": {
