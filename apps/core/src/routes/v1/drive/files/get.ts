@@ -52,7 +52,7 @@ const querySchema = z
         param: { name: "q", in: "query" },
         example: "report",
         description:
-          "Search query for filename filtering (prefix or contains match)",
+          "Search query for filename filtering (case-sensitive prefix match)",
       }),
   })
   .merge(cursorPaginationQuerySchema);
@@ -137,8 +137,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       limit: take,
     });
 
-    // Map to API schema
-    let apiFiles: DriveFile[] = blobs.map((blob) => {
+    // Map to API schema (prefix filter already applied via Blob list)
+    const apiFiles: DriveFile[] = blobs.map((blob) => {
       // Extract filename from pathname (last segment after /)
       const pathSegments = blob.pathname.split("/");
       const name = pathSegments[pathSegments.length - 1] || "unnamed";
@@ -151,16 +151,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         uploadedAt: blob.uploadedAt.toISOString(),
       };
     });
-
-    // For contains matching, filter by filename or pathname
-    if (searchQuery) {
-      const lowerQuery = searchQuery.toLowerCase();
-      apiFiles = apiFiles.filter(
-        (file) =>
-          file.name.toLowerCase().includes(lowerQuery) ||
-          file.pathname.toLowerCase().includes(lowerQuery),
-      );
-    }
 
     // Blob list() returns lexicographic pathname order; keep that order for valid cursor pagination.
     // Do not sort by uploadedAt — that breaks cursor across pages.

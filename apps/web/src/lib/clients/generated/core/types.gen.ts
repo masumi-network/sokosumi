@@ -15003,7 +15003,7 @@ export type GetDriveFilesData = {
          */
         organizationId?: string;
         /**
-         * Search query for filename filtering (prefix or contains match)
+         * Search query for filename filtering (case-sensitive prefix match)
          */
         q?: string;
         /**
