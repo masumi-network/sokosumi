@@ -111,50 +111,72 @@ export async function uploadDriveFile(
     );
   }
 
-  // Upload to Blob storage
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": headers["Content-Type"] ?? file.type,
-    },
-    body: file,
-  });
+  // Upload to Blob storage with XHR for progress tracking
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
 
-  if (!uploadResponse.ok) {
-    const status = uploadResponse.status;
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percentage = Math.round((event.loaded / event.total) * 100);
+        onUploadProgress?.({ percentage });
+      }
+    });
 
-    // Check for duplicate on Blob 409 or 400 with "already exists" message
-    if (status === 409) {
-      throw new DriveFileUploadError(
-        "duplicate",
-        "A file with this name already exists",
-      );
-    }
+    xhr.addEventListener("load", async () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onUploadProgress?.({ percentage: 100 });
+        resolve();
+        return;
+      }
 
-    if (status === 400) {
-      try {
-        const bodyText = await uploadResponse.text();
-        if (/already exists?/i.test(bodyText)) {
-          throw new DriveFileUploadError(
+      // Check for duplicate on Blob 409 or 400 with "already exists" message
+      if (xhr.status === 409) {
+        reject(
+          new DriveFileUploadError(
             "duplicate",
             "A file with this name already exists",
-          );
-        }
-      } catch (parseErr) {
-        // If DriveFileUploadError, rethrow it
-        if (parseErr instanceof DriveFileUploadError) {
-          throw parseErr;
-        }
-        // Otherwise, treat as internal error and fall through
+          ),
+        );
+        return;
       }
-    }
 
-    // All other Blob PUT failures are internal
-    throw new DriveFileUploadError(
-      "internal",
-      "Failed to upload file to storage",
-    );
-  }
+      if (xhr.status === 400) {
+        const bodyText = xhr.responseText;
+        if (/already exists?/i.test(bodyText)) {
+          reject(
+            new DriveFileUploadError(
+              "duplicate",
+              "A file with this name already exists",
+            ),
+          );
+          return;
+        }
+      }
 
-  onUploadProgress?.({ percentage: 100 });
+      // All other Blob PUT failures are internal
+      reject(
+        new DriveFileUploadError(
+          "internal",
+          "Failed to upload file to storage",
+        ),
+      );
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(
+        new DriveFileUploadError(
+          "internal",
+          "Failed to upload file to storage",
+        ),
+      );
+    });
+
+    xhr.addEventListener("abort", () => {
+      reject(new DriveFileUploadError("internal", "Upload was aborted"));
+    });
+
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", headers["Content-Type"] ?? file.type);
+    xhr.send(file);
+  });
 }

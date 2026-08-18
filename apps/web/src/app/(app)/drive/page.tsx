@@ -150,7 +150,7 @@ export default function DrivePage(): ReactElement {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [_uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [editingFilePathname, setEditingFilePathname] = useState<string | null>(
     null,
@@ -401,7 +401,7 @@ export default function DrivePage(): ReactElement {
                 <span>
                   <Upload className="size-4" aria-hidden />
                   {uploading
-                    ? t("uploadingProgress", { progress: _uploadProgress })
+                    ? t("uploadingProgress", { progress: uploadProgress })
                     : t("uploadButton")}
                 </span>
               </Button>
@@ -659,6 +659,7 @@ export default function DrivePage(): ReactElement {
         ariaLabel={t("uploadFab")}
         onOpen={handleFabOpen}
         icon={Upload}
+        progress={uploading ? uploadProgress : undefined}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
