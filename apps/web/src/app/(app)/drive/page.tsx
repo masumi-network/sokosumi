@@ -256,12 +256,15 @@ export default function DrivePage(): ReactElement {
 
           <div>
             <Label htmlFor="file-upload" className="cursor-pointer">
-              <Button disabled={uploading} asChild>
+              <Button
+                disabled={uploading}
+                size="sm"
+                className="gap-1.5"
+                asChild
+              >
                 <span>
-                  <Upload className="size-4 mr-2" />
-                  {uploading
-                    ? `Uploading... ${uploadProgress}%`
-                    : "Upload File"}
+                  <Upload className="size-4" aria-hidden />
+                  {uploading ? `${uploadProgress}%` : "Upload"}
                 </span>
               </Button>
             </Label>
@@ -327,7 +330,7 @@ export default function DrivePage(): ReactElement {
                         PROJECTS_LIST_ROW_LAYOUT_CLASS,
                       )}
                     >
-                      <div className="flex size-6 shrink-0 items-center justify-center">
+                      <div className="flex size-6 shrink-0 items-center justify-center px-1">
                         <FileTypeIcon extension={extension || "file"} />
                       </div>
 
