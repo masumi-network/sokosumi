@@ -112,6 +112,8 @@ export async function uploadDriveFile(
   }
 
   // Upload to Blob storage with XHR for progress tracking
+  onUploadProgress?.({ percentage: 0 });
+
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 

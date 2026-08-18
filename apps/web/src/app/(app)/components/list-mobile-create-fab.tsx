@@ -53,7 +53,7 @@ export function ListMobileCreateFab({
                 cx="28"
                 cy="28"
                 r="26"
-                className="stroke-primary/20"
+                className="stroke-background/40"
                 strokeWidth="2"
                 fill="none"
               />
@@ -61,7 +61,7 @@ export function ListMobileCreateFab({
                 cx="28"
                 cy="28"
                 r="26"
-                className="stroke-primary transition-all duration-300 ease-out"
+                className="stroke-background transition-all duration-300 ease-out"
                 strokeWidth="2"
                 fill="none"
                 strokeDasharray={`${2 * Math.PI * 26}`}
@@ -76,8 +76,10 @@ export function ListMobileCreateFab({
             onClick={onOpen}
             disabled={isUploading}
             className={cn(
-              "bg-primary text-primary-foreground pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-opacity",
-              isUploading && "cursor-not-allowed opacity-90",
+              "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-all duration-300",
+              isUploading
+                ? "bg-foreground text-background cursor-not-allowed"
+                : "bg-primary text-primary-foreground",
             )}
           >
             {showProgress ? (
