@@ -35,7 +35,7 @@
   "dependencies": {
     "@better-auth/api-key": "1.6.29",
     "@better-auth/i18n": "1.6.29",
-    "@better-auth/oauth-provider": "1.6.29",
+    "@better-auth/oauth-provider": "1.7.0",
     "@better-auth/passkey": "1.6.29",
     "@better-auth/prisma-adapter": "1.6.29",
     "@better-auth/stripe": "1.6.29",
