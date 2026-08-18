@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { postDriveFiles } from "@/lib/clients/generated/core";
 
@@ -19,12 +20,18 @@ export async function uploadDriveFile(
 ): Promise<void> {
   const { scope, organizationId, onUploadProgress } = options;
 
+  // Resolve contentType (fallback when File.type is empty)
+  const contentType = resolveUserUploadContentType(file.name, file.type);
+  if (!contentType) {
+    throw new Error("Unsupported file type");
+  }
+
   // Mint upload session
   const mintResponse = await postDriveFiles({
     client: getBrowserCoreClient(),
     body: {
       filename: file.name,
-      contentType: file.type,
+      contentType,
       size: file.size,
       scope,
       ...(scope === "org" && organizationId ? { organizationId } : {}),

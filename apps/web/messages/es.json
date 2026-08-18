@@ -5526,6 +5526,27 @@
     "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
     "settings": "Configuración de cookies"
   },
+  "Drive": {
+    "breadcrumb": "Drive",
+    "myDriveTab": "Mi Drive",
+    "uploadButton": "Subir",
+    "uploadingProgress": "{progress}%",
+    "emptyTitle": "Aún no hay archivos",
+    "emptyDescription": "Sube tu primer archivo para comenzar",
+    "downloadAction": "Descargar",
+    "renameAction": "Renombrar",
+    "deleteAction": "Eliminar",
+    "saveAction": "Guardar",
+    "cancelAction": "Cancelar",
+    "deleteDialogTitle": "Eliminar archivo",
+    "deleteDialogDescription": "¿Seguro que quieres eliminar {fileName}? Esta acción no se puede deshacer.",
+    "deleteDialogCancel": "Cancelar",
+    "deleteDialogConfirm": "Eliminar",
+    "loadFilesError": "No se pudieron cargar los archivos",
+    "uploadError": "No se pudo subir el archivo",
+    "renameError": "No se pudo renombrar el archivo",
+    "deleteError": "No se pudo eliminar el archivo"
+  },
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "¿Cómo quieres trabajar?",

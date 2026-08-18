@@ -1,10 +1,7 @@
 "use client";
 
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type {
-  DriveFile,
-  GetDriveFilesData,
-} from "@/lib/clients/generated/core";
+import type { DriveFile } from "@/lib/clients/generated/core";
 import { getDriveFiles } from "@/lib/clients/generated/core";
 
 /** Core max page size — fewer round trips than the default 20. */
@@ -17,11 +14,6 @@ interface ListDriveFilesOptions {
   organizationId?: string;
 }
 
-type DriveFilesListQuery = GetDriveFilesData["query"] & {
-  cursor?: string;
-  limit?: number;
-};
-
 export async function listDriveFiles(
   options: ListDriveFilesOptions,
 ): Promise<DriveFile[]> {
@@ -29,18 +21,16 @@ export async function listDriveFiles(
   let cursor: string | undefined;
 
   for (let page = 0; page < DRIVE_FILES_MAX_PAGES; page += 1) {
-    const query: DriveFilesListQuery = {
-      scope: options.scope,
-      limit: DRIVE_FILES_PAGE_LIMIT,
-      ...(options.scope === "org" && options.organizationId
-        ? { organizationId: options.organizationId }
-        : {}),
-      ...(cursor ? { cursor } : {}),
-    };
-
     const response = await getDriveFiles({
       client: getBrowserCoreClient(),
-      query,
+      query: {
+        scope: options.scope,
+        limit: DRIVE_FILES_PAGE_LIMIT,
+        ...(options.scope === "org" && options.organizationId
+          ? { organizationId: options.organizationId }
+          : {}),
+        ...(cursor ? { cursor } : {}),
+      },
       throwOnError: true,
     });
 

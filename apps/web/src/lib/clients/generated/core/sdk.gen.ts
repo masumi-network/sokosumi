@@ -955,7 +955,7 @@ export const getDeveloperOwnedCoworkerTask = <ThrowOnError extends boolean = fal
 });
 
 /**
- * List drive files (personal or organization, newest first)
+ * List drive files (personal or organization, lexicographic order by pathname)
  */
 export const getDriveFiles = <ThrowOnError extends boolean = false>(options: Options<GetDriveFilesData, ThrowOnError>): RequestResult<GetDriveFilesResponses, GetDriveFilesErrors, ThrowOnError> => (options.client ?? client).get<GetDriveFilesResponses, GetDriveFilesErrors, ThrowOnError>({
     responseTransformer: getDriveFilesResponseTransformer,

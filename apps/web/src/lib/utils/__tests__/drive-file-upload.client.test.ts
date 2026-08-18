@@ -90,6 +90,50 @@ describe("uploadDriveFile", () => {
     ).rejects.toThrow("Blob upload failed with status 409.");
     expect(onUploadProgress).not.toHaveBeenCalled();
   });
+
+  it("includes organizationId when minting an org-scope upload", async () => {
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, status: 200 }),
+    );
+    postDriveFilesMock.mockResolvedValue(
+      grantSession({
+        uploadUrl: "https://blob.example/upload?sig=org",
+        headers: { "Content-Type": "text/plain" },
+      }),
+    );
+
+    await uploadDriveFile(file, {
+      scope: "org",
+      organizationId: "org_123",
+    });
+
+    expect(postDriveFilesMock).toHaveBeenCalledWith({
+      client: { id: "browser-core-client" },
+      body: {
+        filename: "notes.txt",
+        contentType: "text/plain",
+        size: 1,
+        scope: "org",
+        organizationId: "org_123",
+      },
+    });
+  });
+
+  it("throws before PUT when the mint response has no uploadUrl", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    postDriveFilesMock.mockResolvedValue(grantSession({ uploadUrl: "" }));
+
+    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toThrow(
+      "Upload session missing uploadUrl",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("getDriveFileUploadErrorMessage", () => {
