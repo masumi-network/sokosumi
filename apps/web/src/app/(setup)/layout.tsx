@@ -1,6 +1,4 @@
-import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
-import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
-import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+import { PreAppShell } from "@/components/pre-app-shell";
 
 /**
  * Workspace gate shell: authenticated, no app chrome (no sidebar/header).
@@ -13,17 +11,8 @@ export default function WorkspaceGateLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
-      <div className="flex h-svh gap-6 p-6" data-workspace-gate-shell>
-        <div className="flex h-full flex-1 flex-col gap-6">
-          <div data-workspace-gate-brand>
-            <ThemedLogo LogoComponent={SokosumiLogo} priority />
-          </div>
-          <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
-            {children}
-          </div>
-        </div>
-      </div>
-    </ClientMessageBoundary>
+    <PreAppShell brandLinked={false} shellAttr="data-workspace-gate-shell">
+      {children}
+    </PreAppShell>
   );
 }
