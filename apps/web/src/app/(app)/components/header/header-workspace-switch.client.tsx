@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -336,6 +337,7 @@ export default function HeaderWorkspaceSwitch({
             <DialogTitle>
               {tOrganizationSwitcher("createWorkspace")}
             </DialogTitle>
+            <DialogDescription>{tIdentity("choiceHint")}</DialogDescription>
           </DialogHeader>
           <RadioGroup
             value={workspaceChoice}

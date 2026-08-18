@@ -266,6 +266,11 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
     await user.click(screen.getByText("createWorkspace"));
+
+    expect(screen.getByText("personalTitle")).toBeInTheDocument();
+    expect(screen.getByText("organizationTitle")).toBeInTheDocument();
+    expect(screen.getByText("choiceHint")).toBeInTheDocument();
+
     await user.click(screen.getByRole("radio", { name: /organizationTitle/ }));
     await user.click(screen.getByRole("button", { name: "continue" }));
 
