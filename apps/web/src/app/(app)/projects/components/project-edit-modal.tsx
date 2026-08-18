@@ -12,7 +12,8 @@ interface ProjectEditModalProps {
   title: string;
   initialValues: {
     name: string;
-    description: string;
+    briefing: string;
+    websiteUrl?: string | null;
   };
   labels: ProjectFormLabels;
 }

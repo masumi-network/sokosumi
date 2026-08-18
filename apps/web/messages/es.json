@@ -1545,7 +1545,6 @@
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
         "statusLabel": "Estado",
-        "projectLabel": "Proyecto",
         "statusOptions": {
           "DRAFT": "Borrador",
           "QUEUED": "En cola",
@@ -1562,6 +1561,13 @@
           "FAILED": "Fallido",
           "CANCELED": "Cancelado"
         }
+      },
+      "ProjectSwitcher": {
+        "ariaLabel": "Proyecto",
+        "allProjects": "Todos los proyectos",
+        "searchPlaceholder": "Buscar proyectos...",
+        "empty": "No se encontraron proyectos.",
+        "create": "Crear proyecto..."
       },
       "Jobs": {
         "filterButton": "Filtros",
@@ -1767,17 +1773,19 @@
         "files": "Archivos"
       },
       "NewTask": {
-        "DesignMdAttachment": {
-          "organizationLabel": "Diseño de marca de {organization}",
-          "personalLabel": "Tu diseño de marca",
-          "customLabel": "Diseño de marca de {hostname}",
-          "tooltip": "DESIGN.md es una guía de marca ya creada para {organization} por su propietario. Adjuntarla aquí ayuda a que este agente aplique tu marca automáticamente.",
-          "tooltipPersonal": "DESIGN.md es una guía de marca que ya creaste. Adjuntarla aquí ayuda a que este agente aplique tu marca automáticamente.",
-          "tooltipCustom": "DESIGN.md generado desde {hostname} solo para esta tarea. Adjuntarlo aquí ayuda a que este agente aplique esa marca. No se guarda nada en tu perfil.",
-          "learnMore": "Más información sobre DESIGN.md",
-          "infoAria": "Sobre este adjunto",
-          "useDifferentBranding": "Usar otra marca",
-          "resetToDefault": "Restablecer marca"
+        "ContextAttachments": {
+          "label": "Contexto",
+          "brand": "Guía de marca",
+          "namedBrand": "Guía de marca de {name}",
+          "personalBrand": "Guía de marca personal",
+          "brandMenuAria": "Elegir guía de marca",
+          "projectBrand": "Guía de marca del proyecto",
+          "organizationBrand": "Guía de marca de la organización",
+          "otherWebsite": "Otro sitio web…",
+          "briefing": "Briefing",
+          "memory": "Memoria",
+          "infoAria": "Acerca del contexto del Task",
+          "info": "La guía de marca, el briefing y la memoria se adjuntan como archivos DESIGN.md, BRIEFING.md y CONTEXT.md para que los lea el coworker."
         },
         "title": "Nuevo Task",
         "details": "Detalles",
@@ -1958,6 +1966,7 @@
             "DRAFT": "Borrador",
             "QUEUED": "Programado",
             "READY": "Lista",
+            "GRANT_PENDING": "Permiso",
             "INPUT_REQUIRED": "Entrada",
             "APPROVAL_REQUIRED": "Aprobación",
             "AUTHENTICATION_REQUIRED": "Auth",
@@ -1985,25 +1994,73 @@
           }
         }
       },
-      "NewProject": {
+      "Briefing": {
+        "label": "Briefing",
+        "placeholder": "Describe la campaña o iniciativa…",
+        "guidance": "Describe la campaña/iniciativa: objetivos, audiencia, canales, calendario, tono y voz, KPIs, imprescindibles / a evitar.",
+        "wordCount": "{count, plural, =0 {0 palabras} =1 {1 palabra} other {# palabras}}",
+        "encouragement": "Los buenos briefings tienen más de 300 palabras — cuanto más escribas, mejor saldrá cada tarea.",
+        "encouragementMet": "Briefing sólido — cada tarea tendrá el contexto que necesita.",
+        "chips": {
+          "goals": "Objetivos",
+          "audience": "Audiencia",
+          "channels": "Canales",
+          "timeline": "Calendario",
+          "tone": "Tono y voz",
+          "kpis": "KPIs",
+          "mustHaves": "Imprescindibles",
+          "mustAvoids": "A evitar"
+        }
+      },
+      "Wizard": {
         "title": "Nuevo proyecto",
-        "details": "Detalles",
-        "detailsDescription": "Nombra el proyecto y añade contexto opcional.",
+        "stepLabel": "{current} / {total}",
+        "name": {
+          "title": "Nombra este proyecto",
+          "subtitle": "Un título corto para la campaña o iniciativa.",
+          "websiteLabel": "Sitio web",
+          "websitePlaceholder": "example.com",
+          "websiteHint": "Opcional. Se usa para el logo y la guía de marca."
+        },
+        "briefing": {
+          "title": "Escribe el briefing",
+          "subtitle": "Cuanto más escribas, mejor saldrá cada tarea de este proyecto."
+        },
+        "review": {
+          "title": "Revisar y crear",
+          "subtitle": "Puedes editar el briefing en cualquier momento.",
+          "nameLabel": "Nombre",
+          "websiteLabel": "Sitio web",
+          "briefingLabel": "Briefing",
+          "emptyWebsite": "Sin sitio web",
+          "emptyBriefing": "Aún no hay briefing — puedes añadirlo después de crear.",
+          "contextNote": "Cada tarea de este proyecto empieza con tu briefing, tu marca y la memoria del proyecto."
+        },
+        "brand": {
+          "title": "Configurando la marca",
+          "fetching": "Obteniendo la marca…",
+          "ready": "La marca está lista. Puedes abrir el proyecto cuando quieras.",
+          "failed": "No pudimos terminar la marca ahora. Puedes intentarlo más tarde en el proyecto.",
+          "logoFailed": "No se pudo obtener el logo. Puedes añadirlo más tarde."
+        },
+        "nav": {
+          "next": "Continuar",
+          "back": "Atrás",
+          "create": "Crear proyecto",
+          "creating": "Creando…",
+          "openProject": "Abrir proyecto"
+        }
+      },
+      "NewProject": {
         "name": "Nombre del proyecto",
-        "namePlaceholder": "Introduce un título corto",
-        "description": "Descripción",
-        "descriptionPlaceholder": "Añade contexto del proyecto...",
-        "createProject": "Crear proyecto",
-        "cancel": "Cancelar"
+        "namePlaceholder": "Introduce un título corto"
       },
       "EditProject": {
         "title": "Editar proyecto",
         "details": "Detalles",
-        "detailsDescription": "Actualiza los detalles del proyecto.",
+        "detailsDescription": "Actualiza el nombre, el sitio web y el briefing del proyecto.",
         "name": "Nombre del proyecto",
         "namePlaceholder": "Introduce un título corto",
-        "description": "Descripción",
-        "descriptionPlaceholder": "Actualiza el contexto del proyecto...",
         "save": "Guardar",
         "cancel": "Cancelar"
       },
@@ -2013,8 +2070,43 @@
           "updated": "Actualizado",
           "created": "Creado"
         },
-        "description": "Descripción",
-        "emptyDescription": "Aún no hay descripción.",
+        "briefing": "Briefing",
+        "emptyBriefing": "Aún no hay briefing.",
+        "editBriefing": "Editar",
+        "writeBriefing": "Escribir briefing",
+        "showMore": "Mostrar más",
+        "showLess": "Mostrar menos",
+        "brand": "Marca",
+        "brandCard": {
+          "ready": "Lista",
+          "generating": "Generando…",
+          "notSet": "Sin configurar",
+          "generate": "Generar desde el sitio web",
+          "missingWebsite": "Añade un sitio web al proyecto antes de generar el contexto de marca.",
+          "open": "Abrir",
+          "edit": "Editar",
+          "remove": "Quitar",
+          "removed": "Contexto de marca eliminado",
+          "removeDialog": {
+            "title": "¿Quitar el contexto de marca?",
+            "description": "Esto elimina el archivo DESIGN.md del proyecto."
+          }
+        },
+        "backToProject": "Volver al proyecto",
+        "memory": {
+          "fileName": "Memoria",
+          "updated": "Actualizado {when}",
+          "updating": "Actualizando…",
+          "loading": "Cargando…",
+          "empty": "Crece al completar tareas",
+          "modelLine": "{model} · alojada en la UE 🇪🇺",
+          "defaultModel": "Mistral Medium",
+          "notConfigured": "Sin configurar (AI_GATEWAY_API_KEY)",
+          "title": "Memoria del proyecto",
+          "copyLink": "Copiar enlace",
+          "openRaw": "Abrir original",
+          "copied": "Copiado"
+        },
         "jobs": {
           "title": "Jobs",
           "empty": "Aún no hay jobs vinculados a este proyecto.",
@@ -2040,6 +2132,38 @@
           "pickerLoading": "Cargando tareas...",
           "pickerError": "No se pudieron cargar las tareas."
         },
+        "modules": {
+          "title": "Espacio de trabajo",
+          "comingSoon": "Próximamente",
+          "seo": {
+            "title": "SEO",
+            "description": "Palabras clave, rankings, auditorías"
+          },
+          "socialMedia": {
+            "title": "Redes sociales",
+            "description": "Publicaciones, calendario, interacción"
+          },
+          "email": {
+            "title": "Email",
+            "description": "Campañas y secuencias"
+          },
+          "paidAdvertising": {
+            "title": "Publicidad de pago",
+            "description": "Anuncios, presupuestos, rendimiento"
+          },
+          "content": {
+            "title": "Contenido",
+            "description": "Briefs, borradores, publicación"
+          },
+          "pr": {
+            "title": "RR. PP.",
+            "description": "Prensa, difusión, cobertura"
+          },
+          "fileBrowser": {
+            "title": "Explorador de archivos",
+            "description": "Todos los archivos creados por este proyecto"
+          }
+        },
         "actions": {
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
@@ -2063,7 +2187,9 @@
           "removeJob": "No se pudo quitar el job",
           "addTask": "No se pudo añadir la tarea",
           "removeTask": "No se pudo quitar la tarea",
-          "loadMore": "No se pudieron cargar más proyectos"
+          "loadMore": "No se pudieron cargar más proyectos",
+          "contextMd": "No se pudo cargar la memoria del proyecto",
+          "brand": "No se pudo actualizar el contexto de marca del proyecto"
         }
       }
     },
@@ -4528,6 +4654,7 @@
       "removeSelectedUpload": "Eliminar archivo seleccionado",
       "descriptionPersonal": "Crea y gestiona el DESIGN.md usado para tareas de tu workspace personal.",
       "descriptionOrganization": "Crea y gestiona el DESIGN.md usado para tareas de esta organización.",
+      "descriptionProject": "Crea y gestiona el DESIGN.md de marca usado para tareas de este proyecto.",
       "editPageTitle": "Editar DESIGN.md",
       "editTab": "Editar",
       "previewTab": "Vista previa",

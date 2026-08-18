@@ -5,6 +5,7 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   JobSummary,
   Project,
+  ProjectContextMd,
   ProjectDeleted,
   ProjectListItem,
   ProjectStatsEntry,
@@ -23,12 +24,15 @@ interface ListProjectResourcesParams {
 
 interface CreateProjectInput {
   name: string;
-  description?: string | null;
+  briefing?: string | null;
+  websiteUrl?: string | null;
 }
 
 interface PatchProjectInput {
   name?: string;
-  description?: string | null;
+  briefing?: string | null;
+  websiteUrl?: string | null;
+  logo?: string | null;
 }
 
 export const projectService = (() => {
@@ -74,8 +78,27 @@ export const projectService = (() => {
     }
   }
 
+  async function getProjectContextMd(
+    projectId: string,
+  ): Promise<ProjectContextMd | null> {
+    try {
+      const result = await coreClient.getProjectsByIdContextMd(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async function createProject(input: CreateProjectInput): Promise<Project> {
-    const result = await coreClient.postProjects(input);
+    const result = await coreClient.postProjects({
+      name: input.name,
+      briefing: input.briefing ?? null,
+      websiteUrl: input.websiteUrl ?? null,
+    });
 
     if (!result.data) {
       throw new Error("Failed to create project");
@@ -92,6 +115,16 @@ export const projectService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to update project");
+    }
+
+    return result.data;
+  }
+
+  async function removeProjectDesignMd(projectId: string): Promise<Project> {
+    const result = await coreClient.deleteProjectsByIdDesignMd(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to remove project DESIGN.md");
     }
 
     return result.data;
@@ -204,8 +237,10 @@ export const projectService = (() => {
     listProjects,
     getProjectsStats,
     getProjectById,
+    getProjectContextMd,
     createProject,
     patchProject,
+    removeProjectDesignMd,
     deleteProject,
     listProjectJobs,
     listProjectTasks,

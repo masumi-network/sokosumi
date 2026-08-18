@@ -8,6 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
+import { deleteProjectBlobs } from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 
@@ -60,6 +61,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (deleteResult.count === 0) {
       throw notFound("Project not found");
     }
+
+    await deleteProjectBlobs(id);
 
     return ok(c, deleteResponseSchema.parse({ id, deleted: true }));
   });

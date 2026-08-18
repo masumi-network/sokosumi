@@ -1,3 +1,4 @@
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
@@ -26,16 +27,19 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
 
-vi.mock("@/app/projects/components/project-detail-header", () => ({
-  ProjectDetailHeader: () => null,
-}));
-
 vi.mock("@/app/projects/components/project-detail-actions", () => ({
-  ProjectDetailActions: () => null,
+  ProjectDetailActions: () => <div>Project actions</div>,
 }));
 
-vi.mock("@/app/projects/components/project-description", () => ({
-  ProjectDescription: () => null,
+vi.mock("@/app/projects/components/project-memory-row", () => ({
+  ProjectMemoryRow: () => <div data-testid="memory-stat">Memory stat</div>,
+}));
+
+vi.mock("@/app/projects/components/project-brand-card", () => ({
+  ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
 }));
 
 vi.mock("@/app/projects/components/project-jobs-section", () => ({
@@ -51,7 +55,19 @@ function buildProject() {
     id: "project-1",
     workspaceId: "workspace-1",
     name: "Launch plan",
-    description: null,
+    briefing: null,
+    briefingUrl: null,
+    websiteUrl: "https://example.com/about",
+    logo: null,
+    designMd: null,
+    memoryEnabled: true,
+    memoryModel: {
+      id: "mistral/mistral-medium-latest",
+      label: "Mistral Medium",
+      region: "eu",
+    },
+    contextMd: null,
+    contextMdUpdating: false,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   };
@@ -82,22 +98,9 @@ describe("ProjectDetailPage", () => {
     expect(notFoundMock).toHaveBeenCalledOnce();
   });
 
-  it("loads jobs, tasks, and stats in parallel after the project exists", async () => {
+  it("loads jobs and tasks in parallel after the project exists", async () => {
     const project = buildProject();
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.getProjectsStats.mockResolvedValue([
-      {
-        projectId: "project-1",
-        tasks: {
-          total: 0,
-          byStatus: [],
-        },
-        jobs: {
-          total: 0,
-          byStatus: [],
-        },
-      },
-    ]);
     projectServiceMock.listProjectJobs.mockResolvedValue({
       jobs: [],
       pagination: null,
@@ -109,7 +112,7 @@ describe("ProjectDetailPage", () => {
 
     const { default: ProjectDetailPage } = await import("../page");
 
-    await ProjectDetailPage({
+    const html = await ProjectDetailPage({
       params: Promise.resolve({ projectId: "project-1" }),
     });
 
@@ -121,32 +124,36 @@ describe("ProjectDetailPage", () => {
       "project-1",
       { limit: 100 },
     );
-    expect(projectServiceMock.getProjectsStats).toHaveBeenCalledWith([
-      "project-1",
-    ]);
+    expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
-  });
 
-  it("calls notFound when stats are missing for an existing project", async () => {
-    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
-    projectServiceMock.getProjectsStats.mockResolvedValue([]);
-    projectServiceMock.listProjectJobs.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    projectServiceMock.listProjectTasks.mockResolvedValue({
-      tasks: [],
-      pagination: null,
-    });
-
-    const { default: ProjectDetailPage } = await import("../page");
-
-    await expect(
-      ProjectDetailPage({
-        params: Promise.resolve({ projectId: "project-1" }),
+    const { container } = render(html);
+    expect(container.firstChild).toHaveClass(
+      "w-full",
+      "px-4",
+      "py-6",
+      "md:px-6",
+    );
+    expect(container.querySelector(".max-w-4xl")).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Launch plan" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
+      "href",
+      "https://example.com/about",
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: "App.Projects.Detail.briefing",
       }),
-    ).rejects.toThrow("NOT_FOUND");
-
-    expect(notFoundMock).toHaveBeenCalledOnce();
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("brand-card")).toBeInTheDocument();
+    expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
+    expect(
+      screen.getByText("App.Projects.Detail.modules.title"),
+    ).toBeInTheDocument();
+    expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
+      7,
+    );
   });
 });

@@ -14,6 +14,8 @@ function serializeOwner(owner: DesignMdOwnerSchemaType): string {
       return "adhoc";
     case "organization":
       return `org:${owner.organizationId}`;
+    case "project":
+      return `project:${owner.projectId}`;
     default: {
       const _exhaustive: never = owner;
       throw new Error(

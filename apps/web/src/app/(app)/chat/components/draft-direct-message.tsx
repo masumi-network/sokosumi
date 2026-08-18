@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import { MessageCircle, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -28,7 +29,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
-import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 import {
   RoomComposer,

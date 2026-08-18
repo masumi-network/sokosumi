@@ -10,6 +10,10 @@ export const manageableDesignMdOwnerSchema = z.discriminatedUnion("type", [
     organizationId: z.string().min(1),
     type: z.literal("organization"),
   }),
+  z.object({
+    projectId: z.string().min(1),
+    type: z.literal("project"),
+  }),
 ]);
 
 /**
