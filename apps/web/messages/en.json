@@ -5301,7 +5301,12 @@
       "renameError": "Failed to rename file",
       "deleteError": "Failed to delete file",
       "organizationTabFallback": "Organization",
-      "uploadDuplicateError": "A file with this name already exists. Rename it and try again."
+      "uploadDuplicateError": "A file with this name already exists. Rename it and try again.",
+      "selectTitle": "Select from Drive",
+      "selectDescription": "Choose a file from your personal or organization Drive",
+      "emptyPicker": "No files in this Drive",
+      "uploadFile": "Upload file",
+      "fromDrive": "From Drive"
     }
   },
   "Share": {

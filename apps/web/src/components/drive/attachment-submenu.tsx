@@ -1,6 +1,7 @@
 "use client";
 
 import { HardDrive, Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,8 @@ export function AttachmentSubmenu({
   onDriveClick,
   disabled = false,
 }: AttachmentSubmenuProps) {
+  const t = useTranslations("App.Drive");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>
@@ -29,11 +32,11 @@ export function AttachmentSubmenu({
       <DropdownMenuContent align="start" side="top">
         <DropdownMenuItem onClick={onUploadClick}>
           <Upload className="size-4" />
-          <span>Upload file</span>
+          <span>{t("uploadFile")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onDriveClick}>
           <HardDrive className="size-4" />
-          <span>From Drive</span>
+          <span>{t("fromDrive")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

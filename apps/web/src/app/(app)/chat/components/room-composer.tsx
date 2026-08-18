@@ -466,7 +466,12 @@ export function RoomComposer({
       fileName: file.name,
       mediaType: null,
     };
-    onAttachmentsChange((current) => [...current, driveAttachment]);
+    onAttachmentsChange((current) => {
+      if (current.some((a) => a.url === file.fileUrl)) {
+        return current;
+      }
+      return [...current, driveAttachment];
+    });
     editorRef.current?.focus();
   }
 
