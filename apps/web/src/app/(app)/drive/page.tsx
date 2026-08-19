@@ -216,7 +216,8 @@ export default function DrivePage(): ReactElement {
       }
     } catch (err) {
       if (!controller.signal.aborted) {
-        setError(err instanceof Error ? err.message : t("loadFilesError"));
+        console.error("Failed to load Drive files", err);
+        setError(t("loadFilesError"));
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -319,7 +320,8 @@ export default function DrivePage(): ReactElement {
       setEditingFileName("");
       await loadFiles();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("renameError"));
+      console.error("Failed to rename Drive file", err);
+      setError(t("renameError"));
     }
   }
 
@@ -347,7 +349,8 @@ export default function DrivePage(): ReactElement {
       setFileToDelete(null);
       await loadFiles();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteError"));
+      console.error("Failed to delete Drive file", err);
+      setError(t("deleteError"));
     }
   }
 
@@ -658,8 +661,7 @@ export default function DrivePage(): ReactElement {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onSelect={(event) => {
-                                  event.preventDefault();
+                                onSelect={() => {
                                   handleDownload(file.fileUrl, file.name);
                                 }}
                               >
@@ -667,8 +669,7 @@ export default function DrivePage(): ReactElement {
                                 {t("downloadAction")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onSelect={(event) => {
-                                  event.preventDefault();
+                                onSelect={() => {
                                   startEdit(file);
                                 }}
                                 disabled={editingFilePathname !== null}
@@ -678,8 +679,7 @@ export default function DrivePage(): ReactElement {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 variant="destructive"
-                                onSelect={(event) => {
-                                  event.preventDefault();
+                                onSelect={() => {
                                   openDeleteDialog(file);
                                 }}
                                 disabled={editingFilePathname !== null}

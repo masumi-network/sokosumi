@@ -11,11 +11,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => getBrowserCoreClientMock(),
 }));
 
-import {
-  DriveFileUploadError,
-  isDriveFileUploadDuplicate,
-  uploadDriveFile,
-} from "@/lib/utils/drive-file-upload.client";
+import { uploadDriveFile } from "@/lib/utils/drive-file-upload.client";
 
 function grantSession(overrides: Record<string, unknown> = {}) {
   return {
@@ -125,13 +121,10 @@ describe("uploadDriveFile", () => {
 
     await expect(
       uploadDriveFile(file, { scope: "me", onUploadProgress }),
-    ).rejects.toThrow(DriveFileUploadError);
-
-    try {
-      await uploadDriveFile(file, { scope: "me", onUploadProgress });
-    } catch (err) {
-      expect(isDriveFileUploadDuplicate(err)).toBe(true);
-    }
+    ).rejects.toMatchObject({
+      code: "duplicate",
+      name: "DriveFileUploadError",
+    });
 
     expect(onUploadProgress).not.toHaveBeenCalled();
   });
@@ -147,13 +140,10 @@ describe("uploadDriveFile", () => {
 
     await expect(
       uploadDriveFile(file, { scope: "me", onUploadProgress }),
-    ).rejects.toThrow(DriveFileUploadError);
-
-    try {
-      await uploadDriveFile(file, { scope: "me", onUploadProgress });
-    } catch (err) {
-      expect(isDriveFileUploadDuplicate(err)).toBe(false);
-    }
+    ).rejects.toMatchObject({
+      code: "internal",
+      name: "DriveFileUploadError",
+    });
 
     expect(onUploadProgress).not.toHaveBeenCalled();
   });
@@ -195,19 +185,12 @@ describe("uploadDriveFile", () => {
     vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession({ uploadUrl: "" }));
 
-    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toThrow(
-      DriveFileUploadError,
-    );
+    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toMatchObject({
+      code: "internal",
+      name: "DriveFileUploadError",
+    });
 
-    try {
-      await uploadDriveFile(file, { scope: "me" });
-    } catch (err) {
-      expect(isDriveFileUploadDuplicate(err)).toBe(false);
-      expect(err).toBeInstanceOf(DriveFileUploadError);
-    }
-
-    const xhrInstance = getInstance();
-    expect(xhrInstance?.send || vi.fn()).not.toHaveBeenCalled();
+    expect(getInstance()).toBeNull();
   });
 
   it("detects duplicate from mint 409", async () => {
@@ -219,11 +202,10 @@ describe("uploadDriveFile", () => {
       message: "Conflict",
     });
 
-    try {
-      await uploadDriveFile(file, { scope: "me" });
-    } catch (err) {
-      expect(isDriveFileUploadDuplicate(err)).toBe(true);
-    }
+    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toMatchObject({
+      code: "duplicate",
+      name: "DriveFileUploadError",
+    });
   });
 
   it("detects duplicate from Blob PUT 400 with 'already exists' body", async () => {
@@ -237,10 +219,9 @@ describe("uploadDriveFile", () => {
     vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
 
-    try {
-      await uploadDriveFile(file, { scope: "me" });
-    } catch (err) {
-      expect(isDriveFileUploadDuplicate(err)).toBe(true);
-    }
+    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toMatchObject({
+      code: "duplicate",
+      name: "DriveFileUploadError",
+    });
   });
 });

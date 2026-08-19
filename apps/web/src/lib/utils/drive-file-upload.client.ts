@@ -6,6 +6,8 @@ import { postDriveFiles } from "@/lib/clients/generated/core";
 
 export type DriveFileUploadErrorCode = "duplicate" | "internal";
 
+const XHR_UPLOAD_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
 export class DriveFileUploadError extends Error {
   code: DriveFileUploadErrorCode;
 
@@ -200,12 +202,36 @@ export async function uploadDriveFile(
       reject(new DriveFileUploadError("internal", "Upload was aborted"));
     });
 
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("Content-Type", headers["Content-Type"] ?? file.type);
+    xhr.addEventListener("timeout", () => {
+      stopFallbackProgress();
+      reject(
+        new DriveFileUploadError(
+          "internal",
+          "Upload timed out after 2 minutes",
+        ),
+      );
+    });
 
-    // Start fallback progress estimator
-    startFallbackProgress();
+    try {
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader(
+        "Content-Type",
+        headers?.["Content-Type"] ?? contentType,
+      );
+      xhr.timeout = XHR_UPLOAD_TIMEOUT_MS;
 
-    xhr.send(file);
+      // Start fallback progress estimator
+      startFallbackProgress();
+
+      xhr.send(file);
+    } catch (_err) {
+      stopFallbackProgress();
+      reject(
+        new DriveFileUploadError(
+          "internal",
+          "Failed to initiate upload request",
+        ),
+      );
+    }
   });
 }

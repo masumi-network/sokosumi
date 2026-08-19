@@ -30,8 +30,8 @@ export function ListMobileCreateFab({
   progress,
 }: ListMobileCreateFabProps): React.ReactElement {
   const isApple = useIsApplePlatform();
-  const isUploading = progress !== undefined && progress < 100;
   const showProgress = progress !== undefined;
+  const isUploading = showProgress;
 
   return (
     <div
@@ -73,6 +73,7 @@ export function ListMobileCreateFab({
           <button
             type="button"
             aria-label={ariaLabel}
+            aria-busy={showProgress}
             onClick={onOpen}
             disabled={isUploading}
             className={cn(
