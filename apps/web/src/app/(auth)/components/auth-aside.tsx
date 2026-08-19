@@ -65,32 +65,27 @@ export default async function AuthAside() {
             {t("logosLabel")}
           </p>
           <div className="mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)]">
-            <ul className="flex w-max animate-auth-logo-marquee items-center gap-x-8 pr-8 motion-reduce:animate-none">
-              {[...AUTH_MARQUEE_LOGOS, ...AUTH_MARQUEE_LOGOS].map(
-                (logo, index) => {
-                  const isClone = index >= AUTH_MARQUEE_LOGOS.length;
-                  return (
-                    <li
-                      key={`${logo.src}-${index}`}
-                      className={
-                        isClone
-                          ? "flex shrink-0 items-center motion-reduce:hidden"
-                          : "flex shrink-0 items-center"
-                      }
-                    >
+            <div className="flex w-max animate-auth-logo-marquee motion-reduce:animate-none">
+              {[0, 1].map((copy) => (
+                <ul
+                  key={copy}
+                  className="flex shrink-0 items-center gap-x-8 pr-8 motion-reduce:[&:nth-child(2)]:hidden"
+                  aria-hidden={copy === 1}
+                >
+                  {AUTH_MARQUEE_LOGOS.map((logo) => (
+                    <li key={`${logo.src}-${copy}`} className="flex shrink-0">
                       <Image
                         src={logo.src}
-                        alt={isClone ? "" : logo.alt}
+                        alt={copy === 0 ? logo.alt : ""}
                         width={logo.width}
                         height={logo.height}
-                        className="opacity-95"
-                        aria-hidden={isClone}
+                        className="max-w-none shrink-0 opacity-95"
                       />
                     </li>
-                  );
-                },
-              )}
-            </ul>
+                  ))}
+                </ul>
+              ))}
+            </div>
           </div>
         </div>
       </div>
