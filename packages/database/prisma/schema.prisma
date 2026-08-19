@@ -1497,6 +1497,8 @@ model Jwks {
   publicKey  String
   privateKey String
   expiresAt  DateTime?
+  alg        String?
+  crv        String?
 
   @@map("jwks")
 }

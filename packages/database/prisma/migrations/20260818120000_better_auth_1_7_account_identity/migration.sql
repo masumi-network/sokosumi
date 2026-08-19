@@ -62,6 +62,19 @@ END $$;
 
 ALTER TABLE "account" ALTER COLUMN "issuer" SET NOT NULL;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM "account"
+    GROUP BY "issuer", "accountId"
+    HAVING COUNT(*) > 1
+  ) THEN
+    RAISE EXCEPTION
+      'account (issuer, accountId) collisions; inspect rows and stop — do not merge users by email';
+  END IF;
+END $$;
+
 CREATE UNIQUE INDEX "account_issuer_accountId_key" ON "account"("issuer", "accountId");
 CREATE INDEX "account_userId_idx" ON "account"("userId");
 
@@ -197,3 +210,7 @@ CREATE TABLE "oauthClientAssertion" (
 
     CONSTRAINT "oauthClientAssertion_pkey" PRIMARY KEY ("id")
 );
+
+-- jwt plugin 1.7: createJwk writes alg/crv. Existing keys stay null (inherit EdDSA).
+ALTER TABLE "jwks" ADD COLUMN "alg" TEXT;
+ALTER TABLE "jwks" ADD COLUMN "crv" TEXT;
