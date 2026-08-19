@@ -198,36 +198,40 @@ export function DriveFilePicker({
               )}
             </TabsList>
 
-            {breadcrumbSegments.length > 0 && (
-              <nav
-                className="text-muted-foreground flex items-center gap-1 text-sm"
-                aria-label="Breadcrumb"
+            <nav
+              className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+              aria-label="Breadcrumb"
+            >
+              <button
+                type="button"
+                onClick={() => navigateToBreadcrumb(-1)}
+                className={cn(
+                  "hover:text-foreground whitespace-nowrap transition-colors",
+                  breadcrumbSegments.length === 0 &&
+                    "text-foreground font-medium",
+                )}
               >
-                <button
-                  type="button"
-                  onClick={() => navigateToBreadcrumb(-1)}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {t("myDriveTab")}
-                </button>
-                {breadcrumbSegments.map((segment, index) => (
-                  <span key={index} className="flex items-center gap-1">
-                    <ChevronRight className="size-4" aria-hidden />
-                    <button
-                      type="button"
-                      onClick={() => navigateToBreadcrumb(index)}
-                      className={cn(
-                        "hover:text-foreground transition-colors",
-                        index === breadcrumbSegments.length - 1 &&
-                          "text-foreground font-medium",
-                      )}
-                    >
-                      {segment}
-                    </button>
-                  </span>
-                ))}
-              </nav>
-            )}
+                {scope === "org" && organizationName
+                  ? organizationName
+                  : t("myDriveTab")}
+              </button>
+              {breadcrumbSegments.map((segment, index) => (
+                <span key={index} className="flex shrink-0 items-center gap-1">
+                  <ChevronRight className="size-4" aria-hidden />
+                  <button
+                    type="button"
+                    onClick={() => navigateToBreadcrumb(index)}
+                    className={cn(
+                      "hover:text-foreground whitespace-nowrap transition-colors",
+                      index === breadcrumbSegments.length - 1 &&
+                        "text-foreground font-medium",
+                    )}
+                  >
+                    {segment}
+                  </button>
+                </span>
+              ))}
+            </nav>
 
             <div className="relative">
               <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
