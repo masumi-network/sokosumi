@@ -47,6 +47,7 @@ export function ListMobileCreateFab({
           {showProgress && (
             <svg
               className="absolute inset-0 size-14 -rotate-90"
+              viewBox="0 0 56 56"
               aria-hidden="true"
             >
               <circle
