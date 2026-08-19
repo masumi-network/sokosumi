@@ -83,7 +83,7 @@ export default async function AuthAside() {
                         alt={isClone ? "" : logo.alt}
                         width={logo.width}
                         height={logo.height}
-                        className="opacity-75"
+                        className="opacity-95"
                         aria-hidden={isClone}
                       />
                     </li>
