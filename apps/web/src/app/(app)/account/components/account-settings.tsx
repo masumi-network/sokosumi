@@ -2,7 +2,10 @@ import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md";
 import { AccountProvider } from "@/lib/auth/types";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
+import type {
+  StripeCustomerBillingDetails,
+  UserDeletionEvaluation,
+} from "@/lib/clients/generated/core";
 import { AccountBillingDetails } from "./account-billing-details";
 import { AccountCoworkerAccess } from "./account-coworker-access";
 import { AccountVendorGrants } from "./account-vendor-grants";
@@ -34,8 +37,9 @@ interface AccountSettingsProps {
   hasOrganizationMembership?: boolean;
   fallbackOrganizationId?: string | null;
   currentOrganizationId?: string | null;
-  deletionBlockers?: string[];
+  deletionBlockers?: UserDeletionEvaluation["blockers"];
   deletionPreflightFailed?: boolean;
+  deletionPreflightLoadError?: ReactNode;
 }
 
 export function AccountSettings({
@@ -55,6 +59,7 @@ export function AccountSettings({
   currentOrganizationId = null,
   deletionBlockers = [],
   deletionPreflightFailed = false,
+  deletionPreflightLoadError,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -130,7 +135,8 @@ export function AccountSettings({
       ) : null}
 
       <div className="border-t pt-8">
-        <div className="mx-auto w-full">
+        <div className="mx-auto w-full space-y-4">
+          {deletionPreflightLoadError}
           <DeleteAccountForm
             blockers={deletionBlockers}
             preflightFailed={deletionPreflightFailed}

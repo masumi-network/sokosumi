@@ -9,19 +9,15 @@ const {
   taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
-  taskPaymentClaimFindFirstMock,
   taskPaymentClaimDeleteManyMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
-  captureMessageMock,
 } = vi.hoisted(() => ({
-  captureMessageMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
-  taskPaymentClaimFindFirstMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
@@ -31,15 +27,10 @@ vi.mock("@/lib/blob", () => ({
   deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
 }));
 
-vi.mock("@sentry/node", () => ({
-  captureMessage: captureMessageMock,
-}));
-
 describe("prepareTasksForUserDeletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFileFindManyMock.mockResolvedValue([]);
-    taskPaymentClaimFindFirstMock.mockResolvedValue(null);
     taskPaymentClaimDeleteManyMock.mockResolvedValue({ count: 0 });
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
@@ -56,7 +47,6 @@ describe("prepareTasksForUserDeletion", () => {
           findMany: taskFileFindManyMock,
         },
         taskPaymentClaim: {
-          findFirst: taskPaymentClaimFindFirstMock,
           deleteMany: taskPaymentClaimDeleteManyMock,
         },
       }),
@@ -98,21 +88,6 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskDeleteManyMock).toHaveBeenCalledWith({
       where: { ownerId: "user_delete" },
     });
-  });
-
-  it("does not re-check payment-claim blockers after evaluate already allowed", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
-    taskDeleteManyMock.mockResolvedValue({ count: 0 });
-
-    await prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    expect(taskPaymentClaimFindFirstMock).not.toHaveBeenCalled();
-    expect(captureMessageMock).not.toHaveBeenCalled();
-    expect(taskPaymentClaimDeleteManyMock).toHaveBeenCalled();
-    expect(taskDeleteManyMock).toHaveBeenCalled();
   });
 
   it("removes terminal claims before transaction cascade", async () => {

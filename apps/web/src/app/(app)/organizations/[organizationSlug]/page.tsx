@@ -8,6 +8,7 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  OrganizationDeletionEvaluation,
   OrganizationInviteLink,
   PendingInvitation,
   StripeCustomerBillingDetails,
@@ -87,6 +88,9 @@ export default async function OrganizationPage({
   const tInviteLinks = await getTranslations(
     "App.Organizations.OrganizationDetail.InviteLinks",
   );
+  const tDeletion = await getTranslations(
+    "Components.Organizations.RemoveModal",
+  );
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
@@ -141,8 +145,9 @@ export default async function OrganizationPage({
     }
   }
 
-  let deletionBlockers: string[] = [];
+  let deletionBlockers: OrganizationDeletionEvaluation["blockers"] = [];
   let deletionPreflightFailed = false;
+  let deletionPreflightLoadError: ReactNode | undefined;
   if (member.role === MemberRole.OWNER) {
     try {
       const deletionResponse = await coreClient.getOrganizationDeletion(
@@ -152,6 +157,13 @@ export default async function OrganizationPage({
     } catch (error) {
       console.error("Failed to load organization deletion blockers", error);
       deletionPreflightFailed = true;
+      deletionPreflightLoadError = (
+        <CoreAuthReadRetry
+          description={tDeletion("preflightError")}
+          retryLabel={tDeletion("retry")}
+          title={tDeletion("loadErrorTitle")}
+        />
+      );
     }
   }
 
@@ -198,6 +210,7 @@ export default async function OrganizationPage({
           member={member}
           deletionBlockers={deletionBlockers}
           deletionPreflightFailed={deletionPreflightFailed}
+          deletionPreflightLoadError={deletionPreflightLoadError}
         />
         {isOwnerOrAdmin ? (
           <OrganizationBillingDetails

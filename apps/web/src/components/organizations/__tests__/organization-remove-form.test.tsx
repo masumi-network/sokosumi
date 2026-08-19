@@ -20,7 +20,8 @@ const translations: Record<string, string> = {
   "Components.Organizations.RemoveModal.blockersTitle":
     "You cannot remove this organization until these are resolved:",
   "Components.Organizations.RemoveModal.preflightError":
-    "Could not check whether this organization can be removed. Try again.",
+    "Could not check whether this organization can be removed.",
+  "Components.Organizations.RemoveModal.retry": "Try again",
   "Components.Organizations.RemoveModal.Errors.additionalMembers":
     "Remove all other members before deleting this organization.",
   "Components.Organizations.RemoveModal.Errors.lastWorkspace":
@@ -120,6 +121,62 @@ describe("OrganizationRemoveForm", () => {
       screen.getByText("You cannot delete your last workspace."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  });
+
+  it("disables confirm and retries preflight when load failed", async () => {
+    const user = userEvent.setup();
+    render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={vi.fn()}
+        onOpenChange={vi.fn()}
+        blockers={[]}
+        preflightFailed
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Could not check whether this organization can be removed.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(mockRouterRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("maps LAST_WORKSPACE if delete is refused after load", async () => {
+    const user = userEvent.setup();
+    const { toast } = await import("sonner");
+
+    deleteOrganizationMock.mockResolvedValue({
+      data: null,
+      error: {
+        code: "LAST_WORKSPACE",
+        message: "Backend fallback",
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    const { container } = render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={vi.fn()}
+        onOpenChange={vi.fn()}
+        blockers={[]}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox"), "Acme");
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "You cannot delete your last workspace.",
+      );
+    });
   });
 
   it("shows a clear action message when deletion is blocked by additional members", async () => {

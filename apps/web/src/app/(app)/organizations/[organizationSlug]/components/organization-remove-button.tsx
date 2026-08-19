@@ -5,12 +5,15 @@ import { useTranslations } from "next-intl";
 import { OrganizationRemoveModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 interface OrganizationRemoveButtonProps {
   organization: OrganizationRecord;
   className?: string | undefined;
-  blockers?: string[];
+  blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
 }
 
@@ -18,7 +21,7 @@ interface OrganizationRemoveModalHostProps {
   open: boolean;
   onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
   organization: OrganizationRecord;
-  blockers?: string[];
+  blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
 }
 

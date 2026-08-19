@@ -6,6 +6,7 @@ import { DeleteAccountForm } from "../delete-account-form";
 
 const deleteUserMock = vi.fn();
 const mockRouterPush = vi.fn();
+const mockRouterRefresh = vi.fn();
 
 const translations: Record<string, string> = {
   "App.Account.Delete.title": "Delete account",
@@ -20,7 +21,8 @@ const translations: Record<string, string> = {
   "App.Account.Delete.blockersTitle":
     "You cannot delete your account until these are resolved:",
   "App.Account.Delete.preflightError":
-    "Could not check whether your account can be deleted. Try again.",
+    "Could not check whether your account can be deleted.",
+  "App.Account.Delete.retry": "Try again",
   "App.Account.Delete.Errors.taskPaymentClaimPending":
     "Wait for pending task payments to settle before deleting your account.",
   "App.Account.Delete.Errors.taskPaymentClaimReviewRequired":
@@ -31,6 +33,7 @@ const translations: Record<string, string> = {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockRouterPush,
+    refresh: mockRouterRefresh,
   }),
 }));
 
@@ -100,13 +103,20 @@ describe("DeleteAccountForm", () => {
     await openDialog();
 
     expect(
-      screen.getByText(
-        "Could not check whether your account can be deleted. Try again.",
-      ),
+      screen.getByText("Could not check whether your account can be deleted."),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Yes, delete my account" }),
     ).toBeDisabled();
+  });
+
+  it("retries preflight by refreshing the page", async () => {
+    render(<DeleteAccountForm blockers={[]} preflightFailed />);
+
+    const user = await openDialog();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(mockRouterRefresh).toHaveBeenCalledOnce();
   });
 
   it("maps the same codes if delete is refused after load", async () => {

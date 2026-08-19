@@ -9,7 +9,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 import OrganizationRemoveForm from "./form";
 
@@ -17,7 +20,7 @@ interface OrganizationRemoveModalProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
   organization: OrganizationRecord;
-  blockers?: string[];
+  blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
 }
 

@@ -655,7 +655,9 @@
         "confirmLabelPrefix": "Escribe",
         "confirmLabelSuffix": "para confirmar la eliminación:",
         "blockersTitle": "No puedes eliminar esta organización hasta resolver lo siguiente:",
-        "preflightError": "No se pudo comprobar si esta organización se puede eliminar. Inténtalo de nuevo.",
+        "preflightError": "No se pudo comprobar si esta organización se puede eliminar.",
+        "loadErrorTitle": "No se pudo comprobar la eliminación de la organización",
+        "retry": "Reintentar",
         "Errors": {
           "additionalMembers": "Elimina primero a todos los demás miembros antes de eliminar esta organización.",
           "lastWorkspace": "No puedes eliminar tu último espacio de trabajo.",
@@ -3920,7 +3922,9 @@
         "success": "Cuenta eliminada correctamente",
         "error": "No se pudo eliminar la cuenta",
         "blockersTitle": "No puedes eliminar tu cuenta hasta resolver lo siguiente:",
-        "preflightError": "No se pudo comprobar si tu cuenta se puede eliminar. Inténtalo de nuevo.",
+        "preflightError": "No se pudo comprobar si tu cuenta se puede eliminar.",
+        "loadErrorTitle": "No se pudo comprobar la eliminación de la cuenta",
+        "retry": "Reintentar",
         "Errors": {
           "taskPaymentClaimPending": "Espera a que se liquiden los pagos de tareas pendientes antes de eliminar tu cuenta.",
           "taskPaymentClaimReviewRequired": "Un pago de tarea necesita revisión del administrador antes de que puedas eliminar tu cuenta. Contacta con soporte."

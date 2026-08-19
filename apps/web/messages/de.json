@@ -655,7 +655,9 @@
         "confirmLabelPrefix": "Tippe",
         "confirmLabelSuffix": "zur Bestätigung der Löschung:",
         "blockersTitle": "Du kannst diese Organisation erst entfernen, wenn Folgendes geklärt ist:",
-        "preflightError": "Es konnte nicht geprüft werden, ob diese Organisation entfernt werden kann. Versuche es erneut.",
+        "preflightError": "Es konnte nicht geprüft werden, ob diese Organisation entfernt werden kann.",
+        "loadErrorTitle": "Organisationslöschung konnte nicht geprüft werden",
+        "retry": "Erneut versuchen",
         "Errors": {
           "additionalMembers": "Entferne alle anderen Mitglieder, bevor du diese Organisation löschst.",
           "lastWorkspace": "Du kannst deinen letzten Workspace nicht löschen.",
@@ -3920,7 +3922,9 @@
         "success": "Account erfolgreich gelöscht",
         "error": "Account konnte nicht gelöscht werden",
         "blockersTitle": "Du kannst deinen Account erst löschen, wenn Folgendes geklärt ist:",
-        "preflightError": "Es konnte nicht geprüft werden, ob dein Account gelöscht werden kann. Versuche es erneut.",
+        "preflightError": "Es konnte nicht geprüft werden, ob dein Account gelöscht werden kann.",
+        "loadErrorTitle": "Account-Löschung konnte nicht geprüft werden",
+        "retry": "Erneut versuchen",
         "Errors": {
           "taskPaymentClaimPending": "Warte, bis ausstehende Task-Zahlungen abgeschlossen sind, bevor du deinen Account löschst.",
           "taskPaymentClaimReviewRequired": "Eine Task-Zahlung muss von einem Administrator geprüft werden, bevor du deinen Account löschen kannst. Bitte kontaktiere den Support."

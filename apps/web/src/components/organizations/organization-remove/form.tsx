@@ -26,7 +26,10 @@ import {
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 import {
   type RemoveOrganizationSchemaType,
   removeOrganizationSchema,
@@ -36,7 +39,7 @@ interface OrganizationRemoveFormProps {
   organization: OrganizationRecord;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  blockers?: string[];
+  blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
 }
 
@@ -119,7 +122,16 @@ export default function OrganizationRemoveForm({
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={isSubmitting} className="flex flex-col gap-4">
           {preflightFailed ? (
-            <p className="text-destructive text-sm">{t("preflightError")}</p>
+            <div className="space-y-2">
+              <p className="text-destructive text-sm">{t("preflightError")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.refresh()}
+              >
+                {t("retry")}
+              </Button>
+            </div>
           ) : null}
           {blockers.length > 0 ? (
             <div className="space-y-2">

@@ -38,10 +38,11 @@ import {
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { deleteUser } from "@/lib/auth/auth.client";
+import type { UserDeletionEvaluation } from "@/lib/clients/generated/core";
 import { type DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 
 interface DeleteAccountFormProps {
-  blockers?: string[];
+  blockers?: UserDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
 }
 
@@ -109,7 +110,18 @@ export function DeleteAccountForm({
               <DialogDescription>{t("confirmDescription")}</DialogDescription>
             </DialogHeader>
             {preflightFailed ? (
-              <p className="text-destructive text-sm">{t("preflightError")}</p>
+              <div className="space-y-2">
+                <p className="text-destructive text-sm">
+                  {t("preflightError")}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.refresh()}
+                >
+                  {t("retry")}
+                </Button>
+              </div>
             ) : null}
             {blockers.length > 0 ? (
               <div className="space-y-2">
