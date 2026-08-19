@@ -168,28 +168,6 @@ describe("PATCH /notifications/{id}/read", () => {
 
     expect(response.status).toBe(404);
   });
-
-  it("allows orchestrator with context headers to mark owned notifications read", async () => {
-    const existing = createNotificationRow();
-    notificationFindUniqueMock.mockResolvedValue(existing);
-    notificationUpdateMock.mockResolvedValue({
-      ...existing,
-      isRead: true,
-      readAt: new Date("2026-06-16T15:00:00.000Z"),
-    });
-
-    const app = createApp(mountMarkNotificationRead, {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    });
-    const response = await app.request("http://localhost/notif_123/read", {
-      method: "PATCH",
-    });
-
-    expect(response.status).toBe(200);
-    expect(notificationUpdateMock).toHaveBeenCalled();
-  });
 });
 
 describe("PATCH /notifications/read-all", () => {
@@ -220,28 +198,6 @@ describe("PATCH /notifications/read-all", () => {
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(3);
   });
-
-  it("allows orchestrator with context headers for read-all", async () => {
-    const app = createApp(mountMarkAllRead, {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    });
-    const response = await app.request("http://localhost/read-all", {
-      method: "PATCH",
-    });
-
-    expect(response.status).toBe(200);
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId: "user_123",
-          isRead: false,
-          kind: { notIn: [NotificationKind.CHAT] },
-        },
-      }),
-    );
-  });
 });
 
 describe("GET /notifications/unread-count", () => {
@@ -268,24 +224,6 @@ describe("GET /notifications/unread-count", () => {
 
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(5);
-  });
-
-  it("allows orchestrator with context headers for unread count", async () => {
-    const app = createApp(mountGetUnreadCount, {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    });
-    const response = await app.request("http://localhost/unread-count");
-
-    expect(response.status).toBe(200);
-    expect(notificationCountMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_123",
-        isRead: false,
-        kind: { notIn: [NotificationKind.CHAT] },
-      },
-    });
   });
 
   it("excludes resolved vendor-grant notifications from unread count", async () => {

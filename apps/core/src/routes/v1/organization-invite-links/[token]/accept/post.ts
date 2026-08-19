@@ -45,7 +45,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request - link expired, revoked, or depleted"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse(
-      "Forbidden - session user required (coworker/orchestrator rejected)",
+      "Forbidden - session user required (coworker rejected)",
     ),
     404: jsonErrorResponse("Not Found - invalid link or organization"),
     500: jsonErrorResponse("Internal Server Error"),
@@ -55,7 +55,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     // Session-only: joining an org via a link is a self-service consent
-    // action, so a coworker/orchestrator key with X-Context-User-Id must not
+    // action, so a coworker key with X-Context-User-Id must not
     // be able to enroll an arbitrary user.
     const userContext = requireUserAuthContext(c.var.authContext);
     const { token } = c.req.valid("param");

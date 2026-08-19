@@ -1,0 +1,164 @@
+import { z } from "zod";
+
+import type { SokoBotCapability } from "./policy.js";
+
+const emptyInputSchema = z.object({}).strict();
+const scalarInputValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.string()),
+  z.array(z.number()),
+]);
+
+export const sokoBotSearchInputSchema = z
+  .object({ query: z.string().trim().max(200).default("") })
+  .strict();
+
+export const sokoBotTaskIdInputSchema = z
+  .object({ taskId: z.string().min(1) })
+  .strict();
+
+export const sokoBotJobIdInputSchema = z
+  .object({ jobId: z.string().min(1) })
+  .strict();
+
+export const sokoBotAgentIdInputSchema = z
+  .object({ agentId: z.string().min(1) })
+  .strict();
+
+export const sokoBotCreateTaskInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(20_000).nullable().optional(),
+    projectId: z.string().uuid().nullable().optional(),
+    coworkerId: z.string().min(1).nullable().optional(),
+    status: z.enum(["DRAFT", "READY"]).default("DRAFT"),
+  })
+  .strict();
+
+export const sokoBotUpdateTaskInputSchema = z
+  .object({
+    taskId: z.string().min(1),
+    name: z.string().trim().min(1).max(160).optional(),
+    description: z.string().trim().max(20_000).nullable().optional(),
+    status: z.enum(["DRAFT", "READY"]).optional(),
+  })
+  .strict();
+
+export const sokoBotAssignTaskInputSchema = z
+  .object({
+    taskId: z.string().min(1),
+    coworkerId: z.string().min(1),
+    ready: z.boolean().default(true),
+  })
+  .strict();
+
+export const sokoBotHireAgentInputSchema = z
+  .object({
+    agentId: z.string().min(1),
+    inputSchema: z.unknown(),
+    inputData: z.record(z.string(), scalarInputValueSchema),
+    maxCredits: z.number().positive(),
+    projectId: z.string().uuid().nullable().optional(),
+    name: z.string().trim().min(1).max(160).optional(),
+  })
+  .strict();
+
+export const sokoBotProvideJobInputSchema = z
+  .object({
+    jobId: z.string().min(1),
+    eventId: z.string().min(1),
+    inputData: z.record(z.string(), scalarInputValueSchema),
+  })
+  .strict();
+
+export const SOKO_BOT_DECISION_TARGETS = [
+  "create_task",
+  "update_task",
+  "assign_task",
+  "hire_agent",
+  "provide_job_input",
+] as const satisfies readonly SokoBotCapability[];
+
+export type SokoBotDecisionTarget = (typeof SOKO_BOT_DECISION_TARGETS)[number];
+
+export const sokoBotDecisionInputSchema = z
+  .object({
+    toolName: z.enum(SOKO_BOT_DECISION_TARGETS),
+    reason: z.string().min(1).max(2_000),
+    proposal: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+
+export const sokoBotMemoryUpdateInputSchema = z
+  .object({ markdown: z.string().min(1).max(16_384) })
+  .strict();
+
+export const sokoBotScratchPathSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,199}$/)
+  .refine((value) => !value.includes("..") && !value.startsWith("/"));
+
+export const sokoBotScratchReadInputSchema = z
+  .object({ path: sokoBotScratchPathSchema })
+  .strict();
+
+export const sokoBotScratchWriteInputSchema = z
+  .object({
+    path: sokoBotScratchPathSchema,
+    content: z.string().max(16_384),
+  })
+  .strict();
+
+export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
+  refresh_context: emptyInputSchema,
+  find_coworkers: sokoBotSearchInputSchema,
+  create_task: sokoBotCreateTaskInputSchema,
+  update_task: sokoBotUpdateTaskInputSchema,
+  assign_task: sokoBotAssignTaskInputSchema,
+  get_task_status: sokoBotTaskIdInputSchema,
+  find_agents: sokoBotSearchInputSchema,
+  get_agent_input_schema: sokoBotAgentIdInputSchema,
+  hire_agent: sokoBotHireAgentInputSchema,
+  get_job_status: sokoBotJobIdInputSchema,
+  provide_job_input: sokoBotProvideJobInputSchema,
+  request_user_decision: sokoBotDecisionInputSchema,
+  read_memory: emptyInputSchema,
+  update_memory: sokoBotMemoryUpdateInputSchema,
+  scratch_read: sokoBotScratchReadInputSchema,
+  scratch_write: sokoBotScratchWriteInputSchema,
+  scratch_list: emptyInputSchema,
+} as const satisfies Record<SokoBotCapability, z.ZodType>;
+
+export const SOKO_BOT_TOOL_DESCRIPTIONS = {
+  refresh_context: "Read immutable Context snapshot for current turn.",
+  find_coworkers:
+    "Find available AI Coworkers suitable for delegated Task work.",
+  create_task:
+    "Create Sokosumi Task, preferably DRAFT, for Coworker execution.",
+  update_task: "Update existing Task scope or DRAFT/READY status.",
+  assign_task: "Assign Task to available Coworker and optionally make READY.",
+  get_task_status: "Read current Task status.",
+  find_agents:
+    "Find marketplace Agents when Coworker delegation is unsuitable.",
+  get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
+  hire_agent:
+    "Propose marketplace Agent hire. Core always asks owner approval.",
+  get_job_status: "Read current marketplace Agent Job status.",
+  provide_job_input: "Propose input for Agent Job. Core asks owner approval.",
+  request_user_decision:
+    "Create durable Pending decision without parking runtime.",
+  read_memory: "Read canonical short-term Soko Bot memory.",
+  update_memory:
+    "Replace bounded canonical memory file with durable working context.",
+  scratch_read: "Read bounded temporary scratch file from current sandbox.",
+  scratch_write: "Write bounded temporary scratch file in current sandbox.",
+  scratch_list: "List temporary scratch files in current sandbox.",
+} as const satisfies Record<SokoBotCapability, string>;
+
+export function isSokoBotDecisionTarget(
+  value: string,
+): value is SokoBotDecisionTarget {
+  return SOKO_BOT_DECISION_TARGETS.some((target) => target === value);
+}

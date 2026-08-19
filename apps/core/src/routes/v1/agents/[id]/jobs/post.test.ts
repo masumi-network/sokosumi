@@ -207,31 +207,4 @@ describe("POST /agents/{id}/jobs", () => {
     expect(response.status).toBe(403);
     expect(createAgentJobForUserMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers", async () => {
-    const orchestratorAuth: AuthenticationContext = {
-      actor: "orchestrator",
-      context: { userId: "user_123", organizationId: "org_123" },
-    };
-
-    const app = createApp(orchestratorAuth);
-    const response = await app.request("http://localhost/agent_123/jobs", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(JOB_PAYLOAD),
-    });
-
-    expect(response.status).toBe(201);
-    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner: {
-          ownerId: "user_123",
-          organizationId: "org_123",
-          workspaceId: "11111111-1111-7111-8111-111111111111",
-        },
-      }),
-    );
-  });
 });

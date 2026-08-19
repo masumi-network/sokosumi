@@ -179,36 +179,6 @@ describe("GET /notifications", () => {
     );
   });
 
-  it("allows orchestrator with context headers as the context user", async () => {
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: "org_123" },
-    });
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(notificationFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId: "user_123",
-          kind: { notIn: [NotificationKind.CHAT] },
-        },
-      }),
-    );
-  });
-
-  it("returns 403 for bare orchestrator without context headers", async () => {
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-    });
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(403);
-    expect(notificationFindManyMock).not.toHaveBeenCalled();
-  });
-
   it("validates cursors against the same user and filter scope", async () => {
     notificationFindFirstMock.mockResolvedValue({ id: "notif_cursor" });
 

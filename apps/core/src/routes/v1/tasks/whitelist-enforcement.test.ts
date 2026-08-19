@@ -222,6 +222,7 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
+      tx,
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
@@ -229,6 +230,14 @@ describe("task coworker whitelist enforcement", () => {
   it("rejects task update when coworker is not whitelisted", async () => {
     const tx = {
       task: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "tsk_123",
+          ownerId: "user_123",
+          status: TaskStatus.READY,
+          assigneeId: null,
+          workspaceId: "22222222-2222-7222-8222-222222222222",
+          pendingVendorGrantId: null,
+        }),
         update: vi.fn(),
       },
     };
@@ -239,7 +248,7 @@ describe("task coworker whitelist enforcement", () => {
 
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
-      status: TaskStatus.READY,
+      status: TaskStatus.DRAFT,
       assigneeId: null,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
@@ -265,12 +274,13 @@ describe("task coworker whitelist enforcement", () => {
   });
 
   it("uses workspace-scoped link visibility in the patch response", async () => {
-    const updateMock = vi.fn().mockResolvedValue({
+    const taskRecord = {
       id: "tsk_123",
       createdAt: "2026-03-25T10:00:00.000Z",
       updatedAt: "2026-03-25T10:00:00.000Z",
       ownerId: "user_123",
       organizationId: null,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
       projectId: null,
       status: TaskStatus.READY,
       assigneeId: null,
@@ -291,9 +301,20 @@ describe("task coworker whitelist enforcement", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
-    });
+    };
+    const updateMock = vi.fn().mockResolvedValue(taskRecord);
+    const findUniqueOrThrowMock = vi.fn().mockResolvedValue(taskRecord);
     const tx = {
       task: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "tsk_123",
+          ownerId: "user_123",
+          status: TaskStatus.DRAFT,
+          assigneeId: null,
+          workspaceId: "22222222-2222-7222-8222-222222222222",
+          pendingVendorGrantId: null,
+        }),
+        findUniqueOrThrow: findUniqueOrThrowMock,
         update: updateMock,
       },
     };
@@ -321,7 +342,7 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith(
+    expect(findUniqueOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
           linksFrom: expect.objectContaining({
@@ -383,6 +404,7 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
+      tx,
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });

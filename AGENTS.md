@@ -347,7 +347,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](./docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 
-**Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party orchestrator actor (`ORCHESTRATOR_SERVICE_TOKEN`), DRAFT access, DRAFT↔READY status, usage/purge.
+**Soko Bot:** [`docs/soko-bot/implementation-plan.md`](./docs/soko-bot/implementation-plan.md) and [`docs/adr/0007-soko-bot-eve-runtime.md`](./docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager, Eve runtime, capability-scoped Core tools, context packets, memory, schedules, and admin operations.
 
 ## Additional Rules
 
@@ -394,7 +394,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ### `.env` files (gitignored, snapshot-persisted)
 
-`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `HERMES_ORCH_BASE_URL` set to a valid dummy URL (`RESEND_FROM_EMAIL` defaults to `noreply@sokosumi.com`); invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
+`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `RESEND_FROM_EMAIL` defaults to `noreply@sokosumi.com`; invalid `AGENT_HIRED_WEBHOOK` placeholder removed; `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
 
 ### Running & known local gotchas
 

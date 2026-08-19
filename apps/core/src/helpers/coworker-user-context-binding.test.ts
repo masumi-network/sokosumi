@@ -260,20 +260,6 @@ describe("requireAuthorizedUserContext", () => {
     expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 
-  it("allows orchestrator context without vendor binding", async () => {
-    const ctx = await requireAuthorizedUserContext({
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_1", organizationId: null },
-    });
-    expect(ctx).toEqual({
-      source: "context",
-      userId: "user_1",
-      organizationId: null,
-    });
-    expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
-  });
-
   it("rejects unbound coworker context", async () => {
     await expect(
       requireAuthorizedUserContext(coworkerAuth),

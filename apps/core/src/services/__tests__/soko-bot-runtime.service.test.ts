@@ -1,0 +1,2187 @@
+import { createHash } from "node:crypto";
+
+import { TaskStatus } from "@sokosumi/database";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  botFindFirstMock,
+  botUpdateManyMock,
+  contextSnapshotFindFirstMock,
+  createAgentClientMock,
+  createAgentJobForUserMock,
+  decisionFindFirstMock,
+  decisionUpdateManyMock,
+  decisionUpdateMock,
+  delegationCreateMock,
+  delegationFindUniqueMock,
+  delegationUpdateMock,
+  delegationUpdateManyMock,
+  getEnvMock,
+  jobEventFindFirstMock,
+  jobInputCreateMock,
+  jobInputFindManyMock,
+  jobInputFindUniqueMock,
+  localJobDelegationUpdateManyMock,
+  provideJobInputMock,
+  requireTaskAssignableCoworkerMock,
+  taskFindFirstMock,
+  toolCallCreateMock,
+  toolCallFindUniqueMock,
+  toolCallUpdateManyMock,
+  toolCallUpdateMock,
+  transactionTaskFindFirstMock,
+  transactionBotFindUniqueOrThrowMock,
+  transactionBotUpdateMock,
+  transactionMemoryRevisionCreateMock,
+  transactionMemoryRevisionFindUniqueMock,
+  transactionProjectFindFirstMock,
+  transactionDecisionCreateMock,
+  transactionTaskCreateMock,
+  transactionToolCallUpdateMock,
+  transactionToolCallCountMock,
+  transactionToolCallCreateMock,
+  transactionToolCallFindUniqueMock,
+  transactionTurnLockMock,
+  transactionBotFindFirstMock,
+  transactionBotUpdateManyMock,
+  transactionDelegationUpdateManyMock,
+  transactionTurnFindFirstMock,
+  transactionTurnUpdateManyMock,
+  transactionTaskUpdateMock,
+  transactionWorkspaceFindFirstMock,
+  transactionMock,
+  turnFindUniqueMock,
+  turnUpdateManyMock,
+  turnGrantVerifyMock,
+  verifyVercelOidcTokenMock,
+  workspaceFindFirstMock,
+} = vi.hoisted(() => ({
+  botFindFirstMock: vi.fn(),
+  botUpdateManyMock: vi.fn(),
+  contextSnapshotFindFirstMock: vi.fn(),
+  createAgentClientMock: vi.fn(),
+  createAgentJobForUserMock: vi.fn(),
+  decisionFindFirstMock: vi.fn(),
+  decisionUpdateManyMock: vi.fn(),
+  decisionUpdateMock: vi.fn(),
+  delegationCreateMock: vi.fn(),
+  delegationFindUniqueMock: vi.fn(),
+  delegationUpdateMock: vi.fn(),
+  delegationUpdateManyMock: vi.fn(),
+  getEnvMock: vi.fn(),
+  jobEventFindFirstMock: vi.fn(),
+  jobInputCreateMock: vi.fn(),
+  jobInputFindManyMock: vi.fn(),
+  jobInputFindUniqueMock: vi.fn(),
+  localJobDelegationUpdateManyMock: vi.fn(),
+  provideJobInputMock: vi.fn(),
+  requireTaskAssignableCoworkerMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  toolCallCreateMock: vi.fn(),
+  toolCallFindUniqueMock: vi.fn(),
+  toolCallUpdateManyMock: vi.fn(),
+  toolCallUpdateMock: vi.fn(),
+  transactionTaskFindFirstMock: vi.fn(),
+  transactionBotFindUniqueOrThrowMock: vi.fn(),
+  transactionBotUpdateMock: vi.fn(),
+  transactionMemoryRevisionCreateMock: vi.fn(),
+  transactionMemoryRevisionFindUniqueMock: vi.fn(),
+  transactionProjectFindFirstMock: vi.fn(),
+  transactionDecisionCreateMock: vi.fn(),
+  transactionTaskCreateMock: vi.fn(),
+  transactionToolCallUpdateMock: vi.fn(),
+  transactionToolCallCountMock: vi.fn(),
+  transactionToolCallCreateMock: vi.fn(),
+  transactionToolCallFindUniqueMock: vi.fn(),
+  transactionTurnLockMock: vi.fn(),
+  transactionBotFindFirstMock: vi.fn(),
+  transactionBotUpdateManyMock: vi.fn(),
+  transactionDelegationUpdateManyMock: vi.fn(),
+  transactionTurnFindFirstMock: vi.fn(),
+  transactionTurnUpdateManyMock: vi.fn(),
+  transactionTaskUpdateMock: vi.fn(),
+  transactionWorkspaceFindFirstMock: vi.fn(),
+  transactionMock: vi.fn(),
+  turnFindUniqueMock: vi.fn(),
+  turnUpdateManyMock: vi.fn(),
+  turnGrantVerifyMock: vi.fn(),
+  verifyVercelOidcTokenMock: vi.fn(),
+  workspaceFindFirstMock: vi.fn(),
+}));
+
+vi.mock("@vercel/oidc", () => ({
+  verifyVercelOidcToken: verifyVercelOidcTokenMock,
+}));
+vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/soko-bot/factory", () => ({
+  getSokoBotTokenService: async () => ({
+    verifyTurnGrant: turnGrantVerifyMock,
+  }),
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: transactionMock,
+    sokoBot: {
+      findFirst: botFindFirstMock,
+      updateMany: botUpdateManyMock,
+    },
+    sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
+    sokoBotDelegation: {
+      create: delegationCreateMock,
+      findUnique: delegationFindUniqueMock,
+      update: delegationUpdateMock,
+      updateMany: delegationUpdateManyMock,
+    },
+    sokoBotPendingDecision: {
+      findFirst: decisionFindFirstMock,
+      update: decisionUpdateMock,
+      updateMany: decisionUpdateManyMock,
+    },
+    sokoBotTurn: {
+      findUnique: turnFindUniqueMock,
+      updateMany: turnUpdateManyMock,
+    },
+    sokoBotToolCall: {
+      create: toolCallCreateMock,
+      findUnique: toolCallFindUniqueMock,
+      update: toolCallUpdateMock,
+      updateMany: toolCallUpdateManyMock,
+    },
+    task: { findFirst: taskFindFirstMock },
+    jobEvent: { findFirst: jobEventFindFirstMock },
+    jobInput: {
+      create: jobInputCreateMock,
+      findMany: jobInputFindManyMock,
+      findUnique: jobInputFindUniqueMock,
+    },
+    workspace: { findFirst: workspaceFindFirstMock },
+  },
+}));
+vi.mock("@/lib/db/transaction", () => ({
+  serializableTransaction: vi.fn(async (operation) =>
+    operation({
+      $queryRaw: transactionTurnLockMock,
+      sokoBot: {
+        findFirst: transactionBotFindFirstMock,
+        findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
+        update: transactionBotUpdateMock,
+        updateMany: transactionBotUpdateManyMock,
+      },
+      sokoBotMemoryRevision: {
+        create: transactionMemoryRevisionCreateMock,
+        findUnique: transactionMemoryRevisionFindUniqueMock,
+      },
+      sokoBotDelegation: {
+        create: delegationCreateMock,
+        update: delegationUpdateMock,
+        updateMany: transactionDelegationUpdateManyMock,
+      },
+      sokoBotPendingDecision: { create: transactionDecisionCreateMock },
+      sokoBotToolCall: {
+        count: transactionToolCallCountMock,
+        create: transactionToolCallCreateMock,
+        findUnique: transactionToolCallFindUniqueMock,
+        update: transactionToolCallUpdateMock,
+      },
+      project: { findFirst: transactionProjectFindFirstMock },
+      workspace: { findFirst: transactionWorkspaceFindFirstMock },
+      sokoBotTurn: {
+        findFirst: transactionTurnFindFirstMock,
+        updateMany: transactionTurnUpdateManyMock,
+      },
+      task: {
+        create: transactionTaskCreateMock,
+        findFirst: transactionTaskFindFirstMock,
+        update: transactionTaskUpdateMock,
+      },
+    }),
+  ),
+}));
+vi.mock("@/helpers/access-control", () => ({
+  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+}));
+vi.mock("@/helpers/vendor-grants", () => ({
+  isGrantDeniedOrRevoked: vi.fn(() => false),
+  parseGrantResumeStatus: vi.fn((status) => status),
+  requestWorkspaceGrant: vi.fn(),
+  requireTaskNotParked: vi.fn(),
+  throwGrantAccessError: vi.fn(),
+}));
+vi.mock("@/helpers/job", () => ({
+  createAgentJobForUser: createAgentJobForUserMock,
+}));
+vi.mock("@/helpers/agent", () => ({ toMasumiAgent: vi.fn() }));
+vi.mock("@sokosumi/masumi", () => ({
+  createAgentClient: createAgentClientMock,
+}));
+
+import {
+  isSokoBotDecisionTargetAllowed,
+  SokoBotRuntimeAuthorizationError,
+  SokoBotRuntimeConflictError,
+  SokoBotRuntimeService,
+  SokoBotRuntimeValidationError,
+} from "@/services/soko-bot-runtime.service";
+
+const SCOPE = {
+  userId: "user_1",
+  sokoBotId: "01960001-0001-7001-8001-000000000001",
+  workspaceId: "01960001-0001-7001-8001-000000000002",
+  sessionId: "session_1",
+  turnId: "01960001-0001-7001-8001-000000000003",
+};
+const DECISION_ID = "01960001-0001-7001-8001-000000000005";
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  return `{${Object.entries(value)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+    .join(",")}}`;
+}
+
+function hireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
+  return {
+    id: DECISION_ID,
+    sokoBotId: SCOPE.sokoBotId,
+    turnId: SCOPE.turnId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    toolName: "hire_agent",
+    proposal: {
+      agentId: "agent_1",
+      inputSchema: {
+        input_data: [{ id: "prompt", type: "string", name: "Prompt" }],
+      },
+      inputData: { prompt: "Prepare a launch plan" },
+      maxCredits: 10,
+    },
+    status,
+    expiresAt: new Date(Date.now() + 60_000),
+    turn: {
+      capabilityNames: ["hire_agent"],
+      eveSessionId: SCOPE.sessionId,
+    },
+  };
+}
+
+function provideInputDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
+  return {
+    ...hireDecision(status),
+    toolName: "provide_job_input",
+    proposal: {
+      jobId: "job_1",
+      eventId: "event_1",
+      inputData: { answer: "Approved" },
+    },
+    turn: {
+      capabilityNames: ["provide_job_input"],
+      eveSessionId: SCOPE.sessionId,
+    },
+  };
+}
+
+function memoryMarkdown(activeGoal: string): string {
+  return [
+    "# Soko Bot memory",
+    "",
+    "## Active goals",
+    `- ${activeGoal}`,
+    "",
+    "## Decisions",
+    "- None",
+    "",
+    "## Preferences",
+    "- None",
+    "",
+    "## Follow-ups",
+    "- None",
+    "",
+    "## Blockers",
+    "- None",
+    "",
+  ].join("\n");
+}
+
+describe("SokoBotRuntimeService authorization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
+      SOKO_BOT_EVE_ENVIRONMENT: "production",
+    });
+    verifyVercelOidcTokenMock.mockResolvedValue({});
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      issuer: "https://core.example.com",
+      audience: "soko-bot-core",
+      subject: SCOPE.userId,
+      jwtId: "grant_1",
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["create_task"],
+      issuedAt: 1,
+      expiresAt: 9_999_999_999,
+    });
+    toolCallCreateMock.mockResolvedValue({});
+    toolCallUpdateMock.mockResolvedValue({});
+    transactionToolCallUpdateMock.mockResolvedValue({});
+    delegationCreateMock.mockResolvedValue({});
+    requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
+    transactionProjectFindFirstMock.mockResolvedValue({ id: "project_1" });
+    transactionTaskCreateMock.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "task_created",
+        name: args.data.name,
+        status: args.data.status,
+        assigneeId: args.data.assigneeId,
+      }),
+    );
+    transactionTaskUpdateMock.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "task_1",
+        name: args.data.name ?? "Launch",
+        status: args.data.status ?? TaskStatus.DRAFT,
+        assigneeId: args.data.assigneeId ?? null,
+      }),
+    );
+    transactionWorkspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    workspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionTurnUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionBotUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: null,
+    });
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    transactionToolCallCreateMock.mockResolvedValue({});
+    transactionDecisionCreateMock.mockResolvedValue({
+      id: DECISION_ID,
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+  });
+
+  it("denies capability execution after cancellation is requested", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "CANCEL_REQUESTED",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.authorize({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "create_task",
+      }),
+    ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
+  });
+
+  it("denies Context reads while cancellation settles", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "CANCEL_REQUESTED",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.authorize({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+      }),
+    ).rejects.toThrow("cancellation is pending");
+  });
+
+  it("does not attach a pending Eve session after administrator PAUSE wins", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      sessionId: `pending:${SCOPE.turnId}`,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: null,
+      status: "STARTING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        autonomyLevel: "HIGH",
+        adminPausedAt: null,
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    // PAUSE commits after the optimistic read but before authorization binds
+    // the pending session. The locked/reloaded turn is no longer eligible.
+    transactionTurnFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().authorize({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "get_task_status",
+      }),
+    ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
+
+    expect(transactionTurnLockMock).toHaveBeenCalledTimes(2);
+    expect(transactionTurnFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["STARTING", "RUNNING"] },
+          leaseExpiresAt: { gt: expect.any(Date) },
+          sokoBot: expect.objectContaining({
+            adminPausedAt: null,
+            archivedAt: null,
+            status: { not: "PAUSED" },
+          }),
+        }),
+      }),
+    );
+    expect(transactionTurnUpdateManyMock).not.toHaveBeenCalled();
+    expect(transactionBotUpdateManyMock).not.toHaveBeenCalled();
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
+    expect(botUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("atomically attaches an eligible pending Eve session to turn and bot", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      sessionId: `pending:${SCOPE.turnId}`,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: null,
+      status: "STARTING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        autonomyLevel: "HIGH",
+        adminPausedAt: null,
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: null,
+    });
+
+    const authorized = await new SokoBotRuntimeService().authorize({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "get_task_status",
+    });
+
+    expect(authorized.turn.eveSessionId).toBe(SCOPE.sessionId);
+    expect(transactionTurnLockMock).toHaveBeenCalledTimes(2);
+    expect(transactionTurnUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          eveSessionId: null,
+          status: { in: ["STARTING", "RUNNING"] },
+          leaseExpiresAt: { gt: expect.any(Date) },
+          sokoBot: expect.objectContaining({
+            adminPausedAt: null,
+            archivedAt: null,
+            status: { not: "PAUSED" },
+          }),
+        }),
+        data: { eveSessionId: SCOPE.sessionId },
+      }),
+    );
+    expect(transactionBotUpdateManyMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: SCOPE.sokoBotId,
+        adminPausedAt: null,
+        archivedAt: null,
+        status: { not: "PAUSED" },
+      }),
+      data: { eveSessionId: SCOPE.sessionId },
+    });
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
+    expect(botUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts an overlapping retry after the same Eve session was attached", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      sessionId: `pending:${SCOPE.turnId}`,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    // Both requests optimistically read null. This request then waits for the
+    // first request's transaction and reloads the exact same bound session.
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: null,
+      status: "STARTING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        autonomyLevel: "HIGH",
+        adminPausedAt: null,
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+    });
+    transactionTurnUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const authorized = await new SokoBotRuntimeService().authorize({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "get_task_status",
+    });
+
+    expect(authorized.turn.eveSessionId).toBe(SCOPE.sessionId);
+    expect(transactionTurnFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ eveSessionId: null }, { eveSessionId: SCOPE.sessionId }],
+        }),
+        select: { eveSessionId: true, id: true },
+      }),
+    );
+    expect(transactionTurnUpdateManyMock).not.toHaveBeenCalled();
+    expect(transactionBotUpdateManyMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a pending attachment when a different Eve session won", async () => {
+    const differentSessionId = "session_different_request";
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      sessionId: `pending:${SCOPE.turnId}`,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: null,
+      status: "STARTING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        autonomyLevel: "HIGH",
+        adminPausedAt: null,
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    // Defensive mock: even if a delegate returned a row outside its session
+    // predicate, authorization must never adopt another request's session.
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: differentSessionId,
+    });
+
+    await expect(
+      new SokoBotRuntimeService().authorize({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "get_task_status",
+      }),
+    ).rejects.toThrow("session attachment became stale");
+
+    expect(transactionTurnUpdateManyMock).not.toHaveBeenCalled();
+    expect(transactionBotUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("replaces the prior completed turn session when attaching a new turn", async () => {
+    const priorSessionId = "session_previous_turn";
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      sessionId: `pending:${SCOPE.turnId}`,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: null,
+      status: "STARTING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        autonomyLevel: "HIGH",
+        adminPausedAt: null,
+        archivedAt: null,
+        eveSessionId: priorSessionId,
+        status: "RUNNING",
+      },
+    });
+    transactionTurnFindFirstMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      eveSessionId: null,
+    });
+    transactionBotUpdateManyMock.mockImplementation(
+      async (args: { where: Record<string, unknown> }) => {
+        const where = args.where;
+        const sessionPredicate =
+          "eveSessionId" in where ||
+          (Array.isArray(where.OR) &&
+            where.OR.some(
+              (branch) =>
+                typeof branch === "object" &&
+                branch !== null &&
+                "eveSessionId" in branch,
+            ));
+        return { count: sessionPredicate ? 0 : 1 };
+      },
+    );
+
+    const authorized = await new SokoBotRuntimeService().authorize({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "get_task_status",
+    });
+
+    expect(authorized.turn.eveSessionId).toBe(SCOPE.sessionId);
+    expect(transactionBotUpdateManyMock).toHaveBeenCalledWith({
+      where: expect.not.objectContaining({
+        OR: expect.anything(),
+        eveSessionId: expect.anything(),
+      }),
+      data: { eveSessionId: SCOPE.sessionId },
+    });
+  });
+
+  it("denies Context reads after current workspace access is revoked", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        autonomyLevel: "HIGH",
+        adminPausedAt: null,
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    workspaceFindFirstMock.mockResolvedValue(null);
+    contextSnapshotFindFirstMock.mockResolvedValue({
+      packet: {},
+      hash: "hash",
+      schemaVersion: 1,
+      generatedAt: new Date(),
+    });
+
+    await expect(
+      new SokoBotRuntimeService().getContext({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+      }),
+    ).rejects.toThrow("Workspace access is no longer available");
+
+    expect(workspaceFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: SCOPE.workspaceId,
+          OR: [
+            { userId: SCOPE.userId },
+            {
+              organization: {
+                members: { some: { userId: SCOPE.userId } },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(contextSnapshotFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when capability was not granted for turn", async () => {
+    const service = new SokoBotRuntimeService();
+
+    await expect(
+      service.authorize({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "hire_agent",
+      }),
+    ).rejects.toThrow("Capability is not granted");
+    expect(turnFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let a decision target exceed originating capabilities", () => {
+    expect(
+      isSokoBotDecisionTargetAllowed("hire_agent", [
+        "create_task",
+        "request_user_decision",
+      ]),
+    ).toBe(false);
+    expect(
+      isSokoBotDecisionTargetAllowed("create_task", [
+        "create_task",
+        "request_user_decision",
+      ]),
+    ).toBe(true);
+    expect(
+      isSokoBotDecisionTargetAllowed("clarify_scope", [
+        "request_user_decision",
+      ]),
+    ).toBe(false);
+  });
+
+  it("reclaims a stale in-flight read tool call", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_task_status",
+      inputHash:
+        "ebec1e2278dde6f0f0819b8d9bda37d57a184fafba6dd187b79a54d3246099cd",
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+    });
+
+    const service = new SokoBotRuntimeService();
+    const result = await service.executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "get_task_status",
+      toolCallId: "call_1",
+      input: { taskId: "task_1" },
+    });
+
+    expect(result).toMatchObject({ id: "task_1", status: "READY" });
+    expect(toolCallUpdateManyMock).toHaveBeenCalledOnce();
+    expect(toolCallUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+  });
+
+  it("keeps a fresh in-flight tool call single-flight", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_task_status",
+      inputHash:
+        "ebec1e2278dde6f0f0819b8d9bda37d57a184fafba6dd187b79a54d3246099cd",
+      updatedAt: new Date(),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_1",
+        input: { taskId: "task_1" },
+      }),
+    ).rejects.toThrow(SokoBotRuntimeConflictError);
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("enforces a finite tool-call ceiling per turn", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Check task",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(64);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_over_limit",
+        input: { taskId: "task_1" },
+      }),
+    ).rejects.toThrow("tool-call limit reached");
+
+    expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns raw tool result but persists bounded redacted evidence", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Check task",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    const rawResult = {
+      id: "task_1",
+      name: "password: correct-horse-battery-staple",
+      status: "READY",
+      nested: {
+        credentials: {
+          api_key: { value: "opaque-nested-credential" },
+        },
+        billing: {
+          payment_token: { value: "opaque-nested-payment" },
+        },
+      },
+      oversized: "x".repeat(30_000),
+    };
+    taskFindFirstMock.mockResolvedValue(rawResult);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "get_task_status",
+      toolCallId: "call_redacted_result",
+      input: { taskId: "task_1" },
+    });
+
+    expect(result).toBe(rawResult);
+    const persisted = toolCallUpdateMock.mock.calls.at(-1)?.[0]?.data.result;
+    const serialized = JSON.stringify(persisted);
+    expect(Buffer.byteLength(serialized, "utf8")).toBeLessThanOrEqual(16_384);
+    expect(serialized).not.toContain("correct-horse-battery-staple");
+    expect(serialized).not.toContain("opaque-nested-credential");
+    expect(serialized).not.toContain("opaque-nested-payment");
+    expect(serialized).toContain("Sensitive value removed");
+  });
+
+  it("redacts and bounds persisted tool errors", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["get_task_status"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Check task",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    taskFindFirstMock.mockRejectedValue(
+      new Error(`password: correct-horse-battery-staple ${"x".repeat(2_000)}`),
+    );
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_redacted_error",
+        input: { taskId: "task_1" },
+      }),
+    ).rejects.toThrow("correct-horse-battery-staple");
+
+    const detail = toolCallUpdateManyMock.mock.calls.at(-1)?.[0]?.data
+      .errorDetail as string;
+    expect(Buffer.byteLength(detail, "utf8")).toBeLessThanOrEqual(1_000);
+    expect(detail).toBe("[Sensitive value removed]");
+  });
+
+  it("requires owner approval below stored classifier confidence threshold", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["create_task"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Maybe create something",
+      classification: { confidence: 0.5 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "create_task",
+      toolCallId: "call_low_confidence",
+      input: { name: "Maybe", status: "DRAFT" },
+    });
+
+    expect(result).toMatchObject({ approvalRequired: true });
+    expect(transactionDecisionCreateMock).toHaveBeenCalledOnce();
+    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects mutation when stored user message contains negative imperative", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["create_task"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Don't create a task yet",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_negated",
+        input: { name: "Forbidden", status: "DRAFT" },
+      }),
+    ).rejects.toThrow("explicitly asked not to");
+
+    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
+    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("creates Task through shared domain operation with Soko Bot attribution", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "create_task",
+      toolCallId: "call_create_shared",
+      input: { name: "Launch", status: "DRAFT" },
+    });
+
+    expect(result).toEqual({
+      id: "task_created",
+      name: "Launch",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+    });
+    expect(transactionTaskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          creatorOrchestratorId: SCOPE.sokoBotId,
+          events: {
+            create: expect.objectContaining({
+              channel: "SOKOSUMI",
+              orchestratorId: SCOPE.sokoBotId,
+              status: TaskStatus.DRAFT,
+            }),
+          },
+        }),
+      }),
+    );
+    expect(delegationCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "create_task",
+        taskId: "task_created",
+      }),
+    });
+  });
+
+  it("shares project/workspace rejection with normal Task create", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionProjectFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "create_task",
+        toolCallId: "call_bad_project",
+        input: {
+          name: "Launch",
+          projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+          status: "DRAFT",
+        },
+      }),
+    ).rejects.toThrow("Project not found");
+
+    expect(transactionProjectFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        workspaceId: SCOPE.workspaceId,
+      },
+      select: { id: true },
+    });
+    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("assigns Task through shared assignee and status-event policy", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["assign_task"],
+      issuedAt: 1,
+      expiresAt: 9_999_999_999,
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+    });
+    transactionTaskUpdateMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      assigneeId: "coworker_1",
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "assign_task",
+      toolCallId: "call_assign_shared",
+      input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+    });
+
+    expect(result).toMatchObject({
+      id: "task_1",
+      status: TaskStatus.READY,
+      assigneeId: "coworker_1",
+    });
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "coworker_1",
+      SCOPE.workspaceId,
+      expect.anything(),
+    );
+    expect(transactionTaskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assigneeId: "coworker_1",
+          status: TaskStatus.READY,
+          events: {
+            create: expect.objectContaining({
+              channel: "SOKOSUMI",
+              orchestratorId: SCOPE.sokoBotId,
+              status: TaskStatus.READY,
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("limits Task updates to DRAFT and READY records", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["update_task"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue(null);
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "update_task",
+        toolCallId: "call_2",
+        input: { taskId: "task_1", name: "Changed" },
+      }),
+    ).rejects.toThrow("Task not found");
+
+    expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["DRAFT", "READY"] },
+        }),
+      }),
+    );
+  });
+
+  it("denies a Task mutation after workspace access is revoked", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["update_task"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionWorkspaceFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "update_task",
+        toolCallId: "call_revoked_workspace",
+        input: { taskId: "task_1", name: "Changed" },
+      }),
+    ).rejects.toThrow("Workspace access is no longer available");
+
+    expect(transactionTurnLockMock).toHaveBeenCalledTimes(2);
+    expect(transactionTaskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("limits Task assignment to pre-execution records", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["assign_task"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue(null);
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "assign_task",
+        toolCallId: "call_3",
+        input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+      }),
+    ).rejects.toThrow("Task not found");
+
+    expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["DRAFT", "READY"] },
+        }),
+      }),
+    );
+  });
+});
+
+describe("SokoBotRuntimeService memory updates", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
+      SOKO_BOT_EVE_ENVIRONMENT: "production",
+    });
+    verifyVercelOidcTokenMock.mockResolvedValue({});
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: "01960001-0001-7001-8001-000000000020",
+      memoryVersion: 1,
+      capabilities: ["update_memory"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    toolCallCreateMock.mockResolvedValue({});
+    toolCallUpdateMock.mockResolvedValue({});
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionWorkspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    workspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    transactionTurnFindFirstMock.mockResolvedValue({ id: SCOPE.turnId });
+    transactionBotUpdateMock.mockResolvedValue({});
+    transactionToolCallUpdateMock.mockResolvedValue({});
+  });
+
+  it("rejects secret-bearing memory before persistence", async () => {
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_secret",
+        input: {
+          markdown: memoryMarkdown(
+            "Database password: correct-horse-battery-staple",
+          ),
+        },
+      }),
+    ).rejects.toThrow(SokoBotRuntimeValidationError);
+
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+    expect(transactionBotUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows repeated updates when latest memory revision belongs to same turn", async () => {
+    transactionBotFindUniqueOrThrowMock
+      .mockResolvedValueOnce({ memoryVersion: 1 })
+      .mockResolvedValueOnce({ memoryVersion: 2 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: SCOPE.turnId,
+    });
+    transactionMemoryRevisionCreateMock
+      .mockResolvedValueOnce({
+        id: "01960001-0001-7001-8001-000000000021",
+        version: 2,
+        hash: "hash_2",
+        markdown: memoryMarkdown("Ship launch"),
+      })
+      .mockResolvedValueOnce({
+        id: "01960001-0001-7001-8001-000000000022",
+        version: 3,
+        hash: "hash_3",
+        markdown: memoryMarkdown("Ship launch safely"),
+      });
+    const service = new SokoBotRuntimeService();
+
+    await service.executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "memory_1",
+      input: { markdown: memoryMarkdown("Ship launch") },
+    });
+    await service.executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "memory_2",
+      input: { markdown: memoryMarkdown("Ship launch safely") },
+    });
+
+    expect(transactionMemoryRevisionFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        sokoBotId_version: { sokoBotId: SCOPE.sokoBotId, version: 2 },
+      },
+      select: { sourceTurnId: true },
+    });
+    expect(transactionMemoryRevisionCreateMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sourceTurnId: SCOPE.turnId,
+          version: 3,
+        }),
+      }),
+    );
+  });
+
+  it("keeps optimistic conflict when another turn changed memory", async () => {
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 2 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "01960001-0001-7001-8001-000000000099",
+    });
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        oidcToken: "oidc",
+        turnGrant: "grant",
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_conflict",
+        input: { markdown: memoryMarkdown("Overwrite another turn") },
+      }),
+    ).rejects.toThrow(SokoBotRuntimeConflictError);
+
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("SokoBotRuntimeService hire decisions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    decisionFindFirstMock.mockResolvedValue(hireDecision());
+    decisionUpdateManyMock.mockResolvedValue({ count: 1 });
+    botFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
+    workspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    transactionMock.mockImplementation(async (operations: Promise<unknown>[]) =>
+      Promise.all(operations),
+    );
+    delegationFindUniqueMock.mockResolvedValue(null);
+    delegationCreateMock.mockResolvedValue({});
+    delegationUpdateMock.mockResolvedValue({});
+    delegationUpdateManyMock.mockResolvedValue({ count: 1 });
+    localJobDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionDelegationUpdateManyMock.mockResolvedValue({ count: 1 });
+    transactionBotFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
+    createAgentClientMock.mockReturnValue({
+      provideJobInput: provideJobInputMock,
+    });
+    provideJobInputMock.mockResolvedValue({
+      isErr: () => false,
+      value: { input_hash: "input-hash", signature: "input-signature" },
+    });
+    jobInputCreateMock.mockResolvedValue({ id: "input_1" });
+    jobInputFindManyMock.mockResolvedValue([]);
+    jobInputFindUniqueMock.mockResolvedValue(null);
+    createAgentJobForUserMock.mockImplementation(
+      async (input: {
+        beforeSellerStart?: () => Promise<void>;
+        afterLocalJobCreate?: (
+          job: { id: string },
+          tx: {
+            sokoBotDelegation: {
+              updateMany: typeof localJobDelegationUpdateManyMock;
+            };
+          },
+        ) => Promise<void>;
+      }) => {
+        await input.beforeSellerStart?.();
+        const job = { id: "job_1" };
+        await input.afterLocalJobCreate?.(job, {
+          sokoBotDelegation: {
+            updateMany: localJobDelegationUpdateManyMock,
+          },
+        });
+        return job;
+      },
+    );
+    decisionUpdateMock.mockResolvedValue({
+      ...hireDecision("PROCESSING"),
+      status: "ACCEPTED",
+      resultingEntityId: "job_1",
+    });
+  });
+
+  it("reserves an approved hire before starting its Agent Job", async () => {
+    const sellerStartMock = vi.fn();
+    createAgentJobForUserMock.mockImplementationOnce(
+      async (input: {
+        beforeSellerStart?: () => Promise<void>;
+        afterLocalJobCreate?: (
+          job: { id: string },
+          tx: {
+            sokoBotDelegation: {
+              updateMany: typeof localJobDelegationUpdateManyMock;
+            };
+          },
+        ) => Promise<void>;
+      }) => {
+        await input.beforeSellerStart?.();
+        sellerStartMock();
+        const job = { id: "job_1" };
+        await input.afterLocalJobCreate?.(job, {
+          sokoBotDelegation: {
+            updateMany: localJobDelegationUpdateManyMock,
+          },
+        });
+        return job;
+      },
+    );
+    const resolved = await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(resolved).toMatchObject({
+      status: "ACCEPTED",
+      resultingEntityId: "job_1",
+    });
+    expect(delegationCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        turnId: SCOPE.turnId,
+        toolCallId: `decision:${DECISION_ID}`,
+        outcome: "processing",
+        error: expect.any(String),
+      }),
+    });
+    const reservation = JSON.parse(
+      delegationCreateMock.mock.calls[0]?.[0]?.data.error,
+    );
+    expect(reservation).toMatchObject({
+      version: 1,
+      attemptId: expect.any(String),
+      reservedAt: expect.any(String),
+      proposalHash: expect.any(String),
+    });
+    expect(delegationCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      sellerStartMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(transactionTurnLockMock.mock.invocationCallOrder[0]).toBeLessThan(
+      sellerStartMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(transactionBotFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { not: "PAUSED" } }),
+      }),
+    );
+    expect(localJobDelegationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          outcome: "processing",
+          error: expect.any(String),
+        }),
+        data: { outcome: "accepted", jobId: "job_1", error: null },
+      }),
+    );
+    expect(sellerStartMock.mock.invocationCallOrder[0]).toBeLessThan(
+      localJobDelegationUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("never returns a hire to PENDING after seller-side execution starts", async () => {
+    decisionUpdateMock.mockRejectedValueOnce(
+      new Error("database connection lost after Job creation"),
+    );
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("database connection lost");
+
+    expect(createAgentJobForUserMock).toHaveBeenCalledOnce();
+    expect(decisionUpdateManyMock).toHaveBeenCalledOnce();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PENDING" }),
+      }),
+    );
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "EXPIRED" }),
+      }),
+    );
+    expect(delegationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outcome: "ambiguous" }),
+      }),
+    );
+  });
+
+  it("returns a hire to PENDING when preflight fails before seller execution", async () => {
+    createAgentJobForUserMock.mockRejectedValueOnce(
+      new Error("Credit cost exceeds maximum accepted credits"),
+    );
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
+
+    expect(delegationCreateMock).not.toHaveBeenCalled();
+    expect(decisionUpdateManyMock).toHaveBeenLastCalledWith({
+      where: { id: DECISION_ID, status: "PROCESSING" },
+      data: { status: "PENDING", resolvedByUserId: null },
+    });
+  });
+
+  it("recovers a processing decision from its exact Delegation Job link", async () => {
+    decisionFindFirstMock.mockResolvedValue(hireDecision("PROCESSING"));
+    delegationFindUniqueMock.mockResolvedValue({ jobId: "job_1" });
+
+    const resolved = await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(resolved).toMatchObject({
+      status: "ACCEPTED",
+      resultingEntityId: "job_1",
+    });
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    expect(jobInputFindManyMock).not.toHaveBeenCalled();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an unlinked ambiguous processing hire recoverable", async () => {
+    decisionFindFirstMock.mockResolvedValue(hireDecision("PROCESSING"));
+    delegationFindUniqueMock.mockResolvedValue({ jobId: null });
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("processing outcome is ambiguous");
+
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "EXPIRED" }),
+      }),
+    );
+  });
+
+  it("does not infer a processing hire from matching input shape", async () => {
+    const proposal = hireDecision("PROCESSING").proposal;
+    const proposalHash = createHash("sha256")
+      .update(`hire_agent:${canonicalJson(proposal)}`)
+      .digest("hex");
+    decisionFindFirstMock.mockResolvedValue(hireDecision("PROCESSING"));
+    delegationFindUniqueMock.mockResolvedValue({
+      jobId: null,
+      outcome: "ambiguous",
+      error: JSON.stringify({
+        version: 1,
+        attemptId: "attempt_1",
+        reservedAt: "2026-08-18T10:00:00.000Z",
+        proposalHash,
+      }),
+    });
+    jobInputFindManyMock.mockResolvedValue([
+      { event: { jobId: "job_recovered" } },
+    ]);
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("Pending decision processing outcome is ambiguous");
+
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+    expect(jobInputFindManyMock).not.toHaveBeenCalled();
+    expect(decisionUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("finalizes a processing task from its durable Task link", async () => {
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision("PROCESSING"),
+      toolName: "create_task",
+      proposal: { name: "Launch", status: "DRAFT" },
+      turn: {
+        capabilityNames: ["create_task"],
+        eveSessionId: SCOPE.sessionId,
+      },
+    });
+    delegationFindUniqueMock.mockResolvedValue({ taskId: "task_1" });
+    decisionUpdateMock.mockResolvedValue({
+      status: "ACCEPTED",
+      resultingEntityId: "task_1",
+    });
+
+    const resolved = await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(resolved).toMatchObject({
+      status: "ACCEPTED",
+      resultingEntityId: "task_1",
+    });
+    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("resumes a processing Task decision when atomic delegation is absent", async () => {
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision("PROCESSING"),
+      toolName: "create_task",
+      proposal: { name: "Launch", status: "DRAFT" },
+      turn: {
+        capabilityNames: ["create_task"],
+        eveSessionId: SCOPE.sessionId,
+      },
+    });
+    delegationFindUniqueMock.mockResolvedValue(null);
+    transactionWorkspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    transactionTaskCreateMock.mockResolvedValue({
+      id: "task_resumed",
+      name: "Launch",
+      status: "DRAFT",
+      assigneeId: null,
+    });
+    decisionUpdateMock.mockResolvedValue({
+      status: "ACCEPTED",
+      resultingEntityId: "task_resumed",
+    });
+
+    const resolved = await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(resolved).toMatchObject({ resultingEntityId: "task_resumed" });
+    expect(transactionTurnLockMock).toHaveBeenCalledOnce();
+    expect(transactionTaskCreateMock).toHaveBeenCalledOnce();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: "PENDING" } }),
+    );
+  });
+
+  it("finalizes processing job input from its durable receipt", async () => {
+    decisionFindFirstMock.mockResolvedValue(provideInputDecision("PROCESSING"));
+    delegationFindUniqueMock.mockResolvedValue(null);
+    jobInputFindUniqueMock.mockResolvedValue({ id: "input_1" });
+    decisionUpdateMock.mockResolvedValue({
+      status: "ACCEPTED",
+      resultingEntityId: "input_1",
+    });
+
+    const resolved = await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(resolved).toMatchObject({
+      status: "ACCEPTED",
+      resultingEntityId: "input_1",
+    });
+    expect(provideJobInputMock).not.toHaveBeenCalled();
+    expect(delegationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outcome: "accepted", error: null }),
+      }),
+    );
+  });
+
+  it.each([
+    ["unreachable", "PENDING", "failed"],
+    ["ambiguous", "PROCESSING", "ambiguous"],
+    ["invalid-response", "PROCESSING", "ambiguous"],
+  ] as const)(
+    "handles %s provide_input failure without stuck PROCESSING",
+    async (kind, decisionStatus, outcome) => {
+      decisionFindFirstMock.mockResolvedValue(provideInputDecision());
+      jobEventFindFirstMock.mockResolvedValue({
+        id: "event_1",
+        input: null,
+        inputSchema: JSON.stringify({ input_data: [] }),
+        job: {
+          id: "job_1",
+          agentJobId: "seller-job-1",
+          agentBlockchainIdentifier: null,
+          agentApiBaseUrl: null,
+          agent: {
+            id: "agent_1",
+            name: "Agent",
+            blockchainIdentifier: "seller-agent-1",
+            apiBaseUrl: "https://agent.example.com",
+            metadataOverride: null,
+          },
+        },
+      });
+      provideJobInputMock.mockResolvedValue({
+        isErr: () => true,
+        error: { kind, message: `seller ${kind}` },
+      });
+
+      await expect(
+        new SokoBotRuntimeService().resolveDecision(
+          SCOPE.userId,
+          DECISION_ID,
+          true,
+        ),
+      ).rejects.toThrow(`seller ${kind}`);
+
+      expect(delegationUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ outcome }),
+        }),
+      );
+      expect(decisionUpdateManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: decisionStatus }),
+        }),
+      );
+    },
+  );
+
+  it("keeps accepted input recoverable when local receipt persistence fails", async () => {
+    decisionFindFirstMock.mockResolvedValue(provideInputDecision());
+    jobEventFindFirstMock.mockResolvedValue({
+      id: "event_1",
+      input: null,
+      inputSchema: JSON.stringify({ input_data: [] }),
+      job: {
+        id: "job_1",
+        agentJobId: "seller-job-1",
+        agentBlockchainIdentifier: null,
+        agentApiBaseUrl: null,
+        agent: {
+          id: "agent_1",
+          name: "Agent",
+          blockchainIdentifier: "seller-agent-1",
+          apiBaseUrl: "https://agent.example.com",
+          metadataOverride: null,
+        },
+      },
+    });
+    jobInputCreateMock.mockRejectedValue(new Error("receipt write failed"));
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("receipt write failed");
+
+    expect(delegationUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outcome: "ambiguous" }),
+      }),
+    );
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "EXPIRED" }),
+      }),
+    );
+  });
+
+  it("retries an explicitly failed input reservation without duplicate Delegation", async () => {
+    decisionFindFirstMock.mockResolvedValue(provideInputDecision());
+    delegationFindUniqueMock.mockResolvedValue({ outcome: "failed" });
+    jobEventFindFirstMock.mockResolvedValue({
+      id: "event_1",
+      input: null,
+      inputSchema: JSON.stringify({ input_data: [] }),
+      job: {
+        id: "job_1",
+        agentJobId: "seller-job-1",
+        agentBlockchainIdentifier: null,
+        agentApiBaseUrl: null,
+        agent: {
+          id: "agent_1",
+          name: "Agent",
+          blockchainIdentifier: "seller-agent-1",
+          apiBaseUrl: "https://agent.example.com",
+          metadataOverride: null,
+        },
+      },
+    });
+
+    await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(delegationCreateMock).not.toHaveBeenCalled();
+    expect(transactionDelegationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ outcome: "failed" }),
+        data: expect.objectContaining({
+          outcome: "processing",
+          error: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it("allows exactly one failed-reservation retry to cross the seller fence", async () => {
+    const sellerStartMock = vi.fn();
+    decisionFindFirstMock.mockResolvedValue(hireDecision("PROCESSING"));
+    delegationFindUniqueMock.mockResolvedValue({
+      outcome: "failed",
+      error: "old-attempt-fence",
+    });
+    transactionDelegationUpdateManyMock.mockResolvedValue({ count: 0 });
+    createAgentJobForUserMock.mockImplementationOnce(
+      async (input: { beforeSellerStart?: () => Promise<void> }) => {
+        await input.beforeSellerStart?.();
+        sellerStartMock();
+        return { id: "job_duplicate" };
+      },
+    );
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow(SokoBotRuntimeConflictError);
+
+    expect(transactionDelegationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          outcome: "failed",
+          error: "old-attempt-fence",
+        }),
+      }),
+    );
+    expect(sellerStartMock).not.toHaveBeenCalled();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("reserves job input before seller dispatch and never reopens afterward", async () => {
+    decisionFindFirstMock.mockResolvedValue(provideInputDecision());
+    jobEventFindFirstMock.mockResolvedValue({
+      id: "event_1",
+      input: null,
+      inputSchema: { input_data: [] },
+      job: {
+        id: "job_1",
+        agentJobId: "seller-job-1",
+        agentBlockchainIdentifier: null,
+        agentApiBaseUrl: null,
+        agent: {
+          id: "agent_1",
+          name: "Agent",
+          blockchainIdentifier: "seller-agent-1",
+          apiBaseUrl: "https://agent.example.com",
+          metadataOverride: null,
+        },
+      },
+    });
+    provideJobInputMock.mockRejectedValue(new Error("response lost"));
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("response lost");
+
+    expect(delegationCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      provideJobInputMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(decisionUpdateManyMock).toHaveBeenCalledOnce();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PENDING" }),
+      }),
+    );
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "EXPIRED" }),
+      }),
+    );
+  });
+
+  it("reopens a hire only when seller start explicitly failed", async () => {
+    createAgentJobForUserMock.mockImplementationOnce(
+      async (input: {
+        beforeSellerStart?: () => Promise<void>;
+        afterSellerStartFailure?: (failure: {
+          kind: "unreachable";
+          message: string;
+        }) => Promise<void>;
+      }) => {
+        await input.beforeSellerStart?.();
+        await input.afterSellerStartFailure?.({
+          kind: "unreachable",
+          message: "Seller rejected before acceptance",
+        });
+        throw new Error("Seller rejected before acceptance");
+      },
+    );
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("Seller rejected before acceptance");
+
+    expect(delegationUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outcome: "failed" }),
+      }),
+    );
+    expect(decisionUpdateManyMock).toHaveBeenLastCalledWith({
+      where: { id: DECISION_ID, status: "PROCESSING" },
+      data: { status: "PENDING", resolvedByUserId: null },
+    });
+  });
+
+  it("keeps ambiguous seller starts fenced", async () => {
+    createAgentJobForUserMock.mockImplementationOnce(
+      async (input: {
+        beforeSellerStart?: () => Promise<void>;
+        afterSellerStartFailure?: (failure: {
+          kind: "ambiguous";
+          message: string;
+        }) => Promise<void>;
+      }) => {
+        await input.beforeSellerStart?.();
+        await input.afterSellerStartFailure?.({
+          kind: "ambiguous",
+          message: "Seller response lost",
+        });
+        throw new Error("Seller response lost");
+      },
+    );
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("Seller response lost");
+
+    expect(delegationUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outcome: "ambiguous" }),
+      }),
+    );
+    expect(decisionUpdateManyMock).toHaveBeenCalledOnce();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "EXPIRED" }),
+      }),
+    );
+  });
+});

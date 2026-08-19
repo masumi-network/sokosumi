@@ -7,7 +7,7 @@ import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -27,12 +27,12 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/{id}/tasks",
     description:
-      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

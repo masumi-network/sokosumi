@@ -45,22 +45,6 @@ describe("proxy", () => {
     );
   });
 
-  it("sets COOP on the Composio callback route without requiring a session", async () => {
-    const { NextRequest } = await import("next/server");
-    const { proxy } = await import("../proxy");
-    getSessionCookieMock.mockReturnValue(null);
-    const request = new NextRequest(
-      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/composio/callback?status=success",
-    );
-
-    const response = await proxy(request);
-
-    expect(response?.headers.get("Cross-Origin-Opener-Policy")).toBe(
-      CROSS_ORIGIN_OPENER_POLICY,
-    );
-    expect(getSessionCookieMock).not.toHaveBeenCalled();
-  });
-
   it("edge-redirects anonymous / to /signin with returnUrl without running the app shell", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("../proxy");

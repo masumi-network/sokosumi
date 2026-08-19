@@ -609,15 +609,6 @@ describe("POST /{id}/x402-payments", () => {
       expect(payX402Mock).not.toHaveBeenCalled();
     });
 
-    it("rejects an orchestrator actor with 403", async () => {
-      const app = createApp({ actor: "orchestrator" } as AuthenticationContext);
-
-      const response = await postPayment(app, validBody());
-
-      expect(response.status).toBe(403);
-      expect(prismaTransactionMock).not.toHaveBeenCalled();
-    });
-
     it("rejects a delegated coworker after collaboration succeeds", async () => {
       const app = createApp({
         ...COWORKER_AGENT_CONTEXT,

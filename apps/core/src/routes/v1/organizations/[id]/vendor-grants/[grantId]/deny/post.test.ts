@@ -209,47 +209,4 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/deny", () => {
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    const existing = {
-      id: grantId,
-      vendorId,
-      workspaceId,
-      permission: VendorPermission.workspace,
-      status: VendorGrantStatus.PENDING,
-      requestedByUserId: null,
-      resolvedAt: null,
-      resolvedById: null,
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      vendor: { name: "Acme", slug: "acme" },
-    };
-    vendorGrantFindFirstMock.mockResolvedValue(existing);
-    vendorGrantUpdateMock.mockResolvedValue({
-      ...existing,
-      status: VendorGrantStatus.DENIED,
-      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      resolvedById: "user_123",
-    });
-
-    const response = await createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: orgId },
-    }).request(`http://localhost/${orgId}/vendor-grants/${grantId}/deny`, {
-      method: "POST",
-    });
-
-    expect(response.status).toBe(200);
-    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
-      where: {
-        referenceId: grantId,
-        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
-        kind: NotificationKind.SYSTEM,
-      },
-    });
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user_123" }),
-    );
-  });
 });

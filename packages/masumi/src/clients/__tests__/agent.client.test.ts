@@ -307,10 +307,82 @@ describe("createAgentClient provideJobInput", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toBe("Failed to hash input schema");
+      expect(result.error).toEqual({
+        kind: "unreachable",
+        message: "Failed to hash input schema",
+      });
     }
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [400, "unreachable"],
+    [408, "ambiguous"],
+    [307, "ambiguous"],
+    [503, "ambiguous"],
+  ] as const)(
+    "classifies HTTP %s as %s",
+    async (status: number, expectedKind: "unreachable" | "ambiguous") => {
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(null, {
+          status,
+          ...(status === 307
+            ? { headers: { Location: "https://other.example/provide_input" } }
+            : {}),
+        }),
+      );
+
+      const result = await createAgentClient().provideJobInput(
+        createAgent(),
+        "job-1",
+        JSON.stringify({ input_data: [] }),
+        { answer: "8" },
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.kind).toBe(expectedKind);
+        expect(result.error.message).toContain(`status ${status}`);
+      }
+    },
+  );
+
+  it("classifies transport failure after dispatch as ambiguous", async () => {
+    ssrfSafeFetchMock.mockRejectedValue(new Error("response lost"));
+
+    const result = await createAgentClient().provideJobInput(
+      createAgent(),
+      "job-1",
+      JSON.stringify({ input_data: [] }),
+      { answer: "8" },
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error.kind).toBe("ambiguous");
+  });
+
+  it.each([
+    [
+      "unreadable JSON",
+      async () => Promise.reject(new SyntaxError("bad json")),
+    ],
+    ["off-contract body", async () => ({ accepted: true })],
+  ])(
+    "classifies 2xx %s as invalid-response",
+    async (_label: string, json: () => Promise<unknown>) => {
+      ssrfSafeFetchMock.mockResolvedValue({ ok: true, status: 200, json });
+
+      const result = await createAgentClient().provideJobInput(
+        createAgent(),
+        "job-1",
+        JSON.stringify({ input_data: [] }),
+        { answer: "8" },
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) expect(result.error.kind).toBe("invalid-response");
+    },
+  );
 
   it("accepts bare-array input schema for backward compatibility", async () => {
     const bareSchema = JSON.stringify([

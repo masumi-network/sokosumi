@@ -29,11 +29,6 @@ const EXCLUDED_PATHS = [
   "/favicon.ico",
   "/apple-touch-icon",
   "/maintenance",
-  // Composio OAuth redirects back to /composio/callback in a popup. The page
-  // is purely client-side (URL params → postMessage → window.close) and the
-  // popup may not carry the parent's session cookie, so it must not be
-  // gated by the session check.
-  "/composio/callback",
 ];
 
 function expireRetiredOnboardingGateCookie(

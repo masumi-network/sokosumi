@@ -2,7 +2,6 @@ import type { SessionUser } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { getPrivateCachedChatListChrome } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
 import SidebarDeferredAccount, {
@@ -26,11 +25,8 @@ export default function PrivateCachedAppSidebar({
   activeOrganizationId,
   adminMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
-  const hermesMenuEnabled = isHermesBetaAccessEmail(sessionUser.email);
-
   return (
     <Sidebar
-      hermesMenuEnabled={hermesMenuEnabled}
       chatList={
         <Suspense fallback={<SidebarChatListFallback />}>
           <PrivateCachedSidebarRooms

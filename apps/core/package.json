@@ -30,6 +30,7 @@
     "test:ci": "vitest run",
     "test:watch": "vitest",
     "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts",
+    "soko-bot:import-cutover": "tsx --env-file=.env scripts/import-soko-bot-cutover.mts",
     "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/net": "workspace:*",
+    "@sokosumi/soko-bot": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "@vercel/blob": "2.8.0",
     "@vercel/functions": "3.9.5",
@@ -65,6 +67,7 @@
     "dotenv": "17.4.2",
     "hono": "4.13.3",
     "ioredis": "6.0.0",
+    "jose": "6.2.9",
     "neverthrow": "8.2.0",
     "p-limit": "7.3.1",
     "p-timeout": "7.0.1",

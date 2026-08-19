@@ -29,10 +29,6 @@ const envDefaults: Record<string, string> = {
   PAYMENT_API_KEY: "test-payment-key",
   REGISTRY_API_URL: "https://example.com/registry",
   REGISTRY_API_KEY: "test-registry-key",
-  HERMES_ORCH_BASE_URL: "https://example.com/hermes-orchestrator",
-  HERMES_ORCH_TOKEN: "test-hermes-orchestrator-token",
-  HERMES_INBOX_POLLING_ENABLED: "false",
-  ORCHESTRATOR_SERVICE_TOKEN: "test-orchestrator-service-token0",
   CRON_SECRET: "test-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_example",
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter_test",
@@ -52,6 +48,12 @@ const envDefaults: Record<string, string> = {
   JOB_FAILURE_NOTIFICATION_EMAILS: "",
   OPENROUTER_CHAT_API_KEY:
     "sk-or-v1-test-0000000000000000000000000000000000000000",
+  SOKO_BOT_ENABLED: "true",
+  SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
+  SOKO_BOT_CLASSIFIER_MODE: "deterministic",
+  SOKO_BOT_EVE_PROJECT_ID: "prj_test_soko_bot",
+  SOKO_BOT_EVE_ENVIRONMENT: "development",
+  SOKO_BOT_SIGNING_PRIVATE_KEY: "test-private-key",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {
@@ -75,6 +77,10 @@ const doc = apiV1.getOpenAPI31Document({
     description: "Sokosumi API documentation",
   },
 });
+
+for (const path of Object.keys(doc.paths ?? {})) {
+  if (path.startsWith("/internal/")) delete doc.paths?.[path];
+}
 
 writeFileSync(outPath, `${JSON.stringify(doc, null, 2)}\n`);
 console.log(`Wrote ${outPath}`);

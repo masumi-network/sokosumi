@@ -1,13 +1,15 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
+  AdminSokoBotActionRequest,
   AgentStatus,
   AggregateAdminTaskX402PaymentsByAgentData,
   CreateAdminVendorData,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   CreateEnterpriseContractRequest,
-  DeleteHermesMeInstanceIntegrationsByProviderData,
+  CreateSokoBotRequest,
+  CreateSokoBotScheduleRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdTasksByTaskIdData,
@@ -24,7 +26,6 @@ import type {
   GetChatsRoomsDiscoverableData,
   GetCoworkersData,
   GetEnterpriseContractsData,
-  GetHermesMeMessagesData,
   GetHistoryData,
   GetJobsData,
   GetNotificationsData,
@@ -33,15 +34,7 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   GetTasksSummaryData,
-  HermesApproveConfirmationRequest,
-  HermesFinalizeIntegrationRequest,
-  HermesInitiateIntegrationRequest,
-  HermesPatchScheduleRequest,
-  HermesRejectConfirmationRequest,
-  HermesStartOnboardingRequest,
-  HermesUpdateInstanceRequest,
   ListAdminTaskX402PaymentsData,
-  MarkHermesInboxSeenRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -85,19 +78,25 @@ import type {
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
-  SetHermesSecretRequest,
+  ResolveSokoBotDecisionRequest,
+  StartSokoBotTurnRequest,
+  UpdateSokoBotScheduleRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
+  archiveMySokoBot as coreArchiveMySokoBot,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
+  cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createAdminVendor as coreCreateAdminVendor,
   createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  createMySokoBot as coreCreateMySokoBot,
+  createMySokoBotSchedule as coreCreateMySokoBotSchedule,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
@@ -110,10 +109,8 @@ import {
   deleteChatsRoomsByIdPin as coreDeleteChatsRoomsByIdPin,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
-  deleteHermesMeInstance as coreDeleteHermesMeInstance,
-  deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
-  deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
@@ -129,6 +126,7 @@ import {
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
+  getAdminSokoBot as coreGetAdminSokoBot,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -160,22 +158,12 @@ import {
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
-  getHermesMeInstance as coreGetHermesMeInstance,
-  getHermesMeInstanceIntegrations as coreGetHermesMeInstanceIntegrations,
-  getHermesMeInstanceOnboardingProgress as coreGetHermesMeInstanceOnboardingProgress,
-  getHermesMeInstanceSchedules as coreGetHermesMeInstanceSchedules,
-  getHermesMeInstanceSkills as coreGetHermesMeInstanceSkills,
-  getHermesMeInstanceSkillsCatalog as coreGetHermesMeInstanceSkillsCatalog,
-  getHermesMeInstanceSkillsCatalogCurated as coreGetHermesMeInstanceSkillsCatalogCurated,
-  getHermesMeInstanceSkillsCatalogDetail as coreGetHermesMeInstanceSkillsCatalogDetail,
-  getHermesMeInstanceSkillsCatalogSearch as coreGetHermesMeInstanceSkillsCatalogSearch,
-  getHermesMeInstanceSkillsPreinstalled as coreGetHermesMeInstanceSkillsPreinstalled,
-  getHermesMeMessages as coreGetHermesMeMessages,
-  getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getHistory as coreGetHistory,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getMySokoBot as coreGetMySokoBot,
+  getMySokoBotTurn as coreGetMySokoBotTurn,
   getNotifications as coreGetNotifications,
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
   getOrganizationBySlug as coreGetOrganizationBySlug,
@@ -225,6 +213,7 @@ import {
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
+  listAdminSokoBots as coreListAdminSokoBots,
   listAdminTasks as coreListAdminTasks,
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
@@ -233,6 +222,7 @@ import {
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
+  listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
@@ -244,14 +234,13 @@ import {
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
-  patchHermesMeInstance as corePatchHermesMeInstance,
-  patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   patchVendor as corePatchVendor,
+  performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
@@ -277,15 +266,6 @@ import {
   postEnterpriseContracts as corePostEnterpriseContracts,
   postEnterpriseContractsByIdActivate as corePostEnterpriseContractsByIdActivate,
   postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
-  postHermesMeInboxSeen as corePostHermesMeInboxSeen,
-  postHermesMeInstance as corePostHermesMeInstance,
-  postHermesMeInstanceConfirmationsByConfirmationIdApprove as corePostHermesMeInstanceConfirmationsByConfirmationIdApprove,
-  postHermesMeInstanceConfirmationsByConfirmationIdReject as corePostHermesMeInstanceConfirmationsByConfirmationIdReject,
-  postHermesMeInstanceIntegrationsFinalize as corePostHermesMeInstanceIntegrationsFinalize,
-  postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
-  postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
-  postHermesMeInstanceSkills as corePostHermesMeInstanceSkills,
-  postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
@@ -334,13 +314,17 @@ import {
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
+  resetMySokoBotMemory as coreResetMySokoBotMemory,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
+  resolveMySokoBotDecision as coreResolveMySokoBotDecision,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  startMySokoBotTurn as coreStartMySokoBotTurn,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   NoticeKind,
 } from "@/lib/clients/generated/core";
 import {
@@ -3574,305 +3558,144 @@ export function createCoreClient(getClient: GetCoreClient) {
     }
   }
 
-  async function getHermesInstance() {
+  async function getMySokoBot() {
     return executeCoreOperation(
       getClient,
-      (client) =>
-        coreGetHermesMeInstance({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch assistant instance",
+      (client) => coreGetMySokoBot({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot",
     );
   }
 
-  async function provisionHermesInstance() {
+  async function createMySokoBot(body: CreateSokoBotRequest) {
     return executeCoreOperation(
       getClient,
-      (client) =>
-        corePostHermesMeInstance({
-          client,
-        }),
-      "Failed to provision assistant instance",
+      (client) => coreCreateMySokoBot({ client, body }),
+      "Failed to create Soko Bot",
     );
   }
 
-  async function updateHermesInstance(body: HermesUpdateInstanceRequest) {
+  async function archiveMySokoBot() {
     return executeCoreOperation(
       getClient,
-      (client) =>
-        corePatchHermesMeInstance({
-          client,
-          body,
-        }),
-      "Failed to update assistant instance",
+      (client) => coreArchiveMySokoBot({ client }),
+      "Failed to archive Soko Bot",
     );
   }
 
-  async function destroyHermesInstance() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteHermesMeInstance({
-          client,
-        }),
-      "Failed to destroy assistant instance",
-    );
-  }
-
-  async function getHermesMessages(query?: GetHermesMeMessagesData["query"]) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetHermesMeMessages({
-          client,
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch assistant messages",
-    );
-  }
-
-  async function getHermesUnreadCount() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetHermesMeUnreadCount({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch assistant unread count",
-    );
-  }
-
-  async function markHermesInboxSeen(body?: MarkHermesInboxSeenRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeInboxSeen({
-          client,
-          body,
-        }),
-      "Failed to mark assistant inbox as seen",
-    );
-  }
-
-  async function setHermesSecret(body: SetHermesSecretRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeSecrets({
-          client,
-          body,
-        }),
-      "Failed to write assistant secret",
-    );
-  }
-
-  async function startHermesOnboarding(body: HermesStartOnboardingRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeInstanceOnboard({
-          client,
-          body,
-        }),
-      "Failed to start assistant onboarding",
-    );
-  }
-
-  async function getHermesOnboardingProgress() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetHermesMeInstanceOnboardingProgress({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch assistant onboarding progress",
-    );
-  }
-
-  async function listHermesIntegrations() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetHermesMeInstanceIntegrations({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to list assistant integrations",
-    );
-  }
-
-  async function listHermesSchedules() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetHermesMeInstanceSchedules({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to list assistant schedules",
-    );
-  }
-
-  async function patchHermesSchedule(
-    scheduleId: string,
-    body: HermesPatchScheduleRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePatchHermesMeInstanceSchedulesByScheduleId({
-          client,
-          path: { scheduleId },
-          body,
-        }),
-      "Failed to update assistant schedule",
-    );
-  }
-
-  async function approveHermesConfirmation(
-    confirmationId: string,
-    body?: HermesApproveConfirmationRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeInstanceConfirmationsByConfirmationIdApprove({
-          client,
-          path: { confirmationId },
-          body,
-        }),
-      "Failed to approve assistant confirmation",
-    );
-  }
-
-  async function rejectHermesConfirmation(
-    confirmationId: string,
-    body: HermesRejectConfirmationRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeInstanceConfirmationsByConfirmationIdReject({
-          client,
-          path: { confirmationId },
-          body,
-        }),
-      "Failed to reject assistant confirmation",
-    );
-  }
-
-  async function disconnectHermesIntegration(
-    path: DeleteHermesMeInstanceIntegrationsByProviderData["path"],
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteHermesMeInstanceIntegrationsByProvider({
-          client,
-          path,
-        }),
-      "Failed to disconnect assistant integration",
-    );
-  }
-
-  async function initiateHermesIntegration(
-    body: HermesInitiateIntegrationRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeInstanceIntegrationsInitiate({
-          client,
-          body,
-        }),
-      "Failed to start integration OAuth",
-    );
-  }
-
-  async function getSkillsCatalog(query: {
-    view?: "trending" | "hot" | "all-time";
-    page?: number;
-    perPage?: number;
+  async function listMySokoBotTurns(query?: {
+    cursor?: string;
+    limit?: number;
   }) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetHermesMeInstanceSkillsCatalog({ client, query }),
-      "Failed to load skills catalog",
+      (client) => coreListMySokoBotTurns({ client, query, cache: "no-store" }),
+      "Failed to fetch Soko Bot turns",
     );
   }
 
-  async function searchSkillsCatalog(query: { q: string; limit?: number }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetHermesMeInstanceSkillsCatalogSearch({ client, query }),
-      "Failed to search skills",
-    );
-  }
-
-  async function getCuratedSkills() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetHermesMeInstanceSkillsCatalogCurated({ client }),
-      "Failed to load curated skills",
-    );
-  }
-
-  async function getSkillDetail(query: { source: string; slug: string }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetHermesMeInstanceSkillsCatalogDetail({ client, query }),
-      "Failed to load skill",
-    );
-  }
-
-  async function getInstalledSkills() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetHermesMeInstanceSkills({ client }),
-      "Failed to list installed skills",
-    );
-  }
-
-  async function getPreinstalledSkills() {
-    return executeCoreOperation(
-      getClient,
-      (client) => coreGetHermesMeInstanceSkillsPreinstalled({ client }),
-      "Failed to list pre-installed skills",
-    );
-  }
-
-  async function installSkill(body: { source: string; slug: string }) {
-    return executeCoreOperation(
-      getClient,
-      (client) => corePostHermesMeInstanceSkills({ client, body }),
-      "Failed to install skill",
-    );
-  }
-
-  async function removeSkill(slug: string) {
+  async function getMySokoBotTurn(turnId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreDeleteHermesMeInstanceSkillsBySlug({ client, path: { slug } }),
-      "Failed to remove skill",
+        coreGetMySokoBotTurn({ client, path: { turnId }, cache: "no-store" }),
+      "Failed to fetch Soko Bot turn",
     );
   }
 
-  async function finalizeHermesIntegration(
-    body: HermesFinalizeIntegrationRequest,
+  async function startMySokoBotTurn(body: StartSokoBotTurnRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreStartMySokoBotTurn({ client, body }),
+      "Failed to start Soko Bot turn",
+    );
+  }
+
+  async function cancelMySokoBotTurn(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreCancelMySokoBotTurn({ client, path: { turnId } }),
+      "Failed to cancel Soko Bot turn",
+    );
+  }
+
+  async function resetMySokoBotMemory() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreResetMySokoBotMemory({ client }),
+      "Failed to reset Soko Bot memory",
+    );
+  }
+
+  async function createMySokoBotSchedule(body: CreateSokoBotScheduleRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreCreateMySokoBotSchedule({ client, body }),
+      "Failed to create Soko Bot schedule",
+    );
+  }
+
+  async function updateMySokoBotSchedule(
+    scheduleId: string,
+    body: UpdateSokoBotScheduleRequest,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePostHermesMeInstanceIntegrationsFinalize({
-          client,
-          body,
-        }),
-      "Failed to finalize integration",
+        coreUpdateMySokoBotSchedule({ client, path: { scheduleId }, body }),
+      "Failed to update Soko Bot schedule",
+    );
+  }
+
+  async function deleteMySokoBotSchedule(scheduleId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteMySokoBotSchedule({ client, path: { scheduleId } }),
+      "Failed to delete Soko Bot schedule",
+    );
+  }
+
+  async function resolveMySokoBotDecision(
+    decisionId: string,
+    body: ResolveSokoBotDecisionRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreResolveMySokoBotDecision({ client, path: { decisionId }, body }),
+      "Failed to resolve Soko Bot decision",
+    );
+  }
+
+  async function listAdminSokoBots(query?: {
+    cursor?: string;
+    query?: string;
+    limit?: number;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListAdminSokoBots({ client, query, cache: "no-store" }),
+      "Failed to fetch Soko Bots",
+    );
+  }
+
+  async function getAdminSokoBot(sokoBotId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
+      "Failed to fetch Soko Bot",
+    );
+  }
+
+  async function performAdminSokoBotAction(
+    sokoBotId: string,
+    body: AdminSokoBotActionRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePerformAdminSokoBotAction({ client, path: { sokoBotId }, body }),
+      "Failed to perform Soko Bot action",
     );
   }
 
@@ -4351,10 +4174,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     markChatRoomUnread,
     deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
-    getHermesInstance,
-    getHermesMessages,
-    getHermesOnboardingProgress,
-    getHermesUnreadCount,
     getHistory,
     getNotifications,
     getNotificationsUnreadCount,
@@ -4362,23 +4181,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateChatRoomMessage,
     patchNotificationRead,
     patchNotificationsReadAll,
-    listHermesIntegrations,
-    listHermesSchedules,
-    patchHermesSchedule,
-    approveHermesConfirmation,
-    rejectHermesConfirmation,
-    startHermesOnboarding,
-    disconnectHermesIntegration,
-    initiateHermesIntegration,
-    finalizeHermesIntegration,
-    getSkillsCatalog,
-    searchSkillsCatalog,
-    getCuratedSkills,
-    getSkillDetail,
-    getInstalledSkills,
-    getPreinstalledSkills,
-    installSkill,
-    removeSkill,
     getAgentById,
     getAgentJobs,
     getAgentInputSchema,
@@ -4513,8 +4315,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsStats,
     getSharedResourceByToken,
-    destroyHermesInstance,
-    markHermesInboxSeen,
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
@@ -4524,10 +4324,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjects,
     postProjectsByIdJobs,
     postProjectsByIdTasks,
-    provisionHermesInstance,
     requestJobRefund,
     revokeMyOauthConsent,
-    setHermesSecret,
     getTaskById,
     getTaskLinks,
     getTaskWorkspace,
@@ -4538,8 +4336,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,
-    updateHermesInstance,
     updateOrganizationSubscriptionSeats,
+    getMySokoBot,
+    createMySokoBot,
+    archiveMySokoBot,
+    listMySokoBotTurns,
+    getMySokoBotTurn,
+    startMySokoBotTurn,
+    cancelMySokoBotTurn,
+    resetMySokoBotMemory,
+    createMySokoBotSchedule,
+    updateMySokoBotSchedule,
+    deleteMySokoBotSchedule,
+    resolveMySokoBotDecision,
+    listAdminSokoBots,
+    getAdminSokoBot,
+    performAdminSokoBotAction,
   };
 }
 

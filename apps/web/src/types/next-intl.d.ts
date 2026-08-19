@@ -11,8 +11,7 @@ type Messages = typeof en;
 
 /**
  * next-intl's `AbstractIntlMessages` shape is `{ [k]: string | AbstractIntlMessages }`
- * — strings or nested objects only, no arrays. Ordered Hermes lists
- * (`hints`, `roleOptions`, `demoInbox`, `thinkingMessages`, etc.) must be
+ * — strings or nested objects only, no arrays. Ordered lists must be
  * keyed maps (`{ "0": "…", "1": "…" }`) rehydrated via `orderedMessageList`.
  * This widened value type still accepts residual arrays so a mismatched
  * locale catalog cannot collapse `IntlMessages` to `never` and break the

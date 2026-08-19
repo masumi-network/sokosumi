@@ -16,7 +16,7 @@
 
 ## Handler actor menu (user-scoped auth)
 
-Middleware authenticates the actor and may **attach** coworker/orchestrator
+Middleware authenticates the actor and may **attach** coworker
 `X-Context-*` headers (`coworkerContextMiddleware`). Handlers must **not**
 re-check actors with ad-hoc `if (actor === "coworker")` branches. Pick one
 helper at the top of the handler:
@@ -25,8 +25,8 @@ helper at the top of the handler:
 | --- | --- | --- |
 | `requireUserContext` | `@/middleware/auth` | Task/job grant-gated flows only. Coworker context may be **unbound** (no vendor grant yet) so delegated create can park as `GRANT_PENDING`. |
 | `requireAuthorizedUserContext` | `@/helpers/coworker-user-context-binding` | **Default** for user-scoped routes (profile, credits, projects, org metadata, …). Coworker must pass binding: DENIED/REVOKED → reject; GRANTED → allow; else baseline assignee/sibling task; else reject. |
-| `requireOwnerUserContext` | `@/middleware/auth` | Human/owner-only surfaces (notifications, history, billing, member lists, …). **No coworker.** Session or orchestrator+context only. |
-| `requireUserAuthContext` | `@/middleware/auth` | Must be the real interactive session user (admin role, consent). Rejects coworker and orchestrator. |
+| `requireOwnerUserContext` | `@/middleware/auth` | Human/owner-only surfaces (notifications, history, billing, member lists, …). Interactive user session only; no coworker. |
+| `requireUserAuthContext` | `@/middleware/auth` | Must be the real interactive session user (admin role, consent). Rejects coworker. |
 
 Policy details and decision order: `src/helpers/coworker-user-context-binding.ts`
 and the `UserContext` JSDoc in `src/middleware/auth.ts`. Vendor grant semantics

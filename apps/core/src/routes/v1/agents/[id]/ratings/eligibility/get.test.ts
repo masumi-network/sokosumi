@@ -115,39 +115,4 @@ describe("GET /agents/{id}/ratings/eligibility", () => {
     expect(response.status).toBe(404);
     expect(doesUserHaveFinishedJobWithAgentMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    doesUserHaveFinishedJobWithAgentMock.mockResolvedValue(true);
-
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    });
-    const response = await app.request(
-      "http://localhost/agent_123/ratings/eligibility",
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({ eligible: true });
-    expect(doesUserHaveFinishedJobWithAgentMock).toHaveBeenCalledWith(
-      "user_123",
-      "agent_123",
-      expect.anything(),
-    );
-  });
-
-  it("returns 403 for bare orchestrator without context headers", async () => {
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-    });
-    const response = await app.request(
-      "http://localhost/agent_123/ratings/eligibility",
-    );
-
-    expect(response.status).toBe(403);
-    expect(doesUserHaveFinishedJobWithAgentMock).not.toHaveBeenCalled();
-  });
 });

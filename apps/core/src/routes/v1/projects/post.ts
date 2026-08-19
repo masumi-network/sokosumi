@@ -5,7 +5,7 @@ import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import {
   generateProjectFilesToken,
@@ -19,12 +19,12 @@ import {
   projectSchema,
 } from "@/schemas/project.schema";
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/",
     description:
-      "Create a project with an optional website and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Create a project with an optional website and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       body: {

@@ -171,51 +171,6 @@ describe("GET /history", () => {
     expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
-  it("allows orchestrator with context headers as the context user", async () => {
-    const app = createApp(
-      {
-        actor: "orchestrator",
-        orchestratorId: "orch_123",
-        context: { userId: "user_123", organizationId: "org_123" },
-      },
-      {
-        workspaceId: WORKSPACE_CONTEXT.workspaceId,
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-    );
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(historyFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          AND: expect.arrayContaining([
-            expect.objectContaining({
-              OR: expect.arrayContaining([
-                expect.objectContaining({ userId: "user_123" }),
-              ]),
-            }),
-          ]),
-        }),
-      }),
-    );
-  });
-
-  it("returns 403 for bare orchestrator without context headers", async () => {
-    const app = createApp(
-      {
-        actor: "orchestrator",
-        orchestratorId: "orch_123",
-      },
-      null,
-    );
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(403);
-    expect(historyFindManyMock).not.toHaveBeenCalled();
-  });
-
   it("uses workspace scope without user filter when scope=workspace", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?scope=workspace");

@@ -1,0 +1,33 @@
+{
+  "name": "@sokosumi/soko-bot-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "eve build",
+    "dev": "eve dev",
+    "start": "eve start",
+    "info": "eve info",
+    "typecheck": "eve build && tsc --noEmit",
+    "test": "vitest run tests --exclude '.eve/**' --exclude '.output/**' && eve eval --strict",
+    "test:ci": "vitest run tests --exclude '.eve/**' --exclude '.output/**' && eve eval --strict",
+    "format": "biome format --write .",
+    "check": "biome check ."
+  },
+  "dependencies": {
+    "@sokosumi/soko-bot": "workspace:*",
+    "@vercel/oidc": "3.8.4",
+    "eve": "0.38.3",
+    "jose": "6.2.9"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@typescript/typescript6": "6.0.2",
+    "microsandbox": "0.6.9",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

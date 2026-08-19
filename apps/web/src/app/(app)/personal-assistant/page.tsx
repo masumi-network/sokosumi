@@ -1,146 +1,120 @@
-import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import HermesExperience from "@/app/personal-assistant/components/hermes-experience";
-import LoadingState from "@/app/personal-assistant/components/loading-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
+import type { SokoBot } from "@/lib/clients/generated/core";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
+
+import { CreateSokoBotForm } from "./components/create-soko-bot-form.client";
 import {
-  buildSubscriptionWallPlans,
-  resolveHermesHasActiveSubscription,
-} from "@/app/personal-assistant/hermes-page-subscription";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
-import { getSession } from "@/lib/auth/auth.server";
-import { coreClient } from "@/lib/clients/core.client";
-import type { GetSubscriptionCatalogResponse } from "@/lib/clients/generated/core";
-import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
-import { userService } from "@/lib/services/user.service";
+  LEGACY_HISTORY_QUERY_KEY,
+  LegacyHistoryPanel,
+} from "./components/legacy-history-panel";
+import { PendingDecisionsPanel } from "./components/pending-decisions-panel";
+import { SokoBotHeader } from "./components/soko-bot-header";
+import { SokoBotMemoryPanel } from "./components/soko-bot-memory-panel";
+import { SokoBotSchedulesPanel } from "./components/soko-bot-schedules-panel";
+import { SokoBotSettingsPanel } from "./components/soko-bot-settings-panel";
+import { TurnComposer } from "./components/turn-composer.client";
+import { TurnList } from "./components/turn-list";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Hermes.Metadata");
-  return {
-    title: t("title"),
-    description: t("description"),
-  };
+  const t = await getTranslations("App.SokoBot.Metadata");
+  return { title: t("title"), description: t("description") };
 }
 
-interface HermesExperienceWithAccessProps {
-  userId: string | null;
-  userName: string | null;
-  userEmail: string | null;
-  userImageUrl: string | null;
-  activeOrganizationId: string | null;
-  userRole: string | null | undefined;
+type BotLoad = { kind: "ok"; bot: SokoBot | null } | { kind: "unavailable" };
+
+async function loadBot(): Promise<BotLoad> {
+  try {
+    return { kind: "ok", bot: await sokoBotService.getMine() };
+  } catch (error) {
+    // Core answers 404 while the feature flag is off; surface that plainly
+    // instead of the create form (which would fail the same way).
+    if (error instanceof CoreApiRequestError && error.status === 404) {
+      return { kind: "unavailable" };
+    }
+    throw error;
+  }
 }
 
-/**
- * Deferred billing + membership work. Suspends under the page Suspense
- * so LoadingState paints before paid-plan coverage / catalog finish
- * (SOK-780). Fail-closed gate once resolved.
- */
-type MembershipList = Awaited<
-  ReturnType<typeof userService.getMyMembersWithOrganizations>
->;
+function TurnListFallback() {
+  return (
+    <div className="space-y-3">
+      <Skeleton className="h-24 w-full rounded-md" />
+      <Skeleton className="h-24 w-full rounded-md" />
+    </div>
+  );
+}
 
-export async function HermesExperienceWithAccess({
-  userId,
-  userName,
-  userEmail,
-  userImageUrl,
-  activeOrganizationId,
-  userRole,
-}: HermesExperienceWithAccessProps) {
-  // Catalog does not need org IDs — start it with memberships so multi-org
-  // membership latency does not serialize catalog TTI after the shell.
-  const catalogPromise: Promise<GetSubscriptionCatalogResponse | null> = userId
-    ? coreClient.getSubscriptionCatalog().catch(() => null)
-    : Promise.resolve(null);
+interface SokoBotPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-  // Org context for the confirmation-card dropdown (lets the user reroute
-  // sokosumi_create_task / sokosumi_create_job into the right workspace
-  // before approving). Empty list when not signed in or no memberships.
-  const memberships: MembershipList = userId
-    ? await userService
-        .getMyMembersWithOrganizations()
-        .catch((): MembershipList => [])
-    : [];
-  const organizations = memberships.map((m) => ({
-    id: m.organization.id,
-    name: m.organization.name,
-    slug: m.organization.slug,
-  }));
-
-  // Activating and using the assistant requires a paid plan — viewing the
-  // page (landing content, chat history) stays open to everyone. Fail closed:
-  // if the coverage lookups error we can't confirm a subscription, so treat
-  // the user as unsubscribed here. This is only the UX-level gate; Core
-  // re-checks on provision / chat / mutations. Admins skip the wall
-  // entirely so the team can set up and test instances without billing.
-  // Coverage = personal Stripe plan OR any member org's billing plan
-  // (enterprise contract or paid self-serve) — same rule as Core.
-  const [hasCoverage, catalogResult] = await Promise.all([
-    userId
-      ? hasPaidPlanCoverage({
-          organizationIds: memberships.map((m) => m.organization.id),
-        })
-      : Promise.resolve(false),
-    catalogPromise,
+export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
+  const [load, t, params] = await Promise.all([
+    loadBot(),
+    getTranslations("App.SokoBot"),
+    searchParams,
   ]);
-  const hasActiveSubscription = resolveHermesHasActiveSubscription(
-    hasCoverage,
-    userRole,
-  );
+  const legacyOpen = params[LEGACY_HISTORY_QUERY_KEY] === "1";
 
-  // The 3 paid plans — gives the subscription wall real, clickable plan
-  // links instead of a vague "upgrade to unlock". Best-effort: the wall
-  // still works (minus the plan links) if the catalog fetch fails.
-  const subscriptionWallPlans = buildSubscriptionWallPlans(catalogResult);
+  if (load.kind === "unavailable") {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-2">
+        <Alert>
+          <AlertTitle>{t("Unavailable.title")}</AlertTitle>
+          <AlertDescription>{t("Unavailable.description")}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
-  return (
-    <HermesExperience
-      userId={userId}
-      userName={userName}
-      userEmail={userEmail}
-      userImageUrl={userImageUrl}
-      organizations={organizations}
-      activeOrganizationId={activeOrganizationId}
-      hasActiveSubscription={hasActiveSubscription}
-      subscriptionWallPlans={subscriptionWallPlans}
-    />
-  );
-}
+  const bot = load.bot;
 
-/**
- * Session-only fast path. Memberships, paid-plan coverage, and the
- * subscription catalog stream behind Suspense so first paint is the
- * loading shell (also used by loading.tsx for route transitions).
- */
-export default async function HermesPage() {
-  const session = await getSession();
-  const userId = session?.user.id ?? null;
-  const userName = session?.user.name ?? null;
-  const userEmail = session?.user.email ?? null;
-  const userImageUrl = session?.user.image
-    ? session.user.image
-    : session?.user.email
-      ? gravatarUrl(session.user.email, { size: 80, default: "404" })
-      : null;
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  // Match HermesExperience's pre-instance loading seed so Suspense → client
-  // loading does not flash a different orb. loading.tsx stays seedless
-  // (no session without an extra await that would delay route shell paint).
-  const shellOrbSeed = userId ? defaultOrbSeed(userId) : undefined;
+  if (!bot) {
+    return (
+      <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-2">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("Create.title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {t("Create.description")}
+          </p>
+        </div>
+        <CreateSokoBotForm />
+      </div>
+    );
+  }
+
+  const pendingDecisions = bot.pendingDecisions ?? [];
+  const schedules = bot.schedules ?? [];
+  const legacyMessages = bot.legacyMessages ?? [];
 
   return (
-    <Suspense fallback={<LoadingState seed={shellOrbSeed} />}>
-      <HermesExperienceWithAccess
-        userId={userId}
-        userName={userName}
-        userEmail={userEmail}
-        userImageUrl={userImageUrl}
-        activeOrganizationId={activeOrganizationId}
-        userRole={session?.user.role}
-      />
-    </Suspense>
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-2">
+      <SokoBotHeader bot={bot} />
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-4">
+          <LegacyHistoryPanel messages={legacyMessages} open={legacyOpen} />
+          <Suspense fallback={<TurnListFallback />}>
+            <TurnList />
+          </Suspense>
+          <TurnComposer botStatus={bot.status} />
+        </div>
+
+        <aside className="space-y-4">
+          <PendingDecisionsPanel decisions={pendingDecisions} />
+          <SokoBotMemoryPanel bot={bot} />
+          <SokoBotSchedulesPanel schedules={schedules} />
+          <SokoBotSettingsPanel bot={bot} />
+        </aside>
+      </div>
+    </div>
   );
 }

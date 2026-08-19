@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from "uuid";
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
  */
-const envSchema = z.object({
+const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
   // Environment
@@ -94,13 +94,11 @@ const envSchema = z.object({
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
 
-  // Hermes Orchestrator (Core → Hermes outbound)
-  HERMES_ORCH_BASE_URL: z.url(),
-  HERMES_ORCH_TOKEN: z.string().min(1),
-  HERMES_INBOX_POLLING_ENABLED: z
+  // First-party Soko Bot control plane and Eve runtime.
+  SOKO_BOT_ENABLED: z
     .string()
     .default("false")
-    .transform((val: string) => val.trim().toLowerCase() === "true"),
+    .transform((value) => value.trim().toLowerCase() === "true"),
 
   // Temporary overlay (ADR 0010): org-first membership also gets a personal
   // workspace. Default false is ADR 0005 (personal optional).
@@ -109,27 +107,27 @@ const envSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
-  // Hermes → Core service auth (shared secret; not a per-user DB key).
-  // Min 32 matches `openssl rand -hex 16` (16 bytes → 32 hex chars).
-  // Must not use coworker_/orch_ prefixes: bearer middleware routes those
-  // to coworker API-key verification and never reaches the orch compare.
-  ORCHESTRATOR_SERVICE_TOKEN: z
+  SOKO_BOT_RUNTIME_ADAPTER: z.enum(["in-memory", "eve"]).default("eve"),
+  SOKO_BOT_RUNTIME_BASE_URL: z.url().default("http://localhost:2000"),
+  SOKO_BOT_RUNTIME_VERSION: z.string().min(1).default("0.38.3"),
+  SOKO_BOT_CLASSIFIER_MODE: z
+    .enum(["deterministic", "model"])
+    .default("deterministic"),
+  SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
+  SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
+  SOKO_BOT_SIGNING_KEY_ID: z.string().min(1).default("soko-bot-v1"),
+  SOKO_BOT_SIGNING_PRIVATE_KEY: z.string().min(1).optional(),
+  SOKO_BOT_PREVIOUS_PUBLIC_KEYS: z.string().default("[]"),
+  SOKO_BOT_EVE_PROJECT_ID: z
     .string()
-    .min(32)
-    .refine(
-      (v) => !v.startsWith("coworker_") && !v.startsWith("orch_"),
-      "must not start with coworker_ or orch_ (reserved bearer prefixes)",
-    ),
-
-  // skills.sh marketplace (browse/search/audit for Hermes skills). The OIDC
-  // token is injected by the Vercel runtime; optional so local/non-Vercel
-  // envs degrade to an empty catalog instead of failing to boot.
-  SKILLS_SH_BASE_URL: z.url().default("https://skills.sh/api/v1"),
-  VERCEL_OIDC_TOKEN: z.string().min(1).optional(),
-
-  // Composio (managed OAuth + MCP broker for Hermes integrations)
-  COMPOSIO_API_KEY: z.string().startsWith("ak_").optional(),
-  COMPOSIO_API_BASE_URL: z.url().default("https://backend.composio.dev"),
+    .min(1)
+    .refine((value) => value !== "*", {
+      message: "SOKO_BOT_EVE_PROJECT_ID must pin one Vercel project",
+    })
+    .optional(),
+  SOKO_BOT_EVE_ENVIRONMENT: z
+    .enum(["production", "preview", "development"])
+    .optional(),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
@@ -216,6 +214,73 @@ const envSchema = z.object({
     )
     .pipe(z.array(z.email())),
   JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
+});
+
+function isDeployedSokoBotEnvironment(
+  value: z.infer<typeof baseEnvSchema>,
+): boolean {
+  return (
+    value.NODE_ENV === "production" ||
+    value.VERCEL_ENV === "production" ||
+    value.VERCEL_ENV === "preview"
+  );
+}
+
+function isLocalRuntimeHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized === "0.0.0.0" ||
+    normalized === "[::]" ||
+    normalized === "[::1]" ||
+    /^127(?:\.\d{1,3}){3}$/.test(normalized)
+  );
+}
+
+function isRemoteHttpsRuntimeUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !isLocalRuntimeHostname(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+const envSchema = baseEnvSchema.superRefine((value, context) => {
+  if (!value.SOKO_BOT_ENABLED) return;
+  const required = [
+    ["SOKO_BOT_SIGNING_PRIVATE_KEY", value.SOKO_BOT_SIGNING_PRIVATE_KEY],
+    ["SOKO_BOT_EVE_PROJECT_ID", value.SOKO_BOT_EVE_PROJECT_ID],
+    ["SOKO_BOT_EVE_ENVIRONMENT", value.SOKO_BOT_EVE_ENVIRONMENT],
+  ] as const;
+  for (const [name, configured] of required) {
+    if (configured) continue;
+    context.addIssue({
+      code: "custom",
+      path: [name],
+      message: `${name} is required when SOKO_BOT_ENABLED=true`,
+    });
+  }
+
+  if (!isDeployedSokoBotEnvironment(value)) return;
+  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "eve") {
+    context.addIssue({
+      code: "custom",
+      path: ["SOKO_BOT_RUNTIME_ADAPTER"],
+      message:
+        "SOKO_BOT_RUNTIME_ADAPTER must be eve when Soko Bot is enabled in a deployed environment",
+    });
+  }
+
+  if (!isRemoteHttpsRuntimeUrl(value.SOKO_BOT_RUNTIME_BASE_URL)) {
+    context.addIssue({
+      code: "custom",
+      path: ["SOKO_BOT_RUNTIME_BASE_URL"],
+      message:
+        "SOKO_BOT_RUNTIME_BASE_URL must be a remote HTTPS URL when Soko Bot is enabled in a deployed environment",
+    });
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -352,20 +417,4 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
     fallbackUrl: env.BETTER_AUTH_URL,
   });
-}
-
-/**
- * Resolve which Sokosumi env label to pass to the Hermes orchestrator.
- *
- *   - NETWORK === "Mainnet" → "mainnet"
- *   - otherwise (Preprod, also the default when unset) → "preprod"
- *
- * Local dev with default NETWORK=Preprod still reports "preprod" so the
- * orchestrator's sokosumi_sync step exercises the same path as Vercel preprod.
- *
- * The orchestrator uses this to pick the Sokosumi API base + coworker key.
- */
-export function resolveSokosumiEnvForOrchestrator(): "preprod" | "mainnet" {
-  const env = getEnv();
-  return env.NETWORK === "Mainnet" ? "mainnet" : "preprod";
 }

@@ -6,7 +6,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 
@@ -19,12 +19,12 @@ const responseSchema = z
   })
   .openapi("MarkAllReadResponse");
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "patch",
     path: "/read-all",
     description:
-      "Mark all in-app notification-center items as read for the effective user (session user, or orchestrator with context headers). CHAT kind is excluded so room attention stays until the room is read.",
+      "Mark all in-app notification-center items as read for the interactive session user. CHAT kind is excluded so room attention stays until the room is read.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(

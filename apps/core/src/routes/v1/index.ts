@@ -16,18 +16,18 @@ import creditCostsRouter from "./credit-costs/index.js";
 import developerRouter from "./developer/index.js";
 import driveRouter from "./drive/index.js";
 import enterpriseRouter from "./enterprise/index.js";
-import hermesRouter from "./hermes/index.js";
 import historyRouter from "./history/index.js";
 import invitationsRouter from "./invitations/index.js";
 import jobsRouter from "./jobs/index.js";
 import notificationsRouter from "./notifications/index.js";
-import orchestratorsRouter from "./orchestrators/index.js";
 import organizationInviteLinksRouter from "./organization-invite-links/index.js";
 import organizationsRouter from "./organizations/index.js";
 import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
 import realtimeRouter from "./realtime/index.js";
 import shareRouter from "./share/index.js";
+import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
+import sokoBotsRouter from "./soko-bots/index.js";
 import tasksRouter from "./tasks/index.js";
 import toolsRouter from "./tools/index.js";
 import usersRouter from "./users/index.js";
@@ -42,7 +42,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
   description:
-    "Authentication required for all endpoints. Supports Better Auth user credentials, dedicated coworker bearer API keys (`coworker_`), and the orchestrator service bearer (`ORCHESTRATOR_SERVICE_TOKEN`).",
+    "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated coworker bearer API keys (`coworker_`). Soko Bot runtime routes use their documented Vercel OIDC plus scoped turn-grant authentication.",
 });
 
 app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
@@ -60,7 +60,7 @@ app.openAPIRegistry.registerComponent("parameters", "ContextUserId", {
   name: "X-Context-User-Id",
   in: "header",
   description:
-    "Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.",
+    "Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.",
   required: false,
   schema: {
     type: "string",
@@ -72,45 +72,13 @@ app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
   name: "X-Context-Organization-Id",
   in: "header",
   description:
-    "Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.",
+    "Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.",
   required: false,
   schema: {
     type: "string",
     example: "org_xyz789",
   },
 });
-
-app.openAPIRegistry.registerComponent(
-  "parameters",
-  "OrchestratorContextUserId",
-  {
-    name: "X-Context-User-Id",
-    in: "header",
-    description:
-      "Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.",
-    required: false,
-    schema: {
-      type: "string",
-      example: "user_abc123",
-    },
-  },
-);
-
-app.openAPIRegistry.registerComponent(
-  "parameters",
-  "OrchestratorContextOrganizationId",
-  {
-    name: "X-Context-Organization-Id",
-    in: "header",
-    description:
-      "Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.",
-    required: false,
-    schema: {
-      type: "string",
-      example: "org_xyz789",
-    },
-  },
-);
 
 app.use(
   "*",
@@ -158,7 +126,6 @@ app.route("/credit-costs", creditCostsRouter);
 app.route("/developer", developerRouter);
 app.route("/drive", driveRouter);
 app.route("/enterprise", enterpriseRouter);
-app.route("/hermes", hermesRouter);
 app.route("/history", historyRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
@@ -169,8 +136,9 @@ app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
+app.route("/soko-bots", sokoBotsRouter);
+app.route("/internal/soko-bot", sokoBotRuntimeRouter);
 app.route("/coworkers", coworkersRouter);
-app.route("/orchestrators", orchestratorsRouter);
 app.route("/tasks", tasksRouter);
 app.route("/tools", toolsRouter);
 app.route("/products", productsRouter);

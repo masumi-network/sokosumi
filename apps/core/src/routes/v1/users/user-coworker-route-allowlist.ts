@@ -12,7 +12,7 @@ type UserRouteEnv = {
 
 /**
  * GET subpaths under `/users/{id}` that coworkers may call with context
- * headers. Everything else under the user tree stays session/orchestrator-only.
+ * headers. Everything else under the user tree stays session-only.
  * Patterns are path-only today because only GET handlers exist on these shapes;
  * do not mount mutating routes on the same paths without updating this gate.
  */

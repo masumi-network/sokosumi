@@ -1,11 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import {
-  GrantResumeStatus,
-  type Prisma,
-  TaskStatus,
-  VendorGrantStatus,
-} from "@sokosumi/database";
+import { type Prisma, TaskStatus } from "@sokosumi/database";
 import {
   buildAdHocDesignMdPrefix,
   DESIGN_MD_ATTACHMENT_LABEL,
@@ -17,7 +12,6 @@ import {
 } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { requireTaskAssignableCoworker } from "@/helpers/access-control";
 import { resolveEffectiveDesignMd } from "@/helpers/design-md-effective";
 import {
   errorResponseSchema,
@@ -29,9 +23,8 @@ import {
   jsonErrorResponse,
   jsonSuccessResponse,
 } from "@/helpers/openapi";
-import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { created } from "@/helpers/response";
-import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
+import { mapTask } from "@/helpers/task";
 import {
   refineAssigneeIdAliasConflict,
   resolveAssigneeIdFromRequest,
@@ -41,13 +34,7 @@ import {
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
-import {
-  isGrantDeniedOrRevoked,
-  notifyWorkspaceApproversOfPendingGrant,
-  parseGrantResumeStatus,
-  requestWorkspaceGrant,
-  throwGrantAccessError,
-} from "@/helpers/vendor-grants";
+import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -60,7 +47,6 @@ import {
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -69,6 +55,10 @@ import {
   taskEventDeprecatedOriginField,
   taskSchema,
 } from "@/schemas/task.schema";
+import {
+  createTaskForActor,
+  type TaskDomainActor,
+} from "@/services/task-domain.service";
 import { taskInclude } from "@/types/task";
 
 const customBrandSchema = z.object({
@@ -371,132 +361,20 @@ async function resolveTaskDescriptionWithContext({
   return prependTaskContextAttachments(description, attachments);
 }
 
-async function resolveTaskCreatorFields(
+function resolveTaskDomainActor(
   authContext: AuthenticationContext,
   ownerId: string,
-) {
-  if (isOrchestratorAuthContext(authContext)) {
-    return {
-      creatorOrchestratorId:
-        await requireOrchestratorIdForAttribution(authContext),
-      creatorUserId: null,
-      creatorCoworkerId: null,
-    };
-  }
-
+): TaskDomainActor {
   if (isCoworkerAuthContext(authContext)) {
     return {
-      creatorCoworkerId: authContext.coworkerId,
-      creatorUserId: null,
-      creatorOrchestratorId: null,
-    };
-  }
-
-  return {
-    creatorUserId: ownerId,
-    creatorCoworkerId: null,
-    creatorOrchestratorId: null,
-  };
-}
-
-async function resolveInitialTaskEventActor(
-  authContext: AuthenticationContext,
-  ownerId: string,
-) {
-  if (isOrchestratorAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: null,
-      orchestratorId: await requireOrchestratorIdForAttribution(authContext),
-    };
-  }
-
-  if (isCoworkerAuthContext(authContext)) {
-    return {
-      userId: null,
+      kind: "coworker",
       coworkerId: authContext.coworkerId,
-      orchestratorId: null,
+      vendorId: authContext.vendorId,
+      enforceWorkspaceGrant: Boolean(authContext.context),
     };
   }
 
-  return {
-    userId: ownerId,
-    coworkerId: null,
-    orchestratorId: null,
-  };
-}
-
-async function createTaskRecord(
-  params: {
-    ownerId: string;
-    organizationId: string | null;
-    workspaceId: string;
-    body: z.infer<typeof createTaskRequestSchema>;
-    resolvedName: string;
-    authContext: AuthenticationContext;
-    project: TaskContextProject | null;
-    pendingVendorGrantId?: string | null;
-    grantResumeStatus?: GrantResumeStatus | null;
-  },
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-) {
-  const {
-    authContext,
-    body,
-    grantResumeStatus,
-    organizationId,
-    ownerId,
-    pendingVendorGrantId,
-    project,
-    resolvedName,
-    workspaceId,
-  } = params;
-
-  const isGrantPending = pendingVendorGrantId != null;
-  const description = isGrantPending
-    ? (body.description ?? null)
-    : await resolveTaskDescriptionWithContext({
-        context: body.context,
-        description: body.description,
-        organizationId,
-        ownerId,
-        project,
-        tx,
-      });
-  const status = isGrantPending ? TaskStatus.GRANT_PENDING : body.status;
-  const initialEventStatus = status;
-  const creatorFields = await resolveTaskCreatorFields(authContext, ownerId);
-  const initialEventActor = await resolveInitialTaskEventActor(
-    authContext,
-    ownerId,
-  );
-
-  return tx.task.create({
-    data: {
-      ownerId,
-      organizationId,
-      workspaceId,
-      projectId: body.projectId ?? null,
-      name: resolvedName,
-      description,
-      assigneeId: body.assigneeId ?? null,
-      ...creatorFields,
-      status,
-      grantResumeStatus: isGrantPending ? grantResumeStatus : null,
-      metadata: null,
-      nextRunAt: null,
-      pendingVendorGrantId: pendingVendorGrantId ?? null,
-      events: {
-        create: {
-          status: initialEventStatus,
-          comment: null,
-          channel: body.channel,
-          ...initialEventActor,
-        },
-      },
-    },
-    include: taskInclude,
-  });
+  return { kind: "user", userId: ownerId };
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -511,18 +389,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       description: body.description,
     });
 
-    validateTaskAssigneeAssignment({
-      status: body.status,
-      assigneeId: body.assigneeId,
-    });
-
-    if (body.assigneeId !== null && body.assigneeId !== undefined) {
-      await requireTaskAssignableCoworker(
-        body.assigneeId,
-        workspaceContext.workspaceId,
-      );
-    }
-
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
     const project = await findTaskProjectInWorkspace(
@@ -534,79 +400,50 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
 
-    if (!shouldEnforceCreateGrant) {
-      const task = await prisma.$transaction(async (tx) =>
-        createTaskRecord(
-          {
-            ownerId: userContext.userId,
-            organizationId: userContext.organizationId,
-            workspaceId: workspaceContext.workspaceId,
-            body,
-            project: projectWithBriefing,
-            resolvedName,
-            authContext,
-          },
-          tx,
-        ),
-      );
-
-      return created(c, taskSchema.parse(mapTask(task)));
-    }
-
     const task = await prisma.$transaction(async (tx) => {
-      const { grant } = await requestWorkspaceGrant(
+      const createdTask = await createTaskForActor(
         {
-          vendorId: authContext.vendorId,
-          workspaceId: workspaceContext.workspaceId,
-          requestedByUserId: userContext.userId,
-          notify: false,
-        },
-        tx,
-      );
-
-      if (isGrantDeniedOrRevoked(grant.status)) {
-        throwGrantAccessError(grant.status);
-      }
-
-      if (grant.status === VendorGrantStatus.GRANTED) {
-        const grantedProject =
-          body.context?.briefing !== false
-            ? await healProjectBriefingUrl(
-                project,
-                workspaceContext.workspaceId,
-              )
-            : project;
-        return createTaskRecord(
-          {
-            ownerId: userContext.userId,
-            organizationId: userContext.organizationId,
-            workspaceId: workspaceContext.workspaceId,
-            body,
-            project: grantedProject,
-            resolvedName,
-            authContext,
-          },
-          tx,
-        );
-      }
-
-      return createTaskRecord(
-        {
+          actor: resolveTaskDomainActor(authContext, userContext.userId),
           ownerId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
-          body,
-          project,
-          resolvedName,
-          authContext,
-          pendingVendorGrantId: grant.id,
-          grantResumeStatus: parseGrantResumeStatus(body.status),
+          projectId: body.projectId,
+          name: resolvedName,
+          description: body.description,
+          resolveDescription: async (tx) => {
+            const contextProject =
+              shouldEnforceCreateGrant && body.context?.briefing !== false
+                ? await healProjectBriefingUrl(
+                    project,
+                    workspaceContext.workspaceId,
+                  )
+                : projectWithBriefing;
+            return resolveTaskDescriptionWithContext({
+              context: body.context,
+              description: body.description,
+              organizationId: userContext.organizationId,
+              ownerId: userContext.userId,
+              project: contextProject,
+              tx,
+            });
+          },
+          assigneeId: body.assigneeId,
+          status: body.status,
+          channel: body.channel,
         },
         tx,
       );
+      return tx.task.findUniqueOrThrow({
+        where: { id: createdTask.id },
+        include: taskInclude,
+      });
     });
 
-    if (task.status === TaskStatus.GRANT_PENDING && task.pendingVendorGrantId) {
+    if (
+      isCoworkerAuthContext(authContext) &&
+      task.status === TaskStatus.GRANT_PENDING &&
+      task.pendingVendorGrantId
+    ) {
       try {
         await notifyWorkspaceApproversOfPendingGrant({
           vendorId: authContext.vendorId,

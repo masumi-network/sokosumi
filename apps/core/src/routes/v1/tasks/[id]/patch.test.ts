@@ -13,20 +13,21 @@ const {
   prismaTransactionMock,
   projectFindFirstMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskOwnershipMock,
+  taskFindFirstMock,
+  taskFindUniqueOrThrowMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -172,7 +173,7 @@ describe("patchTaskRequestSchema", () => {
 describe("PATCH /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskOwnershipMock.mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -181,6 +182,10 @@ describe("PATCH /tasks/{id}", () => {
     });
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     taskUpdateMock.mockResolvedValue(createTaskApi(PROJECT_ID));
+    taskFindUniqueOrThrowMock.mockImplementation(async () => {
+      const result = taskUpdateMock.mock.results.at(-1);
+      return result ? await result.value : createTaskApi(PROJECT_ID);
+    });
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -188,6 +193,8 @@ describe("PATCH /tasks/{id}", () => {
           findFirst: projectFindFirstMock,
         },
         task: {
+          findFirst: taskFindFirstMock,
+          findUniqueOrThrow: taskFindUniqueOrThrowMock,
           update: taskUpdateMock,
         },
       });
@@ -226,7 +233,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("unassigns a task from its project", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -276,7 +283,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("moves a task directly between projects", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -306,7 +313,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("updates metadata for a queued task", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
@@ -363,37 +370,6 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
-  });
-
-  it("allows orchestrator with workspace context to patch as owner", async () => {
-    const updated = createTaskApi();
-    mapTaskMock.mockReturnValue(updated);
-    taskUpdateMock.mockResolvedValue(updated);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: { update: taskUpdateMock },
-        project: { findFirst: projectFindFirstMock },
-      });
-    });
-
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: "org_123" },
-    });
-
-    const response = await app.request("http://localhost/tsk_123", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Orchestrator update",
-      }),
-    });
-
-    expect(response.status).toBe(200);
-    expect(requireTaskOwnershipMock).toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 });

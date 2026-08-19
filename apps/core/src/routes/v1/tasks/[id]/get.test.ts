@@ -29,7 +29,7 @@ vi.mock("@/lib/db/prisma", () => ({
 const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 
 interface CreateAppOptions {
-  actor?: "user" | "coworker" | "orchestrator";
+  actor?: "user" | "coworker";
   userId?: string;
   context?: {
     userId: string;
@@ -53,18 +53,12 @@ function createApp(options: CreateAppOptions = {}) {
             vendorId: "01960001-0001-7001-8001-000000000001",
             ...(context ? { context } : {}),
           }
-        : actor === "orchestrator"
-          ? {
-              actor: "orchestrator",
-              orchestratorId: "01960001-0001-7001-8001-000000000099",
-              ...(context ? { context } : {}),
-            }
-          : {
-              actor: "user",
-              userId,
-              organizationId: "org_123",
-              role: "user",
-            };
+        : {
+            actor: "user",
+            userId,
+            organizationId: "org_123",
+            role: "user",
+          };
     c.set("authContext", authContext);
     c.set(
       "workspaceContext",
@@ -455,55 +449,6 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: delegatedCoworkerVisiblePeerTaskWhere,
-            },
-          },
-          include: expect.any(Object),
-          orderBy: { createdAt: "asc" },
-        },
-      }),
-    });
-  });
-
-  it("uses workspace-scoped peer links for contextual orchestrators", async () => {
-    const app = createApp({
-      actor: "orchestrator",
-      context: {
-        userId: "user_delegate",
-        organizationId: "org_delegate",
-      },
-    });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
-
-    const response = await app.request("http://localhost/tsk_a");
-
-    expect(response.status).toBe(200);
-    expect(taskFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        workspaceId: testWorkspaceId,
-      },
-      include: expect.objectContaining({
-        share: true,
-        linksFrom: {
-          where: {
-            toTask: {
-              is: {
-                workspaceId: testWorkspaceId,
-                archivedAt: null,
-              },
-            },
-          },
-          include: expect.any(Object),
-          orderBy: { createdAt: "asc" },
-        },
-        linksTo: {
-          where: {
-            fromTask: {
-              is: {
-                workspaceId: testWorkspaceId,
-                archivedAt: null,
-              },
             },
           },
           include: expect.any(Object),

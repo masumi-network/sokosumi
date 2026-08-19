@@ -11,7 +11,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
-  OrchestratorAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -1841,33 +1840,6 @@ describe("requireConversationCoworkerAccess", () => {
     await requireConversationCoworkerAccess(userAuthContext, null, tx);
 
     expect(tx.coworker.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("is a no-op for orchestrator with context (acts as context user)", async () => {
-    const tx = createTransactionClient();
-    const orchestratorContext: OrchestratorAuthenticationContext = {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    };
-
-    await requireConversationCoworkerAccess(orchestratorContext, null, tx);
-
-    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("rejects bare orchestrator without context headers", async () => {
-    const tx = createTransactionClient();
-    const bareOrchestrator: OrchestratorAuthenticationContext = {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-    };
-
-    await expect(
-      requireConversationCoworkerAccess(bareOrchestrator, null, tx),
-    ).rejects.toThrow(
-      "Context headers (X-Context-User-Id) are required for this resource",
-    );
   });
 
   it("allows a delegated coworker on its own conversation (coworker_id)", async () => {

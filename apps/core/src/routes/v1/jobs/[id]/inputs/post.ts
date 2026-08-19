@@ -161,7 +161,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     if (provideInputResult.isErr()) {
-      throw unprocessableEntity(provideInputResult.error);
+      throw unprocessableEntity(provideInputResult.error.message);
     }
 
     const jobInput = await prisma.jobInput.create({

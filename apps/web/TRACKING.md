@@ -87,7 +87,7 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
 
 Marketplace app Hire (`agent_hired` / `use-job-submission`) was removed with
-SOK-805. Job starts via Hermes/Coworker/Core API are not tracked as a web GTM
+SOK-805. Job starts via Soko Bot/Coworker/Core API are not tracked as a web GTM
 conversion event yet.
 
 The two the business cares about most map cleanly:

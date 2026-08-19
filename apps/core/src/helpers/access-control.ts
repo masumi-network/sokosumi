@@ -14,7 +14,6 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  isOrchestratorAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -211,8 +210,8 @@ export function buildCoworkerUsableInWorkspaceWhere(
  * admin / assignment membership, or GRANTED workspace access on a personal or
  * org workspace the user belongs to.
  *
- * User-scoped (not single-workspace) — used by Hermes confirmation enrich
- * where instance context has no active workspace.
+ * User-scoped (not single-workspace) — used when delegated workflows need
+ * coworker metadata before a workspace is selected.
  */
 export function buildCoworkerVisibleToUserOr(
   userId: string,
@@ -592,10 +591,7 @@ export async function requireTaskCollaboration(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     const task = await requireTaskOwnership(userContext, taskId, tx);
     requireTaskNotParked(task);
@@ -628,7 +624,7 @@ export async function requireTaskCollaboration(
 }
 
 /**
- * Upload access for task files: task owner (user/orchestrator-as-user) or the
+ * Upload access for task files: task owner or the
  * assigned coworker (including coworker-with-context when they are the assignee).
  * Same rules as {@link requireTaskCollaboration}.
  */
@@ -647,10 +643,7 @@ export async function requireTaskCommentAccess(
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
     requireUserContext(authContext);
     const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
@@ -685,10 +678,7 @@ export async function requireTaskCancelAccess(
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     const workspace = requireWorkspaceContext(workspaceContext);
     const task = await requireTaskReadForWorkspace(workspace, taskId, tx);
@@ -774,10 +764,7 @@ export async function requireTaskReadForRouteVars(
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
     requireUserContext(authContext);
     const workspace = requireWorkspaceContext(workspaceContext);
     if (include) {
@@ -874,8 +861,6 @@ export async function resolveConversationCoworkerId(
  *
  * - User actors: no-op — ownership is already enforced by the `userId`-scoped
  *   query that loaded the conversation.
- * - Orchestrator with context headers: no-op — acts as the context user; ownership
- *   is enforced by the same `userId`-scoped query via {@link requireUserContext}.
  * - Delegated coworker actors: the conversation's bound coworker
  *   (`metadata.coworker_id` / `coworker_slug`) must equal the authenticated
  *   `coworkerId`. Delegation alone (user-exists + org-membership) is not enough;
@@ -892,17 +877,6 @@ export async function requireConversationCoworkerAccess(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
   if (isUserAuthContext(authContext)) {
-    return;
-  }
-
-  // Orchestrator acts as the context user; ownership is enforced by the
-  // caller’s userId-scoped query. Bare service token has no user scope.
-  if (isOrchestratorAuthContext(authContext)) {
-    if (!authContext.context) {
-      throw forbidden(
-        "Context headers (X-Context-User-Id) are required for this resource",
-      );
-    }
     return;
   }
 
@@ -932,8 +906,7 @@ export async function requireConversationCoworkerAccess(
  * is delegated. For coworker actors this stamps `coworker_id` to the
  * authenticated coworker and drops any client-supplied `coworker_slug`, so the
  * binding cannot diverge (the chat handler resolves the coworker from
- * `coworker_id`; the real slug is derived from it). No-op for user sessions and
- * orchestrator context actors. Bare orchestrator is rejected.
+ * `coworker_id`; the real slug is derived from it). No-op for user sessions.
  *
  * Mutates and returns the passed metadata object.
  */
@@ -942,15 +915,6 @@ export function pinCoworkerConversationBinding(
   metadata: Record<string, unknown>,
 ): Record<string, unknown> {
   if (isUserAuthContext(authContext)) {
-    return metadata;
-  }
-
-  if (isOrchestratorAuthContext(authContext)) {
-    if (!authContext.context) {
-      throw forbidden(
-        "Context headers (X-Context-User-Id) are required for this resource",
-      );
-    }
     return metadata;
   }
 
@@ -1015,10 +979,7 @@ export async function requireJobReadForRouteVars(
 ): Promise<Job> {
   const { authContext, workspaceContext } = vars;
 
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
     requireUserContext(authContext);
     return await requireJobRead(
       requireWorkspaceContext(workspaceContext),
@@ -1082,10 +1043,7 @@ export async function requireJobCollaboration(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
-  if (
-    isUserAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     const job = await requireJobOwnership(userContext, jobId, tx);
     await requireParentTaskNotParked(job, tx);

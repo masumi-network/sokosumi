@@ -82,14 +82,9 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
-  hermesMenuEnabled: boolean;
 }
 
-export default function Sidebar({
-  accountFooter,
-  chatList,
-  hermesMenuEnabled,
-}: SidebarProps) {
+export default function Sidebar({ accountFooter, chatList }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       {/*
@@ -105,8 +100,8 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
-          <PersonalAssistantNav enabled={hermesMenuEnabled} />
-          {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <PersonalAssistantNav />
+          <SidebarSeparator className="-mt-px" />
           <MenuItems />
           <SidebarSeparator />
           {chatList}

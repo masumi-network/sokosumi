@@ -174,6 +174,318 @@ export type AdminOrganizationOption = {
     slug: string;
 };
 
+export type AdminSokoBotList = {
+    items: Array<AdminSokoBotListItem>;
+    total: number;
+};
+
+export type AdminSokoBotListItem = {
+    id: string;
+    name: string | null;
+    status: SokoBotStatus;
+    autonomyLevel: SokoBotAutonomyLevel;
+    archivedAt: Date | null;
+    runtimeVersion: string | null;
+    runtimeDeployment: string | null;
+    lastActivityAt: Date | null;
+    lastSucceededAt: Date | null;
+    lastFailedAt: Date | null;
+    consecutiveTurnFailures: number;
+    turnCount: number;
+    pendingDecisionCount: number;
+    scheduleCount: number;
+    owner: AdminSokoBotOwner;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export const SokoBotStatus = {
+    IDLE: 'IDLE',
+    RUNNING: 'RUNNING',
+    PAUSED: 'PAUSED',
+    ERROR: 'ERROR'
+} as const;
+
+export type SokoBotStatus = typeof SokoBotStatus[keyof typeof SokoBotStatus];
+
+export const SokoBotAutonomyLevel = {
+    LOW: 'LOW',
+    MEDIUM: 'MEDIUM',
+    HIGH: 'HIGH'
+} as const;
+
+export type SokoBotAutonomyLevel = typeof SokoBotAutonomyLevel[keyof typeof SokoBotAutonomyLevel];
+
+export type AdminSokoBotOwner = {
+    id: string;
+    name: string | null;
+    email: string;
+};
+
+export type AdminSokoBotDetail = SokoBot & {
+    schedules: Array<AdminSokoBotSchedule>;
+    adminPausedAt: Date | null;
+    eveSessionId: string | null;
+    runtimeDeployment: string | null;
+    lastSandboxId: string | null;
+    archivedAt: Date | null;
+    owner: AdminSokoBotOwner;
+    turns: Array<AdminSokoBotTurn>;
+    memoryRevisions: Array<SokoBotMemory>;
+    adminActions: Array<SokoBotAdminAction>;
+    runtimeHealth: SokoBotRuntimeHealth;
+};
+
+export type SokoBotMemory = {
+    id: string;
+    version: number;
+    hash: string;
+    markdown: string;
+    source: string;
+    createdAt: Date;
+} | null;
+
+export type SokoBotLegacyMessage = {
+    id: string;
+    role: string;
+    content: string;
+    kind: string | null;
+    stepCount: number;
+    durationMs: number | null;
+    createdAt: Date;
+};
+
+export type SokoBotPendingDecision = {
+    id: string;
+    turnId: string;
+    toolName: string;
+    proposal: {
+        [key: string]: unknown;
+    };
+    reason: string;
+    status: 'PENDING' | 'PROCESSING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+    expiresAt: Date;
+    resolvedAt: Date | null;
+    resultingEntityId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AdminSokoBotSchedule = SokoBotSchedule & {
+    runs: Array<SokoBotScheduleRun>;
+};
+
+export type SokoBotScheduleRun = {
+    id: string;
+    turnId: string | null;
+    scheduledFor: Date;
+    status: 'PENDING' | 'CLAIMED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'DEAD_LETTER';
+    attempt: number;
+    errorKind: string | null;
+    errorDetail: string | null;
+    completedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SokoBotSchedule = {
+    id: string;
+    name: string;
+    enabled: boolean;
+    timezone: string;
+    cronExpression: string;
+    prompt: string;
+    nextRunAt: Date;
+    lastRunAt: Date | null;
+    consecutiveFailures: number;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AdminSokoBotTurn = SokoBotTurn & {
+    eveSessionId: string | null;
+    eveTurnId: string | null;
+    contextSnapshot: SokoBotContextSnapshot;
+    toolCalls: Array<SokoBotToolCall>;
+};
+
+export const SokoBotTurnStatus = {
+    QUEUED: 'QUEUED',
+    STARTING: 'STARTING',
+    RUNNING: 'RUNNING',
+    CANCEL_REQUESTED: 'CANCEL_REQUESTED',
+    COMPLETED: 'COMPLETED',
+    CANCELLED: 'CANCELLED',
+    FAILED: 'FAILED'
+} as const;
+
+export type SokoBotTurnStatus = typeof SokoBotTurnStatus[keyof typeof SokoBotTurnStatus];
+
+export const SokoBotTurnRoute = {
+    DIRECT_RESPONSE: 'DIRECT_RESPONSE',
+    CLARIFY: 'CLARIFY',
+    DELEGATE_TASK: 'DELEGATE_TASK',
+    HIRE_AGENT: 'HIRE_AGENT',
+    MANAGE_WORK: 'MANAGE_WORK',
+    MIXED: 'MIXED',
+    NULL: null
+} as const;
+
+export type SokoBotTurnRoute = typeof SokoBotTurnRoute[keyof typeof SokoBotTurnRoute];
+
+export type SokoBotTurnUsage = {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    costUsd: number;
+} | null;
+
+export type SokoBotEvent = {
+    id: string;
+    sequence: number;
+    type: string;
+    summary: string | null;
+    toolName: string | null;
+    toolCallId: string | null;
+    toolStatus: string | null;
+    durationMs: number | null;
+    providerAt: Date | null;
+    createdAt: Date;
+};
+
+export type SokoBotDelegation = {
+    id: string;
+    kind: 'TASK' | 'JOB';
+    action: string;
+    outcome: string | null;
+    error: string | null;
+    taskId: string | null;
+    jobId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SokoBotContextSnapshot = {
+    id: string;
+    schemaVersion: number;
+    hash: string;
+    packet?: unknown;
+    byteSize: number;
+    tokenEstimate: number;
+    counts?: unknown;
+    omissions?: unknown;
+    generatedAt: Date;
+    createdAt: Date;
+} | null;
+
+export type SokoBotToolCall = {
+    id: string;
+    toolCallId: string;
+    capability: string;
+    inputHash: string;
+    status: 'PENDING' | 'COMPLETED' | 'FAILED';
+    result?: unknown;
+    errorKind: string | null;
+    errorDetail: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SokoBotTurn = {
+    id: string;
+    sokoBotId: string;
+    workspaceId: string;
+    source: 'CHAT' | 'SCHEDULE' | 'ADMIN_RETRY';
+    status: SokoBotTurnStatus;
+    route: SokoBotTurnRoute;
+    clientTurnId: string;
+    userMessage: string;
+    finalAnswer: string | null;
+    classification: {
+        [key: string]: unknown;
+    } | null;
+    classifierModel: string | null;
+    classifierVersion: string | null;
+    classifierLatencyMs: number | null;
+    classificationFailed: boolean;
+    capabilityNames: Array<string>;
+    modelId: string | null;
+    runtimeVersion: string | null;
+    usage: SokoBotTurnUsage;
+    deadlineAt: Date;
+    cancellationRequestedAt: Date | null;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    durationMs: number | null;
+    errorKind: string | null;
+    errorDetail: string | null;
+    events?: Array<SokoBotEvent>;
+    delegations?: Array<SokoBotDelegation>;
+    pendingDecisions?: Array<SokoBotPendingDecision>;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SokoBotAdminAction = {
+    id: string;
+    operationId: string;
+    status: 'ATTEMPTED' | 'SUCCEEDED' | 'FAILED';
+    operatorId: string;
+    action: string;
+    targetId: string | null;
+    reason: string;
+    before?: unknown;
+    after?: unknown;
+    errorKind: string | null;
+    errorDetail: string | null;
+    requestId: string | null;
+    traceId: string | null;
+    createdAt: Date;
+};
+
+export type SokoBotRuntimeHealth = {
+    healthy: boolean;
+    runtimeVersion: string;
+    sessionStatus: string | null;
+    checkedAt: Date;
+    errorKind: string | null;
+} | null;
+
+export type SokoBot = {
+    id: string;
+    userId: string;
+    name: string | null;
+    avatarSeed: string | null;
+    personalityTone: number | null;
+    personalityDetail: number | null;
+    personalityStyle: number | null;
+    autonomyLevel: SokoBotAutonomyLevel;
+    status: SokoBotStatus;
+    runtimeVersion: string | null;
+    lastSandboxStatus: string | null;
+    memoryVersion: number;
+    memoryHash: string | null;
+    lastActivityAt: Date | null;
+    lastTurnAt: Date | null;
+    lastSucceededAt: Date | null;
+    lastFailedAt: Date | null;
+    consecutiveTurnFailures: number;
+    memory?: SokoBotMemory;
+    legacyMessages?: Array<SokoBotLegacyMessage>;
+    pendingDecisions?: Array<SokoBotPendingDecision>;
+    schedules?: Array<SokoBotSchedule>;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AdminSokoBotActionRequest = {
+    operationId: string;
+    action: 'PAUSE' | 'RESUME' | 'RESET_SESSION' | 'RESET_MEMORY' | 'RETRY_LAST_FAILED' | 'RETRY_SCHEDULE_RUN' | 'DISABLE_SCHEDULE';
+    targetId?: string;
+    reason: string;
+};
+
 export type AdminUserOverviewItem = {
     id: string;
     name: string;
@@ -847,14 +1159,14 @@ export type TaskFile = {
     updatedAt: Date;
     name: string;
     fileUrl: string | null;
+    mimeType: string | null;
+    size: number | null;
+    status: TaskFileStatus;
+    origin: TaskFileOrigin;
     /**
      * Original source URL for output files
      */
     sourceUrl: string | null;
-    status: TaskFileStatus;
-    origin: TaskFileOrigin;
-    mimeType: string | null;
-    size: number | null;
     uploader: TaskFileUploader;
 };
 
@@ -2482,408 +2794,6 @@ export type ActivateEnterpriseContractRequest = {
     paymentReference?: string;
 };
 
-export type HermesChatResponse = {
-    message: {
-        role: 'assistant';
-        content: string;
-    };
-};
-
-export type HermesInstanceNotReady = {
-    status: HermesInstanceStatus | 'missing';
-};
-
-export const HermesInstanceStatus = {
-    PROVISIONING: 'provisioning',
-    INFRASTRUCTURE_READY: 'infrastructure_ready',
-    ONBOARDING: 'onboarding',
-    READY: 'ready',
-    RUNNING: 'running',
-    SUSPENDED: 'suspended',
-    ERROR: 'error'
-} as const;
-
-export type HermesInstanceStatus = typeof HermesInstanceStatus[keyof typeof HermesInstanceStatus];
-
-export type HermesChatRequest = {
-    content?: string;
-    files?: Array<HermesUploadedFile>;
-};
-
-export type HermesUploadedFile = {
-    name: string;
-    type: string;
-    dataUrl: string;
-};
-
-export type HermesGetInstanceEnvelope = HermesGetInstanceNone | HermesGetInstanceSome;
-
-export type HermesGetInstanceNone = {
-    hasInstance: false;
-};
-
-export type HermesGetInstanceSome = {
-    hasInstance: true;
-    instance: HermesInstance;
-};
-
-export type HermesInstance = {
-    status: HermesInstanceStatus;
-    endpointUrl: string | null;
-    lastActivityAt: Date | null;
-    onboardedAt: Date | null;
-    assistantName?: string | null;
-    avatarSeed?: string | null;
-    personality?: HermesPersonality;
-    autonomyLevel?: HermesAutonomyLevel;
-    model?: string | null;
-    modelProvider?: string | null;
-    integrations: Array<HermesIntegration>;
-    transitioning?: boolean;
-    lastSokosumiSyncAt?: Date | null;
-    lastInboxRefreshAt?: Date | null;
-    timezone?: string | null;
-    pendingConfirmations?: Array<HermesPendingConfirmation>;
-};
-
-export type HermesPersonality = {
-    tone?: number;
-    detail?: number;
-    style?: number;
-} | null;
-
-export const HermesAutonomyLevel = {
-    LOW: 'low',
-    MEDIUM: 'medium',
-    HIGH: 'high'
-} as const;
-
-export type HermesAutonomyLevel = typeof HermesAutonomyLevel[keyof typeof HermesAutonomyLevel];
-
-export type HermesIntegration = {
-    provider: HermesIntegrationProvider;
-    status: HermesIntegrationStatus;
-    connectedAt: Date | null;
-    mode?: HermesIntegrationMode;
-};
-
-export const HermesIntegrationProvider = {
-    GMAIL: 'gmail',
-    GOOGLE_CALENDAR: 'google_calendar',
-    GOOGLE_SHEETS: 'google_sheets',
-    GOOGLE_DOCS: 'google_docs',
-    OUTLOOK: 'outlook',
-    OUTLOOK_CALENDAR: 'outlook_calendar',
-    SLACK: 'slack',
-    TEAMS: 'teams',
-    LINEAR: 'linear',
-    JIRA: 'jira',
-    GITHUB: 'github',
-    NOTION: 'notion',
-    HUBSPOT: 'hubspot',
-    TWITTER: 'twitter',
-    INSTAGRAM: 'instagram',
-    YOUTUBE: 'youtube',
-    LINKEDIN: 'linkedin'
-} as const;
-
-export type HermesIntegrationProvider = typeof HermesIntegrationProvider[keyof typeof HermesIntegrationProvider];
-
-export const HermesIntegrationStatus = {
-    DISCONNECTED: 'disconnected',
-    CONNECTING: 'connecting',
-    CONNECTED: 'connected',
-    ERROR: 'error'
-} as const;
-
-export type HermesIntegrationStatus = typeof HermesIntegrationStatus[keyof typeof HermesIntegrationStatus];
-
-export const HermesIntegrationMode = { READ: 'read', WRITE: 'write' } as const;
-
-export type HermesIntegrationMode = typeof HermesIntegrationMode[keyof typeof HermesIntegrationMode];
-
-export type HermesPendingConfirmation = {
-    id: string;
-    toolName: string;
-    summary: string;
-    createdAt: Date;
-    referencedCoworkers?: Array<HermesConfirmationCoworkerRef>;
-    referencedOrganizations?: Array<HermesConfirmationOrganizationRef>;
-    organizationId?: string | null;
-    organizationName?: string | null;
-};
-
-export type HermesConfirmationCoworkerRef = {
-    id: string;
-    name: string;
-    image: string | null;
-};
-
-export type HermesConfirmationOrganizationRef = {
-    id: string;
-    name: string;
-    slug: string | null;
-};
-
-export type HermesUpdateInstanceRequest = {
-    autonomyLevel?: HermesAutonomyLevel;
-    name?: string;
-    assistantName?: string;
-    avatarSeed?: string | null;
-    email?: string;
-    timezone?: string;
-};
-
-export type HermesEmptyResponse = {
-    ok: true;
-};
-
-export type HermesPersistedMessage = {
-    id: string;
-    role: HermesChatMessageRole;
-    content: string;
-    kind: string | null;
-    /**
-     * Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.
-     */
-    steps?: Array<{
-        kind?: 'tool' | 'reasoning';
-        label: string;
-        detail?: string;
-    }> | null;
-    /**
-     * Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.
-     */
-    durationMs?: number | null;
-    createdAt: Date;
-};
-
-export const HermesChatMessageRole = {
-    USER: 'user',
-    ASSISTANT: 'assistant',
-    SYSTEM: 'system'
-} as const;
-
-export type HermesChatMessageRole = typeof HermesChatMessageRole[keyof typeof HermesChatMessageRole];
-
-export type HermesUnreadCount = {
-    count: number;
-    avatarSeed?: string | null;
-    assistantName?: string | null;
-    hasInstance?: boolean;
-};
-
-export type MarkHermesInboxSeenRequest = {
-    asOfIso?: Date;
-};
-
-export type SetHermesSecretRequest = {
-    key: string;
-    value: string;
-};
-
-export type HermesStartOnboardingRequest = {
-    name?: string;
-    assistantName?: string;
-    avatarSeed?: string;
-    email?: string;
-    role?: string;
-    company?: string;
-    researchDepth?: 'deep' | 'light';
-    personality?: HermesPersonality;
-    autonomyLevel?: HermesAutonomyLevel;
-};
-
-export type HermesOnboardingProgress = {
-    status: HermesInstanceStatus;
-    steps: Array<HermesOnboardingStep>;
-    etaSeconds: number | null;
-};
-
-export type HermesOnboardingStep = {
-    id: string;
-    label: string;
-    status: HermesOnboardingStepStatus;
-    errorMessage?: string | null;
-};
-
-export const HermesOnboardingStepStatus = {
-    PENDING: 'pending',
-    RUNNING: 'running',
-    DONE: 'done',
-    SKIPPED: 'skipped',
-    ERROR: 'error'
-} as const;
-
-export type HermesOnboardingStepStatus = typeof HermesOnboardingStepStatus[keyof typeof HermesOnboardingStepStatus];
-
-export type HermesIntegrationsList = {
-    integrations: Array<HermesIntegration>;
-};
-
-export type HermesSchedulesList = {
-    schedules: Array<HermesSchedule>;
-};
-
-export type HermesSchedule = {
-    id: string;
-    source: HermesScheduleSource;
-    kind: HermesScheduleKind;
-    name: string;
-    description?: string | null;
-    cronExpr: string;
-    timezone?: string | null;
-    enabled: boolean;
-    lastRunAt: Date | null;
-    nextRunAt: Date | null;
-    systemManaged: boolean;
-    addressable?: boolean;
-};
-
-export const HermesScheduleSource = { ORCHESTRATOR: 'orchestrator', HERMES: 'hermes' } as const;
-
-export type HermesScheduleSource = typeof HermesScheduleSource[keyof typeof HermesScheduleSource];
-
-export const HermesScheduleKind = {
-    USER: 'user',
-    SYSTEM_PROMPT: 'system_prompt',
-    SYSTEM_SWEEP: 'system_sweep'
-} as const;
-
-export type HermesScheduleKind = typeof HermesScheduleKind[keyof typeof HermesScheduleKind];
-
-export type HermesPatchScheduleRequest = {
-    enabled?: boolean;
-};
-
-export type HermesConfirmationResolveResponse = {
-    status: HermesConfirmationStatus;
-    result?: string | null;
-    error?: string | null;
-};
-
-export const HermesConfirmationStatus = {
-    APPROVED: 'approved',
-    REJECTED: 'rejected',
-    ERRORED: 'errored',
-    ALREADY_RESOLVED: 'already_resolved'
-} as const;
-
-export type HermesConfirmationStatus = typeof HermesConfirmationStatus[keyof typeof HermesConfirmationStatus];
-
-export type HermesApproveConfirmationRequest = {
-    overrides?: {
-        organizationId?: string | null;
-    };
-    confirmation?: HermesPendingConfirmation;
-};
-
-export type HermesRejectConfirmationRequest = {
-    reason?: string;
-    confirmation?: HermesPendingConfirmation;
-};
-
-export type HermesInitiateIntegrationResponse = {
-    provider: HermesIntegrationProvider;
-    redirectUrl: string;
-    connectionId: string;
-};
-
-export type HermesInitiateIntegrationRequest = {
-    provider: HermesIntegrationProvider;
-    mode?: HermesIntegrationMode;
-};
-
-export type HermesFinalizeIntegrationRequest = {
-    provider: HermesIntegrationProvider;
-    connectionId: string;
-    mode?: HermesIntegrationMode;
-};
-
-export type SkillCatalogList = {
-    skills: Array<SkillCatalogItem>;
-};
-
-export type SkillCatalogItem = {
-    skillId: string;
-    source: string;
-    slug: string;
-    name: string;
-    description: string | null;
-    installs: number | null;
-    curated: boolean;
-};
-
-export type SkillCatalogDetail = SkillCatalogItem & {
-    hash: string | null;
-    installUrl: string | null;
-    auditRisk: SkillsRiskLevel;
-    audits: Array<SkillAuditEntry>;
-};
-
-export const SkillsRiskLevel = {
-    NONE: 'NONE',
-    LOW: 'LOW',
-    MEDIUM: 'MEDIUM',
-    HIGH: 'HIGH',
-    CRITICAL: 'CRITICAL',
-    NULL: null
-} as const;
-
-export type SkillsRiskLevel = typeof SkillsRiskLevel[keyof typeof SkillsRiskLevel];
-
-export type SkillAuditEntry = {
-    provider: string;
-    status: SkillsAuditStatus;
-    riskLevel: SkillsRiskLevel;
-};
-
-export const SkillsAuditStatus = {
-    PASS: 'pass',
-    WARN: 'warn',
-    FAIL: 'fail'
-} as const;
-
-export type SkillsAuditStatus = typeof SkillsAuditStatus[keyof typeof SkillsAuditStatus];
-
-export type InstalledSkillsList = {
-    skills: Array<InstalledSkill>;
-};
-
-export type InstalledSkill = {
-    skillId: string;
-    source: string;
-    slug: string;
-    name: string;
-    auditRisk: SkillsRiskLevel;
-    status: InstalledSkillStatus;
-    installedAt: string | null;
-};
-
-export const InstalledSkillStatus = { INSTALLED: 'installed', INSTALLING: 'installing' } as const;
-
-export type InstalledSkillStatus = typeof InstalledSkillStatus[keyof typeof InstalledSkillStatus];
-
-export type PreinstalledSkillsList = {
-    skills: Array<PreinstalledSkill>;
-};
-
-export type PreinstalledSkill = {
-    slug: string;
-    name: string;
-    description: string | null;
-};
-
-export type InstallSkillResponse = {
-    slug: string;
-    status: InstalledSkillStatus;
-};
-
-export type InstallSkillRequest = {
-    source: string;
-    slug: string;
-};
-
 export type HistoryList = Array<HistoryItem>;
 
 export type HistoryItem = ({
@@ -4190,6 +4100,66 @@ export type PublicSharedTaskFile = {
     createdAt: Date;
 };
 
+export type SokoBotState = {
+    sokoBot: SokoBot | null;
+};
+
+export type CreateSokoBotRequest = {
+    name: string;
+    avatarSeed?: string | null;
+    personalityTone?: number | null;
+    personalityDetail?: number | null;
+    personalityStyle?: number | null;
+    autonomyLevel?: SokoBotAutonomyLevel;
+};
+
+export type StartSokoBotTurnResponse = {
+    turnId: string;
+    sokoBotId: string;
+    sessionId: string;
+    status: string;
+    route: SokoBotTurnRoute;
+    capabilities: Array<string>;
+    duplicate: boolean;
+};
+
+export type StartSokoBotTurnRequest = {
+    clientTurnId: string;
+    message: string;
+};
+
+export type CreateSokoBotScheduleRequest = {
+    name: string;
+    timezone: string;
+    cronExpression: string;
+    prompt: string;
+};
+
+export type UpdateSokoBotScheduleRequest = {
+    name?: string;
+    enabled?: boolean;
+    timezone?: string;
+    cronExpression?: string;
+    prompt?: string;
+};
+
+export type ResolveSokoBotDecisionRequest = {
+    resolution: 'ACCEPT' | 'REJECT';
+};
+
+export type SokoBotRuntimeError = {
+    error: string;
+    message: string;
+    kind?: string;
+    retryable: boolean;
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -4317,27 +4287,6 @@ export type CoworkerWorkspaceAccessTarget = {
      * Organization slug — resolves (or creates) the org workspace. Prefer for vendor targeting without directory search.
      */
     organizationSlug?: string;
-};
-
-export type OrchestratorUsage = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    idempotencyKey: string;
-    referenceId: string | null;
-    orchestratorId: string;
-    userId: string;
-    credits: number;
-    transactionId: string;
-};
-
-export type OrchestratorPurgeResponse = {
-    purged: true;
-    userId: string;
-};
-
-export type OrchestratorPurgeRequest = {
-    userId: string;
 };
 
 export type TaskListItem = {
@@ -4851,24 +4800,14 @@ export type WorkspaceOrganization = {
 export type OrganizationSlug = string;
 
 /**
- * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+ * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
  */
 export type ContextUserId = string;
 
 /**
- * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+ * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
  */
 export type ContextOrganizationId = string;
-
-/**
- * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
- */
-export type OrchestratorContextUserId = string;
-
-/**
- * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
- */
-export type OrchestratorContextOrganizationId = string;
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -5311,6 +5250,241 @@ export type SearchAdminOrganizationsResponses = {
 };
 
 export type SearchAdminOrganizationsResponse = SearchAdminOrganizationsResponses[keyof SearchAdminOrganizationsResponses];
+
+export type ListAdminSokoBotsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        query?: string;
+    };
+    url: '/admin/soko-bots';
+};
+
+export type ListAdminSokoBotsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotsError = ListAdminSokoBotsErrors[keyof ListAdminSokoBotsErrors];
+
+export type ListAdminSokoBotsResponses = {
+    /**
+     * Soko Bot fleet
+     */
+    200: {
+        data: AdminSokoBotList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotsResponse = ListAdminSokoBotsResponses[keyof ListAdminSokoBotsResponses];
+
+export type GetAdminSokoBotData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}';
+};
+
+export type GetAdminSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotError = GetAdminSokoBotErrors[keyof GetAdminSokoBotErrors];
+
+export type GetAdminSokoBotResponses = {
+    /**
+     * Soko Bot diagnostics
+     */
+    200: {
+        data: AdminSokoBotDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotResponse = GetAdminSokoBotResponses[keyof GetAdminSokoBotResponses];
+
+export type PerformAdminSokoBotActionData = {
+    body?: AdminSokoBotActionRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/actions';
+};
+
+export type PerformAdminSokoBotActionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PerformAdminSokoBotActionError = PerformAdminSokoBotActionErrors[keyof PerformAdminSokoBotActionErrors];
+
+export type PerformAdminSokoBotActionResponses = {
+    /**
+     * Updated Soko Bot diagnostics
+     */
+    200: {
+        data: AdminSokoBotDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -7931,11 +8105,11 @@ export type GetAgentsByIdReviewsMeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8017,11 +8191,11 @@ export type GetAgentsByIdRatingsEligibilityData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -8103,11 +8277,11 @@ export type PostAgentsByIdRatingsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -9216,11 +9390,11 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -10274,14 +10448,6 @@ export type PostAgentsByIdJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17365,2252 +17531,6 @@ export type PostEnterpriseContractsByIdCancelResponses = {
 
 export type PostEnterpriseContractsByIdCancelResponse = PostEnterpriseContractsByIdCancelResponses[keyof PostEnterpriseContractsByIdCancelResponses];
 
-export type PostHermesChatData = {
-    body?: HermesChatRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/chat';
-};
-
-export type PostHermesChatErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * assistant instance is not ready. Uses the standard data/meta envelope with only data.status.
-     */
-    409: {
-        data: HermesInstanceNotReady;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-    /**
-     * Payload Too Large
-     */
-    413: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesChatError = PostHermesChatErrors[keyof PostHermesChatErrors];
-
-export type PostHermesChatResponses = {
-    /**
-     * assistant chat response. The assistant message is returned as data.message.
-     */
-    200: {
-        data: HermesChatResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesChatResponse = PostHermesChatResponses[keyof PostHermesChatResponses];
-
-export type DeleteHermesMeInstanceData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance';
-};
-
-export type DeleteHermesMeInstanceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteHermesMeInstanceError = DeleteHermesMeInstanceErrors[keyof DeleteHermesMeInstanceErrors];
-
-export type DeleteHermesMeInstanceResponses = {
-    /**
-     * assistant instance destroyed
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteHermesMeInstanceResponse = DeleteHermesMeInstanceResponses[keyof DeleteHermesMeInstanceResponses];
-
-export type GetHermesMeInstanceData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance';
-};
-
-export type GetHermesMeInstanceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceError = GetHermesMeInstanceErrors[keyof GetHermesMeInstanceErrors];
-
-export type GetHermesMeInstanceResponses = {
-    /**
-     * assistant instance (data.instance is null when none exists)
-     */
-    200: {
-        data: HermesGetInstanceEnvelope;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceResponse = GetHermesMeInstanceResponses[keyof GetHermesMeInstanceResponses];
-
-export type PatchHermesMeInstanceData = {
-    body?: HermesUpdateInstanceRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance';
-};
-
-export type PatchHermesMeInstanceErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchHermesMeInstanceError = PatchHermesMeInstanceErrors[keyof PatchHermesMeInstanceErrors];
-
-export type PatchHermesMeInstanceResponses = {
-    /**
-     * Updated assistant instance
-     */
-    200: {
-        data: HermesInstance;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchHermesMeInstanceResponse = PatchHermesMeInstanceResponses[keyof PatchHermesMeInstanceResponses];
-
-export type PostHermesMeInstanceData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance';
-};
-
-export type PostHermesMeInstanceErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceError = PostHermesMeInstanceErrors[keyof PostHermesMeInstanceErrors];
-
-export type PostHermesMeInstanceResponses = {
-    /**
-     * assistant instance
-     */
-    200: {
-        data: HermesInstance;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceResponse = PostHermesMeInstanceResponses[keyof PostHermesMeInstanceResponses];
-
-export type GetHermesMeMessagesData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/hermes/me/messages';
-};
-
-export type GetHermesMeMessagesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeMessagesError = GetHermesMeMessagesErrors[keyof GetHermesMeMessagesErrors];
-
-export type GetHermesMeMessagesResponses = {
-    /**
-     * assistant messages
-     */
-    200: {
-        data: Array<HermesPersistedMessage>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeMessagesResponse = GetHermesMeMessagesResponses[keyof GetHermesMeMessagesResponses];
-
-export type GetHermesMeUnreadCountData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/unread-count';
-};
-
-export type GetHermesMeUnreadCountErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeUnreadCountError = GetHermesMeUnreadCountErrors[keyof GetHermesMeUnreadCountErrors];
-
-export type GetHermesMeUnreadCountResponses = {
-    /**
-     * Hermes unread count
-     */
-    200: {
-        data: HermesUnreadCount;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeUnreadCountResponse = GetHermesMeUnreadCountResponses[keyof GetHermesMeUnreadCountResponses];
-
-export type PostHermesMeInboxSeenData = {
-    body?: MarkHermesInboxSeenRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/inbox/seen';
-};
-
-export type PostHermesMeInboxSeenErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInboxSeenError = PostHermesMeInboxSeenErrors[keyof PostHermesMeInboxSeenErrors];
-
-export type PostHermesMeInboxSeenResponses = {
-    /**
-     * assistant inbox marked seen
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInboxSeenResponse = PostHermesMeInboxSeenResponses[keyof PostHermesMeInboxSeenResponses];
-
-export type PostHermesMeSecretsData = {
-    body?: SetHermesSecretRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/secrets';
-};
-
-export type PostHermesMeSecretsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeSecretsError = PostHermesMeSecretsErrors[keyof PostHermesMeSecretsErrors];
-
-export type PostHermesMeSecretsResponses = {
-    /**
-     * assistant secret set
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeSecretsResponse = PostHermesMeSecretsResponses[keyof PostHermesMeSecretsResponses];
-
-export type PostHermesMeInstanceOnboardData = {
-    body?: HermesStartOnboardingRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/onboard';
-};
-
-export type PostHermesMeInstanceOnboardErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceOnboardError = PostHermesMeInstanceOnboardErrors[keyof PostHermesMeInstanceOnboardErrors];
-
-export type PostHermesMeInstanceOnboardResponses = {
-    /**
-     * Onboarding kicked off; poll /me/instance and /me/instance/onboarding-progress
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceOnboardResponse = PostHermesMeInstanceOnboardResponses[keyof PostHermesMeInstanceOnboardResponses];
-
-export type GetHermesMeInstanceOnboardingProgressData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/onboarding-progress';
-};
-
-export type GetHermesMeInstanceOnboardingProgressErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceOnboardingProgressError = GetHermesMeInstanceOnboardingProgressErrors[keyof GetHermesMeInstanceOnboardingProgressErrors];
-
-export type GetHermesMeInstanceOnboardingProgressResponses = {
-    /**
-     * Onboarding progress
-     */
-    200: {
-        data: HermesOnboardingProgress;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceOnboardingProgressResponse = GetHermesMeInstanceOnboardingProgressResponses[keyof GetHermesMeInstanceOnboardingProgressResponses];
-
-export type GetHermesMeInstanceIntegrationsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/integrations';
-};
-
-export type GetHermesMeInstanceIntegrationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceIntegrationsError = GetHermesMeInstanceIntegrationsErrors[keyof GetHermesMeInstanceIntegrationsErrors];
-
-export type GetHermesMeInstanceIntegrationsResponses = {
-    /**
-     * Connected integrations
-     */
-    200: {
-        data: HermesIntegrationsList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceIntegrationsResponse = GetHermesMeInstanceIntegrationsResponses[keyof GetHermesMeInstanceIntegrationsResponses];
-
-export type GetHermesMeInstanceSchedulesData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/schedules';
-};
-
-export type GetHermesMeInstanceSchedulesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSchedulesError = GetHermesMeInstanceSchedulesErrors[keyof GetHermesMeInstanceSchedulesErrors];
-
-export type GetHermesMeInstanceSchedulesResponses = {
-    /**
-     * Scheduled tasks
-     */
-    200: {
-        data: HermesSchedulesList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSchedulesResponse = GetHermesMeInstanceSchedulesResponses[keyof GetHermesMeInstanceSchedulesResponses];
-
-export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
-    body?: HermesPatchScheduleRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        scheduleId: string;
-    };
-    query?: never;
-    url: '/hermes/me/instance/schedules/{scheduleId}';
-};
-
-export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchHermesMeInstanceSchedulesByScheduleIdError = PatchHermesMeInstanceSchedulesByScheduleIdErrors[keyof PatchHermesMeInstanceSchedulesByScheduleIdErrors];
-
-export type PatchHermesMeInstanceSchedulesByScheduleIdResponses = {
-    /**
-     * Updated schedule
-     */
-    200: {
-        data: HermesSchedule;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchHermesMeInstanceSchedulesByScheduleIdResponse = PatchHermesMeInstanceSchedulesByScheduleIdResponses[keyof PatchHermesMeInstanceSchedulesByScheduleIdResponses];
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
-    body?: HermesApproveConfirmationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        confirmationId: string;
-    };
-    query?: never;
-    url: '/hermes/me/instance/confirmations/{confirmationId}/approve';
-};
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveError = PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors[keyof PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors];
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses = {
-    /**
-     * Confirmation resolved
-     */
-    200: {
-        data: HermesConfirmationResolveResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponse = PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses[keyof PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses];
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
-    body?: HermesRejectConfirmationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        confirmationId: string;
-    };
-    query?: never;
-    url: '/hermes/me/instance/confirmations/{confirmationId}/reject';
-};
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectError = PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors[keyof PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors];
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses = {
-    /**
-     * Confirmation rejected
-     */
-    200: {
-        data: HermesConfirmationResolveResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponse = PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses[keyof PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses];
-
-export type DeleteHermesMeInstanceIntegrationsByProviderData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        provider: HermesIntegrationProvider;
-    };
-    query?: never;
-    url: '/hermes/me/instance/integrations/{provider}';
-};
-
-export type DeleteHermesMeInstanceIntegrationsByProviderErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteHermesMeInstanceIntegrationsByProviderError = DeleteHermesMeInstanceIntegrationsByProviderErrors[keyof DeleteHermesMeInstanceIntegrationsByProviderErrors];
-
-export type DeleteHermesMeInstanceIntegrationsByProviderResponses = {
-    /**
-     * Integration disconnected
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteHermesMeInstanceIntegrationsByProviderResponse = DeleteHermesMeInstanceIntegrationsByProviderResponses[keyof DeleteHermesMeInstanceIntegrationsByProviderResponses];
-
-export type PostHermesMeInstanceIntegrationsInitiateData = {
-    body?: HermesInitiateIntegrationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/integrations/initiate';
-};
-
-export type PostHermesMeInstanceIntegrationsInitiateErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceIntegrationsInitiateError = PostHermesMeInstanceIntegrationsInitiateErrors[keyof PostHermesMeInstanceIntegrationsInitiateErrors];
-
-export type PostHermesMeInstanceIntegrationsInitiateResponses = {
-    /**
-     * OAuth flow initiated
-     */
-    200: {
-        data: HermesInitiateIntegrationResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceIntegrationsInitiateResponse = PostHermesMeInstanceIntegrationsInitiateResponses[keyof PostHermesMeInstanceIntegrationsInitiateResponses];
-
-export type PostHermesMeInstanceIntegrationsFinalizeData = {
-    body?: HermesFinalizeIntegrationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/integrations/finalize';
-};
-
-export type PostHermesMeInstanceIntegrationsFinalizeErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceIntegrationsFinalizeError = PostHermesMeInstanceIntegrationsFinalizeErrors[keyof PostHermesMeInstanceIntegrationsFinalizeErrors];
-
-export type PostHermesMeInstanceIntegrationsFinalizeResponses = {
-    /**
-     * Integration finalized
-     */
-    200: {
-        data: HermesIntegration;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceIntegrationsFinalizeResponse = PostHermesMeInstanceIntegrationsFinalizeResponses[keyof PostHermesMeInstanceIntegrationsFinalizeResponses];
-
-export type GetHermesMeInstanceSkillsCatalogData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: {
-        view?: 'trending' | 'hot' | 'all-time';
-        page?: number;
-        perPage?: number;
-    };
-    url: '/hermes/me/instance/skills/catalog';
-};
-
-export type GetHermesMeInstanceSkillsCatalogErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogError = GetHermesMeInstanceSkillsCatalogErrors[keyof GetHermesMeInstanceSkillsCatalogErrors];
-
-export type GetHermesMeInstanceSkillsCatalogResponses = {
-    /**
-     * Skills catalog
-     */
-    200: {
-        data: SkillCatalogList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogResponse = GetHermesMeInstanceSkillsCatalogResponses[keyof GetHermesMeInstanceSkillsCatalogResponses];
-
-export type GetHermesMeInstanceSkillsCatalogSearchData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query: {
-        q: string;
-        limit?: number;
-    };
-    url: '/hermes/me/instance/skills/catalog/search';
-};
-
-export type GetHermesMeInstanceSkillsCatalogSearchErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogSearchError = GetHermesMeInstanceSkillsCatalogSearchErrors[keyof GetHermesMeInstanceSkillsCatalogSearchErrors];
-
-export type GetHermesMeInstanceSkillsCatalogSearchResponses = {
-    /**
-     * Search results
-     */
-    200: {
-        data: SkillCatalogList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogSearchResponse = GetHermesMeInstanceSkillsCatalogSearchResponses[keyof GetHermesMeInstanceSkillsCatalogSearchResponses];
-
-export type GetHermesMeInstanceSkillsCatalogCuratedData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/skills/catalog/curated';
-};
-
-export type GetHermesMeInstanceSkillsCatalogCuratedErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogCuratedError = GetHermesMeInstanceSkillsCatalogCuratedErrors[keyof GetHermesMeInstanceSkillsCatalogCuratedErrors];
-
-export type GetHermesMeInstanceSkillsCatalogCuratedResponses = {
-    /**
-     * Curated skills
-     */
-    200: {
-        data: SkillCatalogList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogCuratedResponse = GetHermesMeInstanceSkillsCatalogCuratedResponses[keyof GetHermesMeInstanceSkillsCatalogCuratedResponses];
-
-export type GetHermesMeInstanceSkillsCatalogDetailData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query: {
-        source: string;
-        slug: string;
-    };
-    url: '/hermes/me/instance/skills/catalog/detail';
-};
-
-export type GetHermesMeInstanceSkillsCatalogDetailErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogDetailError = GetHermesMeInstanceSkillsCatalogDetailErrors[keyof GetHermesMeInstanceSkillsCatalogDetailErrors];
-
-export type GetHermesMeInstanceSkillsCatalogDetailResponses = {
-    /**
-     * Skill detail
-     */
-    200: {
-        data: SkillCatalogDetail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsCatalogDetailResponse = GetHermesMeInstanceSkillsCatalogDetailResponses[keyof GetHermesMeInstanceSkillsCatalogDetailResponses];
-
-export type GetHermesMeInstanceSkillsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/skills';
-};
-
-export type GetHermesMeInstanceSkillsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsError = GetHermesMeInstanceSkillsErrors[keyof GetHermesMeInstanceSkillsErrors];
-
-export type GetHermesMeInstanceSkillsResponses = {
-    /**
-     * Installed skills
-     */
-    200: {
-        data: InstalledSkillsList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsResponse = GetHermesMeInstanceSkillsResponses[keyof GetHermesMeInstanceSkillsResponses];
-
-export type PostHermesMeInstanceSkillsData = {
-    body: InstallSkillRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/skills';
-};
-
-export type PostHermesMeInstanceSkillsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Skill blocked for safety
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Slug conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceSkillsError = PostHermesMeInstanceSkillsErrors[keyof PostHermesMeInstanceSkillsErrors];
-
-export type PostHermesMeInstanceSkillsResponses = {
-    /**
-     * Install accepted
-     */
-    200: {
-        data: InstallSkillResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceSkillsResponse = PostHermesMeInstanceSkillsResponses[keyof PostHermesMeInstanceSkillsResponses];
-
-export type GetHermesMeInstanceSkillsPreinstalledData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/skills/preinstalled';
-};
-
-export type GetHermesMeInstanceSkillsPreinstalledErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsPreinstalledError = GetHermesMeInstanceSkillsPreinstalledErrors[keyof GetHermesMeInstanceSkillsPreinstalledErrors];
-
-export type GetHermesMeInstanceSkillsPreinstalledResponses = {
-    /**
-     * Pre-installed skills
-     */
-    200: {
-        data: PreinstalledSkillsList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetHermesMeInstanceSkillsPreinstalledResponse = GetHermesMeInstanceSkillsPreinstalledResponses[keyof GetHermesMeInstanceSkillsPreinstalledResponses];
-
-export type DeleteHermesMeInstanceSkillsBySlugData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        slug: string;
-    };
-    query?: never;
-    url: '/hermes/me/instance/skills/{slug}';
-};
-
-export type DeleteHermesMeInstanceSkillsBySlugErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteHermesMeInstanceSkillsBySlugError = DeleteHermesMeInstanceSkillsBySlugErrors[keyof DeleteHermesMeInstanceSkillsBySlugErrors];
-
-export type DeleteHermesMeInstanceSkillsBySlugResponses = {
-    /**
-     * Skill removed
-     */
-    200: {
-        data: HermesEmptyResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteHermesMeInstanceSkillsBySlugResponse = DeleteHermesMeInstanceSkillsBySlugResponses[keyof DeleteHermesMeInstanceSkillsBySlugResponses];
-
 export type GetHistoryData = {
     body?: never;
     headers?: {
@@ -19618,14 +17538,6 @@ export type GetHistoryData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -19830,11 +17742,11 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -20379,11 +18291,11 @@ export type GetUsersByIdOrganizationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -20482,11 +18394,11 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -22903,14 +20815,6 @@ export type GetUsersByIdStripeCustomerData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -23006,14 +20910,6 @@ export type PostUsersByIdStripeCustomerData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -23109,14 +21005,6 @@ export type GetUsersByIdBillingDetailsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -23212,14 +21100,6 @@ export type GetUsersByIdSubscriptionData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -23316,11 +21196,11 @@ export type GetUsersByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -26406,7 +24286,7 @@ export type PostOrganizationInviteLinksByTokenAcceptErrors = {
         };
     };
     /**
-     * Forbidden - session user required (coworker/orchestrator rejected)
+     * Forbidden - session user required (coworker rejected)
      */
     403: {
         error: string;
@@ -26562,7 +24442,7 @@ export type PostChatRoomInviteLinksByTokenAcceptErrors = {
         };
     };
     /**
-     * Forbidden - session user required (coworker/orchestrator rejected)
+     * Forbidden - session user required (coworker rejected)
      */
     403: {
         error: string;
@@ -26631,11 +24511,11 @@ export type GetProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -26723,14 +24603,6 @@ export type PostProjectsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -26794,11 +24666,11 @@ export type GetProjectsStatsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -26882,14 +24754,6 @@ export type PostProjectsByIdJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -26982,14 +24846,6 @@ export type DeleteProjectsByIdJobsByJobIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27069,14 +24925,6 @@ export type PostProjectsByIdTasksData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27169,14 +25017,6 @@ export type DeleteProjectsByIdTasksByTaskIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27257,11 +25097,11 @@ export type GetProjectsByIdContextMdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -27342,14 +25182,6 @@ export type DeleteProjectsByIdDesignMdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27428,14 +25260,6 @@ export type PutProjectsByIdDesignMdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27528,14 +25352,6 @@ export type DeleteProjectsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27615,11 +25431,11 @@ export type GetProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -27700,14 +25516,6 @@ export type PatchProjectsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -27801,11 +25609,11 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -27910,11 +25718,11 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28012,11 +25820,11 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28126,11 +25934,11 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28240,11 +26048,11 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28340,11 +26148,11 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28440,11 +26248,11 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28555,11 +26363,11 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28697,11 +26505,11 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28797,11 +26605,11 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28887,11 +26695,11 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -28975,11 +26783,11 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -29088,14 +26896,6 @@ export type GetNotificationsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -29189,14 +26989,6 @@ export type GetNotificationsUnreadCountData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -29259,14 +27051,6 @@ export type PatchNotificationsByIdReadData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -29362,14 +27146,6 @@ export type PatchNotificationsReadAllData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -29515,6 +27291,910 @@ export type GetShareByTokenResponses = {
 };
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
+
+export type ArchiveMySokoBotData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me';
+};
+
+export type ArchiveMySokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ArchiveMySokoBotError = ArchiveMySokoBotErrors[keyof ArchiveMySokoBotErrors];
+
+export type ArchiveMySokoBotResponses = {
+    /**
+     * Archive Soko Bot
+     */
+    200: {
+        data: {
+            archived: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ArchiveMySokoBotResponse = ArchiveMySokoBotResponses[keyof ArchiveMySokoBotResponses];
+
+export type GetMySokoBotData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me';
+};
+
+export type GetMySokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotError = GetMySokoBotErrors[keyof GetMySokoBotErrors];
+
+export type GetMySokoBotResponses = {
+    /**
+     * Current user's Soko Bot state
+     */
+    200: {
+        data: SokoBotState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotResponse = GetMySokoBotResponses[keyof GetMySokoBotResponses];
+
+export type CreateMySokoBotData = {
+    body?: CreateSokoBotRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me';
+};
+
+export type CreateMySokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateMySokoBotError = CreateMySokoBotErrors[keyof CreateMySokoBotErrors];
+
+export type CreateMySokoBotResponses = {
+    /**
+     * Create or reactivate Soko Bot
+     */
+    201: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateMySokoBotResponse = CreateMySokoBotResponses[keyof CreateMySokoBotResponses];
+
+export type ListMySokoBotTurnsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/soko-bots/me/turns';
+};
+
+export type ListMySokoBotTurnsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListMySokoBotTurnsError = ListMySokoBotTurnsErrors[keyof ListMySokoBotTurnsErrors];
+
+export type ListMySokoBotTurnsResponses = {
+    /**
+     * List Soko Bot turns
+     */
+    200: {
+        data: Array<SokoBotTurn>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListMySokoBotTurnsResponse = ListMySokoBotTurnsResponses[keyof ListMySokoBotTurnsResponses];
+
+export type StartMySokoBotTurnData = {
+    body?: StartSokoBotTurnRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/turns';
+};
+
+export type StartMySokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartMySokoBotTurnError = StartMySokoBotTurnErrors[keyof StartMySokoBotTurnErrors];
+
+export type StartMySokoBotTurnResponses = {
+    /**
+     * Soko Bot turn accepted
+     */
+    201: {
+        data: StartSokoBotTurnResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartMySokoBotTurnResponse = StartMySokoBotTurnResponses[keyof StartMySokoBotTurnResponses];
+
+export type GetMySokoBotTurnData = {
+    body?: never;
+    path: {
+        turnId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/turns/{turnId}';
+};
+
+export type GetMySokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotTurnError = GetMySokoBotTurnErrors[keyof GetMySokoBotTurnErrors];
+
+export type GetMySokoBotTurnResponses = {
+    /**
+     * Get Soko Bot turn
+     */
+    200: {
+        data: SokoBotTurn;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotTurnResponse = GetMySokoBotTurnResponses[keyof GetMySokoBotTurnResponses];
+
+export type CancelMySokoBotTurnData = {
+    body?: never;
+    path: {
+        turnId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/turns/{turnId}/cancel';
+};
+
+export type CancelMySokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CancelMySokoBotTurnError = CancelMySokoBotTurnErrors[keyof CancelMySokoBotTurnErrors];
+
+export type CancelMySokoBotTurnResponses = {
+    /**
+     * Cancel requested
+     */
+    200: {
+        data: {
+            cancellationRequested: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CancelMySokoBotTurnResponse = CancelMySokoBotTurnResponses[keyof CancelMySokoBotTurnResponses];
+
+export type ResetMySokoBotMemoryData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/memory/reset';
+};
+
+export type ResetMySokoBotMemoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResetMySokoBotMemoryError = ResetMySokoBotMemoryErrors[keyof ResetMySokoBotMemoryErrors];
+
+export type ResetMySokoBotMemoryResponses = {
+    /**
+     * Reset Soko Bot memory
+     */
+    200: {
+        data: SokoBotMemory;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResetMySokoBotMemoryResponse = ResetMySokoBotMemoryResponses[keyof ResetMySokoBotMemoryResponses];
+
+export type CreateMySokoBotScheduleData = {
+    body?: CreateSokoBotScheduleRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/schedules';
+};
+
+export type CreateMySokoBotScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateMySokoBotScheduleError = CreateMySokoBotScheduleErrors[keyof CreateMySokoBotScheduleErrors];
+
+export type CreateMySokoBotScheduleResponses = {
+    /**
+     * Create Soko Bot schedule
+     */
+    201: {
+        data: SokoBotSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateMySokoBotScheduleResponse = CreateMySokoBotScheduleResponses[keyof CreateMySokoBotScheduleResponses];
+
+export type DeleteMySokoBotScheduleData = {
+    body?: never;
+    path: {
+        scheduleId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/schedules/{scheduleId}';
+};
+
+export type DeleteMySokoBotScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteMySokoBotScheduleError = DeleteMySokoBotScheduleErrors[keyof DeleteMySokoBotScheduleErrors];
+
+export type DeleteMySokoBotScheduleResponses = {
+    /**
+     * Delete Soko Bot schedule
+     */
+    200: {
+        data: {
+            deleted: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteMySokoBotScheduleResponse = DeleteMySokoBotScheduleResponses[keyof DeleteMySokoBotScheduleResponses];
+
+export type UpdateMySokoBotScheduleData = {
+    body?: UpdateSokoBotScheduleRequest;
+    path: {
+        scheduleId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/schedules/{scheduleId}';
+};
+
+export type UpdateMySokoBotScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateMySokoBotScheduleError = UpdateMySokoBotScheduleErrors[keyof UpdateMySokoBotScheduleErrors];
+
+export type UpdateMySokoBotScheduleResponses = {
+    /**
+     * Update Soko Bot schedule
+     */
+    200: {
+        data: SokoBotSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateMySokoBotScheduleResponse = UpdateMySokoBotScheduleResponses[keyof UpdateMySokoBotScheduleResponses];
+
+export type ResolveMySokoBotDecisionData = {
+    body?: ResolveSokoBotDecisionRequest;
+    path: {
+        decisionId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/decisions/{decisionId}';
+};
+
+export type ResolveMySokoBotDecisionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResolveMySokoBotDecisionError = ResolveMySokoBotDecisionErrors[keyof ResolveMySokoBotDecisionErrors];
+
+export type ResolveMySokoBotDecisionResponses = {
+    /**
+     * Resolve Soko Bot decision
+     */
+    200: {
+        data: SokoBotPendingDecision;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResolveMySokoBotDecisionResponse = ResolveMySokoBotDecisionResponses[keyof ResolveMySokoBotDecisionResponses];
 
 export type GetCoworkersData = {
     body?: never;
@@ -31048,218 +29728,6 @@ export type PostCoworkersByIdUnarchiveResponses = {
 
 export type PostCoworkersByIdUnarchiveResponse = PostCoworkersByIdUnarchiveResponses[keyof PostCoworkersByIdUnarchiveResponses];
 
-export type PostOrchestratorsMeUsageData = {
-    body?: {
-        userId: string;
-        idempotencyKey: string;
-        credits: number;
-        referenceId?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/orchestrators/me/usage';
-};
-
-export type PostOrchestratorsMeUsageErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostOrchestratorsMeUsageError = PostOrchestratorsMeUsageErrors[keyof PostOrchestratorsMeUsageErrors];
-
-export type PostOrchestratorsMeUsageResponses = {
-    /**
-     * Retrieve usage
-     */
-    200: {
-        data: OrchestratorUsage;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-    /**
-     * Create usage
-     */
-    201: {
-        data: OrchestratorUsage;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostOrchestratorsMeUsageResponse = PostOrchestratorsMeUsageResponses[keyof PostOrchestratorsMeUsageResponses];
-
-export type PostOrchestratorsMePurgeData = {
-    body?: OrchestratorPurgeRequest;
-    path?: never;
-    query?: never;
-    url: '/orchestrators/me/purge';
-};
-
-export type PostOrchestratorsMePurgeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostOrchestratorsMePurgeError = PostOrchestratorsMePurgeErrors[keyof PostOrchestratorsMePurgeErrors];
-
-export type PostOrchestratorsMePurgeResponses = {
-    /**
-     * local assistant state purged
-     */
-    200: {
-        data: OrchestratorPurgeResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostOrchestratorsMePurgeResponse = PostOrchestratorsMePurgeResponses[keyof PostOrchestratorsMePurgeResponses];
-
 export type GetTasksData = {
     body?: never;
     headers?: {
@@ -31268,11 +29736,11 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -31406,11 +29874,11 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -34681,14 +33149,6 @@ export type PostRealtimeAblyTokenData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
-        /**
-         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-User-Id'?: string;
-        /**
-         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
-         */
-        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {

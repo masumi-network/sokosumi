@@ -311,22 +311,4 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    setMembership("admin");
-
-    const response = await updateSeats("org_123", 6, {
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: "org_123" },
-    });
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 6 });
-    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
-      where: { id: "sub-row-1" },
-      data: { seats: 6 },
-    });
-  });
 });

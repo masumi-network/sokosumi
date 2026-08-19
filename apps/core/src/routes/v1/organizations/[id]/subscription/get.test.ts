@@ -93,7 +93,7 @@ describe("GET /organizations/{id}/subscription", () => {
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
-  it("rejects coworker with context headers (owner/session or orchestrator only)", async () => {
+  it("rejects coworker with context headers (owner session only)", async () => {
     const response = await createApp({
       actor: "coworker",
       coworkerId: "cow_1",
@@ -102,21 +102,6 @@ describe("GET /organizations/{id}/subscription", () => {
     }).request("http://localhost/org_1/subscription");
 
     expect(response.status).toBe(403);
-  });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
-
-    const response = await createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_1", organizationId: "org_1" },
-    }).request("http://localhost/org_1/subscription");
-
-    expect(response.status).toBe(200);
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user_1", id: "org_1" }),
-    );
   });
 
   it("returns 404 when the organization does not exist", async () => {

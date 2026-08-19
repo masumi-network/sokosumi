@@ -21,7 +21,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/stripe-customer",
   description:
-    "Ensure a Stripe customer exists for an organization. Any member of the organization may call it (session user or orchestrator with context headers). Coworker actors are not allowed. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.",
+    "Ensure a Stripe customer exists for an organization. Any member with an interactive user session may call it. Coworker actors are not allowed. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.",
   tags: ["Organizations"],
   request: {
     params,

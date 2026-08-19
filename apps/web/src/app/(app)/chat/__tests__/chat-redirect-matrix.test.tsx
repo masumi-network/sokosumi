@@ -16,10 +16,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("@/lib/hermes/beta-access", () => ({
-  isHermesBetaAccessEmail: () => false,
-}));
-
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   getPrivateCachedMembershipVisibleRooms: vi.fn().mockResolvedValue({
     rooms: [],

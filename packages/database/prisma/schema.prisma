@@ -66,12 +66,16 @@ model User {
 
   workspace Workspace?
 
-  ownedTasks         Task[]              @relation("TaskOwner")
-  createdTasks       Task[]              @relation("TaskCreatorUser")
-  taskEvents         TaskEvent[]
-  uploadedTaskFiles  TaskFile[]          @relation("TaskFileUploadedByUser")
-  coworkerUsages     CoworkerUsage[]
-  orchestratorUsages OrchestratorUsage[]
+  ownedTasks              Task[]                   @relation("TaskOwner")
+  createdTasks            Task[]                   @relation("TaskCreatorUser")
+  taskEvents              TaskEvent[]
+  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
+  coworkerUsages          CoworkerUsage[]
+  orchestratorUsages      OrchestratorUsage[]
+  sokoBotTurns            SokoBotTurn[]
+  sokoBotPendingDecisions SokoBotPendingDecision[]
+  sokoBotSchedules        SokoBotSchedule[]
+  sokoBotLegacyMessages   SokoBotLegacyMessage[]
 
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
@@ -94,10 +98,10 @@ model User {
   chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
   noticeAcknowledgments            NoticeAcknowledgment[]
 
-  // Hermes (per-user private agent — single conversation)
+  // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
-  /// Per-user Hermes orchestrator instance (identity + local mirror metadata).
-  orchestrator             Orchestrator?
+  /// Per-user Soko Bot identity and control-plane state.
+  sokoBot                  SokoBot?
   hermesPendingConnections HermesPendingConnection[]
 
   @@unique([email])
@@ -254,6 +258,9 @@ model Workspace {
   projects                Project[]
   vendorGrants            VendorGrant[]
   coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
+  sokoBotTurns            SokoBotTurn[]
+  sokoBotPendingDecisions SokoBotPendingDecision[]
+  sokoBotSchedules        SokoBotSchedule[]
 
   @@map("workspace")
 }
@@ -1056,7 +1063,8 @@ model Job {
   // Public Share
   share PublicShare?
 
-  events JobEvent[]
+  events             JobEvent[]
+  sokoBotDelegations SokoBotDelegation[]
 
   purchase JobPurchase?
 
@@ -1576,17 +1584,89 @@ model CoworkerAssignment {
   @@map("coworker_assignment")
 }
 
-/// Per-user first-party orchestrator instance (Hermes). Not a marketplace
-/// coworker: no vendor/owner/whitelist. Hermes authenticates with a shared
-/// env service token; each row is one user's instance (identity + mirror).
-model Orchestrator {
+enum SokoBotStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  ERROR
+}
+
+enum SokoBotAutonomyLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SokoBotTurnSource {
+  CHAT
+  SCHEDULE
+  ADMIN_RETRY
+}
+
+enum SokoBotTurnStatus {
+  QUEUED
+  STARTING
+  RUNNING
+  CANCEL_REQUESTED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum SokoBotAdminActionStatus {
+  ATTEMPTED
+  SUCCEEDED
+  FAILED
+}
+
+enum SokoBotTurnRoute {
+  DIRECT_RESPONSE
+  CLARIFY
+  DELEGATE_TASK
+  HIRE_AGENT
+  MANAGE_WORK
+  MIXED
+}
+
+enum SokoBotDelegationKind {
+  TASK
+  JOB
+}
+
+enum SokoBotDecisionStatus {
+  PENDING
+  PROCESSING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum SokoBotScheduleRunStatus {
+  PENDING
+  CLAIMED
+  RUNNING
+  COMPLETED
+  FAILED
+  DEAD_LETTER
+}
+
+enum SokoBotToolCallStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+/// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
+/// owner, or whitelist. Runtime access uses short-lived signed turn grants.
+/// Physical table name remains `orchestrator` through compatibility window.
+model SokoBot {
   id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   /// Soft-deactivate on purge; keep row while tasks/events reference it.
   archivedAt DateTime?
 
-  /// Owner of this Hermes instance. One row per user (active or archived).
+  /// Owner of this Soko Bot. One row per user (active or archived).
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1601,19 +1681,369 @@ model Orchestrator {
   personalityDetail Int?
   personalityStyle  Int?
 
+  /// Governs which product mutations may execute without owner approval.
+  /// Agent hiring always remains approval-gated regardless of this value.
+  autonomyLevel SokoBotAutonomyLevel @default(MEDIUM)
+
+  /// First-party Soko Bot runtime state. Physical table remains `orchestrator`
+  /// during the expand/backfill/switch compatibility window.
+  status                  SokoBotStatus @default(IDLE)
+  /// Durable administrator pause. Owner archive/reactivation cannot clear it.
+  adminPausedAt           DateTime?
+  eveSessionId            String?       @unique
+  runtimeVersion          String?
+  runtimeDeployment       String?
+  lastSandboxId           String?
+  lastSandboxStatus       String?
+  memoryVersion           Int           @default(0)
+  memoryHash              String?
+  lastActivityAt          DateTime?
+  lastTurnAt              DateTime?
+  lastSucceededAt         DateTime?
+  lastFailedAt            DateTime?
+  consecutiveTurnFailures Int           @default(0)
+
   /// Inbox poll metadata (cron).
   lastPolledAt          DateTime?
   lastInboxMessageAt    DateTime?
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]              @relation("TaskCreatorOrchestrator")
+  createdTasks       Task[]                   @relation("TaskCreatorOrchestrator")
   taskEvents         TaskEvent[]
   orchestratorUsages OrchestratorUsage[]
+  turns              SokoBotTurn[]
+  memoryRevisions    SokoBotMemoryRevision[]
+  legacyMessages     SokoBotLegacyMessage[]
+  pendingDecisions   SokoBotPendingDecision[]
+  schedules          SokoBotSchedule[]
 
   @@index([archivedAt])
   @@index([lastPolledAt])
   @@map("orchestrator")
+}
+
+/// Immutable copy of external Hermes chat history made during first-party
+/// Soko Bot cutover. New messages are represented by SokoBotTurn.
+model SokoBotLegacyMessage {
+  id        String   @id @db.Uuid
+  createdAt DateTime
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role       String
+  content    String
+  kind       String?
+  stepCount  Int     @default(0)
+  durationMs Int?
+
+  @@index([sokoBotId, createdAt])
+  @@index([userId, createdAt])
+  @@map("soko_bot_legacy_message")
+}
+
+model SokoBotTurn {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  source       SokoBotTurnSource
+  status       SokoBotTurnStatus @default(QUEUED)
+  route        SokoBotTurnRoute?
+  clientTurnId String
+  userMessage  String
+  finalAnswer  String?
+
+  classification       Json?
+  classifierModel      String?
+  classifierVersion    String?
+  classifierLatencyMs  Int?
+  classificationFailed Boolean  @default(false)
+  capabilityNames      String[]
+
+  eveSessionId                String?
+  eveTurnId                   String?
+  eveStreamIndex              Int     @default(-1)
+  activeUiStreamId            String?
+  continuationTokenCiphertext String?
+  continuationTokenKeyId      String?
+
+  modelId        String?
+  runtimeVersion String?
+  usage          Json?
+  costUsdMicros  BigInt?
+
+  leaseToken              String?
+  leaseExpiresAt          DateTime?
+  reconcilerHeartbeatAt   DateTime?
+  deadlineAt              DateTime
+  cancellationRequestedAt DateTime?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  durationMs              Int?
+  errorKind               String?
+  errorDetail             String?
+
+  contextSnapshot  SokoBotContextSnapshot?
+  events           SokoBotEvent[]
+  toolCalls        SokoBotToolCall[]
+  delegations      SokoBotDelegation[]
+  pendingDecisions SokoBotPendingDecision[]
+  memoryRevisions  SokoBotMemoryRevision[]
+  scheduleRun      SokoBotScheduleRun?
+
+  @@unique([sokoBotId, clientTurnId])
+  @@unique([sokoBotId, eveTurnId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([sokoBotId, status, createdAt(sort: Desc)])
+  @@index([status, reconcilerHeartbeatAt])
+  @@map("soko_bot_turn")
+}
+
+model SokoBotToolCall {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  toolCallId  String
+  capability  String
+  inputHash   String
+  status      SokoBotToolCallStatus @default(PENDING)
+  result      Json?
+  errorKind   String?
+  errorDetail String?
+
+  @@unique([turnId, toolCallId])
+  @@index([turnId, createdAt])
+  @@map("soko_bot_tool_call")
+}
+
+model SokoBotEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  eveEventId    String
+  eveStartIndex Int
+  sequence      Int
+  type          String
+  summary       String?
+  payload       Json?
+  toolName      String?
+  toolCallId    String?
+  toolStatus    String?
+  durationMs    Int?
+  providerAt    DateTime?
+
+  @@unique([turnId, eveEventId])
+  @@unique([turnId, eveStartIndex])
+  @@unique([turnId, sequence])
+  @@index([turnId, createdAt])
+  @@map("soko_bot_event")
+}
+
+model SokoBotContextSnapshot {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  createdAt   DateTime @default(now())
+  generatedAt DateTime
+
+  turnId String      @unique @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  schemaVersion Int
+  hash          String
+  packet        Json
+  byteSize      Int
+  tokenEstimate Int
+  counts        Json
+  omissions     Json
+
+  @@index([hash])
+  @@map("soko_bot_context_snapshot")
+}
+
+model SokoBotMemoryRevision {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  version  Int
+  hash     String
+  markdown String
+  source   String
+
+  sourceTurnId String?      @db.Uuid
+  sourceTurn   SokoBotTurn? @relation(fields: [sourceTurnId], references: [id], onDelete: SetNull)
+
+  @@unique([sokoBotId, version])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_memory_revision")
+}
+
+model SokoBotDelegation {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  toolCallId String
+  kind       SokoBotDelegationKind
+  action     String
+  outcome    String?
+  error      String?
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@unique([turnId, toolCallId])
+  @@index([taskId])
+  @@index([jobId])
+  @@map("soko_bot_delegation")
+}
+
+model SokoBotPendingDecision {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  toolName          String
+  proposal          Json
+  reason            String
+  status            SokoBotDecisionStatus @default(PENDING)
+  expiresAt         DateTime
+  resolvedAt        DateTime?
+  resolvedByUserId  String?
+  resultingTurnId   String?               @db.Uuid
+  resultingEntityId String?
+
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([sokoBotId, status])
+  @@map("soko_bot_pending_decision")
+}
+
+model SokoBotSchedule {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name                String
+  enabled             Boolean   @default(true)
+  timezone            String
+  cronExpression      String
+  prompt              String
+  /// External Hermes schedule id. Cutover imports use it for idempotency.
+  legacyScheduleId    String?    @unique
+  nextRunAt           DateTime
+  lastRunAt           DateTime?
+  consecutiveFailures Int       @default(0)
+
+  runs SokoBotScheduleRun[]
+
+  @@index([enabled, nextRunAt])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("soko_bot_schedule")
+}
+
+model SokoBotScheduleRun {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scheduleId String          @db.Uuid
+  schedule   SokoBotSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  turnId String?      @unique @db.Uuid
+  turn   SokoBotTurn? @relation(fields: [turnId], references: [id], onDelete: SetNull)
+
+  /// Immutable occurrence input. Nullable only for zero-downtime rollout from
+  /// pre-snapshot Core versions; the scheduler fills it before reservation.
+  prompt         String?
+  scheduledFor   DateTime
+  status         SokoBotScheduleRunStatus @default(PENDING)
+  attempt        Int                      @default(0)
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  errorKind      String?
+  errorDetail    String?
+  completedAt    DateTime?
+
+  @@unique([scheduleId, scheduledFor])
+  @@index([status, scheduledFor])
+  @@map("soko_bot_schedule_run")
+}
+
+/// Append-only operator audit. Deliberately FK-free so account/bot deletion
+/// cannot erase actions and audit rows cannot block deletion.
+model SokoBotAdminAction {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  operationId String
+  status      SokoBotAdminActionStatus
+  sokoBotId   String
+  userId      String
+  operatorId  String
+  action      String
+  targetId    String?
+  reason      String
+  before      Json?
+  after       Json?
+  errorKind   String?
+  errorDetail String?
+  requestId   String?
+  traceId     String?
+
+  @@unique([operationId, status])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@index([operatorId, createdAt(sort: Desc)])
+  @@index([traceId, createdAt(sort: Desc)])
+  @@map("soko_bot_admin_action")
 }
 
 model CoworkerApiKey {
@@ -1667,7 +2097,7 @@ model Task {
   creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
 
   creatorOrchestratorId String?       @db.Uuid
-  creatorOrchestrator   Orchestrator? @relation("TaskCreatorOrchestrator", fields: [creatorOrchestratorId], references: [id], onDelete: Restrict)
+  creatorOrchestrator   SokoBot? @relation("TaskCreatorOrchestrator", fields: [creatorOrchestratorId], references: [id], onDelete: Restrict)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -1681,10 +2111,11 @@ model Task {
 
   share PublicShare?
 
-  events       TaskEvent[]
-  jobs         Job[]
-  files        TaskFile[]
-  x402Payments TaskX402Payment[]
+  events             TaskEvent[]
+  jobs               Job[]
+  files              TaskFile[]
+  x402Payments       TaskX402Payment[]
+  sokoBotDelegations SokoBotDelegation[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -1881,7 +2312,7 @@ model TaskEvent {
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
   orchestratorId String?       @db.Uuid
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
@@ -2273,7 +2704,7 @@ model OrchestratorUsage {
   referenceId    String?
 
   orchestratorId String       @db.Uuid
-  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  orchestrator   SokoBot @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2575,24 +3006,20 @@ model ChatRoomMention {
   @@map("chat_room_mention")
 }
 
-/// Per-user persistent history for the user's private Hermes agent. There is
-/// at most one logical conversation per user; messages are ordered by
-/// `createdAt`. Wiped when the user destroys their Hermes instance.
+/// Deprecated external-assistant history retained read-only for rollback and
+/// later explicit data migration or purge. New Soko Bot turns use SokoBotTurn.
 model HermesMessage {
   id         String   @id @default(uuid(7)) @db.Uuid
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       String // "user" | "assistant" | "system"
   content    String
-  /// Outbox message kind from the orchestrator: "text" | "task_result" |
+  /// Legacy outbox message kind: "text" | "task_result" |
   /// "reminder" | future. Null for user turns + assistant replies from the
   /// regular chat path. Drives the notification-style rendering for
   /// agent-initiated pushes.
   kind       String?
-  /// Progress steps (tool calls etc.) captured from the orchestrator's
-  /// `hermes.status` frames during a streamed turn, so the collapsible "steps"
-  /// disclosure survives a reload. Shape: `[{ label, detail? }]`. Null for
-  /// turns with no tool activity and for user messages.
+  /// Legacy progress-step payload.
   steps      Json?
   /// Total wall-clock time of the streamed turn (ms), so the "Answered in Ns"
   /// stamp survives a reload. Null for user messages + non-streamed turns.
@@ -2603,21 +3030,14 @@ model HermesMessage {
   @@map("hermesMessage")
 }
 
-/// Short-lived claim record written by the `initiate` integration handler
-/// and consumed by `finalize`. Keyed by Composio's connection_id (the only
-/// thing the popup callback knows). Lives in Postgres rather than process
-/// memory because Vercel runs each handler on a different Lambda — an
-/// in-memory map will miss across cold starts and the user sees
-/// "unknown or expired connection — restart the integration flow."
-///
-/// Rows are deleted on a successful match; expired rows are pruned
-/// opportunistically by `rememberPendingConnection`.
+/// Deprecated external-integration claim record retained through rollback
+/// window. New Soko Bot runtime does not read or write this table.
 model HermesPendingConnection {
   /// Composio's connection_id, returned by `initiateConnection`.
   connectionId String   @id
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Hermes integration provider slug (gmail, linear, slack, …). Stored as a
+  /// Legacy integration provider slug. Stored as a
   /// string instead of an enum so a new provider doesn't need a DB migration.
   provider     String
   /// Access mode the user picked at the interstitial (read | write). Pinned

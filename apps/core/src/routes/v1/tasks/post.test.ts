@@ -13,7 +13,6 @@ const {
   generateTaskNameMock,
   mapTaskMock,
   notifyWorkspaceApproversOfPendingGrantMock,
-  orchestratorFindFirstMock,
   projectFindFirstMock,
   projectUpdateManyMock,
   prismaTransactionMock,
@@ -21,6 +20,7 @@ const {
   resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
+  taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
@@ -28,7 +28,6 @@ const {
   generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
   notifyWorkspaceApproversOfPendingGrantMock: vi.fn(),
-  orchestratorFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -36,6 +35,7 @@ const {
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
   taskCreateMock: vi.fn(),
+  taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
@@ -167,9 +167,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     workspace: {
       findUnique: workspaceFindUniqueMock,
-    },
-    orchestrator: {
-      findFirst: orchestratorFindFirstMock,
     },
   },
 }));
@@ -419,6 +416,10 @@ describe("POST /tasks", () => {
     uploadProjectBriefingFileMock.mockResolvedValue(
       "https://store.public.blob.vercel-storage.com/projects/project_1/project_files_token/BRIEFING.md",
     );
+    taskFindUniqueOrThrowMock.mockImplementation(async () => {
+      const result = taskCreateMock.mock.results.at(-1);
+      return result ? await result.value : { id: "tsk_123" };
+    });
     mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
@@ -428,6 +429,7 @@ describe("POST /tasks", () => {
           },
           task: {
             create: taskCreateMock,
+            findUniqueOrThrow: taskFindUniqueOrThrowMock,
           },
         });
       },
@@ -594,7 +596,7 @@ describe("POST /tasks", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(projectFindFirstMock).toHaveBeenCalledOnce();
+    expect(projectFindFirstMock).toHaveBeenCalledTimes(2);
     expect(uploadProjectBriefingFileMock).toHaveBeenCalledWith(
       projectId,
       "project_files_token",
@@ -939,151 +941,6 @@ describe("POST /tasks", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });
-
-describe("POST /tasks orchestrator create", () => {
-  function createOrchestratorApp(options?: {
-    orchestratorId?: string;
-    withContext?: boolean;
-  }) {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
-
-    app.use("*", async (c, next) => {
-      c.set("isAuthenticated", true);
-      c.set("authContext", {
-        actor: "orchestrator" as const,
-        ...(options?.orchestratorId
-          ? { orchestratorId: options.orchestratorId }
-          : {}),
-        ...(options?.withContext !== false
-          ? {
-              context: {
-                userId: "user_123",
-                organizationId: "org_123" as string | null,
-              },
-            }
-          : {}),
-      });
-      c.set("workspaceContext", {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: "user_123",
-        organizationId: "org_123",
-      });
-
-      return await next();
-    });
-
-    mountPostTask(app as unknown as OpenAPIHonoWithAuth);
-
-    return app;
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    resolveEffectiveDesignMdMock.mockResolvedValue(null);
-    generateTaskNameMock.mockResolvedValue("Generated name");
-    taskCreateMock.mockResolvedValue({ id: "tsk_orch" });
-    mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
-    orchestratorFindFirstMock.mockResolvedValue(null);
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) => {
-        return await callback({
-          project: {
-            findFirst: projectFindFirstMock,
-          },
-          task: {
-            create: taskCreateMock,
-          },
-        });
-      },
-    );
-  });
-
-  it("rejects create when orchestrator has context but no active orchestratorId", async () => {
-    const app = createOrchestratorApp({ withContext: true });
-
-    const response = await app.request("http://localhost/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Orch task",
-        description: null,
-        assigneeId: null,
-        status: TaskStatus.DRAFT,
-        channel: Channel.SOKOSUMI,
-      }),
-    });
-
-    expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "No active orchestrator instance for context user",
-    );
-    expect(taskCreateMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects create when middleware snapshot is stale after purge", async () => {
-    // Auth still carries a snapshotted orchestratorId, but the active-row
-    // re-check at write time finds nothing (archived mid-request).
-    const app = createOrchestratorApp({
-      orchestratorId: "01960001-0001-7001-8001-000000000099",
-      withContext: true,
-    });
-    orchestratorFindFirstMock.mockResolvedValue(null);
-
-    const response = await app.request("http://localhost/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Orch task",
-        description: null,
-        assigneeId: null,
-        status: TaskStatus.DRAFT,
-        channel: Channel.SOKOSUMI,
-      }),
-    });
-
-    expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "No active orchestrator instance for context user",
-    );
-    expect(taskCreateMock).not.toHaveBeenCalled();
-  });
-
-  it("creates with creatorOrchestratorId when bound", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
-    const app = createOrchestratorApp({ orchestratorId, withContext: true });
-    orchestratorFindFirstMock.mockResolvedValue({
-      id: orchestratorId,
-      userId: "user_123",
-      archivedAt: null,
-    });
-
-    const response = await app.request("http://localhost/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Orch task",
-        description: null,
-        assigneeId: null,
-        status: TaskStatus.DRAFT,
-        channel: Channel.SOKOSUMI,
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    expect(taskCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          creatorOrchestratorId: orchestratorId,
-          creatorUserId: null,
-          creatorCoworkerId: null,
-        }),
-      }),
-    );
-  });
-});
-
 describe("POST /tasks delegated coworker create grant", () => {
   function createDelegatedCoworkerApp() {
     const app = new OpenAPIHono<{
@@ -1126,6 +983,10 @@ describe("POST /tasks delegated coworker create grant", () => {
         ...args.data,
       }),
     );
+    taskFindUniqueOrThrowMock.mockImplementation(async () => {
+      const result = taskCreateMock.mock.results.at(-1);
+      return result ? await result.value : { id: "tsk_parked" };
+    });
     mapTaskMock.mockImplementation((task) =>
       buildMapTaskResponse({
         id: task.id,
@@ -1153,6 +1014,7 @@ describe("POST /tasks delegated coworker create grant", () => {
           },
           task: {
             create: taskCreateMock,
+            findUniqueOrThrow: taskFindUniqueOrThrowMock,
           },
         });
       },
@@ -1246,7 +1108,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(resolveEffectiveDesignMdMock).not.toHaveBeenCalled();
     expect(ensureProjectFilesTokenMock).not.toHaveBeenCalled();
     expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
-    expect(projectFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(projectFindFirstMock).toHaveBeenCalledTimes(2);
   });
 
   it("still returns 201 when post-create grant notify fails", async () => {

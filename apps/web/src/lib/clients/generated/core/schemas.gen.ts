@@ -732,6 +732,1467 @@ export const AdminOrganizationOptionSchema = {
     ]
 } as const;
 
+export const AdminSokoBotListSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotListItem'
+            }
+        },
+        total: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'items',
+        'total'
+    ]
+} as const;
+
+export const AdminSokoBotListItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SokoBotStatus'
+        },
+        autonomyLevel: {
+            $ref: '#/components/schemas/SokoBotAutonomyLevel'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        runtimeVersion: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        runtimeDeployment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastActivityAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastSucceededAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastFailedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        consecutiveTurnFailures: {
+            type: 'integer',
+            minimum: 0
+        },
+        turnCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingDecisionCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        scheduleCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        owner: {
+            $ref: '#/components/schemas/AdminSokoBotOwner'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'autonomyLevel',
+        'archivedAt',
+        'runtimeVersion',
+        'runtimeDeployment',
+        'lastActivityAt',
+        'lastSucceededAt',
+        'lastFailedAt',
+        'consecutiveTurnFailures',
+        'turnCount',
+        'pendingDecisionCount',
+        'scheduleCount',
+        'owner',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotStatusSchema = {
+    type: 'string',
+    enum: [
+        'IDLE',
+        'RUNNING',
+        'PAUSED',
+        'ERROR'
+    ]
+} as const;
+
+export const SokoBotAutonomyLevelSchema = {
+    type: 'string',
+    enum: [
+        'LOW',
+        'MEDIUM',
+        'HIGH'
+    ]
+} as const;
+
+export const AdminSokoBotOwnerSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        email: {
+            type: 'string',
+            format: 'email'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email'
+    ]
+} as const;
+
+export const AdminSokoBotDetailSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBot'
+        },
+        {
+            type: 'object',
+            properties: {
+                schedules: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/AdminSokoBotSchedule'
+                    }
+                },
+                adminPausedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                eveSessionId: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                runtimeDeployment: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                lastSandboxId: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                archivedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                owner: {
+                    $ref: '#/components/schemas/AdminSokoBotOwner'
+                },
+                turns: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/AdminSokoBotTurn'
+                    }
+                },
+                memoryRevisions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotMemory'
+                    }
+                },
+                adminActions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotAdminAction'
+                    }
+                },
+                runtimeHealth: {
+                    $ref: '#/components/schemas/SokoBotRuntimeHealth'
+                }
+            },
+            required: [
+                'pendingDecisions',
+                'schedules',
+                'adminPausedAt',
+                'eveSessionId',
+                'runtimeDeployment',
+                'lastSandboxId',
+                'archivedAt',
+                'owner',
+                'turns',
+                'memoryRevisions',
+                'adminActions',
+                'runtimeHealth'
+            ]
+        }
+    ]
+} as const;
+
+export const SokoBotMemorySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer',
+            minimum: 0
+        },
+        hash: {
+            type: 'string'
+        },
+        markdown: {
+            type: 'string'
+        },
+        source: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'version',
+        'hash',
+        'markdown',
+        'source',
+        'createdAt'
+    ]
+} as const;
+
+export const SokoBotLegacyMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        role: {
+            type: 'string'
+        },
+        content: {
+            type: 'string'
+        },
+        kind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        stepCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'content',
+        'kind',
+        'stepCount',
+        'durationMs',
+        'createdAt'
+    ]
+} as const;
+
+export const SokoBotPendingDecisionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        turnId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        toolName: {
+            type: 'string'
+        },
+        proposal: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        reason: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'PROCESSING',
+                'ACCEPTED',
+                'REJECTED',
+                'EXPIRED'
+            ]
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resultingEntityId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'turnId',
+        'toolName',
+        'proposal',
+        'reason',
+        'status',
+        'expiresAt',
+        'resolvedAt',
+        'resultingEntityId',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const AdminSokoBotScheduleSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotSchedule'
+        },
+        {
+            type: 'object',
+            properties: {
+                runs: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotScheduleRun'
+                    }
+                }
+            },
+            required: [
+                'runs'
+            ]
+        }
+    ]
+} as const;
+
+export const SokoBotScheduleRunSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        turnId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        scheduledFor: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'CLAIMED',
+                'RUNNING',
+                'COMPLETED',
+                'FAILED',
+                'DEAD_LETTER'
+            ]
+        },
+        attempt: {
+            type: 'integer',
+            minimum: 0
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        errorDetail: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'turnId',
+        'scheduledFor',
+        'status',
+        'attempt',
+        'errorKind',
+        'errorDetail',
+        'completedAt',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotScheduleSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        timezone: {
+            type: 'string'
+        },
+        cronExpression: {
+            type: 'string'
+        },
+        prompt: {
+            type: 'string'
+        },
+        nextRunAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        consecutiveFailures: {
+            type: 'integer',
+            minimum: 0
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'enabled',
+        'timezone',
+        'cronExpression',
+        'prompt',
+        'nextRunAt',
+        'lastRunAt',
+        'consecutiveFailures',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const AdminSokoBotTurnSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotTurn'
+        },
+        {
+            type: 'object',
+            properties: {
+                eveSessionId: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                eveTurnId: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contextSnapshot: {
+                    $ref: '#/components/schemas/SokoBotContextSnapshot'
+                },
+                toolCalls: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotToolCall'
+                    }
+                }
+            },
+            required: [
+                'eveSessionId',
+                'eveTurnId',
+                'contextSnapshot',
+                'toolCalls'
+            ]
+        }
+    ]
+} as const;
+
+export const SokoBotTurnStatusSchema = {
+    type: 'string',
+    enum: [
+        'QUEUED',
+        'STARTING',
+        'RUNNING',
+        'CANCEL_REQUESTED',
+        'COMPLETED',
+        'CANCELLED',
+        'FAILED'
+    ]
+} as const;
+
+export const SokoBotTurnRouteSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'DIRECT_RESPONSE',
+        'CLARIFY',
+        'DELEGATE_TASK',
+        'HIRE_AGENT',
+        'MANAGE_WORK',
+        'MIXED',
+        null
+    ]
+} as const;
+
+export const SokoBotTurnUsageSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        inputTokens: {
+            type: 'number',
+            minimum: 0
+        },
+        outputTokens: {
+            type: 'number',
+            minimum: 0
+        },
+        cacheReadTokens: {
+            type: 'number',
+            minimum: 0
+        },
+        cacheWriteTokens: {
+            type: 'number',
+            minimum: 0
+        },
+        costUsd: {
+            type: 'number',
+            minimum: 0
+        }
+    },
+    required: [
+        'inputTokens',
+        'outputTokens',
+        'cacheReadTokens',
+        'cacheWriteTokens',
+        'costUsd'
+    ]
+} as const;
+
+export const SokoBotEventSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sequence: {
+            type: 'integer'
+        },
+        type: {
+            type: 'string'
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        toolName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        toolCallId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        toolStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        providerAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'sequence',
+        'type',
+        'summary',
+        'toolName',
+        'toolCallId',
+        'toolStatus',
+        'durationMs',
+        'providerAt',
+        'createdAt'
+    ]
+} as const;
+
+export const SokoBotDelegationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'TASK',
+                'JOB'
+            ]
+        },
+        action: {
+            type: 'string'
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        jobId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'action',
+        'outcome',
+        'error',
+        'taskId',
+        'jobId',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotContextSnapshotSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        schemaVersion: {
+            type: 'integer'
+        },
+        hash: {
+            type: 'string'
+        },
+        packet: {},
+        byteSize: {
+            type: 'integer',
+            minimum: 0
+        },
+        tokenEstimate: {
+            type: 'integer',
+            minimum: 0
+        },
+        counts: {},
+        omissions: {},
+        generatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'schemaVersion',
+        'hash',
+        'byteSize',
+        'tokenEstimate',
+        'generatedAt',
+        'createdAt'
+    ]
+} as const;
+
+export const SokoBotToolCallSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        toolCallId: {
+            type: 'string'
+        },
+        capability: {
+            type: 'string'
+        },
+        inputHash: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'COMPLETED',
+                'FAILED'
+            ]
+        },
+        result: {},
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        errorDetail: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'toolCallId',
+        'capability',
+        'inputHash',
+        'status',
+        'errorKind',
+        'errorDetail',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotTurnSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sokoBotId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'CHAT',
+                'SCHEDULE',
+                'ADMIN_RETRY'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/SokoBotTurnStatus'
+        },
+        route: {
+            $ref: '#/components/schemas/SokoBotTurnRoute'
+        },
+        clientTurnId: {
+            type: 'string'
+        },
+        userMessage: {
+            type: 'string'
+        },
+        finalAnswer: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        classification: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        },
+        classifierModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        classifierVersion: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        classifierLatencyMs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        classificationFailed: {
+            type: 'boolean'
+        },
+        capabilityNames: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        modelId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        runtimeVersion: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        usage: {
+            $ref: '#/components/schemas/SokoBotTurnUsage'
+        },
+        deadlineAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        cancellationRequestedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        startedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        errorDetail: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        events: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotEvent'
+            }
+        },
+        delegations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotDelegation'
+            }
+        },
+        pendingDecisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotPendingDecision'
+            }
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'sokoBotId',
+        'workspaceId',
+        'source',
+        'status',
+        'route',
+        'clientTurnId',
+        'userMessage',
+        'finalAnswer',
+        'classification',
+        'classifierModel',
+        'classifierVersion',
+        'classifierLatencyMs',
+        'classificationFailed',
+        'capabilityNames',
+        'modelId',
+        'runtimeVersion',
+        'usage',
+        'deadlineAt',
+        'cancellationRequestedAt',
+        'startedAt',
+        'completedAt',
+        'durationMs',
+        'errorKind',
+        'errorDetail',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotAdminActionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        operationId: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ATTEMPTED',
+                'SUCCEEDED',
+                'FAILED'
+            ]
+        },
+        operatorId: {
+            type: 'string'
+        },
+        action: {
+            type: 'string'
+        },
+        targetId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        reason: {
+            type: 'string'
+        },
+        before: {},
+        after: {},
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        errorDetail: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        requestId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        traceId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'operationId',
+        'status',
+        'operatorId',
+        'action',
+        'targetId',
+        'reason',
+        'errorKind',
+        'errorDetail',
+        'requestId',
+        'traceId',
+        'createdAt'
+    ]
+} as const;
+
+export const SokoBotRuntimeHealthSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        healthy: {
+            type: 'boolean'
+        },
+        runtimeVersion: {
+            type: 'string'
+        },
+        sessionStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'healthy',
+        'runtimeVersion',
+        'sessionStatus',
+        'checkedAt',
+        'errorKind'
+    ]
+} as const;
+
+export const SokoBotSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        userId: {
+            type: 'string'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        personalityTone: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        personalityDetail: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        personalityStyle: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        autonomyLevel: {
+            $ref: '#/components/schemas/SokoBotAutonomyLevel'
+        },
+        status: {
+            $ref: '#/components/schemas/SokoBotStatus'
+        },
+        runtimeVersion: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastSandboxStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        memoryVersion: {
+            type: 'integer',
+            minimum: 0
+        },
+        memoryHash: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastActivityAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastTurnAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastSucceededAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastFailedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        consecutiveTurnFailures: {
+            type: 'integer',
+            minimum: 0
+        },
+        memory: {
+            $ref: '#/components/schemas/SokoBotMemory'
+        },
+        legacyMessages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotLegacyMessage'
+            }
+        },
+        pendingDecisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotPendingDecision'
+            }
+        },
+        schedules: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotSchedule'
+            }
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'userId',
+        'name',
+        'avatarSeed',
+        'personalityTone',
+        'personalityDetail',
+        'personalityStyle',
+        'autonomyLevel',
+        'status',
+        'runtimeVersion',
+        'lastSandboxStatus',
+        'memoryVersion',
+        'memoryHash',
+        'lastActivityAt',
+        'lastTurnAt',
+        'lastSucceededAt',
+        'lastFailedAt',
+        'consecutiveTurnFailures',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const AdminSokoBotActionRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        action: {
+            type: 'string',
+            enum: [
+                'PAUSE',
+                'RESUME',
+                'RESET_SESSION',
+                'RESET_MEMORY',
+                'RETRY_LAST_FAILED',
+                'RETRY_SCHEDULE_RUN',
+                'DISABLE_SCHEDULE'
+            ]
+        },
+        targetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        }
+    },
+    required: [
+        'operationId',
+        'action',
+        'reason'
+    ],
+    additionalProperties: false
+} as const;
+
 export const AdminUserOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -3089,21 +4550,6 @@ export const TaskFileSchema = {
             format: 'uri',
             example: 'https://blob.vercel.app/tasks/tsk_123/report.pdf'
         },
-        sourceUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri',
-            example: 'https://example.com/source.pdf',
-            description: 'Original source URL for output files'
-        },
-        status: {
-            $ref: '#/components/schemas/TaskFileStatus'
-        },
-        origin: {
-            $ref: '#/components/schemas/TaskFileOrigin'
-        },
         mimeType: {
             type: [
                 'string',
@@ -3119,6 +4565,21 @@ export const TaskFileSchema = {
             minimum: 0,
             example: 2048000
         },
+        status: {
+            $ref: '#/components/schemas/TaskFileStatus'
+        },
+        origin: {
+            $ref: '#/components/schemas/TaskFileOrigin'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/source.pdf',
+            description: 'Original source URL for output files'
+        },
         uploader: {
             $ref: '#/components/schemas/TaskFileUploader'
         }
@@ -3130,11 +4591,11 @@ export const TaskFileSchema = {
         'updatedAt',
         'name',
         'fileUrl',
-        'sourceUrl',
-        'status',
-        'origin',
         'mimeType',
         'size',
+        'status',
+        'origin',
+        'sourceUrl',
         'uploader'
     ]
 } as const;
@@ -8323,1325 +9784,6 @@ export const ActivateEnterpriseContractRequestSchema = {
     }
 } as const;
 
-export const HermesChatResponseSchema = {
-    type: 'object',
-    properties: {
-        message: {
-            type: 'object',
-            properties: {
-                role: {
-                    type: 'string',
-                    enum: [
-                        'assistant'
-                    ]
-                },
-                content: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'role',
-                'content'
-            ]
-        }
-    },
-    required: [
-        'message'
-    ]
-} as const;
-
-export const HermesInstanceNotReadySchema = {
-    type: 'object',
-    properties: {
-        status: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/HermesInstanceStatus'
-                },
-                {
-                    type: 'string',
-                    enum: [
-                        'missing'
-                    ]
-                }
-            ]
-        }
-    },
-    required: [
-        'status'
-    ]
-} as const;
-
-export const HermesInstanceStatusSchema = {
-    type: 'string',
-    enum: [
-        'provisioning',
-        'infrastructure_ready',
-        'onboarding',
-        'ready',
-        'running',
-        'suspended',
-        'error'
-    ]
-} as const;
-
-export const HermesChatRequestSchema = {
-    type: 'object',
-    properties: {
-        content: {
-            type: 'string'
-        },
-        files: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesUploadedFile'
-            }
-        }
-    }
-} as const;
-
-export const HermesUploadedFileSchema = {
-    type: 'object',
-    properties: {
-        name: {
-            type: 'string',
-            minLength: 1
-        },
-        type: {
-            type: 'string',
-            minLength: 1
-        },
-        dataUrl: {
-            type: 'string',
-            minLength: 1
-        }
-    },
-    required: [
-        'name',
-        'type',
-        'dataUrl'
-    ]
-} as const;
-
-export const HermesGetInstanceEnvelopeSchema = {
-    anyOf: [
-        {
-            $ref: '#/components/schemas/HermesGetInstanceNone'
-        },
-        {
-            $ref: '#/components/schemas/HermesGetInstanceSome'
-        }
-    ]
-} as const;
-
-export const HermesGetInstanceNoneSchema = {
-    type: 'object',
-    properties: {
-        hasInstance: {
-            type: 'boolean',
-            enum: [
-                false
-            ]
-        }
-    },
-    required: [
-        'hasInstance'
-    ]
-} as const;
-
-export const HermesGetInstanceSomeSchema = {
-    type: 'object',
-    properties: {
-        hasInstance: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        },
-        instance: {
-            $ref: '#/components/schemas/HermesInstance'
-        }
-    },
-    required: [
-        'hasInstance',
-        'instance'
-    ]
-} as const;
-
-export const HermesInstanceSchema = {
-    type: 'object',
-    properties: {
-        status: {
-            $ref: '#/components/schemas/HermesInstanceStatus'
-        },
-        endpointUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri'
-        },
-        lastActivityAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        onboardedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        assistantName: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 120,
-            default: null
-        },
-        personality: {
-            $ref: '#/components/schemas/HermesPersonality'
-        },
-        autonomyLevel: {
-            $ref: '#/components/schemas/HermesAutonomyLevel'
-        },
-        model: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        modelProvider: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        integrations: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesIntegration'
-            }
-        },
-        transitioning: {
-            type: 'boolean',
-            default: false
-        },
-        lastSokosumiSyncAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            default: null,
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        lastInboxRefreshAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            default: null,
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        timezone: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        pendingConfirmations: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesPendingConfirmation'
-            },
-            default: []
-        }
-    },
-    required: [
-        'status',
-        'endpointUrl',
-        'lastActivityAt',
-        'onboardedAt',
-        'integrations'
-    ]
-} as const;
-
-export const HermesPersonalitySchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        tone: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            default: 50
-        },
-        detail: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            default: 50
-        },
-        style: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            default: 50
-        }
-    },
-    default: null
-} as const;
-
-export const HermesAutonomyLevelSchema = {
-    type: 'string',
-    enum: [
-        'low',
-        'medium',
-        'high'
-    ],
-    default: 'medium'
-} as const;
-
-export const HermesIntegrationSchema = {
-    type: 'object',
-    properties: {
-        provider: {
-            $ref: '#/components/schemas/HermesIntegrationProvider'
-        },
-        status: {
-            $ref: '#/components/schemas/HermesIntegrationStatus'
-        },
-        connectedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        mode: {
-            $ref: '#/components/schemas/HermesIntegrationMode'
-        }
-    },
-    required: [
-        'provider',
-        'status',
-        'connectedAt'
-    ]
-} as const;
-
-export const HermesIntegrationProviderSchema = {
-    type: 'string',
-    enum: [
-        'gmail',
-        'google_calendar',
-        'google_sheets',
-        'google_docs',
-        'outlook',
-        'outlook_calendar',
-        'slack',
-        'teams',
-        'linear',
-        'jira',
-        'github',
-        'notion',
-        'hubspot',
-        'twitter',
-        'instagram',
-        'youtube',
-        'linkedin'
-    ]
-} as const;
-
-export const HermesIntegrationStatusSchema = {
-    type: 'string',
-    enum: [
-        'disconnected',
-        'connecting',
-        'connected',
-        'error'
-    ]
-} as const;
-
-export const HermesIntegrationModeSchema = {
-    type: 'string',
-    enum: [
-        'read',
-        'write'
-    ],
-    default: 'read'
-} as const;
-
-export const HermesPendingConfirmationSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            minLength: 1
-        },
-        toolName: {
-            type: 'string',
-            minLength: 1
-        },
-        summary: {
-            type: 'string',
-            minLength: 1
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        referencedCoworkers: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesConfirmationCoworkerRef'
-            },
-            default: []
-        },
-        referencedOrganizations: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesConfirmationOrganizationRef'
-            },
-            default: []
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            default: null
-        },
-        organizationName: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            default: null
-        }
-    },
-    required: [
-        'id',
-        'toolName',
-        'summary',
-        'createdAt'
-    ]
-} as const;
-
-export const HermesConfirmationCoworkerRefSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            minLength: 1
-        },
-        name: {
-            type: 'string'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'image'
-    ]
-} as const;
-
-export const HermesConfirmationOrganizationRefSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            minLength: 1
-        },
-        name: {
-            type: 'string'
-        },
-        slug: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'slug'
-    ]
-} as const;
-
-export const HermesUpdateInstanceRequestSchema = {
-    type: 'object',
-    properties: {
-        autonomyLevel: {
-            $ref: '#/components/schemas/HermesAutonomyLevel'
-        },
-        name: {
-            type: 'string',
-            minLength: 1
-        },
-        assistantName: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 60
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            maxLength: 120
-        },
-        email: {
-            type: 'string',
-            format: 'email'
-        },
-        timezone: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 64
-        }
-    }
-} as const;
-
-export const HermesEmptyResponseSchema = {
-    type: 'object',
-    properties: {
-        ok: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        }
-    },
-    required: [
-        'ok'
-    ]
-} as const;
-
-export const HermesPersistedMessageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        role: {
-            $ref: '#/components/schemas/HermesChatMessageRole'
-        },
-        content: {
-            type: 'string'
-        },
-        kind: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        steps: {
-            type: [
-                'array',
-                'null'
-            ],
-            items: {
-                type: 'object',
-                properties: {
-                    kind: {
-                        type: 'string',
-                        enum: [
-                            'tool',
-                            'reasoning'
-                        ]
-                    },
-                    label: {
-                        type: 'string'
-                    },
-                    detail: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'label'
-                ]
-            },
-            description: 'Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.',
-            example: [
-                {
-                    kind: 'reasoning',
-                    label: 'The user wants a web search…'
-                },
-                {
-                    kind: 'tool',
-                    label: 'Searching the web',
-                    detail: 'latest MoE LLMs'
-                }
-            ]
-        },
-        durationMs: {
-            type: [
-                'integer',
-                'null'
-            ],
-            description: 'Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.',
-            example: 7840
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'role',
-        'content',
-        'kind',
-        'createdAt'
-    ]
-} as const;
-
-export const HermesChatMessageRoleSchema = {
-    type: 'string',
-    enum: [
-        'user',
-        'assistant',
-        'system'
-    ]
-} as const;
-
-export const HermesUnreadCountSchema = {
-    type: 'object',
-    properties: {
-        count: {
-            type: 'integer',
-            minimum: 0
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        assistantName: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        hasInstance: {
-            type: 'boolean',
-            default: false
-        }
-    },
-    required: [
-        'count'
-    ]
-} as const;
-
-export const MarkHermesInboxSeenRequestSchema = {
-    type: 'object',
-    properties: {
-        asOfIso: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    }
-} as const;
-
-export const SetHermesSecretRequestSchema = {
-    type: 'object',
-    properties: {
-        key: {
-            type: 'string',
-            minLength: 1
-        },
-        value: {
-            type: 'string'
-        }
-    },
-    required: [
-        'key',
-        'value'
-    ]
-} as const;
-
-export const HermesStartOnboardingRequestSchema = {
-    type: 'object',
-    properties: {
-        name: {
-            type: 'string',
-            minLength: 1
-        },
-        assistantName: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 60
-        },
-        avatarSeed: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 120
-        },
-        email: {
-            type: 'string',
-            format: 'email'
-        },
-        role: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 64
-        },
-        company: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 120
-        },
-        researchDepth: {
-            type: 'string',
-            enum: [
-                'deep',
-                'light'
-            ]
-        },
-        personality: {
-            $ref: '#/components/schemas/HermesPersonality'
-        },
-        autonomyLevel: {
-            $ref: '#/components/schemas/HermesAutonomyLevel'
-        }
-    }
-} as const;
-
-export const HermesOnboardingProgressSchema = {
-    type: 'object',
-    properties: {
-        status: {
-            $ref: '#/components/schemas/HermesInstanceStatus'
-        },
-        steps: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesOnboardingStep'
-            }
-        },
-        etaSeconds: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0
-        }
-    },
-    required: [
-        'status',
-        'steps',
-        'etaSeconds'
-    ]
-} as const;
-
-export const HermesOnboardingStepSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            minLength: 1
-        },
-        label: {
-            type: 'string',
-            minLength: 1
-        },
-        status: {
-            $ref: '#/components/schemas/HermesOnboardingStepStatus'
-        },
-        errorMessage: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'label',
-        'status'
-    ]
-} as const;
-
-export const HermesOnboardingStepStatusSchema = {
-    type: 'string',
-    enum: [
-        'pending',
-        'running',
-        'done',
-        'skipped',
-        'error'
-    ]
-} as const;
-
-export const HermesIntegrationsListSchema = {
-    type: 'object',
-    properties: {
-        integrations: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesIntegration'
-            }
-        }
-    },
-    required: [
-        'integrations'
-    ]
-} as const;
-
-export const HermesSchedulesListSchema = {
-    type: 'object',
-    properties: {
-        schedules: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/HermesSchedule'
-            }
-        }
-    },
-    required: [
-        'schedules'
-    ]
-} as const;
-
-export const HermesScheduleSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            minLength: 1
-        },
-        source: {
-            $ref: '#/components/schemas/HermesScheduleSource'
-        },
-        kind: {
-            $ref: '#/components/schemas/HermesScheduleKind'
-        },
-        name: {
-            type: 'string',
-            minLength: 1
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        cronExpr: {
-            type: 'string'
-        },
-        timezone: {
-            type: [
-                'string',
-                'null'
-            ],
-            default: null
-        },
-        enabled: {
-            type: 'boolean'
-        },
-        lastRunAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        nextRunAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        systemManaged: {
-            type: 'boolean'
-        },
-        addressable: {
-            type: 'boolean',
-            default: true
-        }
-    },
-    required: [
-        'id',
-        'source',
-        'kind',
-        'name',
-        'cronExpr',
-        'enabled',
-        'lastRunAt',
-        'nextRunAt',
-        'systemManaged'
-    ]
-} as const;
-
-export const HermesScheduleSourceSchema = {
-    type: 'string',
-    enum: [
-        'orchestrator',
-        'hermes'
-    ]
-} as const;
-
-export const HermesScheduleKindSchema = {
-    type: 'string',
-    enum: [
-        'user',
-        'system_prompt',
-        'system_sweep'
-    ]
-} as const;
-
-export const HermesPatchScheduleRequestSchema = {
-    type: 'object',
-    properties: {
-        enabled: {
-            type: 'boolean'
-        }
-    }
-} as const;
-
-export const HermesConfirmationResolveResponseSchema = {
-    type: 'object',
-    properties: {
-        status: {
-            $ref: '#/components/schemas/HermesConfirmationStatus'
-        },
-        result: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        error: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'status'
-    ]
-} as const;
-
-export const HermesConfirmationStatusSchema = {
-    type: 'string',
-    enum: [
-        'approved',
-        'rejected',
-        'errored',
-        'already_resolved'
-    ]
-} as const;
-
-export const HermesApproveConfirmationRequestSchema = {
-    type: 'object',
-    properties: {
-        overrides: {
-            type: 'object',
-            properties: {
-                organizationId: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    minLength: 1
-                }
-            }
-        },
-        confirmation: {
-            $ref: '#/components/schemas/HermesPendingConfirmation'
-        }
-    }
-} as const;
-
-export const HermesRejectConfirmationRequestSchema = {
-    type: 'object',
-    properties: {
-        reason: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 500
-        },
-        confirmation: {
-            $ref: '#/components/schemas/HermesPendingConfirmation'
-        }
-    }
-} as const;
-
-export const HermesInitiateIntegrationResponseSchema = {
-    type: 'object',
-    properties: {
-        provider: {
-            $ref: '#/components/schemas/HermesIntegrationProvider'
-        },
-        redirectUrl: {
-            type: 'string',
-            format: 'uri'
-        },
-        connectionId: {
-            type: 'string',
-            minLength: 1
-        }
-    },
-    required: [
-        'provider',
-        'redirectUrl',
-        'connectionId'
-    ]
-} as const;
-
-export const HermesInitiateIntegrationRequestSchema = {
-    type: 'object',
-    properties: {
-        provider: {
-            $ref: '#/components/schemas/HermesIntegrationProvider'
-        },
-        mode: {
-            $ref: '#/components/schemas/HermesIntegrationMode'
-        }
-    },
-    required: [
-        'provider'
-    ]
-} as const;
-
-export const HermesFinalizeIntegrationRequestSchema = {
-    type: 'object',
-    properties: {
-        provider: {
-            $ref: '#/components/schemas/HermesIntegrationProvider'
-        },
-        connectionId: {
-            type: 'string',
-            minLength: 1
-        },
-        mode: {
-            $ref: '#/components/schemas/HermesIntegrationMode'
-        }
-    },
-    required: [
-        'provider',
-        'connectionId'
-    ]
-} as const;
-
-export const SkillCatalogListSchema = {
-    type: 'object',
-    properties: {
-        skills: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/SkillCatalogItem'
-            }
-        }
-    },
-    required: [
-        'skills'
-    ]
-} as const;
-
-export const SkillCatalogItemSchema = {
-    type: 'object',
-    properties: {
-        skillId: {
-            type: 'string'
-        },
-        source: {
-            type: 'string'
-        },
-        slug: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        installs: {
-            type: [
-                'integer',
-                'null'
-            ]
-        },
-        curated: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'skillId',
-        'source',
-        'slug',
-        'name',
-        'description',
-        'installs',
-        'curated'
-    ]
-} as const;
-
-export const SkillCatalogDetailSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/SkillCatalogItem'
-        },
-        {
-            type: 'object',
-            properties: {
-                hash: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
-                },
-                installUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
-                },
-                auditRisk: {
-                    $ref: '#/components/schemas/SkillsRiskLevel'
-                },
-                audits: {
-                    type: 'array',
-                    items: {
-                        $ref: '#/components/schemas/SkillAuditEntry'
-                    }
-                }
-            },
-            required: [
-                'hash',
-                'installUrl',
-                'auditRisk',
-                'audits'
-            ]
-        }
-    ]
-} as const;
-
-export const SkillsRiskLevelSchema = {
-    type: [
-        'string',
-        'null'
-    ],
-    enum: [
-        'NONE',
-        'LOW',
-        'MEDIUM',
-        'HIGH',
-        'CRITICAL',
-        null
-    ]
-} as const;
-
-export const SkillAuditEntrySchema = {
-    type: 'object',
-    properties: {
-        provider: {
-            type: 'string'
-        },
-        status: {
-            $ref: '#/components/schemas/SkillsAuditStatus'
-        },
-        riskLevel: {
-            $ref: '#/components/schemas/SkillsRiskLevel'
-        }
-    },
-    required: [
-        'provider',
-        'status',
-        'riskLevel'
-    ]
-} as const;
-
-export const SkillsAuditStatusSchema = {
-    type: 'string',
-    enum: [
-        'pass',
-        'warn',
-        'fail'
-    ]
-} as const;
-
-export const InstalledSkillsListSchema = {
-    type: 'object',
-    properties: {
-        skills: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/InstalledSkill'
-            }
-        }
-    },
-    required: [
-        'skills'
-    ]
-} as const;
-
-export const InstalledSkillSchema = {
-    type: 'object',
-    properties: {
-        skillId: {
-            type: 'string'
-        },
-        source: {
-            type: 'string'
-        },
-        slug: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        auditRisk: {
-            $ref: '#/components/schemas/SkillsRiskLevel'
-        },
-        status: {
-            $ref: '#/components/schemas/InstalledSkillStatus'
-        },
-        installedAt: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'skillId',
-        'source',
-        'slug',
-        'name',
-        'auditRisk',
-        'status',
-        'installedAt'
-    ]
-} as const;
-
-export const InstalledSkillStatusSchema = {
-    type: 'string',
-    enum: [
-        'installed',
-        'installing'
-    ]
-} as const;
-
-export const PreinstalledSkillsListSchema = {
-    type: 'object',
-    properties: {
-        skills: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/PreinstalledSkill'
-            }
-        }
-    },
-    required: [
-        'skills'
-    ]
-} as const;
-
-export const PreinstalledSkillSchema = {
-    type: 'object',
-    properties: {
-        slug: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'slug',
-        'name',
-        'description'
-    ]
-} as const;
-
-export const InstallSkillResponseSchema = {
-    type: 'object',
-    properties: {
-        slug: {
-            type: 'string'
-        },
-        status: {
-            $ref: '#/components/schemas/InstalledSkillStatus'
-        }
-    },
-    required: [
-        'slug',
-        'status'
-    ]
-} as const;
-
-export const InstallSkillRequestSchema = {
-    type: 'object',
-    properties: {
-        source: {
-            type: 'string',
-            minLength: 1
-        },
-        slug: {
-            type: 'string',
-            minLength: 1
-        }
-    },
-    required: [
-        'source',
-        'slug'
-    ]
-} as const;
-
 export const HistoryListSchema = {
     type: 'array',
     items: {
@@ -13915,6 +14057,271 @@ export const PublicSharedTaskFileSchema = {
     ]
 } as const;
 
+export const SokoBotStateSchema = {
+    type: 'object',
+    properties: {
+        sokoBot: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBot'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'sokoBot'
+    ]
+} as const;
+
+export const CreateSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        personalityTone: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityDetail: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        personalityStyle: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 100
+        },
+        autonomyLevel: {
+            $ref: '#/components/schemas/SokoBotAutonomyLevel'
+        }
+    },
+    required: [
+        'name'
+    ],
+    additionalProperties: false
+} as const;
+
+export const StartSokoBotTurnResponseSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sokoBotId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sessionId: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        },
+        route: {
+            $ref: '#/components/schemas/SokoBotTurnRoute'
+        },
+        capabilities: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        duplicate: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'turnId',
+        'sokoBotId',
+        'sessionId',
+        'status',
+        'route',
+        'capabilities',
+        'duplicate'
+    ]
+} as const;
+
+export const StartSokoBotTurnRequestSchema = {
+    type: 'object',
+    properties: {
+        clientTurnId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        message: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 20000
+        }
+    },
+    required: [
+        'clientTurnId',
+        'message'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CreateSokoBotScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        cronExpression: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 20000
+        }
+    },
+    required: [
+        'name',
+        'timezone',
+        'cronExpression',
+        'prompt'
+    ],
+    additionalProperties: false
+} as const;
+
+export const UpdateSokoBotScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        cronExpression: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 20000
+        }
+    },
+    additionalProperties: false
+} as const;
+
+export const ResolveSokoBotDecisionRequestSchema = {
+    type: 'object',
+    properties: {
+        resolution: {
+            type: 'string',
+            enum: [
+                'ACCEPT',
+                'REJECT'
+            ]
+        }
+    },
+    required: [
+        'resolution'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SokoBotRuntimeErrorSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            example: 'organization_not_found'
+        },
+        retryable: {
+            type: 'boolean'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'retryable',
+        'meta'
+    ]
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -14365,100 +14772,6 @@ export const CoworkerWorkspaceAccessTargetSchema = {
             example: 'acme-corp'
         }
     }
-} as const;
-
-export const OrchestratorUsageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-0000000000bb'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        idempotencyKey: {
-            type: 'string',
-            example: 'usage_456'
-        },
-        referenceId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'ref_789'
-        },
-        orchestratorId: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
-        },
-        userId: {
-            type: 'string',
-            example: 'user_123'
-        },
-        credits: {
-            type: 'number',
-            example: 2.5
-        },
-        transactionId: {
-            type: 'string',
-            example: 'txn_123'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'idempotencyKey',
-        'referenceId',
-        'orchestratorId',
-        'userId',
-        'credits',
-        'transactionId'
-    ]
-} as const;
-
-export const OrchestratorPurgeResponseSchema = {
-    type: 'object',
-    properties: {
-        purged: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        },
-        userId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'purged',
-        'userId'
-    ]
-} as const;
-
-export const OrchestratorPurgeRequestSchema = {
-    type: 'object',
-    properties: {
-        userId: {
-            type: 'string',
-            minLength: 1,
-            example: 'user_123'
-        }
-    },
-    required: [
-        'userId'
-    ],
-    additionalProperties: false
 } as const;
 
 export const TaskListItemSchema = {

@@ -1,5 +1,6 @@
 export type {
   AgentClientConfig,
+  AgentJobInputFailure,
   AgentJobStartFailure,
 } from "./agent.client.js";
 export { createAgentClient } from "./agent.client.js";

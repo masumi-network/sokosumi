@@ -7,7 +7,7 @@ import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -27,12 +27,12 @@ const paramsSchema = z.object({
   }),
 });
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "delete",
     path: "/{id}/tasks/{taskId}",
     description:
-      "Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
