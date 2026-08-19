@@ -1000,7 +1000,8 @@ export default function DrivePage(): ReactElement {
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem
-                                onSelect={() => {
+                                onSelect={(e) => {
+                                  e.preventDefault();
                                   startEdit(item);
                                 }}
                                 disabled={editingItemPath !== null}
@@ -1009,7 +1010,8 @@ export default function DrivePage(): ReactElement {
                                 {t("renameAction")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onSelect={() => {
+                                onSelect={(e) => {
+                                  e.preventDefault();
                                   openMoveDialog(item);
                                 }}
                                 disabled={editingItemPath !== null}
