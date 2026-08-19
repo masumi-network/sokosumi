@@ -2,6 +2,8 @@ import Image from "next/image";
 
 import { KanjiLogo } from "@/components/masumi-logos";
 
+import AuthAside from "./auth-aside";
+
 export const AUTH_BACKGROUND_IMAGES = [
   "/images/backgrounds/auth-bg-1.png",
   "/images/backgrounds/auth-bg-2.png",
@@ -34,11 +36,14 @@ export function pickAuthBackgroundImage(
  * Half-viewport auth marketing image (lg+). Server Component so the LCP src is
  * final on first HTML — no client mount swap — and `preload` starts the fetch.
  */
-export default function AuthBackground() {
+export default async function AuthBackground() {
   const backgroundImage = pickAuthBackgroundImage();
 
   return (
-    <div className="hidden h-full w-1/2 lg:block">
+    <aside
+      className="relative hidden h-full w-1/2 lg:block"
+      aria-labelledby="auth-aside-title"
+    >
       <div className="relative h-full w-full">
         <Image
           alt=""
@@ -48,10 +53,11 @@ export default function AuthBackground() {
           className="rounded-xl object-cover"
           sizes={AUTH_BACKGROUND_SIZES}
         />
-        <div className="pointer-events-none absolute right-4 bottom-4 text-white">
-          <KanjiLogo className="fill-white" />
+        <AuthAside />
+        <div className="pointer-events-none absolute top-10 right-10 z-10 xl:top-12 xl:right-12">
+          <KanjiLogo className="h-9 fill-white/90" />
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

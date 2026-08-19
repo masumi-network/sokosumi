@@ -1042,6 +1042,17 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung"
     },
+    "Aside": {
+      "titleLine1": "AI Coworkers",
+      "titleLine2": "für Marketing",
+      "bullet1": "Spezialisierter AI Coworker, gebaut für Marketing.",
+      "bullet2": "Gebaut für kleine und große Marketingteams.",
+      "bullet3": "Funktioniert mit den Tools, die ihr bereits nutzt.",
+      "logosLabel": "Im Einsatz bei",
+      "quote": "„Sokosumi ergänzt und verbindet unser bestehendes Agenturangebot. Agentic Services machen Interaktion möglich — und damit den Faden, der all unsere KI-Anwendungen und Services zusammenhält.“",
+      "quoteAuthor": "Florian Haller",
+      "quoteRole": "CEO, Serviceplan Group"
+    },
     "Schema": {
       "Email": {
         "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
