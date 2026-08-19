@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BASE_MAINNET,
   BASE_SEPOLIA,
-  COWORKER_AGENT_CONTEXT,
   createAgentRow,
   createApp,
   createCreditCostRow,
@@ -62,7 +61,7 @@ function seedReadiness(pairs: ReadinessPairFixture[]) {
   syncMetadataFindUniqueMock.mockResolvedValue(createReadinessRow(pairs));
 }
 
-describe("GET /agents/x402", () => {
+describe("GET /agents?kind=x402", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -90,14 +89,9 @@ describe("GET /agents/x402", () => {
   });
 
   it("returns payable agents to an authenticated user actor", async () => {
-    const app = createApp({
-      actor: "user",
-      userId: "user_1",
-      organizationId: null,
-      role: "user",
-    });
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
@@ -116,14 +110,9 @@ describe("GET /agents/x402", () => {
 
   it("labels OpenAPI x402 entries with their specification", async () => {
     agentFindManyMock.mockResolvedValue([createAgentRow({ type: "OPEN_API" })]);
-    const app = createApp({
-      actor: "user",
-      userId: "user_1",
-      organizationId: null,
-      role: "user",
-    });
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
@@ -148,16 +137,16 @@ describe("GET /agents/x402", () => {
       agentFindManyMock.mockResolvedValue([
         createAgentRow({ type, ...urlOverrides }),
       ]);
-      const app = createApp(COWORKER_AGENT_CONTEXT);
+      const app = createApp();
 
-      const response = await app.request("http://localhost/x402");
+      const response = await app.request("http://localhost/?kind=x402");
 
       expect(response.status).toBe(200);
       expect((await response.json()) as { data: unknown[] }).toMatchObject({
         data: [],
       });
       expect(warn).toHaveBeenCalledWith(
-        '[agents/x402] every candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
+        '[agents] every x402 candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
       );
     },
   );
@@ -177,14 +166,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp({
-      actor: "user",
-      userId: "user_1",
-      organizationId: null,
-      role: "user",
-    });
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
@@ -228,9 +212,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
@@ -263,21 +247,16 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp({
-      actor: "user",
-      userId: "user_1",
-      organizationId: null,
-      role: "user",
-    });
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
       data: [],
     });
     expect(warn).toHaveBeenCalledWith(
-      '[agents/x402] every candidate agent was dropped as unpayable: {"malformed_pay_to":1}',
+      '[agents] every x402 candidate agent was dropped as unpayable: {"malformed_pay_to":1}',
     );
   });
 
@@ -296,9 +275,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
@@ -319,29 +298,6 @@ describe("GET /agents/x402", () => {
     });
   });
 
-  it("rejects a delegated coworker (workspace context) with 403", async () => {
-    // A coworker with context headers acts as the user; the x402 surface is
-    // agent-only, so delegation must not open it.
-    const app = createApp({
-      ...COWORKER_AGENT_CONTEXT,
-      context: { userId: "user_1", organizationId: null },
-    });
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(403);
-    expect(agentFindManyMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects an orchestrator actor with 403", async () => {
-    const app = createApp({ actor: "orchestrator" });
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(403);
-    expect(agentFindManyMock).not.toHaveBeenCalled();
-  });
-
   it("returns the payable agent with resolved overrides and converted credits", async () => {
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
@@ -352,14 +308,15 @@ describe("GET /agents/x402", () => {
         },
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
     expect(body.data).toEqual([
       {
+        kind: "x402",
         id: "agent_x402_1",
         specification: "bazaar",
         name: "Override Name",
@@ -389,16 +346,16 @@ describe("GET /agents/x402", () => {
     agentFindManyMock.mockResolvedValue([
       createAgentRow({ x402ResourcesUrl: "javascript:alert(1)" }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
       data: [],
     });
     expect(warn).toHaveBeenCalledWith(
-      '[agents/x402] every candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
+      '[agents] every x402 candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
     );
   });
 
@@ -422,9 +379,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
@@ -458,9 +415,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
@@ -508,9 +465,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
@@ -518,7 +475,7 @@ describe("GET /agents/x402", () => {
       { pricingType: "dynamic", isPayable: false },
     ]);
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] non-payable agents by reason: {"unpriced_dynamic_preview":1}',
+      '[agents] non-payable x402 agents by reason: {"unpriced_dynamic_preview":1}',
     );
   });
 
@@ -551,9 +508,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
@@ -578,9 +535,9 @@ describe("GET /agents/x402", () => {
     ]);
     creditCostFindManyMock.mockResolvedValue([]);
     agentFindManyMock.mockResolvedValue([createAgentRow()]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
@@ -621,9 +578,9 @@ describe("GET /agents/x402", () => {
     creditCostFindManyMock.mockResolvedValue([
       createCreditCostRow(`${BASE_SEPOLIA}/erc20:${UNPRICED_ADDRESS}`, 100n),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: { id: string }[] };
@@ -631,7 +588,7 @@ describe("GET /agents/x402", () => {
     // The sole candidate dropped on the unfiltered first page, so the tally
     // rides the warn line; the reason pins the pricing gate specifically.
     expect(warn).toHaveBeenCalledWith(
-      '[agents/x402] every candidate agent was dropped as unpayable: {"unpriced_asset":1}',
+      '[agents] every x402 candidate agent was dropped as unpayable: {"unpriced_asset":1}',
     );
     warn.mockRestore();
     debug.mockRestore();
@@ -680,9 +637,9 @@ describe("GET /agents/x402", () => {
         evmWalletId: "wallet-1",
       },
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
@@ -690,7 +647,7 @@ describe("GET /agents/x402", () => {
     // One line for the whole request, naming which gate hid what.
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(
-      '[agents/x402] every candidate agent was dropped as unpayable: {"not_buy_side_ready":1,"unsupported_scheme":1,"no_payment_source":1}',
+      '[agents] every x402 candidate agent was dropped as unpayable: {"not_buy_side_ready":1,"unsupported_scheme":1,"no_payment_source":1}',
     );
   });
 
@@ -715,23 +672,23 @@ describe("GET /agents/x402", () => {
       ),
     );
     agentCountMock.mockResolvedValue(21);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":20}',
+      '[agents] non-payable x402 agents by reason: {"unsupported_scheme":20}',
     );
   });
 
   it("stays quiet when every candidate agent is payable", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect(warn).not.toHaveBeenCalled();
@@ -746,9 +703,9 @@ describe("GET /agents/x402", () => {
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue([]);
     agentCountMock.mockResolvedValue(0);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
@@ -780,10 +737,10 @@ describe("GET /agents/x402", () => {
       }),
     ]);
     agentCountMock.mockResolvedValue(9);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
     const response = await app.request(
-      "http://localhost/x402?cursor=agent_x402_0",
+      "http://localhost/?kind=x402&cursor=agent_x402_0",
     );
 
     expect(response.status).toBe(200);
@@ -793,7 +750,7 @@ describe("GET /agents/x402", () => {
     // The per-reason tally survives the demotion — it is the only thing that
     // tells "nothing priced" apart from "everything failed the network gate".
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":1}',
+      '[agents] non-payable x402 agents by reason: {"unsupported_scheme":1}',
     );
   });
 
@@ -819,15 +776,15 @@ describe("GET /agents/x402", () => {
       }),
     ]);
     agentCountMock.mockResolvedValue(1);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402?cursor=");
+    const response = await app.request("http://localhost/?kind=x402&cursor=");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
     expect(body.data).toEqual([]);
     expect(warn).toHaveBeenCalledWith(
-      '[agents/x402] every candidate agent was dropped as unpayable: {"unsupported_scheme":1}',
+      '[agents] every x402 candidate agent was dropped as unpayable: {"unsupported_scheme":1}',
     );
   });
 
@@ -854,16 +811,16 @@ describe("GET /agents/x402", () => {
       createAgentRow({ id: "agent_x402_next" }),
     ]);
     agentCountMock.mockResolvedValue(9);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402?limit=1");
+    const response = await app.request("http://localhost/?kind=x402&limit=1");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
     expect(body.data).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":1}',
+      '[agents] non-payable x402 agents by reason: {"unsupported_scheme":1}',
     );
   });
 
@@ -887,14 +844,14 @@ describe("GET /agents/x402", () => {
         }),
       ),
     );
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":20}',
+      '[agents] non-payable x402 agents by reason: {"unsupported_scheme":20}',
     );
   });
 
@@ -917,9 +874,9 @@ describe("GET /agents/x402", () => {
         ],
       }),
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: { id: string }[] };
@@ -976,9 +933,9 @@ describe("GET /agents/x402", () => {
       },
     ]);
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     // The catalog WAS queried and the per-agent gates ran: the Preprod agent
@@ -992,7 +949,7 @@ describe("GET /agents/x402", () => {
     // not_buy_side_ready. Only the reason tells the gate under test apart from
     // that independent second defence.
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] non-payable agents by reason: {"network_not_allowed":1}',
+      '[agents] non-payable x402 agents by reason: {"network_not_allowed":1}',
     );
   });
 
@@ -1004,9 +961,9 @@ describe("GET /agents/x402", () => {
         evmWalletId: "wallet-1",
       },
     ]);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };

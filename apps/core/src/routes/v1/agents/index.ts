@@ -11,7 +11,6 @@ import mountPostAgentRating from "./[id]/ratings/post.js";
 import mountGetAgentReviews from "./[id]/reviews/get.js";
 import mountGetMyAgentReview from "./[id]/reviews/me/get.js";
 import mountGetAgents from "./get.js";
-import mountGetX402Agents from "./x402/get.js";
 
 // GET / is public catalog — cookie-free `'use cache'` consumers need anonymous
 // access. It must NOT sit on OpenAPIHonoWithAuth. Still needs defaultValidationHook
@@ -26,9 +25,6 @@ const authedRoutes = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
-// Mounted before the by-id route so the static "/x402" segment can never be
-// captured by the "/{id}" parameter.
-mountGetX402Agents(authedRoutes);
 mountGetAgentById(authedRoutes);
 mountGetAgentReviews(authedRoutes);
 mountGetMyAgentReview(authedRoutes);

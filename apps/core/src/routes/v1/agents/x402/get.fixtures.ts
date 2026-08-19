@@ -1,8 +1,8 @@
 /**
- * Shared fixtures for the `GET /v1/agents/x402` suites, split by concern into
- * `get.test.ts` (authorization, the fail-closed per-agent gates, and drop
- * logging) and `get.query.test.ts` (the shape of the catalog query itself —
- * pagination, ordering, snapshot isolation, column narrowing).
+ * Shared fixtures for the `GET /v1/agents?kind=x402` suites, split by concern into
+ * `get.test.ts` (the fail-closed per-agent gates and drop logging) and
+ * `get.query.test.ts` (the shape of the catalog query itself — pagination,
+ * ordering, snapshot isolation, column narrowing).
  *
  * Only the vitest mock objects stay per-file: a `vi.mock` factory may close
  * over `vi.hoisted` bindings declared in the SAME file, so each suite declares
@@ -15,13 +15,8 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { X402_BUY_SIDE_READINESS_KEY } from "@/helpers/x402-readiness";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthVariables,
-  CoworkerAuthenticationContext,
-} from "@/middleware/auth";
 
-import mountGetX402Agents from "./get";
+import mountGetAgents from "../get";
 
 export const BASE_SEPOLIA = "eip155:84532";
 export const BASE_MAINNET = "eip155:8453";
@@ -38,16 +33,8 @@ export const EVM_WALLET_ADDRESS = "0x3333333333333333333333333333333333333333";
  * across a module boundary the importer sees the declared union and the added
  * property is an excess property against `UserAuthenticationContext`.
  */
-export const COWORKER_AGENT_CONTEXT: CoworkerAuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "coworker_1",
-  vendorId: "vendor_1",
-};
-
-export function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>({
+export function createApp() {
+  const app = new OpenAPIHono({
     defaultHook: (result) => {
       if (!result.success && result.error) {
         throw unprocessableEntity(formatZodErrorMessage(result.error));
@@ -57,12 +44,10 @@ export function createApp(authContext: AuthVariables["authContext"]) {
 
   app.use("*", async (c, next) => {
     c.set("requestId", "test-req-id");
-    c.set("isAuthenticated", true);
-    c.set("authContext", authContext);
     return await next();
   });
 
-  mountGetX402Agents(app as unknown as OpenAPIHonoWithAuth);
+  mountGetAgents(app);
   return app;
 }
 

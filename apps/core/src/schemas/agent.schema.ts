@@ -7,6 +7,7 @@ import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { categorySchema } from "@/schemas/category.schema";
 import { riskClassificationSchema } from "@/schemas/domain-enums.schema";
+import { x402AgentSchema } from "@/schemas/x402-agent.schema";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
@@ -230,6 +231,20 @@ const agentBaseSchema = z.object({
 });
 
 export const agentSummarySchema = agentBaseSchema.openapi("Agent");
+
+export const cardanoAgentListItemSchema = agentSummarySchema.extend({
+  kind: z.literal("cardano"),
+});
+
+export type CardanoAgentListItem = z.infer<typeof cardanoAgentListItemSchema>;
+
+export const agentListItemSchema = z
+  .union([cardanoAgentListItemSchema, x402AgentSchema])
+  .openapi("AgentListItem");
+
+export const agentListSchema = z.array(agentListItemSchema);
+
+export type AgentListItem = z.infer<typeof agentListItemSchema>;
 
 export const agentDetailSchema = agentBaseSchema
   .extend({

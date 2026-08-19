@@ -18,7 +18,7 @@ const {
   getAgentIconMock,
   getAgentImageMock,
   getAgentNameMock,
-  getCreditCostsOrThrowMock,
+  getX402AgentCatalogWhereMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   agentCountMock: vi.fn(),
@@ -32,7 +32,7 @@ const {
   getAgentIconMock: vi.fn(),
   getAgentImageMock: vi.fn(),
   getAgentNameMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
+  getX402AgentCatalogWhereMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -46,7 +46,12 @@ vi.mock("@/helpers/agent", () => ({
   getAgentIcon: getAgentIconMock,
   getAgentImage: getAgentImageMock,
   getAgentName: getAgentNameMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+}));
+
+vi.mock("@/helpers/x402-readiness", () => ({
+  getX402ReadySources: () => Promise.resolve([]),
+  getX402AgentCatalogWhere: getX402AgentCatalogWhereMock,
+  hasValidX402DiscoveryUrl: () => true,
 }));
 
 vi.mock("@/helpers/agent-rating", () => ({
@@ -62,6 +67,9 @@ vi.mock("@/lib/db/prisma", () => ({
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
+    },
+    creditCost: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
     $transaction: prismaTransactionMock,
   },
@@ -98,7 +106,9 @@ describe("GET /agents", () => {
     buildAvailableAgentWhereClauseMock.mockReturnValue({
       isAvailable: true,
     });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
+    getX402AgentCatalogWhereMock.mockReturnValue({
+      type: { in: ["X402", "OPEN_API"] },
+    });
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     getAgentAuthorImageMock.mockReturnValue(null);
     getAgentNameMock.mockImplementation((agent) => agent.name);
@@ -114,6 +124,7 @@ describe("GET /agents", () => {
     agentFindManyMock.mockResolvedValue([
       {
         id: "agent_123",
+        type: "STANDARD",
         createdAt: new Date("2026-03-17T10:00:00.000Z"),
         updatedAt: new Date("2026-03-17T10:00:00.000Z"),
         name: "Research Assistant",
@@ -217,7 +228,9 @@ describe("GET /agents", () => {
 
   it("filters by a single category slug and returns parsed category styles", async () => {
     const app = createApp();
-    const response = await app.request("http://localhost/?category=research");
+    const response = await app.request(
+      "http://localhost/?kind=cardano&category=research",
+    );
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -254,7 +267,7 @@ describe("GET /agents", () => {
   it("parses repeated and comma-separated category filters", async () => {
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?category=research,writing&category=research",
+      "http://localhost/?kind=cardano&category=research,writing&category=research",
     );
 
     expect(response.status).toBe(200);
@@ -281,7 +294,7 @@ describe("GET /agents", () => {
   it("matches uncategorized agents when category=uncategorized", async () => {
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?category=uncategorized",
+      "http://localhost/?kind=cardano&category=uncategorized",
     );
 
     expect(response.status).toBe(200);
@@ -304,7 +317,7 @@ describe("GET /agents", () => {
   it("combines uncategorized and database categories with OR semantics", async () => {
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?category=uncategorized&category=research",
+      "http://localhost/?kind=cardano&category=uncategorized&category=research",
     );
 
     expect(response.status).toBe(200);
@@ -340,7 +353,7 @@ describe("GET /agents", () => {
   it("deduplicates uncategorized across repeated and comma-separated values", async () => {
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?category=uncategorized,research&category=uncategorized",
+      "http://localhost/?kind=cardano&category=uncategorized,research&category=uncategorized",
     );
 
     expect(response.status).toBe(200);
@@ -375,7 +388,9 @@ describe("GET /agents", () => {
 
   it("does not treat default as an uncategorized alias", async () => {
     const app = createApp();
-    const response = await app.request("http://localhost/?category=default");
+    const response = await app.request(
+      "http://localhost/?kind=cardano&category=default",
+    );
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
@@ -411,12 +426,13 @@ describe("GET /agents", () => {
     agentFindManyMock.mockResolvedValue([
       {
         id: "agent_unreadable",
+        type: "STANDARD",
         pricing: {
           pricingType: PricingType.FIXED,
           fixedPricing: { amounts: [] },
         },
       },
-      { id: "agent_next_page" },
+      { id: "agent_next_page", type: "STANDARD" },
     ]);
     agentCountMock.mockResolvedValue(2);
 
@@ -431,6 +447,45 @@ describe("GET /agents", () => {
     expect(body.data).toEqual([]);
     expect(body.meta.pagination.nextCursor).toBe("agent_unreadable");
     expect(getAgentCostMock).not.toHaveBeenCalled();
+  });
+
+  it("labels STANDARD agents as kind cardano on the public list", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as { data: Array<{ kind: string }> };
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]?.kind).toBe("cardano");
+  });
+
+  it("accepts an anonymous request for kind=x402", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?kind=x402");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalled();
+    const findManyArg = agentFindManyMock.mock.calls[0]?.[0] as {
+      where: unknown;
+    };
+    expect(JSON.stringify(findManyArg.where)).toContain("X402");
+  });
+
+  it("rejects an unknown kind", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?kind=masumi");
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects category when listing only x402 agents", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?kind=x402&category=research",
+    );
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
   });
 
   it("propagates unexpected pricing failures", async () => {

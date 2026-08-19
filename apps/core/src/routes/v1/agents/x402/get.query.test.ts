@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   BASE_SEPOLIA,
-  COWORKER_AGENT_CONTEXT,
   createAgentRow,
   createApp,
   createCreditCostRow,
@@ -59,7 +58,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-describe("GET /agents/x402 catalog query", () => {
+describe("GET /agents?kind=x402 catalog query", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     networkState.value = "Preprod";
@@ -91,9 +90,9 @@ describe("GET /agents/x402 catalog query", () => {
   });
 
   it("queries every online X402 and OpenAPI entry on Preprod", async () => {
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
@@ -119,17 +118,16 @@ describe("GET /agents/x402 catalog query", () => {
       }),
     );
     const query = agentFindManyMock.mock.calls[0]?.[0];
-    expect(query.select).toMatchObject({
-      x402ResourcesUrl: true,
-      openApiSpecUrl: true,
+    expect(query.include.paymentSources).toMatchObject({
+      where: { scheme: { not: null } },
     });
   });
 
   it("requires curated agents in the Mainnet catalog query", async () => {
     networkState.value = "Mainnet";
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
@@ -150,9 +148,9 @@ describe("GET /agents/x402 catalog query", () => {
   it("bounds the catalog page and reports pagination metadata", async () => {
     // Registry entries are third-party-created. Without a bound, one listing
     // call loads every X402 agent with every payment source and amount row.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const query = agentFindManyMock.mock.calls[0]?.[0];
@@ -197,9 +195,9 @@ describe("GET /agents/x402 catalog query", () => {
     );
     agentFindManyMock.mockResolvedValue(rawPage);
     agentCountMock.mockResolvedValue(9);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402?limit=2");
+    const response = await app.request("http://localhost/?kind=x402&limit=2");
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock.mock.calls[0]?.[0].take).toBe(3);
@@ -220,10 +218,10 @@ describe("GET /agents/x402 catalog query", () => {
   });
 
   it("resumes from a supplied cursor", async () => {
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
     const response = await app.request(
-      "http://localhost/x402?cursor=agent_x402_0&limit=5",
+      "http://localhost/?kind=x402&cursor=agent_x402_0&limit=5",
     );
 
     expect(response.status).toBe(200);
@@ -235,9 +233,11 @@ describe("GET /agents/x402 catalog query", () => {
   });
 
   it("rejects a limit above the maximum instead of honouring it", async () => {
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402?limit=5000");
+    const response = await app.request(
+      "http://localhost/?kind=x402&limit=5000",
+    );
 
     expect(response.status).toBe(422);
     expect(agentFindManyMock).not.toHaveBeenCalled();
@@ -247,20 +247,22 @@ describe("GET /agents/x402 catalog query", () => {
     // Unordered, the relation comes back in Postgres heap order and the
     // listing's "first row for this asset" can disagree with the pay
     // endpoint's — the same triple resolving to two different prices.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const query = agentFindManyMock.mock.calls[0]?.[0];
-    expect(query.select.paymentSources.select.amounts.orderBy).toEqual([
+    expect(query.include.paymentSources.select.amounts.orderBy).toEqual([
       { unit: "asc" },
       { id: "asc" },
     ]);
-    expect(query.select.paymentSources.where).toEqual({
+    expect(query.include.paymentSources.where).toEqual({
       scheme: { not: null },
     });
-    expect(query.select.paymentSources.orderBy).toEqual({ sourceIndex: "asc" });
+    expect(query.include.paymentSources.orderBy).toEqual({
+      sourceIndex: "asc",
+    });
   });
 
   it("reads the page and its count in one repeatable-read snapshot", async () => {
@@ -270,9 +272,9 @@ describe("GET /agents/x402 catalog query", () => {
     // advertises a price whose row no longer exists — listed but unpayable,
     // the one invariant this route exists to hold. The BATCH form gets a
     // shared snapshot without holding a pool connection across app code.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     // The real AGENT_PRICING_READ_TRANSACTION_OPTIONS — this file does not
@@ -290,9 +292,9 @@ describe("GET /agents/x402 catalog query", () => {
     // on from there, so without a unique final key agents sharing a
     // (jobCount, createdAt) can be skipped or repeated across pages — a
     // payable agent that no amount of paging ever reveals.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
@@ -302,18 +304,13 @@ describe("GET /agents/x402 catalog query", () => {
     );
   });
 
-  it("selects only the override columns the response actually reads", async () => {
-    // `metadataOverride: true` loads every scalar on the override row; the
-    // response resolves exactly three of them through the metadata getters,
-    // and the cost is multiplied by the page size.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
+  it("includes metadata overrides needed by both rails", async () => {
+    const app = createApp();
 
-    const response = await app.request("http://localhost/x402");
+    const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     const query = agentFindManyMock.mock.calls[0]?.[0];
-    expect(query.select.metadataOverride).toEqual({
-      select: { name: true, description: true, image: true },
-    });
+    expect(query.include.metadataOverride).toBe(true);
   });
 });

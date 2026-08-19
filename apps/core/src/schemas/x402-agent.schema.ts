@@ -1,9 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
 /**
- * Response shapes for the authenticated x402 agent listing. User actors
- * include sessions, Better Auth API keys, and OAuth tokens; direct coworker
- * agents can also read it (`GET /v1/agents/x402`, PR1-SPEC §2).
+ * Response shapes for x402 items on `GET /v1/agents` (`kind: "x402"`).
+ * Public, same as the Cardano hire catalog. Paying a 402 stays coworker-only
+ * on `POST /v1/tasks/{id}/x402-payments`.
  *
  * Fixed entries preserve Listed ⇒ payable. Dynamic entries are payable when
  * their network has a priced node-ready asset; otherwise both actor types may
@@ -100,6 +100,7 @@ const x402AgentBaseSchema = z.object({
 });
 
 const x402FixedAgentSchema = x402AgentBaseSchema.extend({
+  kind: z.literal("x402"),
   pricingType: z.literal("fixed"),
   isPayable: z.literal(true),
   paymentSources: z.array(x402FixedAgentPaymentSourceSchema).min(1).openapi({
@@ -109,6 +110,7 @@ const x402FixedAgentSchema = x402AgentBaseSchema.extend({
 });
 
 const x402DynamicAgentSchema = x402AgentBaseSchema.extend({
+  kind: z.literal("x402"),
   pricingType: z.literal("dynamic"),
   isPayable: z.boolean().openapi({
     description:
@@ -121,6 +123,7 @@ const x402DynamicAgentSchema = x402AgentBaseSchema.extend({
 });
 
 const x402MixedAgentSchema = x402AgentBaseSchema.extend({
+  kind: z.literal("x402"),
   pricingType: z.literal("mixed"),
   isPayable: z.boolean().openapi({
     description:

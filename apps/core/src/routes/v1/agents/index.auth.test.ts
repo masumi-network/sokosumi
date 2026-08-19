@@ -158,22 +158,17 @@ describe("agents routes auth gate", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("routes GET /x402 to the listing, never the {id} capture", async () => {
-    // Mount order in ./index.ts is load-bearing: Hono resolves by
-    // registration order, so mounting the by-id route first would capture
-    // the static "/x402" segment as id="x402" — every coworker listing call
-    // 404s "Agent not found" while CI stays green. This pin goes through the
-    // REAL composed router. Its empty catalog produces an empty ARRAY. The
-    // by-id capture cannot produce that shape: it would transact a lookup for
-    // id="x402" and 404.
-    authContextState.current = {
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId: "vendor_1",
-    };
+  it("treats GET /x402 as an agent id, not a listing", async () => {
+    const response = await agentsRouter.request("http://localhost/x402");
+
+    expect(response.status).toBe(401);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("lists x402 agents on the public GET /?kind=x402", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
 
-    const response = await agentsRouter.request("http://localhost/x402");
+    const response = await agentsRouter.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ data: [] });

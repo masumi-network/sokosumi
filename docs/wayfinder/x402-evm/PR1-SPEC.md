@@ -36,6 +36,8 @@ There is **no** `GET /v1/agents/x402`. Pay stays coworker + assigned task.
 Ticket 005. One public catalog. Items are a discriminated union on `kind`:
 `"cardano"` (MIP-003 hire) or `"x402"` (EVM pay). Filter with
 `?kind=cardano`, `?kind=x402`, or omit for both.
+`buildAvailableAgentWhereClause` still excludes x402 rows from the cardano
+branch.
 
 - **Authz:** public, same as the Cardano catalog. Paying stays coworker-only
   on the task route.
