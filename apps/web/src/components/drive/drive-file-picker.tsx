@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, FileIcon, Folder, Loader2, Search } from "lucide-react";
+import { ChevronRight, FileIcon, Folder, Search } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useSession } from "@/lib/auth/auth.client";
@@ -246,11 +247,24 @@ export function DriveFilePicker({
                 {error}
               </div>
             ) : loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="text-muted-foreground size-6 animate-spin" />
+              <div className="min-h-[400px]">
+                <div className="space-y-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex w-full items-start gap-3 rounded-md p-3"
+                    >
+                      <Skeleton className="size-5 shrink-0 rounded" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : items.length === 0 ? (
-              <div className="text-muted-foreground text-center py-8 text-sm">
+              <div className="text-muted-foreground flex min-h-[400px] items-center justify-center text-center text-sm">
                 {searchQuery ? t("noMatchTitle") : t("pickerEmptyMessage")}
               </div>
             ) : (
