@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronRight, FileIcon, Folder, Search } from "lucide-react";
+import {
+  Building2,
+  ChevronRight,
+  FileIcon,
+  Folder,
+  Home,
+  Search,
+} from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
@@ -228,10 +235,22 @@ export function DriveFilePicker({
                     breadcrumbSegments.length === 0 &&
                       "text-foreground font-medium",
                   )}
+                  aria-label={
+                    scope === "org" && organizationName
+                      ? organizationName
+                      : t("myDriveTab")
+                  }
+                  title={
+                    scope === "org" && organizationName
+                      ? organizationName
+                      : t("myDriveTab")
+                  }
                 >
-                  {scope === "org" && organizationName
-                    ? organizationName
-                    : t("myDriveTab")}
+                  {scope === "org" ? (
+                    <Building2 className="size-4" aria-hidden />
+                  ) : (
+                    <Home className="size-4" aria-hidden />
+                  )}
                 </button>
                 {breadcrumbSegments.map((segment, index) => (
                   <span
