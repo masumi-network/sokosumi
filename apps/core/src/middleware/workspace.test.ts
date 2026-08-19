@@ -173,6 +173,7 @@ describe("workspaceMiddleware", () => {
         userId: "user_123",
         organizationId: null,
         role: "user",
+        authenticationMethod: "session",
       },
       workspaceContext: null,
     });
