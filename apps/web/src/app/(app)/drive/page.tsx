@@ -2,12 +2,14 @@
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
+  Building2,
   Check,
   ChevronRight,
   Download,
   Edit3,
   Folder,
   FolderPlus,
+  Home,
   MoreHorizontal,
   Search,
   Trash2,
@@ -753,10 +755,22 @@ export default function DrivePage(): ReactElement {
                 breadcrumbSegments.length === 0 &&
                   "text-foreground font-medium",
               )}
+              aria-label={
+                scope === "org" && organizationName
+                  ? organizationName
+                  : t("myDriveTab")
+              }
+              title={
+                scope === "org" && organizationName
+                  ? organizationName
+                  : t("myDriveTab")
+              }
             >
-              {scope === "org" && organizationName
-                ? organizationName
-                : t("myDriveTab")}
+              {scope === "org" ? (
+                <Building2 className="size-4" aria-hidden />
+              ) : (
+                <Home className="size-4" aria-hidden />
+              )}
             </button>
             {breadcrumbSegments.map((segment, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
