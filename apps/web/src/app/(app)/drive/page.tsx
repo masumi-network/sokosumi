@@ -441,6 +441,9 @@ export default function DrivePage(): ReactElement {
   }
 
   function switchScope(newScope: "me" | "org") {
+    if (newScope === scope) {
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("scope", newScope);
     params.delete("folder");
@@ -495,7 +498,27 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       console.error("Failed to create folder", err);
-      setError(t("createFolderError"));
+
+      // Check for duplicate folder (409)
+      const isDuplicate =
+        err &&
+        typeof err === "object" &&
+        ("status" in err
+          ? (err.status as number) === 409
+          : "response" in err &&
+              err.response &&
+              typeof err.response === "object" &&
+              "status" in err.response
+            ? (err.response.status as number) === 409
+            : false);
+
+      if (isDuplicate) {
+        setCreateFolderDialogOpen(false);
+        setNewFolderName("");
+        toast.error(t("createFolderDuplicateError"));
+      } else {
+        toast.error(t("createFolderError"));
+      }
     } finally {
       setCreatingFolder(false);
     }
@@ -652,6 +675,7 @@ export default function DrivePage(): ReactElement {
                 />
               </div>
               <Button
+                type="button"
                 size="sm"
                 variant="outline"
                 className="gap-1.5"
