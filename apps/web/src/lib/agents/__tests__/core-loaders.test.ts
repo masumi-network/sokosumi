@@ -1,73 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-export {};
+const getX402AgentsMock = vi.fn();
 
-const getAgentsMock = vi.fn();
-const getAgentByIdMock = vi.fn();
+vi.mock("server-only", () => ({}));
 
 vi.mock("next/cache", () => ({
-  cacheLife: () => undefined,
-  cacheTag: () => undefined,
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
 }));
 
-vi.mock("react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react")>();
-  return {
-    ...actual,
-    cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
-  };
-});
-
 vi.mock("@/lib/clients/core.catalog.client", () => ({
-  coreCatalogClient: {
-    getAgents: (...args: unknown[]) => getAgentsMock(...args),
-  },
+  coreCatalogClient: {},
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
-  CoreApiRequestError: class CoreApiRequestError extends Error {
-    status?: number;
-  },
+  CoreApiRequestError: class CoreApiRequestError extends Error {},
   coreClient: {
-    getAgentById: (...args: unknown[]) => getAgentByIdMock(...args),
+    getX402Agents: (...args: unknown[]) => getX402AgentsMock(...args),
   },
 }));
 
-describe("getAllCoreAgents", () => {
+import { getAllCoreX402Agents } from "../core-loaders";
+
+describe("getAllCoreX402Agents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.resetModules();
   });
 
-  it("requests only the cardano rail so the gallery never ingests x402 items", async () => {
-    getAgentsMock.mockResolvedValue({
-      data: [{ id: "agent-cardano", kind: "cardano" }],
-      meta: { pagination: { nextCursor: null } },
-    });
+  it("follows the next cursor even when a fail-closed page is empty", async () => {
+    const listedAgent = {
+      id: "agent_x402_2",
+      name: "Second-page agent",
+      description: null,
+      image: null,
+      x402ResourcesUrl: null,
+      pricingType: "fixed",
+      isPayable: true,
+      paymentSources: [
+        {
+          caip2Network: "eip155:8453",
+          asset: "0x1111111111111111111111111111111111111111",
+          decimals: 6,
+          payTo: "0x2222222222222222222222222222222222222222",
+          amount: "250000",
+          credits: 0.5,
+        },
+      ],
+    };
 
-    const { getAllCoreAgents } = await import("../core-loaders");
-    const agents = await getAllCoreAgents();
+    getX402AgentsMock
+      .mockResolvedValueOnce({
+        data: [],
+        meta: { pagination: { nextCursor: "candidate_2" } },
+      })
+      .mockResolvedValueOnce({
+        data: [listedAgent],
+        meta: { pagination: { nextCursor: null } },
+      });
 
-    expect(getAgentsMock).toHaveBeenCalledWith({
+    await expect(getAllCoreX402Agents()).resolves.toEqual([listedAgent]);
+    expect(getX402AgentsMock).toHaveBeenNthCalledWith(1, {
       cursor: undefined,
-      kind: ["cardano"],
       limit: 100,
     });
-    expect(agents).toEqual([{ id: "agent-cardano", kind: "cardano" }]);
-  });
-
-  it("drops x402 payloads if a mixed page still arrives", async () => {
-    getAgentsMock.mockResolvedValue({
-      data: [
-        { id: "agent-cardano", kind: "cardano" },
-        { id: "agent-x402", kind: "x402" },
-      ],
-      meta: { pagination: { nextCursor: null } },
+    expect(getX402AgentsMock).toHaveBeenNthCalledWith(2, {
+      cursor: "candidate_2",
+      limit: 100,
     });
-
-    const { getAllCoreAgents } = await import("../core-loaders");
-    const agents = await getAllCoreAgents();
-
-    expect(agents).toEqual([{ id: "agent-cardano", kind: "cardano" }]);
   });
 });

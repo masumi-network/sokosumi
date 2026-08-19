@@ -86,6 +86,21 @@
           "page": "Página {page} de {totalPages}"
         }
       },
+      "X402Card": {
+        "title": "Agents x402",
+        "subtitle": "Agents de pago directo disponibles para tu Coworker. Tarjetas de vista previa para el próximo flujo de contratación.",
+        "preview": "Vista previa",
+        "fallbackDescription": "Un Agent de pago directo compatible con x402.",
+        "bazaarSpec": "Bazaar",
+        "openApiSpec": "OpenAPI",
+        "sources": "{count, plural, =1 {1 ruta de pago} other {# rutas de pago}}",
+        "directPay": "Pago directo",
+        "pricing": "Desde {price} Credits",
+        "dynamicPricing": "Precio dinámico",
+        "mixedPricing": "Precios fijos y dinámicos",
+        "coworkerAccess": "Acceso Coworker",
+        "previewOnly": "Solo vista previa"
+      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
@@ -3159,6 +3174,10 @@
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
+          "x402Payments": {
+            "title": "Pagos x402",
+            "description": "Revisa pagos directos y resuelve cargos x402 retenidos o disputados."
+          },
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Otorga créditos gratuitos directamente a un usuario u organización sin factura de Stripe."
@@ -3171,6 +3190,75 @@
             "title": "Vendors",
             "description": "Crea y edita vendors del marketplace, incluido el nombre y los logos."
           }
+        }
+      },
+      "X402Payments": {
+        "title": "Pagos x402",
+        "description": "Supervisa pagos directos, detecta endpoints problemáticos y ejecuta acciones de soporte auditadas.",
+        "Filters": {
+          "status": "Estado",
+          "allStatuses": "Todos los estados",
+          "agentId": "ID del agente",
+          "network": "Red (por ejemplo eip155:8453)",
+          "apply": "Aplicar filtros",
+          "clear": "Limpiar"
+        },
+        "Statuses": {
+          "PENDING": "Pendiente",
+          "VERIFIED": "Verificado",
+          "FAILED": "Fallido",
+          "REFUNDED": "Reembolsado"
+        },
+        "Rollup": {
+          "title": "Estado de endpoints",
+          "total": "Total",
+          "goodwill": "Reembolsos de cortesía",
+          "failures": "Fallos del nodo",
+          "resolves": "Resoluciones del operador",
+          "empty": "No hay actividad de endpoints para estos filtros."
+        },
+        "Payments": {
+          "title": "{count, plural, one {# pago} other {# pagos}}",
+          "empty": "No hay pagos para estos filtros.",
+          "next": "Página siguiente",
+          "resolveAfter": "Resolución segura después de {date}"
+        },
+        "Columns": {
+          "created": "Creado",
+          "status": "Estado",
+          "payment": "ID del pago",
+          "task": "Tarea",
+          "agent": "Agente",
+          "network": "Red",
+          "asset": "Activo",
+          "payTo": "Destinatario",
+          "amount": "Unidades base",
+          "credits": "Créditos",
+          "attempts": "Intentos de firma",
+          "actions": "Acciones"
+        },
+        "Actions": {
+          "refund": "Reembolsar",
+          "resolve": "Resolver",
+          "reason": "Motivo de auditoría",
+          "cancel": "Cancelar",
+          "submitting": "Guardando…",
+          "refundConfirmTitle": "¿Reembolsar el pago verificado?",
+          "refundConfirmDescription": "Esto crea una transacción compensatoria de créditos y cierra el pago permanentemente como reembolsado.",
+          "resolveConfirmTitle": "¿Resolver el pago pendiente?",
+          "resolveConfirmDescription": "Úsalo solo para un pago bloqueado cuando haya vencido la ventana de riesgo de autorización. Esto crea una transacción compensatoria de créditos.",
+          "refundSuccess": "Pago reembolsado.",
+          "resolveSuccess": "Pago resuelto.",
+          "actionFailed": "La acción falló. Actualiza la página, vuelve a iniciar sesión e inténtalo de nuevo."
+        },
+        "Reasons": {
+          "agent_output_quality": "Calidad del resultado del agente",
+          "duplicate_charge": "Cargo duplicado",
+          "support_adjustment": "Ajuste de soporte",
+          "account_deletion_blocked": "Eliminación de cuenta bloqueada",
+          "node_unreachable": "Nodo de pago inaccesible",
+          "sign_attempts_exhausted": "Intentos de firma agotados",
+          "unsettleable_authorization": "Autorización no liquidable"
         }
       },
       "Users": {

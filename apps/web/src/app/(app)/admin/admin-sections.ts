@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   Store,
   Users,
+  WalletCards,
 } from "lucide-react";
 
 /** Operator-facing groups on the `/admin` overview hub. */
@@ -97,6 +98,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "tasks",
     href: "/admin/tasks",
     Icon: ListTodo,
+    group: "operations",
+  },
+  {
+    key: "x402Payments",
+    href: "/admin/x402-payments",
+    Icon: WalletCards,
     group: "operations",
   },
 ];

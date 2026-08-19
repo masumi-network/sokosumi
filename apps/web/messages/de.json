@@ -86,6 +86,21 @@
           "page": "Seite {page} von {totalPages}"
         }
       },
+      "X402Card": {
+        "title": "x402 Agents",
+        "subtitle": "Direct-Pay-Agents für deinen Coworker. Vorschaukarten für den kommenden Beauftragungsablauf.",
+        "preview": "Vorschau",
+        "fallbackDescription": "Ein x402-kompatibler Direct-Pay-Agent.",
+        "bazaarSpec": "Bazaar",
+        "openApiSpec": "OpenAPI",
+        "sources": "{count, plural, =1 {1 Zahlungsroute} other {# Zahlungsrouten}}",
+        "directPay": "Direktzahlung",
+        "pricing": "Ab {price} Credits",
+        "dynamicPricing": "Dynamische Preisgestaltung",
+        "mixedPricing": "Feste und dynamische Preise",
+        "coworkerAccess": "Coworker-Zugang",
+        "previewOnly": "Nur Vorschau"
+      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
@@ -3155,6 +3170,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "x402Payments": {
+            "title": "x402-Zahlungen",
+            "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
+          },
           "freeCredits": {
             "title": "Kostenlose Credits",
             "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
@@ -3171,6 +3190,75 @@
             "title": "Agenten",
             "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
           }
+        }
+      },
+      "X402Payments": {
+        "title": "x402-Zahlungen",
+        "description": "Direktzahlungen überwachen, auffällige Endpunkte finden und protokollierte Support-Aktionen ausführen.",
+        "Filters": {
+          "status": "Status",
+          "allStatuses": "Alle Status",
+          "agentId": "Agent-ID",
+          "network": "Netzwerk (zum Beispiel eip155:8453)",
+          "apply": "Filter anwenden",
+          "clear": "Zurücksetzen"
+        },
+        "Statuses": {
+          "PENDING": "Ausstehend",
+          "VERIFIED": "Verifiziert",
+          "FAILED": "Fehlgeschlagen",
+          "REFUNDED": "Erstattet"
+        },
+        "Rollup": {
+          "title": "Endpunktstatus",
+          "total": "Gesamt",
+          "goodwill": "Kulanz-Erstattungen",
+          "failures": "Node-Fehler",
+          "resolves": "Manuelle Lösungen",
+          "empty": "Keine Endpunktaktivität entspricht diesen Filtern."
+        },
+        "Payments": {
+          "title": "{count, plural, one {# Zahlung} other {# Zahlungen}}",
+          "empty": "Keine Zahlungen entsprechen diesen Filtern.",
+          "next": "Nächste Seite",
+          "resolveAfter": "Sicher lösbar nach {date}"
+        },
+        "Columns": {
+          "created": "Erstellt",
+          "status": "Status",
+          "payment": "Zahlungs-ID",
+          "task": "Aufgabe",
+          "agent": "Agent",
+          "network": "Netzwerk",
+          "asset": "Asset",
+          "payTo": "Empfänger",
+          "amount": "Basiseinheiten",
+          "credits": "Credits",
+          "attempts": "Signaturversuche",
+          "actions": "Aktionen"
+        },
+        "Actions": {
+          "refund": "Erstatten",
+          "resolve": "Lösen",
+          "reason": "Prüfgrund",
+          "cancel": "Abbrechen",
+          "submitting": "Speichern…",
+          "refundConfirmTitle": "Verifizierte Zahlung erstatten?",
+          "refundConfirmDescription": "Dies erstellt eine ausgleichende Credit-Transaktion und schließt die Zahlung dauerhaft als erstattet.",
+          "resolveConfirmTitle": "Ausstehende Zahlung lösen?",
+          "resolveConfirmDescription": "Nur für blockierte Zahlungen nach Ablauf des Autorisierungs-Risikofensters verwenden. Dies erstellt eine ausgleichende Credit-Transaktion.",
+          "refundSuccess": "Zahlung erstattet.",
+          "resolveSuccess": "Zahlung gelöst.",
+          "actionFailed": "Aktion fehlgeschlagen. Seite aktualisieren, erneut anmelden und noch einmal versuchen."
+        },
+        "Reasons": {
+          "agent_output_quality": "Qualität der Agent-Ausgabe",
+          "duplicate_charge": "Doppelte Abbuchung",
+          "support_adjustment": "Support-Korrektur",
+          "account_deletion_blocked": "Kontolöschung blockiert",
+          "node_unreachable": "Zahlungs-Node nicht erreichbar",
+          "sign_attempts_exhausted": "Signaturversuche ausgeschöpft",
+          "unsettleable_authorization": "Nicht ausführbare Autorisierung"
         }
       },
       "Users": {

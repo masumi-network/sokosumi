@@ -2,6 +2,7 @@ import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-shar
 import type {
   ActivateEnterpriseContractRequest,
   AgentStatus,
+  AggregateAdminTaskX402PaymentsByAgentData,
   CreateAdminVendorData,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
@@ -14,6 +15,7 @@ import type {
   GetAgentsByIdJobsData,
   GetAgentsByIdReviewsData,
   GetAgentsData,
+  GetAgentsX402Data,
   GetCategoriesData,
   GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
@@ -39,6 +41,7 @@ import type {
   HermesRejectConfirmationRequest,
   HermesStartOnboardingRequest,
   HermesUpdateInstanceRequest,
+  ListAdminTaskX402PaymentsData,
   MarkHermesInboxSeenRequest,
   Notice,
   PaginationMetadata,
@@ -81,10 +84,13 @@ import type {
   PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
+  RefundAdminTaskX402PaymentData,
+  ResolveAdminTaskX402PaymentData,
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
+  aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
   claimCoupon as coreClaimCoupon,
@@ -132,6 +138,7 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
+  getAgentsX402 as coreGetAgentsX402,
   getCategories as coreGetCategories,
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
@@ -221,6 +228,7 @@ import {
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
+  listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
   listAdminVendors as coreListAdminVendors,
   listCoworkerAssignments as coreListCoworkerAssignments,
@@ -326,7 +334,9 @@ import {
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
+  refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
+  resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
@@ -1434,6 +1444,70 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch admin task",
+    );
+  }
+
+  async function listAdminTaskX402Payments(
+    query: NonNullable<ListAdminTaskX402PaymentsData["query"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminTaskX402Payments({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list task x402 payments",
+    );
+  }
+
+  async function aggregateAdminTaskX402Payments(
+    query: NonNullable<AggregateAdminTaskX402PaymentsByAgentData["query"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAggregateAdminTaskX402PaymentsByAgent({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to aggregate task x402 payments",
+    );
+  }
+
+  async function refundAdminTaskX402Payment(
+    paymentId: RefundAdminTaskX402PaymentData["path"]["id"],
+    reason: RefundAdminTaskX402PaymentData["body"]["reason"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRefundAdminTaskX402Payment({
+          client,
+          path: { id: paymentId },
+          body: { reason },
+          cache: "no-store",
+        }),
+      "Failed to refund task x402 payment",
+    );
+  }
+
+  async function resolveAdminTaskX402Payment(
+    paymentId: ResolveAdminTaskX402PaymentData["path"]["id"],
+    reason: ResolveAdminTaskX402PaymentData["body"]["reason"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreResolveAdminTaskX402Payment({
+          client,
+          path: { id: paymentId },
+          body: { reason },
+          cache: "no-store",
+        }),
+      "Failed to resolve task x402 payment",
     );
   }
 
@@ -2557,6 +2631,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch agents",
+    );
+  }
+
+  async function getX402Agents(query?: GetAgentsX402Data["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsX402({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch x402 agents",
     );
   }
 
@@ -4314,6 +4401,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAgentReviews,
     getMyAgentReview,
     getAgents,
+    getX402Agents,
     createAgentRating,
     getCategories,
     getCoworkers,
@@ -4333,6 +4421,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteAdminAgentMetadataOverride,
     listAdminTasks,
     getAdminTask,
+    listAdminTaskX402Payments,
+    aggregateAdminTaskX402Payments,
+    refundAdminTaskX402Payment,
+    resolveAdminTaskX402Payment,
     listDeveloperOwnedCoworkerTasks,
     getDeveloperOwnedCoworkerTask,
     searchAdminOrganizations,

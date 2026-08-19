@@ -37,33 +37,33 @@ not just engineering. HITL.
 
 Decided by Sandro (2026-08-11), grilled in three questions:
 
+> **Safety correction, 2026-08-17, then aligned vs `main` 2026-08-19.** The
+> original resolution treated all non-200 responses and unsent replays as
+> provably unpaid. That rule is superseded. The corrected policy follows.
+
 1. **PR 1 (Bazaar coworker payments): auto-refund only when unsettleable.**
-   Soko has no visibility into the externally-fetched result, so there is
-   **no result-based auto-refund**. Credits return synchronously only when
-   no header was ever written — a documented node refusal on the **fresh
-   first** sign attempt. After a header exists (on the row or returned to
-   the coworker), the debit stands. Persist `VERIFIED` before returning
-   the header. Crash-after-delivery is review / future `EXPIRED_UNUSED`,
-   not a sync refund. Two other levers: an **admin refund / resolve
-   action** on the payment record (goodwill or wedged `PENDING`), and
-   **per-agent failure/refund aggregation** feeding whitelist-disable.
-2. **PR 2 (masumi x402 jobs): auto-refund only when provably unpaid.**
-   Credits return automatically only when Soko provably never put funds at
-   risk — a **pre-sign `POST /x402/pay` refusal** (any non-200, so no header
-   is ever issued) triggers a synchronous refund, as does a replay that was
-   never sent. Once a header is signed the debit stands: a settled payment, a
-   garbage result, or a **non-2xx / timed-out replay** keeps the debit — the
-   agent holds a settleable header — and the admin lever is the only path. The
-   ADR's ambiguous timed-out replay is answered by construction:
-   signed-but-timed-out is not provably unpaid → no auto-refund. There is
-   deliberately NO parity with escrow-job refunds.
+   No result-based auto-refund. Persist `VERIFIED` **before** returning the
+   header. Core refunds a documented node-owned refusal synchronously only
+   on the **fresh first** sign attempt when no header was written. Other
+   sign outcomes remain PENDING. Crash-after-delivery is review / future
+   `EXPIRED_UNUSED`. Operators can resolve a PENDING row after its
+   sign-risk fence, or grant a goodwill refund for a VERIFIED row. The
+   dashboard groups refund and failure signals by `agentId`.
+2. **PR 2 (masumi x402 jobs): auto-refund only when provably unpaid.** Same
+   documented-refusal rule. Transport failure, gateway response, timeout,
+   malformed 200, or lost response can hide a signed authorization — keep
+   PENDING. A non-2xx or timed-out replay after header delivery keeps the
+   debit. Future observer may refund only after unused expiry. No parity
+   with escrow-job refunds.
 3. **Disputable-vs-x402 source preference is moot**: by registry design
    those are different agents — a single agent never offers both settlement
    layers, so no selection rule exists.
 
 Consequences for open tickets: the pay-endpoint contract (003) must make
-"unsettleable" a first-class state (first-attempt sign-failure refunds
-synchronously; `PENDING` replay does not) and count refunds per agent; the
-listing surface (005) inherits the whitelist/disable gate; ADR ratification
-(008) folds this in as the resolved rollout blocker. Canonical write-up:
-PR1-SPEC §3.
+"unsettleable" a first-class state. A documented refusal refunds
+synchronously only on the fresh first sign attempt. A same-key replay
+refusal does not clear risk from an earlier ambiguous call and remains
+PENDING until all prior risk windows expire or settlement evidence proves
+them unused. The dashboard counts refunds per agent. The listing surface
+(005) inherits the whitelist/disable gate; ADR ratification (008) folds
+this in as the resolved rollout blocker. Canonical write-up: PR1-SPEC §3.
