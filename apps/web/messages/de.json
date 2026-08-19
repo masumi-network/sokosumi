@@ -5332,7 +5332,24 @@
       "uploadFile": "Datei hochladen",
       "fromDrive": "Aus Drive",
       "moreActions": "Weitere Aktionen",
-      "uploadFab": "Datei hochladen"
+      "uploadFab": "Datei hochladen",
+      "folder": "Ordner",
+      "createFolder": "Ordner erstellen",
+      "folderName": "Ordnername",
+      "createFolderDialogTitle": "Neuen Ordner erstellen",
+      "createFolderDialogDescription": "Geben Sie einen Namen für den neuen Ordner ein",
+      "createFolderDialogConfirm": "Erstellen",
+      "deleteFolderDialogTitle": "Ordner löschen",
+      "deleteFolderDialogDescription": "Möchten Sie wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "moveAction": "Verschieben",
+      "moveDialogTitle": "{itemName} verschieben",
+      "moveDialogDescription": "Wählen Sie den Zielordner aus",
+      "selectFolder": "Ordner auswählen",
+      "rootFolder": "Hauptordner",
+      "createFolderError": "Ordner konnte nicht erstellt werden",
+      "deleteFolderError": "Ordner konnte nicht gelöscht werden",
+      "moveFolderError": "Ordner konnte nicht verschoben werden",
+      "moveFileError": "Datei konnte nicht verschoben werden"
     }
   },
   "Share": {

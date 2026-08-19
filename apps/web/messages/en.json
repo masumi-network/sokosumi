@@ -5332,7 +5332,24 @@
       "uploadFile": "Upload file",
       "fromDrive": "From Drive",
       "moreActions": "More actions",
-      "uploadFab": "Upload file"
+      "uploadFab": "Upload file",
+      "folder": "Folder",
+      "createFolder": "Create folder",
+      "folderName": "Folder name",
+      "createFolderDialogTitle": "Create new folder",
+      "createFolderDialogDescription": "Enter a name for the new folder",
+      "createFolderDialogConfirm": "Create",
+      "deleteFolderDialogTitle": "Delete folder",
+      "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
+      "moveAction": "Move",
+      "moveDialogTitle": "Move {itemName}",
+      "moveDialogDescription": "Select the destination folder",
+      "selectFolder": "Select folder",
+      "rootFolder": "Root folder",
+      "createFolderError": "Failed to create folder",
+      "deleteFolderError": "Failed to delete folder",
+      "moveFolderError": "Failed to move folder",
+      "moveFileError": "Failed to move file"
     }
   },
   "Share": {
