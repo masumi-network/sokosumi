@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   isJoinLinkDuplicateOfInvitation,
+  itemsForBatchAccept,
   pendingInvitesDescriptionKey,
+  queueItemKey,
   resolveWorkspaceGateSurface,
+  shouldShowPendingInvitesBatchActions,
   shouldShowPendingInvitesQueue,
 } from "../workspace-gate-queue";
 
@@ -91,6 +94,67 @@ describe("pendingInvitesDescriptionKey", () => {
         hasJoinLink: true,
       }),
     ).toBe("pendingInvitesDescriptionBoth");
+  });
+});
+
+const invitationA = {
+  kind: "invitation" as const,
+  id: "inv_1",
+  organizationId: "org_1",
+  organizationName: "Acme",
+  organizationSlug: "acme",
+};
+const invitationB = {
+  kind: "invitation" as const,
+  id: "inv_2",
+  organizationId: "org_2",
+  organizationName: "Beta",
+  organizationSlug: "beta",
+};
+const joinLink = {
+  kind: "join" as const,
+  token: "join_token_1",
+  organizationName: "Join Co",
+  organizationSlug: "join-co",
+};
+
+describe("queueItemKey", () => {
+  it("uses invitation id and join token", () => {
+    expect(queueItemKey(invitationA)).toBe("inv_1");
+    expect(queueItemKey(joinLink)).toBe("join_token_1");
+  });
+});
+
+describe("shouldShowPendingInvitesBatchActions", () => {
+  it("hides Accept all on a one-item list", () => {
+    expect(shouldShowPendingInvitesBatchActions(1)).toBe(false);
+    expect(shouldShowPendingInvitesBatchActions(0)).toBe(false);
+  });
+
+  it("shows Accept all when more than one invite is pending", () => {
+    expect(shouldShowPendingInvitesBatchActions(2)).toBe(true);
+  });
+});
+
+describe("itemsForBatchAccept", () => {
+  const items = [invitationA, invitationB, joinLink];
+
+  it("returns every item for accept-all, including the join link", () => {
+    expect(itemsForBatchAccept(items, "all", new Set())).toEqual(items);
+  });
+
+  it("returns only selected items in queue order", () => {
+    expect(
+      itemsForBatchAccept(
+        items,
+        "selected",
+        new Set(["inv_2", "join_token_1"]),
+      ),
+    ).toEqual([invitationB, joinLink]);
+  });
+
+  it("returns an empty list when nothing is selected", () => {
+    expect(itemsForBatchAccept(items, "selected", new Set())).toEqual([]);
   });
 });
 
