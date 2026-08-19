@@ -10,25 +10,30 @@ import {
 } from "./coworker-user-context-binding";
 
 const {
-  upsertWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
   getWorkspaceGrantMock,
   isGrantDeniedOrRevokedMock,
   throwGrantAccessErrorMock,
   taskFindFirstMock,
 } = vi.hoisted(() => ({
-  upsertWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   getWorkspaceGrantMock: vi.fn(),
   isGrantDeniedOrRevokedMock: vi.fn(),
   throwGrantAccessErrorMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
-  },
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: {
+      resolveWorkspaceForContext: (...args: unknown[]) =>
+        resolveWorkspaceForContextMock(...args),
+    },
+  };
+});
 
 vi.mock("./vendor-grants", () => ({
   getWorkspaceGrant: (...args: unknown[]) => getWorkspaceGrantMock(...args),
@@ -55,12 +60,12 @@ const coworkerAuth = {
 
 describe("assertCoworkerUserContextBinding", () => {
   beforeEach(() => {
-    upsertWorkspaceForContextMock.mockReset();
+    resolveWorkspaceForContextMock.mockReset();
     getWorkspaceGrantMock.mockReset();
     isGrantDeniedOrRevokedMock.mockReset();
     throwGrantAccessErrorMock.mockReset();
     taskFindFirstMock.mockReset();
-    upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws_1" });
+    resolveWorkspaceForContextMock.mockResolvedValue({ id: "ws_1" });
     getWorkspaceGrantMock.mockResolvedValue(null);
     isGrantDeniedOrRevokedMock.mockReturnValue(false);
     throwGrantAccessErrorMock.mockImplementation(
@@ -87,7 +92,7 @@ describe("assertCoworkerUserContextBinding", () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_1",
       null,
       expect.anything(),
@@ -200,7 +205,7 @@ describe("assertCoworkerUserContextBinding", () => {
       }),
     ).rejects.toMatchObject({ status: 403 });
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_1",
       "org_1",
       expect.anything(),
@@ -209,16 +214,33 @@ describe("assertCoworkerUserContextBinding", () => {
       VendorGrantStatus.PENDING,
     );
   });
+
+  it("404s when personal workspace is missing", async () => {
+    const { PersonalWorkspaceMissingError } = await import(
+      "@sokosumi/database/repositories"
+    );
+    resolveWorkspaceForContextMock.mockRejectedValueOnce(
+      new PersonalWorkspaceMissingError(),
+    );
+
+    await expect(
+      assertCoworkerUserContextBinding(coworkerAuth, {
+        userId: "user_1",
+        organizationId: null,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("requireAuthorizedUserContext", () => {
   beforeEach(() => {
-    upsertWorkspaceForContextMock.mockReset();
+    resolveWorkspaceForContextMock.mockReset();
     getWorkspaceGrantMock.mockReset();
     isGrantDeniedOrRevokedMock.mockReset();
     throwGrantAccessErrorMock.mockReset();
     taskFindFirstMock.mockReset();
-    upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws_1" });
+    resolveWorkspaceForContextMock.mockResolvedValue({ id: "ws_1" });
     getWorkspaceGrantMock.mockResolvedValue(null);
     isGrantDeniedOrRevokedMock.mockReturnValue(false);
     taskFindFirstMock.mockResolvedValue(null);

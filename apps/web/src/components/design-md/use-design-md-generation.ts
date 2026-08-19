@@ -34,6 +34,10 @@ interface UseDesignMdGenerationOptions {
     startFailed: string;
   };
   onCompleted?: (designMd: PersistedDesignMd) => void;
+  /** Called once a background job exists — lets callers persist it so another
+   * surface (e.g. the project page) can `resume` polling after navigation. */
+  onJobStarted?: (job: { jobId: string; jobToken: string }) => void;
+  onSettled?: () => void;
   owner: DesignMdOwner;
   pollIntervalMs?: number;
 }
@@ -50,6 +54,8 @@ function getUnknownErrorMessage(error: unknown, fallback: string): string {
 export function useDesignMdGeneration({
   messages,
   onCompleted,
+  onJobStarted,
+  onSettled,
   owner,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 }: UseDesignMdGenerationOptions) {
@@ -77,8 +83,9 @@ export function useDesignMdGeneration({
       onCompleted?.(designMd);
       safeSetState({ errorMessage: null, status: "completed" });
       inFlightRef.current = false;
+      onSettled?.();
     },
-    [onCompleted, safeSetState],
+    [onCompleted, onSettled, safeSetState],
   );
 
   const failGeneration = useCallback(
@@ -86,8 +93,9 @@ export function useDesignMdGeneration({
       clearPollTimeout();
       safeSetState({ errorMessage: message, status: "failed" });
       inFlightRef.current = false;
+      onSettled?.();
     },
-    [clearPollTimeout, safeSetState],
+    [clearPollTimeout, onSettled, safeSetState],
   );
 
   const pollUntilDone = useCallback(
@@ -181,6 +189,10 @@ export function useDesignMdGeneration({
         }
 
         safeSetState({ errorMessage: null, status: "polling" });
+        onJobStarted?.({
+          jobId: startResult.value.jobId,
+          jobToken: startResult.value.jobToken,
+        });
         pollUntilDone(startResult.value.jobId, startResult.value.jobToken);
       } catch (error) {
         failGeneration(
@@ -193,10 +205,22 @@ export function useDesignMdGeneration({
       completeGeneration,
       failGeneration,
       messages,
+      onJobStarted,
       owner,
       pollUntilDone,
       safeSetState,
     ],
+  );
+
+  /** Continue polling a job another surface started (see `onJobStarted`). */
+  const resume = useCallback(
+    (job: { jobId: string; jobToken: string }) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      safeSetState({ errorMessage: null, status: "polling" });
+      pollUntilDone(job.jobId, job.jobToken);
+    },
+    [pollUntilDone, safeSetState],
   );
 
   const reset = useCallback(() => {
@@ -218,6 +242,7 @@ export function useDesignMdGeneration({
     isRunning:
       status === "starting" || status === "polling" || status === "finalizing",
     reset,
+    resume,
     status,
   };
 }

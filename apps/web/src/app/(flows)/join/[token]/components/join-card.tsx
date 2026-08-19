@@ -1,10 +1,8 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { AlertCircle, Building2 } from "lucide-react";
-import Image from "next/image";
+import { AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
+import { OrganizationInviteCard } from "@/components/auth/organization-invite-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -26,35 +24,21 @@ export function JoinCard({ token, organization, user }: JoinCardProps) {
   const t = useTranslations("Join");
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="items-center text-center">
-        <div className="bg-muted mb-2 flex size-16 items-center justify-center overflow-hidden rounded-2xl">
-          {organization.logo ? (
-            <Image
-              src={resolveIpfsOrHttpUrl(organization.logo)}
-              alt={organization.name}
-              width={64}
-              height={64}
-              className="size-full object-cover"
-            />
-          ) : (
-            <Building2 className="text-muted-foreground size-7" />
-          )}
-        </div>
-        <CardTitle className="text-xl">{t("title")}</CardTitle>
-        <p className="text-muted-foreground text-sm">
-          {t("invitedToJoin", { organization: organization.name })}
-        </p>
-      </CardHeader>
-      <CardContent>
-        <JoinActions
-          token={token}
-          organizationName={organization.name}
-          organizationSlug={organization.slug}
-          isAuthenticated={Boolean(user)}
-        />
-      </CardContent>
-    </Card>
+    <OrganizationInviteCard
+      organization={organization}
+      title={t("title")}
+      description={
+        <p>{t("invitedToJoin", { organization: organization.name })}</p>
+      }
+    >
+      <JoinActions
+        token={token}
+        organizationName={organization.name}
+        organizationSlug={organization.slug}
+        isAuthenticated={Boolean(user)}
+        currentUserName={user?.name?.trim() ?? ""}
+      />
+    </OrganizationInviteCard>
   );
 }
 

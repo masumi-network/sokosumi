@@ -134,12 +134,12 @@ export function ProjectTasksSection({
             >
               <Link
                 href={`/tasks/${task.id}`}
-                className="hover:text-primary grid min-w-0 flex-1 gap-2 transition-colors sm:grid-cols-[minmax(0,1fr)_140px_96px] sm:items-center"
+                className="hover:text-primary grid min-w-0 flex-1 gap-2 transition-colors sm:grid-cols-[minmax(0,1fr)_auto_96px] sm:items-center"
               >
                 <p className="truncate text-sm">{task.name}</p>
                 <TaskStatusBadge
                   status={task.status as TaskStatus}
-                  className="shrink-0"
+                  className="shrink-0 justify-self-start"
                 />
                 <p className="text-muted-foreground shrink-0 text-xs sm:text-right">
                   <TimeAgo date={task.createdAt} locale={locale} />

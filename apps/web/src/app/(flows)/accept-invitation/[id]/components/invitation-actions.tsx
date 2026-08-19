@@ -2,31 +2,35 @@
 
 import type { SessionUser } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { CardFooter } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface InvitationActionsProps {
   invitation: Pick<PendingInvitationDetail, "id" | "email">;
+  organizationName: string;
   organizationSlug: string;
   user: SessionUser | undefined;
 }
 
 export default function InvitationActions({
   invitation,
+  organizationName,
   organizationSlug,
   user,
 }: InvitationActionsProps) {
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
+  const { persistIfNeeded, NameFields } = useCollectUserName(
+    user?.name?.trim() ?? "",
+  );
 
   const { id, email } = invitation;
 
@@ -35,35 +39,19 @@ export default function InvitationActions({
   const [action, setAction] = useState<"accept" | "reject" | "logout" | null>(
     null,
   );
-
-  // Detect client-side rendering without setState in useEffect
-  const isClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
+  const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
+    null,
   );
 
-  // Compute search params on client only
-  const loginSearchParamsString = isClient
-    ? (() => {
-        const currentUrl = location.pathname + location.search;
-        const loginSearchParams = new URLSearchParams();
-        loginSearchParams.set("returnUrl", currentUrl);
-        loginSearchParams.set("email", email);
-        return loginSearchParams.toString();
-      })()
-    : null;
-
-  const registerSearchParamsString = isClient
-    ? (() => {
-        const currentUrl = location.pathname + location.search;
-        const registerSearchParams = new URLSearchParams();
-        registerSearchParams.set("email", email);
-        registerSearchParams.set("invitationId", id);
-        registerSearchParams.set("returnUrl", currentUrl);
-        return registerSearchParams.toString();
-      })()
-    : null;
+  const goToAuth = (path: "/signin" | "/signup") => {
+    const params = new URLSearchParams();
+    params.set("returnUrl", getReturnUrlFromCurrentLocation());
+    params.set("email", email);
+    if (path === "/signup") {
+      params.set("invitationId", id);
+    }
+    router.push(`${path}?${params.toString()}`);
+  };
 
   const handleAccept = async () => {
     if (loading) {
@@ -71,6 +59,11 @@ export default function InvitationActions({
     }
     setLoading(true);
     setAction("accept");
+    if (!(await persistIfNeeded())) {
+      setLoading(false);
+      setAction(null);
+      return;
+    }
     const result = await authClient.organization.acceptInvitation({
       invitationId: id,
     });
@@ -91,15 +84,33 @@ export default function InvitationActions({
         toast.error(errorMessage);
       }
     } else {
-      try {
-        await activateOrganizationWorkspace(result.data.member.organizationId);
-      } catch (error) {
-        console.error("Failed to switch organization workspace:", error);
-      }
-
-      toast.success(t("Success.accept"));
-      router.push(`/organizations/${organizationSlug}`);
+      await finishAfterAccept(result.data.member.organizationId);
     }
+    setLoading(false);
+    setAction(null);
+  };
+
+  async function finishAfterAccept(organizationId: string) {
+    const activated =
+      await activateOrganizationWorkspaceWithRetry(organizationId);
+    if (!activated) {
+      toast.error(t("Error.activate"));
+      setRetryOrganizationId(organizationId);
+      return;
+    }
+    setRetryOrganizationId(null);
+    await clearPendingOrganizationJoinCookieAction({ organizationSlug });
+    toast.success(t("Success.accept"));
+    router.push(`/organizations/${organizationSlug}`);
+  }
+
+  const handleRetryActivation = async () => {
+    if (loading || !retryOrganizationId) {
+      return;
+    }
+    setLoading(true);
+    setAction("accept");
+    await finishAfterAccept(retryOrganizationId);
     setLoading(false);
     setAction(null);
   };
@@ -155,65 +166,85 @@ export default function InvitationActions({
   if (user) {
     if (user.email === email) {
       return (
-        <CardFooter className="flex justify-between gap-2 sm:gap-4">
-          <Button variant="outline" onClick={handleReject} disabled={loading}>
+        <div className="space-y-4">
+          <NameFields disabled={loading} />
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={handleAccept}
+            disabled={loading || retryOrganizationId !== null}
+          >
+            {loading && action === "accept" && !retryOrganizationId && (
+              <Loader2 className="size-4 animate-spin" />
+            )}
+            {loading && action === "accept" && !retryOrganizationId
+              ? t("joining")
+              : t("accept", { organization: organizationName })}
+          </Button>
+          {retryOrganizationId ? (
+            <Button
+              className="w-full"
+              onClick={handleRetryActivation}
+              disabled={loading}
+              data-testid="invitation-retry-activation"
+            >
+              {loading && action === "accept" && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              {t("activateRetry")}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleReject}
+            disabled={loading}
+          >
             {loading && action === "reject" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             )}
             {t("decline")}
           </Button>
-          <Button onClick={handleAccept} disabled={loading}>
-            {loading && action === "accept" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("accept")}
-          </Button>
-        </CardFooter>
-      );
-    } else {
-      return (
-        <CardFooter className="flex flex-col gap-4">
-          <p>{t("emailMismatch")}</p>
-          <div className="flex justify-between gap-2 sm:gap-4">
-            <Button variant="outline" onClick={handleLogout}>
-              {loading && action === "logout" && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              {t("logout")}
-            </Button>
-            <Button onClick={handleIgnore}>{t("ignore")}</Button>
-          </div>
-        </CardFooter>
+        </div>
       );
     }
+
+    return (
+      <div className="flex flex-col gap-4">
+        <p>{t("emailMismatch")}</p>
+        <div className="flex justify-between gap-2 sm:gap-4">
+          <Button variant="outline" onClick={handleLogout}>
+            {loading && action === "logout" && (
+              <Loader2 className="size-4 animate-spin" />
+            )}
+            {t("logout")}
+          </Button>
+          <Button onClick={handleIgnore}>{t("ignore")}</Button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <CardFooter className="flex flex-col gap-6">
-      <div className="space-y-2">
-        <p>{t("WithoutSession.ifYouAlreadyHaveAnAccount")}</p>
-        {loginSearchParamsString ? (
-          <Button variant="outline" asChild className="w-full">
-            <Link href={`/signin?${loginSearchParamsString}`}>
-              {t("WithoutSession.login")}
-            </Link>
-          </Button>
-        ) : (
-          <Skeleton className="h-8 w-full rounded-md" />
-        )}
-      </div>
-      <div className="space-y-2">
-        <p>{t("WithoutSession.ifYouDontHaveAnAccount")}</p>
-        {registerSearchParamsString ? (
-          <Button variant="outline" asChild className="w-full">
-            <Link href={`/signup?${registerSearchParamsString}`}>
-              {t("WithoutSession.register")}
-            </Link>
-          </Button>
-        ) : (
-          <Skeleton className="h-8 w-full rounded-md" />
-        )}
-      </div>
-    </CardFooter>
+    <div className="space-y-4">
+      <p className="text-muted-foreground text-center text-sm">
+        {t("signedOutHint")}
+      </p>
+      <Button
+        variant="primary"
+        className="w-full"
+        onClick={() => goToAuth("/signin")}
+      >
+        {t("signIn")}
+      </Button>
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => goToAuth("/signup")}
+      >
+        {t("register")}
+      </Button>
+    </div>
   );
 }

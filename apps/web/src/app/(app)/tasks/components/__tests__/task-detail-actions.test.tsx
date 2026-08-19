@@ -381,8 +381,15 @@ vi.mock("@/app/tasks/components/task-form", () => ({
       description: string;
       assigneeId: string | null;
       status: TaskStatus;
-      skipDesignMdAttachment?: boolean;
-      designMdAttachmentOverride?: { label: string; url: string };
+      context: {
+        brand: {
+          enabled: boolean;
+          source: "project" | "default" | "custom";
+          custom?: { url: string } | null;
+        };
+        briefingEnabled: boolean;
+        contextMdEnabled: boolean;
+      };
     }) => Promise<{ taskId: string }>;
     onSuccess?: (taskId: string) => void;
   }) => (
@@ -401,10 +408,11 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
             status: TaskStatus.READY,
-            skipDesignMdAttachment: initialDesignMdAttachment
-              ? false
-              : undefined,
-            designMdAttachmentOverride: undefined,
+            context: {
+              brand: { enabled: true, source: "default", custom: null },
+              briefingEnabled: true,
+              contextMdEnabled: true,
+            },
           });
           onSuccess?.(result.taskId);
         }}
@@ -1010,12 +1018,13 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows move for an organization task even when memberships are empty (personal is still a target)", async () => {
+  it("shows move for an organization task when the user has a personal workspace and no other orgs", async () => {
     const user = userEvent.setup();
 
     renderActions({
       currentOrganizationId: "org-current",
       organizations: [],
+      hasPersonalWorkspace: true,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
@@ -1023,6 +1032,22 @@ describe("TaskDetailActions", () => {
     expect(
       screen.getByRole("menuitem", { name: "Move to workspace" }),
     ).toBeInTheDocument();
+  });
+
+  it("hides move for an organization task when there is no personal workspace and no other orgs", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      currentOrganizationId: "org-current",
+      organizations: [],
+      hasPersonalWorkspace: false,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides move for a personal task when the user has no organizations", async () => {
@@ -1329,8 +1354,11 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
-        skipDesignMdAttachment: undefined,
-        designMdAttachmentOverride: undefined,
+        context: {
+          brand: { enabled: true, source: "default", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       });
     });
 
@@ -1376,8 +1404,11 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
-        skipDesignMdAttachment: false,
-        designMdAttachmentOverride: undefined,
+        context: {
+          brand: { enabled: true, source: "default", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       });
     });
   });
@@ -1668,8 +1699,11 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
-        skipDesignMdAttachment: undefined,
-        designMdAttachmentOverride: undefined,
+        context: {
+          brand: { enabled: true, source: "default", custom: null },
+          briefingEnabled: true,
+          contextMdEnabled: true,
+        },
       });
     });
 

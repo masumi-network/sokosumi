@@ -63,6 +63,7 @@ const {
   waitUntilCapturedPromises,
   waitUntilMock,
   workspaceUpsertMock,
+  isLastWorkspaceMock,
 } = vi.hoisted(() => {
   const waitUntilCapturedPromises: Promise<unknown>[] = [];
   const waitUntilMock = vi.fn((promise: Promise<unknown>) => {
@@ -128,6 +129,7 @@ const {
     waitUntilCapturedPromises,
     waitUntilMock,
     workspaceUpsertMock: vi.fn(),
+    isLastWorkspaceMock: vi.fn(),
   };
 });
 
@@ -230,6 +232,10 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
+vi.mock("@/helpers/workspace-access", () => ({
+  isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
+}));
+
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
@@ -239,8 +245,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
-      workspaceUpsertMock(...args),
-    upsertPersonalWorkspace: (...args: unknown[]) =>
       workspaceUpsertMock(...args),
   },
 }));
@@ -390,6 +394,8 @@ describe("core auth config", () => {
     webhookCallUserUpdatedMock.mockResolvedValue(undefined);
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
+    isLastWorkspaceMock.mockResolvedValue(false);
+    prismaTransactionMock.mockImplementation(async (callback) => callback({}));
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
     getBetterAuthSubscriptionPlansMock.mockResolvedValue([]);
@@ -1345,7 +1351,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("stores the email prefix when a new user is created without a name", async () => {
+  it("stores a blank name when a new user is created without one", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1387,21 +1393,18 @@ describe("core auth config", () => {
       data: {
         email: " magic@example.com ",
         id: "user_123",
-        name: "magic",
+        name: "",
       },
     });
 
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
-    expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: {},
-      userId: "user_123",
-    });
+    expect(workspaceUpsertMock).not.toHaveBeenCalled();
     expect(waitUntilMock).toHaveBeenCalledTimes(3);
     await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: " magic@example.com ",
-      name: "magic",
+      name: "",
       userId: "user_123",
     });
     expect(prismaTransactionMock).toHaveBeenCalled();
@@ -1419,7 +1422,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("falls back to the full email when the local part is empty", async () => {
+  it("does not invent a name from the email when signup omits one", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1456,7 +1459,7 @@ describe("core auth config", () => {
       data: {
         email: "@example.com",
         id: "user_123",
-        name: "@example.com",
+        name: "",
       },
     });
   });
@@ -1488,10 +1491,7 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: {},
-      userId: "user_123",
-    });
+    expect(workspaceUpsertMock).not.toHaveBeenCalled();
     expect(waitUntilMock).toHaveBeenCalledTimes(3);
     await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
@@ -1513,13 +1513,7 @@ describe("core auth config", () => {
     const transactionGate = new Promise<void>((resolve) => {
       releaseTransaction = resolve;
     });
-    let transactionCalls = 0;
     prismaTransactionMock.mockImplementation(async (callback) => {
-      transactionCalls += 1;
-      if (transactionCalls === 1) {
-        return callback({});
-      }
-
       await transactionGate;
       return callback({});
     });
@@ -1646,9 +1640,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("reports workspace creation failures to Sentry without blocking user creation", async () => {
-    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
-
+  it("does not create a personal workspace on user create", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1675,16 +1667,7 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        email: "andreas@example.com",
-        name: "Andreas",
-        userId: "user_123",
-      },
-      tags: {
-        context: "workspace_user_creation",
-      },
-    });
+    expect(workspaceUpsertMock).not.toHaveBeenCalled();
     await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: "andreas@example.com",
@@ -1724,10 +1707,7 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: {},
-      userId: "user_123",
-    });
+    expect(workspaceUpsertMock).not.toHaveBeenCalled();
     await flushWaitUntil();
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
@@ -1903,6 +1883,45 @@ describe("core auth config", () => {
 
     expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith(
       "org-1",
+      prismaMock,
+    );
+  });
+
+  it("blocks organization deletion when it is the user's last workspace", async () => {
+    getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
+    isLastWorkspaceMock.mockResolvedValueOnce(true);
+
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeDeleteOrganization: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeDeleteOrganization({
+        organization: { id: "org-1" },
+        user: { id: "user-1" },
+      }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: {
+        code: "LAST_WORKSPACE",
+        message: "Cannot delete the user's last workspace.",
+      },
+    });
+
+    expect(isLastWorkspaceMock).toHaveBeenCalledWith(
+      "user-1",
+      { type: "organization", organizationId: "org-1" },
       prismaMock,
     );
   });

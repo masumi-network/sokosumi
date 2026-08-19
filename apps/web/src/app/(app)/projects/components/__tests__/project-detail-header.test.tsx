@@ -4,22 +4,29 @@ import { describe, expect, it } from "vitest";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 
 describe("ProjectDetailHeader", () => {
-  it("hides the in-page back control below md and keeps desktop flex layout", () => {
-    const { container } = render(
+  it("renders navigation, website, metadata, and actions", () => {
+    render(
       <ProjectDetailHeader
         projectName="Example project"
+        websiteUrl="https://www.example.com/about"
         backLabel="Back"
-        metadata={[]}
+        metadata={[
+          { label: "Updated", value: "Today" },
+          { label: "Created", value: "Yesterday" },
+        ]}
         actions={<button type="button">Actions</button>}
       />,
     );
 
-    const row = container.querySelector(".flex.items-center");
-    expect(row?.className).toContain("justify-end");
-    expect(row?.className).toContain("md:justify-between");
-
     const back = screen.getByRole("link", { name: "Back" });
-    expect(back.className).toContain("hidden");
-    expect(back.className).toContain("md:inline-flex");
+    expect(back).toHaveAttribute("href", "/projects");
+    expect(back.className).toContain("inline-flex");
+    expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
+      "href",
+      "https://www.example.com/about",
+    );
+    expect(screen.getByText("Updated")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
   });
 });

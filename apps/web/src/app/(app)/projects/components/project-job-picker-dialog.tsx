@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Briefcase, Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { unassignedWorkspaceJobsQuery } from "@/app/projects/constants";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -135,7 +135,7 @@ export function ProjectJobPickerDialog({
                   {isAdding && pendingJobId === job.id ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                   ) : (
-                    <Sparkles className="size-4" aria-hidden />
+                    <Briefcase className="size-4" aria-hidden />
                   )}
                   <span className="truncate">{name}</span>
                   <JobStatusBadge

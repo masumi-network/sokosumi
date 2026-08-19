@@ -20,6 +20,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
+  cancelPendingOrganizationInvitationsForUser,
   listPendingInvitationsByOrganizationId,
   listPendingOrganizationInvitationsForUser,
   lookupPendingInvitationById,
@@ -230,6 +231,46 @@ describe("listPendingOrganizationInvitationsForUser", () => {
       name: "Acme",
       slug: "acme",
       logo: null,
+    });
+  });
+});
+
+describe("cancelPendingOrganizationInvitationsForUser", () => {
+  const userFindUnique = vi.fn();
+  const invitationUpdateMany = vi.fn();
+  const tx = {
+    user: { findUnique: userFindUnique },
+    invitation: { updateMany: invitationUpdateMany },
+  } as never;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 0 and skips the write when the user row is missing", async () => {
+    userFindUnique.mockResolvedValue(null);
+
+    await expect(
+      cancelPendingOrganizationInvitationsForUser("user_x", "org_1", tx),
+    ).resolves.toBe(0);
+    expect(invitationUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("cancels pending invitations for that user email and organization", async () => {
+    userFindUnique.mockResolvedValue({ email: "Ada@Example.com" });
+    invitationUpdateMany.mockResolvedValue({ count: 2 });
+
+    await expect(
+      cancelPendingOrganizationInvitationsForUser("user_1", "org_1", tx),
+    ).resolves.toBe(2);
+
+    expect(invitationUpdateMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: "org_1",
+        status: "pending",
+        email: { equals: "ada@example.com", mode: "insensitive" },
+      },
+      data: { status: "canceled" },
     });
   });
 });

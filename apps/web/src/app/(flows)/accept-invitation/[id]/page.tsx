@@ -23,9 +23,5 @@ export default async function AcceptInvitationPage({
     return <InvitationErrorCard errorCode={result.error} />;
   }
 
-  return (
-    <div className="container flex items-center justify-center px-8 py-12">
-      <InvitationCard invitation={result.invitation} user={session?.user} />
-    </div>
-  );
+  return <InvitationCard invitation={result.invitation} user={session?.user} />;
 }

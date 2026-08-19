@@ -30,6 +30,7 @@ export default async function JobDetailsPage({
     activeOrganizationId,
     dehydratedState,
     job,
+    hasPersonalWorkspace,
     personalWorkspaceLabel,
     projectName,
     readOnly,
@@ -56,6 +57,7 @@ export default async function JobDetailsPage({
         className="h-full"
         job={job}
         organizations={members}
+        hasPersonalWorkspace={hasPersonalWorkspace}
         personalWorkspaceLabel={personalWorkspaceMoveLabel}
         projectName={projectName}
         readOnly={readOnly}

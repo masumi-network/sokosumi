@@ -8,11 +8,11 @@ import {
   type DesignMdDonePayload,
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
-import type { Session } from "@sokosumi/utils";
+import { type Session } from "@sokosumi/utils";
 import { cache } from "react";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type {
   DesignMdOwnerSchemaType,
@@ -22,10 +22,6 @@ import {
   createDesignMdJobToken,
   verifyDesignMdJobToken,
 } from "@/lib/services/design-md-job-token";
-import {
-  descriptionIncludesTaskAttachmentLink,
-  formatTaskAttachmentMarkdown,
-} from "@/lib/utils/task-attachments";
 
 type DesignMdServiceErrorCode =
   | "bad_input"
@@ -161,6 +157,39 @@ async function assertCanManageOwner(
   // authenticated caller may generate one, matching the Core endpoint's gate.
   if (owner.type === "user" || owner.type === "adhoc") return;
 
+  if (owner.type === "project") {
+    try {
+      const project = await coreClient.getProjectsById(owner.projectId);
+      if (!project.data) {
+        throw new DesignMdServiceError(
+          "unauthorized",
+          "Project DESIGN.md can only be managed by workspace members",
+        );
+      }
+    } catch (error) {
+      if (error instanceof DesignMdServiceError) {
+        throw error;
+      }
+      if (
+        error instanceof CoreApiRequestError &&
+        (error.status === 403 || error.status === 404)
+      ) {
+        throw new DesignMdServiceError(
+          "unauthorized",
+          "Project DESIGN.md can only be managed by workspace members",
+        );
+      }
+      if (error instanceof CoreApiRequestError) {
+        throw new DesignMdServiceError("external", error.message);
+      }
+      throw new DesignMdServiceError(
+        "internal",
+        "Failed to authorize project DESIGN.md access",
+      );
+    }
+    return;
+  }
+
   const member = await coreClient.getMyMemberInOrganization(
     owner.organizationId,
   );
@@ -173,11 +202,39 @@ async function assertCanManageOwner(
   }
 }
 
+function toPersistedDesignMd(designMd: {
+  url: string;
+  extractionId: string | null;
+}): PersistedDesignMd {
+  return {
+    extractionId: designMd.extractionId,
+    previewUrl: designMd.extractionId
+      ? getDesignMdPreviewUrl(designMd.extractionId)
+      : null,
+    url: designMd.url,
+  };
+}
+
 async function persistDesignMdToProfile(
   owner: ManageableDesignMdOwnerSchemaType,
   designMd: { extractionId?: null | string; content?: null | string },
 ): Promise<PersistedDesignMd | null> {
   await assertCanManageOwner(owner);
+
+  if (owner.type === "project") {
+    const content = designMd.content?.trim();
+    if (!content) {
+      return null;
+    }
+
+    const { data } = await coreClient.putProjectsByIdDesignMd(owner.projectId, {
+      content,
+      extractionId: designMd.extractionId ?? null,
+    });
+
+    if (!data.designMd) return null;
+    return toPersistedDesignMd(data.designMd);
+  }
 
   const body = {
     content: designMd.content ?? null,
@@ -191,13 +248,7 @@ async function persistDesignMdToProfile(
 
   if (!data.designMd) return null;
 
-  const { extractionId, url } = data.designMd;
-
-  return {
-    extractionId,
-    previewUrl: extractionId ? getDesignMdPreviewUrl(extractionId) : null,
-    url,
-  };
+  return toPersistedDesignMd(data.designMd);
 }
 
 /**
@@ -350,6 +401,12 @@ export const designMdService = (() => {
   async function removeDesignMd(
     owner: ManageableDesignMdOwnerSchemaType,
   ): Promise<void> {
+    if (owner.type === "project") {
+      await assertCanManageOwner(owner);
+      await coreClient.deleteProjectsByIdDesignMd(owner.projectId);
+      return;
+    }
+
     await persistDesignMdToProfile(owner, {
       extractionId: null,
       content: null,
@@ -364,50 +421,7 @@ export const designMdService = (() => {
     },
   );
 
-  /**
-   * Prepends a DESIGN.md attachment link to a task description, idempotently
-   * (a no-op if the link is already present). Shared by the default
-   * (organization/personal) attachment path and by a task's explicit choice
-   * of a different, ad hoc DESIGN.md — both end up as the same plain markdown
-   * link in the description, which is all the agent actually reads.
-   */
-  function withDesignMdAttachment(
-    description: string,
-    designMd: { label: string; url: string },
-  ): string {
-    if (
-      descriptionIncludesTaskAttachmentLink(
-        description,
-        designMd.label,
-        designMd.url,
-      )
-    ) {
-      return description;
-    }
-
-    const attachment = formatTaskAttachmentMarkdown(
-      designMd.label,
-      designMd.url,
-    );
-    const trimmedDescription = description.trimStart();
-
-    return trimmedDescription
-      ? `${attachment}\n${trimmedDescription}`
-      : attachment;
-  }
-
-  async function appendDesignMdToDescription(
-    description: string,
-  ): Promise<string> {
-    const designMd = await resolveEffectiveDesignMd();
-
-    return designMd
-      ? withDesignMdAttachment(description, designMd)
-      : description;
-  }
-
   return {
-    appendDesignMdToDescription,
     finalizeAndPersistDesignMd,
     getDesignMdPreviewUrl,
     persistUploadedDesignMd,
@@ -415,6 +429,5 @@ export const designMdService = (() => {
     removeDesignMd,
     resolveEffectiveDesignMd,
     startDesignMdGeneration,
-    withDesignMdAttachment,
   };
 })();
