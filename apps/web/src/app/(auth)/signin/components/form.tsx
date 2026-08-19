@@ -3,17 +3,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm } from "@/auth/components/form";
+import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
-import { Button } from "@/components/ui/button";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient, signIn } from "@/lib/auth/auth.client";
 import {
@@ -42,6 +40,7 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -102,6 +101,7 @@ export default function SignInForm({
 
     const oauthRedirect = getAuthOAuthRedirect(result.data);
     if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
+      setIsLeaving(true);
       window.location.href = oauthRedirect.redirectUrl;
       return;
     }
@@ -116,6 +116,7 @@ export default function SignInForm({
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
+    setIsLeaving(true);
     router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
@@ -144,6 +145,7 @@ export default function SignInForm({
   );
 
   const { isSubmitting } = form.formState;
+  const isPending = isSubmitting || isLeaving;
 
   return (
     <AuthForm
@@ -162,21 +164,13 @@ export default function SignInForm({
               {t("lastUsed")}
             </span>
           )}
-          <Button
-            type="submit"
-            variant="primary"
-            className="relative w-full"
-            disabled={isSubmitting}
+          <SubmitButton
+            isSubmitting={isPending}
+            spinnerPosition="start"
+            label={t("submit")}
+            className="w-full"
             data-testid="auth-submit"
-          >
-            {isSubmitting && (
-              <Loader2
-                aria-hidden="true"
-                className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin"
-              />
-            )}
-            <span className="w-full text-center">{t("submit")}</span>
-          </Button>
+          />
         </div>
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-row items-center gap-2">

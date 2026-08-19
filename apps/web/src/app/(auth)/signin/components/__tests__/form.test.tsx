@@ -228,4 +228,51 @@ describe("SignInForm", () => {
       );
     });
   });
+
+  it("keeps a left-edge submit spinner after credential login succeeds", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+    });
+
+    const submitButton = screen.getByRole("button", { name: "submit" });
+    const spinner = submitButton.querySelector("svg.animate-spin");
+
+    expect(submitButton).toBeDisabled();
+    expect(spinner).not.toBeNull();
+    expect(spinner).toHaveClass(
+      "absolute",
+      "top-1/2",
+      "left-4",
+      "-translate-y-1/2",
+    );
+  });
+
+  it("releases the submit spinner after credential login fails", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: null,
+      error: { message: "Invalid credentials" },
+    });
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(mockSignInEmail).toHaveBeenCalledTimes(1);
+    });
+
+    const submitButton = screen.getByRole("button", { name: "submit" });
+
+    expect(submitButton).toBeEnabled();
+    expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+  });
 });

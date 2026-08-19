@@ -6,7 +6,7 @@ import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -38,6 +38,7 @@ export default function SignUpForm({
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const registerFormStart = useRef(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
@@ -106,6 +107,7 @@ export default function SignUpForm({
 
     const oauthRedirect = getAuthOAuthRedirect(result.data);
     if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
+      setIsLeaving(true);
       window.location.href = oauthRedirect.redirectUrl;
       return;
     }
@@ -120,6 +122,7 @@ export default function SignUpForm({
 
     fireGTMEvent.signUp("credential");
     toast.success(t("success"));
+    setIsLeaving(true);
     router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
@@ -135,6 +138,7 @@ export default function SignUpForm({
     );
 
   const { isSubmitting } = form.formState;
+  const isPending = isSubmitting || isLeaving;
 
   return (
     <AuthForm
@@ -145,10 +149,11 @@ export default function SignUpForm({
     >
       <div className="flex flex-col gap-4">
         <SubmitButton
-          isSubmitting={isSubmitting}
+          isSubmitting={isPending}
+          spinnerPosition="start"
           label={t("submit")}
           className="w-full"
-          disabled={!termsAccepted || isSubmitting}
+          disabled={!termsAccepted || isPending}
         />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
