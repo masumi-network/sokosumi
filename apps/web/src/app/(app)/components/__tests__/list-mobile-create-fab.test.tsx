@@ -34,4 +34,25 @@ describe("ListMobileCreateFab", () => {
     await user.click(screen.getByRole("button", { name: "Create project" }));
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
+
+  it("renders progress ring with correct viewBox when progress is provided", () => {
+    const onOpen = vi.fn();
+    const { container } = render(
+      <ListMobileCreateFab
+        ariaLabel="Upload file"
+        onOpen={onOpen}
+        progress={75}
+      />,
+    );
+
+    const svg = container.querySelector("svg");
+    expect(svg).toBeTruthy();
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 56 56");
+
+    const circles = container.querySelectorAll("circle");
+    expect(circles).toHaveLength(2);
+    expect(circles[0]?.getAttribute("cx")).toBe("28");
+    expect(circles[0]?.getAttribute("cy")).toBe("28");
+    expect(circles[0]?.getAttribute("r")).toBe("26");
+  });
 });
