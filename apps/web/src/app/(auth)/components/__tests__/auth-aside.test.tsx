@@ -112,4 +112,20 @@ describe("auth aside", () => {
       /@keyframes auth-logo-marquee\s*{[\s\S]*?translate3d\(-50%,\s*0,\s*0\)/,
     );
   });
+
+  it("pins scrims outside the scroll layer", async () => {
+    const { default: AuthAside } = await import("../auth-aside");
+    render(await AuthAside());
+
+    const root = screen.getByTestId("auth-aside");
+    const scroller = screen.getByTestId("auth-aside-scroll");
+
+    expect(root).not.toHaveClass("overflow-y-auto");
+    expect(scroller).toHaveClass("overflow-y-auto");
+    expect(root.contains(scroller)).toBe(true);
+    expect(scroller.querySelector("[class*='bg-gradient']")).toBeNull();
+    expect(
+      [...root.children].filter((child) => child !== scroller).length,
+    ).toBeGreaterThan(0);
+  });
 });
