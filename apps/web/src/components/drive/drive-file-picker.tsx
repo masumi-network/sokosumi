@@ -327,23 +327,23 @@ export function DriveFilePicker({
                         <Button
                           key={itemKey}
                           variant="ghost"
-                          className="h-auto w-full min-w-0 justify-start overflow-hidden p-3 hover:bg-accent"
+                          className="h-auto w-full min-w-0 max-w-full justify-start overflow-hidden whitespace-normal p-3 hover:bg-accent"
                           onClick={() => navigateToFolder(item.name)}
                         >
-                          <div className="flex min-w-0 w-full max-w-full items-start gap-3">
+                          <span className="flex min-w-0 w-full max-w-full items-start gap-3 overflow-hidden">
                             <Folder className="text-muted-foreground size-5 shrink-0" />
-                            <div className="min-w-0 flex-1 overflow-hidden text-left">
-                              <div
-                                className="text-foreground line-clamp-1 font-medium"
+                            <span className="min-w-0 flex-1 overflow-hidden text-left">
+                              <span
+                                className="block min-w-0 max-w-full truncate text-foreground font-medium"
                                 title={item.name}
                               >
                                 {item.name}
-                              </div>
-                              <div className="text-muted-foreground text-xs">
+                              </span>
+                              <span className="text-muted-foreground text-xs">
                                 {t("folder")}
-                              </div>
-                            </div>
-                          </div>
+                              </span>
+                            </span>
+                          </span>
                         </Button>
                       );
                     }
@@ -352,19 +352,19 @@ export function DriveFilePicker({
                       <Button
                         key={itemKey}
                         variant="ghost"
-                        className="h-auto w-full min-w-0 justify-start overflow-hidden p-3 hover:bg-accent"
+                        className="h-auto w-full min-w-0 max-w-full justify-start overflow-hidden whitespace-normal p-3 hover:bg-accent"
                         onClick={() => handleFileClick(item)}
                       >
-                        <div className="flex min-w-0 w-full max-w-full items-start gap-3">
+                        <span className="flex min-w-0 w-full max-w-full items-start gap-3 overflow-hidden">
                           <FileIcon className="text-muted-foreground size-5 shrink-0" />
-                          <div className="min-w-0 flex-1 overflow-hidden text-left">
-                            <div
-                              className="text-foreground line-clamp-1 font-medium"
+                          <span className="min-w-0 flex-1 overflow-hidden text-left">
+                            <span
+                              className="block min-w-0 max-w-full truncate text-foreground font-medium"
                               title={item.name}
                             >
                               {item.name}
-                            </div>
-                            <div className="text-muted-foreground flex gap-2 text-xs">
+                            </span>
+                            <span className="text-muted-foreground flex gap-2 text-xs">
                               {item.size ? (
                                 <span>{formatBytes(item.size)}</span>
                               ) : null}
@@ -374,9 +374,9 @@ export function DriveFilePicker({
                                   day: "numeric",
                                 })}
                               </span>
-                            </div>
-                          </div>
-                        </div>
+                            </span>
+                          </span>
+                        </span>
                       </Button>
                     );
                   })}
