@@ -5560,7 +5560,6 @@
       "selectItem": "{organizationName} auswählen",
       "batchError": "Konnte nicht annehmen: {names}.",
       "rejectAll": "Alle ablehnen",
-      "rejectAllHint": "Wenn du alle Einladungen ablehnst, kannst du einen eigenen ersten Workspace erstellen.",
       "acceptError": "Die Einladung konnte nicht angenommen werden.",
       "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",

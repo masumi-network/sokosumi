@@ -5560,7 +5560,6 @@
       "selectItem": "Seleccionar {organizationName}",
       "batchError": "No pudimos aceptar: {names}.",
       "rejectAll": "Rechazar todas",
-      "rejectAllHint": "Si rechazas todas las invitaciones, podrás crear tu primer espacio de trabajo.",
       "acceptError": "No pudimos aceptar esa invitación.",
       "joinError": "No pudimos unirte a esa organización.",
       "rejectError": "No pudimos rechazar las invitaciones restantes.",

@@ -342,41 +342,41 @@ export function PendingInvitesQueue({
           {t("activateRetry")}
         </Button>
       ) : null}
-      {showBatchActions ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            disabled={busy || awaitingActivationRetry}
-            onClick={() => {
-              void handleAcceptBatch("all");
-            }}
-            data-testid="workspace-gate-accept-all"
-          >
-            {busyKey === "accept-all" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
-            {t("acceptAll")}
-          </Button>
-          <Button
-            type="button"
-            disabled={busy || awaitingActivationRetry || selectedCount === 0}
-            onClick={() => {
-              void handleAcceptBatch("selected");
-            }}
-            data-testid="workspace-gate-accept-selected"
-          >
-            {busyKey === "accept-selected" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
-            {t("acceptSelected")}
-          </Button>
-        </div>
-      ) : null}
-      <div className="space-y-2">
-        <p className="text-muted-foreground text-sm">{t("rejectAllHint")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {showBatchActions ? (
+          <>
+            <Button
+              type="button"
+              disabled={busy || awaitingActivationRetry}
+              onClick={() => {
+                void handleAcceptBatch("all");
+              }}
+              data-testid="workspace-gate-accept-all"
+            >
+              {busyKey === "accept-all" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
+              {t("acceptAll")}
+            </Button>
+            <Button
+              type="button"
+              disabled={busy || awaitingActivationRetry || selectedCount === 0}
+              onClick={() => {
+                void handleAcceptBatch("selected");
+              }}
+              data-testid="workspace-gate-accept-selected"
+            >
+              {busyKey === "accept-selected" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
+              {t("acceptSelected")}
+            </Button>
+          </>
+        ) : null}
         <Button
           type="button"
           variant="outline"
+          className={showBatchActions ? "ml-auto" : undefined}
           disabled={busy || awaitingActivationRetry}
           onClick={() => {
             void handleRejectAll();

@@ -85,7 +85,6 @@ const messages = {
       selectItem: "Select {organizationName}",
       batchError: "We could not accept: {names}.",
       rejectAll: "Reject all",
-      rejectAllHint: "Rejecting every invitation lets you create your own.",
       acceptError: "Accept failed",
       joinError: "Join failed",
       rejectError: "Reject failed",
@@ -327,6 +326,21 @@ describe("PendingInvitesQueue", () => {
     expect(
       screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-gate-reject-all")).not.toHaveClass(
+      "ml-auto",
+    );
+  });
+
+  it("puts Reject all on the right of Accept all when more than one invite is pending", () => {
+    renderQueue();
+
+    expect(screen.getByTestId("workspace-gate-accept-all")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("workspace-gate-accept-selected"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-gate-reject-all")).toHaveClass(
+      "ml-auto",
+    );
   });
 
   it("accepts every pending item, activates the first success, and leaves", async () => {
