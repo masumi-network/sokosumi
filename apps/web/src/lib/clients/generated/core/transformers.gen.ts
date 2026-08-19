@@ -357,19 +357,7 @@ export const patchAdminVendorResponseTransformer = async (data: any): Promise<Pa
     return data;
 };
 
-const agentSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    return data;
-};
-
 export const getAgentsResponseTransformer = async (data: any): Promise<GetAgentsResponse> => {
-    data.data = data.data.map((item: any) => agentSchemaResponseTransformer(item));
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const getAgentsX402ResponseTransformer = async (data: any): Promise<GetAgentsX402Response> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

@@ -1035,6 +1035,145 @@ export type PatchVendorRequest = {
     logos?: VendorLogosInput;
 };
 
+export type AgentListItem = (Agent & {
+    kind: 'cardano';
+}) | {
+    id: string;
+    /**
+     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
+     */
+    specification: 'bazaar' | 'openapi';
+    name: string;
+    description: string | null;
+    image: string | null;
+    /**
+     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
+     */
+    x402ResourcesUrl: string | null;
+    /**
+     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
+     */
+    openApiSpecUrl: string | null;
+    kind: 'x402';
+    pricingType: 'fixed';
+    isPayable: true;
+    /**
+     * Payment sources Sokosumi can pay right now (fail-closed filtered)
+     */
+    paymentSources: Array<X402FixedAgentPaymentSource>;
+} | {
+    id: string;
+    /**
+     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
+     */
+    specification: 'bazaar' | 'openapi';
+    name: string;
+    description: string | null;
+    image: string | null;
+    /**
+     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
+     */
+    x402ResourcesUrl: string | null;
+    /**
+     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
+     */
+    openApiSpecUrl: string | null;
+    kind: 'x402';
+    pricingType: 'dynamic';
+    /**
+     * Whether this deployment currently has a priced buy-side-ready asset on every advertised dynamic network. Runtime payment still requires maxCredits and verifies the 402's actual asset.
+     */
+    isPayable: boolean;
+    /**
+     * Dynamic sources whose runtime 402 quote can use the coworker payment endpoint with a mandatory maxCredits ceiling.
+     */
+    paymentSources: Array<X402DynamicAgentPaymentSource>;
+} | {
+    id: string;
+    /**
+     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
+     */
+    specification: 'bazaar' | 'openapi';
+    name: string;
+    description: string | null;
+    image: string | null;
+    /**
+     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
+     */
+    x402ResourcesUrl: string | null;
+    /**
+     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
+     */
+    openApiSpecUrl: string | null;
+    kind: 'x402';
+    pricingType: 'mixed';
+    /**
+     * Whether every fixed and dynamic payment source is currently payable on this deployment. Mixed agents remain visible as previews when a dynamic source is not buy-side ready.
+     */
+    isPayable: boolean;
+    /**
+     * Fixed and dynamic payment sources advertised by one agent. Runtime verification preserves fixed ceilings when registrations overlap.
+     */
+    paymentSources: Array<X402FixedAgentPaymentSource | X402DynamicAgentPaymentSource>;
+};
+
+export type Category = {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    image: string | null;
+    icon: string | null;
+    priority: number;
+    styles: CategoryStyles;
+};
+
+/**
+ * Optional category-specific UI styles.
+ */
+export type CategoryStyles = {
+    light?: {
+        color?: string;
+        border?: {
+            gradient: {
+                type: string;
+                angle?: number;
+                shape?: string;
+                extent?: string;
+                position?: {
+                    x: number;
+                    y: number;
+                };
+                stops: Array<{
+                    color: string;
+                    offset: number;
+                    opacity?: number;
+                }>;
+            };
+        };
+    };
+    dark?: {
+        color?: string;
+        border?: {
+            gradient: {
+                type: string;
+                angle?: number;
+                shape?: string;
+                extent?: string;
+                position?: {
+                    x: number;
+                    y: number;
+                };
+                stops: Array<{
+                    color: string;
+                    offset: number;
+                    opacity?: number;
+                }>;
+            };
+        };
+    };
+} | null;
+
 export type Agent = {
     id: string;
     createdAt: Date;
@@ -1096,140 +1235,6 @@ export type Agent = {
      * Categories this agent belongs to
      */
     categories: Array<Category>;
-};
-
-export type Category = {
-    id: string;
-    name: string;
-    slug: string;
-    description: string | null;
-    image: string | null;
-    icon: string | null;
-    priority: number;
-    styles: CategoryStyles;
-};
-
-/**
- * Optional category-specific UI styles.
- */
-export type CategoryStyles = {
-    light?: {
-        color?: string;
-        border?: {
-            gradient: {
-                type: string;
-                angle?: number;
-                shape?: string;
-                extent?: string;
-                position?: {
-                    x: number;
-                    y: number;
-                };
-                stops: Array<{
-                    color: string;
-                    offset: number;
-                    opacity?: number;
-                }>;
-            };
-        };
-    };
-    dark?: {
-        color?: string;
-        border?: {
-            gradient: {
-                type: string;
-                angle?: number;
-                shape?: string;
-                extent?: string;
-                position?: {
-                    x: number;
-                    y: number;
-                };
-                stops: Array<{
-                    color: string;
-                    offset: number;
-                    opacity?: number;
-                }>;
-            };
-        };
-    };
-} | null;
-
-export type X402Agent = {
-    id: string;
-    /**
-     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
-     */
-    specification: 'bazaar' | 'openapi';
-    name: string;
-    description: string | null;
-    image: string | null;
-    /**
-     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
-     */
-    x402ResourcesUrl: string | null;
-    /**
-     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
-     */
-    openApiSpecUrl: string | null;
-    pricingType: 'fixed';
-    isPayable: true;
-    /**
-     * Payment sources Sokosumi can pay right now (fail-closed filtered)
-     */
-    paymentSources: Array<X402FixedAgentPaymentSource>;
-} | {
-    id: string;
-    /**
-     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
-     */
-    specification: 'bazaar' | 'openapi';
-    name: string;
-    description: string | null;
-    image: string | null;
-    /**
-     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
-     */
-    x402ResourcesUrl: string | null;
-    /**
-     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
-     */
-    openApiSpecUrl: string | null;
-    pricingType: 'dynamic';
-    /**
-     * Whether this deployment currently has a priced buy-side-ready asset on every advertised dynamic network. Runtime payment still requires maxCredits and verifies the 402's actual asset.
-     */
-    isPayable: boolean;
-    /**
-     * Dynamic sources whose runtime 402 quote can use the coworker payment endpoint with a mandatory maxCredits ceiling.
-     */
-    paymentSources: Array<X402DynamicAgentPaymentSource>;
-} | {
-    id: string;
-    /**
-     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
-     */
-    specification: 'bazaar' | 'openapi';
-    name: string;
-    description: string | null;
-    image: string | null;
-    /**
-     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
-     */
-    x402ResourcesUrl: string | null;
-    /**
-     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
-     */
-    openApiSpecUrl: string | null;
-    pricingType: 'mixed';
-    /**
-     * Whether every fixed and dynamic payment source is currently payable on this deployment. Mixed agents remain visible as previews when a dynamic source is not buy-side ready.
-     */
-    isPayable: boolean;
-    /**
-     * Fixed and dynamic payment sources advertised by one agent. Runtime verification preserves fixed ceilings when registrations overlap.
-     */
-    paymentSources: Array<X402FixedAgentPaymentSource | X402DynamicAgentPaymentSource>;
 };
 
 export type X402FixedAgentPaymentSource = {
@@ -7675,9 +7680,13 @@ export type GetAgentsData = {
          */
         limit?: number;
         /**
-         * Filter by category slug. Supports repeated values and comma-separated lists. The reserved value `uncategorized` matches agents without assigned categories. When multiple categories are provided, agents matching any category are returned.
+         * Filter Cardano-rail agents by category slug. Supports repeated values and comma-separated lists. The reserved value `uncategorized` matches agents without assigned categories. When multiple categories are provided, agents matching any category are returned. Rejected when `kind` is only `x402`.
          */
         category?: Array<string>;
+        /**
+         * Rail to list. `cardano` is the MIP-003 hire catalog; `x402` is the EVM pay catalog. Omit to return both. Supports repeated values and comma-separated lists.
+         */
+        kind?: Array<'cardano' | 'x402'>;
     };
     url: '/agents';
 };
@@ -7706,7 +7715,7 @@ export type GetAgentsResponses = {
      * Retrieve all agents
      */
     200: {
-        data: Array<Agent>;
+        data: Array<AgentListItem>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7716,91 +7725,6 @@ export type GetAgentsResponses = {
 };
 
 export type GetAgentsResponse = GetAgentsResponses[keyof GetAgentsResponses];
-
-export type GetAgentsX402Data = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/agents/x402';
-};
-
-export type GetAgentsX402Errors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetAgentsX402Error = GetAgentsX402Errors[keyof GetAgentsX402Errors];
-
-export type GetAgentsX402Responses = {
-    /**
-     * Retrieve payable x402 agents and dynamic previews
-     */
-    200: {
-        data: Array<X402Agent>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type GetAgentsX402Response = GetAgentsX402Responses[keyof GetAgentsX402Responses];
 
 export type GetAgentsByIdData = {
     body?: never;
@@ -34229,7 +34153,7 @@ export type PostTasksByIdX402PaymentsData = {
          */
         idempotencyKey: string;
         /**
-         * The listed x402 agent this 402 came from (GET /v1/agents/x402)
+         * The listed x402 agent this 402 came from (GET /v1/agents?kind=x402)
          */
         agentId: string;
         /**

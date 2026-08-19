@@ -371,20 +371,11 @@ export const patchAdminVendor = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * List all available agents (paginated)
+ * List available agents (paginated). Items are discriminated by `kind`: `cardano` (MIP-003 hire) or `x402` (EVM pay). Omit `kind` to return both rails. Public. x402 filtering runs after candidate pagination, so a page can contain fewer items than `limit` while `nextCursor` still points at more.
  */
 export const getAgents = <ThrowOnError extends boolean = false>(options?: Options<GetAgentsData, ThrowOnError>): RequestResult<GetAgentsResponses, GetAgentsErrors, ThrowOnError> => (options?.client ?? client).get<GetAgentsResponses, GetAgentsErrors, ThrowOnError>({
     responseTransformer: getAgentsResponseTransformer,
     url: '/agents',
-    ...options
-});
-
-/**
- * List x402-capable X402/Bazaar and OpenAPI agents (paginated). Authenticated users and direct coworker agents receive fixed-price entries plus dynamic-price entries whose runtime 402 quote can be paid with a mandatory maxCredits ceiling. Dynamic entries remain visible with `isPayable: false` when no registered network has a priced buy-side-ready asset. Fixed entries fail closed unless every advertised x402 source is priced, on an allowed network, and buy-side ready. Filtering runs AFTER candidate pagination, so a page can contain fewer items than `limit` while `nextCursor` still points at more; follow it until null. `total` counts candidate X402 entries, not payable ones.
- */
-export const getAgentsX402 = <ThrowOnError extends boolean = false>(options?: Options<GetAgentsX402Data, ThrowOnError>): RequestResult<GetAgentsX402Responses, GetAgentsX402Errors, ThrowOnError> => (options?.client ?? client).get<GetAgentsX402Responses, GetAgentsX402Errors, ThrowOnError>({
-    responseTransformer: getAgentsX402ResponseTransformer,
-    url: '/agents/x402',
     ...options
 });
 
