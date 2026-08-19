@@ -332,6 +332,7 @@ export function PendingInvitesQueue({
             </Button>
             <Button
               type="button"
+              variant="secondary"
               disabled={busy || awaitingActivationRetry || selectedCount === 0}
               onClick={() => {
                 void handleAcceptBatch("selected");

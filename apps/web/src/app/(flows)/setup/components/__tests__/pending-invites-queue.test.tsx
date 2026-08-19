@@ -374,10 +374,12 @@ describe("PendingInvitesQueue", () => {
   it("puts Reject all on the right of Accept all when more than one invite is pending", () => {
     renderQueue();
 
-    expect(screen.getByTestId("workspace-gate-accept-all")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("workspace-gate-accept-selected"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-gate-accept-all")).toHaveClass(
+      "bg-secondary",
+    );
+    expect(screen.getByTestId("workspace-gate-accept-selected")).toHaveClass(
+      "bg-quinary",
+    );
     expect(screen.getByTestId("workspace-gate-reject-all")).toHaveClass(
       "ml-auto",
     );
