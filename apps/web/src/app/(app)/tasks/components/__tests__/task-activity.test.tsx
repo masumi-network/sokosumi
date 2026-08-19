@@ -27,6 +27,7 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useFormatter: () => ({
     dateTime: () => "",
+    number: (num: number) => num.toString(),
   }),
   useTranslations: () => {
     const labels: Record<string, string> = {

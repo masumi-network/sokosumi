@@ -12,6 +12,8 @@ export const DRIVE_FILES_MAX_PAGES = 50;
 interface ListDriveFilesOptions {
   scope: "me" | "org";
   organizationId?: string;
+  q?: string;
+  signal?: AbortSignal;
 }
 
 export async function listDriveFiles(
@@ -29,8 +31,10 @@ export async function listDriveFiles(
         ...(options.scope === "org" && options.organizationId
           ? { organizationId: options.organizationId }
           : {}),
+        ...(options.q?.trim() ? { q: options.q.trim() } : {}),
         ...(cursor ? { cursor } : {}),
       },
+      ...(options.signal ? { signal: options.signal } : {}),
       throwOnError: true,
     });
 

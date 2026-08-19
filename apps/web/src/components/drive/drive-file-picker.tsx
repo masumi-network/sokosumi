@@ -1,8 +1,9 @@
 "use client";
 
-import { FileIcon, Loader2 } from "lucide-react";
+import { FileIcon, Loader2, Search } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,8 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile } from "@/lib/clients/generated/core";
@@ -40,9 +43,20 @@ export function DriveFilePicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
+  function handleSearchChange(value: string) {
+    setSearchQuery(value);
+    debouncedSetSearchQuery(value);
+  }
 
   const loadFiles = useCallback(async () => {
     loadFilesAbortRef.current?.abort();
@@ -64,6 +78,10 @@ export function DriveFilePicker({
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
+        ...(debouncedSearchQuery.trim()
+          ? { q: debouncedSearchQuery.trim() }
+          : {}),
+        signal: controller.signal,
       });
       if (!controller.signal.aborted) {
         setFiles(loaded);
@@ -77,7 +95,7 @@ export function DriveFilePicker({
         setLoading(false);
       }
     }
-  }, [scope, activeOrganizationId, t]);
+  }, [scope, activeOrganizationId, debouncedSearchQuery, t]);
 
   useEffect(() => {
     if (open) {
@@ -140,16 +158,28 @@ export function DriveFilePicker({
         </DialogHeader>
 
         <Tabs value={scope} onValueChange={handleTabChange}>
-          <TabsList className="w-full">
-            <TabsTrigger value="me" className="flex-1">
-              {t("myDriveTab")}
-            </TabsTrigger>
-            {activeOrganizationId && (
-              <TabsTrigger value="org" className="flex-1">
-                {organizationName || t("organizationTabFallback")}
+          <div className="space-y-3">
+            <TabsList className="w-full">
+              <TabsTrigger value="me" className="flex-1">
+                {t("myDriveTab")}
               </TabsTrigger>
-            )}
-          </TabsList>
+              {activeOrganizationId && (
+                <TabsTrigger value="org" className="flex-1">
+                  {organizationName || t("organizationTabFallback")}
+                </TabsTrigger>
+              )}
+            </TabsList>
+            <div className="relative">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
 
           <TabsContent value={scope} className="mt-4">
             {error ? (
@@ -162,7 +192,7 @@ export function DriveFilePicker({
               </div>
             ) : files.length === 0 ? (
               <div className="text-muted-foreground text-center py-8 text-sm">
-                {t("emptyPicker")}
+                {searchQuery ? t("noMatchTitle") : t("pickerEmptyMessage")}
               </div>
             ) : (
               <ScrollArea className="h-[400px] pr-4">

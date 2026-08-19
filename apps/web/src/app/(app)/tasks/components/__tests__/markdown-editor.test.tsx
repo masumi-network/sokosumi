@@ -13,6 +13,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
     dateTime: () => "",
+    number: (num: number) => num.toString(),
   }),
 }));
 
