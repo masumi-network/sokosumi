@@ -5344,6 +5344,8 @@
       "moveAction": "Verschieben",
       "moveDialogTitle": "{itemName} verschieben",
       "moveDialogDescription": "Wählen Sie den Zielordner aus",
+      "moveHere": "Hierher verschieben",
+      "moveToRoot": "In Hauptordner verschieben",
       "selectFolder": "Ordner auswählen",
       "rootFolder": "Hauptordner",
       "createFolderError": "Ordner konnte nicht erstellt werden",

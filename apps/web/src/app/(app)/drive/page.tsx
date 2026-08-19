@@ -72,6 +72,7 @@ import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
   getUsersByIdOrganizations,
+  patchDriveFilesMove,
   patchDriveFilesRename,
   patchDriveFoldersRename,
   postDriveFolders,
@@ -177,6 +178,12 @@ export default function DrivePage(): ReactElement {
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [itemToMove, setItemToMove] = useState<DriveItem | null>(null);
+  const [selectedDestination, setSelectedDestination] = useState<string | null>(
+    null,
+  );
+  const [movingItem, setMovingItem] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
@@ -494,6 +501,114 @@ export default function DrivePage(): ReactElement {
     }
   }
 
+  function openMoveDialog(item: DriveItem) {
+    setItemToMove(item);
+    setSelectedDestination(null);
+    setMoveDialogOpen(true);
+  }
+
+  async function handleMoveConfirm() {
+    if (!itemToMove || selectedDestination === null) {
+      return;
+    }
+
+    setMovingItem(true);
+    setError(null);
+    try {
+      await patchDriveFilesMove({
+        client: getBrowserCoreClient(),
+        body: {
+          sourcePathname:
+            itemToMove.type === "file"
+              ? itemToMove.pathname
+              : currentFolder
+                ? `${currentFolder}/${itemToMove.name}`
+                : itemToMove.name,
+          targetFolderPath: selectedDestination,
+          itemType: itemToMove.type,
+          ...(itemToMove.type === "folder"
+            ? {
+                scope,
+                ...(scope === "org" && activeOrganizationId
+                  ? { organizationId: activeOrganizationId }
+                  : {}),
+              }
+            : {}),
+        },
+        throwOnError: true,
+      });
+
+      setMoveDialogOpen(false);
+      setItemToMove(null);
+      setSelectedDestination(null);
+      await loadItems();
+    } catch (err) {
+      console.error(`Failed to move ${itemToMove.type}`, err);
+      setError(
+        itemToMove.type === "folder"
+          ? t("moveFolderError")
+          : t("moveFileError"),
+      );
+    } finally {
+      setMovingItem(false);
+    }
+  }
+
+  const breadcrumbSegments = currentFolder ? currentFolder.split("/") : [];
+
+  const availableDestinations = (() => {
+    if (!itemToMove) return [];
+
+    const destinations: Array<{ path: string; label: string }> = [];
+
+    destinations.push({ path: "", label: t("rootFolder") });
+
+    breadcrumbSegments.forEach((_, index) => {
+      const ancestorPath = breadcrumbSegments.slice(0, index + 1).join("/");
+      if (
+        itemToMove.type === "folder" &&
+        (ancestorPath === itemToMove.name ||
+          ancestorPath === `${currentFolder}/${itemToMove.name}` ||
+          ancestorPath.startsWith(
+            currentFolder
+              ? `${currentFolder}/${itemToMove.name}/`
+              : `${itemToMove.name}/`,
+          ))
+      ) {
+        return;
+      }
+      destinations.push({
+        path: ancestorPath,
+        label: breadcrumbSegments.slice(0, index + 1).join(" / "),
+      });
+    });
+
+    const siblingFolders = items.filter(
+      (item) =>
+        item.type === "folder" &&
+        item.name !== itemToMove.name &&
+        !(
+          itemToMove.type === "folder" &&
+          currentFolder === "" &&
+          item.name === itemToMove.name
+        ),
+    );
+
+    siblingFolders.forEach((folder) => {
+      const folderPath = currentFolder
+        ? `${currentFolder}/${folder.name}`
+        : folder.name;
+      destinations.push({
+        path: folderPath,
+        label: currentFolder
+          ? `${breadcrumbSegments.join(" / ")} / ${folder.name}`
+          : folder.name,
+      });
+    });
+
+    return destinations;
+  })();
+
   const emptyState = !loading && items.length === 0;
   const hasItems = items.length > 0;
 
@@ -502,8 +617,6 @@ export default function DrivePage(): ReactElement {
   function handleFabOpen() {
     fileInputRef.current?.click();
   }
-
-  const breadcrumbSegments = currentFolder ? currentFolder.split("/") : [];
 
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
@@ -872,6 +985,15 @@ export default function DrivePage(): ReactElement {
                                 {t("renameAction")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                onSelect={() => {
+                                  openMoveDialog(item);
+                                }}
+                                disabled={editingItemPath !== null}
+                              >
+                                <Folder className="size-4" aria-hidden />
+                                {t("moveAction")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 variant="destructive"
                                 onSelect={() => {
                                   openDeleteDialog(item);
@@ -971,6 +1093,53 @@ export default function DrivePage(): ReactElement {
               disabled={creatingFolder || !newFolderName.trim()}
             >
               {t("createFolderDialogConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {itemToMove &&
+                t("moveDialogTitle", { itemName: itemToMove.name })}
+            </DialogTitle>
+            <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {availableDestinations.map((dest) => (
+              <button
+                key={dest.path}
+                type="button"
+                onClick={() => setSelectedDestination(dest.path)}
+                className={cn(
+                  "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  selectedDestination === dest.path &&
+                    "bg-muted border-primary",
+                )}
+              >
+                <Folder className="text-muted-foreground size-4 shrink-0" />
+                <span className="line-clamp-1 flex-1">{dest.label}</span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMoveDialogOpen(false);
+                setItemToMove(null);
+                setSelectedDestination(null);
+              }}
+            >
+              {t("cancelAction")}
+            </Button>
+            <Button
+              onClick={() => void handleMoveConfirm()}
+              disabled={movingItem || selectedDestination === null}
+            >
+              {t("moveHere")}
             </Button>
           </DialogFooter>
         </DialogContent>
