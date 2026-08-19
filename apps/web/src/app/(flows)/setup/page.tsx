@@ -15,6 +15,8 @@ import { organizationService, userService } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {
+  isJoinLinkDuplicateOfInvitation,
+  pendingInvitesDescriptionKey,
   resolveWorkspaceGateSurface,
   type WorkspaceGateSurface,
 } from "@/lib/workspace-gate-queue";
@@ -59,16 +61,19 @@ export default async function WorkspaceGatePage() {
       ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
       : await loadWorkspaceGateQueueItems();
   const queueItems = queue.items;
+  const invitationCount = queueItems.filter(
+    (item) => item.kind === "invitation",
+  ).length;
+  const hasJoinLink = queueItems.some((item) => item.kind === "join");
 
   const surface: WorkspaceGateSurface = workspaceReady
     ? "identity-onboarding"
     : resolveWorkspaceGateSurface({
         workspaceAccessLoadFailed,
         gate,
-        invitationCount: queueItems.filter((item) => item.kind === "invitation")
-          .length,
+        invitationCount,
         invitationsLoadFailed: queue.invitationsLoadFailed,
-        hasJoinLink: queueItems.some((item) => item.kind === "join"),
+        hasJoinLink,
       });
 
   const t = await getTranslations("WorkspaceGate");
@@ -84,7 +89,7 @@ export default async function WorkspaceGatePage() {
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
-        ? "pendingInvitesDescription"
+        ? pendingInvitesDescriptionKey({ invitationCount, hasJoinLink })
         : hasName
           ? "identityDescriptionConfirm"
           : "identityDescriptionEnter";
@@ -169,12 +174,22 @@ async function loadWorkspaceGateQueueItems(): Promise<{
   try {
     const resolved = await coreClient.resolveOrganizationInviteLink(joinToken);
     if (resolved.data.status === "valid" && resolved.data.organization) {
-      items.push({
-        kind: "join",
-        token: joinToken,
-        organizationName: resolved.data.organization.name,
-        organizationSlug: resolved.data.organization.slug,
-      });
+      const joinSlug = resolved.data.organization.slug;
+      if (
+        !isJoinLinkDuplicateOfInvitation(
+          items
+            .filter((item) => item.kind === "invitation")
+            .map((item) => item.organizationSlug),
+          joinSlug,
+        )
+      ) {
+        items.push({
+          kind: "join",
+          token: joinToken,
+          organizationName: resolved.data.organization.name,
+          organizationSlug: joinSlug,
+        });
+      }
     }
   } catch (error) {
     console.error("Failed to resolve pending organization join token", error);

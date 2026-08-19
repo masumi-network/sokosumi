@@ -59,6 +59,28 @@ export function applyPendingOrganizationJoinCookie(
   });
 }
 
+/** Clear the cookie only when it is the accepted token or the same org. */
+export function shouldClearPendingJoinCookie(input: {
+  cookieToken: string | null;
+  acceptedJoinToken?: string;
+  cookieOrganizationSlug?: string | null;
+  joinedOrganizationSlug: string;
+}): boolean {
+  if (!input.cookieToken) {
+    return false;
+  }
+  if (
+    input.acceptedJoinToken &&
+    input.cookieToken === input.acceptedJoinToken
+  ) {
+    return true;
+  }
+  return (
+    input.cookieOrganizationSlug != null &&
+    input.cookieOrganizationSlug === input.joinedOrganizationSlug
+  );
+}
+
 export async function getPendingOrganizationJoinToken(): Promise<
   string | null
 > {

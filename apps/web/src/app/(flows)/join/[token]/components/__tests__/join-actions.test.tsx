@@ -189,6 +189,9 @@ describe("JoinActions name collection", () => {
       expect(routerPushMock).toHaveBeenCalledWith("/organizations/join-co");
     });
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
-    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
+      organizationSlug: "join-co",
+      acceptedJoinToken: "join_token_1",
+    });
   });
 });

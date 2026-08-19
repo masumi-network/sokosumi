@@ -67,7 +67,10 @@ export function JoinActions({
       return;
     }
     setRetryOrganizationId(null);
-    await clearPendingOrganizationJoinCookieAction({});
+    await clearPendingOrganizationJoinCookieAction({
+      organizationSlug,
+      acceptedJoinToken: token,
+    });
     router.push(`/organizations/${encodeURIComponent(organizationSlug)}`);
   }
 

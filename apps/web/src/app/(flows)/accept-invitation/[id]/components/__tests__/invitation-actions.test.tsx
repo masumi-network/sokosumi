@@ -7,8 +7,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import InvitationActions from "../invitation-actions";
 
 const acceptInvitationMock = vi.fn();
+const rejectInvitationMock = vi.fn();
 const updateUserMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
+const clearPendingOrganizationJoinCookieActionMock = vi.fn();
 const routerPushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -29,7 +31,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
     updateUser: (...args: unknown[]) => updateUserMock(...args),
     organization: {
       acceptInvitation: (...args: unknown[]) => acceptInvitationMock(...args),
-      rejectInvitation: vi.fn(),
+      rejectInvitation: (...args: unknown[]) => rejectInvitationMock(...args),
     },
     signOut: vi.fn(),
   },
@@ -38,6 +40,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
 vi.mock("@/lib/activate-organization-workspace", () => ({
   activateOrganizationWorkspaceWithRetry: (...args: unknown[]) =>
     activateOrganizationWorkspaceMock(...args),
+}));
+
+vi.mock("@/lib/actions/workspace-gate", () => ({
+  clearPendingOrganizationJoinCookieAction: (...args: unknown[]) =>
+    clearPendingOrganizationJoinCookieActionMock(...args),
 }));
 
 const messages = {
@@ -61,11 +68,22 @@ const messages = {
   AcceptInvitation: {
     InvitationCard: {
       Actions: {
-        accept: "Accept",
+        accept: "Join {organization}",
+        joining: "Joining…",
         decline: "Decline",
         activateRetry: "Try switching again",
-        Success: { accept: "Accepted" },
-        Error: { accept: "Accept failed", activate: "Activate failed" },
+        signedOutHint: "Sign in or create an account to accept this invite.",
+        signIn: "Sign in to join",
+        register: "Create an account",
+        emailMismatch: "You are not the invited user.",
+        logout: "Logout",
+        ignore: "Ignore",
+        Success: { accept: "Accepted", decline: "Declined" },
+        Error: {
+          accept: "Accept failed",
+          decline: "Decline failed",
+          activate: "Activate failed",
+        },
         Errors: { unauthorizedAction: "Login" },
       },
     },
@@ -84,13 +102,14 @@ const user: SessionUser = {
   marketingOptIn: false,
 };
 
-function renderActions(sessionUser: SessionUser = user) {
+function renderActions(sessionUser: SessionUser | null = user) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <InvitationActions
         invitation={{ id: "inv_1", email: "ada@example.com" }}
+        organizationName="Acme"
         organizationSlug="acme"
-        user={sessionUser}
+        user={sessionUser ?? undefined}
       />
     </NextIntlClientProvider>,
   );
@@ -104,7 +123,12 @@ describe("InvitationActions name collection", () => {
       data: { member: { organizationId: "org_1" } },
       error: null,
     });
+    rejectInvitationMock.mockResolvedValue({ error: null });
     activateOrganizationWorkspaceMock.mockResolvedValue(true);
+    clearPendingOrganizationJoinCookieActionMock.mockResolvedValue({
+      ok: true,
+      value: null,
+    });
   });
 
   it("collects a name before accept when the user has none", async () => {
@@ -120,7 +144,7 @@ describe("InvitationActions name collection", () => {
     renderActions();
 
     await actor.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
-    await actor.click(screen.getByRole("button", { name: "Accept" }));
+    await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
       expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
@@ -141,12 +165,15 @@ describe("InvitationActions name collection", () => {
     renderActions({ ...user, name: "Ada Lovelace" });
 
     expect(screen.queryByTestId("collect-user-name")).not.toBeInTheDocument();
-    await actor.click(screen.getByRole("button", { name: "Accept" }));
+    await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
       expect(acceptInvitationMock).toHaveBeenCalled();
     });
     expect(updateUserMock).not.toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
+      organizationSlug: "acme",
+    });
   });
 
   it("does not navigate and offers retry when activation fails", async () => {
@@ -157,7 +184,7 @@ describe("InvitationActions name collection", () => {
       .mockResolvedValueOnce(true);
     renderActions({ ...user, name: "Ada Lovelace" });
 
-    await actor.click(screen.getByRole("button", { name: "Accept" }));
+    await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Activate failed");
@@ -170,5 +197,95 @@ describe("InvitationActions name collection", () => {
       expect(routerPushMock).toHaveBeenCalledWith("/organizations/acme");
     });
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("InvitationActions join-like layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    updateUserMock.mockResolvedValue({ error: null });
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+    rejectInvitationMock.mockResolvedValue({ error: null });
+    activateOrganizationWorkspaceMock.mockResolvedValue(true);
+  });
+
+  it("stacks primary Accept above outline Decline", () => {
+    renderActions({ ...user, name: "Ada Lovelace" });
+
+    const accept = screen.getByRole("button", { name: "Join Acme" });
+    const decline = screen.getByRole("button", { name: "Decline" });
+
+    expect(accept.compareDocumentPosition(decline)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(accept.className).toContain("w-full");
+    expect(decline.className).toContain("w-full");
+  });
+
+  it("shows the join signed-out hint and stacked auth actions", async () => {
+    const actor = userEvent.setup();
+    window.history.pushState({}, "", "/accept-invitation/inv_1");
+    renderActions(null);
+
+    expect(
+      screen.getByText("Sign in or create an account to accept this invite."),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/If you already have an account/i),
+    ).not.toBeInTheDocument();
+
+    await actor.click(screen.getByRole("button", { name: "Sign in to join" }));
+    const signin = new URL(
+      String(routerPushMock.mock.calls.at(-1)?.[0]),
+      "http://localhost",
+    );
+    expect(signin.pathname).toBe("/signin");
+    expect(signin.searchParams.get("email")).toBe("ada@example.com");
+    expect(signin.searchParams.get("returnUrl")).toBe(
+      "/accept-invitation/inv_1",
+    );
+
+    await actor.click(
+      screen.getByRole("button", { name: "Create an account" }),
+    );
+    const signup = new URL(
+      String(routerPushMock.mock.calls.at(-1)?.[0]),
+      "http://localhost",
+    );
+    expect(signup.pathname).toBe("/signup");
+    expect(signup.searchParams.get("email")).toBe("ada@example.com");
+    expect(signup.searchParams.get("invitationId")).toBe("inv_1");
+    expect(signup.searchParams.get("returnUrl")).toBe(
+      "/accept-invitation/inv_1",
+    );
+  });
+
+  it("rejects the invitation instead of clearing a join cookie", async () => {
+    const actor = userEvent.setup();
+    renderActions({ ...user, name: "Ada Lovelace" });
+
+    await actor.click(screen.getByRole("button", { name: "Decline" }));
+
+    await waitFor(() => {
+      expect(rejectInvitationMock).toHaveBeenCalledWith({
+        invitationId: "inv_1",
+      });
+    });
+    expect(acceptInvitationMock).not.toHaveBeenCalled();
+    expect(routerPushMock).toHaveBeenCalledWith("/");
+  });
+
+  it("keeps email mismatch as invitation-only logout / ignore", () => {
+    renderActions({ ...user, email: "other@example.com", name: "Other" });
+
+    expect(screen.getByText("You are not the invited user.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Ignore" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Join Acme" }),
+    ).not.toBeInTheDocument();
   });
 });

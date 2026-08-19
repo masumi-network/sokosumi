@@ -846,9 +846,8 @@
   },
   "AcceptInvitation": {
     "InvitationCard": {
-      "title": "Organization Invitation",
-      "description": "You've been invited to join an organization",
-      "hasInvitedYouToJoin": "has invited you to join",
+      "title": "You've been invited",
+      "invitedToJoin": "Join {organization} on Sokosumi.",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",
@@ -856,18 +855,16 @@
       "declinedDescription": "You've declined the invitation to join {organizationName}.",
       "goToHome": "Go to Home",
       "Actions": {
-        "accept": "Accept",
+        "accept": "Join {organization}",
+        "joining": "Joining…",
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
         "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
-        "WithoutSession": {
-          "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
-          "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
-          "login": "Login",
-          "register": "Register"
-        },
+        "signedOutHint": "Sign in or create an account to accept this invite.",
+        "signIn": "Sign in to join",
+        "register": "Create an account",
         "Success": {
           "accept": "Invitation accepted successfully",
           "decline": "Invitation declined successfully"
@@ -5531,7 +5528,9 @@
     "identityDescriptionConfirm": "Confirm your name and choose an option.",
     "identityDescriptionEnter": "Enter your name.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization.",
+    "pendingInvitesDescriptionInvitations": "Accept an organization invitation to open Sokosumi in that organization.",
+    "pendingInvitesDescriptionJoin": "Join via the invite link to open Sokosumi in that organization.",
+    "pendingInvitesDescriptionBoth": "Accept an organization invitation or join via the invite link to open Sokosumi in that organization.",
     "signOut": "Sign out",
     "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",

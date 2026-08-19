@@ -17,6 +17,7 @@ import {
   joinTokenFromJoinPath,
   PENDING_ORGANIZATION_JOIN_COOKIE_NAME,
   setPendingOrganizationJoinToken,
+  shouldClearPendingJoinCookie,
 } from "../pending-organization-join-cookie";
 
 describe("pending organization join cookie", () => {
@@ -85,5 +86,47 @@ describe("pending organization join cookie", () => {
     expect(joinTokenFromJoinPath("/join/abc123")).toBe("abc123");
     expect(joinTokenFromJoinPath("/setup")).toBeNull();
     expect(joinTokenFromJoinPath("/join/")).toBeNull();
+  });
+});
+
+describe("shouldClearPendingJoinCookie", () => {
+  it("does not clear when there is no cookie", () => {
+    expect(
+      shouldClearPendingJoinCookie({
+        cookieToken: null,
+        joinedOrganizationSlug: "acme",
+      }),
+    ).toBe(false);
+  });
+
+  it("clears when the cookie token is the accepted join token", () => {
+    expect(
+      shouldClearPendingJoinCookie({
+        cookieToken: "tok_1",
+        acceptedJoinToken: "tok_1",
+        joinedOrganizationSlug: "acme",
+      }),
+    ).toBe(true);
+  });
+
+  it("clears when the recovered join org matches the accepted org", () => {
+    expect(
+      shouldClearPendingJoinCookie({
+        cookieToken: "tok_other",
+        cookieOrganizationSlug: "acme",
+        joinedOrganizationSlug: "acme",
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the cookie when it points at a different org", () => {
+    expect(
+      shouldClearPendingJoinCookie({
+        cookieToken: "tok_other",
+        acceptedJoinToken: "tok_accepted",
+        cookieOrganizationSlug: "other-co",
+        joinedOrganizationSlug: "acme",
+      }),
+    ).toBe(false);
   });
 });
