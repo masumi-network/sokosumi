@@ -1042,6 +1042,18 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use"
     },
+    "Aside": {
+      "titleLine1": "AI Coworkers",
+      "titleLine2": "para marketing",
+      "bullet1": "AI Coworker especializado, hecho para marketing.",
+      "bullet2": "Hecho para equipos de marketing pequeños y grandes.",
+      "bullet3": "Funciona con las herramientas que ya usas.",
+      "logosLabel": "En los escritorios de",
+      "pauseLogos": "Pausar logos",
+      "quote": "«Sokosumi complementa y conecta nuestra oferta de agencia. Los servicios agénticos permiten la interacción, y con ella el hilo que une todas nuestras aplicaciones y servicios de IA.»",
+      "quoteAuthor": "Florian Haller",
+      "quoteRole": "CEO, Serviceplan Group"
+    },
     "Schema": {
       "Email": {
         "invalid": "Por favor, introduce una dirección de email válida.",
