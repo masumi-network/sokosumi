@@ -86,21 +86,6 @@
           "page": "Página {page} de {totalPages}"
         }
       },
-      "X402Card": {
-        "title": "Agents x402",
-        "subtitle": "Agents de pago directo disponibles para tu Coworker. Tarjetas de vista previa para el próximo flujo de contratación.",
-        "preview": "Vista previa",
-        "fallbackDescription": "Un Agent de pago directo compatible con x402.",
-        "bazaarSpec": "Bazaar",
-        "openApiSpec": "OpenAPI",
-        "sources": "{count, plural, =1 {1 ruta de pago} other {# rutas de pago}}",
-        "directPay": "Pago directo",
-        "pricing": "Desde {price} Credits",
-        "dynamicPricing": "Precio dinámico",
-        "mixedPricing": "Precios fijos y dinámicos",
-        "coworkerAccess": "Acceso Coworker",
-        "previewOnly": "Solo vista previa"
-      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"

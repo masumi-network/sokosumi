@@ -86,21 +86,6 @@
           "page": "Page {page} of {totalPages}"
         }
       },
-      "X402Card": {
-        "title": "x402 agents",
-        "subtitle": "Direct-pay agents available to your Coworker. Preview cards for the upcoming hiring flow.",
-        "preview": "Preview",
-        "fallbackDescription": "An x402-compatible direct-pay agent.",
-        "bazaarSpec": "Bazaar",
-        "openApiSpec": "OpenAPI",
-        "sources": "{count, plural, =1 {1 payment route} other {# payment routes}}",
-        "directPay": "Direct pay",
-        "pricing": "From {price} credits",
-        "dynamicPricing": "Dynamic pricing",
-        "mixedPricing": "Fixed and dynamic pricing",
-        "coworkerAccess": "Coworker access",
-        "previewOnly": "Preview only"
-      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"

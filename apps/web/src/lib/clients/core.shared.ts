@@ -15,7 +15,6 @@ import type {
   GetAgentsByIdJobsData,
   GetAgentsByIdReviewsData,
   GetAgentsData,
-  GetAgentsX402Data,
   GetCategoriesData,
   GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
@@ -138,7 +137,6 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
-  getAgentsX402 as coreGetAgentsX402,
   getCategories as coreGetCategories,
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
@@ -2634,19 +2632,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getX402Agents(query?: GetAgentsX402Data["query"]) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetAgentsX402({
-          client,
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch x402 agents",
-    );
-  }
-
   async function getAgentJobs(
     id: string,
     query?: GetAgentsByIdJobsData["query"],
@@ -4401,7 +4386,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAgentReviews,
     getMyAgentReview,
     getAgents,
-    getX402Agents,
     createAgentRating,
     getCategories,
     getCoworkers,

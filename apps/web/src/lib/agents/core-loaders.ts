@@ -7,7 +7,6 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   Agent as CoreAgent,
   AgentDetail as CoreAgentDetail,
-  X402Agent as CoreX402Agent,
 } from "@/lib/clients/generated/core";
 
 const AGENTS_PAGE_SIZE = 100;
@@ -58,26 +57,6 @@ export async function getAllCoreAgents(): Promise<CoreAgent[]> {
       }
       agents.push(item);
     }
-    cursor = response.meta?.pagination?.nextCursor ?? undefined;
-  } while (cursor);
-
-  return agents;
-}
-
-export async function getAllCoreX402Agents(): Promise<CoreX402Agent[]> {
-  const agents: CoreX402Agent[] = [];
-  let cursor: string | undefined;
-
-  // x402 pages can be empty while still carrying a next cursor because
-  // fail-closed payment checks run after candidate pagination. Always follow
-  // the cursor until Core says the candidate set is exhausted.
-  do {
-    const response = await coreClient.getX402Agents({
-      cursor,
-      limit: AGENTS_PAGE_SIZE,
-    });
-
-    agents.push(...response.data);
     cursor = response.meta?.pagination?.nextCursor ?? undefined;
   } while (cursor);
 
