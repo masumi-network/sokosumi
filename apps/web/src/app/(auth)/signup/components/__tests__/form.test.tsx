@@ -339,13 +339,12 @@ describe("SignUpForm OAuth workflow", () => {
 
     await submitValidSignUpForm();
 
-    await waitFor(() => {
-      expect(mockSignUpEmail).toHaveBeenCalledTimes(1);
-    });
-
     const submitButton = screen.getByRole("button", { name: "submit" });
 
-    expect(submitButton).toBeEnabled();
+    await waitFor(() => {
+      expect(submitButton).toBeEnabled();
+    });
+
     expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
   });
 

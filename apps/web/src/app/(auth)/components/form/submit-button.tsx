@@ -25,11 +25,11 @@ export function SubmitButton({
 
   return (
     <Button
+      {...props}
       type="submit"
       variant="primary"
       className={cn(isStart && "relative", className)}
-      disabled={isSubmitting}
-      {...props}
+      disabled={isSubmitting || Boolean(props.disabled)}
     >
       {isSubmitting && (
         <Loader2
@@ -37,7 +37,7 @@ export function SubmitButton({
           className={
             isStart
               ? "absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin"
-              : "mr-2 h-4 w-4 animate-spin"
+              : "mr-2 size-4 animate-spin"
           }
         />
       )}

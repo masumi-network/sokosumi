@@ -153,7 +153,7 @@ export default function SignUpForm({
           spinnerPosition="start"
           label={t("submit")}
           className="w-full"
-          disabled={!termsAccepted || isPending}
+          disabled={!termsAccepted}
         />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">

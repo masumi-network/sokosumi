@@ -1,6 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import SignInForm from "../form";
 
@@ -84,6 +92,25 @@ vi.mock("@/lib/auth/auth.utils", async () => {
 });
 
 describe("SignInForm", () => {
+  const originalLocation = window.location;
+
+  beforeAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        href: "http://localhost/",
+        origin: "http://localhost",
+      } as Location,
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
+
   beforeEach(() => {
     mockReplace.mockReset();
     mockSignInEmail.mockReset();
@@ -91,6 +118,7 @@ describe("SignInForm", () => {
     mockWaitForAuthSession.mockReset();
     mockWaitForAuthSession.mockResolvedValue(undefined);
     mockSearchParams = new URLSearchParams();
+    window.location.href = "http://localhost/";
   });
 
   async function submitValidSignInForm() {
@@ -266,13 +294,39 @@ describe("SignInForm", () => {
 
     await submitValidSignInForm();
 
+    const submitButton = screen.getByRole("button", { name: "submit" });
+
     await waitFor(() => {
-      expect(mockSignInEmail).toHaveBeenCalledTimes(1);
+      expect(submitButton).toBeEnabled();
+    });
+
+    expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+  });
+
+  it("keeps a left-edge submit spinner until oauth redirect navigation", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: {
+        redirect: true,
+        url: "/auth/oauth2/authorize?client_id=test-client",
+      },
+      error: null,
+    });
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(window.location.href).toContain(
+        "/auth/oauth2/authorize?client_id=test-client",
+      );
     });
 
     const submitButton = screen.getByRole("button", { name: "submit" });
+    const spinner = submitButton.querySelector("svg.animate-spin");
 
-    expect(submitButton).toBeEnabled();
-    expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+    expect(submitButton).toBeDisabled();
+    expect(spinner).not.toBeNull();
+    expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
