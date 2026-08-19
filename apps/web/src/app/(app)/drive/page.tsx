@@ -116,7 +116,10 @@ function FileNameWithPreview({
 
   if (item.type === "folder" || !isPreviewable) {
     return (
-      <span className="text-foreground line-clamp-1 text-sm font-medium">
+      <span
+        className="text-foreground line-clamp-1 text-sm font-medium"
+        title={item.name}
+      >
         {item.name}
       </span>
     );
@@ -134,6 +137,7 @@ function FileNameWithPreview({
           }
         }}
         className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+        title={item.name}
       >
         {item.name}
       </button>
@@ -783,6 +787,7 @@ export default function DrivePage(): ReactElement {
                     index === breadcrumbSegments.length - 1 &&
                       "text-foreground font-medium",
                   )}
+                  title={segment}
                 >
                   {segment}
                 </button>
@@ -934,6 +939,7 @@ export default function DrivePage(): ReactElement {
                                   type="button"
                                   onClick={() => navigateToFolder(item.name)}
                                   className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                                  title={item.name}
                                 >
                                   {item.name}
                                 </button>
