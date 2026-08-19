@@ -106,8 +106,9 @@ commits: the schema + migration, and the user-deletion guard + tests.
 
 ### Migration
 
-`20260811130000_task_x402_payment` — timestamped after
-`20260811120000_external_channels`. Fully idempotent (enum via
+`20260819130000_task_x402_payment` — formerly `20260811130000_task_x402_payment`,
+re-timestamped after `20260818120000_better_auth_1_7_account_identity` so the
+stack applies after the current main tip. Fully idempotent (enum via
 `duplicate_object` guard, `CREATE TABLE/INDEX IF NOT EXISTS`, FK adds in
 `DO $$` guards), matching the payment-v2 branch style. Validated on scratch
 local Postgres: full `prisma migrate deploy` from zero, a second direct

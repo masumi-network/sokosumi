@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 /**
  * Convergence guards for the x402 payment migration.
  *
- * `20260811130000_task_x402_payment` is deliberately re-appliable: preview and
+ * `20260819130000_task_x402_payment` is deliberately re-appliable: preview and
  * dev databases may already hold an earlier shape of the same file, so every
  * object it declares is restated idempotently and both paths (fresh CREATE and
  * already-created) must land on one shape.
@@ -23,7 +23,7 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const schemaPath = join(packageRoot, "prisma/schema.prisma");
 const x402MigrationPath = join(
   packageRoot,
-  "prisma/migrations/20260811130000_task_x402_payment/migration.sql",
+  "prisma/migrations/20260819130000_task_x402_payment/migration.sql",
 );
 
 const NONCE_REPLAY_INDEX = "task_x402_payment_nonce_replay_uidx";

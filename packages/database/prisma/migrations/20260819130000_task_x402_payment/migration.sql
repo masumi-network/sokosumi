@@ -1,8 +1,12 @@
+-- Formerly 20260811130000_task_x402_payment. Re-timestamped after
+-- main's 20260818120000_better_auth_1_7_account_identity so x402 migrations
+-- apply after the current main tip. Statements are idempotent so a preview
+-- database that already applied the older name can re-apply this without failing.
+--
 -- x402/Bazaar payment record (PR1-SPEC §4). Sibling of task_payment_claim, not
 -- a reuse — the escrow claim's state machine (processing lease, retry ladder,
 -- blockchainIdentifier) is meaningless here; this record is terminal at sign
--- time. Statements are idempotent so a preview database that partially applied
--- an earlier run can re-apply without failing.
+-- time.
 
 -- CreateEnum
 -- VERIFIED is terminal for the automated flow: the node signs the X-PAYMENT
