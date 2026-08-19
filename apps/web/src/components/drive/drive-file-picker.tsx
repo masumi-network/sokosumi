@@ -11,7 +11,6 @@ import {
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -314,7 +313,10 @@ export function DriveFilePicker({
                 {searchQuery ? t("noMatchTitle") : t("pickerEmptyMessage")}
               </div>
             ) : (
-              <ScrollArea className="h-[400px] pr-4 min-w-0 w-full">
+              <ScrollArea
+                className="h-[400px] pr-4 min-w-0 w-full"
+                shrinkContent
+              >
                 <div className="space-y-1">
                   {items.map((item) => {
                     const itemKey =
@@ -324,60 +326,56 @@ export function DriveFilePicker({
 
                     if (item.type === "folder") {
                       return (
-                        <Button
+                        <button
                           key={itemKey}
-                          variant="ghost"
-                          className="h-auto w-full min-w-0 max-w-full justify-start overflow-hidden whitespace-normal p-3 hover:bg-accent"
+                          type="button"
+                          className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left hover:bg-accent"
                           onClick={() => navigateToFolder(item.name)}
                         >
-                          <span className="flex min-w-0 w-full max-w-full items-start gap-3 overflow-hidden">
-                            <Folder className="text-muted-foreground size-5 shrink-0" />
-                            <span className="min-w-0 flex-1 overflow-hidden text-left">
-                              <span
-                                className="block min-w-0 max-w-full truncate text-foreground font-medium"
-                                title={item.name}
-                              >
-                                {item.name}
-                              </span>
-                              <span className="text-muted-foreground text-xs">
-                                {t("folder")}
-                              </span>
-                            </span>
-                          </span>
-                        </Button>
-                      );
-                    }
-
-                    return (
-                      <Button
-                        key={itemKey}
-                        variant="ghost"
-                        className="h-auto w-full min-w-0 max-w-full justify-start overflow-hidden whitespace-normal p-3 hover:bg-accent"
-                        onClick={() => handleFileClick(item)}
-                      >
-                        <span className="flex min-w-0 w-full max-w-full items-start gap-3 overflow-hidden">
-                          <FileIcon className="text-muted-foreground size-5 shrink-0" />
-                          <span className="min-w-0 flex-1 overflow-hidden text-left">
+                          <Folder className="text-muted-foreground size-5 shrink-0" />
+                          <span className="flex min-w-0 w-0 flex-1 flex-col overflow-hidden">
                             <span
-                              className="block min-w-0 max-w-full truncate text-foreground font-medium"
+                              className="block truncate font-medium"
                               title={item.name}
                             >
                               {item.name}
                             </span>
-                            <span className="text-muted-foreground flex gap-2 text-xs">
-                              {item.size ? (
-                                <span>{formatBytes(item.size)}</span>
-                              ) : null}
-                              <span>
-                                {formatter.dateTime(new Date(item.uploadedAt), {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </span>
+                            <span className="text-muted-foreground text-xs">
+                              {t("folder")}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={itemKey}
+                        type="button"
+                        className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left hover:bg-accent"
+                        onClick={() => handleFileClick(item)}
+                      >
+                        <FileIcon className="text-muted-foreground size-5 shrink-0" />
+                        <span className="flex min-w-0 w-0 flex-1 flex-col overflow-hidden">
+                          <span
+                            className="block truncate font-medium"
+                            title={item.name}
+                          >
+                            {item.name}
+                          </span>
+                          <span className="text-muted-foreground flex gap-2 text-xs">
+                            {item.size ? (
+                              <span>{formatBytes(item.size)}</span>
+                            ) : null}
+                            <span>
+                              {formatter.dateTime(new Date(item.uploadedAt), {
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                           </span>
                         </span>
-                      </Button>
+                      </button>
                     );
                   })}
                 </div>
