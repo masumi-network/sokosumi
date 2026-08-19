@@ -47,11 +47,14 @@ describe("auth background LCP contract (SOK-782)", () => {
     // Below Tailwind lg the panel is hidden — sizes must not claim 50vw there.
     expect(AUTH_BACKGROUND_SIZES).toBe("(max-width: 1023px) 0px, 50vw");
     expect(code).toMatch(/\bsizes=\{AUTH_BACKGROUND_SIZES\}/);
+    expect(code).toMatch(/<AuthAside\s*\/>/);
+    expect(code).not.toMatch(/export default async function AuthBackground/);
   });
 
   it("auth layout keeps Instant opt-out and still mounts AuthBackground", () => {
     const layout = stripComments(readAuth("layout.tsx"));
     expect(layout).toMatch(/export\s+const\s+instant\s*=\s*false/);
     expect(layout).toMatch(/<AuthBackground\s*\/>/);
+    expect(layout).toMatch(/min-h-6/);
   });
 });
