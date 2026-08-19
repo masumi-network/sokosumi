@@ -86,7 +86,7 @@ describe("uploadDriveFile", () => {
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
 
-    await uploadDriveFile(file, {
+    const result = await uploadDriveFile(file, {
       scope: "me",
       onUploadProgress,
     });
@@ -112,6 +112,15 @@ describe("uploadDriveFile", () => {
     );
     expect(xhrInstance?.send).toHaveBeenCalledWith(file);
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
+
+    // Assert returned DriveFile shape
+    expect(result).toMatchObject({
+      name: "report.pdf",
+      pathname: "drive/users/user_123/report.pdf",
+      fileUrl: "https://blob.example/upload",
+      size: 5,
+    });
+    expect(result.uploadedAt).toBeInstanceOf(Date);
   });
 
   it("rejects with duplicate error when Blob PUT returns 409", async () => {
@@ -165,11 +174,12 @@ describe("uploadDriveFile", () => {
     postDriveFilesMock.mockResolvedValue(
       grantSession({
         uploadUrl: "https://blob.example/upload?sig=org",
+        pathname: "drive/orgs/org_123/notes.txt",
         headers: { "Content-Type": "text/plain" },
       }),
     );
 
-    await uploadDriveFile(file, {
+    const result = await uploadDriveFile(file, {
       scope: "org",
       organizationId: "org_123",
     });
@@ -185,6 +195,15 @@ describe("uploadDriveFile", () => {
       },
       throwOnError: true,
     });
+
+    // Assert returned DriveFile shape
+    expect(result).toMatchObject({
+      name: "notes.txt",
+      pathname: "drive/orgs/org_123/notes.txt",
+      fileUrl: "https://blob.example/upload",
+      size: 1,
+    });
+    expect(result.uploadedAt).toBeInstanceOf(Date);
   });
 
   it("throws before PUT when the mint response has no uploadUrl", async () => {

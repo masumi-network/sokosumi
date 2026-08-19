@@ -273,7 +273,7 @@ export default function DrivePage(): ReactElement {
     setError(null);
 
     try {
-      await uploadDriveFile(file, {
+      const uploadedFile = await uploadDriveFile(file, {
         scope,
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
@@ -283,7 +283,21 @@ export default function DrivePage(): ReactElement {
         },
       });
 
-      await loadFiles();
+      // Prepend the uploaded file if it matches search or search is empty
+      const shouldPrepend =
+        !debouncedSearchQuery.trim() ||
+        uploadedFile.name.startsWith(debouncedSearchQuery.trim());
+
+      if (shouldPrepend) {
+        setFiles((prev) => {
+          // Dedupe by pathname
+          const exists = prev.some((f) => f.pathname === uploadedFile.pathname);
+          if (exists) {
+            return prev;
+          }
+          return [uploadedFile, ...prev];
+        });
+      }
     } catch (err) {
       if (isDriveFileUploadDuplicate(err)) {
         setError(null);
