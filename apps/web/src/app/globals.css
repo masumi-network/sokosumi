@@ -136,6 +136,7 @@
   --animate-bui-shimmer-text: bui-shimmer-text 1.8s linear infinite;
   /* Classic outbound pending: slow dual-arc ring in the timestamp slot. */
   --animate-outbound-pending-spin: outbound-pending-spin 1.4s linear infinite;
+  --animate-auth-logo-marquee: auth-logo-marquee 40s linear infinite;
 
   @keyframes bui-shimmer-text {
     0% {
@@ -149,6 +150,12 @@
   @keyframes outbound-pending-spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  @keyframes auth-logo-marquee {
+    to {
+      transform: translateX(-50%);
     }
   }
 

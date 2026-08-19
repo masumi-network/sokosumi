@@ -65,7 +65,12 @@ export default async function AuthLayout({
       >
         <div className="flex h-full flex-1 flex-col gap-6">
           <Link href="/">
-            <ThemedLogo LogoComponent={SokosumiLogo} priority />
+            <ThemedLogo
+              LogoComponent={SokosumiLogo}
+              priority
+              width={100}
+              height={18}
+            />
           </Link>
           <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}

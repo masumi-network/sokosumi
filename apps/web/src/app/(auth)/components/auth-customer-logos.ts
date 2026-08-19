@@ -51,11 +51,37 @@ export const AUTH_CUSTOMER_LOGOS: AuthCustomerLogo[] = [
     alt: "Ströer",
     ...size(155, 36, WORDMARK_HEIGHT),
   },
+  {
+    src: "/images/logos/customers/bsh.svg",
+    alt: "B/S/H/",
+    ...size(99, 35, WORDMARK_HEIGHT),
+  },
+  {
+    src: "/images/logos/customers/bvg.svg",
+    alt: "BVG",
+    ...size(67, 60, MARK_HEIGHT),
+  },
+  {
+    src: "/images/logos/customers/ravensburger.svg",
+    alt: "Ravensburger",
+    ...size(80, 80, MARK_HEIGHT),
+  },
+  {
+    src: "/images/logos/customers/samsung.svg",
+    alt: "Samsung",
+    ...size(129, 43, WORDMARK_HEIGHT),
+  },
 ];
 
-/** Builder mark — sits with the Haller quote, not in the customer row. */
+/** Builder mark — sits with the Haller quote, and in the cycling ticker. */
 export const AUTH_SERVICEPLAN_LOGO: AuthCustomerLogo = {
   src: "/images/logos/serviceplan-logo-white.png",
   alt: "Serviceplan Group",
   ...size(360, 56, 14),
 };
+
+/** Full ticker set from sokosumi.com plus remaining logo-folder marks. */
+export const AUTH_MARQUEE_LOGOS: AuthCustomerLogo[] = [
+  ...AUTH_CUSTOMER_LOGOS,
+  AUTH_SERVICEPLAN_LOGO,
+];

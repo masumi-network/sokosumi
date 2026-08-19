@@ -2,7 +2,7 @@ import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 
 import {
-  AUTH_CUSTOMER_LOGOS,
+  AUTH_MARQUEE_LOGOS,
   AUTH_SERVICEPLAN_LOGO,
 } from "./auth-customer-logos";
 
@@ -64,19 +64,34 @@ export default async function AuthAside() {
           <p className="font-medium text-white/45 text-xs uppercase tracking-[0.16em]">
             {t("logosLabel")}
           </p>
-          <ul className="mt-4 grid grid-cols-3 items-center gap-x-6 gap-y-4 xl:flex xl:gap-x-7">
-            {AUTH_CUSTOMER_LOGOS.map((logo) => (
-              <li key={logo.src} className="flex items-center">
-                <Image
-                  src={logo.src}
-                  alt={logo.alt}
-                  width={logo.width}
-                  height={logo.height}
-                  className="opacity-75"
-                />
-              </li>
-            ))}
-          </ul>
+          <div className="mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)]">
+            <ul className="flex w-max animate-auth-logo-marquee items-center gap-x-8 pr-8 motion-reduce:animate-none">
+              {[...AUTH_MARQUEE_LOGOS, ...AUTH_MARQUEE_LOGOS].map(
+                (logo, index) => {
+                  const isClone = index >= AUTH_MARQUEE_LOGOS.length;
+                  return (
+                    <li
+                      key={`${logo.src}-${index}`}
+                      className={
+                        isClone
+                          ? "flex shrink-0 items-center motion-reduce:hidden"
+                          : "flex shrink-0 items-center"
+                      }
+                    >
+                      <Image
+                        src={logo.src}
+                        alt={isClone ? "" : logo.alt}
+                        width={logo.width}
+                        height={logo.height}
+                        className="opacity-75"
+                        aria-hidden={isClone}
+                      />
+                    </li>
+                  );
+                },
+              )}
+            </ul>
+          </div>
         </div>
       </div>
 

@@ -6,10 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import en from "../../../../../messages/en.json";
 
-import {
-  AUTH_CUSTOMER_LOGOS,
-  AUTH_SERVICEPLAN_LOGO,
-} from "../auth-customer-logos";
+import { AUTH_MARQUEE_LOGOS } from "../auth-customer-logos";
 
 const asideCopy = en.Auth.Aside;
 
@@ -30,8 +27,8 @@ const publicRoot = join(
 
 describe("auth aside", () => {
   it("ships every customer logo file", () => {
-    expect(AUTH_CUSTOMER_LOGOS.length).toBeGreaterThan(0);
-    for (const logo of [...AUTH_CUSTOMER_LOGOS, AUTH_SERVICEPLAN_LOGO]) {
+    expect(AUTH_MARQUEE_LOGOS.length).toBeGreaterThan(0);
+    for (const logo of AUTH_MARQUEE_LOGOS) {
       expect(existsSync(join(publicRoot, logo.src.replace(/^\//, "")))).toBe(
         true,
       );
@@ -58,7 +55,10 @@ describe("auth aside", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(asideCopy.logosLabel)).toBeInTheDocument();
     expect(screen.getByAltText("Deutsche Telekom")).toBeInTheDocument();
-    expect(screen.getByAltText("Serviceplan Group")).toBeInTheDocument();
+    expect(screen.getByAltText("Samsung")).toBeInTheDocument();
+    expect(screen.getAllByAltText("Serviceplan Group").length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText(asideCopy.quoteAuthor)).toBeInTheDocument();
     expect(screen.getByAltText(asideCopy.quoteAuthor)).toHaveAttribute(
       "src",
