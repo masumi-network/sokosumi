@@ -13,8 +13,8 @@ const BULLET_KEYS = ["bullet1", "bullet2", "bullet3"] as const;
  *
  * Diagonal composition: claim + proof top-left, endorsement bottom-right, photo
  * breathes in between. Scrims sit on a static layer so overflow scroll of the
- * copy does not drag them off the photo. Bottom-right keeps the quote clear of
- * the centred cookie banner.
+ * copy does not drag them off the photo. Extra bottom padding keeps the quote
+ * above the first-visit cookie banner at lg.
  */
 export default async function AuthAside() {
   const t = await getTranslations("Auth.Aside");
@@ -43,7 +43,7 @@ export default async function AuthAside() {
 
       <div
         data-testid="auth-aside-scroll"
-        className="absolute inset-0 z-10 flex flex-col justify-between overflow-y-auto p-10 xl:p-12"
+        className="absolute inset-0 z-10 flex flex-col justify-between overflow-y-auto p-10 pb-44 xl:p-12 xl:pb-48"
       >
         <div className="relative z-10 max-w-md">
           <h2
@@ -67,23 +67,30 @@ export default async function AuthAside() {
 
           <section
             data-testid="auth-aside-logos"
-            className="group mt-10 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="group mt-10 rounded-sm"
             aria-labelledby="auth-customer-logos-label"
-            tabIndex={0}
           >
-            <p
-              id="auth-customer-logos-label"
-              className="font-medium text-white text-xs uppercase tracking-[0.16em]"
-            >
-              {t("logosLabel")}
-            </p>
+            <div className="flex items-baseline justify-between gap-3">
+              <p
+                id="auth-customer-logos-label"
+                className="font-medium text-white text-xs uppercase tracking-[0.16em]"
+              >
+                {t("logosLabel")}
+              </p>
+              <button
+                type="button"
+                className="sr-only rounded-sm text-white text-xs uppercase tracking-[0.16em] focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-white/80"
+              >
+                {t("pauseLogos")}
+              </button>
+            </div>
             <div className="mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)] motion-reduce:[mask-image:none]">
-              <div className="flex w-max animate-auth-logo-marquee group-focus:[animation-play-state:paused] group-hover:[animation-play-state:paused] motion-reduce:w-full motion-reduce:animate-none">
+              <div className="flex w-max animate-auth-logo-marquee group-focus-within:[animation-play-state:paused] group-hover:[animation-play-state:paused] motion-reduce:w-full motion-reduce:animate-none">
                 {[0, 1].map((copy) => (
                   <ul
                     key={copy}
                     className="flex shrink-0 items-center gap-x-8 pr-8 motion-reduce:w-full motion-reduce:flex-wrap motion-reduce:gap-y-4 motion-reduce:pr-0 motion-reduce:[&:nth-child(2)]:hidden"
-                    aria-hidden={copy === 1}
+                    aria-hidden={copy === 1 || undefined}
                   >
                     {AUTH_MARQUEE_LOGOS.map((logo) => (
                       <li key={`${logo.src}-${copy}`} className="flex shrink-0">

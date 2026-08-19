@@ -54,7 +54,7 @@ export const AUTH_CUSTOMER_LOGOS: AuthCustomerLogo[] = [
   {
     src: "/images/logos/customers/bsh.svg",
     alt: "B/S/H/",
-    ...size(88, 20, WORDMARK_HEIGHT),
+    ...size(52, 20, WORDMARK_HEIGHT),
   },
   {
     src: "/images/logos/customers/bvg.svg",

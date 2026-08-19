@@ -38,6 +38,9 @@ describe("auth aside", () => {
     expect(
       existsSync(join(publicRoot, "images/auth/florian-haller.webp")),
     ).toBe(true);
+    expect(
+      readFileSync(join(publicRoot, "images/logos/customers/bsh.svg"), "utf8"),
+    ).not.toMatch(/<text\b/);
   });
 
   it("renders the headline, proof, logos, and Haller quote", async () => {
@@ -81,7 +84,10 @@ describe("auth aside", () => {
     const region = screen.getByRole("region", {
       name: asideCopy.logosLabel,
     });
-    expect(region).toHaveAttribute("tabindex", "0");
+    expect(region).not.toHaveAttribute("tabindex");
+    expect(
+      screen.getByRole("button", { name: asideCopy.pauseLogos }),
+    ).toBeInTheDocument();
 
     const tracks = region.querySelectorAll("ul");
     expect(tracks).toHaveLength(2);
@@ -102,7 +108,9 @@ describe("auth aside", () => {
     const marquee = tracks[0]?.parentElement;
     expect(marquee).toHaveClass("animate-auth-logo-marquee");
     expect(marquee).toHaveClass("group-hover:[animation-play-state:paused]");
-    expect(marquee).toHaveClass("group-focus:[animation-play-state:paused]");
+    expect(marquee).toHaveClass(
+      "group-focus-within:[animation-play-state:paused]",
+    );
     expect(tracks[0]).toHaveClass("motion-reduce:flex-wrap");
 
     const globals = readFileSync(join(publicRoot, "../src/app/globals.css"), {
@@ -122,6 +130,7 @@ describe("auth aside", () => {
 
     expect(root).not.toHaveClass("overflow-y-auto");
     expect(scroller).toHaveClass("overflow-y-auto");
+    expect(scroller).toHaveClass("pb-44");
     expect(root.contains(scroller)).toBe(true);
     expect(scroller.querySelector("[class*='bg-gradient']")).toBeNull();
     expect(

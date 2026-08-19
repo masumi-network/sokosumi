@@ -36,7 +36,7 @@ export function pickAuthBackgroundImage(
  * Half-viewport auth marketing image (lg+). Server Component so the LCP src is
  * final on first HTML — no client mount swap — and `preload` starts the fetch.
  */
-export default async function AuthBackground() {
+export default function AuthBackground() {
   const backgroundImage = pickAuthBackgroundImage();
 
   return (

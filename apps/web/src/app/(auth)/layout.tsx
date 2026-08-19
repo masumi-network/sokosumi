@@ -64,7 +64,7 @@ export default async function AuthLayout({
         className={cn("flex h-svh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
-          <Link href="/">
+          <Link href="/" className="inline-flex min-h-6 items-center">
             <ThemedLogo
               LogoComponent={SokosumiLogo}
               priority
