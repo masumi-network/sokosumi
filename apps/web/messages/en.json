@@ -847,9 +847,8 @@
   },
   "AcceptInvitation": {
     "InvitationCard": {
-      "title": "Organization Invitation",
-      "description": "You've been invited to join an organization",
-      "hasInvitedYouToJoin": "has invited you to join",
+      "title": "You've been invited",
+      "invitedToJoin": "Join {organization} on Sokosumi.",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",
@@ -857,18 +856,16 @@
       "declinedDescription": "You've declined the invitation to join {organizationName}.",
       "goToHome": "Go to Home",
       "Actions": {
-        "accept": "Accept",
+        "accept": "Join {organization}",
+        "joining": "Joining…",
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
         "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
-        "WithoutSession": {
-          "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
-          "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
-          "login": "Login",
-          "register": "Register"
-        },
+        "signedOutHint": "Sign in or create an account to accept this invite.",
+        "signIn": "Sign in to join",
+        "register": "Create an account",
         "Success": {
           "accept": "Invitation accepted successfully",
           "decline": "Invitation declined successfully"
@@ -1045,6 +1042,18 @@
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use"
+    },
+    "Aside": {
+      "titleLine1": "AI Coworkers",
+      "titleLine2": "for Marketing",
+      "bullet1": "Specialized AI coworker built for marketing.",
+      "bullet2": "Built for small and large marketing teams.",
+      "bullet3": "Works with the tools you already use.",
+      "logosLabel": "On desks at",
+      "pauseLogos": "Pause logos",
+      "quote": "“Sokosumi complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.”",
+      "quoteAuthor": "Florian Haller",
+      "quoteRole": "CEO, Serviceplan Group"
     },
     "Schema": {
       "Email": {
@@ -5566,7 +5575,9 @@
     "identityDescriptionConfirm": "Confirm your name and choose an option.",
     "identityDescriptionEnter": "Enter your name.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Accept one organization invitation or join link to open Sokosumi in that organization.",
+    "pendingInvitesDescriptionInvitations": "Accept an organization invitation to open Sokosumi in that organization.",
+    "pendingInvitesDescriptionJoin": "Join via the invite link to open Sokosumi in that organization.",
+    "pendingInvitesDescriptionBoth": "Accept an organization invitation or join via the invite link to open Sokosumi in that organization.",
     "signOut": "Sign out",
     "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",
@@ -5591,8 +5602,11 @@
     "Pending": {
       "accept": "Accept",
       "join": "Join",
+      "acceptAll": "Accept all",
+      "acceptSelected": "Accept selected",
+      "selectItem": "Select {organizationName}",
+      "batchError": "We could not accept: {names}.",
       "rejectAll": "Reject all",
-      "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
       "acceptError": "We could not accept that invitation.",
       "joinError": "We could not join that organization.",
       "rejectError": "We could not reject the remaining invitations.",

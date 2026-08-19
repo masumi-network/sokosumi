@@ -9,6 +9,7 @@ import { APIError } from "better-auth/api";
 
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { badRequest, notFound } from "@/helpers/error";
+import { cancelPendingOrganizationInvitationsForUser } from "@/helpers/invitation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
@@ -114,7 +115,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             organizationId,
             tx,
           );
-        if (existing) return "already_member";
+        if (existing) {
+          await cancelPendingOrganizationInvitationsForUser(
+            userContext.userId,
+            organizationId,
+            tx,
+          );
+          return "already_member";
+        }
 
         // Atomically reserve a use; false when the link died concurrently.
         const consumed =
@@ -135,12 +143,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           organizationId,
           tx,
         );
+        await cancelPendingOrganizationInvitationsForUser(
+          userContext.userId,
+          organizationId,
+          tx,
+        );
         return "joined";
       });
     } catch (error) {
       // Concurrent join inserted the membership first; the failing tx rolled
       // back its own consume, so we simply report already_member.
       if (isPrismaUniqueViolation(error)) {
+        await cancelPendingOrganizationInvitationsForUser(
+          userContext.userId,
+          organizationId,
+          prisma,
+        );
         outcome = "already_member";
       } else {
         throw error;

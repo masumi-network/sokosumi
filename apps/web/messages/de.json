@@ -847,9 +847,8 @@
   },
   "AcceptInvitation": {
     "InvitationCard": {
-      "title": "Organisationseinladung",
-      "description": "Du wurdest eingeladen, einer Organisation beizutreten",
-      "hasInvitedYouToJoin": "hat dich eingeladen, beizutreten",
+      "title": "Du wurdest eingeladen",
+      "invitedToJoin": "Tritt {organization} auf Sokosumi bei.",
       "acceptedTitle": "Willkommen bei {organizationName}!",
       "acceptedDescription": "Du bist der Organisation erfolgreich beigetreten. Schön, dass du dabei bist!",
       "goToOrganization": "Zur Organisation",
@@ -857,18 +856,16 @@
       "declinedDescription": "Du hast die Einladung zu {organizationName} abgelehnt.",
       "goToHome": "Zur Startseite",
       "Actions": {
-        "accept": "Akzeptieren",
+        "accept": "{organization} beitreten",
+        "joining": "Beitritt…",
         "decline": "Ablehnen",
         "logout": "Abmelden",
         "ignore": "Ignorieren",
         "activateRetry": "Wechsel erneut versuchen",
         "emailMismatch": "Du bist nicht der eingeladene Nutzer.",
-        "WithoutSession": {
-          "ifYouAlreadyHaveAnAccount": "Wenn du bereits ein Konto hast, kannst du dich anmelden und die Einladung akzeptieren.",
-          "ifYouDontHaveAnAccount": "Wenn du noch kein Konto hast, kannst du ein neues erstellen und der Organisation beitreten.",
-          "login": "Anmelden",
-          "register": "Registrieren"
-        },
+        "signedOutHint": "Melde dich an oder erstelle ein Konto, um die Einladung anzunehmen.",
+        "signIn": "Anmelden und beitreten",
+        "register": "Konto erstellen",
         "Success": {
           "accept": "Einladung erfolgreich akzeptiert",
           "decline": "Einladung erfolgreich abgelehnt"
@@ -1045,6 +1042,18 @@
       "privacyPolicy": "Datenschutzrichtlinie",
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung"
+    },
+    "Aside": {
+      "titleLine1": "AI Coworkers",
+      "titleLine2": "für Marketing",
+      "bullet1": "Spezialisierter AI Coworker, gebaut für Marketing.",
+      "bullet2": "Gebaut für kleine und große Marketingteams.",
+      "bullet3": "Funktioniert mit den Tools, die ihr bereits nutzt.",
+      "logosLabel": "Im Einsatz bei",
+      "pauseLogos": "Logos pausieren",
+      "quote": "„Sokosumi ergänzt und verbindet unser bestehendes Agenturangebot. Agentic Services machen Interaktion möglich — und damit den Faden, der all unsere KI-Anwendungen und Services zusammenhält.“",
+      "quoteAuthor": "Florian Haller",
+      "quoteRole": "CEO, Serviceplan Group"
     },
     "Schema": {
       "Email": {
@@ -5566,7 +5575,9 @@
     "identityDescriptionConfirm": "Bestätige deinen Namen und wähle eine Option.",
     "identityDescriptionEnter": "Gib deinen Namen ein.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
-    "pendingInvitesDescription": "Nimm eine Organisationseinladung an oder tritt über einen Link bei, um Sokosumi in dieser Organisation zu öffnen.",
+    "pendingInvitesDescriptionInvitations": "Nimm eine Organisationseinladung an, um Sokosumi in dieser Organisation zu öffnen.",
+    "pendingInvitesDescriptionJoin": "Tritt über den Einladungslink bei, um Sokosumi in dieser Organisation zu öffnen.",
+    "pendingInvitesDescriptionBoth": "Nimm eine Organisationseinladung an oder tritt über den Einladungslink bei, um Sokosumi in dieser Organisation zu öffnen.",
     "signOut": "Abmelden",
     "signOutError": "Abmelden ist fehlgeschlagen. Versuche es erneut.",
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
@@ -5591,8 +5602,11 @@
     "Pending": {
       "accept": "Annehmen",
       "join": "Beitreten",
+      "acceptAll": "Alle annehmen",
+      "acceptSelected": "Auswahl annehmen",
+      "selectItem": "{organizationName} auswählen",
+      "batchError": "Konnte nicht annehmen: {names}.",
       "rejectAll": "Alle ablehnen",
-      "rejectAllHint": "Wenn du alle Einladungen ablehnst, kannst du einen eigenen ersten Workspace erstellen.",
       "acceptError": "Die Einladung konnte nicht angenommen werden.",
       "joinError": "Der Beitritt zur Organisation ist fehlgeschlagen.",
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",

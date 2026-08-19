@@ -847,9 +847,8 @@
   },
   "AcceptInvitation": {
     "InvitationCard": {
-      "title": "Invitación a organización",
-      "description": "Has sido invitado a unirte a una organización",
-      "hasInvitedYouToJoin": "te ha invitado a unirte a",
+      "title": "Has sido invitado",
+      "invitedToJoin": "Únete a {organization} en Sokosumi.",
       "acceptedTitle": "¡Bienvenido a {organizationName}!",
       "acceptedDescription": "Te has unido a la organización correctamente. ¡Nos alegra tenerte aquí!",
       "goToOrganization": "Ir a la organización",
@@ -857,18 +856,16 @@
       "declinedDescription": "Has rechazado la invitación a {organizationName}.",
       "goToHome": "Ir al inicio",
       "Actions": {
-        "accept": "Aceptar",
+        "accept": "Unirse a {organization}",
+        "joining": "Uniéndose…",
         "decline": "Rechazar",
         "logout": "Cerrar sesión",
         "ignore": "Ignorar",
         "activateRetry": "Intentar cambiar de nuevo",
         "emailMismatch": "No eres el usuario invitado.",
-        "WithoutSession": {
-          "ifYouAlreadyHaveAnAccount": "Si ya tienes una cuenta, inicia sesión para aceptar la invitación.",
-          "ifYouDontHaveAnAccount": "Si aún no tienes una cuenta, puedes crear una nueva y unirte a la organización.",
-          "login": "Iniciar sesión",
-          "register": "Registrarse"
-        },
+        "signedOutHint": "Inicia sesión o crea una cuenta para aceptar esta invitación.",
+        "signIn": "Iniciar sesión para unirte",
+        "register": "Crear una cuenta",
         "Success": {
           "accept": "Invitación aceptada correctamente",
           "decline": "Invitación rechazada correctamente"
@@ -1045,6 +1042,18 @@
       "privacyPolicy": "Política de privacidad",
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use"
+    },
+    "Aside": {
+      "titleLine1": "AI Coworkers",
+      "titleLine2": "para marketing",
+      "bullet1": "AI Coworker especializado, hecho para marketing.",
+      "bullet2": "Hecho para equipos de marketing pequeños y grandes.",
+      "bullet3": "Funciona con las herramientas que ya usas.",
+      "logosLabel": "En los escritorios de",
+      "pauseLogos": "Pausar logos",
+      "quote": "«Sokosumi complementa y conecta nuestra oferta de agencia. Los servicios agénticos permiten la interacción, y con ella el hilo que une todas nuestras aplicaciones y servicios de IA.»",
+      "quoteAuthor": "Florian Haller",
+      "quoteRole": "CEO, Serviceplan Group"
     },
     "Schema": {
       "Email": {
@@ -5566,7 +5575,9 @@
     "identityDescriptionConfirm": "Confirma tu nombre y elige una opción.",
     "identityDescriptionEnter": "Introduce tu nombre.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
-    "pendingInvitesDescription": "Acepta una invitación de organización o únete con un enlace para abrir Sokosumi en esa organización.",
+    "pendingInvitesDescriptionInvitations": "Acepta una invitación de organización para abrir Sokosumi en esa organización.",
+    "pendingInvitesDescriptionJoin": "Únete con el enlace de invitación para abrir Sokosumi en esa organización.",
+    "pendingInvitesDescriptionBoth": "Acepta una invitación de organización o únete con el enlace de invitación para abrir Sokosumi en esa organización.",
     "signOut": "Cerrar sesión",
     "signOutError": "No pudimos cerrar la sesión. Inténtalo de nuevo.",
     "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
@@ -5591,8 +5602,11 @@
     "Pending": {
       "accept": "Aceptar",
       "join": "Unirse",
+      "acceptAll": "Aceptar todas",
+      "acceptSelected": "Aceptar selección",
+      "selectItem": "Seleccionar {organizationName}",
+      "batchError": "No pudimos aceptar: {names}.",
       "rejectAll": "Rechazar todas",
-      "rejectAllHint": "Si rechazas todas las invitaciones, podrás crear tu primer espacio de trabajo.",
       "acceptError": "No pudimos aceptar esa invitación.",
       "joinError": "No pudimos unirte a esa organización.",
       "rejectError": "No pudimos rechazar las invitaciones restantes.",
