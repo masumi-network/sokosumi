@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isJoinLinkDuplicateOfInvitation,
+  pendingInvitesDescriptionKey,
   resolveWorkspaceGateSurface,
   shouldShowPendingInvitesQueue,
 } from "../workspace-gate-queue";
@@ -61,6 +62,35 @@ describe("shouldShowPendingInvitesQueue", () => {
         hasJoinLink: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("pendingInvitesDescriptionKey", () => {
+  it("names only invitations when the queue has no join row", () => {
+    expect(
+      pendingInvitesDescriptionKey({
+        invitationCount: 1,
+        hasJoinLink: false,
+      }),
+    ).toBe("pendingInvitesDescriptionInvitations");
+  });
+
+  it("names only the join link when that is the only row", () => {
+    expect(
+      pendingInvitesDescriptionKey({
+        invitationCount: 0,
+        hasJoinLink: true,
+      }),
+    ).toBe("pendingInvitesDescriptionJoin");
+  });
+
+  it("names both actions when invitation and join rows are present", () => {
+    expect(
+      pendingInvitesDescriptionKey({
+        invitationCount: 1,
+        hasJoinLink: true,
+      }),
+    ).toBe("pendingInvitesDescriptionBoth");
   });
 });
 

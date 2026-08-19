@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {
   isJoinLinkDuplicateOfInvitation,
+  pendingInvitesDescriptionKey,
   resolveWorkspaceGateSurface,
   type WorkspaceGateSurface,
 } from "@/lib/workspace-gate-queue";
@@ -60,16 +61,19 @@ export default async function WorkspaceGatePage() {
       ? { items: [] as WorkspaceGateQueueItem[], invitationsLoadFailed: false }
       : await loadWorkspaceGateQueueItems();
   const queueItems = queue.items;
+  const invitationCount = queueItems.filter(
+    (item) => item.kind === "invitation",
+  ).length;
+  const hasJoinLink = queueItems.some((item) => item.kind === "join");
 
   const surface: WorkspaceGateSurface = workspaceReady
     ? "identity-onboarding"
     : resolveWorkspaceGateSurface({
         workspaceAccessLoadFailed,
         gate,
-        invitationCount: queueItems.filter((item) => item.kind === "invitation")
-          .length,
+        invitationCount,
         invitationsLoadFailed: queue.invitationsLoadFailed,
-        hasJoinLink: queueItems.some((item) => item.kind === "join"),
+        hasJoinLink,
       });
 
   const t = await getTranslations("WorkspaceGate");
@@ -85,7 +89,7 @@ export default async function WorkspaceGatePage() {
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
-        ? "pendingInvitesDescription"
+        ? pendingInvitesDescriptionKey({ invitationCount, hasJoinLink })
         : hasName
           ? "identityDescriptionConfirm"
           : "identityDescriptionEnter";

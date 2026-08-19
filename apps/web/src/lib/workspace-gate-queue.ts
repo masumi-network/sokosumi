@@ -27,6 +27,25 @@ export type WorkspaceGateSurface =
   | "pending-invites"
   | "identity-onboarding";
 
+export type PendingInvitesDescriptionKey =
+  | "pendingInvitesDescriptionInvitations"
+  | "pendingInvitesDescriptionJoin"
+  | "pendingInvitesDescriptionBoth";
+
+/** Header copy matches the actions currently in the queue, not every possible path. */
+export function pendingInvitesDescriptionKey(input: {
+  invitationCount: number;
+  hasJoinLink: boolean;
+}): PendingInvitesDescriptionKey {
+  if (input.hasJoinLink && input.invitationCount > 0) {
+    return "pendingInvitesDescriptionBoth";
+  }
+  if (input.hasJoinLink) {
+    return "pendingInvitesDescriptionJoin";
+  }
+  return "pendingInvitesDescriptionInvitations";
+}
+
 /**
  * `pending-invites` with a failed list and no recovered join item is a
  * temporary load failure, not an empty queue.
