@@ -238,7 +238,9 @@ describe("PendingInvitesQueue", () => {
         invitationId: "inv_1",
       });
     });
-    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith(
+      {},
+    );
     expect(routerRefreshMock).toHaveBeenCalled();
     expect(routerReplaceMock).not.toHaveBeenCalled();
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
@@ -292,6 +294,8 @@ describe("PendingInvitesQueue", () => {
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
-    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalled();
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
+      organizationSlug: "acme",
+    });
   });
 });

@@ -169,23 +169,22 @@ export const clearPendingOrganizationJoinCookieAction = withSession<
     return toActionResult(ok(null));
   }
 
+  if (!organizationSlug) {
+    return toActionResult(ok(null));
+  }
+
   let cookieOrganizationSlug: string | null = null;
-  if (organizationSlug) {
-    try {
-      const resolved =
-        await coreClient.resolveOrganizationInviteLink(cookieToken);
-      if (
-        resolved.data.status === "valid" &&
-        resolved.data.organization?.slug
-      ) {
-        cookieOrganizationSlug = resolved.data.organization.slug;
-      }
-    } catch (error) {
-      console.error(
-        "Failed to resolve pending organization join token for cookie clear",
-        error,
-      );
+  try {
+    const resolved =
+      await coreClient.resolveOrganizationInviteLink(cookieToken);
+    if (resolved.data.status === "valid" && resolved.data.organization?.slug) {
+      cookieOrganizationSlug = resolved.data.organization.slug;
     }
+  } catch (error) {
+    console.error(
+      "Failed to resolve pending organization join token for cookie clear",
+      error,
+    );
   }
 
   if (
@@ -193,7 +192,7 @@ export const clearPendingOrganizationJoinCookieAction = withSession<
       cookieToken,
       acceptedJoinToken,
       cookieOrganizationSlug,
-      joinedOrganizationSlug: organizationSlug ?? "",
+      joinedOrganizationSlug: organizationSlug,
     })
   ) {
     return toActionResult(ok(null));

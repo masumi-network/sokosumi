@@ -1,8 +1,3 @@
-/**
- * Pending-invites surface wins over identity onboarding whenever the user
- * still has an org-entry item: Core email invitations or a recovered join
- * link. Chat guest invitations never appear here.
- */
 /** Invitation row wins when a recovered join cookie points at the same org. */
 export function isJoinLinkDuplicateOfInvitation(
   invitationSlugs: readonly string[],
@@ -11,6 +6,11 @@ export function isJoinLinkDuplicateOfInvitation(
   return invitationSlugs.includes(joinSlug);
 }
 
+/**
+ * Pending-invites surface wins over identity onboarding whenever the user
+ * still has an org-entry item: Core email invitations or a recovered join
+ * link. Chat guest invitations never appear here.
+ */
 export function shouldShowPendingInvitesQueue(input: {
   gate: string | null;
   invitationCount: number;
