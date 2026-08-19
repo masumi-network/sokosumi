@@ -81,6 +81,7 @@ export function DriveFilePicker({
         ...(debouncedSearchQuery.trim()
           ? { q: debouncedSearchQuery.trim() }
           : {}),
+        signal: controller.signal,
       });
       if (!controller.signal.aborted) {
         setFiles(loaded);

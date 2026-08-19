@@ -13,6 +13,7 @@ interface ListDriveFilesOptions {
   scope: "me" | "org";
   organizationId?: string;
   q?: string;
+  signal?: AbortSignal;
 }
 
 export async function listDriveFiles(
@@ -33,6 +34,7 @@ export async function listDriveFiles(
         ...(options.q?.trim() ? { q: options.q.trim() } : {}),
         ...(cursor ? { cursor } : {}),
       },
+      ...(options.signal ? { signal: options.signal } : {}),
       throwOnError: true,
     });
 

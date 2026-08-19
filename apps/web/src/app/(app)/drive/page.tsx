@@ -208,6 +208,7 @@ export default function DrivePage(): ReactElement {
         ...(debouncedSearchQuery.trim()
           ? { q: debouncedSearchQuery.trim() }
           : {}),
+        signal: controller.signal,
       });
 
       if (!controller.signal.aborted) {
@@ -406,6 +407,17 @@ export default function DrivePage(): ReactElement {
               </TabsTrigger>
             )}
           </TabsList>
+
+          <div className="relative mb-4 md:hidden">
+            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
 
           <div className="hidden items-center gap-2 md:flex">
             <div className="relative">
