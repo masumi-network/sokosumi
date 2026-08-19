@@ -1,5 +1,6 @@
 -- Better Auth 1.7: issuer-scoped accounts, Microsoft oid, OAuth client columns.
--- Fails closed if any account.issuer would stay null (run harvest first).
+-- Fails closed if any account.issuer would stay null, or if a providerId
+-- other than credential/google/microsoft remains (run harvest first).
 
 -- Account identity
 ALTER TABLE "account" ADD COLUMN "issuer" TEXT;
@@ -45,13 +46,18 @@ WHERE a.id = payload.id
   AND payload.claims->>'iss' LIKE 'https://login.microsoftonline.com/%'
   AND COALESCE(payload.claims->>'oid', '') <> '';
 
-UPDATE "account"
-SET "issuer" = 'local:oauth:' || replace(replace("providerId", '%', '%25'), '/', '%2F')
-WHERE "issuer" IS NULL
-  AND "providerId" NOT IN ('credential', 'google', 'microsoft');
-
 DO $$
 BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM "account"
+    WHERE "issuer" IS NULL
+      AND "providerId" NOT IN ('credential', 'google', 'microsoft')
+  ) THEN
+    RAISE EXCEPTION
+      'unexpected account.providerId; expected credential, google, microsoft only';
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM "account" WHERE "issuer" IS NULL OR "issuer" = ''
   ) THEN
