@@ -28,7 +28,7 @@
 -- what empties it. Reordering the columns would just move the full read to the
 -- other arm.
 --
--- Timestamped after 20260811170000_task_x402_payment_processing_lease and
+-- Timestamped after 20260819180000_task_x402_payment_processing_lease and
 -- idempotent like the table's own migration so a partially applied preview
 -- database can re-apply.
 

@@ -1,4 +1,4 @@
--- Converge every published shape of 20260811130000_task_x402_payment without
+-- Converge every published shape of 20260819130000_task_x402_payment without
 -- changing that migration again. Prisma never re-runs an applied migration,
 -- so fixes added to the old file reached fresh databases only.
 

@@ -20,7 +20,7 @@
 -- rather than guessing. Adding a nullable column with no default does not
 -- rewrite the table.
 --
--- Timestamped after 20260811180000_task_x402_payment_header_purge_index and
+-- Timestamped after 20260819190000_task_x402_payment_header_purge_index and
 -- idempotent like the table's own migration so a partially applied preview
 -- database can re-apply.
 

@@ -34,8 +34,8 @@ const publishedMigrationChecksums = new Map([
     "171f3b4512af86741975a4dcbbd5fef9743ab46eebcc82c5693baf936d3a303c",
   ],
   [
-    "20260812100000_task_x402_payment_refund_kind",
-    "72bb3afe16d9feb94f16d67c44feb432007b263fd414fb4032f837801e323fd1",
+    "20260819200000_task_x402_payment_refund_kind",
+    "73ab948206dbe35f8f069ca4de4b4d2704d18164b230b99127554fc852647a6f",
   ],
   [
     "20260819150000_replay_agent_sync_for_dynamic_pricing",
@@ -92,25 +92,25 @@ const NONCE_PAYER_PAIRED_DECLARATION = new RegExp(
 // per-test rereads were pure I/O overhead.
 const baseSql = readMigrationSql(x402MigrationName);
 const replayCanonicalSql = readMigrationSql(
-  "20260816130000_task_x402_payment_replay_key_canonical",
+  "20260819220000_task_x402_payment_replay_key_canonical",
 );
 const actionLedgerSnapshotSql = readMigrationSql(
-  "20260817100000_task_x402_payment_action_ledger_snapshot",
+  "20260819250000_task_x402_payment_action_ledger_snapshot",
 );
 const fullConvergenceSql = readMigrationSql(
-  "20260817110000_task_x402_payment_full_convergence",
+  "20260819260000_task_x402_payment_full_convergence",
 );
 const durableFailureSql = readMigrationSql(
-  "20260817120000_task_x402_payment_durable_failures",
+  "20260819270000_task_x402_payment_durable_failures",
 );
 const creditCostCanonicalSql = readMigrationSql(
-  "20260816140000_credit_cost_unit_canonical",
+  "20260819230000_credit_cost_unit_canonical",
 );
 const signRiskSql = readMigrationSql(
-  "20260817090000_task_x402_payment_sign_risk_expiry",
+  "20260819240000_task_x402_payment_sign_risk_expiry",
 );
 const actionRolloutGuardSql = readMigrationSql(
-  "20260817130000_task_x402_payment_action_rollout_guard",
+  "20260819280000_task_x402_payment_action_rollout_guard",
 );
 
 function orderedMigrationSqlAfter(migrationName: string) {

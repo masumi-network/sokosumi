@@ -4,7 +4,7 @@
 -- limit. The counter caps re-sign attempts; past the cap a replay refuses and
 -- directs to support, leaving the record PENDING for the reconciler (user
 -- funds are always safe, the held charge is refund-safe). Timestamped after
--- 20260811150000_task_x402_payment_header and idempotent like the table's own
+-- 20260819160000_task_x402_payment_header and idempotent like the table's own
 -- migration so a partially applied preview database can re-apply.
 
 -- AlterTable
