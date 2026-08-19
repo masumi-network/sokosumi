@@ -266,6 +266,7 @@ export function DriveFilePicker({
                         index === breadcrumbSegments.length - 1 &&
                           "text-foreground font-medium",
                       )}
+                      title={segment}
                     >
                       {segment}
                     </button>
@@ -329,10 +330,13 @@ export function DriveFilePicker({
                           className="h-auto w-full min-w-0 justify-start overflow-hidden p-3 hover:bg-accent"
                           onClick={() => navigateToFolder(item.name)}
                         >
-                          <div className="flex w-full items-start gap-3">
+                          <div className="flex min-w-0 w-full max-w-full items-start gap-3">
                             <Folder className="text-muted-foreground size-5 shrink-0" />
-                            <div className="min-w-0 flex-1 text-left">
-                              <div className="truncate font-medium">
+                            <div className="min-w-0 flex-1 overflow-hidden text-left">
+                              <div
+                                className="text-foreground line-clamp-1 font-medium"
+                                title={item.name}
+                              >
                                 {item.name}
                               </div>
                               <div className="text-muted-foreground text-xs">
@@ -351,10 +355,13 @@ export function DriveFilePicker({
                         className="h-auto w-full min-w-0 justify-start overflow-hidden p-3 hover:bg-accent"
                         onClick={() => handleFileClick(item)}
                       >
-                        <div className="flex w-full items-start gap-3">
+                        <div className="flex min-w-0 w-full max-w-full items-start gap-3">
                           <FileIcon className="text-muted-foreground size-5 shrink-0" />
-                          <div className="min-w-0 flex-1 text-left">
-                            <div className="truncate font-medium">
+                          <div className="min-w-0 flex-1 overflow-hidden text-left">
+                            <div
+                              className="text-foreground line-clamp-1 font-medium"
+                              title={item.name}
+                            >
                               {item.name}
                             </div>
                             <div className="text-muted-foreground flex gap-2 text-xs">
