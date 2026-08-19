@@ -27,10 +27,7 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useFormatter: () => ({
     dateTime: () => "",
-<<<<<<< HEAD
-=======
     number: (num: number) => num.toString(),
->>>>>>> 7a9bd1100 (fix(drive): address CodeRabbit review - debounce search, remove h-9, use Input component, fix i18n duplication)
   }),
   useTranslations: () => {
     const labels: Record<string, string> = {
