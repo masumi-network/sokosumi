@@ -20,10 +20,8 @@ vi.mock("next/image", () => ({
   },
 }));
 
-const publicRoot = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../../public",
-);
+const here = dirname(fileURLToPath(import.meta.url));
+const publicRoot = join(here, "../../../../../public");
 
 describe("auth aside", () => {
   it("ships every customer logo file", () => {
@@ -130,11 +128,40 @@ describe("auth aside", () => {
 
     expect(root).not.toHaveClass("overflow-y-auto");
     expect(scroller).toHaveClass("overflow-y-auto");
-    expect(scroller).toHaveClass("pb-44");
     expect(root.contains(scroller)).toBe(true);
     expect(scroller.querySelector("[class*='bg-gradient']")).toBeNull();
     expect(
       [...root.children].filter((child) => child !== scroller).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("pins the Haller quote to the bottom-right at the same inset as the photo padding", async () => {
+    const { default: AuthAside } = await import("../auth-aside");
+    render(await AuthAside());
+
+    const root = screen.getByTestId("auth-aside");
+    const scroller = screen.getByTestId("auth-aside-scroll");
+    const quote = screen.getByTestId("auth-aside-quote");
+
+    expect(scroller).toHaveClass("p-10");
+    expect(scroller).toHaveClass("xl:p-12");
+    expect(scroller).not.toHaveClass("pb-44");
+    expect(scroller).not.toHaveClass("xl:pb-48");
+
+    expect(quote).toHaveClass("absolute");
+    expect(quote).toHaveClass("bottom-10");
+    expect(quote).toHaveClass("right-10");
+    expect(quote).toHaveClass("xl:bottom-12");
+    expect(quote).toHaveClass("xl:right-12");
+    expect(root.contains(quote)).toBe(true);
+    expect(scroller.contains(quote)).toBe(false);
+
+    const background = readFileSync(
+      join(here, "../auth-background.tsx"),
+      "utf8",
+    );
+    expect(background).toMatch(
+      /absolute top-10 right-10 z-10 xl:top-12 xl:right-12/,
+    );
   });
 });

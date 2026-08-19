@@ -11,10 +11,10 @@ const BULLET_KEYS = ["bullet1", "bullet2", "bullet3"] as const;
 /**
  * Marketing proof on the auth photo. Server-only so copy is in the first HTML.
  *
- * Diagonal composition: claim + proof top-left, endorsement bottom-right, photo
- * breathes in between. Scrims sit on a static layer so overflow scroll of the
- * copy does not drag them off the photo. Extra bottom padding keeps the quote
- * above the first-visit cookie banner at lg.
+ * Diagonal composition: claim + proof top-left, endorsement pinned bottom-right
+ * at the same inset as the Kanji mark (`p-10` / `xl:p-12`). Scrims and quote sit
+ * on a static layer so overflow scroll of the copy does not drag them off the
+ * photo.
  */
 export default async function AuthAside() {
   const t = await getTranslations("Auth.Aside");
@@ -43,7 +43,7 @@ export default async function AuthAside() {
 
       <div
         data-testid="auth-aside-scroll"
-        className="absolute inset-0 z-10 flex flex-col justify-between overflow-y-auto p-10 pb-44 xl:p-12 xl:pb-48"
+        className="absolute inset-0 z-10 overflow-y-auto p-10 xl:p-12"
       >
         <div className="relative z-10 max-w-md">
           <h2
@@ -109,39 +109,40 @@ export default async function AuthAside() {
             </div>
           </section>
         </div>
-
-        <figure className="relative z-10 mt-12 ml-auto max-w-md text-right">
-          <blockquote className="text-balance text-lg text-white leading-snug">
-            {t("quote")}
-          </blockquote>
-          <figcaption className="mt-5 flex items-center justify-end gap-3 text-sm">
-            <Image
-              src="/images/auth/florian-haller.webp"
-              alt=""
-              width={48}
-              height={48}
-              className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-white/20"
-            />
-            <div className="text-left">
-              <div className="whitespace-nowrap text-white">
-                {t("quoteAuthor")}
-              </div>
-              <div className="whitespace-nowrap text-white">
-                {t("quoteRole")}
-              </div>
-            </div>
-            <div className="border-white/20 border-l pl-4">
-              <Image
-                src={AUTH_SERVICEPLAN_LOGO.src}
-                alt=""
-                width={AUTH_SERVICEPLAN_LOGO.width}
-                height={AUTH_SERVICEPLAN_LOGO.height}
-                className="opacity-90"
-              />
-            </div>
-          </figcaption>
-        </figure>
       </div>
+
+      <figure
+        data-testid="auth-aside-quote"
+        className="absolute right-10 bottom-10 z-10 max-w-md text-right xl:right-12 xl:bottom-12"
+      >
+        <blockquote className="text-balance text-lg text-white leading-snug">
+          {t("quote")}
+        </blockquote>
+        <figcaption className="mt-5 flex items-center justify-end gap-3 text-sm">
+          <Image
+            src="/images/auth/florian-haller.webp"
+            alt=""
+            width={48}
+            height={48}
+            className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-white/20"
+          />
+          <div className="text-left">
+            <div className="whitespace-nowrap text-white">
+              {t("quoteAuthor")}
+            </div>
+            <div className="whitespace-nowrap text-white">{t("quoteRole")}</div>
+          </div>
+          <div className="border-white/20 border-l pl-4">
+            <Image
+              src={AUTH_SERVICEPLAN_LOGO.src}
+              alt=""
+              width={AUTH_SERVICEPLAN_LOGO.width}
+              height={AUTH_SERVICEPLAN_LOGO.height}
+              className="opacity-90"
+            />
+          </div>
+        </figcaption>
+      </figure>
     </div>
   );
 }
