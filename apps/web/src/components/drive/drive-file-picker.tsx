@@ -335,7 +335,7 @@ export function DriveFilePicker({
                           <Folder className="text-muted-foreground size-5 shrink-0" />
                           <span className="flex min-w-0 w-0 flex-1 flex-col overflow-hidden">
                             <span
-                              className="block truncate font-medium"
+                              className="block min-w-0 truncate font-medium"
                               title={item.name}
                             >
                               {item.name}
@@ -358,7 +358,7 @@ export function DriveFilePicker({
                         <FileIcon className="text-muted-foreground size-5 shrink-0" />
                         <span className="flex min-w-0 w-0 flex-1 flex-col overflow-hidden">
                           <span
-                            className="block truncate font-medium"
+                            className="block min-w-0 truncate font-medium"
                             title={item.name}
                           >
                             {item.name}
