@@ -159,6 +159,13 @@ export function DriveFilePicker({
   }
 
   function navigateToFolder(folderName: string) {
+    const segments = currentFolder ? currentFolder.split("/") : [];
+    const lastSegment = segments[segments.length - 1];
+
+    if (lastSegment === folderName) {
+      return;
+    }
+
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
@@ -179,14 +186,18 @@ export function DriveFilePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl min-w-0 overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t("selectTitle")}</DialogTitle>
           <DialogDescription>{t("selectDescription")}</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={scope} onValueChange={handleTabChange}>
-          <div className="space-y-3">
+        <Tabs
+          value={scope}
+          onValueChange={handleTabChange}
+          className="min-w-0 w-full"
+        >
+          <div className="space-y-3 min-w-0 w-full">
             <TabsList className="w-full">
               <TabsTrigger value="me" className="flex-1">
                 {t("myDriveTab")}
@@ -198,42 +209,47 @@ export function DriveFilePicker({
               )}
             </TabsList>
 
-            <nav
-              className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
-              aria-label="Breadcrumb"
-            >
-              <button
-                type="button"
-                onClick={() => navigateToBreadcrumb(-1)}
-                className={cn(
-                  "hover:text-foreground whitespace-nowrap transition-colors",
-                  breadcrumbSegments.length === 0 &&
-                    "text-foreground font-medium",
-                )}
+            <div className="min-w-0 overflow-x-auto">
+              <nav
+                className="text-muted-foreground flex flex-nowrap items-center gap-1 text-sm"
+                aria-label="Breadcrumb"
               >
-                {scope === "org" && organizationName
-                  ? organizationName
-                  : t("myDriveTab")}
-              </button>
-              {breadcrumbSegments.map((segment, index) => (
-                <span key={index} className="flex shrink-0 items-center gap-1">
-                  <ChevronRight className="size-4" aria-hidden />
-                  <button
-                    type="button"
-                    onClick={() => navigateToBreadcrumb(index)}
-                    className={cn(
-                      "hover:text-foreground whitespace-nowrap transition-colors",
-                      index === breadcrumbSegments.length - 1 &&
-                        "text-foreground font-medium",
-                    )}
+                <button
+                  type="button"
+                  onClick={() => navigateToBreadcrumb(-1)}
+                  className={cn(
+                    "hover:text-foreground shrink-0 whitespace-nowrap transition-colors",
+                    breadcrumbSegments.length === 0 &&
+                      "text-foreground font-medium",
+                  )}
+                >
+                  {scope === "org" && organizationName
+                    ? organizationName
+                    : t("myDriveTab")}
+                </button>
+                {breadcrumbSegments.map((segment, index) => (
+                  <span
+                    key={index}
+                    className="flex shrink-0 items-center gap-1"
                   >
-                    {segment}
-                  </button>
-                </span>
-              ))}
-            </nav>
+                    <ChevronRight className="size-4" aria-hidden />
+                    <button
+                      type="button"
+                      onClick={() => navigateToBreadcrumb(index)}
+                      className={cn(
+                        "hover:text-foreground shrink-0 whitespace-nowrap transition-colors",
+                        index === breadcrumbSegments.length - 1 &&
+                          "text-foreground font-medium",
+                      )}
+                    >
+                      {segment}
+                    </button>
+                  </span>
+                ))}
+              </nav>
+            </div>
 
-            <div className="relative">
+            <div className="relative min-w-0">
               <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
               <Input
                 type="text"
@@ -245,7 +261,7 @@ export function DriveFilePicker({
             </div>
           </div>
 
-          <TabsContent value={scope} className="mt-4">
+          <TabsContent value={scope} className="mt-4 min-w-0 w-full">
             {error ? (
               <div className="text-destructive text-center py-8 text-sm">
                 {error}
@@ -272,7 +288,7 @@ export function DriveFilePicker({
                 {searchQuery ? t("noMatchTitle") : t("pickerEmptyMessage")}
               </div>
             ) : (
-              <ScrollArea className="h-[400px] pr-4">
+              <ScrollArea className="h-[400px] pr-4 min-w-0 w-full">
                 <div className="space-y-1">
                   {items.map((item) => {
                     const itemKey =
@@ -285,7 +301,7 @@ export function DriveFilePicker({
                         <Button
                           key={itemKey}
                           variant="ghost"
-                          className="h-auto w-full justify-start p-3 hover:bg-accent"
+                          className="h-auto w-full min-w-0 justify-start overflow-hidden p-3 hover:bg-accent"
                           onClick={() => navigateToFolder(item.name)}
                         >
                           <div className="flex w-full items-start gap-3">
@@ -307,7 +323,7 @@ export function DriveFilePicker({
                       <Button
                         key={itemKey}
                         variant="ghost"
-                        className="h-auto w-full justify-start p-3 hover:bg-accent"
+                        className="h-auto w-full min-w-0 justify-start overflow-hidden p-3 hover:bg-accent"
                         onClick={() => handleFileClick(item)}
                       >
                         <div className="flex w-full items-start gap-3">
