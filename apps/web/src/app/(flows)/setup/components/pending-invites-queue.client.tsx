@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { err, ok, type Result } from "neverthrow";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -28,6 +29,12 @@ interface PendingInvitesQueueProps {
   initialName: string;
 }
 
+interface AcceptedQueueOrganization {
+  organizationId: string;
+  organizationSlug: string;
+  acceptedJoinToken?: string;
+}
+
 export function PendingInvitesQueue({
   items,
   initialName,
@@ -38,11 +45,8 @@ export function PendingInvitesQueue({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
     () => new Set(),
   );
-  const [retryTarget, setRetryTarget] = useState<{
-    organizationId: string;
-    organizationSlug: string;
-    acceptedJoinToken?: string;
-  } | null>(null);
+  const [retryTarget, setRetryTarget] =
+    useState<AcceptedQueueOrganization | null>(null);
   const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
   const showBatchActions = shouldShowPendingInvitesBatchActions(items.length);
 
@@ -150,47 +154,32 @@ export function PendingInvitesQueue({
     });
   }
 
-  async function acceptQueueItem(item: WorkspaceGateQueueItem): Promise<
-    | {
-        ok: true;
-        value: {
-          organizationId: string;
-          organizationSlug: string;
-          acceptedJoinToken?: string;
-        };
-      }
-    | { ok: false }
-  > {
+  async function acceptQueueItem(
+    item: WorkspaceGateQueueItem,
+  ): Promise<Result<AcceptedQueueOrganization, "failed">> {
     if (item.kind === "invitation") {
       const result = await authClient.organization.acceptInvitation({
         invitationId: item.id,
       });
       if (result.error) {
-        return { ok: false };
+        return err("failed");
       }
-      return {
-        ok: true,
-        value: {
-          organizationId:
-            result.data?.member.organizationId ?? item.organizationId,
-          organizationSlug: item.organizationSlug,
-        },
-      };
+      return ok({
+        organizationId:
+          result.data?.member.organizationId ?? item.organizationId,
+        organizationSlug: item.organizationSlug,
+      });
     }
 
     const result = await acceptOrganizationInviteLink({ token: item.token });
     if (!result.ok) {
-      return { ok: false };
+      return err("failed");
     }
-    return {
-      ok: true,
-      value: {
-        organizationId: result.value.organizationId,
-        organizationSlug:
-          result.value.organizationSlug ?? item.organizationSlug,
-        acceptedJoinToken: item.token,
-      },
-    };
+    return ok({
+      organizationId: result.value.organizationId,
+      organizationSlug: result.value.organizationSlug ?? item.organizationSlug,
+      acceptedJoinToken: item.token,
+    });
   }
 
   async function handleAcceptBatch(mode: PendingInvitesBatchMode) {
@@ -206,17 +195,13 @@ export function PendingInvitesQueue({
       if (!(await persistIfNeeded())) {
         return;
       }
-      const successes: Array<{
-        organizationId: string;
-        organizationSlug: string;
-        acceptedJoinToken?: string;
-      }> = [];
+      const successes: AcceptedQueueOrganization[] = [];
       const failedNames: string[] = [];
 
       for (const item of targets) {
         try {
           const accepted = await acceptQueueItem(item);
-          if (!accepted.ok) {
+          if (accepted.isErr()) {
             failedNames.push(item.organizationName);
             continue;
           }
