@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
-  buildOrganizationDriveFilePrefix,
-  buildUserDriveFilePrefix,
+  buildOrganizationDriveFolderPrefix,
+  buildUserDriveFolderPrefix,
+  isDriveFolderMarker,
   sanitizeDriveFileName,
 } from "@sokosumi/utils";
 import { list } from "@vercel/blob";
@@ -21,10 +22,10 @@ import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
-import type { DriveFile } from "@/schemas/drive-file.schema";
+import type { DriveItem } from "@/schemas/drive-file.schema";
 import {
   driveFileScopeSchema,
-  driveFilesSchema,
+  driveItemsSchema,
 } from "@/schemas/drive-file.schema";
 import {
   type CursorPaginationMeta,
@@ -45,6 +46,15 @@ const querySchema = z
         example: "org_123",
         description: "Organization ID (required when scope=org)",
       }),
+    folder: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "folder", in: "query" },
+        example: "Projects/2026",
+        description:
+          "Folder path relative to scope root (empty/omit for root, nested with slashes)",
+      }),
     q: z
       .string()
       .optional()
@@ -52,7 +62,7 @@ const querySchema = z
         param: { name: "q", in: "query" },
         example: "report",
         description:
-          "Search query for filename filtering (case-sensitive prefix match)",
+          "Search query for filename filtering at current folder level (case-sensitive prefix match)",
       }),
   })
   .merge(cursorPaginationQuerySchema);
@@ -60,14 +70,18 @@ const querySchema = z
 const route = createRoute({
   method: "get",
   path: "/",
-  description:
-    "List drive files (personal or organization, lexicographic order by pathname)",
+  description: [
+    "List drive items (folders and files) at the current folder level.",
+    "Personal or organization, lexicographic order by pathname.",
+    "Folders are next-level path segments with blobs or markers.",
+    "Files are blobs at this level (excluding folder markers).",
+  ].join("\n"),
   tags: ["Drive"],
   request: {
     query: querySchema,
   },
   responses: {
-    200: jsonPaginatedSuccessResponse(driveFilesSchema, "Drive files"),
+    200: jsonPaginatedSuccessResponse(driveItemsSchema, "Drive items"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -93,12 +107,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let scope: "user" | "organization";
     let ownerId: string;
 
+    const folderPath = query.folder?.trim() || "";
+
     if (query.scope === "me") {
       // Personal drive
       ownerId = userContext.userId;
       scope = "user";
       await requireDriveFileAccess(authContext, scope, ownerId);
-      prefix = buildUserDriveFilePrefix(ownerId);
+      prefix = buildUserDriveFolderPrefix(ownerId, folderPath);
     } else if (query.scope === "org") {
       if (!query.organizationId) {
         throw unprocessableEntity("organizationId is required when scope=org");
@@ -107,7 +123,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ownerId = query.organizationId;
       scope = "organization";
       await requireDriveFileAccess(authContext, scope, ownerId);
-      prefix = buildOrganizationDriveFilePrefix(ownerId);
+      prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
@@ -115,7 +131,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Parse pagination parameters
     const { cursor, take } = parseCursorPagination(query);
 
-    // Apply search query to prefix if it looks like a filename prefix
+    // Apply search query to prefix if it looks like a filename prefix (at current folder)
     let searchPrefix = prefix;
     const searchQuery = query.q?.trim();
     if (searchQuery) {
@@ -125,50 +141,102 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // List blobs with pagination (single page)
-    const {
-      blobs,
-      cursor: nextCursor,
-      hasMore,
-    } = await list({
+    // List blobs with pagination (single page).
+    // We need to fetch more than requested to extract folders + files,
+    // since Vercel Blob list() doesn't group by folder.
+    // Use a larger limit to get enough data for folder extraction.
+    const fetchLimit = Math.max(take * 10, 1000);
+    const { blobs, hasMore } = await list({
       prefix: searchPrefix,
       token,
       cursor,
-      limit: take,
+      limit: fetchLimit,
     });
 
-    // Map to API schema (prefix filter already applied via Blob list)
-    const apiFiles: DriveFile[] = blobs.map((blob) => {
-      // Extract filename from pathname (last segment after /)
-      const pathSegments = blob.pathname.split("/");
-      const name = pathSegments[pathSegments.length - 1] || "unnamed";
+    // Extract folders and files at this level
+    const folders = new Map<string, boolean>();
+    const files: DriveItem[] = [];
 
-      return {
+    for (const blob of blobs) {
+      // Skip folder markers
+      if (isDriveFolderMarker(blob.pathname)) {
+        continue;
+      }
+
+      // Extract relative path from current prefix
+      const relativePath = blob.pathname.slice(prefix.length);
+      const segments = relativePath.split("/").filter((s) => s.length > 0);
+
+      if (segments.length === 0) {
+        // Skip empty
+        continue;
+      }
+
+      if (segments.length === 1) {
+        // File at this level
+        const name = segments[0];
+        files.push({
+          type: "file",
+          name,
+          fileUrl: blob.url,
+          pathname: blob.pathname,
+          size: blob.size,
+          uploadedAt: blob.uploadedAt.toISOString(),
+        });
+      } else {
+        // Deeper path - extract folder at this level
+        const folderName = segments[0];
+        folders.set(folderName, true);
+      }
+    }
+
+    // Build folder items
+    const folderItems: DriveItem[] = Array.from(folders.keys())
+      .sort()
+      .map((name) => ({
+        type: "folder" as const,
         name,
-        fileUrl: blob.url,
-        pathname: blob.pathname,
-        size: blob.size,
-        uploadedAt: blob.uploadedAt.toISOString(),
-      };
-    });
+        path: name,
+      }));
 
-    // Blob list() returns lexicographic pathname order; keep that order for valid cursor pagination.
-    // Do not sort by uploadedAt — that breaks cursor across pages.
+    // Combine folders + files (folders first, then files, both sorted)
+    const allItems: DriveItem[] = [
+      ...folderItems,
+      ...files.sort((a, b) => a.name.localeCompare(b.name)),
+    ];
+
+    // Apply pagination to combined result
+    const totalItems = allItems.length;
+    const startIndex = cursor
+      ? allItems.findIndex((item) => {
+          if (item.type === "folder") {
+            return item.name === cursor;
+          }
+          return item.name === cursor;
+        }) + 1
+      : 0;
+
+    const paginatedItems = allItems.slice(startIndex, startIndex + take);
+    const hasMoreItems =
+      startIndex + take < totalItems || (hasMore && totalItems >= fetchLimit);
+
+    // Next cursor is the last item's name
+    const nextItemCursor =
+      hasMoreItems && paginatedItems.length > 0
+        ? paginatedItems[paginatedItems.length - 1].name
+        : null;
 
     // Vercel Blob list() doesn't return total count.
-    // Only include total when this is the complete result (!hasMore && no incoming cursor).
-    // Otherwise omit it — draining all pages is forbidden. Never send 0 or fake values.
-    const hasRealTotal = !hasMore && !cursor;
+    // Only include total when this is the complete result.
+    const hasRealTotal = !hasMoreItems && !cursor;
 
-    // Create pagination metadata using Vercel Blob's cursor
-    // Type assertion: ok() expects CursorPaginationMeta but we conditionally omit total
     const paginationMeta = {
       cursor: cursor ?? null,
       limit: take,
-      ...(hasRealTotal ? { total: blobs.length } : {}),
-      nextCursor: hasMore ? (nextCursor ?? null) : null,
+      ...(hasRealTotal ? { total: totalItems } : {}),
+      nextCursor: nextItemCursor,
     } as CursorPaginationMeta;
 
-    return ok(c, driveFilesSchema.parse(apiFiles), paginationMeta);
+    return ok(c, driveItemsSchema.parse(paginatedItems), paginationMeta);
   });
 }

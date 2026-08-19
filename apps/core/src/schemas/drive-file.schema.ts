@@ -38,6 +38,11 @@ export const createDriveFileUploadSessionRequestSchema = z
       example: "org_123",
       description: "Organization ID (required when scope=org)",
     }),
+    folder: z.string().optional().openapi({
+      example: "Projects/2026",
+      description:
+        "Target folder path relative to scope root (empty/omit for root)",
+    }),
   })
   .refine(
     (data) => {
@@ -163,3 +168,176 @@ export const deleteDriveFileRequestSchema = z
     }),
   })
   .openapi("DeleteDriveFileRequest");
+
+/**
+ * Drive folder item (folder row in list result).
+ */
+export const driveFolderSchema = z
+  .object({
+    type: z.literal("folder").openapi({
+      example: "folder",
+      description: "Item type discriminator",
+    }),
+    name: z.string().openapi({
+      example: "Documents",
+      description: "Folder name (next path segment)",
+    }),
+    path: z.string().openapi({
+      example: "Documents",
+      description: "Relative folder path from current folder (single segment)",
+    }),
+  })
+  .openapi("DriveFolder");
+
+export type DriveFolder = z.infer<typeof driveFolderSchema>;
+
+/**
+ * Drive file item (file row in list result) with type discriminator.
+ */
+export const driveFileItemSchema = driveFileSchema
+  .extend({
+    type: z.literal("file").openapi({
+      example: "file",
+      description: "Item type discriminator",
+    }),
+  })
+  .openapi("DriveFileItem");
+
+export type DriveFileItem = z.infer<typeof driveFileItemSchema>;
+
+/**
+ * Drive list item (folder or file).
+ */
+export const driveItemSchema = z
+  .discriminatedUnion("type", [driveFolderSchema, driveFileItemSchema])
+  .openapi("DriveItem");
+
+export type DriveItem = z.infer<typeof driveItemSchema>;
+
+/**
+ * List of drive items (folders and files).
+ */
+export const driveItemsSchema = z.array(driveItemSchema).openapi("DriveItems");
+
+/**
+ * Create folder request.
+ */
+export const createDriveFolderRequestSchema = z
+  .object({
+    folderPath: z.string().min(1).max(1000).openapi({
+      example: "Projects/2026",
+      description:
+        "Folder path relative to scope root (may be nested with slashes)",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Owner scope: 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "organizationId is required when scope=org",
+      path: ["organizationId"],
+    },
+  )
+  .openapi("CreateDriveFolderRequest");
+
+/**
+ * Rename folder request.
+ */
+export const renameDriveFolderRequestSchema = z
+  .object({
+    oldFolderPath: z.string().min(1).openapi({
+      example: "Projects",
+      description: "Current folder path relative to scope root",
+    }),
+    newFolderPath: z.string().min(1).max(1000).openapi({
+      example: "ArchivedProjects",
+      description: "New folder path relative to scope root",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Owner scope: 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "organizationId is required when scope=org",
+      path: ["organizationId"],
+    },
+  )
+  .openapi("RenameDriveFolderRequest");
+
+/**
+ * Delete folder request.
+ */
+export const deleteDriveFolderRequestSchema = z
+  .object({
+    folderPath: z.string().min(1).openapi({
+      example: "Projects/OldProject",
+      description: "Folder path relative to scope root",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Owner scope: 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "organizationId is required when scope=org",
+      path: ["organizationId"],
+    },
+  )
+  .openapi("DeleteDriveFolderRequest");
+
+/**
+ * Move file or folder request.
+ */
+export const moveDriveItemRequestSchema = z
+  .object({
+    sourcePathname: z.string().min(1).openapi({
+      example: "drive/users/user_123/report.pdf",
+      description:
+        "Source pathname (file) or folder path relative to scope root (folder)",
+    }),
+    targetFolderPath: z.string().openapi({
+      example: "Archive/2026",
+      description:
+        "Target folder path relative to scope root (empty string for root)",
+    }),
+    itemType: z.enum(["file", "folder"]).openapi({
+      example: "file",
+      description: "Type of item being moved",
+    }),
+  })
+  .openapi("MoveDriveItemRequest");

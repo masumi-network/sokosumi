@@ -128,14 +128,25 @@ export {
 } from "./design-md-url.js";
 export {
   buildOrganizationDriveFilePathname,
+  buildOrganizationDriveFilePathnameWithFolder,
   buildOrganizationDriveFilePrefix,
+  buildOrganizationDriveFolderMarkerPathname,
+  buildOrganizationDriveFolderPrefix,
   buildUserDriveFilePathname,
+  buildUserDriveFilePathnameWithFolder,
   buildUserDriveFilePrefix,
+  buildUserDriveFolderMarkerPathname,
+  buildUserDriveFolderPrefix,
   clampDriveFileName,
   DRIVE_FILE_MAX_NAME_LENGTH,
+  DRIVE_FOLDER_MARKER_BASENAME,
+  isDriveFolderMarker,
+  isDriveFolderMarkerName,
   isOwnedOrganizationDriveFileUrl,
   isOwnedUserDriveFileUrl,
+  normalizeDriveFolderPath,
   sanitizeDriveFileName,
+  sanitizeDriveFolderName,
 } from "./drive-file-path.js";
 export {
   FILE_EXTENSION_ALLOWLIST,

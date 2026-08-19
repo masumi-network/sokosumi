@@ -1,9 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
-  buildOrganizationDriveFilePathname,
-  buildUserDriveFilePathname,
+  buildOrganizationDriveFilePathnameWithFolder,
+  buildUserDriveFilePathnameWithFolder,
   clampDriveFileName,
   FILE_UPLOAD_MAX_SIZE_BYTES,
+  isDriveFolderMarkerName,
   resolveUserUploadContentType,
 } from "@sokosumi/utils";
 import { BlobNotFoundError, head } from "@vercel/blob";
@@ -103,6 +104,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const displayName = clampDriveFileName(body.filename || "file");
+    const folderPath = body.folder?.trim() || "";
+
+    // Check if filename conflicts with reserved marker basename
+    if (isDriveFolderMarkerName(displayName)) {
+      throw badRequest(
+        "File name conflicts with a reserved system name. Please choose a different name.",
+      );
+    }
 
     // ACL checks and owner resolution
     let pathname: string;
@@ -110,7 +119,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (body.scope === "me") {
       const ownerId = userContext.userId;
       await requireUserDriveFileUploadAccess(authContext, ownerId);
-      pathname = buildUserDriveFilePathname(ownerId, displayName);
+      pathname = buildUserDriveFilePathnameWithFolder(
+        ownerId,
+        folderPath,
+        displayName,
+      );
     } else if (body.scope === "org") {
       if (!body.organizationId) {
         throw unprocessableEntity("organizationId is required when scope=org");
@@ -118,7 +131,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const ownerId = body.organizationId;
       // Verifies membership
       await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
-      pathname = buildOrganizationDriveFilePathname(ownerId, displayName);
+      pathname = buildOrganizationDriveFilePathnameWithFolder(
+        ownerId,
+        folderPath,
+        displayName,
+      );
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }

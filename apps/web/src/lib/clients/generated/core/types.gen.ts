@@ -1898,9 +1898,41 @@ export type CreateDriveFileUploadSessionRequest = {
      * Organization ID (required when scope=org)
      */
     organizationId?: string;
+    /**
+     * Target folder path relative to scope root (empty/omit for root)
+     */
+    folder?: string;
 };
 
-export type DriveFiles = Array<DriveFile>;
+export type DriveItems = Array<DriveItem>;
+
+export type DriveItem = ({
+    type: 'folder';
+} & DriveFolder) | ({
+    type: 'file';
+} & DriveFileItem);
+
+export type DriveFolder = {
+    /**
+     * Item type discriminator
+     */
+    type: 'folder';
+    /**
+     * Folder name (next path segment)
+     */
+    name: string;
+    /**
+     * Relative folder path from current folder (single segment)
+     */
+    path: string;
+};
+
+export type DriveFileItem = DriveFile & {
+    /**
+     * Item type discriminator
+     */
+    type: 'file';
+};
 
 export type DriveFile = {
     /**
@@ -1925,6 +1957,21 @@ export type DriveFile = {
     uploadedAt: Date;
 };
 
+export type MoveDriveItemRequest = {
+    /**
+     * Source pathname (file) or folder path relative to scope root (folder)
+     */
+    sourcePathname: string;
+    /**
+     * Target folder path relative to scope root (empty string for root)
+     */
+    targetFolderPath: string;
+    /**
+     * Type of item being moved
+     */
+    itemType: 'file' | 'folder';
+};
+
 export type RenameDriveFileRequest = {
     /**
      * Current blob pathname
@@ -1941,6 +1988,55 @@ export type DeleteDriveFileRequest = {
      * Blob pathname to delete
      */
     pathname: string;
+};
+
+export type CreateDriveFolderRequest = {
+    /**
+     * Folder path relative to scope root (may be nested with slashes)
+     */
+    folderPath: string;
+    /**
+     * Owner scope: 'me' for personal drive, 'org' for organization drive
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+};
+
+export type DeleteDriveFolderRequest = {
+    /**
+     * Folder path relative to scope root
+     */
+    folderPath: string;
+    /**
+     * Owner scope: 'me' for personal drive, 'org' for organization drive
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+};
+
+export type RenameDriveFolderRequest = {
+    /**
+     * Current folder path relative to scope root
+     */
+    oldFolderPath: string;
+    /**
+     * New folder path relative to scope root
+     */
+    newFolderPath: string;
+    /**
+     * Owner scope: 'me' for personal drive, 'org' for organization drive
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
 };
 
 export type EnterpriseContract = {
@@ -15017,7 +15113,11 @@ export type GetDriveFilesData = {
          */
         organizationId?: string;
         /**
-         * Search query for filename filtering (case-sensitive prefix match)
+         * Folder path relative to scope root (empty/omit for root, nested with slashes)
+         */
+        folder?: string;
+        /**
+         * Search query for filename filtering at current folder level (case-sensitive prefix match)
          */
         q?: string;
         /**
@@ -15123,10 +15223,10 @@ export type GetDriveFilesError = GetDriveFilesErrors[keyof GetDriveFilesErrors];
 
 export type GetDriveFilesResponses = {
     /**
-     * Drive files
+     * Drive items
      */
     200: {
-        data: DriveFiles;
+        data: DriveItems;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15276,6 +15376,132 @@ export type PostDriveFilesResponses = {
 };
 
 export type PostDriveFilesResponse = PostDriveFilesResponses[keyof PostDriveFilesResponses];
+
+export type PatchDriveFilesMoveData = {
+    body: MoveDriveItemRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files/move';
+};
+
+export type PatchDriveFilesMoveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFilesMoveError = PatchDriveFilesMoveErrors[keyof PatchDriveFilesMoveErrors];
+
+export type PatchDriveFilesMoveResponses = {
+    /**
+     * Drive item moved successfully
+     */
+    200: {
+        data: MoveDriveItemRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
 
 export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;
@@ -15507,6 +15733,363 @@ export type DeleteDriveFilesDeleteResponses = {
 };
 
 export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[keyof DeleteDriveFilesDeleteResponses];
+
+export type PostDriveFoldersData = {
+    body: CreateDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders';
+};
+
+export type PostDriveFoldersErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - folder already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFoldersError = PostDriveFoldersErrors[keyof PostDriveFoldersErrors];
+
+export type PostDriveFoldersResponses = {
+    /**
+     * Folder created (marker written)
+     */
+    201: {
+        data: CreateDriveFolderRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFoldersResponse = PostDriveFoldersResponses[keyof PostDriveFoldersResponses];
+
+export type DeleteDriveFoldersDeleteData = {
+    body: DeleteDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders/delete';
+};
+
+export type DeleteDriveFoldersDeleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveFoldersDeleteError = DeleteDriveFoldersDeleteErrors[keyof DeleteDriveFoldersDeleteErrors];
+
+export type DeleteDriveFoldersDeleteResponses = {
+    /**
+     * Drive folder deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveFoldersDeleteResponse = DeleteDriveFoldersDeleteResponses[keyof DeleteDriveFoldersDeleteResponses];
+
+export type PatchDriveFoldersRenameData = {
+    body: RenameDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders/rename';
+};
+
+export type PatchDriveFoldersRenameErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target folder already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFoldersRenameError = PatchDriveFoldersRenameErrors[keyof PatchDriveFoldersRenameErrors];
+
+export type PatchDriveFoldersRenameResponses = {
+    /**
+     * Drive folder renamed
+     */
+    200: {
+        data: RenameDriveFolderRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
 
 export type GetEnterpriseContractsData = {
     body?: never;
