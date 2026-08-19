@@ -4,7 +4,7 @@ import {
   buildUserDriveFolderMarkerPathname,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, put } from "@vercel/blob";
+import { BlobError, BlobNotFoundError, head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import {
@@ -115,12 +115,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Write the marker (one-byte blob; @vercel/blob requires non-empty body)
-    await put(markerPathname, " ", {
-      token,
-      access: "public",
-      addRandomSuffix: false,
-      contentType: "application/octet-stream",
-    });
+    try {
+      await put(markerPathname, " ", {
+        token,
+        access: "public",
+        addRandomSuffix: false,
+        contentType: "application/octet-stream",
+      });
+    } catch (error) {
+      if (error instanceof BlobError) {
+        throw serviceUnavailable(`Blob storage error: ${error.message}`);
+      }
+      throw error;
+    }
 
     return created(c, body);
   });
