@@ -2,7 +2,6 @@
 
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveFile } from "@/lib/clients/generated/core";
 import { postDriveFiles } from "@/lib/clients/generated/core";
 
 export type DriveFileUploadErrorCode = "duplicate" | "internal";
@@ -36,7 +35,7 @@ interface DriveFileUploadOptions {
 export async function uploadDriveFile(
   file: File,
   options: DriveFileUploadOptions,
-): Promise<DriveFile> {
+): Promise<void> {
   const { scope, organizationId, onUploadProgress } = options;
 
   // Resolve contentType (fallback when File.type is empty)
@@ -209,17 +208,4 @@ export async function uploadDriveFile(
 
     xhr.send(file);
   });
-
-  // Build DriveFile from mint session and File
-  const lastSegment = session.pathname.split("/").pop() || file.name;
-  const fileUrl = new URL(uploadUrl);
-  fileUrl.search = "";
-
-  return {
-    name: lastSegment,
-    pathname: session.pathname,
-    fileUrl: fileUrl.toString(),
-    size: file.size,
-    uploadedAt: new Date(),
-  };
 }
