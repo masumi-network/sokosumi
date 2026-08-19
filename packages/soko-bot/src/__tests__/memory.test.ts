@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   parseSokoBotMemory,
   renderSokoBotMemory,
@@ -253,6 +254,8 @@ describe("Soko Bot memory", () => {
     "Review client secret access controls",
     "Review client secret controls",
     "Review payment provider migration",
+    "Review CVV policy wording",
+    "Review payment token policy",
     "Ask finance which corporate card should fund travel",
     "Use Bearer authentication for service requests",
     "Document Bearer credentials handling",
@@ -282,6 +285,21 @@ describe("Soko Bot memory", () => {
     });
 
     expect(parsed.activeGoals).toEqual([entry]);
+  });
+
+  it("scans adversarial credential text in linear time", () => {
+    const repeated = 20_000;
+    const probes = [
+      `Bearer ${")".repeat(repeated)}x`,
+      `password is${" ".repeat(repeated)}`,
+      `password:${" ".repeat(repeated)}`,
+      `cvv${" ".repeat(repeated)}x`,
+    ];
+    const startedAt = performance.now();
+
+    for (const probe of probes) containsSokoBotSensitiveMaterial(probe);
+
+    expect(performance.now() - startedAt).toBeLessThan(1_000);
   });
 });
 

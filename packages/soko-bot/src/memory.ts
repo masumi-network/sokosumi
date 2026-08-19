@@ -20,15 +20,21 @@ export const SOKO_BOT_SENSITIVE_VALUE_PLACEHOLDER = "[Sensitive value removed]";
 const CONNECTION_URL_WITH_CREDENTIALS =
   /\b[a-z][a-z0-9+.-]*:\/\/[^\s/?#@]+@[^\s/?#]+/i;
 const PRIVATE_KEY_MATERIAL = /-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----/i;
-const BEARER_VALUE = /\bbearer\s+([^\s,;]+)/i;
+const BEARER_LABEL = /\bbearer\b/gi;
+const BEARER_GOVERNANCE_VALUES = new Set([
+  "authentication",
+  "credentials",
+  "scheme",
+  "token",
+]);
 const KNOWN_SECRET_VALUE =
   /\b(?:(?:sk-(?:live-|test-)?|(?:sk|rk|pk)_(?:live|test)_|(?:sk|rk)_restricted_|gh[pousr]_|glpat-|xox[baprs]-)[a-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|AIza[a-z0-9_-]{30,})\b/i;
 const JWT_VALUE = /\beyJ[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\b/i;
 const PAYMENT_IDENTIFIER = /\b(?:pi|pm|tok|src|cus|ch)_[a-z0-9]{12,}\b/i;
-const EXPLICIT_SECRET_ASSIGNMENT =
-  /\b(?:secret|authorization|api[ _-]?(?:key|token)|access[ _-]?token|refresh[ _-]?token|auth[ _-]?token|token|client[ _-]?secret|private[ _-]?key|password|passwd|pwd|card[ _-]?(?:number|no)|cvv|cvc|payment[ _-]?(?:id|identifier|token))\b["']?\s*[:=]\s*["']?\s*\S+/i;
-const DESCRIBED_SECRET_VALUE =
-  /\b(?:secret|authorization|api(?:[ _-]+)?(?:key|token)|(?:access|refresh|auth)(?:[ _-]+)?token|token|client(?:[ _-]+)?secret|private(?:[ _-]+)?key|password|passwd|pwd)\b["']?\s*(\bis\b|\bwas\b|\bequals?\b|\bvalue\s+is\b)\s*(["']?)\s*(\S+)/gi;
+const CREDENTIAL_LABEL =
+  /\b(?:api[ _-]*(?:key|token)|(?:access|refresh|auth)[ _-]*token|client[ _-]*secret|private[ _-]*key|password|passwd|pwd|authorization|secret|token)\b/gi;
+const EXPLICIT_SECRET_LABEL =
+  /\b(?:api[ _-]*(?:key|token)|(?:access|refresh|auth)[ _-]*token|client[ _-]*secret|private[ _-]*key|card[ _-]*(?:number|no)|payment[ _-]*(?:id|identifier|token)|password|passwd|pwd|authorization|secret|token|cvv|cvc)\b/gi;
 const BENIGN_SECRET_GOVERNANCE_PREDICATES = new Set([
   "changed",
   "disabled",
@@ -47,10 +53,6 @@ const PREFIXED_SNAKE_SECRET_ASSIGNMENT =
   /\b(?:[a-z0-9]+_)+(?:password|passwd|pwd|secret_access_key|secret_key|secret|api_key|api_token|access_token|refresh_token|auth_token|private_key)\s*[:=]\s*\S+/i;
 const PREFIXED_CAMEL_SECRET_ASSIGNMENT =
   /\b[a-z][a-z0-9]*(?:Password|Passwd|Pwd|SecretAccessKey|SecretKey|Secret|ApiKey|ApiToken|AccessToken|RefreshToken|AuthToken|PrivateKey)\s*[:=]\s*\S+/i;
-const SEPARATORLESS_SECRET_VALUE =
-  /\b(?:api(?:[ _-]+)?(?:key|token)|(?:access|refresh|auth)(?:[ _-]+)?token|password|passwd|pwd|private(?:[ _-]+)?key|client(?:[ _-]+)?secret|secret|token|authorization)\b\s+(\S+)/gi;
-const STANDALONE_LABELED_SECRET_VALUE =
-  /\b(?:api(?:[ _-]+)?(?:key|token)|(?:access|refresh|auth)(?:[ _-]+)?token|password|passwd|pwd|private(?:[ _-]+)?key|client(?:[ _-]+)?secret|secret|token|authorization)\b\s+(\S+)\s*$/i;
 const TERSE_GOVERNANCE_LABEL_AND_TOPIC =
   /^(password|token|api key|private key|client secret)\s+(\S+)$/i;
 type TerseGovernanceLabel =
@@ -79,7 +81,7 @@ const COMMON_WEAK_SECRET_VALUES = new Set([
   "secret",
   "swordfish",
 ]);
-const PAYMENT_SECURITY_CODE = /\b(?:cvv|cvc)\b\s*[:=]?\s*\d{3,4}\b/i;
+const PAYMENT_SECURITY_CODE_LABEL = /\b(?:cvv|cvc)\b/gi;
 const CARD_NUMBER_CANDIDATE = /(?:\d[ -]?){13,19}/g;
 
 export interface SokoBotMemory {
@@ -134,12 +136,73 @@ function containsCardNumber(value: string): boolean {
   );
 }
 
+function skipWhitespace(value: string, start: number): number {
+  let cursor = start;
+  while (cursor < value.length && value[cursor]?.trim() === "") cursor += 1;
+  return cursor;
+}
+
+function readNonWhitespaceToken(
+  value: string,
+  start: number,
+): { end: number; value: string } | null {
+  if (start >= value.length || value[start]?.trim() === "") return null;
+  let end = start + 1;
+  while (end < value.length && value[end]?.trim() !== "") end += 1;
+  return { end, value: value.slice(start, end) };
+}
+
+function isAsciiLetter(value: string | undefined): boolean {
+  if (!value) return false;
+  const code = value.charCodeAt(0);
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function isAsciiWordCharacter(value: string | undefined): boolean {
+  if (!value) return false;
+  const code = value.charCodeAt(0);
+  return isAsciiLetter(value) || (code >= 48 && code <= 57) || value === "_";
+}
+
+function readAsciiWord(
+  value: string,
+  start: number,
+): { end: number; value: string } | null {
+  if (!isAsciiLetter(value[start])) return null;
+  let end = start + 1;
+  while (isAsciiLetter(value[end])) end += 1;
+  return { end, value: value.slice(start, end).toLowerCase() };
+}
+
+function secretLabelMatches(value: string): IterableIterator<RegExpMatchArray> {
+  return value.matchAll(CREDENTIAL_LABEL);
+}
+
 function containsBearerCredential(value: string): boolean {
-  const candidate = value.match(BEARER_VALUE)?.[1]?.replace(/[.)\]}]+$/, "");
-  if (!candidate) return false;
-  return !["authentication", "credentials", "scheme", "token"].includes(
-    candidate.toLowerCase(),
-  );
+  for (const match of value.matchAll(BEARER_LABEL)) {
+    const labelEnd = (match.index ?? 0) + match[0].length;
+    let cursor = skipWhitespace(value, labelEnd);
+    if (cursor === labelEnd) continue;
+    const candidateStart = cursor;
+    while (
+      cursor < value.length &&
+      value[cursor]?.trim() !== "" &&
+      value[cursor] !== "," &&
+      value[cursor] !== ";"
+    ) {
+      cursor += 1;
+    }
+    while (
+      cursor > candidateStart &&
+      ".)]}".includes(value[cursor - 1] ?? "")
+    ) {
+      cursor -= 1;
+    }
+    if (cursor === candidateStart) continue;
+    const candidate = value.slice(candidateStart, cursor).toLowerCase();
+    if (!BEARER_GOVERNANCE_VALUES.has(candidate)) return true;
+  }
+  return false;
 }
 
 function looksLikeCredentialValue(value: string): boolean {
@@ -148,22 +211,45 @@ function looksLikeCredentialValue(value: string): boolean {
   return /[^a-z]/i.test(candidate) || candidate.length >= 24;
 }
 
-function containsMatchedCredentialValue(
-  value: string,
-  pattern: RegExp,
-): boolean {
-  return [...value.matchAll(pattern)].some((match) => {
-    const candidate = match[1];
-    return Boolean(candidate && looksLikeCredentialValue(candidate));
-  });
+function containsSeparatorlessCredentialValue(value: string): boolean {
+  for (const match of secretLabelMatches(value)) {
+    const labelEnd = (match.index ?? 0) + match[0].length;
+    const candidateStart = skipWhitespace(value, labelEnd);
+    if (candidateStart === labelEnd) continue;
+    const candidate = readNonWhitespaceToken(value, candidateStart)?.value;
+    if (candidate && looksLikeCredentialValue(candidate)) return true;
+  }
+  return false;
 }
 
 function containsDescribedSecretAssignment(value: string): boolean {
-  return [...value.matchAll(DESCRIBED_SECRET_VALUE)].some((match) => {
-    const operator = match[1]?.toLowerCase().replaceAll(/\s+/g, " ");
-    const openingQuote = match[2];
-    const candidate = match[3];
-    if (!operator || !candidate || openingQuote) return true;
+  for (const match of secretLabelMatches(value)) {
+    let cursor = (match.index ?? 0) + match[0].length;
+    if (value[cursor] === '"' || value[cursor] === "'") cursor += 1;
+    cursor = skipWhitespace(value, cursor);
+
+    const firstWord = readAsciiWord(value, cursor);
+    if (!firstWord) continue;
+    cursor = firstWord.end;
+    let operator = firstWord.value;
+    if (operator === "value") {
+      const secondWordStart = skipWhitespace(value, cursor);
+      if (secondWordStart === cursor) continue;
+      const secondWord = readAsciiWord(value, secondWordStart);
+      if (!secondWord || secondWord.value !== "is") continue;
+      operator = "value is";
+      cursor = secondWord.end;
+    } else if (!["equal", "equals", "is", "was"].includes(operator)) {
+      continue;
+    }
+    if (isAsciiWordCharacter(value[cursor])) continue;
+
+    cursor = skipWhitespace(value, cursor);
+    const openingQuote = value[cursor] === '"' || value[cursor] === "'";
+    if (openingQuote) cursor = skipWhitespace(value, cursor + 1);
+    const candidate = readNonWhitespaceToken(value, cursor)?.value;
+    if (!candidate) continue;
+    if (openingQuote) return true;
     if (
       operator === "equal" ||
       operator === "equals" ||
@@ -171,8 +257,49 @@ function containsDescribedSecretAssignment(value: string): boolean {
     ) {
       return true;
     }
-    return !BENIGN_SECRET_GOVERNANCE_PREDICATES.has(candidate.toLowerCase());
-  });
+    if (!BENIGN_SECRET_GOVERNANCE_PREDICATES.has(candidate.toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function containsExplicitSecretAssignment(value: string): boolean {
+  for (const match of value.matchAll(EXPLICIT_SECRET_LABEL)) {
+    let cursor = (match.index ?? 0) + match[0].length;
+    if (value[cursor] === '"' || value[cursor] === "'") cursor += 1;
+    cursor = skipWhitespace(value, cursor);
+    if (value[cursor] !== ":" && value[cursor] !== "=") continue;
+    cursor = skipWhitespace(value, cursor + 1);
+    if (value[cursor] === '"' || value[cursor] === "'") {
+      cursor = skipWhitespace(value, cursor + 1);
+    }
+    if (readNonWhitespaceToken(value, cursor)) return true;
+  }
+  return false;
+}
+
+function containsPaymentSecurityCode(value: string): boolean {
+  for (const match of value.matchAll(PAYMENT_SECURITY_CODE_LABEL)) {
+    let cursor = skipWhitespace(value, (match.index ?? 0) + match[0].length);
+    if (value[cursor] === ":" || value[cursor] === "=") {
+      cursor = skipWhitespace(value, cursor + 1);
+    }
+    const digitStart = cursor;
+    while (cursor < value.length) {
+      const code = value.charCodeAt(cursor);
+      if (code < 48 || code > 57) break;
+      cursor += 1;
+    }
+    const digitCount = cursor - digitStart;
+    if (
+      (digitCount === 3 || digitCount === 4) &&
+      !isAsciiWordCharacter(value[cursor])
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function containsPrefixedSecretAssignment(value: string): boolean {
@@ -209,16 +336,24 @@ function isBenignTerseGovernance(value: string): boolean {
 function containsStandaloneLabeledSecretValue(value: string): boolean {
   if (isBenignTerseGovernance(value)) return false;
 
-  const match = STANDALONE_LABELED_SECRET_VALUE.exec(value);
-  const candidate = match?.[1];
-  if (!candidate || match.index === undefined) return false;
+  for (const match of secretLabelMatches(value)) {
+    const matchIndex = match.index ?? 0;
+    const labelEnd = matchIndex + match[0].length;
+    const candidateStart = skipWhitespace(value, labelEnd);
+    if (candidateStart === labelEnd) continue;
+    const candidate = readNonWhitespaceToken(value, candidateStart);
+    if (!candidate || skipWhitespace(value, candidate.end) !== value.length) {
+      continue;
+    }
 
-  // Entry/clause boundaries make a single trailing word an explicit value,
-  // while leaving mid-sentence credential-governance mentions as prose.
-  const prefix = value.slice(0, match.index).trimEnd();
-  const beginsEntryOrClause =
-    prefix.length === 0 || /[:;([{\-–—]$/.test(prefix);
-  return beginsEntryOrClause;
+    // Entry/clause boundaries make a single trailing word an explicit value,
+    // while leaving mid-sentence credential-governance mentions as prose.
+    const prefix = value.slice(0, matchIndex).trimEnd();
+    const beginsEntryOrClause =
+      prefix.length === 0 || /[:;([{\-–—]$/.test(prefix);
+    if (beginsEntryOrClause) return true;
+  }
+  return false;
 }
 
 export function containsSokoBotSensitiveMaterial(value: string): boolean {
@@ -229,12 +364,12 @@ export function containsSokoBotSensitiveMaterial(value: string): boolean {
     KNOWN_SECRET_VALUE.test(value) ||
     JWT_VALUE.test(value) ||
     PAYMENT_IDENTIFIER.test(value) ||
-    EXPLICIT_SECRET_ASSIGNMENT.test(value) ||
+    containsExplicitSecretAssignment(value) ||
     containsPrefixedSecretAssignment(value) ||
     containsDescribedSecretAssignment(value) ||
     containsStandaloneLabeledSecretValue(value) ||
-    containsMatchedCredentialValue(value, SEPARATORLESS_SECRET_VALUE) ||
-    PAYMENT_SECURITY_CODE.test(value) ||
+    containsSeparatorlessCredentialValue(value) ||
+    containsPaymentSecurityCode(value) ||
     containsCardNumber(value)
   );
 }
