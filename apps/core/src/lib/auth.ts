@@ -320,12 +320,24 @@ export const auth = betterAuth({
     accountLinking: {
       enabled: true,
       trustedProviders: ["google", "microsoft"],
+      // 1.6 implicit-link: unverified password users can still attach Google/Microsoft.
+      requireLocalEmailVerified: false,
     },
   },
   databaseHooks: {
     account: {
       create: {
         after: async (account, _ctx) => {
+          if (
+            account.providerId === "google" ||
+            account.providerId === "microsoft"
+          ) {
+            await prisma.user.updateMany({
+              where: { id: account.userId, emailVerified: false },
+              data: { emailVerified: true },
+            });
+          }
+
           void webhookService
             .callAccountCreated(account.userId, account.providerId)
             .catch((error) => {
