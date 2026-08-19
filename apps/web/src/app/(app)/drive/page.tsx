@@ -6,6 +6,7 @@ import {
   Download,
   Edit3,
   MoreHorizontal,
+  Search,
   Trash2,
   Upload,
   X,
@@ -20,6 +21,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
@@ -50,6 +52,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -159,6 +162,8 @@ export default function DrivePage(): ReactElement {
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
@@ -170,6 +175,15 @@ export default function DrivePage(): ReactElement {
     pathname,
     segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
+
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
+  function handleSearchChange(value: string) {
+    setSearchQuery(value);
+    debouncedSetSearchQuery(value);
+  }
 
   const loadFiles = useCallback(async () => {
     loadFilesAbortRef.current?.abort();
@@ -191,6 +205,10 @@ export default function DrivePage(): ReactElement {
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
+        ...(debouncedSearchQuery.trim()
+          ? { q: debouncedSearchQuery.trim() }
+          : {}),
+        signal: controller.signal,
       });
 
       if (!controller.signal.aborted) {
@@ -205,7 +223,7 @@ export default function DrivePage(): ReactElement {
         setLoading(false);
       }
     }
-  }, [scope, activeOrganizationId, t]);
+  }, [scope, activeOrganizationId, debouncedSearchQuery, t]);
 
   useEffect(() => {
     void loadFiles();
@@ -372,7 +390,7 @@ export default function DrivePage(): ReactElement {
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-4 flex items-center justify-between gap-4 md:mb-6">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="me"
@@ -390,7 +408,17 @@ export default function DrivePage(): ReactElement {
             )}
           </TabsList>
 
-          <div className="hidden md:flex">
+          <div className="hidden items-center gap-2 md:flex">
+            <div className="relative">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-64 pl-8"
+              />
+            </div>
             <Label htmlFor="file-upload" className="cursor-pointer">
               <Button
                 disabled={uploading}
@@ -415,6 +443,17 @@ export default function DrivePage(): ReactElement {
               disabled={uploading}
             />
           </div>
+        </div>
+
+        <div className="relative mb-6 md:hidden">
+          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+          <Input
+            type="text"
+            placeholder={t("searchPlaceholder")}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-8"
+          />
         </div>
 
         {error && (
@@ -444,12 +483,16 @@ export default function DrivePage(): ReactElement {
                       <div className="flex size-8 shrink-0 items-center justify-center">
                         <Skeleton className="size-4" />
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <Skeleton className="h-4 w-32 sm:w-48" />
-                        <div className="flex items-center gap-3">
+                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
                           <Skeleton className="h-3 w-12" />
                           <Skeleton className="h-3 w-24" />
                         </div>
+                      </div>
+                      <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                        <Skeleton className="h-3 w-12" />
+                        <Skeleton className="h-3 w-24" />
                       </div>
                     </div>
                     <div className="shrink-0 pl-2">
@@ -468,10 +511,12 @@ export default function DrivePage(): ReactElement {
             >
               <div className="max-w-sm">
                 <h2 className="text-foreground text-lg font-semibold">
-                  {t("emptyTitle")}
+                  {searchQuery ? t("noMatchTitle") : t("emptyTitle")}
                 </h2>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  {t("emptyDescription")}
+                  {searchQuery
+                    ? t("noMatchDescription")
+                    : t("emptyDescription")}
                 </p>
               </div>
             </div>
