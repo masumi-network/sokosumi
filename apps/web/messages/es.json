@@ -271,7 +271,8 @@
       "api-keys": "Claves API",
       "coworkers": "Coworkers",
       "vendors": "Vendors",
-      "docs": "Documentación"
+      "docs": "Documentación",
+      "drive": "Drive"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2883,6 +2884,7 @@
           "hermesNew": "Nuevo",
           "hermesUnread": "{count} sin leer",
           "history": "Historial",
+          "drive": "Drive",
           "admin": "Administración",
           "settings": "Configuración",
           "back": "Atrás",
@@ -5286,6 +5288,39 @@
     },
     "WorkspaceAccess": {
       "checking": "Comprobando el acceso al espacio de trabajo"
+    },
+    "Drive": {
+      "breadcrumb": "Drive",
+      "myDriveTab": "Mi Drive",
+      "uploadButton": "Subir",
+      "uploadingProgress": "{progress}%",
+      "emptyTitle": "Aún no hay archivos",
+      "emptyDescription": "Sube tu primer archivo para comenzar",
+      "searchPlaceholder": "Buscar archivos...",
+      "noMatchTitle": "No se encontraron archivos",
+      "noMatchDescription": "Prueba con otra búsqueda",
+      "pickerEmptyMessage": "No hay archivos en este Drive",
+      "downloadAction": "Descargar",
+      "renameAction": "Renombrar",
+      "deleteAction": "Eliminar",
+      "saveAction": "Guardar",
+      "cancelAction": "Cancelar",
+      "deleteDialogTitle": "Eliminar archivo",
+      "deleteDialogDescription": "¿Seguro que quieres eliminar {fileName}? Esta acción no se puede deshacer.",
+      "deleteDialogCancel": "Cancelar",
+      "deleteDialogConfirm": "Eliminar",
+      "loadFilesError": "No se pudieron cargar los archivos",
+      "uploadError": "No se pudo subir el archivo",
+      "renameError": "No se pudo renombrar el archivo",
+      "deleteError": "No se pudo eliminar el archivo",
+      "organizationTabFallback": "Organización",
+      "uploadDuplicateError": "Ya existe un archivo con este nombre. Cámbiale el nombre e inténtalo de nuevo.",
+      "selectTitle": "Seleccionar desde Drive",
+      "selectDescription": "Elige un archivo de tu Drive personal o de la organización",
+      "uploadFile": "Subir archivo",
+      "fromDrive": "Desde Drive",
+      "moreActions": "Más acciones",
+      "uploadFab": "Subir archivo"
     }
   },
   "Share": {

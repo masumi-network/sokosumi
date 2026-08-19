@@ -287,7 +287,8 @@
       "api-keys": "API Keys",
       "coworkers": "Coworkers",
       "vendors": "Vendors",
-      "docs": "Documentation"
+      "docs": "Documentation",
+      "drive": "Drive"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2883,6 +2884,7 @@
           "hermesNew": "New",
           "hermesUnread": "{count} unread",
           "history": "History",
+          "drive": "Drive",
           "admin": "Admin",
           "settings": "Settings",
           "back": "Back",
@@ -5286,6 +5288,39 @@
     },
     "WorkspaceAccess": {
       "checking": "Checking workspace access"
+    },
+    "Drive": {
+      "breadcrumb": "Drive",
+      "myDriveTab": "My Drive",
+      "uploadButton": "Upload",
+      "uploadingProgress": "{progress}%",
+      "emptyTitle": "No files yet",
+      "emptyDescription": "Upload your first file to get started",
+      "searchPlaceholder": "Search files...",
+      "noMatchTitle": "No files found",
+      "noMatchDescription": "Try a different search query",
+      "pickerEmptyMessage": "No files in this Drive",
+      "downloadAction": "Download",
+      "renameAction": "Rename",
+      "deleteAction": "Delete",
+      "saveAction": "Save",
+      "cancelAction": "Cancel",
+      "deleteDialogTitle": "Delete file",
+      "deleteDialogDescription": "Are you sure you want to delete {fileName}? This action cannot be undone.",
+      "deleteDialogCancel": "Cancel",
+      "deleteDialogConfirm": "Delete",
+      "loadFilesError": "Failed to load files",
+      "uploadError": "Failed to upload file",
+      "renameError": "Failed to rename file",
+      "deleteError": "Failed to delete file",
+      "organizationTabFallback": "Organization",
+      "uploadDuplicateError": "A file with this name already exists. Rename it and try again.",
+      "selectTitle": "Select from Drive",
+      "selectDescription": "Choose a file from your personal or organization Drive",
+      "uploadFile": "Upload file",
+      "fromDrive": "From Drive",
+      "moreActions": "More actions",
+      "uploadFab": "Upload file"
     }
   },
   "Share": {

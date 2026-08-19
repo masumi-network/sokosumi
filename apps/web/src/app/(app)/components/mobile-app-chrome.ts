@@ -12,6 +12,7 @@ import {
 const MOBILE_TAB_LIST_PATHS = [
   "/tasks",
   "/agents",
+  "/drive",
   "/projects",
   "/history",
 ] as const;
@@ -86,7 +87,7 @@ export function resolveMobileAppBackTarget(
     return null;
   }
   if (pathname === root) {
-    if (root === "/agents") {
+    if (root === "/agents" || root === "/drive") {
       return { href: "/", labelKey: "back" };
     }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {

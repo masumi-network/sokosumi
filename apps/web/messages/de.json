@@ -271,7 +271,8 @@
       "api-keys": "API-Schlüssel",
       "coworkers": "Coworkers",
       "vendors": "Vendors",
-      "docs": "Dokumentation"
+      "docs": "Dokumentation",
+      "drive": "Drive"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2883,6 +2884,7 @@
           "hermesNew": "Neu",
           "hermesUnread": "{count} ungelesen",
           "history": "Verlauf",
+          "drive": "Drive",
           "admin": "Administration",
           "settings": "Einstellungen",
           "back": "Zurück",
@@ -5286,6 +5288,39 @@
     },
     "WorkspaceAccess": {
       "checking": "Workspace-Zugriff wird geprüft"
+    },
+    "Drive": {
+      "breadcrumb": "Drive",
+      "myDriveTab": "Mein Drive",
+      "uploadButton": "Hochladen",
+      "uploadingProgress": "{progress}%",
+      "emptyTitle": "Noch keine Dateien",
+      "emptyDescription": "Lade deine erste Datei hoch, um loszulegen",
+      "searchPlaceholder": "Dateien suchen...",
+      "noMatchTitle": "Keine Dateien gefunden",
+      "noMatchDescription": "Versuche eine andere Suchanfrage",
+      "pickerEmptyMessage": "Keine Dateien in diesem Drive",
+      "downloadAction": "Herunterladen",
+      "renameAction": "Umbenennen",
+      "deleteAction": "Löschen",
+      "saveAction": "Speichern",
+      "cancelAction": "Abbrechen",
+      "deleteDialogTitle": "Datei löschen",
+      "deleteDialogDescription": "Möchtest du {fileName} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleteDialogCancel": "Abbrechen",
+      "deleteDialogConfirm": "Löschen",
+      "loadFilesError": "Dateien konnten nicht geladen werden",
+      "uploadError": "Datei konnte nicht hochgeladen werden",
+      "renameError": "Datei konnte nicht umbenannt werden",
+      "deleteError": "Datei konnte nicht gelöscht werden",
+      "organizationTabFallback": "Organisation",
+      "uploadDuplicateError": "Eine Datei mit diesem Namen existiert bereits. Benenne sie um und versuche es erneut.",
+      "selectTitle": "Aus Drive auswählen",
+      "selectDescription": "Wähle eine Datei aus deinem persönlichen oder Organisations-Drive",
+      "uploadFile": "Datei hochladen",
+      "fromDrive": "Aus Drive",
+      "moreActions": "Weitere Aktionen",
+      "uploadFab": "Datei hochladen"
     }
   },
   "Share": {
