@@ -19,9 +19,7 @@ import {
   type PendingInvitesBatchMode,
   queueItemKey,
   shouldShowPendingInvitesBatchActions,
-  type WorkspaceGateQueueInvitation,
   type WorkspaceGateQueueItem,
-  type WorkspaceGateQueueJoinLink,
 } from "@/lib/workspace-gate-queue";
 
 interface PendingInvitesQueueProps {
@@ -33,6 +31,13 @@ interface AcceptedQueueOrganization {
   organizationId: string;
   organizationSlug: string;
   acceptedJoinToken?: string;
+}
+
+function failedQueueItemLabel(
+  organizationName: string,
+  reason: string,
+): string {
+  return `${organizationName} (${reason})`;
 }
 
 export function PendingInvitesQueue({
@@ -84,59 +89,52 @@ export function PendingInvitesQueue({
     }
   }
 
-  async function handleAcceptInvitation(item: WorkspaceGateQueueInvitation) {
-    if (busyKey) {
-      return;
-    }
-    setBusyKey(item.id);
-    try {
-      if (!(await persistIfNeeded())) {
-        return;
-      }
+  async function acceptQueueItem(
+    item: WorkspaceGateQueueItem,
+  ): Promise<Result<AcceptedQueueOrganization, string>> {
+    if (item.kind === "invitation") {
       const result = await authClient.organization.acceptInvitation({
         invitationId: item.id,
       });
       if (result.error) {
-        toast.error(result.error.message ?? t("acceptError"));
-        return;
+        return err(result.error.message ?? t("acceptError"));
       }
-      const organizationId =
-        result.data?.member.organizationId ?? item.organizationId;
-      await leaveGateAfterOrganization({
-        organizationId,
+      return ok({
+        organizationId:
+          result.data?.member.organizationId ?? item.organizationId,
         organizationSlug: item.organizationSlug,
       });
-    } catch (error) {
-      console.error("Workspace gate accept invitation failed", error);
-      toast.error(t("acceptError"));
-    } finally {
-      setBusyKey(null);
     }
+
+    const result = await acceptOrganizationInviteLink({ token: item.token });
+    if (!result.ok) {
+      return err(result.error.message ?? t("joinError"));
+    }
+    return ok({
+      organizationId: result.value.organizationId,
+      organizationSlug: result.value.organizationSlug ?? item.organizationSlug,
+      acceptedJoinToken: item.token,
+    });
   }
 
-  async function handleJoin(item: WorkspaceGateQueueJoinLink) {
+  async function handleAcceptItem(item: WorkspaceGateQueueItem) {
     if (busyKey) {
       return;
     }
-    setBusyKey(item.token);
+    setBusyKey(queueItemKey(item));
     try {
       if (!(await persistIfNeeded())) {
         return;
       }
-      const result = await acceptOrganizationInviteLink({ token: item.token });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("joinError"));
+      const accepted = await acceptQueueItem(item);
+      if (accepted.isErr()) {
+        toast.error(accepted.error);
         return;
       }
-      await leaveGateAfterOrganization({
-        organizationId: result.value.organizationId,
-        organizationSlug:
-          result.value.organizationSlug ?? item.organizationSlug,
-        acceptedJoinToken: item.token,
-      });
+      await leaveGateAfterOrganization(accepted.value);
     } catch (error) {
-      console.error("Workspace gate join failed", error);
-      toast.error(t("joinError"));
+      console.error("Workspace gate accept item failed", error);
+      toast.error(item.kind === "join" ? t("joinError") : t("acceptError"));
     } finally {
       setBusyKey(null);
     }
@@ -151,34 +149,6 @@ export function PendingInvitesQueue({
         next.delete(key);
       }
       return next;
-    });
-  }
-
-  async function acceptQueueItem(
-    item: WorkspaceGateQueueItem,
-  ): Promise<Result<AcceptedQueueOrganization, "failed">> {
-    if (item.kind === "invitation") {
-      const result = await authClient.organization.acceptInvitation({
-        invitationId: item.id,
-      });
-      if (result.error) {
-        return err("failed");
-      }
-      return ok({
-        organizationId:
-          result.data?.member.organizationId ?? item.organizationId,
-        organizationSlug: item.organizationSlug,
-      });
-    }
-
-    const result = await acceptOrganizationInviteLink({ token: item.token });
-    if (!result.ok) {
-      return err("failed");
-    }
-    return ok({
-      organizationId: result.value.organizationId,
-      organizationSlug: result.value.organizationSlug ?? item.organizationSlug,
-      acceptedJoinToken: item.token,
     });
   }
 
@@ -202,13 +172,20 @@ export function PendingInvitesQueue({
         try {
           const accepted = await acceptQueueItem(item);
           if (accepted.isErr()) {
-            failedNames.push(item.organizationName);
+            failedNames.push(
+              failedQueueItemLabel(item.organizationName, accepted.error),
+            );
             continue;
           }
           successes.push(accepted.value);
         } catch (error) {
           console.error("Workspace gate accept item failed", error);
-          failedNames.push(item.organizationName);
+          failedNames.push(
+            failedQueueItemLabel(
+              item.organizationName,
+              item.kind === "join" ? t("joinError") : t("acceptError"),
+            ),
+          );
         }
       }
 
@@ -222,13 +199,12 @@ export function PendingInvitesQueue({
         return;
       }
 
-      const acceptedJoinToken = successes.find(
-        (success) => success.acceptedJoinToken,
-      )?.acceptedJoinToken;
       await leaveGateAfterOrganization({
         organizationId: firstSuccess.organizationId,
         organizationSlug: firstSuccess.organizationSlug,
-        acceptedJoinToken: firstSuccess.acceptedJoinToken ?? acceptedJoinToken,
+        acceptedJoinToken: successes.find(
+          (success) => success.acceptedJoinToken,
+        )?.acceptedJoinToken,
       });
     } catch (error) {
       console.error("Workspace gate accept batch failed", error);
@@ -312,11 +288,7 @@ export function PendingInvitesQueue({
                 type="button"
                 disabled={busy || awaitingActivationRetry}
                 onClick={() => {
-                  if (item.kind === "invitation") {
-                    void handleAcceptInvitation(item);
-                    return;
-                  }
-                  void handleJoin(item);
+                  void handleAcceptItem(item);
                 }}
                 data-testid={`workspace-gate-accept-${item.kind}-${key}`}
               >

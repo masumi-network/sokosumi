@@ -165,6 +165,46 @@ describe("PendingInvitesQueue", () => {
     expect(updateUserMock).not.toHaveBeenCalled();
   });
 
+  it("collects a name before accept-all when the user has none", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+    acceptOrganizationInviteLinkMock.mockResolvedValue({
+      ok: true,
+      value: { organizationId: "org_join", organizationSlug: "join-co" },
+    });
+    let resolveUpdate: (value: { error: null }) => void = () => {};
+    updateUserMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+
+    renderQueue("");
+    await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
+    await user.click(screen.getByTestId("workspace-gate-accept-all"));
+
+    await waitFor(() => {
+      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+    });
+    expect(acceptInvitationMock).not.toHaveBeenCalled();
+    expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+
+    resolveUpdate({ error: null });
+
+    await waitFor(() => {
+      expect(acceptInvitationMock).toHaveBeenCalledWith({
+        invitationId: "inv_1",
+      });
+    });
+    expect(acceptOrganizationInviteLinkMock).toHaveBeenCalledWith({
+      token: "join_token_1",
+    });
+  });
+
   it("collects a name before accepting when the user has none", async () => {
     const user = userEvent.setup();
     acceptInvitationMock.mockResolvedValue({
@@ -436,7 +476,9 @@ describe("PendingInvitesQueue", () => {
         token: "join_token_1",
       });
     });
-    expect(toastErrorMock).toHaveBeenCalledWith("We could not accept: Acme.");
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "We could not accept: Acme (seat full).",
+    );
     expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org_join");
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
       organizationSlug: "join-co",
@@ -461,7 +503,7 @@ describe("PendingInvitesQueue", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "We could not accept: Acme, Join Co.",
+        "We could not accept: Acme (seat full), Join Co (expired).",
       );
     });
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
