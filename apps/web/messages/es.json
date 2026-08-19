@@ -5370,6 +5370,7 @@
       "selectFolder": "Seleccionar carpeta",
       "rootFolder": "Carpeta raíz",
       "createFolderError": "Error al crear carpeta",
+      "createFolderDuplicateError": "Ya existe una carpeta con este nombre. Elija un nombre diferente.",
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
       "moveFileError": "Error al mover archivo"

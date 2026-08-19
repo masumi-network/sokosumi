@@ -5370,6 +5370,7 @@
       "selectFolder": "Ordner auswählen",
       "rootFolder": "Hauptordner",
       "createFolderError": "Ordner konnte nicht erstellt werden",
+      "createFolderDuplicateError": "Ein Ordner mit diesem Namen existiert bereits. Wählen Sie einen anderen Namen.",
       "deleteFolderError": "Ordner konnte nicht gelöscht werden",
       "moveFolderError": "Ordner konnte nicht verschoben werden",
       "moveFileError": "Datei konnte nicht verschoben werden"

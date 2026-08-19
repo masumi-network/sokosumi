@@ -5370,6 +5370,7 @@
       "selectFolder": "Select folder",
       "rootFolder": "Root folder",
       "createFolderError": "Failed to create folder",
+      "createFolderDuplicateError": "A folder with this name already exists. Choose a different name.",
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
       "moveFileError": "Failed to move file"

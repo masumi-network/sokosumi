@@ -31,6 +31,7 @@ interface DriveFileUploadProgress {
 interface DriveFileUploadOptions {
   scope: "me" | "org";
   organizationId?: string;
+  folder?: string;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
 }
 
@@ -38,7 +39,7 @@ export async function uploadDriveFile(
   file: File,
   options: DriveFileUploadOptions,
 ): Promise<void> {
-  const { scope, organizationId, onUploadProgress } = options;
+  const { scope, organizationId, folder, onUploadProgress } = options;
 
   // Resolve contentType (fallback when File.type is empty)
   const contentType = resolveUserUploadContentType(file.name, file.type);
@@ -57,6 +58,7 @@ export async function uploadDriveFile(
         size: file.size,
         scope,
         ...(scope === "org" && organizationId ? { organizationId } : {}),
+        ...(folder ? { folder } : {}),
       },
       throwOnError: true,
     });
