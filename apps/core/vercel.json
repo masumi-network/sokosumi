@@ -55,6 +55,10 @@
     {
       "path": "/sync/task-schedules",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/task-x402-payment-headers-purge",
+      "schedule": "30 * * * *"
     }
   ]
 }

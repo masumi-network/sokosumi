@@ -1,0 +1,36 @@
+-- Supporting index for the expired-header purge
+-- (`purgeExpiredTaskX402PaymentHeaders`).
+--
+-- The sweep filters by EXPIRY and deliberately NOT by status: what kills the
+-- credential is that it can no longer settle, and an operator goodwill refund
+-- can move a header-bearing row to REFUNDED, which a status-scoped sweep would
+-- strand. The only index that mentioned validBefore was
+-- task_x402_payment_status_validBefore_idx, with status LEADING, so the purge
+-- had no seek available and fell back to a full scan on every hourly run.
+--
+-- PARTIAL on `xPaymentHeader IS NOT NULL`, which is the condition that
+-- actually selects. `validBefore <= now()` matches essentially every
+-- historical row forever, so a plain btree on it earns nothing — measured on
+-- 200 000 rows the planner declined such an index outright and seq-scanned
+-- (1709 shared buffers). Rows still holding a credential are a small bounded
+-- working set, because this sweep is what empties it, so the partial predicate
+-- both makes the index worth reading and keeps it small. Same query, same
+-- data, with this index: 202 buffers, and it is still chosen under the
+-- ORDER BY id the batched cursor scan uses.
+--
+-- validBefore leads among the columns because it is the arm that seeks. The
+-- backstop arm is `updatedAt <= cutoff` with NO validBefore predicate —
+-- absolute on purpose, so it subsumes null, drifted and far-future expiries
+-- without trusting the column — which means it cannot seek on the leading
+-- column and reads the partial index in full instead. That is bounded and
+-- cheap for the same reason the partial predicate is worth having at all: the
+-- index only ever contains rows still holding a credential, and this sweep is
+-- what empties it. Reordering the columns would just move the full read to the
+-- other arm.
+--
+-- Timestamped after 20260811170000_task_x402_payment_processing_lease and
+-- idempotent like the table's own migration so a partially applied preview
+-- database can re-apply.
+
+-- CreateIndex
+CREATE INDEX IF NOT EXISTS "task_x402_payment_validBefore_updatedAt_idx" ON "task_x402_payment"("validBefore", "updatedAt") WHERE "xPaymentHeader" IS NOT NULL;

@@ -558,16 +558,19 @@ export const auth = betterAuth({
       beforeDelete: async (user) => {
         const evaluation = await evaluateUserDeletion(user.id, prisma);
         throwIfUserDeletionBlocked(user.id, evaluation);
-        // This helper performs the User delete inside the same transaction as
-        // its payment/task sweep. Better Auth's following adapter delete is a
-        // deliberate not-found no-op; separating them reopens a charge race.
-        await prepareTasksForUserDeletion(user.id, prisma);
+        // Snapshot before the helper: it deletes the User row in the same
+        // transaction as the payment/task sweep. afterDelete still best-effort
+        // deletes the Stripe customer.
         const userCustomer = await prisma.user.findUnique({
           where: { id: user.id },
           select: { stripeCustomerId: true },
         });
         (user as { stripeCustomerId?: string | null }).stripeCustomerId =
           userCustomer?.stripeCustomerId ?? null;
+        // This helper performs the User delete inside the same transaction as
+        // its payment/task sweep. Better Auth's following adapter delete is a
+        // deliberate not-found no-op; separating them reopens a charge race.
+        await prepareTasksForUserDeletion(user.id, prisma);
       },
       afterDelete: async (user) => {
         waitUntil(
