@@ -516,11 +516,31 @@ export default function DrivePage(): ReactElement {
     } catch (err) {
       console.error("Failed to create folder", err);
 
-      const isDuplicate =
-        err &&
-        typeof err === "object" &&
-        "status" in err &&
-        (err.status as number) === 409;
+      // Detect 409 or "already exists" message (match mint detector pattern)
+      let isDuplicate = false;
+      if (err && typeof err === "object") {
+        // Check for status in error or error.response
+        const status =
+          "status" in err
+            ? (err.status as number)
+            : "response" in err &&
+                err.response &&
+                typeof err.response === "object" &&
+                "status" in err.response
+              ? (err.response.status as number)
+              : undefined;
+
+        const message =
+          "message" in err && typeof err.message === "string"
+            ? err.message
+            : undefined;
+
+        if (status === 409) {
+          isDuplicate = true;
+        } else if (message && /already exists?/i.test(message)) {
+          isDuplicate = true;
+        }
+      }
 
       if (isDuplicate) {
         setCreateFolderDialogOpen(false);
