@@ -5,6 +5,7 @@ import { x402AgentSchema } from "./x402-agent.schema";
 function bazaarFixedAgent(overrides: Record<string, unknown> = {}) {
   return {
     id: "cmaeygqwa000e8i0s9s7wif8i",
+    kind: "x402",
     specification: "bazaar",
     name: "Bazaar Research Agent",
     description: null,
