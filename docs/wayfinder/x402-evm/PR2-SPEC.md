@@ -9,11 +9,14 @@
 
 ## 1. Scope
 
-End-user-hireable x402 agents: a paid job on an x402 direct-settlement agent
-runs call → 402 → node-pay → replay inside Soko's job pipeline, and the HTTP
-response is the result. Escrow paths untouched. Shares with PR 1: CAIP-19
-credit keys, dialect normalizer, verify-against-source, the `/x402/pay`
-client, refund policy. Ships **after** PR 1; reuses its helpers.
+Core hire APIs can run a paid job on an x402 direct-settlement agent:
+call → 402 → node-pay → replay inside Soko's job pipeline, and the HTTP
+response is the result. Web `/agents` does **not** hire (SOK-805:
+Coworkers-only gallery). Flipping `buildAvailableAgentWhereClause` puts
+x402 rows on public `GET /v1/agents`, not the coworker gallery. Escrow
+paths untouched. Shares with PR 1: CAIP-19 credit keys, dialect
+normalizer, verify-against-source, the `/x402/pay` client, refund policy.
+Ships **after** PR 1; reuses its helpers.
 
 ## 2. Schema
 
@@ -22,15 +25,18 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
   snapshot-on-job pattern). Migration: add enum + column with default;
   no data rewrite needed beyond the default.
 - `JobX402Payment` — sibling of `JobPurchase` AND of PR 1's
-  `TaskX402Payment` (two tables by decision, shared columns by convention):
-  `jobId @unique`, `caip2Network`, `asset`, `amount` (BigInt), `decimals`,
+  `TaskX402Payment` (two tables by decision). Shared columns by convention:
+  `amount` is a digit `String` (node base units) plus `decimals` from
+  **node-published** ready-pair config, not the agent row — same as
+  PR1-SPEC §4. Also `jobId @unique`, `caip2Network`, `asset`,
   `payTo`, `paymentIdentifier?`, `status`
   (`PENDING | VERIFIED | FAILED | REFUNDED` — terminal at `VERIFIED`,
   confirmed), `failureReason?`. **Signed-once fields are nullable** —
   `attemptId?` and the phased-settlement group (`payerAddress?`,
   `payloadNonce?`, `paymentPayloadHash?`, `validBefore?`) fill in only when the
-  node returns a 200, so `PENDING` rows lack them (mirrors PR 1's shipped
-  `TaskX402Payment`, [PR1-SPEC §4](PR1-SPEC.md)). `transactionId @unique` is
+  node returns a 200, so `PENDING` rows lack them (mirrors the
+  `TaskX402Payment` specified in [PR1-SPEC §4](PR1-SPEC.md); that table is
+  not on `main` until the PR 1 implementation lands). `transactionId @unique` is
   set at charge and is present from row creation; `refundTransactionId?
   @unique` is the compensating refund. `@@index([status, validBefore])` for the
   future expiry reconciler.
@@ -54,9 +60,11 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
    ≤ the job's charged price (drift → fail the job, refund — provably
    unpaid, nothing signed).
 3. **Pay** — node `POST /x402/pay` (Soko wallet, `paymentIdentifier` only if
-   advertised). Three outcomes (the taxonomy PR 1 shipped):
-   - **Pre-sign refusal** (non-200, no header) → **provably unpaid** →
-     **synchronous refund**, record `FAILED`, job `PAYMENT_FAILED`.
+   advertised). Three outcomes (the taxonomy specified in PR1-SPEC §3):
+   - **Pre-sign refusal** (documented non-200, no header written) →
+     **provably unpaid** → **synchronous refund**, record `FAILED`, job
+     fails with a **new failure reason** (there is no `PAYMENT_FAILED` Job
+     status on `main`; do not invent one silently).
    - **200 with a usable signed header** → record `VERIFIED` + signed tuple +
      phased fields; proceed to replay.
    - **Ambiguous / malformed 200** (no usable header) → record **stays
@@ -76,9 +84,11 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
 ## 4. Availability flip
 
 `buildAvailableAgentWhereClause` admits x402-source agents when: whitelisted,
-assets priced, per-env network allowlist, composed buy-side readiness OK
-(`/x402/networks/available` + `/x402/budgets`, cached last-known-value,
-fail-closed cold). Same gates as PR 1's listing — one shared predicate.
+scheme `exact`, assets priced, per-env network allowlist, composed buy-side
+readiness OK (`/x402/networks/available` + `/x402/budgets`, cached
+last-known-value, fail-closed cold). Same gates as PR 1's listing — one
+shared predicate. This is the **public** `GET /v1/agents` predicate, not
+the web coworker gallery.
 
 ## 5. Refund policy binding (ticket 006)
 

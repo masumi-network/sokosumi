@@ -71,11 +71,13 @@ priority.
   *Disputable (Masumi)* vs *x402 direct settlement*. No external blocker for
   PR 1 discovery; direct CDP ingestion out of scope; verified against
   payment-service `main`, which is ahead of our pinned specs.
-- [Refund policy](tickets/006-refund-policy.md) — PR 1: **no auto-refunds**,
-  admin refund lever + per-endpoint failure aggregation feeding a whitelist
-  disable. PR 2: **auto-refund only when provably unpaid** (never signed /
-  never sent); after signing, admin lever only — no parity with escrow.
-  Disputable-vs-x402 preference moot: different agents by registry design.
+- [Refund policy](tickets/006-refund-policy.md) — PR 1: **auto-refund only
+  when unsettleable** (documented first-attempt refusal; header never
+  written). No auto-refund after a header exists. Admin refund/resolve +
+  per-agent aggregation feeding a whitelist disable. PR 2: **auto-refund
+  only when provably unpaid** (never signed / never sent); after signing,
+  admin lever only — no parity with escrow. Disputable-vs-x402 preference
+  moot: different agents by registry design.
 - [Coworker pay-endpoint contract](tickets/003-pay-endpoint-contract.md) —
   modeled after the node's `POST /x402/pay` on both sides: raw 402 in,
   node-response pass-through out, Soko owns `evmWalletId` and stamps task
@@ -83,17 +85,19 @@ priority.
   asset reverse-match + pricing sanity check), per-env EVM network allowlist
   (preprod = testnets only), mandatory coworker idempotency key as the
   dedupe unique, authz identical to the `masumiPayment` task-event gate
-  (sub-tasks covered via `parentTaskId` being tasks).
+  (sub-tasks covered via `TaskLink` `PARENT`; there is no `Task.parentTaskId`).
 - [Pricing and spend controls](tickets/004-pricing-and-spend-controls.md) —
   CAIP-19 CreditCost keys + fail-closed unknown assets (inherited from ADR
   0001); **charge floor** at `MIN_CHARGEABLE_CREDITS` for micro-payments
-  (ceil, never below); **task `maxCredits` bounds cumulative x402 spend** —
-  same pool as every other task charge, node budgets as operator backstop.
+  (ceil, never below); debit from the org/user **credit balance** (there is
+  no `Task.maxCredits`); optional per-request `maxCredits` ceiling;
+  node budgets as operator backstop.
 - [Coworker-facing Bazaar agent listing](tickets/005-coworker-listing-surface.md)
   — dedicated coworker-gated route, **fail closed** (listed ⇒ payable now:
-  whitelist, priced assets, per-env network allowlist, readiness), coworker
-  context only; X402 agents keep the standard metadata-override fields so a
-  later read-only UI display needs no rework.
+  whitelist, `exact` scheme, priced assets, per-env network allowlist,
+  readiness), coworker context only. Later PRs may widen **list** auth or
+  fold into `GET /v1/agents`; pay stays coworker + assigned task. A later
+  read-only UI is a maybe, not a product decision.
 - [PR 1 spec](tickets/007-pr1-spec.md) — **first half of the destination
   reached.** Full spec at [PR1-SPEC.md](PR1-SPEC.md): listing + pay
   endpoints, `TaskX402Payment` sibling model, charge-then-sign flow with the

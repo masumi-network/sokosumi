@@ -58,8 +58,9 @@ Decided by Sandro (2026-08-11) across two grilling rounds. The endpoint is
    repeats are byte-identical.
 5. **Authz** — exactly the `masumiPayment` task-event model:
    `requireTaskCollaboration` + `isCoworkerAgentContext`, org and owner from
-   the task row. Sub-tasks are tasks (`parentTaskId`), so the same per-task
-   gate covers them; no new permission concept, no org flag.
+   the task row. Sub-tasks are `Task` rows linked by `TaskLink` `PARENT`
+   (there is no `Task.parentTaskId` column); the same per-task gate covers
+   them; no new permission concept, no org flag.
 
 Interlock with the refund policy (006): sign-failure refunds credits
 synchronously (provably unpaid); a crash between charge and sign leaves a
@@ -68,13 +69,14 @@ provably unpaid. The durable payment record carries the idempotency key,
 `attemptId`, agent link (for per-endpoint aggregation), and the admin
 refund action. Field-level schema lands in the PR 1 spec (007).
 
-> **Superseded by the ticket-011 answers:** (a) `paymentIdentifier` is stamped
-> **only when the 402 advertises the payment-identifier extension** (the node
-> 400s otherwise), not on every call; (b) a crash/timeout between charge and a
-> confirmed sign result is **refund-safe**, not review-only — the node signs
-> locally and never sends the buyer's request, so the stale-PENDING reconciler
-> auto-refunds without consulting the node. See [PR1-SPEC.md](../PR1-SPEC.md)
-> §3 and [NODE-QUESTIONS.md](../NODE-QUESTIONS.md) `## Answers`.
+> **Superseded by the ticket-011 answers, then narrowed:** (a)
+> `paymentIdentifier` is stamped **only when the 402 advertises the
+> payment-identifier extension** (the node 400s otherwise), not on every
+> call; (b) a crash/timeout is **not** blanket-refund-safe. Persist
+> `VERIFIED` before returning the header. Auto-refund `PENDING` only when
+> no header was ever written; a same-key replay re-enters sign with no
+> second debit. See [PR1-SPEC.md](../PR1-SPEC.md) §3 and
+> [NODE-QUESTIONS.md](../NODE-QUESTIONS.md) `## Answers`.
 
 ## Progress (superseded by Resolution above)
 

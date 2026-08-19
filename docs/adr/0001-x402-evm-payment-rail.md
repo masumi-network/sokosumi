@@ -101,18 +101,20 @@ A dedicated model records the payment leg of an x402 job:
   Soko enum is `PENDING | VERIFIED | FAILED | REFUNDED` — `PENDING` is the
   pre-sign row (the node's `PaymentRequired`), and `REFUNDED` is Soko's
   compensating-refund state (admin goodwill lever or the future
-  `EXPIRED_UNUSED` reconciler), not a node status — matching PR 1's shipped
-  `TaskX402Payment` (`docs/wayfinder/x402-evm/PR1-SPEC.md` §4,
-  `docs/wayfinder/x402-evm/PR2-SPEC.md` §2).
+  `EXPIRED_UNUSED` reconciler), not a node status — matching the
+  `TaskX402Payment` specified in PR1-SPEC §4 (not on `main` until the
+  implementation PRs land). See also PR2-SPEC §2.
 
-`JobX402Payment` (job-scoped, this PR) and `TaskX402Payment` (task-scoped,
-PR 1 — the Bazaar coworker surface) are **two sibling tables, not one shared
-row**. Both record an x402 payment leg with the same core columns, but they
-hang off different parents and carry different lifecycles (a job flow vs a
+`JobX402Payment` (job-scoped, **PR 2**) and `TaskX402Payment` (task-scoped,
+**PR 1** — the Bazaar coworker surface) are **two sibling tables, not one
+shared row**. Both record an x402 payment leg with the same core columns
+(`amount` is a digit `String` plus node-published `decimals`), but they hang
+off different parents and carry different lifecycles (a job flow vs a
 terminal coworker payment), exactly the JobPurchase-vs-escrow separation this
 ADR already argues for. Shared behavior — amount→credits conversion, the
 `/x402/pay` call, the verify-against-listed-source check, the CAIP-19 credit
-keys — factors into a helper, not a table with a nullable parent.
+keys — factors into a helper, not a table with a nullable parent. Neither
+table is on `main` until those implementation PRs merge.
 
 ### 4. Job flow
 
@@ -208,12 +210,16 @@ on a single job:
   refunded. Consistent with PR2-SPEC §5; the reconciler and the node-side
   outbound settlement-observation surface it depends on are not yet built and
   do not gate the initial ship.
-- **PR 1 (Bazaar coworker payments): no auto-refund** — credits spent are
-  spent; Soko has no visibility into the externally-fetched result. Two
-  levers ship instead: an admin refund action on the payment record
-  (goodwill, support-driven), and per-endpoint refund/failure aggregation in
-  the admin dashboard that feeds a **whitelist-disable** lever for bleeding
-  endpoints.
+- **PR 1 (Bazaar coworker payments): auto-refund only when unsettleable.**
+  Soko has no visibility into the externally-fetched result. Credits return
+  synchronously only when no header was ever written to the row — a
+  documented node refusal on the **fresh first** sign attempt. After a
+  header exists on the row (or was returned to the coworker), the debit
+  stands: garbage results, unused replay, and crash-after-delivery are
+  admin / future `EXPIRED_UNUSED`, not a sync refund. Persist `VERIFIED`
+  **before** returning the header. An **admin refund / resolve lever** plus
+  **per-agent refund/failure aggregation** feeds a **whitelist-disable**
+  for bleeding endpoints. Full state machine: PR1-SPEC §3.
 - **Absorbed loss is bounded operationally**, not by refund policy: the
   per-endpoint aggregation + whitelist-disable is the control that stops a
   bad agent from bleeding credits, on both rails.
@@ -235,8 +241,10 @@ on a single job:
 
 ## Consequences
 
-- Discovery needs no further work: x402 agents already ingest with their EVM
-  payment sources; flipping availability is gated on this rail shipping.
+- **Ingest** needs no further work: x402 agents already land with their EVM
+  payment sources. PR 1 still needs a **list surface** (ticket 005) so
+  coworkers can discover them; flipping Cardano-catalog availability is
+  gated on the PR 2 rail, not on ingest.
 - The jobs pipeline gains one discriminator and one sibling model; escrow
   code paths remain untouched.
 - Status tooling uses `/x402/payments` lookups to confirm signing/charging

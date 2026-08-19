@@ -28,18 +28,27 @@ coworker ← { xPaymentHeader, attemptId, paymentId }
 coworker → replay the agent call with X-PAYMENT      (outside Soko) → result
 ```
 
+Later implementation PRs may fold listing into public `GET /v1/agents` (a
+`kind` filter) and widen **list** auth. **Pay stays coworker + assigned
+task.** This PR does not ship that fold.
+
 ## 2. Listing endpoint — `GET /v1/agents/x402`
 
 Ticket 005. Dedicated coworker-gated route; the end-user catalog's
 `type: STANDARD` exclusion in `buildAvailableAgentWhereClause` is untouched.
 
-- **Authz:** coworker context only (same gate as the pay endpoint).
+- **Authz:** coworker context only (same gate as the pay endpoint) in this
+  spec. Later PRs may widen list auth; they must not widen pay.
 - **Fail closed** — an agent appears only if payable *now*:
   1. curated/whitelisted (production; preprod lists all — see §6),
-  2. every advertised asset resolves to a `CreditCost` row,
-  3. its network is in the per-environment EVM allowlist (preprod = testnet
+  2. every advertised source uses scheme `exact` (EVM). `upto`,
+     `batch-settlement`, and any other scheme never appear in `accepts[]`
+     and never list (research 001 saw those in the wild; Soko only signs
+     `exact`),
+  3. every advertised asset resolves to a `CreditCost` row,
+  4. its network is in the per-environment EVM allowlist (preprod = testnet
      CAIP-2 ids only),
-  4. x402 buy-side readiness OK (§6).
+  5. x402 buy-side readiness OK (§6).
 - **Response fields per agent:** id, name, description, image (all resolved
   through the existing `AgentMetadataOverride`-aware helpers — X402 agents
   carry the standard override fields so a later read-only UI needs no
@@ -61,7 +70,8 @@ Modeled on the node's own request so translation is minimal:
 {
   "idempotencyKey": "coworker-supplied, unique per intent",   // required
   "agentId": "the listed agent this 402 came from",           // required
-  "paymentRequired": { /* the raw 402 body, verbatim, either dialect */ }
+  "paymentRequired": { /* the raw 402 body, verbatim, either dialect */ },
+  "maxCredits": 2 // optional per-request ceiling; required for Dynamic
 }
 ```
 
@@ -82,39 +92,52 @@ Modeled on the node's own request so translation is minimal:
 
 1. **Authz** — `requireTaskCollaboration` + `isCoworkerAgentContext`,
    identical to the `masumiPayment` task-event gate. Org and owner come from
-   the task row; sub-tasks are tasks (`parentTaskId`), so they are covered by
-   the same gate. Ticket 003.
-2. **Idempotency** — look up the payment record by `(taskId?, idempotencyKey)`
-   unique. If it exists, return its stored result verbatim (idempotent
-   replay); do not charge or sign again.
+   the task row. Sub-tasks are `Task` rows linked by `TaskLink` `PARENT`
+   (there is no `Task.parentTaskId` column); the same per-task gate covers
+   them. Ticket 003.
+2. **Idempotency** — look up by `@@unique([taskId, idempotencyKey])`
+   (`taskId` is required; it is the path param). Status-specific:
+   - `VERIFIED` — return the stored live header. Do not charge or sign.
+   - `FAILED` / `REFUNDED` — consume the key; return `409`.
+   - `PENDING` — re-enter the sign path under a lease. **No second debit.**
+     The reconciler must not refund a row that is mid-retry.
 3. **Verify against the listed agent** — the 402's `payTo` + network + asset
    must match `agentId`'s registered payment source, the network must be in
-   the per-env allowlist, and the demanded amount must pass a sanity check
-   against the agent's registry pricing. Any failure → `4xx` **before any
-   charge**. Ticket 003.
+   the per-env allowlist, and the scheme must be `exact`. Amount vs registry
+   pricing, by `pricingType`:
+   - **Fixed** — demanded amount must equal the advertised amount.
+   - **Dynamic** — demanded amount must be ≤ the caller's `maxCredits`
+     (mandatory); asset must be buy-side ready.
+   - **Free** — reject a positive demand.
+   Any failure → `4xx` **before any charge**. Ticket 003.
 4. **Price** — convert the demanded amount to credits via the CAIP-19
-   `CreditCost` key (§ ticket 004), **ceil to at least
-   `MIN_CHARGEABLE_CREDITS`** (charge floor). Reject pre-charge if the asset
-   has no `CreditCost` row (fail closed).
-5. **Bound** — the charge draws from the task's `maxCredits` pool, the same
-   gate as every other task charge. Insufficient → the existing
-   out-of-credits path, no partial state.
+   `CreditCost` key (§ ticket 004) using **node-published** decimals for the
+   `(network, asset)` pair, never the agent-registered scale. **Ceil to at
+   least `MIN_CHARGEABLE_CREDITS`** (charge floor). Reject pre-charge if the
+   asset has no `CreditCost` row (fail closed).
+5. **Bound** — there is **no `Task.maxCredits` column**. The debit draws
+   from the task organization's ordinary credit balance
+   (`chargeTaskCreditsOrMarkOutOfCredits`). Optional request `maxCredits`
+   is a per-intent ceiling (required for Dynamic). A per-task cumulative
+   pool is **not built**. Insufficient balance → existing out-of-credits
+   path, no partial state.
 6. **Charge, then sign** — debit credits and create the payment record
    (`PENDING`) in one transaction; then call node `POST /x402/pay`.
 7. **Resolve the sign result:**
-   - **200** → record `Verified` with `attemptId` + signed tuple; return the
-     `xPaymentHeader`.
-   - **node refuses / errors (budget, wallet, chain)** → the signing never
-     put funds at risk, so this is **provably unpaid**: refund the credits
-     synchronously, mark the record `Failed`, return an actionable error.
-     Ticket 006.
-   - **crash / timeout between charge and a confirmed sign result** →
-     **refund-safe** (upgraded by ticket 011): the node signs locally and
-     never sends the buyer's request, so a header Soko never received (or
-     never delivered) can never be settled by anyone. The reconciler
-     auto-refunds stale `PENDING` records without consulting the node; the
-     only leak is node-side budget, never user funds. A coworker retry with
-     the same idempotency key on a `PENDING` record re-runs the sign.
+   - **200 with a usable header** — persist `VERIFIED` **and the header on
+     the row before returning the header**. Then return it. A crash after
+     the coworker received the header must not auto-refund (the header is
+     settleable). That case is review / future `EXPIRED_UNUSED`, not a
+     sync refund.
+   - **documented node refusal on the fresh first sign attempt** (400 / 402
+     / 500 + documented envelope) — no header was written: refund
+     synchronously, mark `FAILED`, return an actionable error. Ticket 006.
+   - **same-key `PENDING` replay that the node refuses** — an earlier
+     ambiguous attempt may still be live. Keep `PENDING`. Do not refund.
+   - **crash / timeout / transport / malformed 200** — keep `PENDING` for
+     same-key replay (re-enter sign, no second debit). Auto-refund a
+     stale `PENDING` **only when no header was ever written to the row**.
+     The reconciler must not refund a row with an active sign lease.
 
 ### Response
 
@@ -210,8 +233,11 @@ All confirmed against masumi-payment-service `main`; see
 [NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`:
 
 - **Error contract:** 400 = pre-sign rejection, 402 = budget/balance refusal,
-  500 = config/signing failure; **any non-200 ⇒ no header issued ⇒
-  unsettleable ⇒ synchronous refund always safe.**
+  500 = config/signing failure. A documented refusal plus envelope proves
+  only that **this call** issued no header. Synchronous refund is safe on
+  the **fresh first attempt**. A `PENDING` replay refusal is not proof the
+  earlier attempt never signed — keep the charge. Gateway / transport /
+  malformed responses are ambiguous.
 - **Idempotency: none by design** — Soko's key is the sole dedupe; a
   double-call costs node budget only, never user funds.
 - **By-`attemptId` lookup:** not needed for correctness; paginate-and-match
@@ -231,8 +257,8 @@ All confirmed against masumi-payment-service `main`; see
 - **Route:** authz parity with `masumiPayment` (non-coworker rejected;
   unassigned task rejected); fail-closed listing (unpriced asset, wrong
   network, unready rail each drop the agent); charge-then-refund on a stubbed
-  node refusal; stale-PENDING reconciler auto-refunds a timed-out record
-  (refund-safe, § 3).
+  node refusal on a first attempt; stale-PENDING with no written header
+  may auto-refund; a `PENDING` mid-retry must not.
 - **Mutation-tested** on the money paths, per repo discipline: the charge
   floor, the idempotency unique, the provably-unpaid refund branch.
 - Node interaction stubbed at the payment-client boundary (the pinned spec is

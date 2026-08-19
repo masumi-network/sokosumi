@@ -44,7 +44,10 @@ Decided by Sandro (2026-08-11):
    testnets only), x402 buy-side readiness OK. Same invariant the Cardano
    catalog keeps; gives refund-count aggregation a stable population.
 3. **Coworker context only** — the same gate as the pay endpoint, so the
-   two surfaces move together. Widening to standard org API keys later is
-   additive.
+   two surfaces move together in this spec. Later PRs may widen **list**
+   auth or fold the route into public `GET /v1/agents`; **pay stays
+   coworker + assigned task**. A later read-only UI that *displays* x402
+   agents is a maybe, not a product decision — marketplace advertising
+   stays Coworkers-only on `main` (SOK-805).
 
 Field-level response schema lands in the PR 1 spec (007).

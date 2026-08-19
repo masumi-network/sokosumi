@@ -37,14 +37,16 @@ not just engineering. HITL.
 
 Decided by Sandro (2026-08-11), grilled in three questions:
 
-1. **PR 1 (Bazaar coworker payments): no automatic refunds.** Documented
-   policy — credits spent are spent; Soko has no visibility into the
-   outcome. Two levers ship with it: an **admin refund action** on the
-   payment record (goodwill, support-driven, mirrors the admin
-   task-payment-claims surface), and **per-endpoint failure/refund
-   aggregation** in the admin dashboard — refund counts and bad-quality
-   signals per external endpoint, so problematic agents can be disabled /
-   removed from the whitelist.
+1. **PR 1 (Bazaar coworker payments): auto-refund only when unsettleable.**
+   Soko has no visibility into the externally-fetched result, so there is
+   **no result-based auto-refund**. Credits return synchronously only when
+   no header was ever written — a documented node refusal on the **fresh
+   first** sign attempt. After a header exists (on the row or returned to
+   the coworker), the debit stands. Persist `VERIFIED` before returning
+   the header. Crash-after-delivery is review / future `EXPIRED_UNUSED`,
+   not a sync refund. Two other levers: an **admin refund / resolve
+   action** on the payment record (goodwill or wedged `PENDING`), and
+   **per-agent failure/refund aggregation** feeding whitelist-disable.
 2. **PR 2 (masumi x402 jobs): auto-refund only when provably unpaid.**
    Credits return automatically only when Soko provably never put funds at
    risk — a **pre-sign `POST /x402/pay` refusal** (any non-200, so no header
@@ -60,7 +62,8 @@ Decided by Sandro (2026-08-11), grilled in three questions:
    layers, so no selection rule exists.
 
 Consequences for open tickets: the pay-endpoint contract (003) must make
-"provably unpaid" a first-class state (sign-failure refunds synchronously)
-and count refunds per endpoint; the listing surface (005) inherits the
-whitelist/disable gate; ADR ratification (008) folds this in as the resolved
-rollout blocker.
+"unsettleable" a first-class state (first-attempt sign-failure refunds
+synchronously; `PENDING` replay does not) and count refunds per agent; the
+listing surface (005) inherits the whitelist/disable gate; ADR ratification
+(008) folds this in as the resolved rollout blocker. Canonical write-up:
+PR1-SPEC §3.
