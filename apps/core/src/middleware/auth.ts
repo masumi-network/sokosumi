@@ -18,6 +18,8 @@ export interface UserAuthenticationContext {
   organizationId: string | null;
   /** Comma-separated roles from `User.role` (Better Auth / Prisma). */
   role: string;
+  /** Credential class used to authenticate this request. */
+  authenticationMethod?: "session" | "api_key" | "oauth";
 }
 
 /**
@@ -307,6 +309,23 @@ export function requireAdminAuthContext(
 }
 
 /**
+ * Requires a browser-backed interactive admin session for money-moving actions.
+ * Generic user API keys and OAuth access tokens deliberately remain valid for
+ * ordinary admin reads, but cannot mint refunds or resolve held charges.
+ */
+export function requireInteractiveAdminAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  const userAuthContext = requireAdminAuthContext(authContext);
+
+  if (userAuthContext.authenticationMethod !== "session") {
+    throw forbidden("Interactive admin session required for this money action");
+  }
+
+  return userAuthContext;
+}
+
+/**
  * Verifies a Better Auth API key and sets the authentication context if valid.
  *
  * @param token - The API key token to verify
@@ -334,6 +353,7 @@ async function verifyApiKey(
         userId: apiKeyResult.key.referenceId,
         organizationId: null,
         role: dbUser?.role ?? DEFAULT_USER_ROLE,
+        authenticationMethod: "api_key",
       },
     });
     return true;
@@ -523,6 +543,7 @@ async function verifyOAuthToken(
       userId: oauthToken.userId,
       organizationId: null,
       role: oauthToken.user?.role ?? DEFAULT_USER_ROLE,
+      authenticationMethod: "oauth",
     },
   });
   return true;
@@ -579,6 +600,7 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       userId: user.id,
       organizationId: session.activeOrganizationId ?? null,
       role: user.role ?? DEFAULT_USER_ROLE,
+      authenticationMethod: "session",
     },
   });
 

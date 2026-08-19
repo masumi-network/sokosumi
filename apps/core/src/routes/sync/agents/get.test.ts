@@ -108,4 +108,26 @@ describe("GET /sync/agents", () => {
       expect.objectContaining({ resetCursor: true }),
     );
   });
+
+  it("resets the registry cursor when an authenticated caller requests replay", async () => {
+    const app = createApp();
+
+    await app.request("http://localhost/agents?replay=true");
+
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ resetCursor: true }),
+    );
+  });
+
+  it("keeps non-true replay values incremental", async () => {
+    const app = createApp();
+
+    await app.request("http://localhost/agents?replay=false");
+
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.not.objectContaining({ resetCursor: true }),
+    );
+  });
 });

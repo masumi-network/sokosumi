@@ -1,0 +1,8 @@
+-- Dynamic x402 sources synced before PricingType.DYNAMIC existed were stored
+-- as UNKNOWN. The new binary uses a versioned metadata key and therefore
+-- replays from the registry epoch without touching this cursor.
+--
+-- Keep the legacy key intact: migrations run before the new Vercel deployment
+-- becomes active, while the previous binary may still serve cron requests.
+-- Deleting its cursor here would let that old projection replay and overwrite
+-- dynamic rows as UNKNOWN during the rolling-deployment window.

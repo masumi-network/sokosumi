@@ -436,12 +436,12 @@ describe("normalizeX402PaymentRequired", () => {
     // `V1_NETWORK_NAME_TO_CAIP2[trimmed]` walks the prototype chain of an
     // object literal. Only `constructor` and `__proto__` survive the
     // preceding `.toLowerCase()`, and both return non-undefined, so
-    // `normalizeNetwork` returned `ok(<function Object>)` / `ok(Object.
+    // `normalizeX402NetworkId` returned `ok(<function Object>)` / `ok(Object.
     // prototype)` and pushed a NON-STRING `network`. Measured before this
     // fix, it still failed closed at the trailing re-validation — but with
     // the wrong error ("expected string, received function"), breaking the
     // file's fail-loud-never-guess contract, and it became a real bug the
-    // moment `normalizeNetwork` was reused without that trailing safeParse.
+    // moment `normalizeX402NetworkId` was reused without that trailing safeParse.
     for (const network of ["constructor", "__proto__", "toString", "valueOf"]) {
       const result = normalizeX402PaymentRequired({
         x402Version: 1,
@@ -494,6 +494,24 @@ describe("normalizeX402PaymentRequired", () => {
     });
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 amounts/);
+  });
+
+  it("refuses a zero amount per entry, letting a payable sibling win", () => {
+    // Refused at selection rather than downstream at pricing: a zero demand
+    // skips the menu entry, it does not fail the whole payload.
+    const zeroOnly = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [v2Entry({ amount: "0" })],
+    });
+    expect(zeroOnly.isErr()).toBe(true);
+    expect(zeroOnly._unsafeUnwrapErr()).toMatch(/x402 amount is 0/);
+
+    const withSibling = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [v2Entry({ amount: "0" }), v2Entry({ amount: "1000" })],
+    });
+    expect(withSibling.isOk()).toBe(true);
+    expect(withSibling._unsafeUnwrap().accepts[0]?.amount).toBe("1000");
   });
 
   it("accepts agreeing duplicate amount spellings", () => {
@@ -603,7 +621,7 @@ describe("normalizeX402PaymentRequired", () => {
 
   it("rejects a scheme outside the allowlist", () => {
     // Exactly the argument that pins `extra.assetTransferMethod`: Soko's own
-    // settlement bookkeeping (`extractEip3009Authorization`) reads an
+    // settlement bookkeeping (`parseSignedX402Authorization`) reads an
     // EIP-3009 `{ nonce, validBefore }` tuple out of the signed payload, so a
     // scheme with different settlement semantics silently empties the
     // phased-settlement records. `upto` and `batch-settlement` are real
@@ -641,7 +659,7 @@ describe("normalizeX402PaymentRequired", () => {
   it("rejects an extra.assetTransferMethod other than eip3009", () => {
     // `extra.assetTransferMethod` selects which signing primitive the managed
     // wallet uses. Soko's own settlement bookkeeping
-    // (`extractEip3009Authorization`) reads an EIP-3009 authorization tuple
+    // (`parseSignedX402Authorization`) reads an EIP-3009 authorization tuple
     // out of the signed payload, so any other method silently breaks the
     // phased-settlement records regardless of what the node does with it.
     for (const assetTransferMethod of ["permit2", "erc7710", "EIP3009", ""]) {

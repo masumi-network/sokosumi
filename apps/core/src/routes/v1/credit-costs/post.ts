@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { normalizeMasumiPaymentUnit } from "@sokosumi/masumi";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { conflict } from "@/helpers/error";
@@ -39,10 +40,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
     const body = c.req.valid("json");
+    const unit = normalizeMasumiPaymentUnit(body.unit);
 
     const createdRecord = await prisma.$transaction(async (tx) => {
       const existing = await tx.creditCost.findUnique({
-        where: { unit: body.unit },
+        where: { unit },
       });
       if (existing) {
         throw conflict("Unit already exists");
@@ -51,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const centsPerUnit = convertCreditsToCents(body.creditsPerUnit);
       return tx.creditCost.create({
         data: {
-          unit: body.unit,
+          unit,
           centsPerUnit,
         },
       });

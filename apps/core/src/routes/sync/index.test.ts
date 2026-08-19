@@ -393,7 +393,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
   });
@@ -428,7 +428,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
   });
@@ -446,7 +446,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.objectContaining({ resetCursor: true }),
     );
   });

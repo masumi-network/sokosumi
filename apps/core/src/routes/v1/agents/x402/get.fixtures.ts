@@ -14,6 +14,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import { X402_BUY_SIDE_READINESS_KEY } from "@/helpers/x402-readiness";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type {
   AuthVariables,
@@ -27,6 +28,7 @@ export const BASE_MAINNET = "eip155:8453";
 export const USDC_ADDRESS = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
 export const UNPRICED_ADDRESS = "0x2222222222222222222222222222222222222222";
 export const PAY_TO = "0x1111111111111111111111111111111111111111";
+export const EVM_WALLET_ADDRESS = "0x3333333333333333333333333333333333333333";
 
 /**
  * Typed as the coworker member, not the whole `AuthenticationContext` union:
@@ -76,15 +78,20 @@ export interface ReadinessPairFixture {
   caip2Network: string;
   asset: string;
   evmWalletId: string;
+  evmWalletAddress?: string;
   decimals?: number;
 }
 
 /** The `syncMetadata` row `getX402ReadySources` parses its pairs out of. */
 export function createReadinessRow(pairs: ReadinessPairFixture[]) {
   return {
-    key: "x402-buy-side-readiness",
+    key: X402_BUY_SIDE_READINESS_KEY,
     cursorId: JSON.stringify(
-      pairs.map((pair) => ({ decimals: NODE_DECIMALS, ...pair })),
+      pairs.map((pair) => ({
+        decimals: NODE_DECIMALS,
+        evmWalletAddress: EVM_WALLET_ADDRESS,
+        ...pair,
+      })),
     ),
     lastSyncedAt: new Date(),
   };
@@ -103,7 +110,9 @@ export function createCreditCostRow(unit: string, centsPerUnit: bigint) {
 
 export interface AgentRowOverrides {
   id?: string;
+  type?: "X402" | "OPEN_API";
   x402ResourcesUrl?: string | null;
+  openApiSpecUrl?: string | null;
   metadataOverride?: {
     name: string | null;
     description: string | null;
@@ -113,15 +122,25 @@ export interface AgentRowOverrides {
 }
 
 export function createAgentRow(overrides: AgentRowOverrides = {}) {
+  const type = overrides.type ?? "X402";
   return {
     id: overrides.id ?? "agent_x402_1",
+    type,
     name: "Registry Name",
     description: "Registry description",
     image: "https://registry.example.com/image.png",
     x402ResourcesUrl:
-      overrides.x402ResourcesUrl === undefined
-        ? "https://agent.example.com/.well-known/x402"
-        : overrides.x402ResourcesUrl,
+      overrides.x402ResourcesUrl !== undefined
+        ? overrides.x402ResourcesUrl
+        : type === "X402"
+          ? "https://agent.example.com/.well-known/x402"
+          : null,
+    openApiSpecUrl:
+      overrides.openApiSpecUrl !== undefined
+        ? overrides.openApiSpecUrl
+        : type === "OPEN_API"
+          ? "https://agent.example.com/openapi.json"
+          : null,
     metadataOverride:
       overrides.metadataOverride === undefined
         ? null

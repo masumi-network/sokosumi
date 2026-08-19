@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCaip19AssetKey,
   isCaip19AssetKey,
+  isEvmNamespacedUnit,
   parseCaip19AssetKey,
 } from "../caip19.js";
 
@@ -122,5 +123,24 @@ describe("isCaip19AssetKey", () => {
       true,
     );
     expect(isCaip19AssetKey("lovelace")).toBe(false);
+  });
+});
+
+describe("isEvmNamespacedUnit", () => {
+  it("catches the whole eip155 namespace, misspellings included", () => {
+    // The EXCLUSION fence: broader than isCaip19AssetKey by design, so a
+    // malformed key can never fall through to per-smallest-unit pricing.
+    expect(isEvmNamespacedUnit(`eip155:84532/erc20:${USDC_BASE_LOWER}`)).toBe(
+      true,
+    );
+    expect(isEvmNamespacedUnit("eip155:084532/erc20:junk")).toBe(true);
+    expect(isEvmNamespacedUnit(" EIP155:8453 ")).toBe(true);
+    expect(isEvmNamespacedUnit("lovelace")).toBe(false);
+    expect(isEvmNamespacedUnit("")).toBe(false);
+    expect(
+      isEvmNamespacedUnit(
+        "8db269c3ec630e06ae29f74bc39edd1f87c819f1056206e879a1cd61446a65644d6963726f555344",
+      ),
+    ).toBe(false);
   });
 });

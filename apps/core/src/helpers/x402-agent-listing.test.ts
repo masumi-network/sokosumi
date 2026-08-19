@@ -1,8 +1,22 @@
 import type { CreditCost } from "@sokosumi/database";
 import { PricingType } from "@sokosumi/database";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { captureExceptionMock } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
+}));
+
+import { internalServerError, unprocessableEntity } from "./error";
 import {
   buildX402AgentPaymentSources,
+  buildX402AgentPricingListing,
+  buildX402DynamicAgentPaymentSources,
+  reportX402PricingMisconfiguration,
+  resetX402PricingMisconfigurationReports,
   type X402AgentPaymentSourceRow,
   type X402ListingGateContext,
 } from "./x402-agent-listing";
@@ -14,6 +28,7 @@ const USDC_ADDRESS = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
 const EURC_ADDRESS = "0x808456652fdb597867f38412077a9182bf77359f";
 const PAY_TO = "0x1111111111111111111111111111111111111111";
 const OTHER_PAY_TO = "0x9999999999999999999999999999999999999999";
+const EVM_WALLET_ADDRESS = "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea";
 
 /**
  * The node's published scale for both test assets. Fixtures register the same
@@ -27,12 +42,14 @@ const READY_SOURCES: X402ReadySource[] = [
     caip2Network: BASE_SEPOLIA,
     asset: USDC_ADDRESS,
     evmWalletId: "wallet-1",
+    evmWalletAddress: EVM_WALLET_ADDRESS,
     decimals: NODE_DECIMALS,
   },
   {
     caip2Network: BASE_SEPOLIA,
     asset: EURC_ADDRESS,
     evmWalletId: "wallet-1",
+    evmWalletAddress: EVM_WALLET_ADDRESS,
     decimals: NODE_DECIMALS,
   },
 ];
@@ -74,6 +91,11 @@ const CONTEXT = {
   readySources: READY_SOURCES,
   network: "Preprod",
 } as const;
+
+beforeEach(() => {
+  captureExceptionMock.mockClear();
+  resetX402PricingMisconfigurationReports();
+});
 
 describe("buildX402AgentPaymentSources", () => {
   it("lists a priced, allowed, buy-side-ready source with converted credits", () => {
@@ -128,6 +150,7 @@ describe("buildX402AgentPaymentSources", () => {
 
   it.each([
     ["FREE", PricingType.FREE],
+    ["DYNAMIC", PricingType.DYNAMIC],
     ["UNKNOWN", PricingType.UNKNOWN],
   ])("drops an agent advertising a %s-priced source", (_label, pricingType) => {
     expect(
@@ -227,6 +250,7 @@ describe("buildX402AgentPaymentSources", () => {
           caip2Network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           evmWalletId: "wallet-1",
+          evmWalletAddress: EVM_WALLET_ADDRESS,
           decimals: NODE_DECIMALS,
         },
       ],
@@ -302,6 +326,7 @@ describe("buildX402AgentPaymentSources", () => {
             caip2Network: BASE_SEPOLIA,
             asset: "0x2222222222222222222222222222222222222222",
             evmWalletId: "wallet-1",
+            evmWalletAddress: EVM_WALLET_ADDRESS,
             decimals: NODE_DECIMALS,
           },
         ],
@@ -357,6 +382,7 @@ describe("buildX402AgentPaymentSources", () => {
           caip2Network: BASE_SEPOLIA,
           asset: USDC_ADDRESS,
           evmWalletId: "wallet-1",
+          evmWalletAddress: EVM_WALLET_ADDRESS,
           decimals: 2,
         },
       ],
@@ -402,6 +428,78 @@ describe("buildX402AgentPaymentSources", () => {
       status: "dropped",
       reason: "unpriced_asset",
     });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("drops duplicate CreditCost rows as pricing_misconfigured and reports to Sentry", () => {
+    // `CreditCost.unit` is unique on the RAW string, so a case or whitespace
+    // variant coexists with the canonical row and both normalize to one unit.
+    // For a fixed agent the pay path re-runs this very gate, so this catch is
+    // the operator's ONLY loud surface — it must page, and it must not be
+    // tallied as `unpriced_asset` (adding another price row makes it worse).
+    expect(
+      buildX402AgentPaymentSources([createSource()], {
+        ...CONTEXT,
+        creditCosts: [
+          createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+          createCreditCost(
+            ` ${BASE_SEPOLIA}/erc20:${USDC_ADDRESS.toUpperCase()} `,
+          ),
+        ],
+      }),
+    ).toEqual({
+      status: "dropped",
+      reason: "pricing_misconfigured",
+    });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies a non-HTTPException throw from the pricing helper as pricing_misconfigured AT THE BUILDER", () => {
+    // Pins the builder's catch, not just the exported classifier: a re-guard
+    // like `error instanceof HTTPException && report(...)` would fold
+    // TypeErrors back into unpriced_asset while every classifier unit test
+    // stayed green. The getter throws inside calculateCentsFromX402Amount's
+    // CreditCost scan, which runs inside the builder's try.
+    const poisonedCreditCost: CreditCost = {
+      ...createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+      get unit(): string {
+        throw new TypeError("credit cost row exploded");
+      },
+    };
+    expect(
+      buildX402AgentPaymentSources([createSource()], {
+        ...CONTEXT,
+        creditCosts: [poisonedCreditCost],
+      }),
+    ).toEqual({
+      status: "dropped",
+      reason: "pricing_misconfigured",
+    });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a lingering misconfiguration to Sentry once per process, not once per request", () => {
+    // The gate runs on every listing GET and every pay attempt, and the
+    // misconfiguration by definition lingers until an operator acts — so an
+    // unthrottled capture would let any authenticated caller loop the
+    // endpoint into per-request Sentry volume. The drop reason must still be
+    // reported on every call; only the capture is deduped.
+    const context = {
+      ...CONTEXT,
+      creditCosts: [
+        createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+        createCreditCost(
+          ` ${BASE_SEPOLIA}/erc20:${USDC_ADDRESS.toUpperCase()} `,
+        ),
+      ],
+    };
+    for (let request = 0; request < 3; request += 1) {
+      expect(buildX402AgentPaymentSources([createSource()], context)).toEqual({
+        status: "dropped",
+        reason: "pricing_misconfigured",
+      });
+    }
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("lists each distinct asset a single source prices", () => {
@@ -712,6 +810,583 @@ describe("buildX402AgentPaymentSources", () => {
     ).toEqual({
       status: "dropped",
       reason: "missing_pay_to",
+    });
+  });
+});
+
+describe("buildX402DynamicAgentPaymentSources", () => {
+  it("lists a valid dynamic source as payable without inventing an amount or asset", () => {
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+  });
+
+  it("rejects fixed and unknown sources from the dynamic listing path", () => {
+    for (const pricingType of [PricingType.FIXED, PricingType.UNKNOWN]) {
+      expect(
+        buildX402DynamicAgentPaymentSources(
+          [createSource({ pricingType })],
+          CONTEXT,
+        ),
+      ).toEqual({ status: "dropped", reason: "pricing_not_dynamic" });
+    }
+  });
+
+  it("reports mixed pricing before validating dynamic source fields", () => {
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            payTo: "not-an-address",
+            amounts: [],
+          }),
+          createSource({ pricingType: PricingType.FIXED }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({ status: "dropped", reason: "pricing_not_dynamic" });
+  });
+
+  it("keeps dynamic listings inside the deployment network", () => {
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            network: BASE_MAINNET,
+            amounts: [],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({ status: "dropped", reason: "network_not_allowed" });
+  });
+
+  it("keeps a valid dynamic source visible but non-payable without a priced ready asset", () => {
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        { ...CONTEXT, readySources: [] },
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: false,
+      // No matching ready pair was probed at all, so this is "not ready",
+      // not "ready but unpriced".
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+  });
+
+  it("fails closed to non-payable AND reports to Sentry when the pricing probe hits duplicate CreditCost rows", () => {
+    // Same misconfiguration as the fixed-path test, seen from the dynamic
+    // probe: payability must not be granted on a broken price, but silently
+    // converting the operator error into `isPayable: false` would leave it
+    // with no loud surface at all.
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        {
+          ...CONTEXT,
+          // Only the duplicated pair is ready, so the probe cannot fall
+          // through to a healthy asset and mask the failure.
+          readySources: READY_SOURCES.slice(0, 1),
+          creditCosts: [
+            createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+            createCreditCost(
+              ` ${BASE_SEPOLIA}/erc20:${USDC_ADDRESS.toUpperCase()} `,
+            ),
+          ],
+        },
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: false,
+      // The probe threw the MISCONFIGURATION, not the unpriced 422 — that
+      // signal is Sentry's, not the unpriced tally's.
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("flags a ready-but-unpriced network as an unpriced preview, without Sentry", () => {
+    // The pair is buy-side READY; only the CAIP-19 CreditCost row is missing.
+    // That is ordinary operator lag, not the duplicate-row misconfiguration —
+    // no Sentry, but the flag feeds the route's unpriced_dynamic_preview
+    // tally so the state is not silent everywhere.
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        { ...CONTEXT, creditCosts: [] },
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: false,
+      hasUnpricedReadyPair: true,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not flag an unpriced pair when a healthy pair makes the source payable", () => {
+    // USDC is priced, EURC is ready but unpriced: the source IS payable, so
+    // the unpriced sibling is not why anything is hidden — flagging it would
+    // tally healthy deployments.
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        {
+          ...CONTEXT,
+          creditCosts: [
+            createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+          ],
+        },
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+  });
+
+  it("advertises one preview for duplicate (payTo, network) dynamic sources", () => {
+    // Mirrors the fixed builder's triple dedupe: a registry entry repeating a
+    // source at distinct sourceIndex values is one preview, not two, and the
+    // payTo case-folds like toAdvertisedPriceKey. The fixture MUST carry
+    // letters — an all-digit address is byte-identical under toUpperCase and
+    // would pin nothing about the fold.
+    const checksummed = `0x${"aAbB".repeat(10)}`;
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            payTo: checksummed,
+            amounts: [],
+          }),
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            payTo: checksummed.toLowerCase(),
+            amounts: [],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          // The FIRST spelling is the advertised one, as in the fixed path.
+          payTo: checksummed,
+        },
+      ],
+    });
+  });
+
+  it("flags the unpriced preview even when a sibling ready pair is misconfigured", () => {
+    // Composition of the two failure classes on one network: USDC has
+    // duplicate CreditCost rows (misconfiguration -> Sentry), EURC has no row
+    // at all (unpriced -> flag). No probe succeeded, so the source is
+    // non-payable, BOTH signals fire, and they stay independent.
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        {
+          ...CONTEXT,
+          creditCosts: [
+            createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+            createCreditCost(
+              ` ${BASE_SEPOLIA}/erc20:${USDC_ADDRESS.toUpperCase()} `,
+            ),
+          ],
+        },
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: false,
+      hasUnpricedReadyPair: true,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports a misconfigured pair probed AFTER a healthy pair, without losing payability", () => {
+    // The probe must scan every matching pair, not short-circuit: a healthy
+    // pair sorted first would otherwise mask the misconfigured pair's only
+    // pre-pay signal. Payability is unaffected — one healthy priced pair is
+    // enough.
+    expect(
+      buildX402DynamicAgentPaymentSources(
+        [
+          createSource({
+            pricingType: PricingType.DYNAMIC,
+            amounts: [],
+          }),
+        ],
+        {
+          ...CONTEXT,
+          // EURC (healthy) probes before USDC (duplicated CreditCost rows).
+          readySources: [...READY_SOURCES].reverse(),
+          creditCosts: [
+            createCreditCost(`${BASE_SEPOLIA}/erc20:${EURC_ADDRESS}`),
+            createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+            createCreditCost(
+              ` ${BASE_SEPOLIA}/erc20:${USDC_ADDRESS.toUpperCase()} `,
+            ),
+          ],
+        },
+      ),
+    ).toEqual({
+      status: "listed",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
+    });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("reportX402PricingMisconfiguration", () => {
+  it("classifies the pricing helper's own 422s as unpriced without reporting", () => {
+    expect(
+      reportX402PricingMisconfiguration(
+        unprocessableEntity("Credit cost not found for unit x"),
+      ),
+    ).toBe(false);
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("classifies and reports a 500-class HTTPException", () => {
+    expect(
+      reportX402PricingMisconfiguration(
+        internalServerError("Multiple credit costs normalize to unit x"),
+      ),
+    ).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies and reports a non-HTTPException throw instead of folding it into unpriced", () => {
+    // The else arm is deliberate: a future programming error in the pricing
+    // helper must surface as misconfiguration, not silently drop agents as
+    // "unpriced" — the exact swallow the classifier exists to close.
+    expect(
+      reportX402PricingMisconfiguration(
+        new TypeError("candidate.unit.trim is not a function"),
+      ),
+    ).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes by distinct error, still classifying every call", () => {
+    const duplicate = () =>
+      internalServerError("Multiple credit costs normalize to unit x");
+    expect(reportX402PricingMisconfiguration(duplicate())).toBe(true);
+    expect(reportX402PricingMisconfiguration(duplicate())).toBe(true);
+    expect(
+      reportX402PricingMisconfiguration(
+        internalServerError("Multiple credit costs normalize to unit y"),
+      ),
+    ).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keys the dedupe on error name AND message, not message alone", () => {
+    // Two different error classes with one coincidental message are two
+    // defects; message-only keying would suppress the second's capture until
+    // process restart.
+    reportX402PricingMisconfiguration(new TypeError("boom"));
+    reportX402PricingMisconfiguration(new RangeError("boom"));
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("survives an Error whose name accessor throws", () => {
+    // Pins the guarded Error arm: instanceof Error passes, reading `name`
+    // throws, the derivation falls back — a revert to the unguarded arm
+    // (`${error.name}: ...` outside the try) fails this test by throwing.
+    const hostile = Object.create(Error.prototype, {
+      name: {
+        get() {
+          throw new Error("hostile accessor");
+        },
+      },
+      message: { value: "irrelevant" },
+    }) as Error;
+    expect(reportX402PricingMisconfiguration(hostile)).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("survives an HTTPException whose status getter throws", () => {
+    // The status read runs BEFORE the key derivation, so the guarded key
+    // alone was not the floor — the classifier's outer catch is. Hostile
+    // values are by definition not a known 422: classify as misconfiguration
+    // and still capture.
+    const hostile = unprocessableEntity("looks tame");
+    Object.defineProperty(hostile, "status", {
+      get() {
+        throw new Error("hostile status accessor");
+      },
+    });
+    expect(reportX402PricingMisconfiguration(hostile)).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throttles hostile-value captures to once per process", () => {
+    // The catch path cannot key a dedupe on values whose accessors throw, so
+    // it throttles with a single module flag: a PERSISTENT hostile thrower
+    // must not turn every listing GET into a Sentry event — the same volume
+    // bound the keyed set gives well-behaved errors. A revert to an
+    // unthrottled catch capture fails the count below.
+    const hostile = unprocessableEntity("looks tame");
+    Object.defineProperty(hostile, "status", {
+      get() {
+        throw new Error("hostile status accessor");
+      },
+    });
+    expect(reportX402PricingMisconfiguration(hostile)).toBe(true);
+    expect(reportX402PricingMisconfiguration(hostile)).toBe(true);
+    expect(reportX402PricingMisconfiguration(hostile)).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    // The flag must not leak into the keyed path: a well-behaved
+    // misconfiguration after a hostile one still gets its own capture.
+    reportX402PricingMisconfiguration(new TypeError("well-behaved defect"));
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps keyed captures from arming the hostile throttle", () => {
+    // The other direction of non-interference: a mutant that also sets the
+    // hostile flag in the KEYED path (say, a refactor consolidating the two
+    // capture sites) would let any well-behaved misconfiguration reported
+    // first permanently suppress the process's single hostile-classifier
+    // capture — silently losing the only Sentry signal for a hostile
+    // thrower. Keyed first, hostile second: both must capture.
+    reportX402PricingMisconfiguration(new TypeError("well-behaved defect"));
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    const hostile = unprocessableEntity("looks tame");
+    Object.defineProperty(hostile, "status", {
+      get() {
+        throw new Error("hostile status accessor");
+      },
+    });
+    expect(reportX402PricingMisconfiguration(hostile)).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("never lets an exotic throw escape the classifier", () => {
+    // Runs inside the builders' catch blocks — a secondary throw there would
+    // 500 the whole listing off one poisoned agent. A null-prototype object
+    // fails ToPrimitive, so bare String(error) would throw here.
+    const exotic = Object.create(null) as object;
+    expect(reportX402PricingMisconfiguration(exotic)).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    // And it dedupes like any other error.
+    expect(reportX402PricingMisconfiguration(exotic)).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the dedupe set on overflow and keeps deduping past the cap", () => {
+    // Mirrors reportUnknownPurchaseValue: one repeated report per cycle beats
+    // reinstating per-request volume for every error past the cap.
+    for (let index = 0; index < 100; index += 1) {
+      reportX402PricingMisconfiguration(
+        internalServerError(`Multiple credit costs normalize to unit ${index}`),
+      );
+    }
+    expect(captureExceptionMock).toHaveBeenCalledTimes(100);
+    // Entry #101 overflows: the set is cleared, the new key is recorded, and
+    // repeats of IT are deduped again rather than captured per call.
+    const pastCap = () =>
+      internalServerError("Multiple credit costs normalize to unit overflow");
+    reportX402PricingMisconfiguration(pastCap());
+    reportX402PricingMisconfiguration(pastCap());
+    reportX402PricingMisconfiguration(pastCap());
+    expect(captureExceptionMock).toHaveBeenCalledTimes(101);
+    // The overflow CLEARED the set (it did not merely stop recording): a
+    // pre-overflow key re-reports once. This is what distinguishes the real
+    // bound from an unbounded set, which would still dedupe error #0 here.
+    expect(
+      reportX402PricingMisconfiguration(
+        internalServerError("Multiple credit costs normalize to unit 0"),
+      ),
+    ).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(102);
+  });
+});
+
+describe("buildX402AgentPricingListing", () => {
+  it("propagates the unpriced-preview flag through the dynamic arm", () => {
+    // Kills the hardcode-false mutant on the dynamic arm. The MIXED arm's
+    // propagation is untestable today — see the comment at that arm: a listed
+    // fixed source implies a priced ready pair on the only allowed network,
+    // which keeps the dynamic flag down.
+    expect(
+      buildX402AgentPricingListing(
+        [createSource({ pricingType: PricingType.DYNAMIC, amounts: [] })],
+        { ...CONTEXT, creditCosts: [] },
+      ),
+    ).toMatchObject({
+      status: "listed",
+      pricingType: "dynamic",
+      isPayable: false,
+      hasUnpricedReadyPair: true,
+    });
+  });
+
+  it("keeps the unpriced-preview flag DOWN through the dynamic arm when priced", () => {
+    // The complement — kills the hardcode-TRUE mutant, which would tally
+    // every payable dynamic agent as unpriced_dynamic_preview and send
+    // operators chasing a CreditCost row that exists.
+    expect(
+      buildX402AgentPricingListing(
+        [createSource({ pricingType: PricingType.DYNAMIC, amounts: [] })],
+        CONTEXT,
+      ),
+    ).toMatchObject({
+      status: "listed",
+      pricingType: "dynamic",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+    });
+  });
+
+  it("probes a ready pair whatever its cache spelling, like the fixed path", () => {
+    // The probe's network compare normalizes both sides, mirroring
+    // findX402ReadySource: cache rows ARE canonical today, but a raw compare
+    // would make the probe the one consumer silently depending on that, and
+    // a non-canonical row from a future context builder would skip a priced
+    // pair here while the fixed gate matched it.
+    expect(
+      buildX402AgentPricingListing(
+        [createSource({ pricingType: PricingType.DYNAMIC, amounts: [] })],
+        {
+          ...CONTEXT,
+          readySources: [
+            {
+              caip2Network: " EIP155:84532 ",
+              asset: USDC_ADDRESS,
+              evmWalletId: "wallet-1",
+              evmWalletAddress: EVM_WALLET_ADDRESS,
+              decimals: NODE_DECIMALS,
+            },
+          ],
+        },
+      ),
+    ).toMatchObject({
+      status: "listed",
+      pricingType: "dynamic",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+    });
+  });
+
+  it("lists mixed fixed and dynamic sources without dropping the agent", () => {
+    expect(
+      buildX402AgentPricingListing(
+        [
+          createSource(),
+          createSource({ pricingType: PricingType.DYNAMIC, amounts: [] }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "listed",
+      pricingType: "mixed",
+      isPayable: true,
+      hasUnpricedReadyPair: false,
+      paymentSources: [
+        expect.objectContaining({ asset: USDC_ADDRESS, amount: "250000" }),
+        {
+          pricingType: "dynamic",
+          caip2Network: BASE_SEPOLIA,
+          payTo: PAY_TO,
+        },
+      ],
     });
   });
 });

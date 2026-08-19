@@ -15,6 +15,7 @@ const {
   getAgentIconMock,
   getAgentImageMock,
   getAgentNameMock,
+  creditCostFindManyMock,
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
   syncMetadataFindUniqueMock,
@@ -39,6 +40,7 @@ const {
   getAgentIconMock: vi.fn(),
   getAgentImageMock: vi.fn(),
   getAgentNameMock: vi.fn(),
+  creditCostFindManyMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
@@ -92,9 +94,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: agentFindManyMock,
       count: agentCountMock,
     },
+    creditCost: {
+      findMany: creditCostFindManyMock,
+    },
     // The x402 mount-order pin below routes GET /x402 through the REAL
-    // composed router; the listing's readiness read must resolve (null =
-    // never recorded -> fail-closed empty listing, no catalog query).
+    // composed router; the listing's readiness read must resolve.
     syncMetadata: {
       findUnique: syncMetadataFindUniqueMock,
     },
@@ -116,6 +120,7 @@ describe("agents routes auth gate", () => {
 
     buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
     getCreditCostsOrThrowMock.mockResolvedValue([]);
+    creditCostFindManyMock.mockResolvedValue([]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     getAgentAuthorImageMock.mockReturnValue(null);
     getAgentNameMock.mockImplementation((agent) => agent.name);
@@ -158,9 +163,8 @@ describe("agents routes auth gate", () => {
     // registration order, so mounting the by-id route first would capture
     // the static "/x402" segment as id="x402" — every coworker listing call
     // 404s "Agent not found" while CI stays green. This pin goes through the
-    // REAL composed router; readiness reads null (never recorded), so the
-    // listing handler answers with its fail-closed empty ARRAY. The by-id
-    // capture cannot produce that shape: it would transact a lookup for
+    // REAL composed router. Its empty catalog produces an empty ARRAY. The
+    // by-id capture cannot produce that shape: it would transact a lookup for
     // id="x402" and 404.
     authContextState.current = {
       actor: "coworker",
@@ -173,7 +177,7 @@ describe("agents routes auth gate", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ data: [] });
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(agentFindManyMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(agentFindManyMock).toHaveBeenCalled();
   });
 });

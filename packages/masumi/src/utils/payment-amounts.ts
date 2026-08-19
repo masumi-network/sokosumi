@@ -5,11 +5,15 @@
  * rather than being restated per consumer.
  */
 export function normalizeMasumiPaymentUnit(unit: string): string {
-  if (unit === "" || unit.toLowerCase() === "lovelace") {
+  // Protocol transport whitespace only. Keep this ASCII set aligned with the
+  // CreditCost database canonicalizer so old/new writers and reads have one
+  // semantic key (including tab/newline-padded legacy rows).
+  const trimmedUnit = unit.replace(/^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g, "");
+  if (trimmedUnit === "" || trimmedUnit.toLowerCase() === "lovelace") {
     return "lovelace";
   }
   // Cardano policy-id + asset-name units are hex; casing is not meaningful.
-  return unit.toLowerCase();
+  return trimmedUnit.toLowerCase();
 }
 
 /**

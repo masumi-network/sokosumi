@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  BASE_MAINNET,
   BASE_SEPOLIA,
   COWORKER_AGENT_CONTEXT,
   createAgentRow,
@@ -91,7 +90,7 @@ describe("GET /agents/x402 catalog query", () => {
     agentCountMock.mockResolvedValue(1);
   });
 
-  it("queries every online X402 entry with a discovery URL on Preprod", async () => {
+  it("queries every online X402 and OpenAPI entry on Preprod", async () => {
     const app = createApp(COWORKER_AGENT_CONTEXT);
 
     const response = await app.request("http://localhost/x402");
@@ -100,25 +99,34 @@ describe("GET /agents/x402 catalog query", () => {
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          type: "X402",
+          OR: [
+            {
+              type: "X402",
+              x402ResourcesUrl: { not: null },
+            },
+            {
+              type: "OPEN_API",
+              openApiSpecUrl: { not: null },
+              paymentSources: {
+                some: {
+                  scheme: { not: null },
+                },
+              },
+            },
+          ],
           status: "ONLINE",
-          x402ResourcesUrl: { not: null },
         },
       }),
     );
+    const query = agentFindManyMock.mock.calls[0]?.[0];
+    expect(query.select).toMatchObject({
+      x402ResourcesUrl: true,
+      openApiSpecUrl: true,
+    });
   });
 
   it("requires curated agents in the Mainnet catalog query", async () => {
     networkState.value = "Mainnet";
-    syncMetadataFindUniqueMock.mockResolvedValue(
-      createReadinessRow([
-        {
-          caip2Network: BASE_MAINNET,
-          asset: USDC_ADDRESS,
-          evmWalletId: "wallet-1",
-        },
-      ]),
-    );
     const app = createApp(COWORKER_AGENT_CONTEXT);
 
     const response = await app.request("http://localhost/x402");
@@ -126,12 +134,15 @@ describe("GET /agents/x402 catalog query", () => {
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          type: "X402",
+        where: expect.objectContaining({
           status: "ONLINE",
-          x402ResourcesUrl: { not: null },
           isShown: true,
-        },
+        }),
+      }),
+    );
+    expect(agentCountMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isShown: true }),
       }),
     );
   });
@@ -246,6 +257,9 @@ describe("GET /agents/x402 catalog query", () => {
       { unit: "asc" },
       { id: "asc" },
     ]);
+    expect(query.select.paymentSources.where).toEqual({
+      scheme: { not: null },
+    });
     expect(query.select.paymentSources.orderBy).toEqual({ sourceIndex: "asc" });
   });
 

@@ -558,6 +558,9 @@ export const auth = betterAuth({
       beforeDelete: async (user) => {
         const evaluation = await evaluateUserDeletion(user.id, prisma);
         throwIfUserDeletionBlocked(user.id, evaluation);
+        // This helper performs the User delete inside the same transaction as
+        // its payment/task sweep. Better Auth's following adapter delete is a
+        // deliberate not-found no-op; separating them reopens a charge race.
         await prepareTasksForUserDeletion(user.id, prisma);
         const userCustomer = await prisma.user.findUnique({
           where: { id: user.id },

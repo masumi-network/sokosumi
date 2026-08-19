@@ -89,7 +89,7 @@ describe("GET /agents/x402", () => {
     agentCountMock.mockResolvedValue(1);
   });
 
-  it("rejects a user session actor with 403 before any catalog read", async () => {
+  it("returns payable agents to an authenticated user actor", async () => {
     const app = createApp({
       actor: "user",
       userId: "user_1",
@@ -99,9 +99,224 @@ describe("GET /agents/x402", () => {
 
     const response = await app.request("http://localhost/x402");
 
-    expect(response.status).toBe(403);
-    expect(agentFindManyMock).not.toHaveBeenCalled();
-    expect(creditCostFindManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [
+        {
+          id: "agent_x402_1",
+          specification: "bazaar",
+          x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+          openApiSpecUrl: null,
+        },
+      ],
+    });
+    expect(agentFindManyMock).toHaveBeenCalled();
+    expect(creditCostFindManyMock).toHaveBeenCalled();
+  });
+
+  it("labels OpenAPI x402 entries with their specification", async () => {
+    agentFindManyMock.mockResolvedValue([createAgentRow({ type: "OPEN_API" })]);
+    const app = createApp({
+      actor: "user",
+      userId: "user_1",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [
+        {
+          id: "agent_x402_1",
+          specification: "openapi",
+          x402ResourcesUrl: null,
+          openApiSpecUrl: "https://agent.example.com/openapi.json",
+        },
+      ],
+    });
+  });
+
+  it.each([
+    ["X402", { x402ResourcesUrl: "javascript:alert(1)" }],
+    ["OPEN_API", { openApiSpecUrl: "not-an-absolute-url" }],
+  ] as const)(
+    "drops a %s entry whose discovery URL is not absolute HTTP(S)",
+    async (type, urlOverrides) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      agentFindManyMock.mockResolvedValue([
+        createAgentRow({ type, ...urlOverrides }),
+      ]);
+      const app = createApp(COWORKER_AGENT_CONTEXT);
+
+      const response = await app.request("http://localhost/x402");
+
+      expect(response.status).toBe(200);
+      expect((await response.json()) as { data: unknown[] }).toMatchObject({
+        data: [],
+      });
+      expect(warn).toHaveBeenCalledWith(
+        '[agents/x402] every candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
+      );
+    },
+  );
+
+  it("returns ready dynamic pricing as payable to a user actor", async () => {
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "DYNAMIC",
+            scheme: "Exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp({
+      actor: "user",
+      userId: "user_1",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [
+        {
+          id: "agent_x402_1",
+          pricingType: "dynamic",
+          isPayable: true,
+          paymentSources: [
+            {
+              pricingType: "dynamic",
+              caip2Network: BASE_SEPOLIA,
+              payTo: PAY_TO,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("returns mixed fixed and dynamic payment sources", async () => {
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "exact",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+          {
+            sourceIndex: 1,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [
+        {
+          pricingType: "mixed",
+          isPayable: true,
+          paymentSources: [
+            { asset: USDC_ADDRESS, amount: "250000" },
+            { pricingType: "dynamic", caip2Network: BASE_SEPOLIA },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("reports the dynamic gate that rejects a malformed preview", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: "not-an-address",
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp({
+      actor: "user",
+      userId: "user_1",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [],
+    });
+    expect(warn).toHaveBeenCalledWith(
+      '[agents/x402] every candidate agent was dropped as unpayable: {"malformed_pay_to":1}',
+    );
+  });
+
+  it("returns ready dynamic pricing as payable to a direct coworker", async () => {
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { data: unknown[] }).toMatchObject({
+      data: [
+        {
+          id: "agent_x402_1",
+          pricingType: "dynamic",
+          isPayable: true,
+          paymentSources: [
+            {
+              pricingType: "dynamic",
+              caip2Network: BASE_SEPOLIA,
+              payTo: PAY_TO,
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it("rejects a delegated coworker (workspace context) with 403", async () => {
@@ -146,10 +361,14 @@ describe("GET /agents/x402", () => {
     expect(body.data).toEqual([
       {
         id: "agent_x402_1",
+        specification: "bazaar",
         name: "Override Name",
         description: "Override description",
         image: "https://c-ipfs-gw.nmkr.io/ipfs/bafyoverride",
         x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+        openApiSpecUrl: null,
+        pricingType: "fixed",
+        isPayable: true,
         paymentSources: [
           {
             caip2Network: BASE_SEPOLIA,
@@ -223,8 +442,22 @@ describe("GET /agents/x402", () => {
     ]);
   });
 
-  it("hides the entire listing when buy-side readiness has never been recorded", async () => {
+  it("still lists dynamic previews when buy-side readiness has never been recorded", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
     const app = createApp(COWORKER_AGENT_CONTEXT);
 
     const response = await app.request("http://localhost/x402");
@@ -234,12 +467,102 @@ describe("GET /agents/x402", () => {
       data: unknown;
       meta: { pagination: { total: number } };
     };
-    expect(body.data).toEqual([]);
-    // Fail closed before touching the catalog.
-    expect(agentFindManyMock).not.toHaveBeenCalled();
-    expect(agentCountMock).not.toHaveBeenCalled();
-    // Documented contract for this path: nothing was counted, so total is 0.
-    expect(body.meta.pagination.total).toBe(0);
+    expect(body.data).toMatchObject([
+      {
+        id: "agent_x402_1",
+        pricingType: "dynamic",
+        isPayable: false,
+      },
+    ]);
+    expect(agentFindManyMock).toHaveBeenCalled();
+    expect(agentCountMock).toHaveBeenCalled();
+    expect(body.meta.pagination.total).toBe(1);
+  });
+
+  it("tallies a ready-but-unpriced dynamic preview so the state has an operator surface", async () => {
+    // Buy-side readiness records the pair READY, but the CAIP-19 CreditCost
+    // row is missing. The agent stays listed as a non-payable preview, so
+    // dropsByReason would otherwise never see it — and unlike the identical
+    // operator error on a fixed agent (tallied as unpriced_asset), nothing
+    // else names the missing row.
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    seedReadiness([
+      {
+        caip2Network: BASE_SEPOLIA,
+        asset: USDC_ADDRESS,
+        evmWalletId: "wallet-1",
+      },
+    ]);
+    creditCostFindManyMock.mockResolvedValue([]);
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toMatchObject([
+      { pricingType: "dynamic", isPayable: false },
+    ]);
+    expect(debug).toHaveBeenCalledWith(
+      '[agents/x402] non-payable agents by reason: {"unpriced_dynamic_preview":1}',
+    );
+  });
+
+  it("advertises one preview for a registry entry that repeats a dynamic source", async () => {
+    // Ingestion permits one entry to repeat a source at distinct sourceIndex
+    // values; a repeat is one preview, not two (mirrors the fixed builder's
+    // triple dedupe — only the payTo spelling case-folds).
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          // One recipient in two checksum spellings — letters-bearing on
+          // purpose: an all-digit address is byte-identical under case
+          // changes and would make the fold fixture vacuous.
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: `0x${"aabb".repeat(10)}`,
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+          {
+            sourceIndex: 1,
+            network: BASE_SEPOLIA,
+            payTo: `0x${"AABB".repeat(10)}`,
+            pricingType: "DYNAMIC",
+            scheme: "exact",
+            amounts: [],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{ paymentSources: unknown[] }>;
+    };
+    expect(body.data).toMatchObject([
+      { pricingType: "dynamic", isPayable: true },
+    ]);
+    expect(body.data[0]?.paymentSources).toHaveLength(1);
   });
 
   it("returns an empty listing (not 500) when the credit_cost table is empty", async () => {
@@ -265,8 +588,15 @@ describe("GET /agents/x402", () => {
   });
 
   it("drops an agent whose advertised asset has no CreditCost row", async () => {
+    // The advertised asset must be trusted AND buy-side ready so the drop
+    // can only come from the pricing gate: an untrusted or unready asset
+    // would drop earlier as not_buy_side_ready and this test would pass
+    // without ever exercising the CreditCost lookup. The credit_cost table
+    // is non-empty (a row for another unit) to distinguish this from the
+    // empty-table test above; the reason tally pins the exact gate.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue([
-      createAgentRow(),
       createAgentRow({
         id: "agent_x402_unpriced",
         paymentSources: [
@@ -276,7 +606,7 @@ describe("GET /agents/x402", () => {
             payTo: PAY_TO,
             pricingType: "FIXED",
             scheme: "exact",
-            amounts: [{ unit: UNPRICED_ADDRESS, amount: 250000n, decimals: 6 }],
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
           },
         ],
       }),
@@ -287,11 +617,9 @@ describe("GET /agents/x402", () => {
         asset: USDC_ADDRESS,
         evmWalletId: "wallet-1",
       },
-      {
-        caip2Network: BASE_SEPOLIA,
-        asset: UNPRICED_ADDRESS,
-        evmWalletId: "wallet-1",
-      },
+    ]);
+    creditCostFindManyMock.mockResolvedValue([
+      createCreditCostRow(`${BASE_SEPOLIA}/erc20:${UNPRICED_ADDRESS}`, 100n),
     ]);
     const app = createApp(COWORKER_AGENT_CONTEXT);
 
@@ -299,7 +627,14 @@ describe("GET /agents/x402", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: { id: string }[] };
-    expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
+    expect(body.data).toEqual([]);
+    // The sole candidate dropped on the unfiltered first page, so the tally
+    // rides the warn line; the reason pins the pricing gate specifically.
+    expect(warn).toHaveBeenCalledWith(
+      '[agents/x402] every candidate agent was dropped as unpayable: {"unpriced_asset":1}',
+    );
+    warn.mockRestore();
+    debug.mockRestore();
   });
 
   it("warns once with a per-reason tally when every candidate is dropped", async () => {
@@ -355,7 +690,39 @@ describe("GET /agents/x402", () => {
     // One line for the whole request, naming which gate hid what.
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(
-      '[agents/x402] every candidate agent was dropped as unpayable: {"unpriced_asset":1,"unsupported_scheme":1,"no_payment_source":1}',
+      '[agents/x402] every candidate agent was dropped as unpayable: {"not_buy_side_ready":1,"unsupported_scheme":1,"no_payment_source":1}',
+    );
+  });
+
+  it("does not warn when every candidate on the first page drops but later pages remain", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue(
+      Array.from({ length: 21 }, (_, index) =>
+        createAgentRow({
+          id: `agent_x402_upto_${index}`,
+          paymentSources: [
+            {
+              sourceIndex: 0,
+              network: BASE_SEPOLIA,
+              payTo: PAY_TO,
+              pricingType: "FIXED",
+              scheme: "upto",
+              amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+            },
+          ],
+        }),
+      ),
+    );
+    agentCountMock.mockResolvedValue(21);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect(warn).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(
+      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":20}',
     );
   });
 
@@ -426,7 +793,41 @@ describe("GET /agents/x402", () => {
     // The per-reason tally survives the demotion — it is the only thing that
     // tells "nothing priced" apart from "everything failed the network gate".
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] dropped unpayable agents: {"unsupported_scheme":1}',
+      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":1}',
+    );
+  });
+
+  it("still warns on an all-dropped page reached via an EMPTY cursor value", async () => {
+    // `?cursor=` validates as "" and the query treats it as no cursor at all —
+    // the client chose nothing, so the page is the same unfiltered first page
+    // and must keep its warn. Guarding with `=== undefined` instead of
+    // falsiness would silently demote exactly this request.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        id: "agent_x402_upto",
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "upto",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+        ],
+      }),
+    ]);
+    agentCountMock.mockResolvedValue(1);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402?cursor=");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      '[agents/x402] every candidate agent was dropped as unpayable: {"unsupported_scheme":1}',
     );
   });
 
@@ -462,7 +863,7 @@ describe("GET /agents/x402", () => {
     expect(body.data).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] dropped unpayable agents: {"unsupported_scheme":1}',
+      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":1}',
     );
   });
 
@@ -480,9 +881,7 @@ describe("GET /agents/x402", () => {
               payTo: PAY_TO,
               pricingType: "FIXED",
               scheme: "upto",
-              amounts: [
-                { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
-              ],
+              amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
             },
           ],
         }),
@@ -495,7 +894,7 @@ describe("GET /agents/x402", () => {
     expect(response.status).toBe(200);
     expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] dropped unpayable agents: {"unsupported_scheme":20}',
+      '[agents/x402] non-payable agents by reason: {"unsupported_scheme":20}',
     );
   });
 
@@ -593,7 +992,7 @@ describe("GET /agents/x402", () => {
     // not_buy_side_ready. Only the reason tells the gate under test apart from
     // that independent second defence.
     expect(debug).toHaveBeenCalledWith(
-      '[agents/x402] dropped unpayable agents: {"network_not_allowed":1}',
+      '[agents/x402] non-payable agents by reason: {"network_not_allowed":1}',
     );
   });
 

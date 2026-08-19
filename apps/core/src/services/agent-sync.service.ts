@@ -38,6 +38,7 @@ import {
   warnOnUnbillableReadyV2Sources,
 } from "./agent-sync.projection.js";
 import { syncCardanoV2RailReadiness } from "./agent-sync.readiness.js";
+import { evaluateRevisionExposureGuard } from "./agent-sync.revision-guard.js";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 /**
@@ -282,6 +283,9 @@ async function upsertRegistryAgent(
     blockchainIdentifier: true,
     metadataVersion: true,
     apiBaseUrl: true,
+    type: true,
+    x402ResourcesUrl: true,
+    openApiSpecUrl: true,
     isShown: true,
   } as const;
   const existingByRegistryIdentity = await prisma.agent.findUnique({
@@ -394,38 +398,16 @@ async function upsertRegistryAgent(
     (entry.metadataVersion != null &&
       entry.metadataVersion !== existing.metadataVersion);
 
-  // A promotion rewrites the canonical row — endpoint, pricing, payment
-  // sources — while the ratings, categories and risk rating of the previous
-  // revision stay attached. Core cannot verify locally that the successor was
-  // minted by the same seller: that guarantee lives in the V2 registry
-  // validator. So when a promotion MOVES THE ENDPOINT, unpublish the row and
-  // page instead of letting the new endpoint inherit a curated, well-rated
-  // listing. In-flight jobs are unaffected (they pin their own endpoint
-  // snapshot via `toMasumiAgentForJob`); an admin re-publishes after review.
-  const promotedEndpoint =
-    isRevisionPromotion &&
-    registryFields.apiBaseUrl !== existing.apiBaseUrl &&
-    // A revision that merely ADDS an endpoint to a pointer entry has nothing
-    // curated to hijack — there was no reachable agent before.
-    existing.apiBaseUrl !== null;
-
-  if (promotedEndpoint && existing.isShown) {
-    Sentry.captureMessage(
-      "Agent revision promotion changed the API endpoint; unpublishing pending review",
-      {
-        level: "error",
-        tags: { error_type: "agent_revision_endpoint_changed" },
-        extra: {
-          agentId: existing.id,
-          registryIdentity: version.registryIdentity,
-          fromVersion: existing.registryVersion,
-          toVersion: version.registryVersion,
-          previousApiBaseUrl: existing.apiBaseUrl,
-          nextApiBaseUrl: registryFields.apiBaseUrl,
-        },
-      },
-    );
-  }
+  // Curated exposure must not survive a change of the surface it was granted
+  // for: a promoted endpoint move, or any move of a pointer entry's
+  // discovery identity (entry type / discovery URL). The guard pages and the
+  // update below writes `isShown: false`; an admin re-publishes after review.
+  const unpublishForRevisionExposure = evaluateRevisionExposureGuard({
+    existing,
+    incomingFields: registryFields,
+    registryIdentity: version.registryIdentity,
+    incomingRegistryVersion: version.registryVersion,
+  });
 
   // A rollback-era binary can also have stored this revision's identifier as
   // its OWN row (registryIdentity=NULL) while the canonical row resolved via
@@ -554,10 +536,10 @@ async function upsertRegistryAgent(
         registryIdentity: version.registryIdentity,
         registryVersion: version.registryVersion,
         ...registryFields,
-        // See `promotedEndpoint`: an endpoint move across a revision cannot be
-        // verified as same-seller here, so the listing stops being hireable
-        // until an admin re-publishes it.
-        ...(promotedEndpoint ? { isShown: false } : {}),
+        // See `evaluateRevisionExposureGuard`: an endpoint or discovery-
+        // identity move cannot be verified as same-seller here, so the
+        // listing stops being exposed until an admin re-publishes it.
+        ...(unpublishForRevisionExposure ? { isShown: false } : {}),
         // Tags are registry-owned and every diff entry carries the full list,
         // so they are SET (not connected) on every update. This also heals
         // the historical tag unions the 20260805132000 repair left on

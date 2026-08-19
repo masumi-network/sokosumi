@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { agentOrderBy } from "@sokosumi/database";
+import { AgentEntryType, agentOrderBy } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -20,7 +20,7 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
-  buildX402AgentPaymentSources,
+  buildX402AgentPricingListing,
   type X402ListingDropReason,
 } from "@/helpers/x402-agent-listing";
 import {
@@ -33,7 +33,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAgentContext } from "@/middleware/auth";
+import { isCoworkerAgentContext, isUserAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { type X402Agent, x402AgentsSchema } from "@/schemas/x402-agent.schema";
 
@@ -69,7 +69,12 @@ function logX402ListingDrops(
     );
     return;
   }
-  console.debug(`[agents/x402] dropped unpayable agents: ${summary}`);
+  // "non-payable", not "dropped": the tally also carries
+  // `unpriced_dynamic_preview`, whose agents are LISTED as previews — calling
+  // those dropped would send an operator hunting for a hidden agent that is
+  // being served. The warn above keeps "dropped" because the non-drop tally
+  // implies a listed agent, so it can never appear there.
+  console.debug(`[agents/x402] non-payable agents by reason: ${summary}`);
 }
 
 const route = withGlobalHeaderParameters(
@@ -77,7 +82,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/x402",
     description:
-      "List the x402/Bazaar agents Sokosumi can pay right now (coworker agents only, paginated). Fail closed: an agent appears only when every advertised payment source is priced, on an allowed network, and buy-side ready. Unpayable agents are filtered out AFTER the page is read, so a page can hold fewer items than `limit` — or none — while `nextCursor` still points at more; `total` counts candidate X402 entries, not payable ones. When the x402 rail itself is unavailable the whole listing is hidden without the catalog being read, and `total` is 0. Follow `nextCursor` until it is null.",
+      "List x402-capable X402/Bazaar and OpenAPI agents (paginated). Authenticated users and direct coworker agents receive fixed-price entries plus dynamic-price entries whose runtime 402 quote can be paid with a mandatory maxCredits ceiling. Dynamic entries remain visible with `isPayable: false` when no registered network has a priced buy-side-ready asset. Fixed entries fail closed unless every advertised x402 source is priced, on an allowed network, and buy-side ready. Filtering runs AFTER candidate pagination, so a page can contain fewer items than `limit` while `nextCursor` still points at more; follow it until null. `total` counts candidate X402 entries, not payable ones.",
     tags: ["Agents"],
     request: {
       query: cursorPaginationQuerySchema,
@@ -85,7 +90,7 @@ const route = withGlobalHeaderParameters(
     responses: {
       200: jsonPaginatedSuccessResponse(
         x402AgentsSchema,
-        "Retrieve the payable x402 agents",
+        "Retrieve payable x402 agents and dynamic previews",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -97,34 +102,30 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    // Same gate as the x402 pay endpoint: only a coworker acting as itself
-    // (no workspace-context headers) may list. A delegated coworker acts as a
-    // user and users have no x402 surface, so both are rejected alike.
-    if (!isCoworkerAgentContext(authContext)) {
-      throw forbidden("Coworker agent authentication required");
+    // Any authenticated user actor may read the listing: the shared auth
+    // context intentionally covers sessions, Better Auth API keys, and OAuth
+    // tokens. Paying a 402 remains coworker-only on the task payment endpoint.
+    // A delegated coworker is still rejected here because its actor remains
+    // `coworker`, but it is no longer acting as itself.
+    if (
+      !isUserAuthContext(authContext) &&
+      !isCoworkerAgentContext(authContext)
+    ) {
+      throw forbidden("User or coworker agent authentication required");
     }
 
     const { cursor, take, skip } = parseCursorPagination(c.req.valid("query"));
 
-    // Readiness first as a cheap early-out: an empty ready-source set (or one
-    // never recorded) hides the whole listing before any other query.
-    const readySources = await getX402ReadySources(prisma);
-    if (readySources.length === 0) {
-      // `total: 0` without counting the catalog. Counting would put a query on
-      // exactly the path whose point is to cost nothing, and the number would
-      // describe a page this response never read — so the documented contract
-      // says 0 here rather than the count being spent to fill it in.
-      return ok(
-        c,
-        x402AgentsSchema.parse([]),
-        createPaginationMeta([], 0, take, false, cursor),
-      );
-    }
-    // Non-throwing on purpose (NOT getCreditCostsOrThrow): an empty
-    // credit_cost table must not 500 the listing. With nothing priced, every
-    // agent fails the pricing gate and drops out, so the fail-closed listing
-    // is simply empty — the same contract as the readiness early-out above.
-    const creditCosts = await prisma.creditCost.findMany();
+    // Fixed entries need buy-side readiness. Dynamic entries remain
+    // discoverable as explicitly non-payable previews when no source is ready.
+    // creditCost is non-throwing on purpose (NOT getCreditCostsOrThrow): an
+    // empty credit_cost table must not 500 the listing. With nothing priced,
+    // every agent fails the pricing gate and drops out, so the fail-closed
+    // listing is simply empty.
+    const [readySources, creditCosts] = await Promise.all([
+      getX402ReadySources(prisma),
+      prisma.creditCost.findMany(),
+    ]);
     const network = getEnv().NETWORK;
 
     const where = getX402AgentCatalogWhere(network);
@@ -146,16 +147,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // page size and by up to 25 payment sources of 7 amounts each.
           select: {
             id: true,
+            type: true,
             name: true,
             description: true,
             image: true,
             x402ResourcesUrl: true,
+            openApiSpecUrl: true,
             // Exactly the three columns the metadata getters below resolve;
             // `metadataOverride: true` would load every scalar on the row.
             metadataOverride: {
               select: { name: true, description: true, image: true },
             },
             paymentSources: {
+              // OpenAPI entries can be multi-rail. Cardano/Masumi sources are
+              // irrelevant to this endpoint and must not fail its EVM gates.
+              where: { scheme: { not: null } },
               select: {
                 network: true,
                 payTo: true,
@@ -197,7 +203,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         continue;
       }
-      const result = buildX402AgentPaymentSources(agent.paymentSources, {
+      const result = buildX402AgentPricingListing(agent.paymentSources, {
         creditCosts,
         readySources,
         network,
@@ -212,20 +218,65 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         continue;
       }
-      listed.push({
+      const discovery =
+        agent.type === AgentEntryType.OPEN_API
+          ? {
+              specification: "openapi" as const,
+              x402ResourcesUrl: null,
+              openApiSpecUrl: agent.openApiSpecUrl,
+            }
+          : {
+              specification: "bazaar" as const,
+              x402ResourcesUrl: agent.x402ResourcesUrl,
+              openApiSpecUrl: null,
+            };
+      const base = {
         id: agent.id,
+        ...discovery,
         name: getAgentName(agent),
         description: getAgentDescription(agent),
         image: getAgentImage(agent),
-        x402ResourcesUrl: agent.x402ResourcesUrl,
-        paymentSources: result.paymentSources,
-      });
+      } as const;
+      // The one non-drop tally: the agent stays listed as a preview, but a
+      // ready pair on its network has no positive CreditCost row. Without
+      // this, the state is silent everywhere — the same error on a fixed
+      // agent tallies as unpriced_asset, and the sync records the pair READY.
+      if (result.pricingType !== "fixed" && result.hasUnpricedReadyPair) {
+        dropsByReason.set(
+          "unpriced_dynamic_preview",
+          (dropsByReason.get("unpriced_dynamic_preview") ?? 0) + 1,
+        );
+      }
+      if (result.pricingType === "fixed") {
+        listed.push({
+          ...base,
+          pricingType: "fixed",
+          isPayable: true,
+          paymentSources: result.paymentSources,
+        });
+      } else if (result.pricingType === "dynamic") {
+        listed.push({
+          ...base,
+          pricingType: "dynamic",
+          isPayable: result.isPayable,
+          paymentSources: result.paymentSources,
+        });
+      } else {
+        listed.push({
+          ...base,
+          pricingType: "mixed",
+          isPayable: result.isPayable,
+          paymentSources: result.paymentSources,
+        });
+      }
     }
     // A page the client did not narrow or seek into: see logX402ListingDrops
     // for why only that page may raise the warn. An explicit `limit` equal to
     // the default reads the same rows as no `limit` at all, so it counts.
+    // Falsy, not `=== undefined`: `?cursor=` validates as "" and is served
+    // the first page by the query above, so it must count as one here too.
     const isUnfilteredFirstPage =
-      cursor === undefined && take === LIMITS.DEFAULT_PAGINATION_LIMIT;
+      !cursor && take === LIMITS.DEFAULT_PAGINATION_LIMIT;
     const hasMore = agents.length === takePlusOne;
     logX402ListingDrops(
       listed.length,
