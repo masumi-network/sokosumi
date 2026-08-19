@@ -53,10 +53,15 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict - target already exists"),
-    422: jsonErrorResponse("Unprocessable Entity"),
+    422: jsonErrorResponse(
+      "Unprocessable Entity - folder exceeds 500 descendant limit",
+    ),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
+
+// Maximum descendants allowed for folder move operations
+const MAX_FOLDER_DESCENDANTS = 500;
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -212,7 +217,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Target folder already exists");
       }
 
-      // List all blobs under source prefix
+      // List all blobs under source prefix (capped at MAX_FOLDER_DESCENDANTS)
       const allBlobs: Array<{
         pathname: string;
         contentType: string;
@@ -229,6 +234,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         for (const blob of result.blobs) {
+          if (allBlobs.length >= MAX_FOLDER_DESCENDANTS) {
+            throw unprocessableEntity(
+              `Folder exceeds ${MAX_FOLDER_DESCENDANTS} descendant limit. Cannot move.`,
+            );
+          }
+
           const metadata = await head(blob.pathname, { token });
           allBlobs.push({
             pathname: blob.pathname,

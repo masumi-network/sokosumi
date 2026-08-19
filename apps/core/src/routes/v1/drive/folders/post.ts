@@ -114,8 +114,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // Write the marker (zero-byte blob)
-    await put(markerPathname, "", {
+    // Write the marker (one-byte blob; @vercel/blob requires non-empty body)
+    await put(markerPathname, " ", {
       token,
       access: "public",
       addRandomSuffix: false,

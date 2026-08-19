@@ -141,56 +141,79 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // List blobs with pagination (single page).
-    // We need to fetch more than requested to extract folders + files,
-    // since Vercel Blob list() doesn't group by folder.
-    // Use a larger limit to get enough data for folder extraction.
-    const fetchLimit = Math.max(take * 10, 1000);
-    const { blobs, hasMore } = await list({
-      prefix: searchPrefix,
-      token,
-      cursor,
-      limit: fetchLimit,
-    });
+    // Build complete item list at this folder level:
+    // - Fetch all blobs under the current prefix (not just 1000)
+    // - Extract folders: unique first-level segments (from files or markers)
+    // - Extract files: single-segment paths that are not markers
+    // - Empty folders are represented by marker blobs
 
-    // Extract folders and files at this level
     const folders = new Map<string, boolean>();
     const files: DriveItem[] = [];
+    let blobCursor: string | undefined;
 
-    for (const blob of blobs) {
-      // Skip folder markers
-      if (isDriveFolderMarker(blob.pathname)) {
-        continue;
+    // Fetch all blobs at this prefix to build the complete item list
+    do {
+      const {
+        blobs,
+        hasMore,
+        cursor: nextCursor,
+      } = await list({
+        prefix: searchPrefix,
+        token,
+        cursor: blobCursor,
+        limit: 1000,
+      });
+
+      for (const blob of blobs) {
+        // Extract relative path from current prefix
+        const relativePath = blob.pathname.slice(prefix.length);
+        const segments = relativePath.split("/").filter((s) => s.length > 0);
+
+        if (segments.length === 0) {
+          continue;
+        }
+
+        const isMarker = isDriveFolderMarker(blob.pathname);
+
+        if (segments.length === 1) {
+          // Single segment at this level
+          if (isMarker) {
+            // Marker basename directly at this level (shouldn't happen normally)
+            continue;
+          }
+          // File at this level
+          const name = segments[0];
+          files.push({
+            type: "file",
+            name,
+            fileUrl: blob.url,
+            pathname: blob.pathname,
+            size: blob.size,
+            uploadedAt: blob.uploadedAt.toISOString(),
+          });
+        } else {
+          // Deeper path (segments.length > 1)
+          const folderName = segments[0];
+          if (isMarker && segments.length === 2) {
+            // Marker for an empty folder at this level
+            // e.g., "Reports/__drive_folder__" -> folder "Reports"
+            folders.set(folderName, true);
+          } else if (!isMarker) {
+            // File deeper down (or marker even deeper)
+            folders.set(folderName, true);
+          }
+          // else: marker deeper than 2 segments - parent folder already captured
+        }
       }
 
-      // Extract relative path from current prefix
-      const relativePath = blob.pathname.slice(prefix.length);
-      const segments = relativePath.split("/").filter((s) => s.length > 0);
-
-      if (segments.length === 0) {
-        // Skip empty
-        continue;
+      if (!hasMore) {
+        break;
       }
 
-      if (segments.length === 1) {
-        // File at this level
-        const name = segments[0];
-        files.push({
-          type: "file",
-          name,
-          fileUrl: blob.url,
-          pathname: blob.pathname,
-          size: blob.size,
-          uploadedAt: blob.uploadedAt.toISOString(),
-        });
-      } else {
-        // Deeper path - extract folder at this level
-        const folderName = segments[0];
-        folders.set(folderName, true);
-      }
-    }
+      blobCursor = nextCursor;
+    } while (true);
 
-    // Build folder items
+    // Build folder items (sorted)
     const folderItems: DriveItem[] = Array.from(folders.keys())
       .sort()
       .map((name) => ({
@@ -199,41 +222,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         path: name,
       }));
 
-    // Combine folders + files (folders first, then files, both sorted)
-    const allItems: DriveItem[] = [
-      ...folderItems,
-      ...files.sort((a, b) => a.name.localeCompare(b.name)),
-    ];
+    // Sort files
+    const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Apply pagination to combined result
-    const totalItems = allItems.length;
-    const startIndex = cursor
-      ? allItems.findIndex((item) => {
-          if (item.type === "folder") {
-            return item.name === cursor;
-          }
-          return item.name === cursor;
-        }) + 1
-      : 0;
+    // Combine folders + files (folders first, then files)
+    const allItems: DriveItem[] = [...folderItems, ...sortedFiles];
+
+    // Apply cursor-based pagination if needed
+    // The cursor from the client is an item name
+    let startIndex = 0;
+    if (cursor) {
+      const cursorIndex = allItems.findIndex((item) => item.name === cursor);
+      startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
+    }
 
     const paginatedItems = allItems.slice(startIndex, startIndex + take);
-    const hasMoreItems =
-      startIndex + take < totalItems || (hasMore && totalItems >= fetchLimit);
+    const hasMoreItems = startIndex + take < allItems.length;
 
-    // Next cursor is the last item's name
+    // Next cursor is the last item's name if there are more items
     const nextItemCursor =
       hasMoreItems && paginatedItems.length > 0
         ? paginatedItems[paginatedItems.length - 1].name
         : null;
 
-    // Vercel Blob list() doesn't return total count.
-    // Only include total when this is the complete result.
-    const hasRealTotal = !hasMoreItems && !cursor;
-
     const paginationMeta = {
       cursor: cursor ?? null,
       limit: take,
-      ...(hasRealTotal ? { total: totalItems } : {}),
       nextCursor: nextItemCursor,
     } as CursorPaginationMeta;
 
