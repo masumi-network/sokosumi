@@ -141,6 +141,20 @@ export default async function OrganizationPage({
     }
   }
 
+  let deletionBlockers: string[] = [];
+  let deletionPreflightFailed = false;
+  if (member.role === MemberRole.OWNER) {
+    try {
+      const deletionResponse = await coreClient.getOrganizationDeletion(
+        organization.id,
+      );
+      deletionBlockers = deletionResponse.data.blockers;
+    } catch (error) {
+      console.error("Failed to load organization deletion blockers", error);
+      deletionPreflightFailed = true;
+    }
+  }
+
   const { data: members } = await coreClient.getOrganizationMembers(
     organization.id,
   );
@@ -179,7 +193,12 @@ export default async function OrganizationPage({
           <p className="text-muted-foreground">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />
         </div>
-        <OrganizationInformation organization={organization} member={member} />
+        <OrganizationInformation
+          organization={organization}
+          member={member}
+          deletionBlockers={deletionBlockers}
+          deletionPreflightFailed={deletionPreflightFailed}
+        />
         {isOwnerOrAdmin ? (
           <OrganizationBillingDetails
             billingDetails={billingDetails}

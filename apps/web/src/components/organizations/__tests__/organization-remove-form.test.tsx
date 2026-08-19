@@ -17,8 +17,14 @@ const translations: Record<string, string> = {
   "Components.Organizations.RemoveModal.error": "Failed to remove organization",
   "Components.Organizations.RemoveModal.success":
     "Organization removed successfully",
+  "Components.Organizations.RemoveModal.blockersTitle":
+    "You cannot remove this organization until these are resolved:",
+  "Components.Organizations.RemoveModal.preflightError":
+    "Could not check whether this organization can be removed. Try again.",
   "Components.Organizations.RemoveModal.Errors.additionalMembers":
     "Remove all other members before deleting this organization.",
+  "Components.Organizations.RemoveModal.Errors.lastWorkspace":
+    "You cannot delete your last workspace.",
   "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Login",
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.invalid":
     "Invalid organization name",
@@ -88,6 +94,32 @@ function createOrganization(
 describe("OrganizationRemoveForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("lists mapped blockers and disables confirm while any remain", () => {
+    render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={vi.fn()}
+        onOpenChange={vi.fn()}
+        blockers={["ORGANIZATION_HAS_ADDITIONAL_MEMBERS", "LAST_WORKSPACE"]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "You cannot remove this organization until these are resolved:",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Remove all other members before deleting this organization.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("You cannot delete your last workspace."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 
   it("shows a clear action message when deletion is blocked by additional members", async () => {

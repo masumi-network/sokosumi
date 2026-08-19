@@ -10,24 +10,32 @@ import type { OrganizationRecord } from "@/lib/clients/generated/core";
 interface OrganizationRemoveButtonProps {
   organization: OrganizationRecord;
   className?: string | undefined;
+  blockers?: string[];
+  preflightFailed?: boolean;
 }
 
 interface OrganizationRemoveModalHostProps {
   open: boolean;
   onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
   organization: OrganizationRecord;
+  blockers?: string[];
+  preflightFailed?: boolean;
 }
 
 function OrganizationRemoveModalHost({
   open,
   onOpenChange,
   organization,
+  blockers = [],
+  preflightFailed = false,
 }: OrganizationRemoveModalHostProps) {
   return (
     <OrganizationRemoveModal
       open={open}
       onOpenChange={onOpenChange}
       organization={organization}
+      blockers={blockers}
+      preflightFailed={preflightFailed}
     />
   );
 }
@@ -35,10 +43,14 @@ function OrganizationRemoveModalHost({
 export default function OrganizationRemoveButton({
   organization,
   className,
+  blockers = [],
+  preflightFailed = false,
 }: OrganizationRemoveButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(OrganizationRemoveModalHost, {
     organization,
+    blockers,
+    preflightFailed,
   });
 
   return (

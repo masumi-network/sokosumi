@@ -5,6 +5,12 @@ export const ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE =
 
 export const LAST_WORKSPACE_ERROR_CODE = "LAST_WORKSPACE";
 
+export const TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE =
+  "TASK_PAYMENT_CLAIM_PENDING";
+
+export const TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE =
+  "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED";
+
 export const betterAuthApiErrorSchema = z.object({
   status: z.string(),
   statusCode: z.number(),

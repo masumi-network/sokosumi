@@ -34,6 +34,8 @@ interface AccountSettingsProps {
   hasOrganizationMembership?: boolean;
   fallbackOrganizationId?: string | null;
   currentOrganizationId?: string | null;
+  deletionBlockers?: string[];
+  deletionPreflightFailed?: boolean;
 }
 
 export function AccountSettings({
@@ -51,6 +53,8 @@ export function AccountSettings({
   hasOrganizationMembership = false,
   fallbackOrganizationId = null,
   currentOrganizationId = null,
+  deletionBlockers = [],
+  deletionPreflightFailed = false,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -127,7 +131,10 @@ export function AccountSettings({
 
       <div className="border-t pt-8">
         <div className="mx-auto w-full">
-          <DeleteAccountForm />
+          <DeleteAccountForm
+            blockers={deletionBlockers}
+            preflightFailed={deletionPreflightFailed}
+          />
         </div>
       </div>
     </div>

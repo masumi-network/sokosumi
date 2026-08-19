@@ -26,11 +26,15 @@ import OrganizationRemoveButton from "./organization-remove-button";
 interface OrganizationInformationProps {
   organization: OrganizationRecord;
   member: MemberRecord;
+  deletionBlockers?: string[];
+  deletionPreflightFailed?: boolean;
 }
 
 export default async function OrganizationInformation({
   organization,
   member,
+  deletionBlockers = [],
+  deletionPreflightFailed = false,
 }: OrganizationInformationProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { role } = member;
@@ -112,6 +116,8 @@ export default async function OrganizationInformation({
                 <OrganizationRemoveButton
                   organization={organization}
                   className="h-7 gap-1.5 px-2 text-xs"
+                  blockers={deletionBlockers}
+                  preflightFailed={deletionPreflightFailed}
                 />
               </div>
             </CardAction>

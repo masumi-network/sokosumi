@@ -670,6 +670,8 @@
         "error": "Failed to remove organization",
         "confirmLabelPrefix": "Type",
         "confirmLabelSuffix": "to confirm deletion:",
+        "blockersTitle": "You cannot remove this organization until these are resolved:",
+        "preflightError": "Could not check whether this organization can be removed. Try again.",
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
           "lastWorkspace": "You cannot delete your last workspace.",
@@ -3947,7 +3949,13 @@
         "currentPassword": "Current password",
         "confirm": "Yes, delete my account",
         "success": "Account deleted successfully",
-        "error": "Failed to delete account"
+        "error": "Failed to delete account",
+        "blockersTitle": "You cannot delete your account until these are resolved:",
+        "preflightError": "Could not check whether your account can be deleted. Try again.",
+        "Errors": {
+          "taskPaymentClaimPending": "Wait for pending task payments to settle before deleting your account.",
+          "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support."
+        }
       },
       "DeletePersonal": {
         "title": "Delete personal workspace",

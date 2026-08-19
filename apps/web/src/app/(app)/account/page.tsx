@@ -61,6 +61,16 @@ async function AccountPageContent() {
     userService.getMyMembersWithOrganizations(),
   ]);
 
+  let deletionBlockers: string[] = [];
+  let deletionPreflightFailed = false;
+  try {
+    const deletionResponse = await coreClient.getMyDeletion();
+    deletionBlockers = deletionResponse.data.blockers;
+  } catch (error) {
+    console.error("Failed to load account deletion blockers", error);
+    deletionPreflightFailed = true;
+  }
+
   return (
     <div className="min-h-full w-full">
       <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
@@ -90,6 +100,8 @@ async function AccountPageContent() {
           }
           fallbackOrganizationId={members[0]?.organization.id ?? null}
           currentOrganizationId={session?.session.activeOrganizationId ?? null}
+          deletionBlockers={deletionBlockers}
+          deletionPreflightFailed={deletionPreflightFailed}
         />
       </div>
     </div>
