@@ -948,7 +948,7 @@ entry.
   (only `paymentPayloadHash` is stored), and re-signing on replay reserves a
   new node attempt and burns budget (011 Q2). Added nullable
   `TaskX402Payment.xPaymentHeader`, written only at VERIFIED. Migration
-  `20260811150000_task_x402_payment_header`, idempotent; validated on a
+  `20260819160000_task_x402_payment_header`, idempotent; validated on a
   scratch DB (full deploy from zero, direct psql re-apply no-op, migrate
   diff shows no x402 drift).
 
@@ -1223,7 +1223,7 @@ assertion locks in "400 stays verbose".
 WITH A MIGRATION (chose the counter over documenting-skip so the money-adjacent
 logic is real and mutation-tested; the reconciler will reuse the column).
 `TaskX402Payment.signAttemptCount Int @default(0)` (migration
-`20260811160000_task_x402_payment_sign_attempt_count`, idempotent `ADD COLUMN IF
+`20260819170000_task_x402_payment_sign_attempt_count`, idempotent `ADD COLUMN IF
 NOT EXISTS`, timestamped after the header migration; validated on a scratch DB —
 deploy-from-zero clean, column `integer NOT NULL default 0`, idempotent
 re-apply). The fresh path sets the counter to 1 at record creation; each PENDING
@@ -1552,7 +1552,7 @@ those.
   previous pass.
 - `pnpm --filter @sokosumi/masumi test` — 17 files / 330 passed.
 - `pnpm typecheck` all workspaces (exit 0); `pnpm check` clean.
-- Migration `20260811180000_task_x402_payment_header_purge_index` validated
+- Migration `20260819190000_task_x402_payment_header_purge_index` validated
   against local Postgres 18.4: `prisma migrate deploy` from an empty database
   (all 265 migrations), hand re-apply of the new file (`IF NOT EXISTS` skip),
   a second `migrate deploy` reporting no pending migrations, and
@@ -2121,7 +2121,7 @@ finalize happens to write `attemptId` today, it is nowhere near the metric that
 depends on it, and nothing would tell the next writer who changes when
 `attemptId` is set that they had just silently redefined a money metric and its
 ranking. The cost of the alternative is one migration
-(`20260812100000_task_x402_payment_refund_kind`) adding an enum type and a
+(`20260819200000_task_x402_payment_refund_kind`) adding an enum type and a
 nullable column with no default and no backfill — a non-rewriting ALTER, on the
 top branch of the stack, editing no parent branch's migration. Cheap; the
 fragility was not.
