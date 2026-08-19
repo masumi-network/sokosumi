@@ -1,9 +1,27 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isJoinLinkDuplicateOfInvitation,
+  pendingInvitesDescriptionKey,
   resolveWorkspaceGateSurface,
   shouldShowPendingInvitesQueue,
 } from "../workspace-gate-queue";
+
+describe("isJoinLinkDuplicateOfInvitation", () => {
+  it("is true when the join slug already has an invitation row", () => {
+    expect(isJoinLinkDuplicateOfInvitation(["acme", "other"], "acme")).toBe(
+      true,
+    );
+  });
+
+  it("is false when the join slug is a different organization", () => {
+    expect(isJoinLinkDuplicateOfInvitation(["acme"], "join-co")).toBe(false);
+  });
+
+  it("is false when there are no invitation rows", () => {
+    expect(isJoinLinkDuplicateOfInvitation([], "acme")).toBe(false);
+  });
+});
 
 describe("shouldShowPendingInvitesQueue", () => {
   it("shows the queue when Core gate is pending-invites", () => {
@@ -44,6 +62,35 @@ describe("shouldShowPendingInvitesQueue", () => {
         hasJoinLink: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("pendingInvitesDescriptionKey", () => {
+  it("names only invitations when the queue has no join row", () => {
+    expect(
+      pendingInvitesDescriptionKey({
+        invitationCount: 1,
+        hasJoinLink: false,
+      }),
+    ).toBe("pendingInvitesDescriptionInvitations");
+  });
+
+  it("names only the join link when that is the only row", () => {
+    expect(
+      pendingInvitesDescriptionKey({
+        invitationCount: 0,
+        hasJoinLink: true,
+      }),
+    ).toBe("pendingInvitesDescriptionJoin");
+  });
+
+  it("names both actions when invitation and join rows are present", () => {
+    expect(
+      pendingInvitesDescriptionKey({
+        invitationCount: 1,
+        hasJoinLink: true,
+      }),
+    ).toBe("pendingInvitesDescriptionBoth");
   });
 });
 

@@ -1,3 +1,11 @@
+/** Invitation row wins when a recovered join cookie points at the same org. */
+export function isJoinLinkDuplicateOfInvitation(
+  invitationSlugs: readonly string[],
+  joinSlug: string,
+): boolean {
+  return invitationSlugs.includes(joinSlug);
+}
+
 /**
  * Pending-invites surface wins over identity onboarding whenever the user
  * still has an org-entry item: Core email invitations or a recovered join
@@ -18,6 +26,25 @@ export type WorkspaceGateSurface =
   | "unavailable"
   | "pending-invites"
   | "identity-onboarding";
+
+export type PendingInvitesDescriptionKey =
+  | "pendingInvitesDescriptionInvitations"
+  | "pendingInvitesDescriptionJoin"
+  | "pendingInvitesDescriptionBoth";
+
+/** Header copy matches the actions currently in the queue, not every possible path. */
+export function pendingInvitesDescriptionKey(input: {
+  invitationCount: number;
+  hasJoinLink: boolean;
+}): PendingInvitesDescriptionKey {
+  if (input.hasJoinLink && input.invitationCount > 0) {
+    return "pendingInvitesDescriptionBoth";
+  }
+  if (input.hasJoinLink) {
+    return "pendingInvitesDescriptionJoin";
+  }
+  return "pendingInvitesDescriptionInvitations";
+}
 
 /**
  * `pending-invites` with a failed list and no recovered join item is a

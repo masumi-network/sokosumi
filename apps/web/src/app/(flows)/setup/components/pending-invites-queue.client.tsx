@@ -44,32 +44,42 @@ export function PendingInvitesQueue({
   const t = useTranslations("WorkspaceGate.Pending");
   const router = useRouter();
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
-    null,
-  );
+  const [retryTarget, setRetryTarget] = useState<{
+    organizationId: string;
+    organizationSlug: string;
+    acceptedJoinToken?: string;
+  } | null>(null);
   const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
 
-  async function leaveGateAfterOrganization(organizationId: string) {
-    const activated =
-      await activateOrganizationWorkspaceWithRetry(organizationId);
+  async function leaveGateAfterOrganization(input: {
+    organizationId: string;
+    organizationSlug: string;
+    acceptedJoinToken?: string;
+  }) {
+    const activated = await activateOrganizationWorkspaceWithRetry(
+      input.organizationId,
+    );
     if (!activated) {
       toast.error(t("activateError"));
-      setRetryOrganizationId(organizationId);
+      setRetryTarget(input);
       return;
     }
-    setRetryOrganizationId(null);
-    await clearPendingOrganizationJoinCookieAction({});
+    setRetryTarget(null);
+    await clearPendingOrganizationJoinCookieAction({
+      organizationSlug: input.organizationSlug,
+      acceptedJoinToken: input.acceptedJoinToken,
+    });
     router.replace("/");
     router.refresh();
   }
 
   async function handleRetryActivation() {
-    if (busyKey || !retryOrganizationId) {
+    if (busyKey || !retryTarget) {
       return;
     }
     setBusyKey("retry-activation");
     try {
-      await leaveGateAfterOrganization(retryOrganizationId);
+      await leaveGateAfterOrganization(retryTarget);
     } finally {
       setBusyKey(null);
     }
@@ -93,7 +103,10 @@ export function PendingInvitesQueue({
       }
       const organizationId =
         result.data?.member.organizationId ?? item.organizationId;
-      await leaveGateAfterOrganization(organizationId);
+      await leaveGateAfterOrganization({
+        organizationId,
+        organizationSlug: item.organizationSlug,
+      });
     } catch (error) {
       console.error("Workspace gate accept invitation failed", error);
       toast.error(t("acceptError"));
@@ -116,7 +129,12 @@ export function PendingInvitesQueue({
         toast.error(result.error.message ?? t("joinError"));
         return;
       }
-      await leaveGateAfterOrganization(result.value.organizationId);
+      await leaveGateAfterOrganization({
+        organizationId: result.value.organizationId,
+        organizationSlug:
+          result.value.organizationSlug ?? item.organizationSlug,
+        acceptedJoinToken: item.token,
+      });
     } catch (error) {
       console.error("Workspace gate join failed", error);
       toast.error(t("joinError"));
@@ -155,7 +173,7 @@ export function PendingInvitesQueue({
   }
 
   const busy = busyKey !== null;
-  const awaitingActivationRetry = retryOrganizationId !== null;
+  const awaitingActivationRetry = retryTarget !== null;
 
   return (
     <div className="space-y-4" data-testid="workspace-gate-pending-queue">
@@ -194,7 +212,7 @@ export function PendingInvitesQueue({
           );
         })}
       </ul>
-      {retryOrganizationId ? (
+      {retryTarget ? (
         <Button
           type="button"
           disabled={busy}
