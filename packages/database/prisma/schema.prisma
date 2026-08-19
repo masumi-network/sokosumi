@@ -82,16 +82,16 @@ model User {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
-  createdChatRooms         ChatRoom[]                @relation("ChatRoomCreator")
-  chatRoomMemberships      ChatRoomUserMember[]
-  chatRoomMessages         ChatRoomMessage[]         @relation("ChatRoomUserSender")
-  chatRoomReactions        ChatRoomReaction[]
-  chatRoomReadStates       ChatRoomReadState[]
-  chatRoomThreadReadStates ChatRoomThreadReadState[]
+  createdChatRooms                 ChatRoom[]                @relation("ChatRoomCreator")
+  chatRoomMemberships              ChatRoomUserMember[]
+  chatRoomMessages                 ChatRoomMessage[]         @relation("ChatRoomUserSender")
+  chatRoomReactions                ChatRoomReaction[]
+  chatRoomReadStates               ChatRoomReadState[]
+  chatRoomThreadReadStates         ChatRoomThreadReadState[]
   chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
   chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
   chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
-  noticeAcknowledgments    NoticeAcknowledgment[]
+  noticeAcknowledgments            NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
   hermesMessages           HermesMessage[]
@@ -128,6 +128,7 @@ model Session {
 
 model Account {
   id                    String    @id @default(uuid(7))
+  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -142,6 +143,8 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@unique([issuer, accountId])
+  @@index([userId])
   @@map("account")
 }
 
@@ -245,10 +248,10 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs         Job[]
-  tasks        Task[]
-  projects     Project[]
-  vendorGrants VendorGrant[]
+  jobs                    Job[]
+  tasks                   Task[]
+  projects                Project[]
+  vendorGrants            VendorGrant[]
   coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
 
   @@map("workspace")
@@ -1304,40 +1307,49 @@ model OauthClient {
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
 
-  clientId         String   @unique
-  clientSecret     String?
-  disabled         Boolean  @default(false)
-  skipConsent      Boolean?
-  enableEndSession Boolean?
-  scopes           String[]
-  userId           String?
-  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clientId                String   @unique
+  clientSecret            String?
+  clientDiscoveryId       String?
+  disabled                Boolean  @default(false)
+  skipConsent             Boolean?
+  enableEndSession        Boolean?
+  subjectType             String?
+  scopes                  String[]
+  clientCredentialsScopes String[] @default([])
+  userId                  String?
+  user                    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  name                    String?
-  uri                     String?
-  icon                    String?
-  contacts                String[]
-  tos                     String?
-  policy                  String?
-  softwareId              String?
-  softwareVersion         String?
-  softwareStatement       String?
-  redirectUris            String[]
-  postLogoutRedirectUris  String[]
-  tokenEndpointAuthMethod String?
-  grantTypes              String[]
-  responseTypes           String[]
-  public                  Boolean?
-  type                    String?
-  requirePKCE             Boolean?
-  referenceId             String?
-  metadata                Json?
+  name                             String?
+  uri                              String?
+  icon                             String?
+  contacts                         String[]
+  tos                              String?
+  policy                           String?
+  softwareId                       String?
+  softwareVersion                  String?
+  softwareStatement                String?
+  redirectUris                     String[]
+  postLogoutRedirectUris           String[]
+  backchannelLogoutUri             String?
+  backchannelLogoutSessionRequired Boolean?
+  tokenEndpointAuthMethod          String?
+  applicationType                  String?
+  jwks                             String?
+  jwksUri                          String?
+  grantTypes                       String[]
+  responseTypes                    String[]
+  requirePKCE                      Boolean?
+  dpopBoundAccessTokens            Boolean  @default(false)
+  referenceId                      String?
+  metadata                         Json?
 
   // Relations
-  accessTokens  OauthAccessToken[]
-  refreshTokens OauthRefreshToken[]
-  consents      OauthConsent[]
+  accessTokens    OauthAccessToken[]
+  refreshTokens   OauthRefreshToken[]
+  consents        OauthConsent[]
+  clientResources OauthClientResource[]
 
+  @@index([userId])
   @@map("oauthClient")
 }
 
@@ -1346,10 +1358,15 @@ model OauthAccessToken {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  token       String   @unique
-  referenceId String?
-  scopes      String[]
-  expiresAt   DateTime
+  token                   String    @unique
+  referenceId             String?
+  scopes                  String[]
+  expiresAt               DateTime
+  revoked                 DateTime?
+  authorizationCodeId     String?
+  resources               String[] @default([])
+  requestedUserInfoClaims String[] @default([])
+  confirmation            Json?
 
   clientId String
   client   OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
@@ -1363,6 +1380,11 @@ model OauthAccessToken {
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([refreshId])
+  @@index([authorizationCodeId])
   @@map("oauthAccessToken")
 }
 
@@ -1379,15 +1401,26 @@ model OauthRefreshToken {
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  referenceId String?
-  scopes      String[]
+  referenceId             String?
+  scopes                  String[]
+  authorizationCodeId     String?
+  resources               String[] @default([])
+  requestedUserInfoClaims String[] @default([])
+  confirmation            Json?
 
-  expiresAt DateTime
-  revoked   DateTime?
-  authTime  DateTime?
+  expiresAt               DateTime
+  revoked                 DateTime?
+  rotatedAt               DateTime?
+  rotationReplayResponse  String?
+  rotationReplayExpiresAt DateTime?
+  authTime                DateTime?
 
   accessTokens OauthAccessToken[]
 
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([authorizationCodeId])
   @@map("oauthRefreshToken")
 }
 
@@ -1396,14 +1429,64 @@ model OauthConsent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId      String?
-  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  clientId    String
-  client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
-  referenceId String?
-  scopes      String[]
+  userId                  String?
+  user                    User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clientId                String
+  client                  OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  referenceId             String?
+  scopes                  String[]
+  resources               String[] @default([])
+  requestedUserInfoClaims String[] @default([])
 
+  @@index([clientId])
+  @@index([userId])
   @@map("oauthConsent")
+}
+
+model OauthResource {
+  id        String    @id @default(uuid(7))
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+
+  identifier                    String   @unique
+  name                          String
+  accessTokenTtl                Int?
+  refreshTokenTtl               Int?
+  signingAlgorithm              String?
+  signingKeyId                  String?
+  allowedScopes                 String[]
+  customClaims                  Json?
+  dpopBoundAccessTokensRequired Boolean  @default(false)
+  disabled                      Boolean  @default(false)
+  policyVersion                 Int      @default(1)
+  metadata                      Json?
+
+  clientResources OauthClientResource[]
+
+  @@map("oauthResource")
+}
+
+model OauthClientResource {
+  id        String    @id @default(uuid(7))
+  createdAt DateTime? @default(now())
+
+  clientId   String
+  client     OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  resourceId String
+  resource   OauthResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  metadata   Json?
+
+  @@unique([clientId, resourceId])
+  @@index([clientId])
+  @@index([resourceId])
+  @@map("oauthClientResource")
+}
+
+model OauthClientAssertion {
+  id        String   @id @default(uuid(7))
+  expiresAt DateTime
+
+  @@map("oauthClientAssertion")
 }
 
 model Jwks {
@@ -1414,6 +1497,8 @@ model Jwks {
   publicKey  String
   privateKey String
   expiresAt  DateTime?
+  alg        String?
+  crv        String?
 
   @@map("jwks")
 }
@@ -1883,12 +1968,12 @@ model ChatRoom {
   createdByUserId String
   createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  userMembers       ChatRoomUserMember[]
-  coworkerMembers   ChatRoomCoworkerMember[]
-  messages          ChatRoomMessage[]
-  readStates        ChatRoomReadState[]
-  guestInvitations  ChatRoomGuestInvitation[]
-  guestInviteLinks  ChatRoomGuestInviteLink[]
+  userMembers      ChatRoomUserMember[]
+  coworkerMembers  ChatRoomCoworkerMember[]
+  messages         ChatRoomMessage[]
+  readStates       ChatRoomReadState[]
+  guestInvitations ChatRoomGuestInvitation[]
+  guestInviteLinks ChatRoomGuestInviteLink[]
 
   // Uniqueness for (organizationId, slug|directKey) and personal directKey is
   // enforced with partial unique indexes in the SQL migration — Prisma cannot

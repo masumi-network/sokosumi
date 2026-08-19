@@ -60,11 +60,13 @@ describe("better-auth-types", () => {
       id: "acc_1",
       providerId: "google",
       accountId: "google-sub",
+      issuer: "https://accounts.google.com",
       userId: "user_1",
       createdAt: "2025-01-01T00:00:00.000Z",
       updatedAt: "2025-01-01T00:00:00.000Z",
     };
 
     expect(account.providerId).toBe("google");
+    expect(account.issuer).toBe("https://accounts.google.com");
   });
 });

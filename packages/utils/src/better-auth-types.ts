@@ -50,6 +50,7 @@ export interface Account {
   id: string;
   providerId: string;
   accountId: string;
+  issuer?: string | null;
   userId: string;
   accessToken?: string | null;
   refreshToken?: string | null;

@@ -41,6 +41,7 @@ const {
   prismaAdapterMock,
   prismaMock,
   prismaTransactionMock,
+  prismaUserUpdateManyMock,
   reconcileActiveStripeBackedSubscriptionMock,
   renderMagicLinkEmailMock,
   resolveActiveOrganizationIdForSessionMock,
@@ -72,10 +73,14 @@ const {
   const prismaTransactionMock = vi.fn(
     async (callback: (tx: unknown) => unknown) => callback({}),
   );
+  const prismaUserUpdateManyMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
       prismaTransactionMock(callback),
+    user: {
+      updateMany: prismaUserUpdateManyMock,
+    },
   };
 
   return {
@@ -107,6 +112,7 @@ const {
     prismaAdapterMock: vi.fn(),
     prismaMock,
     prismaTransactionMock,
+    prismaUserUpdateManyMock,
     reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
     renderMagicLinkEmailMock: vi.fn(),
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
@@ -440,6 +446,7 @@ describe("core auth config", () => {
             accountLinking: {
               enabled: boolean;
               trustedProviders: string[];
+              requireLocalEmailVerified: boolean;
             };
           };
         },
@@ -464,6 +471,7 @@ describe("core auth config", () => {
     expect(config.account.accountLinking).toEqual({
       enabled: true,
       trustedProviders: ["google", "microsoft"],
+      requireLocalEmailVerified: false,
     });
   });
 
@@ -579,9 +587,76 @@ describe("core auth config", () => {
       providerId: "google",
     });
 
+    expect(prismaUserUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "user_123", emailVerified: false },
+      data: { emailVerified: true },
+    });
     expect(webhookCallAccountCreatedMock).toHaveBeenCalledWith(
       "user_123",
       "google",
+    );
+  });
+
+  it("marks email verified when a Microsoft account is linked", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            account: {
+              create: {
+                after: (account: {
+                  userId: string;
+                  providerId: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.account.create.after({
+      userId: "user_456",
+      providerId: "microsoft",
+    });
+
+    expect(prismaUserUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "user_456", emailVerified: false },
+      data: { emailVerified: true },
+    });
+  });
+
+  it("does not mark email verified when a credential account is created", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            account: {
+              create: {
+                after: (account: {
+                  userId: string;
+                  providerId: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.account.create.after({
+      userId: "user_789",
+      providerId: "credential",
+    });
+
+    expect(prismaUserUpdateManyMock).not.toHaveBeenCalled();
+    expect(webhookCallAccountCreatedMock).toHaveBeenCalledWith(
+      "user_789",
+      "credential",
     );
   });
 
@@ -1000,9 +1075,10 @@ describe("core auth config", () => {
           advanced: {
             database: {
               generateId: string;
+              joins?: boolean;
             };
           };
-          experimental: {
+          experimental?: {
             joins: boolean;
           };
           rateLimit: {
@@ -1013,7 +1089,8 @@ describe("core auth config", () => {
     >;
 
     expect(config.advanced.database.generateId).toBe("uuid");
-    expect(config.experimental.joins).toBe(true);
+    expect(config.advanced.database.joins).toBe(true);
+    expect(config.experimental).toBeUndefined();
     expect(config.rateLimit.storage).toBe("database");
   });
 
