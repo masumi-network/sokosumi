@@ -5566,8 +5566,11 @@
     "Pending": {
       "accept": "Accept",
       "join": "Join",
+      "acceptAll": "Accept all",
+      "acceptSelected": "Accept selected",
+      "selectItem": "Select {organizationName}",
+      "batchError": "We could not accept: {names}.",
       "rejectAll": "Reject all",
-      "rejectAllHint": "Rejecting every invitation lets you create your own first workspace.",
       "acceptError": "We could not accept that invitation.",
       "joinError": "We could not join that organization.",
       "rejectError": "We could not reject the remaining invitations.",
