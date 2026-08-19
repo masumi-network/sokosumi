@@ -5365,6 +5365,8 @@
       "moveAction": "Move",
       "moveDialogTitle": "Move {itemName}",
       "moveDialogDescription": "Select the destination folder",
+      "moveHere": "Move here",
+      "moveToRoot": "Move to Drive root",
       "selectFolder": "Select folder",
       "rootFolder": "Root folder",
       "createFolderError": "Failed to create folder",

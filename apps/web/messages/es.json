@@ -5365,6 +5365,8 @@
       "moveAction": "Mover",
       "moveDialogTitle": "Mover {itemName}",
       "moveDialogDescription": "Seleccione la carpeta de destino",
+      "moveHere": "Mover aquí",
+      "moveToRoot": "Mover a carpeta raíz",
       "selectFolder": "Seleccionar carpeta",
       "rootFolder": "Carpeta raíz",
       "createFolderError": "Error al crear carpeta",
