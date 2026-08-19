@@ -19,6 +19,7 @@ import {
 
 function driveFile(name: string) {
   return {
+    type: "file" as const,
     name,
     fileUrl: `https://blob.example/${name}`,
     pathname: `drive/users/user_123/${name}`,
