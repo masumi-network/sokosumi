@@ -13,6 +13,10 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
     dateTime: () => "",
+<<<<<<< HEAD
+=======
+    number: (num: number) => num.toString(),
+>>>>>>> 7a9bd1100 (fix(drive): address CodeRabbit review - debounce search, remove h-9, use Input component, fix i18n duplication)
   }),
 }));
 

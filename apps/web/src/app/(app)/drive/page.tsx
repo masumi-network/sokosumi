@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
@@ -51,6 +52,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -161,6 +163,7 @@ export default function DrivePage(): ReactElement {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
@@ -172,6 +175,15 @@ export default function DrivePage(): ReactElement {
     pathname,
     segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
+
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
+  function handleSearchChange(value: string) {
+    setSearchQuery(value);
+    debouncedSetSearchQuery(value);
+  }
 
   const loadFiles = useCallback(async () => {
     loadFilesAbortRef.current?.abort();
@@ -193,7 +205,9 @@ export default function DrivePage(): ReactElement {
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
-        ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
+        ...(debouncedSearchQuery.trim()
+          ? { q: debouncedSearchQuery.trim() }
+          : {}),
       });
 
       if (!controller.signal.aborted) {
@@ -208,7 +222,7 @@ export default function DrivePage(): ReactElement {
         setLoading(false);
       }
     }
-  }, [scope, activeOrganizationId, searchQuery, t]);
+  }, [scope, activeOrganizationId, debouncedSearchQuery, t]);
 
   useEffect(() => {
     void loadFiles();
@@ -400,8 +414,8 @@ export default function DrivePage(): ReactElement {
                 type="text"
                 placeholder={t("searchPlaceholder")}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-64 pl-8"
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-64 pl-8"
               />
             </div>
             <Label htmlFor="file-upload" className="cursor-pointer">

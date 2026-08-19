@@ -3,6 +3,7 @@
 import { FileIcon, Loader2, Search } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,8 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile } from "@/lib/clients/generated/core";
@@ -41,9 +44,19 @@ export function DriveFilePicker({
   const [error, setError] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
+  function handleSearchChange(value: string) {
+    setSearchQuery(value);
+    debouncedSetSearchQuery(value);
+  }
 
   const loadFiles = useCallback(async () => {
     loadFilesAbortRef.current?.abort();
@@ -65,7 +78,9 @@ export function DriveFilePicker({
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
-        ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
+        ...(debouncedSearchQuery.trim()
+          ? { q: debouncedSearchQuery.trim() }
+          : {}),
       });
       if (!controller.signal.aborted) {
         setFiles(loaded);
@@ -79,7 +94,7 @@ export function DriveFilePicker({
         setLoading(false);
       }
     }
-  }, [scope, activeOrganizationId, searchQuery, t]);
+  }, [scope, activeOrganizationId, debouncedSearchQuery, t]);
 
   useEffect(() => {
     if (open) {
@@ -155,12 +170,12 @@ export function DriveFilePicker({
             </TabsList>
             <div className="relative">
               <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-              <input
+              <Input
                 type="text"
                 placeholder={t("searchPlaceholder")}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 pl-8 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-8"
               />
             </div>
           </div>
