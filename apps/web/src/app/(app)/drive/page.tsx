@@ -390,7 +390,7 @@ export default function DrivePage(): ReactElement {
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-4 flex items-center justify-between gap-4 md:mb-6">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="me"
@@ -407,17 +407,6 @@ export default function DrivePage(): ReactElement {
               </TabsTrigger>
             )}
           </TabsList>
-
-          <div className="relative mb-4 md:hidden">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
-          </div>
 
           <div className="hidden items-center gap-2 md:flex">
             <div className="relative">
@@ -454,6 +443,17 @@ export default function DrivePage(): ReactElement {
               disabled={uploading}
             />
           </div>
+        </div>
+
+        <div className="relative mb-6 md:hidden">
+          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+          <Input
+            type="text"
+            placeholder={t("searchPlaceholder")}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-8"
+          />
         </div>
 
         {error && (
