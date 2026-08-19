@@ -299,4 +299,79 @@ describe("SignUpForm OAuth workflow", () => {
     expect(signUpPayload.callbackURL).toContain("exp=1772367377");
     expect(signUpPayload.callbackURL).toContain("sig=signed-value");
   });
+
+  it("keeps a left-edge submit spinner after credential signup succeeds", async () => {
+    mockSignUpEmail.mockResolvedValue({
+      data: {
+        user: { id: "user-5" },
+      },
+      error: null,
+    });
+
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+    });
+
+    const submitButton = screen.getByRole("button", { name: "submit" });
+    const spinner = submitButton.querySelector("svg.animate-spin");
+
+    expect(submitButton).toBeDisabled();
+    expect(spinner).not.toBeNull();
+    expect(spinner).toHaveClass(
+      "absolute",
+      "top-1/2",
+      "left-4",
+      "-translate-y-1/2",
+    );
+  });
+
+  it("releases the submit spinner after credential signup fails", async () => {
+    mockSignUpEmail.mockResolvedValue({
+      data: null,
+      error: { message: "Email already in use" },
+    });
+
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    const submitButton = screen.getByRole("button", { name: "submit" });
+
+    await waitFor(() => {
+      expect(submitButton).toBeEnabled();
+    });
+
+    expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+  });
+
+  it("keeps a left-edge submit spinner until oauth redirect navigation", async () => {
+    mockSignUpEmail.mockResolvedValue({
+      data: {
+        user: { id: "user-6" },
+        redirect: true,
+        url: "/auth/oauth2/authorize?client_id=test-client",
+      },
+      error: null,
+    });
+
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    await waitFor(() => {
+      expect(window.location.href).toContain(
+        "/auth/oauth2/authorize?client_id=test-client",
+      );
+    });
+
+    const submitButton = screen.getByRole("button", { name: "submit" });
+    const spinner = submitButton.querySelector("svg.animate-spin");
+
+    expect(submitButton).toBeDisabled();
+    expect(spinner).toHaveClass("absolute", "left-4");
+  });
 });
