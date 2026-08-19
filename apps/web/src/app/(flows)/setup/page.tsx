@@ -18,14 +18,12 @@ import {
   isJoinLinkDuplicateOfInvitation,
   pendingInvitesDescriptionKey,
   resolveWorkspaceGateSurface,
+  type WorkspaceGateQueueItem,
   type WorkspaceGateSurface,
 } from "@/lib/workspace-gate-queue";
 
 import { IdentityOnboardingForm } from "./components/identity-onboarding-form.client";
-import {
-  PendingInvitesQueue,
-  type WorkspaceGateQueueItem,
-} from "./components/pending-invites-queue.client";
+import { PendingInvitesQueue } from "./components/pending-invites-queue.client";
 import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
 

@@ -8,29 +8,20 @@ import { toast } from "sonner";
 
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { acceptOrganizationInviteLink } from "@/lib/actions";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
-
-export interface WorkspaceGateQueueInvitation {
-  kind: "invitation";
-  id: string;
-  organizationId: string;
-  organizationName: string;
-  organizationSlug: string;
-}
-
-export interface WorkspaceGateQueueJoinLink {
-  kind: "join";
-  token: string;
-  organizationName: string;
-  organizationSlug: string;
-}
-
-export type WorkspaceGateQueueItem =
-  | WorkspaceGateQueueInvitation
-  | WorkspaceGateQueueJoinLink;
+import {
+  itemsForBatchAccept,
+  type PendingInvitesBatchMode,
+  queueItemKey,
+  shouldShowPendingInvitesBatchActions,
+  type WorkspaceGateQueueInvitation,
+  type WorkspaceGateQueueItem,
+  type WorkspaceGateQueueJoinLink,
+} from "@/lib/workspace-gate-queue";
 
 interface PendingInvitesQueueProps {
   items: WorkspaceGateQueueItem[];
@@ -44,12 +35,16 @@ export function PendingInvitesQueue({
   const t = useTranslations("WorkspaceGate.Pending");
   const router = useRouter();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [retryTarget, setRetryTarget] = useState<{
     organizationId: string;
     organizationSlug: string;
     acceptedJoinToken?: string;
   } | null>(null);
   const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
+  const showBatchActions = shouldShowPendingInvitesBatchActions(items.length);
 
   async function leaveGateAfterOrganization(input: {
     organizationId: string;
@@ -143,6 +138,121 @@ export function PendingInvitesQueue({
     }
   }
 
+  function handleToggleSelected(key: string, checked: boolean) {
+    setSelectedKeys((previous) => {
+      const next = new Set(previous);
+      if (checked) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  }
+
+  async function acceptQueueItem(item: WorkspaceGateQueueItem): Promise<
+    | {
+        ok: true;
+        value: {
+          organizationId: string;
+          organizationSlug: string;
+          acceptedJoinToken?: string;
+        };
+      }
+    | { ok: false }
+  > {
+    if (item.kind === "invitation") {
+      const result = await authClient.organization.acceptInvitation({
+        invitationId: item.id,
+      });
+      if (result.error) {
+        return { ok: false };
+      }
+      return {
+        ok: true,
+        value: {
+          organizationId:
+            result.data?.member.organizationId ?? item.organizationId,
+          organizationSlug: item.organizationSlug,
+        },
+      };
+    }
+
+    const result = await acceptOrganizationInviteLink({ token: item.token });
+    if (!result.ok) {
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      value: {
+        organizationId: result.value.organizationId,
+        organizationSlug:
+          result.value.organizationSlug ?? item.organizationSlug,
+        acceptedJoinToken: item.token,
+      },
+    };
+  }
+
+  async function handleAcceptBatch(mode: PendingInvitesBatchMode) {
+    if (busyKey) {
+      return;
+    }
+    const targets = itemsForBatchAccept(items, mode, selectedKeys);
+    if (targets.length === 0) {
+      return;
+    }
+    setBusyKey(mode === "all" ? "accept-all" : "accept-selected");
+    try {
+      if (!(await persistIfNeeded())) {
+        return;
+      }
+      const successes: Array<{
+        organizationId: string;
+        organizationSlug: string;
+        acceptedJoinToken?: string;
+      }> = [];
+      const failedNames: string[] = [];
+
+      for (const item of targets) {
+        try {
+          const accepted = await acceptQueueItem(item);
+          if (!accepted.ok) {
+            failedNames.push(item.organizationName);
+            continue;
+          }
+          successes.push(accepted.value);
+        } catch (error) {
+          console.error("Workspace gate accept item failed", error);
+          failedNames.push(item.organizationName);
+        }
+      }
+
+      if (failedNames.length > 0) {
+        toast.error(t("batchError", { names: failedNames.join(", ") }));
+      }
+
+      const firstSuccess = successes[0];
+      if (!firstSuccess) {
+        router.refresh();
+        return;
+      }
+
+      const acceptedJoinToken = successes.find(
+        (success) => success.acceptedJoinToken,
+      )?.acceptedJoinToken;
+      await leaveGateAfterOrganization({
+        organizationId: firstSuccess.organizationId,
+        organizationSlug: firstSuccess.organizationSlug,
+        acceptedJoinToken: firstSuccess.acceptedJoinToken ?? acceptedJoinToken,
+      });
+    } catch (error) {
+      console.error("Workspace gate accept batch failed", error);
+      toast.error(t("acceptError"));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   async function handleRejectAll() {
     if (busyKey) {
       return;
@@ -174,24 +284,44 @@ export function PendingInvitesQueue({
 
   const busy = busyKey !== null;
   const awaitingActivationRetry = retryTarget !== null;
+  const selectedCount = itemsForBatchAccept(
+    items,
+    "selected",
+    selectedKeys,
+  ).length;
 
   return (
     <div className="space-y-4" data-testid="workspace-gate-pending-queue">
       <NameFields disabled={busy || awaitingActivationRetry} />
       <ul className="space-y-3">
         {items.map((item) => {
-          const key = item.kind === "invitation" ? item.id : item.token;
+          const key = queueItemKey(item);
           const itemBusy = busyKey === key;
           return (
             <li
               key={`${item.kind}:${key}`}
               className="border-input flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{item.organizationName}</p>
-                <p className="text-muted-foreground truncate text-sm">
-                  {item.organizationSlug}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                {showBatchActions ? (
+                  <Checkbox
+                    checked={selectedKeys.has(key)}
+                    disabled={busy || awaitingActivationRetry}
+                    onCheckedChange={(checked) => {
+                      handleToggleSelected(key, checked === true);
+                    }}
+                    aria-label={t("selectItem", {
+                      organizationName: item.organizationName,
+                    })}
+                    data-testid={`workspace-gate-select-${item.kind}-${key}`}
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{item.organizationName}</p>
+                  <p className="text-muted-foreground truncate text-sm">
+                    {item.organizationSlug}
+                  </p>
+                </div>
               </div>
               <Button
                 type="button"
@@ -226,6 +356,36 @@ export function PendingInvitesQueue({
           ) : null}
           {t("activateRetry")}
         </Button>
+      ) : null}
+      {showBatchActions ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            disabled={busy || awaitingActivationRetry}
+            onClick={() => {
+              void handleAcceptBatch("all");
+            }}
+            data-testid="workspace-gate-accept-all"
+          >
+            {busyKey === "accept-all" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            {t("acceptAll")}
+          </Button>
+          <Button
+            type="button"
+            disabled={busy || awaitingActivationRetry || selectedCount === 0}
+            onClick={() => {
+              void handleAcceptBatch("selected");
+            }}
+            data-testid="workspace-gate-accept-selected"
+          >
+            {busyKey === "accept-selected" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            {t("acceptSelected")}
+          </Button>
+        </div>
       ) : null}
       <div className="space-y-2">
         <p className="text-muted-foreground text-sm">{t("rejectAllHint")}</p>

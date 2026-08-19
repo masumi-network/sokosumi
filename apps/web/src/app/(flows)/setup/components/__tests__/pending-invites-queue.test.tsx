@@ -54,6 +54,8 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
     activateOrganizationWorkspaceMock(...args),
 }));
 
+import type { WorkspaceGateQueueItem } from "@/lib/workspace-gate-queue";
+
 import { PendingInvitesQueue } from "../pending-invites-queue.client";
 
 const messages = {
@@ -78,6 +80,10 @@ const messages = {
     Pending: {
       accept: "Accept",
       join: "Join",
+      acceptAll: "Accept all",
+      acceptSelected: "Accept selected",
+      selectItem: "Select {organizationName}",
+      batchError: "We could not accept: {names}.",
       rejectAll: "Reject all",
       rejectAllHint: "Rejecting every invitation lets you create your own.",
       acceptError: "Accept failed",
@@ -89,27 +95,34 @@ const messages = {
   },
 };
 
-function renderQueue(initialName = "Ada Lovelace") {
+const invitationItem: WorkspaceGateQueueItem = {
+  kind: "invitation",
+  id: "inv_1",
+  organizationId: "org_1",
+  organizationName: "Acme",
+  organizationSlug: "acme",
+};
+const secondInvitationItem: WorkspaceGateQueueItem = {
+  kind: "invitation",
+  id: "inv_2",
+  organizationId: "org_2",
+  organizationName: "Beta",
+  organizationSlug: "beta",
+};
+const joinItem: WorkspaceGateQueueItem = {
+  kind: "join",
+  token: "join_token_1",
+  organizationName: "Join Co",
+  organizationSlug: "join-co",
+};
+
+function renderQueue(
+  initialName = "Ada Lovelace",
+  items: WorkspaceGateQueueItem[] = [invitationItem, joinItem],
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <PendingInvitesQueue
-        initialName={initialName}
-        items={[
-          {
-            kind: "invitation",
-            id: "inv_1",
-            organizationId: "org_1",
-            organizationName: "Acme",
-            organizationSlug: "acme",
-          },
-          {
-            kind: "join",
-            token: "join_token_1",
-            organizationName: "Join Co",
-            organizationSlug: "join-co",
-          },
-        ]}
-      />
+      <PendingInvitesQueue initialName={initialName} items={items} />
     </NextIntlClientProvider>,
   );
 }
@@ -297,5 +310,148 @@ describe("PendingInvitesQueue", () => {
     expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
       organizationSlug: "acme",
     });
+  });
+
+  it("hides Accept all and row checkboxes on a one-item list", () => {
+    renderQueue("Ada Lovelace", [invitationItem]);
+
+    expect(
+      screen.queryByTestId("workspace-gate-accept-all"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("workspace-gate-accept-selected"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("workspace-gate-select-invitation-inv_1"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
+    ).toBeInTheDocument();
+  });
+
+  it("accepts every pending item, activates the first success, and leaves", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+    acceptOrganizationInviteLinkMock.mockResolvedValue({
+      ok: true,
+      value: { organizationId: "org_join", organizationSlug: "join-co" },
+    });
+
+    renderQueue();
+    await user.click(screen.getByTestId("workspace-gate-accept-all"));
+
+    await waitFor(() => {
+      expect(acceptInvitationMock).toHaveBeenCalledWith({
+        invitationId: "inv_1",
+      });
+    });
+    expect(acceptOrganizationInviteLinkMock).toHaveBeenCalledWith({
+      token: "join_token_1",
+    });
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(1);
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org_1");
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
+      organizationSlug: "acme",
+      acceptedJoinToken: "join_token_1",
+    });
+    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+  });
+
+  it("keeps Accept selected disabled until a row is checked", async () => {
+    const user = userEvent.setup();
+    renderQueue();
+
+    expect(screen.getByTestId("workspace-gate-accept-selected")).toBeDisabled();
+
+    await user.click(
+      screen.getByTestId("workspace-gate-select-invitation-inv_1"),
+    );
+
+    expect(
+      screen.getByTestId("workspace-gate-accept-selected"),
+    ).not.toBeDisabled();
+  });
+
+  it("accepts only the selected rows", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_2" } },
+      error: null,
+    });
+
+    renderQueue("Ada Lovelace", [
+      invitationItem,
+      secondInvitationItem,
+      joinItem,
+    ]);
+    await user.click(
+      screen.getByTestId("workspace-gate-select-invitation-inv_2"),
+    );
+    await user.click(screen.getByTestId("workspace-gate-accept-selected"));
+
+    await waitFor(() => {
+      expect(acceptInvitationMock).toHaveBeenCalledWith({
+        invitationId: "inv_2",
+      });
+    });
+    expect(acceptInvitationMock).toHaveBeenCalledTimes(1);
+    expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org_2");
+    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+  });
+
+  it("continues the batch after a failure, toasts the failed orgs, and still leaves", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: null,
+      error: { message: "seat full" },
+    });
+    acceptOrganizationInviteLinkMock.mockResolvedValue({
+      ok: true,
+      value: { organizationId: "org_join", organizationSlug: "join-co" },
+    });
+
+    renderQueue();
+    await user.click(screen.getByTestId("workspace-gate-accept-all"));
+
+    await waitFor(() => {
+      expect(acceptOrganizationInviteLinkMock).toHaveBeenCalledWith({
+        token: "join_token_1",
+      });
+    });
+    expect(toastErrorMock).toHaveBeenCalledWith("We could not accept: Acme.");
+    expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org_join");
+    expect(clearPendingOrganizationJoinCookieActionMock).toHaveBeenCalledWith({
+      organizationSlug: "join-co",
+      acceptedJoinToken: "join_token_1",
+    });
+    expect(routerReplaceMock).toHaveBeenCalledWith("/");
+  });
+
+  it("stays on the queue when every selected accept fails", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: null,
+      error: { message: "seat full" },
+    });
+    acceptOrganizationInviteLinkMock.mockResolvedValue({
+      ok: false,
+      error: { message: "expired" },
+    });
+
+    renderQueue();
+    await user.click(screen.getByTestId("workspace-gate-accept-all"));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "We could not accept: Acme, Join Co.",
+      );
+    });
+    expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(routerRefreshMock).toHaveBeenCalled();
   });
 });

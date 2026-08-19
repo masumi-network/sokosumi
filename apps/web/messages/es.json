@@ -5555,6 +5555,10 @@
     "Pending": {
       "accept": "Aceptar",
       "join": "Unirse",
+      "acceptAll": "Aceptar todas",
+      "acceptSelected": "Aceptar selección",
+      "selectItem": "Seleccionar {organizationName}",
+      "batchError": "No pudimos aceptar: {names}.",
       "rejectAll": "Rechazar todas",
       "rejectAllHint": "Si rechazas todas las invitaciones, podrás crear tu primer espacio de trabajo.",
       "acceptError": "No pudimos aceptar esa invitación.",
