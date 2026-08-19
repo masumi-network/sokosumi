@@ -15,12 +15,14 @@ import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface InvitationActionsProps {
   invitation: Pick<PendingInvitationDetail, "id" | "email">;
+  organizationName: string;
   organizationSlug: string;
   user: SessionUser | undefined;
 }
 
 export default function InvitationActions({
   invitation,
+  organizationName,
   organizationSlug,
   user,
 }: InvitationActionsProps) {
@@ -173,7 +175,9 @@ export default function InvitationActions({
             {loading && action === "accept" && !retryOrganizationId && (
               <Loader2 className="size-4 animate-spin" />
             )}
-            {t("accept")}
+            {loading && action === "accept" && !retryOrganizationId
+              ? t("joining")
+              : t("accept", { organization: organizationName })}
           </Button>
           {retryOrganizationId ? (
             <Button

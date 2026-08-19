@@ -27,7 +27,7 @@ export default function InvitationCard({
   user,
 }: InvitationCardProps) {
   const t = useTranslations("AcceptInvitation.InvitationCard");
-  const { status, inviter, organization } = invitation;
+  const { status, organization } = invitation;
 
   if (status === "pending") {
     return (
@@ -35,16 +35,12 @@ export default function InvitationCard({
         organization={{ name: organization.name }}
         title={t("title")}
         description={
-          <>
-            <p>{t("invitedToJoin", { organization: organization.name })}</p>
-            <p>
-              <strong>{inviter.email}</strong> {t("hasInvitedYouToJoin")}
-            </p>
-          </>
+          <p>{t("invitedToJoin", { organization: organization.name })}</p>
         }
       >
         <InvitationActions
           invitation={invitation}
+          organizationName={organization.name}
           organizationSlug={organization.slug}
           user={user}
         />

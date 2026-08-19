@@ -62,7 +62,8 @@ const messages = {
   AcceptInvitation: {
     InvitationCard: {
       Actions: {
-        accept: "Accept",
+        accept: "Join {organization}",
+        joining: "Joining…",
         decline: "Decline",
         activateRetry: "Try switching again",
         signedOutHint: "Sign in or create an account to accept this invite.",
@@ -100,6 +101,7 @@ function renderActions(sessionUser: SessionUser | null = user) {
     <NextIntlClientProvider locale="en" messages={messages}>
       <InvitationActions
         invitation={{ id: "inv_1", email: "ada@example.com" }}
+        organizationName="Acme"
         organizationSlug="acme"
         user={sessionUser ?? undefined}
       />
@@ -132,7 +134,7 @@ describe("InvitationActions name collection", () => {
     renderActions();
 
     await actor.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
-    await actor.click(screen.getByRole("button", { name: "Accept" }));
+    await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
       expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
@@ -153,7 +155,7 @@ describe("InvitationActions name collection", () => {
     renderActions({ ...user, name: "Ada Lovelace" });
 
     expect(screen.queryByTestId("collect-user-name")).not.toBeInTheDocument();
-    await actor.click(screen.getByRole("button", { name: "Accept" }));
+    await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
       expect(acceptInvitationMock).toHaveBeenCalled();
@@ -169,7 +171,7 @@ describe("InvitationActions name collection", () => {
       .mockResolvedValueOnce(true);
     renderActions({ ...user, name: "Ada Lovelace" });
 
-    await actor.click(screen.getByRole("button", { name: "Accept" }));
+    await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Activate failed");
@@ -200,7 +202,7 @@ describe("InvitationActions join-like layout", () => {
   it("stacks primary Accept above outline Decline", () => {
     renderActions({ ...user, name: "Ada Lovelace" });
 
-    const accept = screen.getByRole("button", { name: "Accept" });
+    const accept = screen.getByRole("button", { name: "Join Acme" });
     const decline = screen.getByRole("button", { name: "Decline" });
 
     expect(accept.compareDocumentPosition(decline)).toBe(
@@ -212,6 +214,7 @@ describe("InvitationActions join-like layout", () => {
 
   it("shows the join signed-out hint and stacked auth actions", async () => {
     const actor = userEvent.setup();
+    window.history.pushState({}, "", "/accept-invitation/inv_1");
     renderActions(null);
 
     expect(
@@ -222,18 +225,29 @@ describe("InvitationActions join-like layout", () => {
     ).not.toBeInTheDocument();
 
     await actor.click(screen.getByRole("button", { name: "Sign in to join" }));
-    expect(routerPushMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/signin\?.*email=ada%40example.com/),
+    const signin = new URL(
+      String(routerPushMock.mock.calls.at(-1)?.[0]),
+      "http://localhost",
+    );
+    expect(signin.pathname).toBe("/signin");
+    expect(signin.searchParams.get("email")).toBe("ada@example.com");
+    expect(signin.searchParams.get("returnUrl")).toBe(
+      "/accept-invitation/inv_1",
     );
 
     await actor.click(
       screen.getByRole("button", { name: "Create an account" }),
     );
-    const signupUrl = String(routerPushMock.mock.calls.at(-1)?.[0]);
-    const signup = new URL(signupUrl, "http://localhost");
+    const signup = new URL(
+      String(routerPushMock.mock.calls.at(-1)?.[0]),
+      "http://localhost",
+    );
     expect(signup.pathname).toBe("/signup");
     expect(signup.searchParams.get("email")).toBe("ada@example.com");
     expect(signup.searchParams.get("invitationId")).toBe("inv_1");
+    expect(signup.searchParams.get("returnUrl")).toBe(
+      "/accept-invitation/inv_1",
+    );
   });
 
   it("rejects the invitation instead of clearing a join cookie", async () => {
@@ -258,7 +272,7 @@ describe("InvitationActions join-like layout", () => {
     expect(screen.getByRole("button", { name: "Logout" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Ignore" })).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Accept" }),
+      screen.queryByRole("button", { name: "Join Acme" }),
     ).not.toBeInTheDocument();
   });
 });

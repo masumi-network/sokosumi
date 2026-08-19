@@ -848,7 +848,6 @@
     "InvitationCard": {
       "title": "You've been invited",
       "invitedToJoin": "Join {organization} on Sokosumi.",
-      "hasInvitedYouToJoin": "has invited you.",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",
@@ -856,7 +855,8 @@
       "declinedDescription": "You've declined the invitation to join {organizationName}.",
       "goToHome": "Go to Home",
       "Actions": {
-        "accept": "Accept",
+        "accept": "Join {organization}",
+        "joining": "Joining…",
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",

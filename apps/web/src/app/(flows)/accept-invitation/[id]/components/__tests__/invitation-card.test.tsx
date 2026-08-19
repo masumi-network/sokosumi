@@ -15,7 +15,6 @@ const messages = {
     InvitationCard: {
       title: "You've been invited",
       invitedToJoin: "Join {organization} on Sokosumi.",
-      hasInvitedYouToJoin: "has invited you.",
       acceptedTitle: "Welcome to {organizationName}!",
       acceptedDescription: "You've successfully joined the organization.",
       goToOrganization: "Go to Organization",
@@ -49,13 +48,13 @@ function renderCard(invitation: PendingInvitationDetail = pendingInvitation) {
 }
 
 describe("InvitationCard pending look", () => {
-  it("uses join's invited-to language and keeps the inviter", () => {
+  it("uses join's invited-to language and does not show the inviter", () => {
     renderCard();
 
     expect(screen.getByText("You've been invited")).toBeVisible();
     expect(screen.getByText("Join Acme on Sokosumi.")).toBeVisible();
-    expect(screen.getByText("owner@example.com")).toBeVisible();
-    expect(screen.getByText("has invited you.")).toBeVisible();
+    expect(screen.queryByText("owner@example.com")).not.toBeInTheDocument();
+    expect(screen.queryByText("has invited you.")).not.toBeInTheDocument();
     expect(screen.getByTestId("invitation-actions")).toBeVisible();
     expect(
       screen.queryByText("You've been invited to join an organization"),
