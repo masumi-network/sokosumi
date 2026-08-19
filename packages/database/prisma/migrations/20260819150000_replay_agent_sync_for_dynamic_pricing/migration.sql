@@ -1,3 +1,6 @@
+-- Formerly 20260815110000_replay_agent_sync_for_dynamic_pricing.
+-- Re-timestamped after 20260819140000_add_dynamic_pricing_type.
+--
 -- Dynamic x402 sources synced before PricingType.DYNAMIC existed were stored
 -- as UNKNOWN. The new binary uses a versioned metadata key and therefore
 -- replays from the registry epoch without touching this cursor.
