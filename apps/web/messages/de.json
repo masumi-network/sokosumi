@@ -846,9 +846,8 @@
   },
   "AcceptInvitation": {
     "InvitationCard": {
-      "title": "Organisationseinladung",
-      "description": "Du wurdest eingeladen, einer Organisation beizutreten",
-      "hasInvitedYouToJoin": "hat dich eingeladen, beizutreten",
+      "title": "Du wurdest eingeladen",
+      "invitedToJoin": "Tritt {organization} auf Sokosumi bei.",
       "acceptedTitle": "Willkommen bei {organizationName}!",
       "acceptedDescription": "Du bist der Organisation erfolgreich beigetreten. Schön, dass du dabei bist!",
       "goToOrganization": "Zur Organisation",
@@ -856,18 +855,16 @@
       "declinedDescription": "Du hast die Einladung zu {organizationName} abgelehnt.",
       "goToHome": "Zur Startseite",
       "Actions": {
-        "accept": "Akzeptieren",
+        "accept": "{organization} beitreten",
+        "joining": "Beitritt…",
         "decline": "Ablehnen",
         "logout": "Abmelden",
         "ignore": "Ignorieren",
         "activateRetry": "Wechsel erneut versuchen",
         "emailMismatch": "Du bist nicht der eingeladene Nutzer.",
-        "WithoutSession": {
-          "ifYouAlreadyHaveAnAccount": "Wenn du bereits ein Konto hast, kannst du dich anmelden und die Einladung akzeptieren.",
-          "ifYouDontHaveAnAccount": "Wenn du noch kein Konto hast, kannst du ein neues erstellen und der Organisation beitreten.",
-          "login": "Anmelden",
-          "register": "Registrieren"
-        },
+        "signedOutHint": "Melde dich an oder erstelle ein Konto, um die Einladung anzunehmen.",
+        "signIn": "Anmelden und beitreten",
+        "register": "Konto erstellen",
         "Success": {
           "accept": "Einladung erfolgreich akzeptiert",
           "decline": "Einladung erfolgreich abgelehnt"
