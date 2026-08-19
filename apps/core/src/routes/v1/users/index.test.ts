@@ -65,4 +65,20 @@ describe("users routes OpenAPI contract", () => {
     expect(doc.paths?.["/{id}/onboarding"]?.get).toBeUndefined();
     expect(doc.paths?.["/{id}/onboarding"]?.post).toBeUndefined();
   });
+
+  it("exposes GET /{id}/deletion for the signed-in user", () => {
+    const doc = usersRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Users API",
+        version: "1.0.0",
+      },
+    });
+
+    const getOperation = doc.paths?.["/{id}/deletion"]?.get;
+    expect(getOperation).toBeDefined();
+    expect(getOperation?.responses).toHaveProperty("200");
+    expect(getOperation?.responses).toHaveProperty("401");
+    expect(getOperation?.responses).toHaveProperty("403");
+  });
 });

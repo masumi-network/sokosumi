@@ -2661,6 +2661,13 @@ export type CreditBucketBreakdown = {
     expiresAt: Date | null;
 };
 
+export type UserDeletionEvaluation = {
+    /**
+     * Current User-deletion blockers. Empty means the existing wipe may proceed.
+     */
+    blockers: Array<'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING'>;
+};
+
 export type PersistedDesignMd = {
     /**
      * The persisted DESIGN.md, or null when cleared
@@ -3070,6 +3077,13 @@ export type User = {
     emailVerified: boolean;
     image?: string | null;
     role: string;
+};
+
+export type OrganizationDeletionEvaluation = {
+    /**
+     * Current Organization-deletion blockers. Empty means the existing wipe may proceed.
+     */
+    blockers: Array<'ORGANIZATION_HAS_ADDITIONAL_MEMBERS' | 'LAST_WORKSPACE'>;
 };
 
 export type Member = {
@@ -18726,6 +18740,95 @@ export type GetUsersByIdCreditsResponses = {
 
 export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
 
+export type GetUsersByIdDeletionData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/deletion';
+};
+
+export type GetUsersByIdDeletionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You can only evaluate your own deletion
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdDeletionError = GetUsersByIdDeletionErrors[keyof GetUsersByIdDeletionErrors];
+
+export type GetUsersByIdDeletionResponses = {
+    /**
+     * Current User-deletion blockers
+     */
+    200: {
+        data: UserDeletionEvaluation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdDeletionResponse = GetUsersByIdDeletionResponses[keyof GetUsersByIdDeletionResponses];
+
 export type GetUsersByIdDesignMdData = {
     body?: never;
     path: {
@@ -22238,6 +22341,95 @@ export type GetOrganizationsByIdResponses = {
 };
 
 export type GetOrganizationsByIdResponse = GetOrganizationsByIdResponses[keyof GetOrganizationsByIdResponses];
+
+export type GetOrganizationsByIdDeletionData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/deletion';
+};
+
+export type GetOrganizationsByIdDeletionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - Organization owner only
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdDeletionError = GetOrganizationsByIdDeletionErrors[keyof GetOrganizationsByIdDeletionErrors];
+
+export type GetOrganizationsByIdDeletionResponses = {
+    /**
+     * Current Organization-deletion blockers
+     */
+    200: {
+        data: OrganizationDeletionEvaluation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdDeletionResponse = GetOrganizationsByIdDeletionResponses[keyof GetOrganizationsByIdDeletionResponses];
 
 export type GetOrganizationsByIdMembersData = {
     body?: never;
