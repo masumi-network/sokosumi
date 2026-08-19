@@ -60,16 +60,24 @@ export default async function AuthAside() {
           ))}
         </ul>
 
-        <div data-testid="auth-aside-logos" className="mt-10">
-          <p className="font-medium text-white/45 text-xs uppercase tracking-[0.16em]">
+        <section
+          data-testid="auth-aside-logos"
+          className="group mt-10 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          aria-labelledby="auth-customer-logos-label"
+          tabIndex={0}
+        >
+          <p
+            id="auth-customer-logos-label"
+            className="font-medium text-white text-xs uppercase tracking-[0.16em]"
+          >
             {t("logosLabel")}
           </p>
-          <div className="mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)]">
-            <div className="flex w-max animate-auth-logo-marquee motion-reduce:animate-none">
+          <div className="mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)] motion-reduce:[mask-image:none]">
+            <div className="flex w-max animate-auth-logo-marquee group-focus:[animation-play-state:paused] group-hover:[animation-play-state:paused] motion-reduce:w-full motion-reduce:animate-none">
               {[0, 1].map((copy) => (
                 <ul
                   key={copy}
-                  className="flex shrink-0 items-center gap-x-8 pr-8 motion-reduce:[&:nth-child(2)]:hidden"
+                  className="flex shrink-0 items-center gap-x-8 pr-8 motion-reduce:w-full motion-reduce:flex-wrap motion-reduce:gap-y-4 motion-reduce:pr-0 motion-reduce:[&:nth-child(2)]:hidden"
                   aria-hidden={copy === 1}
                 >
                   {AUTH_MARQUEE_LOGOS.map((logo) => (
@@ -87,7 +95,7 @@ export default async function AuthAside() {
               ))}
             </div>
           </div>
-        </div>
+        </section>
       </div>
 
       <figure className="relative z-10 mt-12 ml-auto max-w-md text-right">
@@ -97,7 +105,7 @@ export default async function AuthAside() {
         <figcaption className="mt-5 flex items-center justify-end gap-3 text-sm">
           <Image
             src="/images/auth/florian-haller.webp"
-            alt={t("quoteAuthor")}
+            alt=""
             width={48}
             height={48}
             className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-white/20"
@@ -106,14 +114,12 @@ export default async function AuthAside() {
             <div className="whitespace-nowrap text-white">
               {t("quoteAuthor")}
             </div>
-            <div className="whitespace-nowrap text-white/55">
-              {t("quoteRole")}
-            </div>
+            <div className="whitespace-nowrap text-white">{t("quoteRole")}</div>
           </div>
           <div className="border-white/20 border-l pl-4">
             <Image
               src={AUTH_SERVICEPLAN_LOGO.src}
-              alt={AUTH_SERVICEPLAN_LOGO.alt}
+              alt=""
               width={AUTH_SERVICEPLAN_LOGO.width}
               height={AUTH_SERVICEPLAN_LOGO.height}
               className="opacity-90"
