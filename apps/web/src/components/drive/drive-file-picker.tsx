@@ -159,16 +159,22 @@ export function DriveFilePicker({
   }
 
   function navigateToFolder(folderName: string) {
-    const segments = currentFolder ? currentFolder.split("/") : [];
-    const lastSegment = segments[segments.length - 1];
-
-    if (lastSegment === folderName) {
-      return;
-    }
-
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
+
+    if (newPath === currentFolder) {
+      return;
+    }
+
+    const newSegments = newPath.split("/");
+    if (newSegments.length >= 2) {
+      const lastTwo = newSegments.slice(-2);
+      if (lastTwo[0] === lastTwo[1]) {
+        return;
+      }
+    }
+
     setCurrentFolder(newPath);
   }
 
