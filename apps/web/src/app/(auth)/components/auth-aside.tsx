@@ -103,9 +103,9 @@ export default async function AuthAside() {
           <Image
             src="/images/auth/florian-haller.webp"
             alt={t("quoteAuthor")}
-            width={40}
-            height={40}
-            className="size-10 shrink-0 rounded-full object-cover ring-1 ring-white/20"
+            width={48}
+            height={48}
+            className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-white/20"
           />
           <div className="text-left">
             <div className="whitespace-nowrap text-white">
