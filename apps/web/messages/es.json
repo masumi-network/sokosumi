@@ -5353,7 +5353,24 @@
       "uploadFile": "Subir archivo",
       "fromDrive": "Desde Drive",
       "moreActions": "Más acciones",
-      "uploadFab": "Subir archivo"
+      "uploadFab": "Subir archivo",
+      "folder": "Carpeta",
+      "createFolder": "Crear carpeta",
+      "folderName": "Nombre de carpeta",
+      "createFolderDialogTitle": "Crear nueva carpeta",
+      "createFolderDialogDescription": "Ingrese un nombre para la nueva carpeta",
+      "createFolderDialogConfirm": "Crear",
+      "deleteFolderDialogTitle": "Eliminar carpeta",
+      "deleteFolderDialogDescription": "¿Está seguro de que desea eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
+      "moveAction": "Mover",
+      "moveDialogTitle": "Mover {itemName}",
+      "moveDialogDescription": "Seleccione la carpeta de destino",
+      "selectFolder": "Seleccionar carpeta",
+      "rootFolder": "Carpeta raíz",
+      "createFolderError": "Error al crear carpeta",
+      "deleteFolderError": "Error al eliminar carpeta",
+      "moveFolderError": "Error al mover carpeta",
+      "moveFileError": "Error al mover archivo"
     }
   },
   "Share": {
