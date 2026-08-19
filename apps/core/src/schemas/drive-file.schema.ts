@@ -339,5 +339,30 @@ export const moveDriveItemRequestSchema = z
       example: "file",
       description: "Type of item being moved",
     }),
+    scope: driveFileScopeSchema.optional().openapi({
+      description:
+        "Owner scope (required for folder moves): 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org for folder moves)",
+    }),
   })
+  .refine(
+    (data) => {
+      // For folder moves, scope is required
+      if (data.itemType === "folder" && !data.scope) {
+        return false;
+      }
+      // When scope=org, organizationId is required
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "scope is required for folder moves; organizationId is required when scope=org",
+    },
+  )
   .openapi("MoveDriveItemRequest");

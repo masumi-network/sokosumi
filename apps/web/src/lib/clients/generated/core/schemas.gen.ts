@@ -6825,6 +6825,20 @@ export const MoveDriveItemRequestSchema = {
             ],
             example: 'file',
             description: 'Type of item being moved'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope (required for folder moves): \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org for folder moves)'
         }
     },
     required: [

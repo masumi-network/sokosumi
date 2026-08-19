@@ -14,6 +14,7 @@ import {
   conflict,
   notFound,
   serviceUnavailable,
+  unprocessableEntity,
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -135,38 +136,53 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (body.itemType === "folder") {
-      // Move folder
-      // sourcePathname is the folder path relative to scope root (not full pathname)
+      // Move folder - requires explicit scope + organizationId
+      if (!body.scope) {
+        throw unprocessableEntity("scope is required for folder moves");
+      }
+
       const sourceFolderPath = normalizeDriveFolderPath(body.sourcePathname);
       if (!sourceFolderPath) {
         throw badRequest("Source folder path cannot be empty");
       }
 
-      // For folder moves, we need to determine scope from the current user context.
-      // Since we don't have a full pathname, we need an explicit scope parameter.
-      // For now, we'll infer from the first blob under that prefix by trying both.
+      let scope: "user" | "organization";
+      let ownerId: string;
+      let oldPrefix: string;
+      let newPrefix: string;
 
-      // Try user scope first
-      let scope: "user" | "organization" = "user";
-      let ownerId = userContext.userId;
-      let oldPrefix = buildUserDriveFolderPrefix(ownerId, sourceFolderPath);
+      if (body.scope === "me") {
+        ownerId = userContext.userId;
+        scope = "user";
+        await requireDriveFileAccess(authContext, scope, ownerId);
+        oldPrefix = buildUserDriveFolderPrefix(ownerId, sourceFolderPath);
+      } else if (body.scope === "org") {
+        if (!body.organizationId) {
+          throw unprocessableEntity(
+            "organizationId is required when scope=org",
+          );
+        }
+        ownerId = body.organizationId;
+        scope = "organization";
+        await requireDriveFileAccess(authContext, scope, ownerId);
+        oldPrefix = buildOrganizationDriveFolderPrefix(
+          ownerId,
+          sourceFolderPath,
+        );
+      } else {
+        throw badRequest("Invalid scope. Must be 'me' or 'org'.");
+      }
 
-      let sourceCheck = await list({
+      // Check if source folder exists
+      const sourceCheck = await list({
         prefix: oldPrefix,
         token,
         limit: 1,
       });
 
       if (sourceCheck.blobs.length === 0) {
-        // Try org scope (need to get user's org)
-        // This is a limitation - we need to know which org.
-        // For now, fail if user scope doesn't match.
-        throw notFound(
-          "Source folder not found in personal drive. For organization folders, use the rename endpoint with explicit scope.",
-        );
+        throw notFound("Source folder not found");
       }
-
-      await requireDriveFileAccess(authContext, scope, ownerId);
 
       // Extract folder name from source
       const sourceFolderSegments = sourceFolderPath.split("/").filter((s) => s);
@@ -180,7 +196,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const newFolderPath = targetFolderPath
         ? `${targetFolderPath}/${folderName}`
         : folderName;
-      const newPrefix = buildUserDriveFolderPrefix(ownerId, newFolderPath);
+      newPrefix =
+        scope === "user"
+          ? buildUserDriveFolderPrefix(ownerId, newFolderPath)
+          : buildOrganizationDriveFolderPrefix(ownerId, newFolderPath);
 
       // Check if target exists
       const targetCheck = await list({

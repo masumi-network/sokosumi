@@ -1970,6 +1970,14 @@ export type MoveDriveItemRequest = {
      * Type of item being moved
      */
     itemType: 'file' | 'folder';
+    /**
+     * Owner scope (required for folder moves): 'me' for personal drive, 'org' for organization drive
+     */
+    scope?: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org for folder moves)
+     */
+    organizationId?: string;
 };
 
 export type RenameDriveFileRequest = {
