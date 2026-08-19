@@ -178,6 +178,7 @@ export default function DrivePage(): ReactElement {
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [snapshotFolder, setSnapshotFolder] = useState<string | null>(null);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [itemToMove, setItemToMove] = useState<DriveItem | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<string | null>(
@@ -441,6 +442,9 @@ export default function DrivePage(): ReactElement {
   }
 
   function switchScope(newScope: "me" | "org") {
+    if (newScope !== "me" && newScope !== "org") {
+      return;
+    }
     if (newScope === scope) {
       return;
     }
@@ -471,6 +475,17 @@ export default function DrivePage(): ReactElement {
     router.push(`/drive?${params.toString()}`);
   }
 
+  function openCreateFolderDialog() {
+    setSnapshotFolder(currentFolder);
+    setCreateFolderDialogOpen(true);
+  }
+
+  function closeCreateFolderDialog() {
+    setCreateFolderDialogOpen(false);
+    setNewFolderName("");
+    setSnapshotFolder(null);
+  }
+
   async function handleCreateFolder() {
     if (!newFolderName.trim()) {
       return;
@@ -479,11 +494,12 @@ export default function DrivePage(): ReactElement {
     setCreatingFolder(true);
     setError(null);
     try {
+      const targetFolder = snapshotFolder ?? currentFolder;
       await postDriveFolders({
         client: getBrowserCoreClient(),
         body: {
-          folderPath: currentFolder
-            ? `${currentFolder}/${newFolderName.trim()}`
+          folderPath: targetFolder
+            ? `${targetFolder}/${newFolderName.trim()}`
             : newFolderName.trim(),
           scope,
           ...(scope === "org" && activeOrganizationId
@@ -495,26 +511,21 @@ export default function DrivePage(): ReactElement {
 
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
+      setSnapshotFolder(null);
       await loadItems();
     } catch (err) {
       console.error("Failed to create folder", err);
 
-      // Check for duplicate folder (409)
       const isDuplicate =
         err &&
         typeof err === "object" &&
-        ("status" in err
-          ? (err.status as number) === 409
-          : "response" in err &&
-              err.response &&
-              typeof err.response === "object" &&
-              "status" in err.response
-            ? (err.response.status as number) === 409
-            : false);
+        "status" in err &&
+        (err.status as number) === 409;
 
       if (isDuplicate) {
         setCreateFolderDialogOpen(false);
         setNewFolderName("");
+        setSnapshotFolder(null);
         toast.error(t("createFolderDuplicateError"));
       } else {
         toast.error(t("createFolderError"));
@@ -679,7 +690,7 @@ export default function DrivePage(): ReactElement {
                 size="sm"
                 variant="outline"
                 className="gap-1.5"
-                onClick={() => setCreateFolderDialogOpen(true)}
+                onClick={openCreateFolderDialog}
               >
                 <FolderPlus className="size-4" aria-hidden />
                 {t("createFolder")}
@@ -1084,7 +1095,11 @@ export default function DrivePage(): ReactElement {
 
       <Dialog
         open={createFolderDialogOpen}
-        onOpenChange={setCreateFolderDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeCreateFolderDialog();
+          }
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -1105,13 +1120,7 @@ export default function DrivePage(): ReactElement {
             }}
           />
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setCreateFolderDialogOpen(false);
-                setNewFolderName("");
-              }}
-            >
+            <Button variant="outline" onClick={closeCreateFolderDialog}>
               {t("cancelAction")}
             </Button>
             <Button
