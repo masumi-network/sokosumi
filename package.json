@@ -77,6 +77,7 @@
     "chat:format": "pnpm --filter @sokosumi/chat format",
     "ai-provider:format": "pnpm --filter @sokosumi/ai-provider format",
     "masumi:format": "pnpm --filter @sokosumi/masumi format",
+    "data-migration:better-auth-1-7-harvest": "pnpm --filter @sokosumi/database data-migration:better-auth-1-7-harvest",
     "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
