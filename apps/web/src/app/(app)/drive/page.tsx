@@ -78,7 +78,7 @@ import {
   postDriveFolders,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { listDriveFiles } from "@/lib/utils/drive-file-list.client";
+import { listDriveItems } from "@/lib/utils/drive-file-list.client";
 import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
@@ -224,7 +224,7 @@ export default function DrivePage(): ReactElement {
         return;
       }
 
-      const loaded = await listDriveFiles({
+      const loaded = await listDriveItems({
         scope,
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }

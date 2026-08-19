@@ -1,7 +1,7 @@
 "use client";
 
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveFileItem } from "@/lib/clients/generated/core";
+import type { DriveFileItem, DriveItem } from "@/lib/clients/generated/core";
 import { getDriveFiles } from "@/lib/clients/generated/core";
 
 /** Core max page size — fewer round trips than the default 20. */
@@ -55,4 +55,40 @@ export async function listDriveFiles(
   }
 
   return files;
+}
+
+export async function listDriveItems(
+  options: ListDriveFilesOptions,
+): Promise<DriveItem[]> {
+  const items: DriveItem[] = [];
+  let cursor: string | undefined;
+
+  for (let page = 0; page < DRIVE_FILES_MAX_PAGES; page += 1) {
+    const response = await getDriveFiles({
+      client: getBrowserCoreClient(),
+      query: {
+        scope: options.scope,
+        limit: DRIVE_FILES_PAGE_LIMIT,
+        ...(options.scope === "org" && options.organizationId
+          ? { organizationId: options.organizationId }
+          : {}),
+        ...(options.folder ? { folder: options.folder } : {}),
+        ...(options.q?.trim() ? { q: options.q.trim() } : {}),
+        ...(cursor ? { cursor } : {}),
+      },
+      ...(options.signal ? { signal: options.signal } : {}),
+      throwOnError: true,
+    });
+
+    const allItems = response.data?.data ?? [];
+    items.push(...allItems);
+
+    const nextCursor = response.data?.meta?.pagination?.nextCursor ?? null;
+    if (!nextCursor) {
+      return items;
+    }
+    cursor = nextCursor;
+  }
+
+  return items;
 }
