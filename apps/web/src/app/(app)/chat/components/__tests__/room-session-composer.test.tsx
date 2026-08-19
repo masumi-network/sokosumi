@@ -18,6 +18,9 @@ import { RoomSessionComposer } from "../room-session-composer";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: () => "",
+  }),
 }));
 
 vi.mock("@/components/markdown", () => ({

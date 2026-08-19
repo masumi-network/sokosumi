@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   buildOrganizationDriveFilePrefix,
   buildUserDriveFilePrefix,
+  sanitizeDriveFileName,
 } from "@sokosumi/utils";
 import { list } from "@vercel/blob";
 
@@ -43,6 +44,15 @@ const querySchema = z
         param: { name: "organizationId", in: "query" },
         example: "org_123",
         description: "Organization ID (required when scope=org)",
+      }),
+    q: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        example: "report",
+        description:
+          "Search query for filename filtering (case-sensitive prefix match)",
       }),
   })
   .merge(cursorPaginationQuerySchema);
@@ -105,19 +115,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Parse pagination parameters
     const { cursor, take } = parseCursorPagination(query);
 
+    // Apply search query to prefix if it looks like a filename prefix
+    let searchPrefix = prefix;
+    const searchQuery = query.q?.trim();
+    if (searchQuery) {
+      const sanitized = sanitizeDriveFileName(searchQuery);
+      if (sanitized) {
+        searchPrefix = `${prefix}${sanitized}`;
+      }
+    }
+
     // List blobs with pagination (single page)
     const {
       blobs,
       cursor: nextCursor,
       hasMore,
     } = await list({
-      prefix,
+      prefix: searchPrefix,
       token,
       cursor,
       limit: take,
     });
 
-    // Map to API schema
+    // Map to API schema (prefix filter already applied via Blob list)
     const apiFiles: DriveFile[] = blobs.map((blob) => {
       // Extract filename from pathname (last segment after /)
       const pathSegments = blob.pathname.split("/");

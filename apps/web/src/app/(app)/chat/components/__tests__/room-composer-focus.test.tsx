@@ -46,6 +46,9 @@ function FocusHarness({ focusOnMount = false }: { focusOnMount?: boolean }) {
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: () => "",
+  }),
 }));
 
 vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
