@@ -506,7 +506,11 @@ describe("core auth config", () => {
               mapProfileToUser: (profile: {
                 name: string;
                 picture: string;
-              }) => Promise<{ name: string; image?: string | null }>;
+              }) => Promise<{
+                name: string;
+                image?: string | null;
+                emailVerified: boolean;
+              }>;
             };
           };
         },
@@ -523,6 +527,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: "https://cdn.example.com/avatar.png",
+      emailVerified: true,
     });
 
     const dataUri =
@@ -536,6 +541,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: "https://blob.example/avatar.png",
+      emailVerified: true,
     });
     expect(uploadProfileImageMock).toHaveBeenCalledWith(dataUri);
 
@@ -547,7 +553,46 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: undefined,
+      emailVerified: true,
     });
+  });
+
+  it("forces emailVerified on google and microsoft profile maps so Entra missing email_verified cannot insert unverified users", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          socialProviders: {
+            google: {
+              mapProfileToUser: (profile: {
+                name: string;
+                picture: string;
+              }) => Promise<{ emailVerified: boolean }>;
+            };
+            microsoft: {
+              mapProfileToUser: (profile: {
+                name: string;
+                picture: string;
+              }) => Promise<{ emailVerified: boolean }>;
+            };
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.socialProviders.google.mapProfileToUser({
+        name: "Luca",
+        picture: "",
+      }),
+    ).resolves.toMatchObject({ emailVerified: true });
+    await expect(
+      config.socialProviders.microsoft.mapProfileToUser({
+        name: "Luca",
+        picture: "",
+      }),
+    ).resolves.toMatchObject({ emailVerified: true });
   });
 
   it("falls back when social profile mapping fails", async () => {
@@ -563,7 +608,11 @@ describe("core auth config", () => {
               mapProfileToUser: (profile: {
                 name: string;
                 picture: string;
-              }) => Promise<{ name: string; image?: string | null }>;
+              }) => Promise<{
+                name: string;
+                image?: string | null;
+                emailVerified: boolean;
+              }>;
             };
           };
         },
@@ -578,6 +627,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: undefined,
+      emailVerified: true,
     });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
   });

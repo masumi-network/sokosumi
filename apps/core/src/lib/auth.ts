@@ -875,9 +875,12 @@ export const auth = betterAuth({
 interface MappedSocialProfile {
   name: string;
   image?: string;
+  emailVerified: true;
   [key: string]: unknown;
 }
 
+// Better Auth spreads this after its provider emailVerified. Microsoft Entra
+// omits email_verified by default and would otherwise insert unverified users.
 async function mapProfileToUser(profile: {
   name: string;
   picture: string;
@@ -898,6 +901,7 @@ async function mapProfileToUser(profile: {
     return {
       name: profile.name,
       image: undefined,
+      emailVerified: true,
     };
   }
 }
@@ -912,6 +916,7 @@ async function mapProfileToUserInner(profile: {
     return {
       name: profile.name,
       image: undefined,
+      emailVerified: true,
     };
   }
 
@@ -919,6 +924,7 @@ async function mapProfileToUserInner(profile: {
     return {
       name: profile.name,
       image: profilePicture,
+      emailVerified: true,
     };
   }
 
@@ -926,5 +932,6 @@ async function mapProfileToUserInner(profile: {
   return {
     name: profile.name,
     image: imageURL ?? undefined,
+    emailVerified: true,
   };
 }
