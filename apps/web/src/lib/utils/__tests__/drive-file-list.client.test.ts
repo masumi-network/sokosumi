@@ -15,10 +15,12 @@ import {
   DRIVE_FILES_MAX_PAGES,
   DRIVE_FILES_PAGE_LIMIT,
   listDriveFiles,
+  listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
 
 function driveFile(name: string) {
   return {
+    type: "file" as const,
     name,
     fileUrl: `https://blob.example/${name}`,
     pathname: `drive/users/user_123/${name}`,
@@ -27,13 +29,21 @@ function driveFile(name: string) {
   };
 }
 
+function driveFolder(name: string) {
+  return {
+    type: "folder" as const,
+    name,
+    path: name,
+  };
+}
+
 function pageResponse(
-  files: ReturnType<typeof driveFile>[],
+  items: Array<ReturnType<typeof driveFile> | ReturnType<typeof driveFolder>>,
   nextCursor: string | null,
 ) {
   return {
     data: {
-      data: files,
+      data: items,
       meta: {
         pagination: {
           cursor: null,
@@ -127,5 +137,63 @@ describe("listDriveFiles", () => {
     await expect(listDriveFiles({ scope: "me" })).rejects.toThrow(
       "Unauthorized",
     );
+  });
+});
+
+describe("listDriveItems", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns both files and folders", async () => {
+    getDriveFilesMock.mockResolvedValue(
+      pageResponse(
+        [driveFile("a.pdf"), driveFolder("docs"), driveFile("b.pdf")],
+        null,
+      ),
+    );
+
+    await expect(listDriveItems({ scope: "me" })).resolves.toEqual([
+      driveFile("a.pdf"),
+      driveFolder("docs"),
+      driveFile("b.pdf"),
+    ]);
+
+    expect(getDriveFilesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("walks nextCursor and includes all items", async () => {
+    getDriveFilesMock
+      .mockResolvedValueOnce(
+        pageResponse([driveFolder("docs"), driveFile("a.pdf")], "cursor-2"),
+      )
+      .mockResolvedValueOnce(
+        pageResponse([driveFile("b.pdf"), driveFolder("images")], null),
+      );
+
+    await expect(listDriveItems({ scope: "me" })).resolves.toEqual([
+      driveFolder("docs"),
+      driveFile("a.pdf"),
+      driveFile("b.pdf"),
+      driveFolder("images"),
+    ]);
+
+    expect(getDriveFilesMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes folder parameter", async () => {
+    getDriveFilesMock.mockResolvedValue(pageResponse([], null));
+
+    await listDriveItems({ scope: "me", folder: "docs/projects" });
+
+    expect(getDriveFilesMock).toHaveBeenCalledWith({
+      client: { id: "browser-core-client" },
+      query: {
+        scope: "me",
+        limit: DRIVE_FILES_PAGE_LIMIT,
+        folder: "docs/projects",
+      },
+      throwOnError: true,
+    });
   });
 });

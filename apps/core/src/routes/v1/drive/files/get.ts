@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
-  buildOrganizationDriveFilePrefix,
-  buildUserDriveFilePrefix,
+  buildOrganizationDriveFolderPrefix,
+  buildUserDriveFolderPrefix,
+  isDriveFolderMarker,
   sanitizeDriveFileName,
 } from "@sokosumi/utils";
 import { list } from "@vercel/blob";
@@ -21,10 +22,10 @@ import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
-import type { DriveFile } from "@/schemas/drive-file.schema";
+import type { DriveItem } from "@/schemas/drive-file.schema";
 import {
   driveFileScopeSchema,
-  driveFilesSchema,
+  driveItemsSchema,
 } from "@/schemas/drive-file.schema";
 import {
   type CursorPaginationMeta,
@@ -45,6 +46,15 @@ const querySchema = z
         example: "org_123",
         description: "Organization ID (required when scope=org)",
       }),
+    folder: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "folder", in: "query" },
+        example: "Projects/2026",
+        description:
+          "Folder path relative to scope root (empty/omit for root, nested with slashes)",
+      }),
     q: z
       .string()
       .optional()
@@ -52,7 +62,7 @@ const querySchema = z
         param: { name: "q", in: "query" },
         example: "report",
         description:
-          "Search query for filename filtering (case-sensitive prefix match)",
+          "Search query for filename filtering at current folder level (case-sensitive prefix match)",
       }),
   })
   .merge(cursorPaginationQuerySchema);
@@ -60,14 +70,18 @@ const querySchema = z
 const route = createRoute({
   method: "get",
   path: "/",
-  description:
-    "List drive files (personal or organization, lexicographic order by pathname)",
+  description: [
+    "List drive items (folders and files) at the current folder level.",
+    "Personal or organization, lexicographic order by name.",
+    "Uses folded mode: one Blob page per request. Cursor is opaque (from Blob API).",
+    "Folders are next-level path segments. Files are blobs at this level (no markers).",
+  ].join("\n"),
   tags: ["Drive"],
   request: {
     query: querySchema,
   },
   responses: {
-    200: jsonPaginatedSuccessResponse(driveFilesSchema, "Drive files"),
+    200: jsonPaginatedSuccessResponse(driveItemsSchema, "Drive items"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -93,12 +107,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let scope: "user" | "organization";
     let ownerId: string;
 
+    const folderPath = query.folder?.trim() || "";
+
     if (query.scope === "me") {
       // Personal drive
       ownerId = userContext.userId;
       scope = "user";
       await requireDriveFileAccess(authContext, scope, ownerId);
-      prefix = buildUserDriveFilePrefix(ownerId);
+      prefix = buildUserDriveFolderPrefix(ownerId, folderPath);
     } else if (query.scope === "org") {
       if (!query.organizationId) {
         throw unprocessableEntity("organizationId is required when scope=org");
@@ -107,7 +123,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ownerId = query.organizationId;
       scope = "organization";
       await requireDriveFileAccess(authContext, scope, ownerId);
-      prefix = buildOrganizationDriveFilePrefix(ownerId);
+      prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
@@ -115,7 +131,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Parse pagination parameters
     const { cursor, take } = parseCursorPagination(query);
 
-    // Apply search query to prefix if it looks like a filename prefix
+    // Apply search query to prefix if it looks like a filename prefix (at current folder)
     let searchPrefix = prefix;
     const searchQuery = query.q?.trim();
     if (searchQuery) {
@@ -125,50 +141,85 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // List blobs with pagination (single page)
+    // Use folded mode: one Blob page = one GET response. No recursive drain.
+    // Blob's folders array + current-level blobs. Paginate with Blob's cursor.
     const {
       blobs,
-      cursor: nextCursor,
+      folders,
+      cursor: blobCursor,
       hasMore,
     } = await list({
+      mode: "folded",
       prefix: searchPrefix,
       token,
-      cursor,
+      cursor: cursor || undefined,
       limit: take,
     });
 
-    // Map to API schema (prefix filter already applied via Blob list)
-    const apiFiles: DriveFile[] = blobs.map((blob) => {
-      // Extract filename from pathname (last segment after /)
-      const pathSegments = blob.pathname.split("/");
-      const name = pathSegments[pathSegments.length - 1] || "unnamed";
+    // Map folders array to folder items
+    // folders are fully qualified paths; extract next segment relative to prefix
+    const folderItems: DriveItem[] = [];
+    for (const folderPath of folders) {
+      // folderPath is like "drive/users/123/Reports/" or "drive/users/123/Reports"
+      if (!folderPath.startsWith(prefix)) {
+        continue;
+      }
+      const relativePath = folderPath.slice(prefix.length);
+      // Remove trailing slash if present
+      const normalized = relativePath.endsWith("/")
+        ? relativePath.slice(0, -1)
+        : relativePath;
+      const segments = normalized.split("/").filter((s) => s.length > 0);
+      if (segments.length > 0) {
+        const folderName = segments[0];
+        // Deduplicate
+        if (!folderItems.some((f) => f.name === folderName)) {
+          folderItems.push({
+            type: "folder",
+            name: folderName,
+            path: folderName,
+          });
+        }
+      }
+    }
 
-      return {
-        name,
-        fileUrl: blob.url,
-        pathname: blob.pathname,
-        size: blob.size,
-        uploadedAt: blob.uploadedAt.toISOString(),
-      };
-    });
+    // Map blobs to file items, excluding markers
+    const fileItems: DriveItem[] = [];
+    for (const blob of blobs) {
+      // Skip folder markers (never emit as file)
+      if (isDriveFolderMarker(blob.pathname)) {
+        continue;
+      }
 
-    // Blob list() returns lexicographic pathname order; keep that order for valid cursor pagination.
-    // Do not sort by uploadedAt — that breaks cursor across pages.
+      // Extract name from pathname
+      const relativePath = blob.pathname.slice(prefix.length);
+      const segments = relativePath.split("/").filter((s) => s.length > 0);
+      if (segments.length > 0) {
+        const name = segments[0];
+        fileItems.push({
+          type: "file",
+          name,
+          fileUrl: blob.url,
+          pathname: blob.pathname,
+          size: blob.size,
+          uploadedAt: blob.uploadedAt.toISOString(),
+        });
+      }
+    }
 
-    // Vercel Blob list() doesn't return total count.
-    // Only include total when this is the complete result (!hasMore && no incoming cursor).
-    // Otherwise omit it — draining all pages is forbidden. Never send 0 or fake values.
-    const hasRealTotal = !hasMore && !cursor;
+    // Sort folders and files
+    folderItems.sort((a, b) => a.name.localeCompare(b.name));
+    fileItems.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Create pagination metadata using Vercel Blob's cursor
-    // Type assertion: ok() expects CursorPaginationMeta but we conditionally omit total
+    // Combine folders + files (folders first)
+    const allItems: DriveItem[] = [...folderItems, ...fileItems];
+
     const paginationMeta = {
       cursor: cursor ?? null,
       limit: take,
-      ...(hasRealTotal ? { total: blobs.length } : {}),
-      nextCursor: hasMore ? (nextCursor ?? null) : null,
+      nextCursor: hasMore ? blobCursor : null,
     } as CursorPaginationMeta;
 
-    return ok(c, driveFilesSchema.parse(apiFiles), paginationMeta);
+    return ok(c, driveItemsSchema.parse(allItems), paginationMeta);
   });
 }

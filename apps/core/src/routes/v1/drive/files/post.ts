@@ -1,12 +1,14 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
-  buildOrganizationDriveFilePathname,
-  buildUserDriveFilePathname,
+  buildOrganizationDriveFilePathnameWithFolder,
+  buildUserDriveFilePathnameWithFolder,
   clampDriveFileName,
   FILE_UPLOAD_MAX_SIZE_BYTES,
+  isDriveFolderMarkerName,
+  normalizeDriveFolderPath,
   resolveUserUploadContentType,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head } from "@vercel/blob";
+import { BlobNotFoundError, head, list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import {
@@ -103,6 +105,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const displayName = clampDriveFileName(body.filename || "file");
+    const folderPath = normalizeDriveFolderPath(body.folder ?? "");
+
+    // Check if filename conflicts with reserved marker basename
+    if (isDriveFolderMarkerName(displayName)) {
+      throw badRequest(
+        "File name conflicts with a reserved system name. Please choose a different name.",
+      );
+    }
 
     // ACL checks and owner resolution
     let pathname: string;
@@ -110,7 +120,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (body.scope === "me") {
       const ownerId = userContext.userId;
       await requireUserDriveFileUploadAccess(authContext, ownerId);
-      pathname = buildUserDriveFilePathname(ownerId, displayName);
+      pathname = buildUserDriveFilePathnameWithFolder(
+        ownerId,
+        folderPath,
+        displayName,
+      );
     } else if (body.scope === "org") {
       if (!body.organizationId) {
         throw unprocessableEntity("organizationId is required when scope=org");
@@ -118,20 +132,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const ownerId = body.organizationId;
       // Verifies membership
       await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
-      pathname = buildOrganizationDriveFilePathname(ownerId, displayName);
+      pathname = buildOrganizationDriveFilePathnameWithFolder(
+        ownerId,
+        folderPath,
+        displayName,
+      );
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // Check if target pathname already exists
+    // Check if target pathname already exists (file or folder)
     try {
       await head(pathname, { token });
-      // If head succeeds, target exists
+      // If head succeeds, target file exists
       throw conflict("Target pathname already exists");
     } catch (error) {
       // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
-        // Target doesn't exist, proceed with mint
+        // Target file doesn't exist, proceed
       } else if (
         error &&
         typeof error === "object" &&
@@ -144,6 +162,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Unexpected error from head
         throw error;
       }
+    }
+
+    // Check if a folder with the same name exists
+    const folderPrefix = `${pathname}/`;
+    const folderCheck = await list({
+      prefix: folderPrefix,
+      token,
+      limit: 1,
+    });
+    if (folderCheck.blobs.length > 0) {
+      throw conflict("A folder with that name already exists");
     }
 
     const grant = await createBlobUploadGrant({

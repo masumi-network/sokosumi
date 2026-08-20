@@ -6670,6 +6670,12 @@ export const CreateDriveFileUploadSessionRequestSchema = {
             type: 'string',
             example: 'org_123',
             description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Projects/2026',
+            description: 'Target folder path relative to scope root (empty/omit for root)'
         }
     },
     required: [
@@ -6680,11 +6686,82 @@ export const CreateDriveFileUploadSessionRequestSchema = {
     ]
 } as const;
 
-export const DriveFilesSchema = {
+export const DriveItemsSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/DriveFile'
+        $ref: '#/components/schemas/DriveItem'
     }
+} as const;
+
+export const DriveItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveFolder'
+        },
+        {
+            $ref: '#/components/schemas/DriveFileItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            folder: '#/components/schemas/DriveFolder',
+            file: '#/components/schemas/DriveFileItem'
+        }
+    }
+} as const;
+
+export const DriveFolderSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'folder'
+            ],
+            example: 'folder',
+            description: 'Item type discriminator'
+        },
+        name: {
+            type: 'string',
+            example: 'Documents',
+            description: 'Folder name (next path segment)'
+        },
+        path: {
+            type: 'string',
+            example: 'Documents',
+            description: 'Relative folder path from current folder (single segment)'
+        }
+    },
+    required: [
+        'type',
+        'name',
+        'path'
+    ]
+} as const;
+
+export const DriveFileItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/DriveFile'
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'file'
+                    ],
+                    example: 'file',
+                    description: 'Item type discriminator'
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
+    ]
 } as const;
 
 export const DriveFileSchema = {
@@ -6727,6 +6804,51 @@ export const DriveFileSchema = {
     ]
 } as const;
 
+export const MoveDriveItemRequestSchema = {
+    type: 'object',
+    properties: {
+        sourcePathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Source pathname (file) or folder path relative to scope root (folder)'
+        },
+        targetFolderPath: {
+            type: 'string',
+            example: 'Archive/2026',
+            description: 'Target folder path relative to scope root (empty string for root)'
+        },
+        itemType: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ],
+            example: 'file',
+            description: 'Type of item being moved'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope (required for folder moves): \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org for folder moves)'
+        }
+    },
+    required: [
+        'sourcePathname',
+        'targetFolderPath',
+        'itemType'
+    ]
+} as const;
+
 export const RenameDriveFileRequestSchema = {
     type: 'object',
     properties: {
@@ -6762,6 +6884,105 @@ export const DeleteDriveFileRequestSchema = {
     },
     required: [
         'pathname'
+    ]
+} as const;
+
+export const CreateDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            example: 'Projects/2026',
+            description: 'Folder path relative to scope root (may be nested with slashes)'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'folderPath',
+        'scope'
+    ]
+} as const;
+
+export const DeleteDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            example: 'Projects/OldProject',
+            description: 'Folder path relative to scope root'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'folderPath',
+        'scope'
+    ]
+} as const;
+
+export const RenameDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        oldFolderPath: {
+            type: 'string',
+            minLength: 1,
+            example: 'Projects',
+            description: 'Current folder path relative to scope root'
+        },
+        newFolderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            example: 'ArchivedProjects',
+            description: 'New folder path relative to scope root'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'oldFolderPath',
+        'newFolderPath',
+        'scope'
     ]
 } as const;
 
