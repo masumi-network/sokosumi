@@ -5,6 +5,7 @@ import mountApproveOrganizationCoworkerAccess from "./[id]/coworker-access/[acce
 import mountDenyOrganizationCoworkerAccess from "./[id]/coworker-access/[accessId]/deny/post.js";
 import mountRevokeOrganizationCoworkerAccess from "./[id]/coworker-access/[accessId]/revoke/post.js";
 import mountGetOrganizationCoworkerAccess from "./[id]/coworker-access/get.js";
+import mountGetOrganizationDeletion from "./[id]/deletion/get.js";
 import mountGetOrganizationDesignMd from "./[id]/design-md/get.js";
 import mountPutOrganizationDesignMd from "./[id]/design-md/put.js";
 import mountGetOrganizationEnterpriseContractSummary from "./[id]/enterprise-contract-summary/get.js";
@@ -36,6 +37,7 @@ const app = new OpenAPIHonoWithAuth();
 // shadowed by the `{id}` path parameter.
 mountGetOrganizationBySlug(app);
 mountGetOrganization(app);
+mountGetOrganizationDeletion(app);
 mountGetOrganizationMembers(app);
 mountPutOrganizationMemberSeat(app);
 mountDeleteOrganizationMemberSeat(app);

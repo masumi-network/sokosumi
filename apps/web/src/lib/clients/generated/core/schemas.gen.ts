@@ -8952,6 +8952,29 @@ export const CreditBucketBreakdownSchema = {
     ]
 } as const;
 
+export const UserDeletionEvaluationSchema = {
+    type: 'object',
+    properties: {
+        blockers: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
+                    'TASK_PAYMENT_CLAIM_PENDING'
+                ]
+            },
+            description: 'Current User-deletion blockers. Empty means the existing wipe may proceed.',
+            example: [
+                'TASK_PAYMENT_CLAIM_PENDING'
+            ]
+        }
+    },
+    required: [
+        'blockers'
+    ]
+} as const;
+
 export const PersistedDesignMdSchema = {
     type: 'object',
     properties: {
@@ -10178,6 +10201,29 @@ export const UserSchema = {
         'email',
         'emailVerified',
         'role'
+    ]
+} as const;
+
+export const OrganizationDeletionEvaluationSchema = {
+    type: 'object',
+    properties: {
+        blockers: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'ORGANIZATION_HAS_ADDITIONAL_MEMBERS',
+                    'LAST_WORKSPACE'
+                ]
+            },
+            description: 'Current Organization-deletion blockers. Empty means the existing wipe may proceed.',
+            example: [
+                'ORGANIZATION_HAS_ADDITIONAL_MEMBERS'
+            ]
+        }
+    },
+    required: [
+        'blockers'
     ]
 } as const;
 

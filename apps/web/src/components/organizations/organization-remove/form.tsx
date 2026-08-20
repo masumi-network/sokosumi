@@ -26,7 +26,10 @@ import {
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 import {
   type RemoveOrganizationSchemaType,
   removeOrganizationSchema,
@@ -36,12 +39,29 @@ interface OrganizationRemoveFormProps {
   organization: OrganizationRecord;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
+  blockers?: OrganizationDeletionEvaluation["blockers"];
+  preflightFailed?: boolean;
+}
+
+function organizationDeletionBlockerMessage(
+  code: string,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE) {
+    return t("Errors.additionalMembers");
+  }
+  if (code === LAST_WORKSPACE_ERROR_CODE) {
+    return t("Errors.lastWorkspace");
+  }
+  return t("error");
 }
 
 export default function OrganizationRemoveForm({
   organization,
   setIsLoading,
   onOpenChange,
+  blockers = [],
+  preflightFailed = false,
 }: OrganizationRemoveFormProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
   const router = useRouter();
@@ -64,14 +84,16 @@ export default function OrganizationRemoveForm({
       organizationId: organization.id,
     });
     if (result.error) {
-      const errorMessage =
-        result.error.code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE
-          ? t("Errors.additionalMembers")
-          : result.error.code === LAST_WORKSPACE_ERROR_CODE
-            ? t("Errors.lastWorkspace")
-            : (result.error.message ?? t("error"));
+      const errorMessage = organizationDeletionBlockerMessage(
+        result.error.code ?? "",
+        t,
+      );
+      const resolvedErrorMessage =
+        errorMessage === t("error")
+          ? (result.error.message ?? t("error"))
+          : errorMessage;
       if (result.error.status === 401) {
-        toast.error(errorMessage, {
+        toast.error(resolvedErrorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
@@ -80,7 +102,7 @@ export default function OrganizationRemoveForm({
           },
         });
       } else {
-        toast.error(errorMessage);
+        toast.error(resolvedErrorMessage);
       }
     } else {
       toast.success(t("success"));
@@ -92,11 +114,37 @@ export default function OrganizationRemoveForm({
   };
 
   const { isSubmitting, isValid } = form.formState;
+  const confirmDisabled =
+    isSubmitting || !isValid || blockers.length > 0 || preflightFailed;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={isSubmitting} className="flex flex-col gap-4">
+          {preflightFailed ? (
+            <div className="space-y-2">
+              <p className="text-destructive text-sm">{t("preflightError")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.refresh()}
+              >
+                {t("retry")}
+              </Button>
+            </div>
+          ) : null}
+          {blockers.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-destructive text-sm">{t("blockersTitle")}</p>
+              <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
+                {blockers.map((code) => (
+                  <li key={code}>
+                    {organizationDeletionBlockerMessage(code, t)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <FormField
             control={form.control}
             name="confirmName"
@@ -120,7 +168,7 @@ export default function OrganizationRemoveForm({
             <Button
               type="submit"
               variant="destructive"
-              disabled={isSubmitting || !isValid}
+              disabled={confirmDisabled}
             >
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

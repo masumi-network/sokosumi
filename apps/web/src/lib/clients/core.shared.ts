@@ -180,6 +180,7 @@ import {
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdCoworkerAccess as coreGetOrganizationsByIdCoworkerAccess,
+  getOrganizationsByIdDeletion as coreGetOrganizationsByIdDeletion,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
@@ -202,6 +203,7 @@ import {
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
+  getUsersByIdDeletion as coreGetUsersByIdDeletion,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
@@ -2209,6 +2211,32 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch user subscription",
+    );
+  }
+
+  async function getMyDeletion() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdDeletion({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch account deletion blockers",
+    );
+  }
+
+  async function getOrganizationDeletion(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdDeletion({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization deletion blockers",
     );
   }
 
@@ -4335,6 +4363,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getInvitationById,
     getMyActiveSubscription,
     getMyCredits,
+    getMyDeletion,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyWorkspaceAccess,
@@ -4352,6 +4381,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationBillingDetails,
     getOrganizationBillingPlan,
     getOrganizationById,
+    getOrganizationDeletion,
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
