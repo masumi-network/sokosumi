@@ -15,6 +15,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { empty } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
@@ -117,6 +118,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await del(batch, { token });
     }
 
-    return c.body(null, 204);
+    return empty(c);
   });
 }

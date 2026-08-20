@@ -1,10 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
   buildOrganizationDriveFolderMarkerPathname,
+  buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderMarkerPathname,
+  buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { BlobError, BlobNotFoundError, head, put } from "@vercel/blob";
+import { BlobError, list, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import {
@@ -75,11 +77,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     let markerPathname: string;
+    let prefix: string;
 
     if (body.scope === "me") {
       const ownerId = userContext.userId;
       await requireUserDriveFileUploadAccess(authContext, ownerId);
       markerPathname = buildUserDriveFolderMarkerPathname(ownerId, folderPath);
+      prefix = buildUserDriveFolderPrefix(ownerId, folderPath);
     } else if (body.scope === "org") {
       if (!body.organizationId) {
         throw unprocessableEntity("organizationId is required when scope=org");
@@ -90,28 +94,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ownerId,
         folderPath,
       );
+      prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // Check if marker already exists
-    try {
-      await head(markerPathname, { token });
-      // Marker exists
+    // Check if the prefix already has ANY blobs (marker or files)
+    const existingBlobs = await list({
+      prefix,
+      token,
+      limit: 1,
+    });
+
+    if (existingBlobs.blobs.length > 0) {
       throw conflict("Folder already exists");
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-        // Marker doesn't exist, proceed
-      } else if (
-        error &&
-        typeof error === "object" &&
-        "kind" in error &&
-        error.kind === "conflict"
-      ) {
-        throw error;
-      } else {
-        throw error;
-      }
     }
 
     // Write the marker (one-byte blob; @vercel/blob requires non-empty body)
