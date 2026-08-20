@@ -2,9 +2,11 @@ import { createRoute } from "@hono/zod-openapi";
 import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
+  isDriveFolderMarkerName,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
 import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
+import pLimit from "p-limit";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
@@ -100,6 +102,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Extract filename from source
       const sourceSegments = body.sourcePathname.split("/");
       const filename = sourceSegments[sourceSegments.length - 1] || "unnamed";
+
+      // Reject moving the reserved marker file
+      if (isDriveFolderMarkerName(filename)) {
+        throw badRequest(
+          "Cannot move the reserved folder marker file (__drive_folder__)",
+        );
+      }
 
       // Build target pathname
       const targetPrefix =
@@ -206,6 +215,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? buildUserDriveFolderPrefix(ownerId, newFolderPath)
           : buildOrganizationDriveFolderPrefix(ownerId, newFolderPath);
 
+      // Reject moving a folder into its own descendant
+      if (
+        newPrefix === oldPrefix ||
+        newPrefix.startsWith(`${oldPrefix}`) // oldPrefix already ends with /
+      ) {
+        throw badRequest("Cannot move a folder into its own descendant");
+      }
+
       // Check if target exists
       const targetCheck = await list({
         prefix: newPrefix,
@@ -217,12 +234,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Target folder already exists");
       }
 
-      // List all blobs under source prefix (capped at MAX_FOLDER_DESCENDANTS)
-      const allBlobs: Array<{
-        pathname: string;
-        contentType: string;
-        cacheControl: string;
-      }> = [];
+      // Collect all pathnames under source prefix (capped at MAX+1 for detection)
+      const allPathnames: string[] = [];
       let cursor: string | undefined;
 
       do {
@@ -234,47 +247,80 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         for (const blob of result.blobs) {
-          if (allBlobs.length >= MAX_FOLDER_DESCENDANTS) {
+          // Collect up to MAX+1 to detect over-limit
+          if (allPathnames.length > MAX_FOLDER_DESCENDANTS) {
             throw unprocessableEntity(
               `Folder exceeds ${MAX_FOLDER_DESCENDANTS} descendant limit. Cannot move.`,
             );
           }
-
-          const metadata = await head(blob.pathname, { token });
-          allBlobs.push({
-            pathname: blob.pathname,
-            contentType: metadata.contentType,
-            cacheControl: metadata.cacheControl,
-          });
+          allPathnames.push(blob.pathname);
         }
 
         cursor = result.hasMore ? result.cursor : undefined;
       } while (cursor);
 
-      // Rename all blobs
-      for (const blob of allBlobs) {
-        const relativePath = blob.pathname.slice(oldPrefix.length);
-        const newPathname = `${newPrefix}${relativePath}`;
-
-        const maxAge = parseCacheControlMaxAge(blob.cacheControl);
-
-        try {
-          await rename(blob.pathname, newPathname, {
-            token,
-            access: "public",
-            addRandomSuffix: false,
-            contentType: blob.contentType,
-            cacheControlMaxAge: maxAge,
-          });
-        } catch (error) {
-          if (error instanceof BlobNotFoundError) {
-            throw notFound(
-              `Source blob not found during move: ${blob.pathname}`,
-            );
-          }
-          throw error;
-        }
+      // If exactly at MAX+1, we exceeded the limit
+      if (allPathnames.length > MAX_FOLDER_DESCENDANTS) {
+        throw unprocessableEntity(
+          `Folder exceeds ${MAX_FOLDER_DESCENDANTS} descendant limit. Cannot move.`,
+        );
       }
+
+      // Bounded-concurrency head + rename (10 concurrent operations)
+      const limit = pLimit(10);
+
+      const renameTasks = allPathnames.map((sourcePathname) =>
+        limit(async () => {
+          const relativePath = sourcePathname.slice(oldPrefix.length);
+          const newPathname = `${newPrefix}${relativePath}`;
+
+          // Skip if already at target (retry-safe)
+          try {
+            const targetCheck = await head(newPathname, { token });
+            if (targetCheck) {
+              // Already exists at target, skip
+              return;
+            }
+          } catch (error) {
+            if (!(error instanceof BlobNotFoundError)) {
+              throw error;
+            }
+            // Target doesn't exist, proceed with rename
+          }
+
+          // Get source metadata
+          let sourceMetadata;
+          try {
+            sourceMetadata = await head(sourcePathname, { token });
+          } catch (error) {
+            if (error instanceof BlobNotFoundError) {
+              // Source already moved or deleted, skip
+              return;
+            }
+            throw error;
+          }
+
+          // Rename
+          const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
+          try {
+            await rename(sourcePathname, newPathname, {
+              token,
+              access: "public",
+              addRandomSuffix: false,
+              contentType: sourceMetadata.contentType,
+              cacheControlMaxAge: maxAge,
+            });
+          } catch (error) {
+            if (error instanceof BlobNotFoundError) {
+              // Source was already moved/deleted (concurrent/retry), skip
+              return;
+            }
+            throw error;
+          }
+        }),
+      );
+
+      await Promise.all(renameTasks);
 
       return ok(c, body);
     }

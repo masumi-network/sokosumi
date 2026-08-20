@@ -10,6 +10,7 @@ import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import {
   badRequest,
+  notFound,
   serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
@@ -104,9 +105,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor = result.hasMore ? result.cursor : undefined;
     } while (cursor);
 
-    // Delete all blobs under this prefix
-    if (allBlobs.length > 0) {
-      await del(allBlobs, { token });
+    // 404 if no blobs exist under this prefix
+    if (allBlobs.length === 0) {
+      throw notFound("Folder not found");
+    }
+
+    // Delete all blobs in bounded batches (100 blobs per batch)
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < allBlobs.length; i += BATCH_SIZE) {
+      const batch = allBlobs.slice(i, i + BATCH_SIZE);
+      await del(batch, { token });
     }
 
     return c.body(null, 204);

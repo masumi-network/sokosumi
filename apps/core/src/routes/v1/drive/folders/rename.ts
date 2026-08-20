@@ -5,6 +5,7 @@ import {
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
 import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
+import pLimit from "p-limit";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
@@ -126,12 +127,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("Target folder already exists");
     }
 
-    // List all blobs under old prefix (capped at MAX_FOLDER_DESCENDANTS)
-    const allBlobs: Array<{
-      pathname: string;
-      contentType: string;
-      cacheControl: string;
-    }> = [];
+    // Reject renaming a folder into its own descendant
+    if (
+      newPrefix === oldPrefix ||
+      newPrefix.startsWith(`${oldPrefix}`) // oldPrefix already ends with /
+    ) {
+      throw badRequest("Cannot rename a folder into its own descendant");
+    }
+
+    // Collect all pathnames under old prefix (capped at MAX+1 for detection)
+    const allPathnames: string[] = [];
     let cursor: string | undefined;
 
     do {
@@ -143,49 +148,80 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       for (const blob of result.blobs) {
-        if (allBlobs.length >= MAX_FOLDER_DESCENDANTS) {
+        // Collect up to MAX+1 to detect over-limit
+        if (allPathnames.length > MAX_FOLDER_DESCENDANTS) {
           throw unprocessableEntity(
             `Folder exceeds ${MAX_FOLDER_DESCENDANTS} descendant limit. Cannot rename.`,
           );
         }
-
-        const metadata = await head(blob.pathname, { token });
-        allBlobs.push({
-          pathname: blob.pathname,
-          contentType: metadata.contentType,
-          cacheControl: metadata.cacheControl,
-        });
+        allPathnames.push(blob.pathname);
       }
 
       cursor = result.hasMore ? result.cursor : undefined;
     } while (cursor);
 
-    // Rename all blobs (replace old prefix with new prefix)
-    for (const blob of allBlobs) {
-      const relativePath = blob.pathname.slice(oldPrefix.length);
-      const newPathname = `${newPrefix}${relativePath}`;
-
-      const maxAge = parseCacheControlMaxAge(blob.cacheControl);
-
-      try {
-        await rename(blob.pathname, newPathname, {
-          token,
-          access: "public",
-          addRandomSuffix: false,
-          contentType: blob.contentType,
-          cacheControlMaxAge: maxAge,
-        });
-      } catch (error) {
-        // If rename fails partway through, some blobs may be in old location, some in new.
-        // This is a known limitation of blob-only folder renames.
-        if (error instanceof BlobNotFoundError) {
-          throw notFound(
-            `Source blob not found during rename: ${blob.pathname}`,
-          );
-        }
-        throw error;
-      }
+    // If exactly at MAX+1, we exceeded the limit
+    if (allPathnames.length > MAX_FOLDER_DESCENDANTS) {
+      throw unprocessableEntity(
+        `Folder exceeds ${MAX_FOLDER_DESCENDANTS} descendant limit. Cannot rename.`,
+      );
     }
+
+    // Bounded-concurrency head + rename (10 concurrent operations)
+    const limit = pLimit(10);
+
+    const renameTasks = allPathnames.map((sourcePathname) =>
+      limit(async () => {
+        const relativePath = sourcePathname.slice(oldPrefix.length);
+        const newPathname = `${newPrefix}${relativePath}`;
+
+        // Skip if already at target (retry-safe)
+        try {
+          const targetCheck = await head(newPathname, { token });
+          if (targetCheck) {
+            // Already exists at target, skip
+            return;
+          }
+        } catch (error) {
+          if (!(error instanceof BlobNotFoundError)) {
+            throw error;
+          }
+          // Target doesn't exist, proceed with rename
+        }
+
+        // Get source metadata
+        let sourceMetadata;
+        try {
+          sourceMetadata = await head(sourcePathname, { token });
+        } catch (error) {
+          if (error instanceof BlobNotFoundError) {
+            // Source already moved or deleted, skip (retry-safe)
+            return;
+          }
+          throw error;
+        }
+
+        // Rename
+        const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
+        try {
+          await rename(sourcePathname, newPathname, {
+            token,
+            access: "public",
+            addRandomSuffix: false,
+            contentType: sourceMetadata.contentType,
+            cacheControlMaxAge: maxAge,
+          });
+        } catch (error) {
+          if (error instanceof BlobNotFoundError) {
+            // Source was already moved/deleted (concurrent/retry), skip
+            return;
+          }
+          throw error;
+        }
+      }),
+    );
+
+    await Promise.all(renameTasks);
 
     return ok(c, body);
   });

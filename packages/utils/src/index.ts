@@ -147,6 +147,7 @@ export {
   normalizeDriveFolderPath,
   sanitizeDriveFileName,
   sanitizeDriveFolderName,
+  validateDriveFolderPath,
 } from "./drive-file-path.js";
 export {
   FILE_EXTENSION_ALLOWLIST,

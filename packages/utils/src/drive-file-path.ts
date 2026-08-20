@@ -126,6 +126,25 @@ export function normalizeDriveFolderPath(path: string): string {
 }
 
 /**
+ * Validate a normalized folder path. Rejects "." and ".." segments.
+ * Returns null on success, or an error message on failure.
+ */
+export function validateDriveFolderPath(normalizedPath: string): string | null {
+  if (!normalizedPath) {
+    return null; // Empty path is valid for root
+  }
+
+  const segments = normalizedPath.split("/");
+  for (const segment of segments) {
+    if (segment === "." || segment === "..") {
+      return 'Folder path cannot contain "." or ".." segments';
+    }
+  }
+
+  return null;
+}
+
+/**
  * Build user Drive folder prefix (with trailing slash).
  * Example: `drive/users/{userId}/folder1/folder2/`
  */
