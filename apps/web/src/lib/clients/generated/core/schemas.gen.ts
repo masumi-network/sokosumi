@@ -9181,6 +9181,10 @@ export const UserDeletionEvaluationSchema = {
                 type: 'string',
                 enum: [
                     'RUNNING_SUBSCRIPTION',
+                    'USER_OWNS_ORGANIZATION',
+                    'IN_FLIGHT_JOB',
+                    'UNSETTLED_ON_CHAIN_JOB',
+                    'IN_FLIGHT_TASK',
                     'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
                     'TASK_PAYMENT_CLAIM_PENDING',
                     'TASK_X402_PAYMENT_PENDING'
@@ -10437,7 +10441,10 @@ export const OrganizationDeletionEvaluationSchema = {
                     'RUNNING_SUBSCRIPTION',
                     'ENTERPRISE_CONTRACT_ACTIVE',
                     'ORGANIZATION_HAS_ADDITIONAL_MEMBERS',
-                    'LAST_WORKSPACE'
+                    'LAST_WORKSPACE',
+                    'IN_FLIGHT_JOB',
+                    'UNSETTLED_ON_CHAIN_JOB',
+                    'IN_FLIGHT_TASK'
                 ]
             },
             description: 'Current Organization-deletion blockers. Empty means the existing wipe may proceed.',

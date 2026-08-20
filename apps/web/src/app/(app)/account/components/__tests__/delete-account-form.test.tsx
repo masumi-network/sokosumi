@@ -27,11 +27,32 @@ const translations: Record<string, string> = {
     "Wait for pending task payments to settle before deleting your account.",
   "App.Account.Delete.Errors.taskPaymentClaimReviewRequired":
     "A task payment needs administrator review before your account can be deleted. Please contact support.",
+  "App.Account.Delete.Errors.userOwnsOrganization":
+    "Transfer ownership or delete every organization you own before deleting your account.",
+  "App.Account.Delete.Errors.inFlightJob":
+    "Wait for in-flight jobs to finish before deleting your account.",
+  "App.Account.Delete.Errors.unsettledOnChainJob":
+    "Wait for on-chain job purchases to settle before deleting your account.",
+  "App.Account.Delete.Errors.inFlightTask":
+    "Wait for in-flight tasks to finish before deleting your account.",
   "App.Account.Delete.Errors.runningSubscription":
     "Cancel your running subscription and wait until the paid period ends.",
   "App.Account.Delete.Errors.billingLink": "Go to billing",
+  "App.Account.Delete.Links.organizationMembers": "Organization members",
+  "App.Account.Delete.Links.jobs": "Jobs",
+  "App.Account.Delete.Links.tasks": "Tasks",
   "Library.Auth.Schema.Password.required": "Password is required",
 };
+
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => <a href={href}>{children}</a>,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -119,30 +140,56 @@ describe("DeleteAccountForm", () => {
     ).toBeDisabled();
   });
 
-  it("maps RUNNING_SUBSCRIPTION if delete is refused after load", async () => {
-    const { toast } = await import("sonner");
-    deleteUserMock.mockResolvedValue({
-      error: {
-        code: "RUNNING_SUBSCRIPTION",
-        message: "Backend fallback",
-        status: 400,
-        statusText: "Bad Request",
-      },
-    });
-
-    render(<DeleteAccountForm blockers={[]} />);
-
-    const user = await openDialog();
-    await user.type(screen.getByLabelText("Current password"), "Password123!");
-    await user.click(
-      screen.getByRole("button", { name: "Yes, delete my account" }),
+  it("lists owner-role and in-flight work blockers with way-out links", async () => {
+    render(
+      <DeleteAccountForm
+        blockers={[
+          "USER_OWNS_ORGANIZATION",
+          "IN_FLIGHT_JOB",
+          "UNSETTLED_ON_CHAIN_JOB",
+          "IN_FLIGHT_TASK",
+        ]}
+        ownedOrganizationSlug="acme"
+      />,
     );
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        "Cancel your running subscription and wait until the paid period ends.",
-      );
-    });
+    await openDialog();
+
+    expect(
+      screen.getByText(
+        "Transfer ownership or delete every organization you own before deleting your account.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Organization members" }),
+    ).toHaveAttribute("href", "/organizations/acme");
+    expect(
+      screen.getByText(
+        "Wait for in-flight jobs to finish before deleting your account.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Wait for on-chain job purchases to settle before deleting your account.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Jobs" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Jobs" })[0]).toHaveAttribute(
+      "href",
+      "/history",
+    );
+    expect(
+      screen.getByText(
+        "Wait for in-flight tasks to finish before deleting your account.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tasks" })).toHaveAttribute(
+      "href",
+      "/tasks",
+    );
+    expect(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    ).toBeDisabled();
   });
 
   it("disables confirm when preflight failed to load", async () => {
