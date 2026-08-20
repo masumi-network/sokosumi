@@ -9855,7 +9855,10 @@ export const UserDeletionEvaluationSchema = {
                     'IN_FLIGHT_TASK',
                     'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
                     'TASK_PAYMENT_CLAIM_PENDING',
-                    'TASK_X402_PAYMENT_PENDING'
+                    'TASK_X402_PAYMENT_PENDING',
+                    'TASK_X402_PAYMENT_UNRESOLVED',
+                    'TASK_X402_PAYMENT_AUTHORIZATION_LIVE',
+                    'TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH'
                 ]
             },
             description: 'Current User-deletion blockers. Empty means the existing wipe may proceed.',
