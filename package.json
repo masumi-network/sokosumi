@@ -7,7 +7,7 @@
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
     "core:dev": "pnpm --filter core dev",
-    "build": "pnpm -r build",
+    "build": "turbo run build",
     "web:build": "pnpm --filter web build",
     "generate:core": "pnpm --filter web generate:core",
     "core:build": "pnpm --filter core build",
@@ -18,7 +18,7 @@
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "net:build": "pnpm --filter @sokosumi/net build",
     "packages:build": "pnpm --filter \"./packages/*\" run build",
-    "typecheck": "pnpm database:build && pnpm -r typecheck",
+    "typecheck": "turbo run typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
     "database:typecheck": "pnpm --filter @sokosumi/database typecheck",
@@ -60,11 +60,11 @@
     "ai-provider:check": "pnpm --filter @sokosumi/ai-provider check",
     "ai-provider:check:write": "pnpm --filter @sokosumi/ai-provider check:write",
     "bench:coworker-chat": "tsx --env-file=apps/core/.env apps/core/scripts/bench-coworker-chat.mts",
-    "test": "pnpm -r test",
+    "test": "turbo run test",
     "web:test": "pnpm --filter web test",
     "core:test": "pnpm --filter core test",
     "masumi:test": "pnpm --filter @sokosumi/masumi test",
-    "test:ci": "pnpm -r test:ci",
+    "test:ci": "turbo run test:ci",
     "web:test:ci": "pnpm --filter web test:ci",
     "core:test:ci": "pnpm --filter core test:ci",
     "masumi:test:ci": "pnpm --filter @sokosumi/masumi test:ci",
@@ -96,6 +96,7 @@
     "chrome-launcher": "1.2.1",
     "husky": "9.1.7",
     "lighthouse": "13.4.1",
-    "tsx": "4.23.12"
+    "tsx": "4.23.12",
+    "turbo": "2.10.11"
   }
 }
