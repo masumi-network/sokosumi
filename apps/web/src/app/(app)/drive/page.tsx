@@ -604,7 +604,7 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
-      setError(
+      toast.error(
         itemToMove.type === "folder"
           ? t("moveFolderError")
           : t("moveFileError"),
@@ -625,18 +625,6 @@ export default function DrivePage(): ReactElement {
 
     breadcrumbSegments.forEach((_, index) => {
       const ancestorPath = breadcrumbSegments.slice(0, index + 1).join("/");
-      if (
-        itemToMove.type === "folder" &&
-        (ancestorPath === itemToMove.name ||
-          ancestorPath === `${currentFolder}/${itemToMove.name}` ||
-          ancestorPath.startsWith(
-            currentFolder
-              ? `${currentFolder}/${itemToMove.name}/`
-              : `${itemToMove.name}/`,
-          ))
-      ) {
-        return;
-      }
       destinations.push({
         path: ancestorPath,
         label: breadcrumbSegments.slice(0, index + 1).join(" / "),
@@ -644,14 +632,7 @@ export default function DrivePage(): ReactElement {
     });
 
     const siblingFolders = items.filter(
-      (item) =>
-        item.type === "folder" &&
-        item.name !== itemToMove.name &&
-        !(
-          itemToMove.type === "folder" &&
-          currentFolder === "" &&
-          item.name === itemToMove.name
-        ),
+      (item) => item.type === "folder" && item.name !== itemToMove.name,
     );
 
     siblingFolders.forEach((folder) => {
@@ -1076,7 +1057,8 @@ export default function DrivePage(): ReactElement {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 variant="destructive"
-                                onSelect={() => {
+                                onSelect={(e) => {
+                                  e.preventDefault();
                                   openDeleteDialog(item);
                                 }}
                                 disabled={editingItemPath !== null}
