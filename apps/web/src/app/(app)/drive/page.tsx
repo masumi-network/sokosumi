@@ -5,10 +5,12 @@ import {
   Building2,
   Check,
   ChevronRight,
+  Copy,
   Download,
   Edit3,
   Folder,
   FolderPlus,
+  Folders,
   Home,
   MoreHorizontal,
   Search,
@@ -69,15 +71,20 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveItem } from "@/lib/clients/generated/core";
+import type {
+  DriveItem,
+  DriveTasksListItem,
+} from "@/lib/clients/generated/core";
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
+  getDriveTasks,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
   patchDriveFoldersRename,
   postDriveFolders,
+  postDriveTasksCopy,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { listDriveItems } from "@/lib/utils/drive-file-list.client";
@@ -164,6 +171,13 @@ function FileNameWithPreview({
   );
 }
 
+type ExploreItem =
+  | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
+  | { kind: "tasks-root" }
+  | ({
+      kind: "task-project" | "task-no-project" | "task" | "task-file";
+    } & DriveTasksListItem);
+
 export default function DrivePage(): ReactElement {
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
@@ -173,6 +187,7 @@ export default function DrivePage(): ReactElement {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [items, setItems] = useState<DriveItem[]>([]);
+  const [tasksItems, setTasksItems] = useState<DriveTasksListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -195,14 +210,26 @@ export default function DrivePage(): ReactElement {
   const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [taskFileToCopy, setTaskFileToCopy] =
+    useState<DriveTasksListItem | null>(null);
+  const [copyDestinationScope, setCopyDestinationScope] = useState<
+    "me" | "org" | null
+  >(null);
+  const [copying, setCopying] = useState(false);
 
   const loadItemsAbortRef = useRef<AbortController | null>(null);
+  const loadTasksAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
 
   const scopeParam = searchParams.get("scope");
   const scope: "me" | "org" = scopeParam === "org" ? "org" : "me";
   const folderParam = searchParams.get("folder") || "";
   const currentFolder = folderParam;
+  const viewParam = searchParams.get("view");
+  const isTasksView = viewParam === "tasks";
+  const projectIdParam = searchParams.get("projectId");
+  const taskIdParam = searchParams.get("taskId");
 
   useRegisterBreadcrumbOverride({
     pathname,
@@ -219,6 +246,10 @@ export default function DrivePage(): ReactElement {
   }
 
   const loadItems = useCallback(async () => {
+    if (isTasksView) {
+      return;
+    }
+
     loadItemsAbortRef.current?.abort();
     const controller = new AbortController();
     loadItemsAbortRef.current = controller;
@@ -257,11 +288,76 @@ export default function DrivePage(): ReactElement {
         setLoading(false);
       }
     }
-  }, [scope, activeOrganizationId, currentFolder, debouncedSearchQuery, t]);
+  }, [
+    isTasksView,
+    scope,
+    activeOrganizationId,
+    currentFolder,
+    debouncedSearchQuery,
+    t,
+  ]);
+
+  const loadTasksItems = useCallback(async () => {
+    if (!isTasksView) {
+      return;
+    }
+
+    loadTasksAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadTasksAbortRef.current = controller;
+
+    setLoading(true);
+    try {
+      if (scope === "org" && !activeOrganizationId) {
+        if (!controller.signal.aborted) {
+          setTasksItems([]);
+        }
+        return;
+      }
+
+      const response = await getDriveTasks({
+        client: getBrowserCoreClient(),
+        query: {
+          scope,
+          ...(scope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+          ...(projectIdParam ? { projectId: projectIdParam } : {}),
+          ...(taskIdParam ? { taskId: taskIdParam } : {}),
+        },
+        signal: controller.signal,
+        throwOnError: true,
+      });
+
+      if (!controller.signal.aborted) {
+        setTasksItems(response.data?.data ?? []);
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.error("Failed to load tasks", err);
+        toast.error(t("loadTasksError"));
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [
+    isTasksView,
+    scope,
+    activeOrganizationId,
+    projectIdParam,
+    taskIdParam,
+    t,
+  ]);
 
   useEffect(() => {
-    void loadItems();
-  }, [loadItems]);
+    if (isTasksView) {
+      void loadTasksItems();
+    } else {
+      void loadItems();
+    }
+  }, [isTasksView, loadItems, loadTasksItems]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -458,6 +554,10 @@ export default function DrivePage(): ReactElement {
     const params = new URLSearchParams(searchParams.toString());
     params.set("scope", newScope);
     params.delete("folder");
+    params.delete("view");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -467,6 +567,10 @@ export default function DrivePage(): ReactElement {
       ? `${currentFolder}/${folderName}`
       : folderName;
     params.set("folder", newPath);
+    params.delete("view");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -474,11 +578,48 @@ export default function DrivePage(): ReactElement {
     const params = new URLSearchParams(searchParams.toString());
     if (index === -1) {
       params.delete("folder");
+      params.delete("view");
+      params.delete("projectId");
+      params.delete("taskId");
+      params.delete("assigneeId");
     } else {
       const segments = currentFolder.split("/");
       const newPath = segments.slice(0, index + 1).join("/");
       params.set("folder", newPath);
+      params.delete("view");
+      params.delete("projectId");
+      params.delete("taskId");
+      params.delete("assigneeId");
     }
+    router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToTasksRoot() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", "tasks");
+    params.delete("folder");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
+    router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToProject(projectId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", "tasks");
+    params.set("projectId", projectId);
+    params.delete("folder");
+    params.delete("taskId");
+    params.delete("assigneeId");
+    router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToTask(taskId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", "tasks");
+    params.set("taskId", taskId);
+    params.delete("folder");
+    params.delete("assigneeId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -612,6 +753,54 @@ export default function DrivePage(): ReactElement {
     }
   }
 
+  function openCopyDialog(item: DriveTasksListItem) {
+    if (item.type !== "task-file") {
+      return;
+    }
+    setTaskFileToCopy(item);
+    setCopyDestinationScope(null);
+    setCopyDialogOpen(true);
+  }
+
+  async function handleCopyConfirm() {
+    if (
+      !taskFileToCopy ||
+      taskFileToCopy.type !== "task-file" ||
+      !copyDestinationScope
+    ) {
+      return;
+    }
+
+    setCopying(true);
+    try {
+      await postDriveTasksCopy({
+        client: getBrowserCoreClient(),
+        body: {
+          taskFileId: taskFileToCopy.id,
+          scope: copyDestinationScope,
+          ...(copyDestinationScope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+        },
+        throwOnError: true,
+      });
+
+      toast.success(t("copyToDriveSuccess"));
+      setCopyDialogOpen(false);
+      setTaskFileToCopy(null);
+      setCopyDestinationScope(null);
+    } catch (err) {
+      console.error("Failed to copy file", err);
+      if (isDuplicateResourceError(err)) {
+        toast.error(t("copyToDriveDuplicateError"));
+      } else {
+        toast.error(t("copyToDriveError"));
+      }
+    } finally {
+      setCopying(false);
+    }
+  }
+
   const breadcrumbSegments = currentFolder ? currentFolder.split("/") : [];
 
   const availableDestinations = (() => {
@@ -619,14 +808,12 @@ export default function DrivePage(): ReactElement {
 
     const destinations: Array<{ path: string; label: string }> = [];
 
-    // Only include Root if not already at root
     if (currentFolder !== "") {
       destinations.push({ path: "", label: t("rootFolder") });
     }
 
     breadcrumbSegments.forEach((_, index) => {
       const ancestorPath = breadcrumbSegments.slice(0, index + 1).join("/");
-      // Skip currentFolder itself—can't move to where it already is
       if (ancestorPath === currentFolder) {
         return;
       }
@@ -636,10 +823,7 @@ export default function DrivePage(): ReactElement {
       });
     });
 
-    // Use allFolders (loaded on dialog open) instead of items (current folder only)
-    // to enable cross-branch moves
     const foldersToShow = allFolders.filter((folder) => {
-      // Exclude the item being moved
       const folderPath = folder.name;
       const itemPath =
         itemToMove.type === "file"
@@ -648,12 +832,10 @@ export default function DrivePage(): ReactElement {
             ? `${currentFolder}/${itemToMove.name}`
             : itemToMove.name;
 
-      // Basic exclusion: don't show the item being moved
       if (folderPath === itemPath) {
         return false;
       }
 
-      // For folders, exclude descendants to prevent moving into own subtree
       if (itemToMove.type === "folder") {
         const folderPathNormalized = folder.name;
         const itemFolderPath = currentFolder
@@ -669,7 +851,6 @@ export default function DrivePage(): ReactElement {
 
     foldersToShow.forEach((folder) => {
       const folderPath = folder.name;
-      // Build a readable label from the folder path
       const segments = folderPath.split("/");
       destinations.push({
         path: folderPath,
@@ -680,14 +861,77 @@ export default function DrivePage(): ReactElement {
     return destinations;
   })();
 
-  const emptyState = !loading && items.length === 0;
-  const hasItems = items.length > 0;
+  const exploreItems: ExploreItem[] = (() => {
+    if (isTasksView) {
+      return tasksItems.map((item) => {
+        if (item.type === "project") {
+          return { kind: "task-project", ...item };
+        }
+        if (item.type === "no-project") {
+          return { kind: "task-no-project", ...item };
+        }
+        if (item.type === "task") {
+          return { kind: "task", ...item };
+        }
+        return { kind: "task-file", ...item };
+      });
+    }
+
+    const result: ExploreItem[] = [];
+    if (currentFolder === "") {
+      result.push({ kind: "tasks-root" });
+    }
+    return result.concat(
+      items.map((item) => ({
+        kind: item.type === "file" ? "blob-file" : "blob-folder",
+        ...item,
+      })),
+    );
+  })();
+
+  const emptyState = !loading && exploreItems.length === 0;
+  const hasItems = exploreItems.length > 0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFabOpen() {
     fileInputRef.current?.click();
   }
+
+  const tasksBreadcrumbs = (() => {
+    if (!isTasksView) {
+      return [];
+    }
+    const crumbs: Array<{ label: string; onClick: () => void }> = [
+      { label: t("tasksBreadcrumbLabel"), onClick: navigateToTasksRoot },
+    ];
+    if (projectIdParam) {
+      const project = tasksItems.find(
+        (item) => item.type === "project" && item.id === projectIdParam,
+      );
+      const projectName =
+        project && project.type === "project"
+          ? project.name
+          : projectIdParam === "null"
+            ? t("noProject")
+            : projectIdParam;
+      crumbs.push({
+        label: projectName,
+        onClick: () => navigateToProject(projectIdParam),
+      });
+    }
+    if (taskIdParam) {
+      const task = tasksItems.find(
+        (item) => item.type === "task" && item.id === taskIdParam,
+      );
+      const taskName = task && task.type === "task" ? task.name : taskIdParam;
+      crumbs.push({
+        label: taskName,
+        onClick: () => navigateToTask(taskIdParam),
+      });
+    }
+    return crumbs;
+  })();
 
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
@@ -711,51 +955,53 @@ export default function DrivePage(): ReactElement {
               )}
             </TabsList>
 
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="relative">
-                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            {!isTasksView && (
+              <div className="hidden items-center gap-2 md:flex">
+                <div className="relative">
+                  <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                  <Input
+                    type="text"
+                    placeholder={t("searchPlaceholder")}
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="w-64 pl-8"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={openCreateFolderDialog}
+                >
+                  <FolderPlus className="size-4" aria-hidden />
+                  {t("createFolder")}
+                </Button>
+                <Label htmlFor="file-upload" className="cursor-pointer">
+                  <Button
+                    disabled={uploading}
+                    size="sm"
+                    className="gap-1.5"
+                    asChild
+                  >
+                    <span>
+                      <Upload className="size-4" aria-hidden />
+                      {uploading
+                        ? t("uploadingProgress", { progress: uploadProgress })
+                        : t("uploadButton")}
+                    </span>
+                  </Button>
+                </Label>
                 <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-64 pl-8"
+                  id="file-upload"
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
                 />
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={openCreateFolderDialog}
-              >
-                <FolderPlus className="size-4" aria-hidden />
-                {t("createFolder")}
-              </Button>
-              <Label htmlFor="file-upload" className="cursor-pointer">
-                <Button
-                  disabled={uploading}
-                  size="sm"
-                  className="gap-1.5"
-                  asChild
-                >
-                  <span>
-                    <Upload className="size-4" aria-hidden />
-                    {uploading
-                      ? t("uploadingProgress", { progress: uploadProgress })
-                      : t("uploadButton")}
-                  </span>
-                </Button>
-              </Label>
-              <Input
-                id="file-upload"
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
-            </div>
+            )}
           </div>
 
           <nav
@@ -767,7 +1013,8 @@ export default function DrivePage(): ReactElement {
               onClick={() => navigateToBreadcrumb(-1)}
               className={cn(
                 "hover:text-foreground whitespace-nowrap transition-colors",
-                breadcrumbSegments.length === 0 &&
+                !isTasksView &&
+                  breadcrumbSegments.length === 0 &&
                   "text-foreground font-medium",
               )}
               aria-label={
@@ -787,47 +1034,68 @@ export default function DrivePage(): ReactElement {
                 <Home className="size-4" aria-hidden />
               )}
             </button>
-            {breadcrumbSegments.map((segment, index) => (
-              <span key={index} className="flex shrink-0 items-center gap-1">
-                <ChevronRight className="size-4" aria-hidden />
-                <button
-                  type="button"
-                  onClick={() => navigateToBreadcrumb(index)}
-                  className={cn(
-                    "hover:text-foreground whitespace-nowrap transition-colors",
-                    index === breadcrumbSegments.length - 1 &&
-                      "text-foreground font-medium",
-                  )}
-                  title={segment}
-                >
-                  {segment}
-                </button>
-              </span>
-            ))}
+            {!isTasksView &&
+              breadcrumbSegments.map((segment, index) => (
+                <span key={index} className="flex shrink-0 items-center gap-1">
+                  <ChevronRight className="size-4" aria-hidden />
+                  <button
+                    type="button"
+                    onClick={() => navigateToBreadcrumb(index)}
+                    className={cn(
+                      "hover:text-foreground whitespace-nowrap transition-colors",
+                      index === breadcrumbSegments.length - 1 &&
+                        "text-foreground font-medium",
+                    )}
+                    title={segment}
+                  >
+                    {segment}
+                  </button>
+                </span>
+              ))}
+            {isTasksView &&
+              tasksBreadcrumbs.map((crumb, index) => (
+                <span key={index} className="flex shrink-0 items-center gap-1">
+                  <ChevronRight className="size-4" aria-hidden />
+                  <button
+                    type="button"
+                    onClick={crumb.onClick}
+                    className={cn(
+                      "hover:text-foreground whitespace-nowrap transition-colors",
+                      index === tasksBreadcrumbs.length - 1 &&
+                        "text-foreground font-medium",
+                    )}
+                    title={crumb.label}
+                  >
+                    {crumb.label}
+                  </button>
+                </span>
+              ))}
           </nav>
         </div>
 
-        <div className="mb-6 flex items-center gap-2 md:hidden">
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
+        {!isTasksView && (
+          <div className="mb-6 flex items-center gap-2 md:hidden">
+            <div className="relative flex-1">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-8"
+              />
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={openCreateFolderDialog}
+              aria-label={t("createFolder")}
+            >
+              <FolderPlus className="size-4" aria-hidden />
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={openCreateFolderDialog}
-            aria-label={t("createFolder")}
-          >
-            <FolderPlus className="size-4" aria-hidden />
-          </Button>
-        </div>
+        )}
 
         <TabsContent value={scope} className="mt-0">
           {loading ? (
@@ -878,12 +1146,18 @@ export default function DrivePage(): ReactElement {
             >
               <div className="max-w-sm">
                 <h2 className="text-foreground text-lg font-semibold">
-                  {searchQuery ? t("noMatchTitle") : t("emptyTitle")}
+                  {isTasksView
+                    ? t("tasksEmptyTitle")
+                    : searchQuery
+                      ? t("noMatchTitle")
+                      : t("emptyTitle")}
                 </h2>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  {searchQuery
-                    ? t("noMatchDescription")
-                    : t("emptyDescription")}
+                  {isTasksView
+                    ? t("tasksEmptyDescription")
+                    : searchQuery
+                      ? t("noMatchDescription")
+                      : t("emptyDescription")}
                 </p>
               </div>
             </div>
@@ -895,155 +1169,290 @@ export default function DrivePage(): ReactElement {
               )}
             >
               <div className="divide-border/50 divide-y px-2">
-                {items.map((item) => {
-                  const itemKey =
-                    item.type === "file"
-                      ? item.pathname
-                      : `folder:${item.name}`;
-                  const isEditing =
-                    (item.type === "file" &&
-                      editingItemPath === item.pathname) ||
-                    (item.type === "folder" && editingItemPath === item.name);
-
-                  const extension =
-                    item.type === "file"
-                      ? getExtensionFromUrl(item.name)
-                      : null;
-                  const { isImage, documentKind } =
-                    item.type === "file"
-                      ? classifyFilePreview(item.fileUrl, item.name)
-                      : { isImage: false, documentKind: null };
-                  const isPreviewable = isImage || documentKind !== null;
-
-                  return (
-                    <article
-                      key={itemKey}
-                      className={cn(
-                        "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                        PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                      )}
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                        <div className="flex size-8 shrink-0 items-center justify-center">
-                          {item.type === "folder" ? (
-                            <Folder className="text-muted-foreground size-5" />
-                          ) : (
-                            <FileTypeIcon extension={extension || "file"} />
-                          )}
+                {exploreItems.map((item, idx) => {
+                  if (item.kind === "tasks-root") {
+                    return (
+                      <article
+                        key="tasks-root"
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            <Folders className="text-primary size-5" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={navigateToTasksRoot}
+                            className="text-foreground hover:text-foreground/80 min-w-0 flex-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                            title={t("tasksFolder")}
+                          >
+                            {t("tasksFolder")}
+                          </button>
                         </div>
+                      </article>
+                    );
+                  }
 
-                        {isEditing ? (
-                          <Input
-                            value={editingItemName}
-                            onChange={(e) => setEditingItemName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                void handleRename(item, editingItemName);
-                              } else if (e.key === "Escape") {
-                                cancelEdit();
-                              }
-                            }}
-                            className="h-8 flex-1"
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                              {item.type === "folder" ? (
+                  if (item.kind === "task-project") {
+                    if (!("type" in item) || item.type !== "project") {
+                      return null;
+                    }
+                    return (
+                      <article
+                        key={`project-${item.id}`}
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            <Folder className="text-muted-foreground size-5" />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => navigateToProject(item.id)}
+                              className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                              title={item.name}
+                            >
+                              {item.name}
+                            </button>
+                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                              <span>
+                                {formatter.dateTime(
+                                  new Date(item.latestFileUpdatedAt),
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                            <span>
+                              {formatter.dateTime(
+                                new Date(item.latestFileUpdatedAt),
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+
+                  if (item.kind === "task-no-project") {
+                    if (!("type" in item) || item.type !== "no-project") {
+                      return null;
+                    }
+                    return (
+                      <article
+                        key="no-project"
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            <Folder className="text-muted-foreground size-5" />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => navigateToProject("null")}
+                              className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                              title={t("noProject")}
+                            >
+                              {t("noProject")}
+                            </button>
+                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                              <span>
+                                {formatter.dateTime(
+                                  new Date(item.latestFileUpdatedAt),
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                            <span>
+                              {formatter.dateTime(
+                                new Date(item.latestFileUpdatedAt),
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+
+                  if (item.kind === "task") {
+                    if (!("type" in item) || item.type !== "task") {
+                      return null;
+                    }
+                    return (
+                      <article
+                        key={`task-${item.id}`}
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            <Folder className="text-muted-foreground size-5" />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => navigateToTask(item.id)}
+                              className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                              title={item.name}
+                            >
+                              {item.name}
+                            </button>
+                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                              <span>
+                                {formatter.dateTime(
+                                  new Date(item.latestFileUpdatedAt),
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                            <span>
+                              {formatter.dateTime(
+                                new Date(item.latestFileUpdatedAt),
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+
+                  if (item.kind === "task-file") {
+                    if (!("type" in item) || item.type !== "task-file") {
+                      return null;
+                    }
+                    const extension = getExtensionFromUrl(item.name);
+                    const { isImage, documentKind } = classifyFilePreview(
+                      item.fileUrl,
+                      item.name,
+                    );
+                    const isPreviewable = isImage || documentKind !== null;
+
+                    return (
+                      <article
+                        key={`task-file-${item.id}`}
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            <FileTypeIcon extension={extension || "file"} />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            {isPreviewable ? (
+                              <>
                                 <button
                                   type="button"
-                                  onClick={() => navigateToFolder(item.name)}
+                                  onClick={() => {
+                                    if (isImage) {
+                                      // Open image viewer
+                                    } else if (documentKind) {
+                                      // Open document viewer
+                                    }
+                                  }}
                                   className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
                                   title={item.name}
                                 >
                                   {item.name}
                                 </button>
-                              ) : (
-                                <FileNameWithPreview
-                                  item={item}
-                                  isPreviewable={isPreviewable}
-                                  isImage={isImage}
-                                  documentKind={documentKind}
-                                />
-                              )}
-                              <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                                {item.type === "file" ? (
-                                  <>
-                                    <span>
-                                      {item.size ? formatBytes(item.size) : "—"}
-                                    </span>
-                                    <span>
-                                      {formatter.dateTime(
-                                        new Date(item.uploadedAt),
-                                        {
-                                          year: "numeric",
-                                          month: "short",
-                                          day: "numeric",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        },
-                                      )}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span>{t("folder")}</span>
-                                )}
-                              </div>
+                              </>
+                            ) : (
+                              <span
+                                className="text-foreground line-clamp-1 text-sm font-medium"
+                                title={item.name}
+                              >
+                                {item.name}
+                              </span>
+                            )}
+                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                              <span>
+                                {item.size ? formatBytes(item.size) : "—"}
+                              </span>
+                              <span>
+                                {formatter.dateTime(new Date(item.updatedAt), {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
                             </div>
-                            {item.type === "file" && (
-                              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                                <span>
-                                  {item.size ? formatBytes(item.size) : "—"}
-                                </span>
-                                <span>
-                                  {formatter.dateTime(
-                                    new Date(item.uploadedAt),
-                                    {
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    },
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                            {item.type === "folder" && (
-                              <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
-                                {t("folder")}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      <div className="shrink-0 pl-2">
-                        {isEditing ? (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                void handleRename(item, editingItemName)
-                              }
-                              title={t("saveAction")}
-                            >
-                              <Check className="size-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={cancelEdit}
-                              title={t("cancelAction")}
-                            >
-                              <X className="size-4" />
-                            </Button>
                           </div>
-                        ) : (
+                          <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                            <span>
+                              {item.size ? formatBytes(item.size) : "—"}
+                            </span>
+                            <span>
+                              {formatter.dateTime(new Date(item.updatedAt), {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 pl-2">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -1060,53 +1469,252 @@ export default function DrivePage(): ReactElement {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {item.type === "file" && (
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    handleDownload(item.fileUrl, item.name);
-                                  }}
-                                >
-                                  <Download className="size-4" aria-hidden />
-                                  {t("downloadAction")}
-                                </DropdownMenuItem>
-                              )}
                               <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  startEdit(item);
+                                onSelect={() => {
+                                  handleDownload(item.fileUrl, item.name);
                                 }}
-                                disabled={editingItemPath !== null}
                               >
-                                <Edit3 className="size-4" aria-hidden />
-                                {t("renameAction")}
+                                <Download className="size-4" aria-hidden />
+                                {t("downloadAction")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={(e) => {
                                   e.preventDefault();
-                                  openMoveDialog(item);
+                                  openCopyDialog(item);
                                 }}
-                                disabled={editingItemPath !== null}
                               >
-                                <Folder className="size-4" aria-hidden />
-                                {t("moveAction")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  openDeleteDialog(item);
-                                }}
-                                disabled={editingItemPath !== null}
-                              >
-                                <Trash2 className="size-4" aria-hidden />
-                                {t("deleteAction")}
+                                <Copy className="size-4" aria-hidden />
+                                {t("copyToDriveAction")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                        </div>
+                      </article>
+                    );
+                  }
+
+                  if (
+                    item.kind === "blob-file" ||
+                    item.kind === "blob-folder"
+                  ) {
+                    const itemKey =
+                      item.type === "file"
+                        ? item.pathname
+                        : `folder:${item.name}`;
+                    const isEditing =
+                      (item.type === "file" &&
+                        editingItemPath === item.pathname) ||
+                      (item.type === "folder" && editingItemPath === item.name);
+
+                    const extension =
+                      item.type === "file"
+                        ? getExtensionFromUrl(item.name)
+                        : null;
+                    const { isImage, documentKind } =
+                      item.type === "file"
+                        ? classifyFilePreview(item.fileUrl, item.name)
+                        : { isImage: false, documentKind: null };
+                    const isPreviewable = isImage || documentKind !== null;
+
+                    return (
+                      <article
+                        key={itemKey}
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
                         )}
-                      </div>
-                    </article>
-                  );
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            {item.type === "folder" ? (
+                              <Folder className="text-muted-foreground size-5" />
+                            ) : (
+                              <FileTypeIcon extension={extension || "file"} />
+                            )}
+                          </div>
+
+                          {isEditing ? (
+                            <Input
+                              value={editingItemName}
+                              onChange={(e) =>
+                                setEditingItemName(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void handleRename(item, editingItemName);
+                                } else if (e.key === "Escape") {
+                                  cancelEdit();
+                                }
+                              }}
+                              className="h-8 flex-1"
+                              autoFocus
+                            />
+                          ) : (
+                            <>
+                              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                {item.type === "folder" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigateToFolder(item.name)}
+                                    className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                                    title={item.name}
+                                  >
+                                    {item.name}
+                                  </button>
+                                ) : (
+                                  <FileNameWithPreview
+                                    item={item}
+                                    isPreviewable={isPreviewable}
+                                    isImage={isImage}
+                                    documentKind={documentKind}
+                                  />
+                                )}
+                                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                                  {item.type === "file" ? (
+                                    <>
+                                      <span>
+                                        {item.size
+                                          ? formatBytes(item.size)
+                                          : "—"}
+                                      </span>
+                                      <span>
+                                        {formatter.dateTime(
+                                          new Date(item.uploadedAt),
+                                          {
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          },
+                                        )}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span>{t("folder")}</span>
+                                  )}
+                                </div>
+                              </div>
+                              {item.type === "file" && (
+                                <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                                  <span>
+                                    {item.size ? formatBytes(item.size) : "—"}
+                                  </span>
+                                  <span>
+                                    {formatter.dateTime(
+                                      new Date(item.uploadedAt),
+                                      {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                              {item.type === "folder" && (
+                                <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                                  {t("folder")}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        <div className="shrink-0 pl-2">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  void handleRename(item, editingItemName)
+                                }
+                                title={t("saveAction")}
+                              >
+                                <Check className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={cancelEdit}
+                                title={t("cancelAction")}
+                              >
+                                <X className="size-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                  aria-label={t("moreActions")}
+                                >
+                                  <MoreHorizontal
+                                    className="size-4"
+                                    aria-hidden
+                                  />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {item.type === "file" && (
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      handleDownload(item.fileUrl, item.name);
+                                    }}
+                                  >
+                                    <Download className="size-4" aria-hidden />
+                                    {t("downloadAction")}
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    startEdit(item);
+                                  }}
+                                  disabled={editingItemPath !== null}
+                                >
+                                  <Edit3 className="size-4" aria-hidden />
+                                  {t("renameAction")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    openMoveDialog(item);
+                                  }}
+                                  disabled={editingItemPath !== null}
+                                >
+                                  <Folder className="size-4" aria-hidden />
+                                  {t("moveAction")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    openDeleteDialog(item);
+                                  }}
+                                  disabled={editingItemPath !== null}
+                                >
+                                  <Trash2 className="size-4" aria-hidden />
+                                  {t("deleteAction")}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  }
+
+                  return null;
                 })}
               </div>
             </div>
@@ -1114,12 +1722,14 @@ export default function DrivePage(): ReactElement {
         </TabsContent>
       </Tabs>
 
-      <ListMobileCreateFab
-        ariaLabel={t("uploadFab")}
-        onOpen={handleFabOpen}
-        icon={Upload}
-        progress={uploading ? uploadProgress : undefined}
-      />
+      {!isTasksView && (
+        <ListMobileCreateFab
+          ariaLabel={t("uploadFab")}
+          onOpen={handleFabOpen}
+          icon={Upload}
+          progress={uploading ? uploadProgress : undefined}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1242,6 +1852,65 @@ export default function DrivePage(): ReactElement {
               disabled={movingItem || selectedDestination === null}
             >
               {t("moveHere")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("selectDestinationDrive")}</DialogTitle>
+            <DialogDescription>
+              {t("selectDestinationDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setCopyDestinationScope("me")}
+              className={cn(
+                "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                copyDestinationScope === "me" && "bg-muted border-primary",
+              )}
+            >
+              <Home className="text-muted-foreground size-4 shrink-0" />
+              <span className="flex-1">{t("myDriveDestination")}</span>
+            </button>
+            {activeOrganizationId && organizationName && (
+              <button
+                type="button"
+                onClick={() => setCopyDestinationScope("org")}
+                className={cn(
+                  "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  copyDestinationScope === "org" && "bg-muted border-primary",
+                )}
+              >
+                <Building2 className="text-muted-foreground size-4 shrink-0" />
+                <span className="flex-1">
+                  {t("organizationDriveDestination", {
+                    name: organizationName,
+                  })}
+                </span>
+              </button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCopyDialogOpen(false);
+                setTaskFileToCopy(null);
+                setCopyDestinationScope(null);
+              }}
+            >
+              {t("cancelAction")}
+            </Button>
+            <Button
+              onClick={() => void handleCopyConfirm()}
+              disabled={copying || !copyDestinationScope}
+            >
+              {t("copyToDriveAction")}
             </Button>
           </DialogFooter>
         </DialogContent>
