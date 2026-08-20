@@ -662,6 +662,9 @@
           "additionalMembers": "Entferne alle anderen Mitglieder, bevor du diese Organisation löschst.",
           "lastWorkspace": "Du kannst deinen letzten Workspace nicht löschen.",
           "unauthorizedAction": "Anmelden",
+          "runningSubscription": "Kündige dein laufendes Abo und warte, bis der bezahlte Zeitraum endet.",
+          "enterpriseContractActive": "Diese Organisation hat einen aktiven Enterprise-Vertrag und kann nicht gelöscht werden.",
+          "billingLink": "Zur Abrechnung",
           "inFlightJob": "Warte, bis laufende Jobs in dieser Organisation abgeschlossen sind, bevor du sie löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe in dieser Organisation abgeschlossen sind, bevor du sie löschst.",
           "inFlightTask": "Warte, bis laufende Tasks in dieser Organisation abgeschlossen sind, bevor du sie löschst."
@@ -3935,6 +3938,8 @@
         "Errors": {
           "taskPaymentClaimPending": "Warte, bis ausstehende Task-Zahlungen abgeschlossen sind, bevor du deinen Account löschst.",
           "taskPaymentClaimReviewRequired": "Eine Task-Zahlung muss von einem Administrator geprüft werden, bevor du deinen Account löschen kannst. Bitte kontaktiere den Support.",
+          "runningSubscription": "Kündige dein laufendes Abo und warte, bis der bezahlte Zeitraum endet.",
+          "billingLink": "Zur Abrechnung",
           "userOwnsOrganization": "Übertrage die Owner-Rolle oder lösche jede Organisation, die du besitzt, bevor du deinen Account löschst.",
           "inFlightJob": "Warte, bis laufende Jobs abgeschlossen sind, bevor du deinen Account löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe abgeschlossen sind, bevor du deinen Account löschst.",

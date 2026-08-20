@@ -14,6 +14,8 @@ import {
 
 const {
   taskPaymentClaimFindFirstMock,
+  subscriptionFindFirstMock,
+  enterpriseContractFindFirstMock,
   taskX402PaymentFindFirstMock,
   memberFindFirstMock,
   jobFindFirstMock,
@@ -23,6 +25,8 @@ const {
   captureMessageMock,
 } = vi.hoisted(() => ({
   taskPaymentClaimFindFirstMock: vi.fn(),
+  subscriptionFindFirstMock: vi.fn(),
+  enterpriseContractFindFirstMock: vi.fn(),
   taskX402PaymentFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
@@ -70,8 +74,19 @@ function createPrisma() {
     taskX402Payment: {
       findFirst: taskX402PaymentFindFirstMock,
     },
+    subscription: {
+      findFirst: subscriptionFindFirstMock,
+    },
+    enterpriseContract: {
+      findFirst: enterpriseContractFindFirstMock,
+    },
   };
 }
+
+const RUNNING_SUBSCRIPTION_WHERE = {
+  stripeSubscriptionId: { not: null },
+  status: { in: ["active", "trialing", "past_due", "unpaid"] },
+};
 
 function mockJobLookups(options: {
   inFlight?: { id: string } | null;
@@ -113,6 +128,8 @@ describe("evaluateUserDeletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskPaymentClaimFindFirstMock.mockResolvedValue(null);
+    subscriptionFindFirstMock.mockResolvedValue(null);
+    enterpriseContractFindFirstMock.mockResolvedValue(null);
     taskX402PaymentFindFirstMock.mockResolvedValue(null);
     memberFindFirstMock.mockResolvedValue(null);
     jobFindFirstMock.mockResolvedValue(null);
@@ -172,6 +189,67 @@ describe("evaluateUserDeletion", () => {
       evaluateUserDeletion("user_delete", createPrisma() as never),
     ).resolves.toEqual({
       blockers: [
+        "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+        "TASK_PAYMENT_CLAIM_PENDING",
+      ],
+      reviewRequiredClaim: {
+        id: "claim_review",
+        reviewRequiredAt,
+      },
+    });
+  });
+
+  it("returns RUNNING_SUBSCRIPTION for a paid Stripe subscription in an active status", async () => {
+    mockClaimLookups({ reviewRequired: null, pending: null });
+    subscriptionFindFirstMock.mockResolvedValue({ id: "sub_paid" });
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: ["RUNNING_SUBSCRIPTION"],
+      reviewRequiredClaim: null,
+    });
+    expect(subscriptionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: "user_delete",
+        ...RUNNING_SUBSCRIPTION_WHERE,
+      },
+      select: { id: true },
+    });
+  });
+
+  it("does not return RUNNING_SUBSCRIPTION for a local free subscription", async () => {
+    mockClaimLookups({ reviewRequired: null, pending: null });
+    subscriptionFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: [],
+      reviewRequiredClaim: null,
+    });
+    expect(subscriptionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: "user_delete",
+        ...RUNNING_SUBSCRIPTION_WHERE,
+      },
+      select: { id: true },
+    });
+  });
+
+  it("returns RUNNING_SUBSCRIPTION ahead of claim blockers when several apply", async () => {
+    const reviewRequiredAt = new Date("2026-08-04T10:00:00.000Z");
+    mockClaimLookups({
+      reviewRequired: { id: "claim_review", reviewRequiredAt },
+      pending: { id: "claim_pending" },
+    });
+    subscriptionFindFirstMock.mockResolvedValue({ id: "sub_paid" });
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: [
+        "RUNNING_SUBSCRIPTION",
         "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
         "TASK_PAYMENT_CLAIM_PENDING",
       ],
@@ -468,6 +546,25 @@ describe("throwIfUserDeletionBlocked", () => {
     expect(captureMessageMock).not.toHaveBeenCalled();
   });
 
+  it("throws RUNNING_SUBSCRIPTION without paging Sentry", () => {
+    expect(() =>
+      throwIfUserDeletionBlocked("user_delete", {
+        blockers: ["RUNNING_SUBSCRIPTION"],
+        reviewRequiredClaim: null,
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        status: "BAD_REQUEST",
+        body: expect.objectContaining({
+          code: "RUNNING_SUBSCRIPTION",
+          message:
+            "Cancel your running subscription and wait until the paid period ends before deleting.",
+        }),
+      }),
+    );
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
   it("throws TASK_PAYMENT_CLAIM_PENDING without paging Sentry", () => {
     expect(() =>
       throwIfUserDeletionBlocked("user_delete", {
@@ -493,6 +590,8 @@ describe("evaluateOrganizationDeletion", () => {
     isLastWorkspaceMock.mockResolvedValue(false);
     jobFindFirstMock.mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue(null);
+    subscriptionFindFirstMock.mockResolvedValue(null);
+    enterpriseContractFindFirstMock.mockResolvedValue(null);
   });
 
   it("returns empty when no extra members and not last workspace", async () => {
@@ -541,6 +640,70 @@ describe("evaluateOrganizationDeletion", () => {
       evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
     ).resolves.toEqual({
       blockers: ["ORGANIZATION_HAS_ADDITIONAL_MEMBERS", "LAST_WORKSPACE"],
+    });
+  });
+
+  it("returns RUNNING_SUBSCRIPTION for a paid org Stripe subscription", async () => {
+    subscriptionFindFirstMock.mockResolvedValue({ id: "sub_org_paid" });
+
+    await expect(
+      evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: ["RUNNING_SUBSCRIPTION"],
+    });
+    expect(subscriptionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: "org-1",
+        ...RUNNING_SUBSCRIPTION_WHERE,
+      },
+      select: { id: true },
+    });
+  });
+
+  it("does not return RUNNING_SUBSCRIPTION for a local free org subscription", async () => {
+    subscriptionFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
+    ).resolves.toEqual({ blockers: [] });
+  });
+
+  it("returns ENTERPRISE_CONTRACT_ACTIVE when an active enterprise contract exists", async () => {
+    enterpriseContractFindFirstMock.mockResolvedValue({ id: "contract_1" });
+
+    await expect(
+      evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: ["ENTERPRISE_CONTRACT_ACTIVE"],
+    });
+    expect(enterpriseContractFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        organizationId: "org-1",
+        status: "active",
+        activatedAt: { not: null },
+      },
+      select: { id: true },
+    });
+  });
+
+  it("returns subscription, enterprise, and existing blockers together", async () => {
+    subscriptionFindFirstMock.mockResolvedValue({ id: "sub_org_paid" });
+    enterpriseContractFindFirstMock.mockResolvedValue({ id: "contract_1" });
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { userId: "user-1" },
+      { userId: "user-2" },
+    ]);
+    isLastWorkspaceMock.mockResolvedValue(true);
+
+    await expect(
+      evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: [
+        "RUNNING_SUBSCRIPTION",
+        "ENTERPRISE_CONTRACT_ACTIVE",
+        "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+        "LAST_WORKSPACE",
+      ],
     });
   });
 
@@ -642,6 +805,23 @@ describe("throwIfOrganizationDeletionBlocked", () => {
     expect(() =>
       throwIfOrganizationDeletionBlocked({ blockers: [] }),
     ).not.toThrow();
+  });
+
+  it("throws RUNNING_SUBSCRIPTION ahead of other organization blockers", () => {
+    expect(() =>
+      throwIfOrganizationDeletionBlocked({
+        blockers: ["RUNNING_SUBSCRIPTION", "ENTERPRISE_CONTRACT_ACTIVE"],
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        status: "BAD_REQUEST",
+        body: expect.objectContaining({
+          code: "RUNNING_SUBSCRIPTION",
+          message:
+            "Cancel your running subscription and wait until the paid period ends before deleting.",
+        }),
+      }),
+    );
   });
 
   it("throws the first organization blocker", () => {

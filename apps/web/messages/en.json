@@ -678,6 +678,9 @@
           "additionalMembers": "Remove all other members before deleting this organization.",
           "lastWorkspace": "You cannot delete your last workspace.",
           "unauthorizedAction": "Login",
+          "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
+          "enterpriseContractActive": "This organization has an active enterprise contract and cannot be deleted.",
+          "billingLink": "Go to billing",
           "inFlightJob": "Wait for in-flight jobs on this organization to finish before deleting it.",
           "unsettledOnChainJob": "Wait for on-chain job purchases on this organization to settle before deleting it.",
           "inFlightTask": "Wait for in-flight tasks on this organization to finish before deleting it."
@@ -3966,6 +3969,8 @@
         "Errors": {
           "taskPaymentClaimPending": "Wait for pending task payments to settle before deleting your account.",
           "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support.",
+          "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
+          "billingLink": "Go to billing",
           "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",

@@ -35,6 +35,9 @@ const translations: Record<string, string> = {
     "Wait for on-chain job purchases to settle before deleting your account.",
   "App.Account.Delete.Errors.inFlightTask":
     "Wait for in-flight tasks to finish before deleting your account.",
+  "App.Account.Delete.Errors.runningSubscription":
+    "Cancel your running subscription and wait until the paid period ends.",
+  "App.Account.Delete.Errors.billingLink": "Go to billing",
   "App.Account.Delete.Links.organizationMembers": "Organization members",
   "App.Account.Delete.Links.jobs": "Jobs",
   "App.Account.Delete.Links.tasks": "Tasks",
@@ -113,6 +116,25 @@ describe("DeleteAccountForm", () => {
         "Wait for pending task payments to settle before deleting your account.",
       ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    ).toBeDisabled();
+  });
+
+  it("lists a running-subscription blocker with a billing link and disables confirm", async () => {
+    render(<DeleteAccountForm blockers={["RUNNING_SUBSCRIPTION"]} />);
+
+    await openDialog();
+
+    expect(
+      screen.getByText(
+        "Cancel your running subscription and wait until the paid period ends.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to billing" })).toHaveAttribute(
+      "href",
+      "/billing",
+    );
     expect(
       screen.getByRole("button", { name: "Yes, delete my account" }),
     ).toBeDisabled();

@@ -82,6 +82,8 @@ const {
   const prismaTaskFindFirstMock = vi.fn();
   const prismaTaskPaymentClaimFindFirstMock = vi.fn();
   const prismaTaskX402PaymentFindFirstMock = vi.fn();
+  const prismaSubscriptionFindFirstMock = vi.fn();
+  const prismaEnterpriseContractFindFirstMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
@@ -107,6 +109,12 @@ const {
     },
     taskX402Payment: {
       findFirst: prismaTaskX402PaymentFindFirstMock,
+    },
+    subscription: {
+      findFirst: prismaSubscriptionFindFirstMock,
+    },
+    enterpriseContract: {
+      findFirst: prismaEnterpriseContractFindFirstMock,
     },
   };
 
@@ -445,6 +453,8 @@ describe("core auth config", () => {
     prismaMock.task.findFirst.mockResolvedValue(null);
     prismaMock.taskPaymentClaim.findFirst.mockResolvedValue(null);
     prismaMock.taskX402Payment.findFirst.mockResolvedValue(null);
+    prismaMock.subscription.findFirst.mockResolvedValue(null);
+    prismaMock.enterpriseContract.findFirst.mockResolvedValue(null);
     deleteStripeCustomerBestEffortMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => callback({}));
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });

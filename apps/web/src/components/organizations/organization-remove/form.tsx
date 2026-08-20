@@ -23,10 +23,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE,
   IN_FLIGHT_JOB_ERROR_CODE,
   IN_FLIGHT_TASK_ERROR_CODE,
   LAST_WORKSPACE_ERROR_CODE,
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+  RUNNING_SUBSCRIPTION_ERROR_CODE,
   UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
@@ -63,6 +65,12 @@ function organizationDeletionBlockerCopy(
   if (code === LAST_WORKSPACE_ERROR_CODE) {
     return { message: t("Errors.lastWorkspace") };
   }
+  if (code === RUNNING_SUBSCRIPTION_ERROR_CODE) {
+    return { message: t("Errors.runningSubscription") };
+  }
+  if (code === ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE) {
+    return { message: t("Errors.enterpriseContractActive") };
+  }
   if (code === IN_FLIGHT_JOB_ERROR_CODE) {
     return {
       message: t("Errors.inFlightJob"),
@@ -85,6 +93,13 @@ function organizationDeletionBlockerCopy(
     };
   }
   return { message: t("error") };
+}
+
+function organizationDeletionBlockerHasBillingLink(code: string): boolean {
+  return (
+    code === RUNNING_SUBSCRIPTION_ERROR_CODE ||
+    code === ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE
+  );
 }
 
 function organizationDeletionBlockerMessage(
@@ -192,6 +207,14 @@ export default function OrganizationRemoveForm({
                   );
                 })}
               </ul>
+              {blockers.some(organizationDeletionBlockerHasBillingLink) ? (
+                <Link
+                  href="/billing"
+                  className="text-destructive text-sm underline underline-offset-2"
+                >
+                  {t("Errors.billingLink")}
+                </Link>
+              ) : null}
             </div>
           ) : null}
           <FormField

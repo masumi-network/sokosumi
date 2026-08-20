@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import {
   IN_FLIGHT_JOB_ERROR_CODE,
   IN_FLIGHT_TASK_ERROR_CODE,
+  RUNNING_SUBSCRIPTION_ERROR_CODE,
   TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE,
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE,
   UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
@@ -91,6 +92,13 @@ function userDeletionBlockerCopy(
       message: t("Errors.inFlightTask"),
       href: "/tasks",
       linkLabel: t("Links.tasks"),
+    };
+  }
+  if (code === RUNNING_SUBSCRIPTION_ERROR_CODE) {
+    return {
+      message: t("Errors.runningSubscription"),
+      href: "/billing",
+      linkLabel: t("Errors.billingLink"),
     };
   }
   if (code === TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE) {

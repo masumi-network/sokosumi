@@ -33,6 +33,11 @@ const translations: Record<string, string> = {
     "Wait for on-chain job purchases on this organization to settle before deleting it.",
   "Components.Organizations.RemoveModal.Errors.inFlightTask":
     "Wait for in-flight tasks on this organization to finish before deleting it.",
+  "Components.Organizations.RemoveModal.Errors.runningSubscription":
+    "Cancel your running subscription and wait until the paid period ends.",
+  "Components.Organizations.RemoveModal.Errors.enterpriseContractActive":
+    "This organization has an active enterprise contract and cannot be deleted.",
+  "Components.Organizations.RemoveModal.Errors.billingLink": "Go to billing",
   "Components.Organizations.RemoveModal.Links.jobs": "Jobs",
   "Components.Organizations.RemoveModal.Links.tasks": "Tasks",
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.invalid":
@@ -138,6 +143,33 @@ describe("OrganizationRemoveForm", () => {
     expect(
       screen.getByText("You cannot delete your last workspace."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  });
+
+  it("lists billing blockers with a billing link and disables confirm", () => {
+    render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={vi.fn()}
+        onOpenChange={vi.fn()}
+        blockers={["RUNNING_SUBSCRIPTION", "ENTERPRISE_CONTRACT_ACTIVE"]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Cancel your running subscription and wait until the paid period ends.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This organization has an active enterprise contract and cannot be deleted.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to billing" })).toHaveAttribute(
+      "href",
+      "/billing",
+    );
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 

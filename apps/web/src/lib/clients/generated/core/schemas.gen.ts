@@ -8960,6 +8960,7 @@ export const UserDeletionEvaluationSchema = {
             items: {
                 type: 'string',
                 enum: [
+                    'RUNNING_SUBSCRIPTION',
                     'USER_OWNS_ORGANIZATION',
                     'IN_FLIGHT_JOB',
                     'UNSETTLED_ON_CHAIN_JOB',
@@ -10217,6 +10218,8 @@ export const OrganizationDeletionEvaluationSchema = {
             items: {
                 type: 'string',
                 enum: [
+                    'RUNNING_SUBSCRIPTION',
+                    'ENTERPRISE_CONTRACT_ACTIVE',
                     'ORGANIZATION_HAS_ADDITIONAL_MEMBERS',
                     'LAST_WORKSPACE',
                     'IN_FLIGHT_JOB',
