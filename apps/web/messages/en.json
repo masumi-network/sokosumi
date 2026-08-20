@@ -3966,7 +3966,7 @@
         "Errors": {
           "taskPaymentClaimPending": "Wait for pending task payments to settle before deleting your account.",
           "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support.",
-          "userOwnsOrganization": "Drop the owner role on every organization before deleting your account.",
+          "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
           "inFlightTask": "Wait for in-flight tasks to finish before deleting your account."

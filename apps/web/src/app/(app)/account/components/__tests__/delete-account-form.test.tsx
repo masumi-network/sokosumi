@@ -28,7 +28,7 @@ const translations: Record<string, string> = {
   "App.Account.Delete.Errors.taskPaymentClaimReviewRequired":
     "A task payment needs administrator review before your account can be deleted. Please contact support.",
   "App.Account.Delete.Errors.userOwnsOrganization":
-    "Drop the owner role on every organization before deleting your account.",
+    "Transfer ownership or delete every organization you own before deleting your account.",
   "App.Account.Delete.Errors.inFlightJob":
     "Wait for in-flight jobs to finish before deleting your account.",
   "App.Account.Delete.Errors.unsettledOnChainJob":
@@ -135,7 +135,7 @@ describe("DeleteAccountForm", () => {
 
     expect(
       screen.getByText(
-        "Drop the owner role on every organization before deleting your account.",
+        "Transfer ownership or delete every organization you own before deleting your account.",
       ),
     ).toBeInTheDocument();
     expect(

@@ -3935,7 +3935,7 @@
         "Errors": {
           "taskPaymentClaimPending": "Warte, bis ausstehende Task-Zahlungen abgeschlossen sind, bevor du deinen Account löschst.",
           "taskPaymentClaimReviewRequired": "Eine Task-Zahlung muss von einem Administrator geprüft werden, bevor du deinen Account löschen kannst. Bitte kontaktiere den Support.",
-          "userOwnsOrganization": "Lege die Owner-Rolle in jeder Organisation ab, bevor du deinen Account löschst.",
+          "userOwnsOrganization": "Übertrage die Owner-Rolle oder lösche jede Organisation, die du besitzt, bevor du deinen Account löschst.",
           "inFlightJob": "Warte, bis laufende Jobs abgeschlossen sind, bevor du deinen Account löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe abgeschlossen sind, bevor du deinen Account löschst.",
           "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst."

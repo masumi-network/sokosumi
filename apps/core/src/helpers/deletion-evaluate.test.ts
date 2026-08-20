@@ -204,13 +204,25 @@ describe("evaluateUserDeletion", () => {
 
   it("returns USER_OWNS_ORGANIZATION when the User still has owner role among multiple owners", async () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_owner_self" });
+    const memberCountMock = vi.fn();
 
     await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
+      evaluateUserDeletion("user_delete", {
+        ...createPrisma(),
+        member: {
+          findFirst: memberFindFirstMock,
+          count: memberCountMock,
+        },
+      } as never),
     ).resolves.toEqual({
       blockers: ["USER_OWNS_ORGANIZATION"],
       reviewRequiredClaim: null,
     });
+    expect(memberFindFirstMock).toHaveBeenCalledWith({
+      where: { userId: "user_delete", role: MemberRole.OWNER },
+      select: { id: true },
+    });
+    expect(memberCountMock).not.toHaveBeenCalled();
   });
 
   it("returns IN_FLIGHT_JOB when the User owns a Job with no terminal agent event", async () => {

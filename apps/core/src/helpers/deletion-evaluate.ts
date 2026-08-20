@@ -50,7 +50,7 @@ export interface OrganizationDeletionEvaluation {
 
 const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
   USER_OWNS_ORGANIZATION:
-    "Drop the owner role on every organization before deleting your account.",
+    "Transfer ownership or delete every organization you own before deleting your account.",
   IN_FLIGHT_JOB:
     "Wait for in-flight jobs to finish before deleting your account.",
   UNSETTLED_ON_CHAIN_JOB:

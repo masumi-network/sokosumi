@@ -3935,7 +3935,7 @@
         "Errors": {
           "taskPaymentClaimPending": "Espera a que se liquiden los pagos de tareas pendientes antes de eliminar tu cuenta.",
           "taskPaymentClaimReviewRequired": "Un pago de tarea necesita revisión del administrador antes de que puedas eliminar tu cuenta. Contacta con soporte.",
-          "userOwnsOrganization": "Deja el rol de propietario en todas las organizaciones antes de eliminar tu cuenta.",
+          "userOwnsOrganization": "Transfiere el rol de propietario o elimina todas las organizaciones que poseas antes de eliminar tu cuenta.",
           "inFlightJob": "Espera a que terminen los jobs en curso antes de eliminar tu cuenta.",
           "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs antes de eliminar tu cuenta.",
           "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta."
