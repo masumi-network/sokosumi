@@ -76,6 +76,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Folder path cannot be empty");
     }
 
+    // Reserve "Tasks" as root segment (virtual folder)
+    const rootSegment = folderPath.split("/")[0];
+    if (rootSegment === "Tasks") {
+      throw conflict(
+        "Folder name 'Tasks' is reserved for the virtual Tasks folder",
+      );
+    }
+
     let markerPathname: string;
     let prefix: string;
 
