@@ -1,5 +1,6 @@
 "use client";
 
+import { isDriveFolderMarkerName } from "@sokosumi/utils";
 import {
   Building2,
   ChevronRight,
@@ -96,7 +97,7 @@ export function DriveFilePicker({
 
       if (!controller.signal.aborted) {
         const filteredItems = loaded.filter(
-          (item) => item.name !== "__drive_folder__",
+          (item) => !isDriveFolderMarkerName(item.name),
         );
         setItems(filteredItems);
       }
@@ -173,14 +174,6 @@ export function DriveFilePicker({
       return;
     }
 
-    const newSegments = newPath.split("/");
-    if (newSegments.length >= 2) {
-      const lastTwo = newSegments.slice(-2);
-      if (lastTwo[0] === lastTwo[1]) {
-        return;
-      }
-    }
-
     setCurrentFolder(newPath);
   }
 
@@ -224,7 +217,7 @@ export function DriveFilePicker({
             <div className="min-w-0 overflow-x-auto">
               <nav
                 className="text-muted-foreground flex flex-nowrap items-center gap-1 text-sm"
-                aria-label="Breadcrumb"
+                aria-label={t("breadcrumbNavLabel")}
               >
                 <button
                   type="button"
