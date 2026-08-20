@@ -531,7 +531,11 @@ describe("core auth config", () => {
               mapProfileToUser: (profile: {
                 name: string;
                 picture: string;
-              }) => Promise<{ name: string; image?: string | null }>;
+              }) => Promise<{
+                name: string;
+                image?: string | null;
+                emailVerified: boolean;
+              }>;
             };
           };
         },
@@ -548,6 +552,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: "https://cdn.example.com/avatar.png",
+      emailVerified: true,
     });
 
     const dataUri =
@@ -561,6 +566,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: "https://blob.example/avatar.png",
+      emailVerified: true,
     });
     expect(uploadProfileImageMock).toHaveBeenCalledWith(dataUri);
 
@@ -572,6 +578,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: undefined,
+      emailVerified: true,
     });
   });
 
@@ -588,7 +595,11 @@ describe("core auth config", () => {
               mapProfileToUser: (profile: {
                 name: string;
                 picture: string;
-              }) => Promise<{ name: string; image?: string | null }>;
+              }) => Promise<{
+                name: string;
+                image?: string | null;
+                emailVerified: boolean;
+              }>;
             };
           };
         },
@@ -603,6 +614,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: undefined,
+      emailVerified: true,
     });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
   });
