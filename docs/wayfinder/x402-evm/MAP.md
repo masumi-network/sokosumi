@@ -100,13 +100,13 @@ implementation itself is out of scope. PR 1 is the priority. There is no
   coworker + assigned task. Web `/agents` stays Coworkers-only (SOK-805).
 - [PR 1 spec](tickets/007-pr1-spec.md) — **first half of the destination
   reached.** Full spec at [PR1-SPEC.md](PR1-SPEC.md): listing + pay
-  endpoints, `TaskX402Payment` sibling model, charge-then-sign flow with the
-  provably-unpaid refund branch, admin refund + per-endpoint aggregation,
-  env/operator prerequisites, test strategy. Approved first-pass; task-nested
-  path and required `agentId` confirmed. All former ship-gates resolved by
-  the ticket-011 answers — spec upgraded in place (timeout/`PENDING` stays
-  held unless no header was written, dialect normalizer, phased settlement
-  fields).
+  endpoints, `TaskX402Payment` sibling model, charge-then-sign flow with
+  first-attempt unsettleable refund only, admin refund + per-agent
+  aggregation, env/operator prerequisites, test strategy. Approved
+  first-pass; task-nested path and required `agentId` confirmed. All former
+  ship-gates resolved by the ticket-011 answers — spec upgraded in place
+  (timeout/`PENDING` stays held even with a null header, dialect
+  normalizer, phased settlement fields).
 - [Ratify ADR 0001](tickets/008-ratify-adr-0001.md) — [ADR 0001](../../adr/0001-x402-evm-payment-rail.md)
   flipped **Proposed → Accepted**: refund policy folded in as the resolved
   blocker, `JobX402Payment`/`TaskX402Payment` fixed as two sibling tables,

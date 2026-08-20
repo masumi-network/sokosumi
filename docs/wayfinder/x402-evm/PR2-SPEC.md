@@ -12,11 +12,12 @@
 Core hire APIs can run a paid job on an x402 direct-settlement agent:
 call → 402 → node-pay → replay inside Soko's job pipeline, and the HTTP
 response is the result. Web `/agents` does **not** hire (SOK-805:
-Coworkers-only gallery). Flipping `buildAvailableAgentWhereClause` puts
-x402 rows on public `GET /v1/agents`, not the coworker gallery. Escrow
-paths untouched. Shares with PR 1: CAIP-19 credit keys, dialect
-normalizer, verify-against-source, the `/x402/pay` client, refund policy.
-Ships **after** PR 1; reuses its helpers.
+Coworkers-only gallery). Listing is already public `GET /v1/agents`
+(`kind: "x402"`) from PR 1 — PR 2 **hires those listed agents**. Do not
+flip x402 into `buildAvailableAgentWhereClause` (that predicate stays
+Cardano MIP-003). Escrow paths untouched. Shares with PR 1: CAIP-19
+credit keys, dialect normalizer, verify-against-source, the `/x402/pay`
+client, refund policy. Ships **after** PR 1; reuses its helpers.
 
 ## 2. Schema
 
@@ -84,14 +85,14 @@ Ships **after** PR 1; reuses its helpers.
    `buildJobsNeedingPurchaseSyncWhere` / `buildJobsPendingLocalRefundWhere`
    so selectors stay provably disjoint per rail).
 
-## 4. Availability flip
+## 4. Hire already-listed x402 agents
 
-`buildAvailableAgentWhereClause` admits x402-source agents when: whitelisted,
-scheme `exact`, assets priced, per-env network allowlist, composed buy-side
-readiness OK (`/x402/networks/available` + `/x402/budgets`, cached
-last-known-value, fail-closed cold). Same gates as PR 1's listing — one
-shared predicate. This is the **public** `GET /v1/agents` predicate, not
-the web coworker gallery.
+PR 1 already lists x402 on public `GET /v1/agents` via a **separate**
+`kind: "x402"` predicate. PR 2 does **not** reopen that catalog. Hire
+uses an already-listed `kind: "x402"` agent. `buildAvailableAgentWhereClause`
+stays Cardano-only. Fail-closed gates (curation, `exact`, priced assets,
+allowlist, readiness, trusted EIP-712 domain) remain the PR 1 listing
+predicate.
 
 ## 5. Refund policy binding (ticket 006)
 

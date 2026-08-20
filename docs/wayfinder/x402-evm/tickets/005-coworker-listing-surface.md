@@ -45,5 +45,9 @@ was dropped during implementation. Callers see one agent catalog.
    buy-side readiness OK. Same invariant the Cardano catalog keeps.
 3. **List is public; pay is not.** The catalog is unauthenticated. Paying
    still requires `requireTaskCollaboration` + `isCoworkerAgentContext`.
+4. **Dynamic.** `main` stores registry Dynamic as `UNKNOWN`. This stack
+   adds `PricingType.DYNAMIC`. Dynamic/mixed entries list with
+   `isPayable: false` until every advertised network has a priced
+   buy-side-ready asset; then the Dynamic/`maxCredits` pay gate runs.
 
 Field-level response schema lands in the PR 1 spec (007).

@@ -49,11 +49,12 @@ Ticket 005. One public catalog. Items are a discriminated union on `kind`:
   4. its network is in the per-environment EVM allowlist (preprod = testnet
      CAIP-2 ids only),
   5. x402 buy-side readiness OK (§6).
-- **`PricingType` on `main` is `FIXED | FREE | UNKNOWN`.** Registry
-  `Dynamic` is ingested as `UNKNOWN` and stays out of the Cardano catalog.
-  x402 Dynamic sources do not list until ingest keeps them distinct (add
-  `DYNAMIC`, or stop mapping x402 Dynamic → `UNKNOWN`). Until then the
-  Dynamic/`maxCredits` pay gate never runs.
+- **`PricingType` on `main` is `FIXED | FREE | UNKNOWN`.** This stack adds
+  `DYNAMIC` and stops mapping registry Dynamic → `UNKNOWN`. x402 Dynamic
+  entries list with `pricingType: "dynamic"`; `isPayable` is true when
+  every advertised network has a priced buy-side-ready asset, otherwise
+  they stay visible as non-payable previews. The Dynamic/`maxCredits` pay
+  gate **runs** on this stack.
 - **Response fields per agent:** id, name, description, image (all resolved
   through the existing `AgentMetadataOverride`-aware helpers — X402 agents
   carry the standard override fields so a later read-only UI needs no
@@ -114,12 +115,10 @@ Modeled on the node's own request so translation is minimal:
    - **Free** — reject a positive demand.
    - **Dynamic** — no advertised amount to match; the runtime 402 supplies
      asset + amount. Asset must be buy-side ready.
-   On `main`, `PricingType` is `FIXED | FREE | UNKNOWN`. Registry
-   `Dynamic` is ingested as `UNKNOWN` so those agents stay out of the
-   Cardano catalog. x402 Dynamic **never lists and this gate never runs**
-   until ingest stops that map (add `DYNAMIC`, or keep x402 Dynamic
-   distinct from `UNKNOWN`). Any failure → `4xx` **before any charge**.
-   Ticket 003.
+   On `main`, `PricingType` is `FIXED | FREE | UNKNOWN`. This stack adds
+   `DYNAMIC`. The Dynamic gate **runs**: runtime 402 supplies asset +
+   amount; `maxCredits` is mandatory after credit conversion. Any failure
+   → `4xx` **before any charge**. Ticket 003.
 4. **Price** — convert the demanded **native** amount to **credits** via the
    CAIP-19 `CreditCost` key (§ ticket 004) using **node-published** decimals
    for the `(network, asset)` pair, never the agent-registered scale.
@@ -146,9 +145,11 @@ Modeled on the node's own request so translation is minimal:
    - **same-key `PENDING` replay that the node refuses** — an earlier
      ambiguous attempt may still be live. Keep `PENDING`. Do not refund.
    - **crash / timeout / transport / malformed 200** — keep `PENDING` for
-     same-key replay (re-enter sign, no second debit). Auto-refund a
-     stale `PENDING` **only when no header was ever written to the row**.
-     The reconciler must not refund a row with an active sign lease.
+     same-key replay (re-enter sign, no second debit). A null header is
+     **not** unsettleable (a lost 200 can hide a signed authorization).
+     Do **not** auto-refund stale `PENDING`. Admin resolve after the
+     sign-risk fence; unused expiry is future `EXPIRED_UNUSED`. The
+     reconciler must not refund a row with an active sign lease.
 
 ### Response
 
@@ -275,8 +276,9 @@ All confirmed against masumi-payment-service `main`; see
 - **Route:** authz parity with `masumiPayment` (non-coworker rejected;
   unassigned task rejected); fail-closed listing (unpriced asset, wrong
   network, unready rail each drop the agent); charge-then-refund on a stubbed
-  node refusal on a first attempt; stale-PENDING with no written header
-  may auto-refund; a `PENDING` mid-retry must not.
+  node refusal on a first attempt; timed-out `PENDING` stays held (a null
+  header is not unsettleable); a `PENDING` mid-retry must not auto-refund;
+  admin resolve after the sign-risk fence (§3).
 - **Mutation-tested** on the money paths, per repo discipline: the charge
   floor, the idempotency unique, the provably-unpaid refund branch.
 - Node interaction stubbed at the payment-client boundary (the pinned spec is
