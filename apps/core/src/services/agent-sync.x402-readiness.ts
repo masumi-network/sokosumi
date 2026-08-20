@@ -10,6 +10,7 @@ import { getEnv } from "@/config/env";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import {
   isX402NetworkAllowed,
+  trimEvmWalletId,
   X402_BUY_SIDE_READINESS_FAILURE_KEY,
   X402_BUY_SIDE_READINESS_KEY,
   type X402ReadySource,
@@ -129,9 +130,8 @@ export function composeX402ReadySources(
   for (const budget of budgets) {
     const caip2Network = budget.caip2Network?.toLowerCase();
     const asset = budget.asset?.toLowerCase();
-    // The wallet id is the node's opaque identifier — carried verbatim, no
-    // case normalization.
-    const evmWalletId = budget.evmWalletId;
+    // Opaque and case-sensitive — trim only. Whitespace-only cannot sign.
+    const evmWalletId = trimEvmWalletId(budget.evmWalletId ?? "");
     if (
       !caip2Network ||
       !asset ||

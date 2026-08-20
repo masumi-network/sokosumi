@@ -104,7 +104,19 @@ describe("getX402ReadySources", () => {
         // unsignable and must not be served.
         { caip2Network: "eip155:84532", asset: USDC_BASE_SEPOLIA },
         { ...X402_READY_SOURCE, evmWalletId: "" },
+        { ...X402_READY_SOURCE, evmWalletId: "   " },
         X402_READY_SOURCE,
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+
+  it("trims surrounding whitespace from a cached wallet id", async () => {
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        { ...X402_READY_SOURCE, evmWalletId: "  wallet_1  " },
       ]),
       lastSyncedAt: new Date(),
     });

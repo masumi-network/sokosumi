@@ -168,10 +168,21 @@ describe("composeX402ReadySources", () => {
           // Without a backing wallet id the pay route cannot sign — the
           // pair must not be recorded ready.
           budget({ evmWalletId: "" }),
+          budget({ evmWalletId: "   " }),
         ],
         "Preprod",
       ),
     ).toEqual([]);
+  });
+
+  it("trims surrounding whitespace from the recorded wallet id", () => {
+    expect(
+      composeX402ReadySources(
+        [availableNetwork()],
+        [budget({ evmWalletId: "  wallet_1  " })],
+        "Preprod",
+      ),
+    ).toEqual([READY_SOURCE]);
   });
 
   it("records the most-funded wallet when several budgets back one pair", () => {

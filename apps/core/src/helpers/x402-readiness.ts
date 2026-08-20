@@ -26,7 +26,8 @@ export const X402_BUY_SIDE_READINESS_FAILURE_KEY =
  * One (network, asset) pair the payment node can pay on right now: the chain
  * is enabled for x402, the node publishes a usable scale for the asset, and a
  * budget in it has remaining spend. Network and asset are canonical
- * lowercase; `evmWalletId` is the node's opaque wallet id, carried verbatim.
+ * lowercase; `evmWalletId` is the node's opaque wallet id, case-sensitive
+ * and trimmed of surrounding whitespace (blank ids cannot be signed with).
  */
 export interface X402ReadySource {
   /** CAIP-2 EVM network id, e.g. `eip155:84532`. */
@@ -91,6 +92,15 @@ export function isX402NetworkAllowed(
 }
 
 /**
+ * Node wallet ids are opaque and case-sensitive. Strip surrounding
+ * whitespace only — a blank id cannot be signed with.
+ */
+export function trimEvmWalletId(id: string): string | undefined {
+  const trimmed = id.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
  * The recorded ready pair for an advertised (network, asset), or undefined
  * when the pair is not buy-side ready. Lowercases both sides so a mixed-case
  * address from the registry still matches the canonical cached pair. The
@@ -121,8 +131,9 @@ export function isX402SourceReady(
 
 /**
  * Exact (network, asset) pairs the payment node last reported buy-side ready.
- * Returns an empty list only when readiness has never been recorded, or the
- * recorded payload is unusable.
+ * Empty means never recorded, the payload is unusable, OR a successful check
+ * found nothing ready — those three are indistinguishable to callers.
+ * Listing and pay treat empty as fail-closed.
  *
  * Deliberately NOT expired on age, mirroring `getCardanoV2ReadySources`:
  * readiness is configuration plus budget presence, refreshed by the sync
@@ -175,7 +186,7 @@ export const getX402ReadySources = async (
             // until the next sync rewrites the cache.
             "evmWalletId" in source &&
             typeof source.evmWalletId === "string" &&
-            source.evmWalletId.length > 0 &&
+            trimEvmWalletId(source.evmWalletId) !== undefined &&
             // Same treatment for the node-published decimals, and for the same
             // reason the other fields are re-validated here: the cache is not a
             // trusted input. A row written before this field existed — or one
@@ -201,7 +212,7 @@ export const getX402ReadySources = async (
         .map((source) => ({
           caip2Network: source.caip2Network.trim().toLowerCase(),
           asset: source.asset.trim().toLowerCase(),
-          evmWalletId: source.evmWalletId,
+          evmWalletId: source.evmWalletId.trim(),
           decimals: source.decimals,
         }))
     );
