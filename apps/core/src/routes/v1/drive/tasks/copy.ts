@@ -5,7 +5,13 @@ import {
   buildUserDriveFilePathname,
   sanitizeDriveFileName,
 } from "@sokosumi/utils";
-import { head, list, type PutCommandOptions, put } from "@vercel/blob";
+import {
+  BlobNotFoundError,
+  head,
+  list,
+  type PutCommandOptions,
+  put,
+} from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
@@ -114,22 +120,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await head(destPathname, { token });
       throw conflict("A file with that name already exists in Drive");
     } catch (error) {
-      if (
-        !(
-          error &&
-          typeof error === "object" &&
-          "statusCode" in error &&
-          error.statusCode === 404
-        )
+      if (error instanceof BlobNotFoundError) {
+        // File doesn't exist, proceed
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "kind" in error &&
+        error.kind === "conflict"
       ) {
-        if (
-          error &&
-          typeof error === "object" &&
-          "kind" in error &&
-          error.kind === "conflict"
-        ) {
-          throw error;
-        }
+        throw error;
+      } else {
         throw error;
       }
     }
