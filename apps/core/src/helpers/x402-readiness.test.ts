@@ -124,6 +124,19 @@ describe("getX402ReadySources", () => {
     await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
   });
 
+  it("preserves mixed-case cached wallet ids", async () => {
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        { ...X402_READY_SOURCE, evmWalletId: "Wallet_1" },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([
+      { ...X402_READY_SOURCE, evmWalletId: "Wallet_1" },
+    ]);
+  });
+
   it("drops cached pairs whose decimals are missing or out of range", async () => {
     // Decimals scale the charge INVERSELY, so an unusable value must never be
     // guessed at or fall back to the agent-registered number. A row cached

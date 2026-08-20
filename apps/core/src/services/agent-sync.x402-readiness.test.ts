@@ -185,6 +185,16 @@ describe("composeX402ReadySources", () => {
     ).toEqual([READY_SOURCE]);
   });
 
+  it("preserves mixed-case wallet ids on the recorded pair", () => {
+    expect(
+      composeX402ReadySources(
+        [availableNetwork()],
+        [budget({ evmWalletId: "Wallet_1" })],
+        "Preprod",
+      ),
+    ).toEqual([{ ...READY_SOURCE, evmWalletId: "Wallet_1" }]);
+  });
+
   it("records the most-funded wallet when several budgets back one pair", () => {
     const result = composeX402ReadySources(
       [availableNetwork()],
