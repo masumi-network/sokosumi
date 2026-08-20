@@ -1,9 +1,11 @@
 import * as Sentry from "@sentry/node";
 import {
+  EnterpriseContractStatus,
   TaskPaymentClaimStatus,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
+import { ACTIVE_SUBSCRIPTION_STATUSES } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import { APIError } from "better-auth/api";
 
@@ -12,6 +14,7 @@ import { isLastWorkspace } from "@/helpers/workspace-access";
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
 export const USER_DELETION_BLOCKER_CODES = [
+  "RUNNING_SUBSCRIPTION",
   "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
   "TASK_PAYMENT_CLAIM_PENDING",
   "TASK_X402_PAYMENT_PENDING",
@@ -20,6 +23,8 @@ export const USER_DELETION_BLOCKER_CODES = [
 export type UserDeletionBlocker = (typeof USER_DELETION_BLOCKER_CODES)[number];
 
 export const ORGANIZATION_DELETION_BLOCKER_CODES = [
+  "RUNNING_SUBSCRIPTION",
+  "ENTERPRISE_CONTRACT_ACTIVE",
   "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
   "LAST_WORKSPACE",
 ] as const;
@@ -36,7 +41,11 @@ export interface OrganizationDeletionEvaluation {
   blockers: OrganizationDeletionBlocker[];
 }
 
+const RUNNING_SUBSCRIPTION_MESSAGE =
+  "Cancel your running subscription and wait until the paid period ends before deleting.";
+
 const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
+  RUNNING_SUBSCRIPTION: RUNNING_SUBSCRIPTION_MESSAGE,
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED:
     "A task payment needs administrator review before your account can be deleted. Please contact support.",
   TASK_PAYMENT_CLAIM_PENDING:
@@ -49,10 +58,28 @@ const ORGANIZATION_DELETION_MESSAGES: Record<
   OrganizationDeletionBlocker,
   string
 > = {
+  RUNNING_SUBSCRIPTION: RUNNING_SUBSCRIPTION_MESSAGE,
+  ENTERPRISE_CONTRACT_ACTIVE:
+    "This organization has an active enterprise contract and cannot be deleted.",
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS:
     "Remove all other members before deleting this organization.",
   LAST_WORKSPACE: "Cannot delete the user's last workspace.",
 };
+
+async function hasRunningPaidSubscription(
+  referenceId: string,
+  prisma: PrismaClient,
+): Promise<boolean> {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      referenceId,
+      stripeSubscriptionId: { not: null },
+      status: { in: [...ACTIVE_SUBSCRIPTION_STATUSES] },
+    },
+    select: { id: true },
+  });
+  return subscription != null;
+}
 
 /**
  * Current User-deletion blockers. Empty `blockers` means the existing wipe may
@@ -63,6 +90,10 @@ export async function evaluateUserDeletion(
   prisma: PrismaClient,
 ): Promise<UserDeletionEvaluation> {
   const blockers: UserDeletionBlocker[] = [];
+
+  if (await hasRunningPaidSubscription(userId, prisma)) {
+    blockers.push("RUNNING_SUBSCRIPTION");
+  }
 
   const reviewRequiredClaim = await prisma.taskPaymentClaim.findFirst({
     where: {
@@ -130,6 +161,22 @@ export async function evaluateOrganizationDeletion(
   prisma: PrismaClient,
 ): Promise<OrganizationDeletionEvaluation> {
   const blockers: OrganizationDeletionBlocker[] = [];
+
+  if (await hasRunningPaidSubscription(organizationId, prisma)) {
+    blockers.push("RUNNING_SUBSCRIPTION");
+  }
+
+  const activeEnterpriseContract = await prisma.enterpriseContract.findFirst({
+    where: {
+      organizationId,
+      status: EnterpriseContractStatus.active,
+      activatedAt: { not: null },
+    },
+    select: { id: true },
+  });
+  if (activeEnterpriseContract) {
+    blockers.push("ENTERPRISE_CONTRACT_ACTIVE");
+  }
 
   const members = await memberRepository.getMembersByOrganizationId(
     organizationId,

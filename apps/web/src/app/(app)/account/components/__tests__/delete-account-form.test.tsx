@@ -27,6 +27,9 @@ const translations: Record<string, string> = {
     "Wait for pending task payments to settle before deleting your account.",
   "App.Account.Delete.Errors.taskPaymentClaimReviewRequired":
     "A task payment needs administrator review before your account can be deleted. Please contact support.",
+  "App.Account.Delete.Errors.runningSubscription":
+    "Cancel your running subscription and wait until the paid period ends.",
+  "App.Account.Delete.Errors.billingLink": "Go to billing",
   "Library.Auth.Schema.Password.required": "Password is required",
 };
 
@@ -95,6 +98,51 @@ describe("DeleteAccountForm", () => {
     expect(
       screen.getByRole("button", { name: "Yes, delete my account" }),
     ).toBeDisabled();
+  });
+
+  it("lists a running-subscription blocker with a billing link and disables confirm", async () => {
+    render(<DeleteAccountForm blockers={["RUNNING_SUBSCRIPTION"]} />);
+
+    await openDialog();
+
+    expect(
+      screen.getByText(
+        "Cancel your running subscription and wait until the paid period ends.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to billing" })).toHaveAttribute(
+      "href",
+      "/billing",
+    );
+    expect(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    ).toBeDisabled();
+  });
+
+  it("maps RUNNING_SUBSCRIPTION if delete is refused after load", async () => {
+    const { toast } = await import("sonner");
+    deleteUserMock.mockResolvedValue({
+      error: {
+        code: "RUNNING_SUBSCRIPTION",
+        message: "Backend fallback",
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    render(<DeleteAccountForm blockers={[]} />);
+
+    const user = await openDialog();
+    await user.type(screen.getByLabelText("Current password"), "Password123!");
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Cancel your running subscription and wait until the paid period ends.",
+      );
+    });
   });
 
   it("disables confirm when preflight failed to load", async () => {

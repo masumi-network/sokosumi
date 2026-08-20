@@ -2769,7 +2769,7 @@ export type UserDeletionEvaluation = {
     /**
      * Current User-deletion blockers. Empty means the existing wipe may proceed.
      */
-    blockers: Array<'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING'>;
+    blockers: Array<'RUNNING_SUBSCRIPTION' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING'>;
 };
 
 export type PersistedDesignMd = {
@@ -3187,7 +3187,7 @@ export type OrganizationDeletionEvaluation = {
     /**
      * Current Organization-deletion blockers. Empty means the existing wipe may proceed.
      */
-    blockers: Array<'ORGANIZATION_HAS_ADDITIONAL_MEMBERS' | 'LAST_WORKSPACE'>;
+    blockers: Array<'RUNNING_SUBSCRIPTION' | 'ENTERPRISE_CONTRACT_ACTIVE' | 'ORGANIZATION_HAS_ADDITIONAL_MEMBERS' | 'LAST_WORKSPACE'>;
 };
 
 export type Member = {
