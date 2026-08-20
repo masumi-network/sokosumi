@@ -256,7 +256,7 @@ export async function evaluateUserDeletion(
       { refundTransaction: { userId } },
       { task: { ownerId: userId } },
     ],
-  } as const;
+  };
 
   // Unlocked preview of the same unresolved-status guard the wipe re-checks
   // under lock. PENDING and any future enum member share this predicate so
