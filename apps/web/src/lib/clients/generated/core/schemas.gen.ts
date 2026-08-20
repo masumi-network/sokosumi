@@ -8960,8 +8960,10 @@ export const UserDeletionEvaluationSchema = {
             items: {
                 type: 'string',
                 enum: [
+                    'RUNNING_SUBSCRIPTION',
                     'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
-                    'TASK_PAYMENT_CLAIM_PENDING'
+                    'TASK_PAYMENT_CLAIM_PENDING',
+                    'TASK_X402_PAYMENT_PENDING'
                 ]
             },
             description: 'Current User-deletion blockers. Empty means the existing wipe may proceed.',
@@ -10212,6 +10214,8 @@ export const OrganizationDeletionEvaluationSchema = {
             items: {
                 type: 'string',
                 enum: [
+                    'RUNNING_SUBSCRIPTION',
+                    'ENTERPRISE_CONTRACT_ACTIVE',
                     'ORGANIZATION_HAS_ADDITIONAL_MEMBERS',
                     'LAST_WORKSPACE'
                 ]

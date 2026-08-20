@@ -661,6 +661,9 @@
         "Errors": {
           "additionalMembers": "Elimina primero a todos los demás miembros antes de eliminar esta organización.",
           "lastWorkspace": "No puedes eliminar tu último espacio de trabajo.",
+          "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
+          "enterpriseContractActive": "Esta organización tiene un contrato enterprise activo y no se puede eliminar.",
+          "billingLink": "Ir a facturación",
           "unauthorizedAction": "Iniciar sesión"
         },
         "Schema": {
@@ -3927,7 +3930,9 @@
         "retry": "Reintentar",
         "Errors": {
           "taskPaymentClaimPending": "Espera a que se liquiden los pagos de tareas pendientes antes de eliminar tu cuenta.",
-          "taskPaymentClaimReviewRequired": "Un pago de tarea necesita revisión del administrador antes de que puedas eliminar tu cuenta. Contacta con soporte."
+          "taskPaymentClaimReviewRequired": "Un pago de tarea necesita revisión del administrador antes de que puedas eliminar tu cuenta. Contacta con soporte.",
+          "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
+          "billingLink": "Ir a facturación"
         }
       },
       "DeletePersonal": {
