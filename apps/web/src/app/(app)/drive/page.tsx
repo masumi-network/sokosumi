@@ -6,10 +6,12 @@ import {
   Building2,
   Check,
   ChevronRight,
+  Copy,
   Download,
   Edit3,
   Folder,
   FolderPlus,
+  Folders,
   Home,
   MoreHorizontal,
   Search,
@@ -19,11 +21,18 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactElement, useEffect, useRef, useState } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -63,15 +72,21 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveItem } from "@/lib/clients/generated/core";
+import type {
+  DriveItem,
+  DriveTasksListItem,
+} from "@/lib/clients/generated/core";
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
+  getProjectsById,
+  getTasksById,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
   patchDriveFoldersRename,
   postDriveFolders,
+  postDriveTasksCopy,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
@@ -84,6 +99,7 @@ import {
   isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { listDriveTasks } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
@@ -171,6 +187,80 @@ function FileNameWithPreview({
   );
 }
 
+interface TaskFileNameWithPreviewProps {
+  name: string;
+  fileUrl: string;
+  isPreviewable: boolean;
+  isImage: boolean;
+  documentKind: "office" | "pdf" | "text" | null;
+}
+
+function TaskFileNameWithPreview({
+  name,
+  fileUrl,
+  isPreviewable,
+  isImage,
+  documentKind,
+}: TaskFileNameWithPreviewProps) {
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
+
+  if (!isPreviewable) {
+    return (
+      <span
+        className="text-foreground line-clamp-1 text-sm font-medium"
+        title={name}
+      >
+        {name}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (isImage) {
+            setIsImageViewerOpen(true);
+          } else if (documentKind) {
+            setIsDocumentViewerOpen(true);
+          }
+        }}
+        className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+        title={name}
+      >
+        {name}
+      </button>
+      {isImage && (
+        <ImageViewer
+          open={isImageViewerOpen}
+          onOpenChange={setIsImageViewerOpen}
+          src={fileUrl}
+          alt={name}
+          downloadFilename={name}
+        />
+      )}
+      {documentKind && (
+        <DocumentViewer
+          open={isDocumentViewerOpen}
+          onOpenChange={setIsDocumentViewerOpen}
+          url={fileUrl}
+          fileName={name}
+          kind={documentKind}
+        />
+      )}
+    </>
+  );
+}
+
+type ExploreItem =
+  | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
+  | { kind: "tasks-root" }
+  | ({
+      kind: "task-project" | "task-no-project" | "task" | "task-file";
+    } & DriveTasksListItem);
+
 interface DrivePageWorkspaceProps {
   activeOrganizationId: string | null;
 }
@@ -246,11 +336,21 @@ export default function DrivePage(): ReactElement {
       return;
     }
     previousWorkspaceIdRef.current = activeOrganizationId;
-    if (!searchParams.get("folder")) {
+    if (
+      !searchParams.get("folder") &&
+      !searchParams.get("view") &&
+      !searchParams.get("projectId") &&
+      !searchParams.get("taskId") &&
+      !searchParams.get("assigneeId")
+    ) {
       return;
     }
     const params = withoutLegacyDriveScopeParam(searchParams);
     params.delete("folder");
+    params.delete("view");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
     const query = params.toString();
     router.replace(query ? `/drive?${query}` : "/drive");
   }, [activeOrganizationId, router, searchParams]);
@@ -298,9 +398,25 @@ function DrivePageWorkspace({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
+  const [tasksItems, setTasksItems] = useState<DriveTasksListItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [taskFileToCopy, setTaskFileToCopy] =
+    useState<DriveTasksListItem | null>(null);
+  const [copyDestinationScope, setCopyDestinationScope] = useState<
+    "me" | "org" | null
+  >(null);
+  const [copying, setCopying] = useState(false);
+  const [projectNameCache, setProjectNameCache] = useState<Map<string, string>>(
+    () => new Map(),
+  );
+  const [taskNameCache, setTaskNameCache] = useState<Map<string, string>>(
+    () => new Map(),
+  );
 
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
   const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
+  const loadTasksAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(activeOrganizationId);
   workspaceIdRef.current = activeOrganizationId;
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
@@ -325,12 +441,24 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
+    loadTasksAbortRef.current?.abort();
+    setTasksItems([]);
+    setTasksLoading(false);
+    setCopyDialogOpen(false);
+    setTaskFileToCopy(null);
+    setCopyDestinationScope(null);
+    setProjectNameCache(new Map());
+    setTaskNameCache(new Map());
   }
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
   const folderParam = searchParams.get("folder") || "";
   const currentFolder = folderParam;
+  const isTasksView = searchParams.get("view") === "tasks";
+  const projectIdParam = searchParams.get("projectId");
+  const taskIdParam = searchParams.get("taskId");
+  const assigneeIdParam = searchParams.get("assigneeId");
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
@@ -346,15 +474,16 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery(value);
   }
 
-  const driveItemsQuery = useQuery(
-    getDriveItemsQueryOptions({
+  const driveItemsQuery = useQuery({
+    ...getDriveItemsQueryOptions({
       store: driveStore,
       folder: currentFolder,
       search: debouncedSearchQuery,
     }),
-  );
+    enabled: !isTasksView,
+  });
   const items = driveItemsQuery.data ?? [];
-  const loading = driveItemsQuery.isPending;
+  const loading = isTasksView ? tasksLoading : driveItemsQuery.isPending;
 
   useEffect(() => {
     if (!driveItemsQuery.isError) {
@@ -367,6 +496,180 @@ function DrivePageWorkspace({
   async function refreshDriveItems() {
     await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
   }
+
+  const loadTasksItems = useCallback(async () => {
+    if (!isTasksView) {
+      return;
+    }
+
+    loadTasksAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadTasksAbortRef.current = controller;
+
+    try {
+      if (scope === "org" && !activeOrganizationId) {
+        if (!controller.signal.aborted) {
+          setTasksItems([]);
+          setTasksLoading(false);
+        }
+        return;
+      }
+
+      if (!controller.signal.aborted) {
+        setTasksItems([]);
+        setTasksLoading(true);
+      }
+
+      const exploreItems = await listDriveTasks({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(projectIdParam ? { projectId: projectIdParam } : {}),
+        ...(taskIdParam ? { taskId: taskIdParam } : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        signal: controller.signal,
+      });
+
+      if (!controller.signal.aborted) {
+        const nextItems: DriveTasksListItem[] = exploreItems.map((item) => {
+          if (item.type === "task-project") {
+            return {
+              type: "project",
+              id: item.id,
+              name: item.name,
+              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+            };
+          }
+          if (item.type === "task-no-project") {
+            return {
+              type: "no-project",
+              id: item.id,
+              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+            };
+          }
+          if (item.type === "task") {
+            return {
+              type: "task",
+              id: item.id,
+              name: item.name,
+              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+            };
+          }
+          return {
+            type: "task-file",
+            id: item.id,
+            name: item.name,
+            fileUrl: item.fileUrl,
+            size: item.size,
+            mimeType: item.mimeType,
+            updatedAt: new Date(item.updatedAt),
+          };
+        });
+        setTasksItems(nextItems);
+        setProjectNameCache((prev) => {
+          const next = new Map(prev);
+          for (const item of nextItems) {
+            if (item.type === "project") {
+              next.set(item.id, item.name);
+            }
+          }
+          return next;
+        });
+        setTaskNameCache((prev) => {
+          const next = new Map(prev);
+          for (const item of nextItems) {
+            if (item.type === "task") {
+              next.set(item.id, item.name);
+            }
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.error("Failed to load tasks", err);
+        toast.error(t("loadTasksError"));
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setTasksLoading(false);
+      }
+    }
+  }, [
+    isTasksView,
+    scope,
+    activeOrganizationId,
+    projectIdParam,
+    taskIdParam,
+    assigneeIdParam,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (isTasksView) {
+      void loadTasksItems();
+    }
+  }, [isTasksView, loadTasksItems]);
+
+  useEffect(() => {
+    if (!isTasksView) {
+      return;
+    }
+
+    async function fetchMissingNames() {
+      try {
+        if (
+          projectIdParam &&
+          projectIdParam !== "null" &&
+          !projectNameCache.has(projectIdParam) &&
+          !tasksItems.some(
+            (item) => item.type === "project" && item.id === projectIdParam,
+          )
+        ) {
+          const response = await getProjectsById({
+            client: getBrowserCoreClient(),
+            path: { id: projectIdParam },
+            throwOnError: true,
+          });
+          const project = response.data?.data;
+          if (project?.id && project?.name) {
+            setProjectNameCache((prev) => {
+              const next = new Map(prev);
+              next.set(project.id, project.name);
+              return next;
+            });
+          }
+        }
+
+        if (
+          taskIdParam &&
+          !taskNameCache.has(taskIdParam) &&
+          !tasksItems.some(
+            (item) => item.type === "task" && item.id === taskIdParam,
+          )
+        ) {
+          const response = await getTasksById({
+            client: getBrowserCoreClient(),
+            path: { id: taskIdParam },
+            throwOnError: true,
+          });
+          const task = response.data?.data;
+          if (task?.id && task?.name) {
+            setTaskNameCache((prev) => {
+              const next = new Map(prev);
+              next.set(task.id, task.name);
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch missing names", err);
+      }
+    }
+
+    void fetchMissingNames();
+  }, [isTasksView, projectIdParam, taskIdParam, tasksItems]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -556,6 +859,10 @@ function DrivePageWorkspace({
       ? `${currentFolder}/${folderName}`
       : folderName;
     params.set("folder", newPath);
+    params.delete("view");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -563,11 +870,61 @@ function DrivePageWorkspace({
     const params = withoutLegacyDriveScopeParam(searchParams);
     if (index === -1) {
       params.delete("folder");
+      params.delete("view");
+      params.delete("projectId");
+      params.delete("taskId");
+      params.delete("assigneeId");
     } else {
       const segments = currentFolder.split("/");
       const newPath = segments.slice(0, index + 1).join("/");
       params.set("folder", newPath);
+      params.delete("view");
+      params.delete("projectId");
+      params.delete("taskId");
+      params.delete("assigneeId");
     }
+    router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToTasksRoot() {
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.set("view", "tasks");
+    params.delete("folder");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
+    router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToProject(projectId: string, projectName?: string) {
+    if (projectName) {
+      setProjectNameCache((prev) => {
+        const next = new Map(prev);
+        next.set(projectId, projectName);
+        return next;
+      });
+    }
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.set("view", "tasks");
+    params.set("projectId", projectId);
+    params.delete("folder");
+    params.delete("taskId");
+    router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToTask(taskId: string, taskName?: string) {
+    if (taskName) {
+      setTaskNameCache((prev) => {
+        const next = new Map(prev);
+        next.set(taskId, taskName);
+        return next;
+      });
+    }
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.set("view", "tasks");
+    params.set("taskId", taskId);
+    params.delete("folder");
+    params.delete("projectId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -704,6 +1061,54 @@ function DrivePageWorkspace({
     }
   }
 
+  function openCopyDialog(item: DriveTasksListItem) {
+    if (item.type !== "task-file") {
+      return;
+    }
+    setTaskFileToCopy(item);
+    setCopyDestinationScope(null);
+    setCopyDialogOpen(true);
+  }
+
+  async function handleCopyConfirm() {
+    if (
+      !taskFileToCopy ||
+      taskFileToCopy.type !== "task-file" ||
+      !copyDestinationScope
+    ) {
+      return;
+    }
+
+    setCopying(true);
+    try {
+      await postDriveTasksCopy({
+        client: getBrowserCoreClient(),
+        body: {
+          taskFileId: taskFileToCopy.id,
+          scope: copyDestinationScope,
+          ...(copyDestinationScope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+        },
+        throwOnError: true,
+      });
+
+      toast.success(t("copyToDriveSuccess"));
+      setCopyDialogOpen(false);
+      setTaskFileToCopy(null);
+      setCopyDestinationScope(null);
+    } catch (err) {
+      console.error("Failed to copy file", err);
+      if (isDuplicateResourceError(err)) {
+        toast.error(t("copyToDriveDuplicateError"));
+      } else {
+        toast.error(t("copyToDriveError"));
+      }
+    } finally {
+      setCopying(false);
+    }
+  }
+
   const breadcrumbSegments = currentFolder ? currentFolder.split("/") : [];
 
   const availableDestinations = (() => {
@@ -772,8 +1177,73 @@ function DrivePageWorkspace({
     return destinations;
   })();
 
-  const emptyState = !loading && items.length === 0;
-  const hasItems = items.length > 0;
+  const exploreItems: ExploreItem[] = (() => {
+    if (isTasksView) {
+      return tasksItems.map((item) => {
+        if (item.type === "project") {
+          return { kind: "task-project", ...item };
+        }
+        if (item.type === "no-project") {
+          return { kind: "task-no-project", ...item };
+        }
+        if (item.type === "task") {
+          return { kind: "task", ...item };
+        }
+        return { kind: "task-file", ...item };
+      });
+    }
+
+    const result: ExploreItem[] = [];
+    if (currentFolder === "") {
+      result.push({ kind: "tasks-root" });
+    }
+    return result.concat(
+      items.map((item) => ({
+        kind: item.type === "file" ? "blob-file" : "blob-folder",
+        ...item,
+      })),
+    );
+  })();
+
+  const emptyState = !loading && exploreItems.length === 0;
+  const hasItems = exploreItems.length > 0;
+
+  const tasksBreadcrumbs = (() => {
+    if (!isTasksView) {
+      return [];
+    }
+    const crumbs: Array<{ label: string; onClick: () => void }> = [
+      { label: t("tasksBreadcrumbLabel"), onClick: navigateToTasksRoot },
+    ];
+    if (projectIdParam) {
+      const project = tasksItems.find(
+        (item) => item.type === "project" && item.id === projectIdParam,
+      );
+      const cachedName = projectNameCache.get(projectIdParam);
+      const projectName =
+        project && project.type === "project"
+          ? project.name
+          : cachedName ||
+            (projectIdParam === "null" ? t("noProject") : projectIdParam);
+      crumbs.push({
+        label: projectName,
+        onClick: () => navigateToProject(projectIdParam),
+      });
+    }
+    if (taskIdParam) {
+      const task = tasksItems.find(
+        (item) => item.type === "task" && item.id === taskIdParam,
+      );
+      const cachedName = taskNameCache.get(taskIdParam);
+      const taskName =
+        task && task.type === "task" ? task.name : cachedName || taskIdParam;
+      crumbs.push({
+        label: taskName,
+        onClick: () => navigateToTask(taskIdParam),
+      });
+    }
+    return crumbs;
+  })();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -785,51 +1255,70 @@ function DrivePageWorkspace({
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div className="flex items-center justify-end gap-4">
-          <div className="hidden items-center gap-2 md:flex">
-            <div className="relative">
-              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+          {isTasksView && (
+            <DriveTasksFilters
+              activeOrganizationId={activeOrganizationId}
+              assigneeId={assigneeIdParam}
+              projectId={projectIdParam}
+              taskId={taskIdParam}
+              labels={{
+                title: t("filterTitle"),
+                searchPlaceholder: t("filterSearchPlaceholder"),
+                emptyResults: t("filterEmptyResults"),
+                all: t("filterAll"),
+                coworkerLabel: t("filterCoworkerLabel"),
+                projectLabel: t("filterProjectLabel"),
+                taskLabel: t("filterTaskLabel"),
+              }}
+            />
+          )}
+          {!isTasksView && (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="relative">
+                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder={t("searchPlaceholder")}
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-64 pl-8"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={openCreateFolderDialog}
+              >
+                <FolderPlus className="size-4" aria-hidden />
+                {t("createFolder")}
+              </Button>
+              <Label htmlFor="file-upload" className="cursor-pointer">
+                <Button
+                  disabled={uploading}
+                  size="sm"
+                  className="gap-1.5"
+                  asChild
+                >
+                  <span>
+                    <Upload className="size-4" aria-hidden />
+                    {uploading
+                      ? t("uploadingProgress", { progress: uploadProgress })
+                      : t("uploadButton")}
+                  </span>
+                </Button>
+              </Label>
               <Input
-                type="text"
-                placeholder={t("searchPlaceholder")}
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-64 pl-8"
+                id="file-upload"
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
               />
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={openCreateFolderDialog}
-            >
-              <FolderPlus className="size-4" aria-hidden />
-              {t("createFolder")}
-            </Button>
-            <Label htmlFor="file-upload" className="cursor-pointer">
-              <Button
-                disabled={uploading}
-                size="sm"
-                className="gap-1.5"
-                asChild
-              >
-                <span>
-                  <Upload className="size-4" aria-hidden />
-                  {uploading
-                    ? t("uploadingProgress", { progress: uploadProgress })
-                    : t("uploadButton")}
-                </span>
-              </Button>
-            </Label>
-            <Input
-              id="file-upload"
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-          </div>
+          )}
         </div>
 
         <nav
@@ -841,7 +1330,9 @@ function DrivePageWorkspace({
             onClick={() => navigateToBreadcrumb(-1)}
             className={cn(
               "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
-              breadcrumbSegments.length === 0 && "text-foreground font-medium",
+              !isTasksView &&
+                breadcrumbSegments.length === 0 &&
+                "text-foreground font-medium",
             )}
             aria-label={storeRootLabel}
             title={storeRootLabel}
@@ -853,47 +1344,68 @@ function DrivePageWorkspace({
             )}
             <span className="ml-1">{storeRootLabel}</span>
           </button>
-          {breadcrumbSegments.map((segment, index) => (
-            <span key={index} className="flex shrink-0 items-center gap-1">
-              <ChevronRight className="size-4" aria-hidden />
-              <button
-                type="button"
-                onClick={() => navigateToBreadcrumb(index)}
-                className={cn(
-                  "hover:text-foreground whitespace-nowrap transition-colors",
-                  index === breadcrumbSegments.length - 1 &&
-                    "text-foreground font-medium",
-                )}
-                title={segment}
-              >
-                {segment}
-              </button>
-            </span>
-          ))}
+          {!isTasksView &&
+            breadcrumbSegments.map((segment, index) => (
+              <span key={index} className="flex shrink-0 items-center gap-1">
+                <ChevronRight className="size-4" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => navigateToBreadcrumb(index)}
+                  className={cn(
+                    "hover:text-foreground whitespace-nowrap transition-colors",
+                    index === breadcrumbSegments.length - 1 &&
+                      "text-foreground font-medium",
+                  )}
+                  title={segment}
+                >
+                  {segment}
+                </button>
+              </span>
+            ))}
+          {isTasksView &&
+            tasksBreadcrumbs.map((crumb, index) => (
+              <span key={index} className="flex shrink-0 items-center gap-1">
+                <ChevronRight className="size-4" aria-hidden />
+                <button
+                  type="button"
+                  onClick={crumb.onClick}
+                  className={cn(
+                    "hover:text-foreground whitespace-nowrap transition-colors",
+                    index === tasksBreadcrumbs.length - 1 &&
+                      "text-foreground font-medium",
+                  )}
+                  title={crumb.label}
+                >
+                  {crumb.label}
+                </button>
+              </span>
+            ))}
         </nav>
       </div>
 
-      <div className="mb-6 flex items-center gap-2 md:hidden">
-        <div className="relative flex-1">
-          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-          <Input
-            type="text"
-            placeholder={t("searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-8"
-          />
+      {!isTasksView && (
+        <div className="mb-6 flex items-center gap-2 md:hidden">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={openCreateFolderDialog}
+            aria-label={t("createFolder")}
+          >
+            <FolderPlus className="size-4" aria-hidden />
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          onClick={openCreateFolderDialog}
-          aria-label={t("createFolder")}
-        >
-          <FolderPlus className="size-4" aria-hidden />
-        </Button>
-      </div>
+      )}
 
       {loading ? (
         <DriveListSkeleton />
@@ -906,10 +1418,18 @@ function DrivePageWorkspace({
         >
           <div className="max-w-sm">
             <h2 className="text-foreground text-lg font-semibold">
-              {searchQuery ? t("noMatchTitle") : t("emptyTitle")}
+              {isTasksView
+                ? t("tasksEmptyTitle")
+                : searchQuery
+                  ? t("noMatchTitle")
+                  : t("emptyTitle")}
             </h2>
             <p className="text-muted-foreground mt-2 text-sm">
-              {searchQuery ? t("noMatchDescription") : t("emptyDescription")}
+              {isTasksView
+                ? t("tasksEmptyDescription")
+                : searchQuery
+                  ? t("noMatchDescription")
+                  : t("emptyDescription")}
             </p>
           </div>
         </div>
@@ -921,7 +1441,302 @@ function DrivePageWorkspace({
           )}
         >
           <div className="divide-border/50 divide-y px-2">
-            {items.map((item) => {
+            {exploreItems.map((item) => {
+              if (item.kind === "tasks-root") {
+                return (
+                  <article
+                    key="tasks-root"
+                    className={cn(
+                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center">
+                        <Folders className="text-primary size-5" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={navigateToTasksRoot}
+                        className="text-foreground hover:text-foreground/80 min-w-0 flex-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                        title={t("tasksFolder")}
+                      >
+                        {t("tasksFolder")}
+                      </button>
+                    </div>
+                  </article>
+                );
+              }
+
+              if (item.kind === "task-project" && item.type === "project") {
+                return (
+                  <article
+                    key={`project-${item.id}`}
+                    className={cn(
+                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center">
+                        <Folder className="text-muted-foreground size-5" />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => navigateToProject(item.id, item.name)}
+                          className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                          title={item.name}
+                        >
+                          {item.name}
+                        </button>
+                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                          <span>
+                            {formatter.dateTime(
+                              new Date(item.latestFileUpdatedAt),
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                        <span>
+                          {formatter.dateTime(
+                            new Date(item.latestFileUpdatedAt),
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              }
+
+              if (
+                item.kind === "task-no-project" &&
+                item.type === "no-project"
+              ) {
+                return (
+                  <article
+                    key="no-project"
+                    className={cn(
+                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center">
+                        <Folder className="text-muted-foreground size-5" />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => navigateToProject("null")}
+                          className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                          title={t("noProject")}
+                        >
+                          {t("noProject")}
+                        </button>
+                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                          <span>
+                            {formatter.dateTime(
+                              new Date(item.latestFileUpdatedAt),
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                        <span>
+                          {formatter.dateTime(
+                            new Date(item.latestFileUpdatedAt),
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              }
+
+              if (item.kind === "task" && item.type === "task") {
+                return (
+                  <article
+                    key={`task-${item.id}`}
+                    className={cn(
+                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center">
+                        <Folder className="text-muted-foreground size-5" />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => navigateToTask(item.id, item.name)}
+                          className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                          title={item.name}
+                        >
+                          {item.name}
+                        </button>
+                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                          <span>
+                            {formatter.dateTime(
+                              new Date(item.latestFileUpdatedAt),
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                        <span>
+                          {formatter.dateTime(
+                            new Date(item.latestFileUpdatedAt),
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              }
+
+              if (item.kind === "task-file" && item.type === "task-file") {
+                const extension = getExtensionFromUrl(item.name);
+                const { isImage, documentKind } = classifyFilePreview(
+                  item.fileUrl,
+                  item.name,
+                );
+                const isPreviewable = isImage || documentKind !== null;
+
+                return (
+                  <article
+                    key={`task-file-${item.id}`}
+                    className={cn(
+                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center">
+                        <FileTypeIcon extension={extension || "file"} />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <TaskFileNameWithPreview
+                          name={item.name}
+                          fileUrl={item.fileUrl}
+                          isPreviewable={isPreviewable}
+                          isImage={isImage}
+                          documentKind={documentKind}
+                        />
+                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                          <span>
+                            {item.size ? formatBytes(item.size) : "—"}
+                          </span>
+                          <span>
+                            {formatter.dateTime(new Date(item.updatedAt), {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                        <span>{item.size ? formatBytes(item.size) : "—"}</span>
+                        <span>
+                          {formatter.dateTime(new Date(item.updatedAt), {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 pl-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label={t("moreActions")}
+                          >
+                            <MoreHorizontal className="size-4" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              handleDownload(item.fileUrl, item.name);
+                            }}
+                          >
+                            <Download className="size-4" aria-hidden />
+                            {t("downloadAction")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              openCopyDialog(item);
+                            }}
+                          >
+                            <Copy className="size-4" aria-hidden />
+                            {t("copyToDriveAction")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </article>
+                );
+              }
+
+              if (item.kind !== "blob-file" && item.kind !== "blob-folder") {
+                return null;
+              }
+
               const itemKey =
                 item.type === "file" ? item.pathname : `folder:${item.name}`;
               const isEditing =
@@ -1127,12 +1942,14 @@ function DrivePageWorkspace({
         </div>
       ) : null}
 
-      <ListMobileCreateFab
-        ariaLabel={t("uploadFab")}
-        onOpen={handleFabOpen}
-        icon={Upload}
-        progress={uploading ? uploadProgress : undefined}
-      />
+      {!isTasksView && (
+        <ListMobileCreateFab
+          ariaLabel={t("uploadFab")}
+          onOpen={handleFabOpen}
+          icon={Upload}
+          progress={uploading ? uploadProgress : undefined}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1255,6 +2072,65 @@ function DrivePageWorkspace({
               disabled={movingItem || selectedDestination === null}
             >
               {t("moveHere")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("selectDestinationDrive")}</DialogTitle>
+            <DialogDescription>
+              {t("selectDestinationDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setCopyDestinationScope("me")}
+              className={cn(
+                "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                copyDestinationScope === "me" && "bg-muted border-primary",
+              )}
+            >
+              <Home className="text-muted-foreground size-4 shrink-0" />
+              <span className="flex-1">{t("myDriveDestination")}</span>
+            </button>
+            {activeOrganizationId && organizationName && (
+              <button
+                type="button"
+                onClick={() => setCopyDestinationScope("org")}
+                className={cn(
+                  "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  copyDestinationScope === "org" && "bg-muted border-primary",
+                )}
+              >
+                <Building2 className="text-muted-foreground size-4 shrink-0" />
+                <span className="flex-1">
+                  {t("organizationDriveDestination", {
+                    name: organizationName,
+                  })}
+                </span>
+              </button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCopyDialogOpen(false);
+                setTaskFileToCopy(null);
+                setCopyDestinationScope(null);
+              }}
+            >
+              {t("cancelAction")}
+            </Button>
+            <Button
+              onClick={() => void handleCopyConfirm()}
+              disabled={copying || !copyDestinationScope}
+            >
+              {t("copyToDriveAction")}
             </Button>
           </DialogFooter>
         </DialogContent>

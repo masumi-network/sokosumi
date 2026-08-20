@@ -5491,7 +5491,14 @@
       "myDriveDestination": "Mi Drive",
       "organizationDriveDestination": "{name}",
       "tasksBreadcrumbLabel": "Tareas",
-      "noProject": "Sin proyecto"
+      "noProject": "Sin proyecto",
+      "filterTitle": "Filtrar",
+      "filterSearchPlaceholder": "Buscar...",
+      "filterEmptyResults": "Sin resultados",
+      "filterAll": "Todos",
+      "filterCoworkerLabel": "Agente",
+      "filterProjectLabel": "Proyecto",
+      "filterTaskLabel": "Tarea"
     }
   },
   "Share": {
