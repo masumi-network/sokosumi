@@ -5476,7 +5476,21 @@
       "createFolderDuplicateError": "Ya existe una carpeta con este nombre. Elige un nombre diferente.",
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
-      "moveFileError": "Error al mover archivo"
+      "moveFileError": "Error al mover archivo",
+      "tasksFolder": "Tareas",
+      "tasksEmptyTitle": "Aún no hay archivos de tareas",
+      "tasksEmptyDescription": "Los archivos de tareas aparecerán aquí cuando completes tareas",
+      "loadTasksError": "Error al cargar las tareas",
+      "copyToDriveAction": "Copiar a Drive",
+      "copyToDriveSuccess": "Archivo copiado a Drive",
+      "copyToDriveError": "Error al copiar archivo",
+      "copyToDriveDuplicateError": "Ya existe un archivo con este nombre en el destino",
+      "selectDestinationDrive": "Seleccionar destino",
+      "selectDestinationDescription": "Elige dónde copiar este archivo",
+      "myDriveDestination": "Mi Drive",
+      "organizationDriveDestination": "{name}",
+      "tasksBreadcrumbLabel": "Tareas",
+      "noProject": "Sin proyecto"
     }
   },
   "Share": {

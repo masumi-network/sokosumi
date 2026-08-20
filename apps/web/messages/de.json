@@ -5476,7 +5476,21 @@
       "createFolderDuplicateError": "Ein Ordner mit diesem Namen existiert bereits. Wähle einen anderen Namen.",
       "deleteFolderError": "Ordner konnte nicht gelöscht werden",
       "moveFolderError": "Ordner konnte nicht verschoben werden",
-      "moveFileError": "Datei konnte nicht verschoben werden"
+      "moveFileError": "Datei konnte nicht verschoben werden",
+      "tasksFolder": "Aufgaben",
+      "tasksEmptyTitle": "Noch keine Aufgabendateien",
+      "tasksEmptyDescription": "Aufgabendateien werden hier angezeigt, wenn du Aufgaben abschließt",
+      "loadTasksError": "Laden der Aufgaben fehlgeschlagen",
+      "copyToDriveAction": "Nach Drive kopieren",
+      "copyToDriveSuccess": "Datei nach Drive kopiert",
+      "copyToDriveError": "Kopieren fehlgeschlagen",
+      "copyToDriveDuplicateError": "Eine Datei mit diesem Namen existiert bereits im Ziel",
+      "selectDestinationDrive": "Ziel auswählen",
+      "selectDestinationDescription": "Wähle, wohin diese Datei kopiert werden soll",
+      "myDriveDestination": "Mein Drive",
+      "organizationDriveDestination": "{name}",
+      "tasksBreadcrumbLabel": "Aufgaben",
+      "noProject": "Kein Projekt"
     }
   },
   "Share": {
