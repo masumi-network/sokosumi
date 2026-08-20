@@ -5,17 +5,25 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import mountPost from "./post";
 
+const { headMock, listMock, putMock, requireUserDriveFileUploadAccessMock } =
+  vi.hoisted(() => ({
+    headMock: vi.fn(),
+    listMock: vi.fn(),
+    putMock: vi.fn(),
+    requireUserDriveFileUploadAccessMock: vi.fn(),
+  }));
+
 // Mock @vercel/blob
 vi.mock("@vercel/blob", () => ({
-  head: vi.fn(),
-  list: vi.fn(),
-  put: vi.fn(),
+  head: headMock,
+  list: listMock,
+  put: putMock,
   BlobNotFoundError: class BlobNotFoundError extends Error {},
 }));
 
 // Mock drive file access
 vi.mock("@/helpers/drive-file-access", () => ({
-  requireUserDriveFileUploadAccess: vi.fn(),
+  requireUserDriveFileUploadAccess: requireUserDriveFileUploadAccessMock,
   requireOrganizationDriveFileUploadAccess: vi.fn(),
 }));
 
@@ -31,16 +39,6 @@ vi.mock("@/config/env", async (importOriginal) => {
     }),
   };
 });
-
-import { head, list, put } from "@vercel/blob";
-import { requireUserDriveFileUploadAccess } from "@/helpers/drive-file-access";
-
-const headMock = vi.mocked(head);
-const listMock = vi.mocked(list);
-const putMock = vi.mocked(put);
-const requireUserDriveFileUploadAccessMock = vi.mocked(
-  requireUserDriveFileUploadAccess,
-);
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
@@ -118,7 +116,11 @@ describe("POST /v1/drive/folders (create folder)", () => {
   it("allows 'Tasks' as non-root segment", async () => {
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: false,
+      cursor: undefined,
+    });
     headMock.mockRejectedValue({ statusCode: 404 });
     putMock.mockResolvedValue({
       url: "https://example.com/drive/users/user_123/Projects/Tasks/__drive_folder__",
@@ -127,6 +129,7 @@ describe("POST /v1/drive/folders (create folder)", () => {
         "https://example.com/drive/users/user_123/Projects/Tasks/__drive_folder__",
       contentType: "application/octet-stream",
       contentDisposition: "inline",
+      etag: "etag123",
     });
 
     const app = createApp();
@@ -149,7 +152,11 @@ describe("POST /v1/drive/folders (create folder)", () => {
   it("allows folder names other than 'Tasks'", async () => {
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: false,
+      cursor: undefined,
+    });
     headMock.mockRejectedValue({ statusCode: 404 });
     putMock.mockResolvedValue({
       url: "https://example.com/drive/users/user_123/Documents/__drive_folder__",
@@ -158,6 +165,7 @@ describe("POST /v1/drive/folders (create folder)", () => {
         "https://example.com/drive/users/user_123/Documents/__drive_folder__",
       contentType: "application/octet-stream",
       contentDisposition: "inline",
+      etag: "etag123",
     });
 
     const app = createApp();
