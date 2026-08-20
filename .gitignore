@@ -5,6 +5,9 @@ packages/*/dist
 packages/*/node_modules
 *.tsbuildinfo
 
+# Turborepo
+.turbo
+
 # dependencies
 node_modules
 /.pnp

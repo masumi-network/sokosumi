@@ -26,6 +26,10 @@ Record the new provenance below whenever a snapshot changes.
 | `payment.openapi.json` | `https://payment.masumi.network/api-docs` | 1.0.0 | 2026-08-07 |
 | `registry.openapi.json` | `https://registry.masumi.network/api-docs` | 0.1.2 | 2026-08-07 |
 
+Last refresh: 2026-08-11 — both deployed specs came back byte-identical to the
+pinned snapshots (versions held at 1.0.0 / 0.1.2), so the snapshots and the
+generated clients are unchanged and already cover the deployed x402 surface.
+
 ## Why these hosts
 
 `fetch:specs` defaults to the deployments Core actually calls at runtime — the
