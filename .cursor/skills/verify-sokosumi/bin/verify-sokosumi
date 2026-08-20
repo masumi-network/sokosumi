@@ -563,6 +563,7 @@ function sign_in_vault() {
   agent-browser wait 1500 >/dev/null || sleep 1.5
 
   if ! agent-browser auth login "$profile" \
+    --url "$WEB_URL/signin" \
     --username-selector "$AUTH_EMAIL_SELECTOR" \
     --password-selector "$AUTH_PASSWORD_SELECTOR"; then
     echo "error: agent-browser auth login $profile failed." >&2
