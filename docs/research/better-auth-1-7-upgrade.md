@@ -188,7 +188,7 @@ Quoted from the same account-identity section and changelog [#10403](https://git
 - “`mapProfileToUser` can no longer return `id`.”
 - “The `accountInfo` response exposes the selected identity as `account.accountId` instead of `user.id`.”
 
-This repo’s `mapProfileToUser` returns `{ name, image }` only (`apps/core/src/helpers/profile-mapper.ts`) — that part is already compatible.
+This repo’s live `mapProfileToUser` is in `apps/core/src/lib/auth.ts` (Google and Microsoft share it). It returns `{ name, image, emailVerified: true }` and does not return `id` — already compatible with the 1.7 identity rule.
 
 ### 3.6 Move `experimental.joins` → `advanced.database.joins`
 

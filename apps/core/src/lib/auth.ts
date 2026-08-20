@@ -872,9 +872,12 @@ export const auth = betterAuth({
   ],
 });
 
-interface MappedSocialProfile {
+interface MappedProfileNameImage {
   name: string;
   image?: string;
+}
+
+interface MappedSocialProfile extends MappedProfileNameImage {
   emailVerified: true;
   [key: string]: unknown;
 }
@@ -885,8 +888,9 @@ async function mapProfileToUser(profile: {
   name: string;
   picture: string;
 }): Promise<MappedSocialProfile> {
+  let mapped: MappedProfileNameImage;
   try {
-    return await pTimeout(mapProfileToUserInner(profile), {
+    mapped = await pTimeout(mapProfileToUserInner(profile), {
       milliseconds: env.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
     });
   } catch (error) {
@@ -898,25 +902,24 @@ async function mapProfileToUser(profile: {
         : "url",
       error,
     });
-    return {
+    mapped = {
       name: profile.name,
       image: undefined,
-      emailVerified: true,
     };
   }
+  return { ...mapped, emailVerified: true };
 }
 
 async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
-}): Promise<MappedSocialProfile> {
+}): Promise<MappedProfileNameImage> {
   const profilePicture = profile.picture;
 
   if (!profilePicture) {
     return {
       name: profile.name,
       image: undefined,
-      emailVerified: true,
     };
   }
 
@@ -924,7 +927,6 @@ async function mapProfileToUserInner(profile: {
     return {
       name: profile.name,
       image: profilePicture,
-      emailVerified: true,
     };
   }
 
@@ -932,6 +934,5 @@ async function mapProfileToUserInner(profile: {
   return {
     name: profile.name,
     image: imageURL ?? undefined,
-    emailVerified: true,
   };
 }

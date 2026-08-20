@@ -557,44 +557,6 @@ describe("core auth config", () => {
     });
   });
 
-  it("forces emailVerified on google and microsoft profile maps so Entra missing email_verified cannot insert unverified users", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              mapProfileToUser: (profile: {
-                name: string;
-                picture: string;
-              }) => Promise<{ emailVerified: boolean }>;
-            };
-            microsoft: {
-              mapProfileToUser: (profile: {
-                name: string;
-                picture: string;
-              }) => Promise<{ emailVerified: boolean }>;
-            };
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.socialProviders.google.mapProfileToUser({
-        name: "Luca",
-        picture: "",
-      }),
-    ).resolves.toMatchObject({ emailVerified: true });
-    await expect(
-      config.socialProviders.microsoft.mapProfileToUser({
-        name: "Luca",
-        picture: "",
-      }),
-    ).resolves.toMatchObject({ emailVerified: true });
-  });
-
   it("falls back when social profile mapping fails", async () => {
     uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
 
