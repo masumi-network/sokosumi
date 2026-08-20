@@ -42,7 +42,7 @@ export const createDriveFileUploadSessionRequestSchema = z
       example: "org_123",
       description: "Organization ID (required when scope=org)",
     }),
-    folder: z.string().optional().openapi({
+    folder: z.string().max(1000).optional().openapi({
       example: "Projects/2026",
       description:
         "Target folder path relative to scope root (empty/omit for root)",
@@ -53,11 +53,20 @@ export const createDriveFileUploadSessionRequestSchema = z
       if (data.scope === "org" && !data.organizationId) {
         return false;
       }
+      // Validate folder path if provided
+      if (data.folder) {
+        const normalized = normalizeDriveFolderPath(data.folder);
+        const validationError = validateDriveFolderPath(normalized);
+        if (validationError) {
+          return false;
+        }
+      }
       return true;
     },
     {
-      message: "organizationId is required when scope=org",
-      path: ["organizationId"],
+      message:
+        "organizationId is required when scope=org; folder path cannot contain '.' or '..' segments",
+      path: ["folder"],
     },
   )
   .openapi("CreateDriveFileUploadSessionRequest");

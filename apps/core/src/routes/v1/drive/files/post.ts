@@ -5,6 +5,7 @@ import {
   clampDriveFileName,
   FILE_UPLOAD_MAX_SIZE_BYTES,
   isDriveFolderMarkerName,
+  normalizeDriveFolderPath,
   resolveUserUploadContentType,
 } from "@sokosumi/utils";
 import { BlobNotFoundError, head, list } from "@vercel/blob";
@@ -104,7 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const displayName = clampDriveFileName(body.filename || "file");
-    const folderPath = body.folder?.trim() || "";
+    const folderPath = normalizeDriveFolderPath(body.folder ?? "");
 
     // Check if filename conflicts with reserved marker basename
     if (isDriveFolderMarkerName(displayName)) {

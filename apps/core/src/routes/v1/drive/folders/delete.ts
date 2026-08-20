@@ -90,9 +90,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // List all blobs under this prefix (including nested folders and marker)
-    const allBlobs: string[] = [];
+    // List and delete each page as we receive it (no unbounded accumulation)
     let cursor: string | undefined;
+    let foundAnyBlobs = false;
+    const BATCH_SIZE = 100;
 
     do {
       const result = await list({
@@ -102,20 +103,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         limit: 1000,
       });
 
-      allBlobs.push(...result.blobs.map((b) => b.pathname));
+      if (result.blobs.length > 0) {
+        foundAnyBlobs = true;
+        const pathnames = result.blobs.map((b) => b.pathname);
+
+        // Delete this page in bounded batches
+        for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
+          const batch = pathnames.slice(i, i + BATCH_SIZE);
+          await del(batch, { token });
+        }
+      }
+
       cursor = result.hasMore ? result.cursor : undefined;
     } while (cursor);
 
     // 404 if no blobs exist under this prefix
-    if (allBlobs.length === 0) {
+    if (!foundAnyBlobs) {
       throw notFound("Folder not found");
-    }
-
-    // Delete all blobs in bounded batches (100 blobs per batch)
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < allBlobs.length; i += BATCH_SIZE) {
-      const batch = allBlobs.slice(i, i + BATCH_SIZE);
-      await del(batch, { token });
     }
 
     return empty(c);

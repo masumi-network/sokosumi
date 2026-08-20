@@ -127,6 +127,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("Target folder already exists");
     }
 
+    // Check if a file with that name exists (newPrefix ends with /, check without it)
+    try {
+      await head(newPrefix.slice(0, -1), { token });
+      throw conflict("A file with that name already exists");
+    } catch (error) {
+      if (!(error instanceof BlobNotFoundError)) {
+        throw error;
+      }
+      // File doesn't exist, proceed
+    }
+
     // Reject renaming a folder into its own descendant
     if (
       newPrefix === oldPrefix ||
