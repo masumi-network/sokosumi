@@ -730,7 +730,7 @@ export default function DrivePage(): ReactElement {
 
           <nav
             className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
-            aria-label="Breadcrumb"
+            aria-label={t("breadcrumbNavLabel")}
           >
             <button
               type="button"
@@ -777,15 +777,26 @@ export default function DrivePage(): ReactElement {
           </nav>
         </div>
 
-        <div className="relative mb-6 md:hidden">
-          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-          <Input
-            type="text"
-            placeholder={t("searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-8"
-          />
+        <div className="mb-6 flex items-center gap-2 md:hidden">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={openCreateFolderDialog}
+            aria-label={t("createFolder")}
+          >
+            <FolderPlus className="size-4" aria-hidden />
+          </Button>
         </div>
 
         {error && (

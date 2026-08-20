@@ -5324,6 +5324,7 @@
     },
     "Drive": {
       "breadcrumb": "Drive",
+      "breadcrumbNavLabel": "Navegación de carpetas de Drive",
       "myDriveTab": "Mi Drive",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",

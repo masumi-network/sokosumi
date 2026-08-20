@@ -5324,6 +5324,7 @@
     },
     "Drive": {
       "breadcrumb": "Drive",
+      "breadcrumbNavLabel": "Drive-Ordner-Navigation",
       "myDriveTab": "Mein Drive",
       "uploadButton": "Hochladen",
       "uploadingProgress": "{progress}%",

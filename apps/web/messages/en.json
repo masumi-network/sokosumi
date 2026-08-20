@@ -5324,6 +5324,7 @@
     },
     "Drive": {
       "breadcrumb": "Drive",
+      "breadcrumbNavLabel": "Drive folder navigation",
       "myDriveTab": "My Drive",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
