@@ -81,7 +81,7 @@ import {
   deleteDriveFoldersDelete,
   getDriveTasks,
   getProjects,
-  getTasks,
+  getTasksById,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
@@ -418,16 +418,12 @@ export default function DrivePage(): ReactElement {
           }
         }
 
-        if (taskIdParam && projectIdParam) {
-          const response = await getTasks({
+        if (taskIdParam) {
+          const response = await getTasksById({
             client: getBrowserCoreClient(),
-            query: {
-              projectId: projectIdParam === "null" ? undefined : projectIdParam,
-              limit: 100,
-            },
+            path: { id: taskIdParam },
           });
-          const tasks = response.data?.data ?? [];
-          const task = tasks.find((t) => t.id === taskIdParam);
+          const task = response.data?.data;
           if (task) {
             setTaskNames((prev) => {
               if (prev.has(task.id)) {
