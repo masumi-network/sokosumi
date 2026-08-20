@@ -176,7 +176,6 @@ export default function DrivePage(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [organizationName, setOrganizationName] = useState<string | null>(null);
@@ -225,7 +224,6 @@ export default function DrivePage(): ReactElement {
     loadItemsAbortRef.current = controller;
 
     setLoading(true);
-    setError(null);
     try {
       if (scope === "org" && !activeOrganizationId) {
         if (!controller.signal.aborted) {
@@ -252,7 +250,7 @@ export default function DrivePage(): ReactElement {
     } catch (err) {
       if (!controller.signal.aborted) {
         console.error("Failed to load Drive items", err);
-        setError(t("loadFilesError"));
+        toast.error(t("loadFilesError"));
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -306,7 +304,6 @@ export default function DrivePage(): ReactElement {
 
     setUploading(true);
     setUploadProgress(0);
-    setError(null);
 
     try {
       await uploadDriveFile(file, {
@@ -323,7 +320,6 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       if (isDriveFileUploadDuplicate(err)) {
-        setError(null);
         toast.error(t("uploadDuplicateError"));
       } else {
         console.error("Failed to upload file", err);
@@ -341,7 +337,6 @@ export default function DrivePage(): ReactElement {
       return;
     }
 
-    setError(null);
     try {
       if (item.type === "file") {
         await patchDriveFilesRename({
@@ -376,7 +371,11 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
-      setError(t("renameError"));
+      if (isDuplicateResourceError(err)) {
+        toast.error(t("renameConflictError"));
+      } else {
+        toast.error(t("renameError"));
+      }
     }
   }
 
@@ -390,7 +389,6 @@ export default function DrivePage(): ReactElement {
       return;
     }
 
-    setError(null);
     try {
       if (itemToDelete.type === "file") {
         await deleteDriveFilesDelete({
@@ -421,7 +419,7 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
-      setError(
+      toast.error(
         itemToDelete.type === "folder"
           ? t("deleteFolderError")
           : t("deleteError"),
@@ -501,7 +499,6 @@ export default function DrivePage(): ReactElement {
     }
 
     setCreatingFolder(true);
-    setError(null);
     try {
       const targetFolder = snapshotFolder ?? currentFolder;
       await postDriveFolders({
@@ -575,7 +572,6 @@ export default function DrivePage(): ReactElement {
     }
 
     setMovingItem(true);
-    setError(null);
     try {
       await patchDriveFilesMove({
         client: getBrowserCoreClient(),
@@ -611,7 +607,6 @@ export default function DrivePage(): ReactElement {
           ? t("moveFolderError")
           : t("moveFileError"),
       );
-      // Keep dialog open on error so user can see toast and retry or cancel
     } finally {
       setMovingItem(false);
     }
@@ -624,7 +619,10 @@ export default function DrivePage(): ReactElement {
 
     const destinations: Array<{ path: string; label: string }> = [];
 
-    destinations.push({ path: "", label: t("rootFolder") });
+    // Only include Root if not already at root
+    if (currentFolder !== "") {
+      destinations.push({ path: "", label: t("rootFolder") });
+    }
 
     breadcrumbSegments.forEach((_, index) => {
       const ancestorPath = breadcrumbSegments.slice(0, index + 1).join("/");
@@ -830,12 +828,6 @@ export default function DrivePage(): ReactElement {
             <FolderPlus className="size-4" aria-hidden />
           </Button>
         </div>
-
-        {error && (
-          <div className="bg-destructive/10 text-destructive mb-6 rounded-lg border border-destructive/20 px-4 py-3 text-sm">
-            {error}
-          </div>
-        )}
 
         <TabsContent value={scope} className="mt-0">
           {loading ? (
