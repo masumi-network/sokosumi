@@ -1,8 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { Prisma } from "@sokosumi/database";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 
-import { requireTaskReadForRouteVars } from "@/helpers/access-control";
-import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { badRequest } from "@/helpers/error";
+import {
+  requireCoworkerCapability,
+  requireTaskReadForRouteVars,
+} from "@/helpers/access-control";
+import { badRequest, forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -12,9 +16,13 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import {
+  buildCoworkerTaskListAccessFilter,
+  hasGrantedWorkspaceAccess,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireWorkspaceContext } from "@/middleware/workspace";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   type DriveTasksListItem,
@@ -104,49 +112,120 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = await requireAuthorizedUserContext(authContext);
     const queryParams = c.req.valid("query");
     const { scope, organizationId, projectId, taskId, assigneeId } =
       queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    // Resolve workspace from scope
+    // Resolve workspace from Drive scope (must match Tasks list ACL)
     let workspaceId: string;
-    if (scope === "me") {
-      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      if (workspaceContext.organizationId) {
-        throw badRequest(
-          "Cannot use scope=me with organization workspace context",
+    let userId: string | null = null;
+    let coworkerOwnerId: string | null = null;
+
+    if (isCoworkerAuthContext(authContext)) {
+      await requireCoworkerCapability(authContext.coworkerId, "tasks");
+
+      // Coworker with context: resolve workspace like Tasks list
+      if (authContext.context) {
+        userId = authContext.context.userId;
+        const orgId = authContext.context.organizationId ?? null;
+
+        // Resolve workspace via workspaceRepository (same as Tasks list)
+        const workspace = await workspaceRepository.resolveWorkspaceForContext(
+          userId,
+          orgId,
+          prisma,
         );
+        workspaceId = workspace.id;
+        coworkerOwnerId = userId;
+
+        // Map Drive scope to workspace ownership
+        if (scope === "me") {
+          if (orgId) {
+            throw badRequest(
+              "Cannot use scope=me when context has organizationId",
+            );
+          }
+        } else {
+          // scope === "org"
+          if (!organizationId) {
+            throw badRequest("organizationId is required when scope=org");
+          }
+          if (organizationId !== orgId) {
+            throw forbidden("Cannot access different organization's Drive");
+          }
+        }
+      } else {
+        // Bare coworker (no context): vendor-wide like Tasks list
+        // Drive Tasks is typically user-session only, but implement for ACL parity
+        throw forbidden("Drive Tasks requires workspace context");
       }
-      workspaceId = workspaceContext.workspaceId;
     } else {
-      // scope === "org"
-      if (!organizationId) {
-        throw badRequest("organizationId is required when scope=org");
-      }
-      // Find org workspace
-      const orgWorkspace = await prisma.workspace.findUnique({
-        where: {
-          organizationId,
-        },
-      });
-      if (!orgWorkspace) {
-        throw badRequest("Organization workspace not found");
-      }
-      // Check member access
-      const member = await prisma.member.findUnique({
-        where: {
-          userId_organizationId: {
-            userId: userContext.userId,
-            organizationId,
+      // User path
+      const userContext = requireUserContext(authContext);
+      userId = userContext.userId;
+
+      if (scope === "me") {
+        // Personal workspace
+        const workspace = await workspaceRepository.resolveWorkspaceForContext(
+          userId,
+          null,
+          prisma,
+        );
+        workspaceId = workspace.id;
+      } else {
+        // scope === "org"
+        if (!organizationId) {
+          throw badRequest("organizationId is required when scope=org");
+        }
+
+        // Check membership
+        const member = await prisma.member.findUnique({
+          where: {
+            userId_organizationId: {
+              userId,
+              organizationId,
+            },
           },
-        },
-      });
-      if (!member) {
-        throw badRequest("Not a member of this organization");
+        });
+        if (!member) {
+          throw forbidden("Not a member of this organization");
+        }
+
+        // Resolve org workspace
+        const workspace = await workspaceRepository.resolveWorkspaceForContext(
+          userId,
+          organizationId,
+          prisma,
+        );
+        workspaceId = workspace.id;
       }
-      workspaceId = orgWorkspace.id;
+    }
+
+    // Build base where clause (workspace-wide, like Tasks scope=workspace)
+    const baseTaskWhere: Prisma.TaskWhereInput = {
+      archivedAt: null,
+      workspaceId,
+      ...(assigneeId ? { assigneeId } : {}),
+      files: {
+        some: {},
+      },
+    };
+
+    // Apply coworker access filter if needed
+    if (isCoworkerAuthContext(authContext) && authContext.context) {
+      const hasWorkspaceGrant = await hasGrantedWorkspaceAccess({
+        vendorId: authContext.vendorId,
+        workspaceId,
+      });
+
+      const listAccessFilter = buildCoworkerTaskListAccessFilter({
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        hasWorkspaceGrant,
+      });
+
+      baseTaskWhere.AND = [listAccessFilter];
     }
 
     // Determine level
@@ -208,16 +287,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId === "null" ? { projectId: null } : { projectId };
 
       const takePlusOne = take + 1;
-
-      // Build where clause for tasks
       const tasksWhere = {
-        workspaceId,
-        archivedAt: null,
+        ...baseTaskWhere,
         ...projectFilter,
-        ...(assigneeId ? { assigneeId } : {}),
-        files: {
-          some: {},
-        },
       };
 
       const [tasks, count] = await Promise.all([
@@ -261,17 +333,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
 
     // Projects with at least one task with files
-    const projectsWhere = {
+    const projectsWhere: Prisma.ProjectWhereInput = {
       workspaceId,
       archivedAt: null,
       tasks: {
-        some: {
-          archivedAt: null,
-          ...(assigneeId ? { assigneeId } : {}),
-          files: {
-            some: {},
-          },
-        },
+        some: baseTaskWhere,
       },
     };
 
@@ -284,12 +350,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         include: {
           tasks: {
-            where: {
-              archivedAt: null,
-              files: {
-                some: {},
-              },
-            },
+            where: baseTaskWhere,
             include: {
               files: {
                 orderBy: { updatedAt: "desc" },
@@ -316,27 +377,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }));
 
     // Check for no-project tasks with files
+    const noProjectWhere = {
+      ...baseTaskWhere,
+      projectId: null,
+    };
+
     const noProjectTasksCount = await prisma.task.count({
-      where: {
-        workspaceId,
-        archivedAt: null,
-        projectId: null,
-        ...(assigneeId ? { assigneeId } : {}),
-        files: {
-          some: {},
-        },
-      },
+      where: noProjectWhere,
     });
 
     if (noProjectTasksCount > 0) {
       const latestNoProjectFile = await prisma.taskFile.findFirst({
         where: {
-          task: {
-            workspaceId,
-            archivedAt: null,
-            projectId: null,
-            ...(assigneeId ? { assigneeId } : {}),
-          },
+          task: noProjectWhere,
         },
         orderBy: { updatedAt: "desc" },
         select: { updatedAt: true },
