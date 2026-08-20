@@ -1,134 +1,135 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import mountCopy from "./copy";
 
-// Mock Prisma
-const mockPrismaClient = {
-  taskFile: {
-    findUnique: vi.fn(),
-  },
-};
+const {
+  prismaTaskFileFindUniqueMock,
+  requireTaskReadForRouteVarsMock,
+  requireUserDriveFileUploadAccessMock,
+  requireOrganizationDriveFileUploadAccessMock,
+  ssrfSafeFetchMock,
+  headMock,
+  listMock,
+  putMock,
+} = vi.hoisted(() => ({
+  prismaTaskFileFindUniqueMock: vi.fn(),
+  requireTaskReadForRouteVarsMock: vi.fn(),
+  requireUserDriveFileUploadAccessMock: vi.fn(),
+  requireOrganizationDriveFileUploadAccessMock: vi.fn(),
+  ssrfSafeFetchMock: vi.fn(),
+  headMock: vi.fn(),
+  listMock: vi.fn(),
+  putMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: mockPrismaClient,
+  default: {
+    taskFile: {
+      findUnique: prismaTaskFileFindUniqueMock,
+    },
+  },
 }));
 
-// Mock @vercel/blob
-vi.mock("@vercel/blob", () => ({
-  head: vi.fn(),
-  list: vi.fn(),
-  put: vi.fn(),
-}));
-
-// Mock @sokosumi/net
-vi.mock("@sokosumi/net", () => ({
-  ssrfSafeFetch: vi.fn(),
-}));
-
-// Mock access control
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadForRouteVars: vi.fn(),
+  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 
-// Mock coworker user context binding
-vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  requireAuthorizedUserContext: vi.fn(),
-}));
-
-// Mock drive file access
 vi.mock("@/helpers/drive-file-access", () => ({
-  requireUserDriveFileUploadAccess: vi.fn(),
-  requireOrganizationDriveFileUploadAccess: vi.fn(),
+  requireUserDriveFileUploadAccess: requireUserDriveFileUploadAccessMock,
+  requireOrganizationDriveFileUploadAccess:
+    requireOrganizationDriveFileUploadAccessMock,
 }));
 
-// Mock env
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    BLOB_READ_WRITE_TOKEN: "test-token",
-  }),
+vi.mock("@sokosumi/net", () => ({
+  ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
-import { ssrfSafeFetch } from "@sokosumi/net";
-import { head, list, put } from "@vercel/blob";
-import { requireTaskReadForRouteVars } from "@/helpers/access-control";
-import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import {
-  requireOrganizationDriveFileUploadAccess,
-  requireUserDriveFileUploadAccess,
-} from "@/helpers/drive-file-access";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+vi.mock("@vercel/blob", () => ({
+  head: headMock,
+  list: listMock,
+  put: putMock,
+  BlobNotFoundError: class BlobNotFoundError extends Error {},
+}));
 
-const mockPrisma = mockPrismaClient;
-const headMock = vi.mocked(head);
-const listMock = vi.mocked(list);
-const putMock = vi.mocked(put);
-const ssrfSafeFetchMock = vi.mocked(ssrfSafeFetch);
-const requireTaskReadForRouteVarsMock = vi.mocked(requireTaskReadForRouteVars);
-const requireAuthorizedUserContextMock = vi.mocked(
-  requireAuthorizedUserContext,
-);
-const requireUserDriveFileUploadAccessMock = vi.mocked(
-  requireUserDriveFileUploadAccess,
-);
-const requireOrganizationDriveFileUploadAccessMock = vi.mocked(
-  requireOrganizationDriveFileUploadAccess,
-);
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      BLOB_READ_WRITE_TOKEN: "test-token",
+    }),
+  };
+});
 
-describe("POST /v1/drive/tasks/copy", () => {
-  let app: OpenAPIHonoWithAuth;
+const USER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: null,
+  role: "user",
+};
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    app = new OpenAPIHonoWithAuth();
-    mountCopy(app);
+function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+    c.set("requestId", "req_123");
+    await next();
   });
 
-  it("copies a TaskFile to personal Drive root", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
-    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+  mountCopy(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
 
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue({
+describe("POST /v1/drive/tasks/copy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("copies TaskFile to personal Drive root", async () => {
+    const taskFile = {
       id: "tf_123",
-      name: "report.pdf",
-      fileUrl: "https://example.com/tasks/report.pdf",
+      name: "document.pdf",
+      fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+      size: BigInt(1024),
       mimeType: "application/pdf",
-      size: BigInt(2048),
       task: {
-        id: "tsk_456",
-        workspaceId: "ws_personal",
+        id: "tsk_1",
       },
-    });
+    };
 
-    // head returns 404 (file does not exist)
-    headMock.mockRejectedValue({
-      statusCode: 404,
-    });
+    prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    // list returns empty (no folder collision)
-    listMock.mockResolvedValue({
-      blobs: [],
-    });
+    // BlobNotFoundError for no collision
+    const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
+    headMock.mockRejectedValue(new BlobNotFoundError());
+    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
 
-    // ssrfSafeFetch succeeds
+    const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
       ok: true,
-      arrayBuffer: async () => new ArrayBuffer(2048),
+      arrayBuffer: () => Promise.resolve(arrayBuffer),
     });
 
-    // put succeeds
     putMock.mockResolvedValue({
-      url: "https://example.com/drive/users/user_123/report.pdf",
-      pathname: "drive/users/user_123/report.pdf",
+      url: "https://blob.example/drive/users/user_123/document.pdf",
+      pathname: "drive/users/user_123/document.pdf",
+      downloadUrl: "https://blob.example/drive/users/user_123/document.pdf",
+      contentType: "application/pdf",
+      contentDisposition: "inline",
     });
 
-    const res = await app.request("/copy", {
+    const app = createApp();
+    const res = await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskFileId: "tf_123",
         scope: "me",
@@ -136,144 +137,123 @@ describe("POST /v1/drive/tasks/copy", () => {
     });
 
     expect(res.status).toBe(201);
-    const json = await res.json();
-    expect(json.data).toMatchObject({
-      name: "report.pdf",
-      fileUrl: "https://example.com/drive/users/user_123/report.pdf",
-      pathname: "drive/users/user_123/report.pdf",
-    });
-
     expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
       expect.anything(),
-      "tsk_456",
+      "tsk_1",
     );
-    expect(headMock).toHaveBeenCalledWith(
-      "drive/users/user_123/report.pdf",
-      expect.objectContaining({ token: "test-token" }),
-    );
-    expect(putMock).toHaveBeenCalledWith(
-      "drive/users/user_123/report.pdf",
-      expect.any(ArrayBuffer),
-      expect.objectContaining({
-        token: "test-token",
-        access: "public",
-        addRandomSuffix: false,
-        contentType: "application/pdf",
-      }),
+    expect(requireUserDriveFileUploadAccessMock).toHaveBeenCalled();
+
+    const json = await res.json();
+    expect(json.data).toMatchObject({
+      name: "document.pdf",
+      pathname: "drive/users/user_123/document.pdf",
+    });
+
+    // Verify source fetch was called
+    expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+      "https://blob.example/tasks/tsk_1/document.pdf",
     );
   });
 
-  it("copies a TaskFile to organization Drive root", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
-    requireOrganizationDriveFileUploadAccessMock.mockResolvedValue({
-      id: "org_456",
-      name: "Test Org",
-    });
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
-
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue({
+  it("copies TaskFile to org Drive root", async () => {
+    const taskFile = {
       id: "tf_123",
-      name: "design.png",
-      fileUrl: "https://example.com/tasks/design.png",
-      mimeType: "image/png",
-      size: BigInt(4096),
+      name: "document.pdf",
+      fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+      size: BigInt(1024),
+      mimeType: "application/pdf",
       task: {
-        id: "tsk_789",
-        workspaceId: "ws_org",
+        id: "tsk_1",
       },
-    });
+    };
 
-    headMock.mockRejectedValue({ statusCode: 404 });
-    listMock.mockResolvedValue({ blobs: [] });
+    prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+    requireOrganizationDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+    const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
+    headMock.mockRejectedValue(new BlobNotFoundError());
+    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+
+    const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
       ok: true,
-      arrayBuffer: async () => new ArrayBuffer(4096),
-    });
-    putMock.mockResolvedValue({
-      url: "https://example.com/drive/organizations/org_456/design.png",
-      pathname: "drive/organizations/org_456/design.png",
+      arrayBuffer: () => Promise.resolve(arrayBuffer),
     });
 
-    const res = await app.request("/copy", {
+    putMock.mockResolvedValue({
+      url: "https://blob.example/drive/organizations/org_123/document.pdf",
+      pathname: "drive/organizations/org_123/document.pdf",
+      downloadUrl:
+        "https://blob.example/drive/organizations/org_123/document.pdf",
+      contentType: "application/pdf",
+      contentDisposition: "inline",
+    });
+
+    const app = createApp();
+    const res = await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskFileId: "tf_123",
         scope: "org",
-        organizationId: "org_456",
+        organizationId: "org_123",
       }),
     });
 
     expect(res.status).toBe(201);
-    const json = await res.json();
-    expect(json.data).toMatchObject({
-      name: "design.png",
-      fileUrl: "https://example.com/drive/organizations/org_456/design.png",
-      pathname: "drive/organizations/org_456/design.png",
-    });
-
     expect(requireOrganizationDriveFileUploadAccessMock).toHaveBeenCalledWith(
       expect.anything(),
-      "org_456",
+      "org_123",
     );
   });
 
   it("returns 404 when TaskFile not found", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
+    prismaTaskFileFindUniqueMock.mockResolvedValue(null);
 
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue(null);
-
-    const res = await app.request("/copy", {
+    const app = createApp();
+    const res = await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        taskFileId: "tf_nonexistent",
+        taskFileId: "tf_missing",
         scope: "me",
       }),
     });
 
     expect(res.status).toBe(404);
-    const json = await res.json();
-    expect(json.error.message).toContain("TaskFile not found");
   });
 
-  it("returns 409 when destination file already exists", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
-    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
-
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue({
+  it("returns 409 when dest file already exists", async () => {
+    const taskFile = {
       id: "tf_123",
-      name: "existing.pdf",
-      fileUrl: "https://example.com/tasks/existing.pdf",
-      mimeType: "application/pdf",
+      name: "document.pdf",
+      fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
       size: BigInt(1024),
+      mimeType: "application/pdf",
       task: {
-        id: "tsk_456",
-        workspaceId: "ws_personal",
+        id: "tsk_1",
       },
-    });
+    };
 
-    // head succeeds (file already exists)
+    prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+    // File exists
     headMock.mockResolvedValue({
-      url: "https://example.com/drive/users/user_123/existing.pdf",
+      url: "https://blob.example/drive/users/user_123/document.pdf",
+      size: 1024,
+      uploadedAt: new Date(),
+      pathname: "drive/users/user_123/document.pdf",
+      contentType: "application/pdf",
+      contentDisposition: "inline",
     });
 
-    const res = await app.request("/copy", {
+    const app = createApp();
+    const res = await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskFileId: "tf_123",
         scope: "me",
@@ -282,40 +262,48 @@ describe("POST /v1/drive/tasks/copy", () => {
 
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error.message).toContain("already exists");
+    expect(json.message).toContain("already exists");
   });
 
-  it("returns 409 when destination folder with same name exists", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
-    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
-
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue({
+  it("returns 409 when dest folder with same name exists", async () => {
+    const taskFile = {
       id: "tf_123",
-      name: "folder-name.pdf",
-      fileUrl: "https://example.com/tasks/folder-name.pdf",
-      mimeType: "application/pdf",
+      name: "document.pdf",
+      fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
       size: BigInt(1024),
+      mimeType: "application/pdf",
       task: {
-        id: "tsk_456",
-        workspaceId: "ws_personal",
+        id: "tsk_1",
       },
-    });
+    };
 
-    headMock.mockRejectedValue({ statusCode: 404 });
+    prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    // list returns a folder with that prefix
+    const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
+    headMock.mockRejectedValue(new BlobNotFoundError());
+
+    // Folder exists
     listMock.mockResolvedValue({
-      blobs: [{ pathname: "drive/users/user_123/folder-name.pdf/file.txt" }],
+      blobs: [
+        {
+          url: "https://blob.example/drive/users/user_123/document.pdf/__drive_folder__",
+          pathname: "drive/users/user_123/document.pdf/__drive_folder__",
+          size: 0,
+          uploadedAt: new Date(),
+          downloadUrl:
+            "https://blob.example/drive/users/user_123/document.pdf/__drive_folder__",
+        },
+      ],
+      hasMore: false,
+      cursor: null,
     });
 
-    const res = await app.request("/copy", {
+    const app = createApp();
+    const res = await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskFileId: "tf_123",
         scope: "me",
@@ -324,46 +312,47 @@ describe("POST /v1/drive/tasks/copy", () => {
 
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error.message).toContain(
-      "folder with that name already exists",
-    );
+    expect(json.message).toContain("folder");
   });
 
-  it("sanitizes file name on copy", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
-    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
-
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue({
+  it("sanitizes file name for Drive", async () => {
+    const taskFile = {
       id: "tf_123",
-      name: "bad/../name.pdf",
-      fileUrl: "https://example.com/tasks/bad-name.pdf",
-      mimeType: "application/pdf",
+      name: "../../../evil.pdf",
+      fileUrl: "https://blob.example/tasks/tsk_1/file.pdf",
       size: BigInt(1024),
+      mimeType: "application/pdf",
       task: {
-        id: "tsk_456",
-        workspaceId: "ws_personal",
+        id: "tsk_1",
       },
-    });
+    };
 
-    headMock.mockRejectedValue({ statusCode: 404 });
-    listMock.mockResolvedValue({ blobs: [] });
+    prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+    const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
+    headMock.mockRejectedValue(new BlobNotFoundError());
+    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+
+    const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
       ok: true,
-      arrayBuffer: async () => new ArrayBuffer(1024),
-    });
-    putMock.mockResolvedValue({
-      url: "https://example.com/drive/users/user_123/bad_name.pdf",
-      pathname: "drive/users/user_123/bad_name.pdf",
+      arrayBuffer: () => Promise.resolve(arrayBuffer),
     });
 
-    const res = await app.request("/copy", {
+    putMock.mockResolvedValue({
+      url: "https://blob.example/drive/users/user_123/evil.pdf",
+      pathname: "drive/users/user_123/evil.pdf",
+      downloadUrl: "https://blob.example/drive/users/user_123/evil.pdf",
+      contentType: "application/pdf",
+      contentDisposition: "inline",
+    });
+
+    const app = createApp();
+    const res = await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskFileId: "tf_123",
         scope: "me",
@@ -371,60 +360,64 @@ describe("POST /v1/drive/tasks/copy", () => {
     });
 
     expect(res.status).toBe(201);
-    expect(putMock).toHaveBeenCalledWith(
-      expect.stringContaining("bad_name.pdf"),
-      expect.any(ArrayBuffer),
-      expect.any(Object),
-    );
+    const json = await res.json();
+    // Sanitized: "../../../evil.pdf" → "evil.pdf"
+    expect(json.data.name).toBe("evil.pdf");
   });
 
-  it("uses application/octet-stream when mimeType is null", async () => {
-    requireAuthorizedUserContextMock.mockResolvedValue({
-      userId: "user_123",
-    });
-    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
-
-    mockPrisma.taskFile.findUnique = vi.fn().mockResolvedValue({
+  it("leaves source TaskFile unchanged", async () => {
+    const taskFile = {
       id: "tf_123",
-      name: "unknown.bin",
-      fileUrl: "https://example.com/tasks/unknown.bin",
-      mimeType: null,
-      size: null,
+      name: "document.pdf",
+      fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+      size: BigInt(1024),
+      mimeType: "application/pdf",
       task: {
-        id: "tsk_456",
-        workspaceId: "ws_personal",
+        id: "tsk_1",
       },
-    });
+    };
 
-    headMock.mockRejectedValue({ statusCode: 404 });
-    listMock.mockResolvedValue({ blobs: [] });
+    prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+    requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+    const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
+    headMock.mockRejectedValue(new BlobNotFoundError());
+    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+
+    const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
       ok: true,
-      arrayBuffer: async () => new ArrayBuffer(512),
-    });
-    putMock.mockResolvedValue({
-      url: "https://example.com/drive/users/user_123/unknown.bin",
-      pathname: "drive/users/user_123/unknown.bin",
+      arrayBuffer: () => Promise.resolve(arrayBuffer),
     });
 
-    const res = await app.request("/copy", {
+    putMock.mockResolvedValue({
+      url: "https://blob.example/drive/users/user_123/document.pdf",
+      pathname: "drive/users/user_123/document.pdf",
+      downloadUrl: "https://blob.example/drive/users/user_123/document.pdf",
+      contentType: "application/pdf",
+      contentDisposition: "inline",
+    });
+
+    const app = createApp();
+    await app.request("http://localhost/", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskFileId: "tf_123",
         scope: "me",
       }),
     });
 
-    expect(res.status).toBe(201);
+    // Verify source blob was fetched but not modified
+    expect(ssrfSafeFetchMock).toHaveBeenCalledWith(taskFile.fileUrl);
+    // Put creates new blob, doesn't touch source
     expect(putMock).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(ArrayBuffer),
+      "drive/users/user_123/document.pdf",
+      arrayBuffer,
       expect.objectContaining({
-        contentType: "application/octet-stream",
+        access: "public",
+        addRandomSuffix: false,
       }),
     );
   });

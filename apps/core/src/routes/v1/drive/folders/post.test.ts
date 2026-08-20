@@ -118,11 +118,15 @@ describe("POST /v1/drive/folders (create folder)", () => {
   it("allows 'Tasks' as non-root segment", async () => {
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    listMock.mockResolvedValue({ blobs: [] });
+    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
     headMock.mockRejectedValue({ statusCode: 404 });
     putMock.mockResolvedValue({
       url: "https://example.com/drive/users/user_123/Projects/Tasks/__drive_folder__",
       pathname: "drive/users/user_123/Projects/Tasks/__drive_folder__",
+      downloadUrl:
+        "https://example.com/drive/users/user_123/Projects/Tasks/__drive_folder__",
+      contentType: "application/octet-stream",
+      contentDisposition: "inline",
     });
 
     const app = createApp();
@@ -145,11 +149,15 @@ describe("POST /v1/drive/folders (create folder)", () => {
   it("allows folder names other than 'Tasks'", async () => {
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    listMock.mockResolvedValue({ blobs: [] });
+    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
     headMock.mockRejectedValue({ statusCode: 404 });
     putMock.mockResolvedValue({
       url: "https://example.com/drive/users/user_123/Documents/__drive_folder__",
       pathname: "drive/users/user_123/Documents/__drive_folder__",
+      downloadUrl:
+        "https://example.com/drive/users/user_123/Documents/__drive_folder__",
+      contentType: "application/octet-stream",
+      contentDisposition: "inline",
     });
 
     const app = createApp();

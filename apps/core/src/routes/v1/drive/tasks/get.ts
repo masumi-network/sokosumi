@@ -322,7 +322,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           startIndex = cursorIndex + 1; // Skip cursor item
         }
       }
-      startIndex += skip;
+      startIndex += skip ?? 0;
 
       const pagedTasks = sortedTasks.slice(startIndex, startIndex + take);
       const hasMore = startIndex + take < sortedTasks.length;
@@ -445,7 +445,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         startIndex = cursorIndex + 1; // Skip cursor item
       }
     }
-    startIndex += skip;
+    startIndex += skip ?? 0;
 
     const pagedItems = sortableItems.slice(startIndex, startIndex + take);
     const hasMore = startIndex + take < sortableItems.length;
