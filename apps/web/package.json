@@ -5,6 +5,9 @@
     "node": "24.x"
   },
   "private": true,
+  "portless": {
+    "name": "web.sokosumi"
+  },
   "scripts": {
     "dev": "next dev",
     "prebuild": "pnpm --filter @sokosumi/net run build && pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/email run build",

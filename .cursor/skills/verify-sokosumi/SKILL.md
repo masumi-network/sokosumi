@@ -11,19 +11,19 @@ Read `features/README.md` before driving. Use a matching feature file as the rec
 
 ## Launch
 
-Prefer **`http://localhost:3000`** / **`http://localhost:8787`** (not `127.0.0.1`) so Better Auth origin checks and cookies match `WEB_APP_BASE_URL` / `BETTER_AUTH_URL`.
+Prefer **portless named HTTPS URLs** from `verify-sokosumi doctor` (`web_url=` / `core_url=`). Do not guess `:3000` / `:8787` — worktrees get a branch prefix (`https://main.web.sokosumi.localhost`). `PORTLESS=0 pnpm web:dev` still binds `:3000` for a single classic checkout.
 
 Ready when:
 
-- Core answers `GET http://localhost:8787/v1/openapi.json` with 2xx
-- Web answers `GET http://localhost:3000/signin` with 2xx
+- Core answers `GET $CORE_URL/v1/openapi.json` with 2xx
+- Web answers `GET $WEB_URL/signin` with 2xx
 
 Preconditions before launch:
 
 - Node **24.x** on `PATH` (`node -v`)
-- `pnpm install` already done
+- `pnpm install` already done (`portless` is a root devDependency)
 - Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
-- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing). **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); `HERMES_ORCH_BASE_URL` = valid URL; Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
+- `apps/web/.env` and `apps/core/.env` present. **`verify-sokosumi launch` (and `pnpm env:bootstrap`) copy `.env.example` and sanitize placeholders.** **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); `HERMES_ORCH_BASE_URL` = valid URL; Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
 - **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - `APP_SIGNING_SECRET` (web) equals `BETTER_AUTH_SECRET` (core)
 - **`BETTER_AUTH_COOKIE_DOMAIN` must be unset / commented out for localhost.** Core `.env.example` sets `BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"` for production-shaped deploys — if that value is copied into local `.env`, session cookies are scoped to `.sokosumi.com` and **email/password login appears to succeed but the browser never keeps a session on `localhost`**. `doctor` fails when this trap is present
@@ -32,18 +32,16 @@ Preconditions before launch:
 
 ### Cursor agent session (required pattern)
 
-Short-lived agent shells often SIGHUP children when the launch command exits. Start Core and Web as **background jobs that stay alive**, then write the wrapper PIDs into the state file:
+Short-lived agent shells often SIGHUP children when the launch command exits. Prefer the helper (`verify-sokosumi launch`) — it bootstraps `.env`, starts the portless proxy on **443**, and records named URLs in the pid file. If you must start by hand:
 
 ```bash
-# background: pnpm core:dev
-# background: pnpm web:dev
-mkdir -p .cursor/verify-sokosumi-artifacts/state
-printf 'core=%s\nweb=%s\nstarted_at=%s\nweb_url=http://localhost:3000\ncore_url=http://localhost:8787\n' \
-  "<core-shell-pid>" "<web-shell-pid>" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  > .cursor/verify-sokosumi-artifacts/state/dev.pids
+pnpm env:bootstrap
+pnpm portless:proxy   # HTTPS :443; may sudo once. Do not fall back to :1355.
+# background: node scripts/local-env/portless-dev.mjs run
+# or: pnpm portless:dev
 ```
 
-If `.cursor/cloud-agent-db.env` exists, wrap with `node scripts/cloud-agent-db/with-db.mjs -- pnpm core:dev` (same for web).
+Read `web_url=` / `core_url=` from doctor (or `node scripts/local-env/portless-dev.mjs url web`). If `.cursor/cloud-agent-db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
 
 ### Durable human terminal
 
@@ -51,7 +49,7 @@ If `.cursor/cloud-agent-db.env` exists, wrap with `node scripts/cloud-agent-db/w
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi launch
 ```
 
-Helper starts `pnpm core:dev` and `pnpm web:dev` via `nohup`. If `.cursor/cloud-agent-db.env` exists, both are wrapped with `with-db.mjs`.
+Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `portless <name> -- pnpm --filter … dev`. If `.cursor/cloud-agent-db.env` exists, both are wrapped with `with-db.mjs`.
 
 Teardown:
 
@@ -167,15 +165,18 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL`, `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `portless get web.sokosumi` / `core.sokosumi`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
 
 ## Isolate
 
-Default ports **3000** (web) and **8787** (core) are shared. Second concurrent verify run on the same machine is **not** supported without changing ports and env URLs — helper refuses if ports already answer. Cloud agents get an isolated Neon branch per conversation; still one web+core pair per verify run.
+Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on the main checkout, `https://<branch>.web.sokosumi.localhost` in a linked worktree). Concurrent stacks on one machine are supported. The helper refuses only if **this** worktree's named URLs already answer. Cloud agents still get an isolated Neon branch per conversation.
 
 ## Gotchas (always)
 
+- Portless proxy must be HTTPS on **443**. If `portless get web.sokosumi` prints `:1355` or `http://`, stop and run `pnpm portless:proxy` (sudo). Do not drive the fallback port.
+- One-time on a machine: `pnpm exec portless trust` (CA) if `portless doctor` says the CA is untrusted. Then `pnpm portless:proxy`.
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
+- Drive `$WEB_URL` from doctor, not `localhost:3000`. Cookie inject uses `--secure` on https named hosts.
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
 - Optional URL env vars (`AGENT_HIRED_WEBHOOK`, Sentry DSN) set to non-URL dummies → Web crashes after Ready (`z.url()`); omit or use a real URL

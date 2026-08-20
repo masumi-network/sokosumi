@@ -11,6 +11,9 @@
   "engines": {
     "node": "24.x"
   },
+  "portless": {
+    "name": "core.sokosumi"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build:workspace-deps": "pnpm --filter @sokosumi/net run build && pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/database run prisma:generate && pnpm --filter @sokosumi/database run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/ai-provider run build && pnpm --filter @sokosumi/email run build",

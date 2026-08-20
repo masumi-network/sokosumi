@@ -56,20 +56,19 @@ apps/web
    pnpm install
    ```
 
-2. Set up environment variables:
+2. Set up environment variables from the repo root:
 
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   pnpm env:bootstrap
    ```
 
-3. Start the development server:
+3. Start the stack from the repo root:
 
    ```bash
-   pnpm dev
+   pnpm portless:dev
    ```
 
-   The application will be available at [http://localhost:3000](http://localhost:3000)
+   Web is at `https://web.sokosumi.localhost` (`pnpm exec portless get web.sokosumi`). Classic `pnpm dev` in this package still binds [http://localhost:3000](http://localhost:3000).
 
 ## Development
 

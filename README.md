@@ -23,7 +23,7 @@ sokosumi/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20+ recommended)
+- [Node.js](https://nodejs.org/) 24.x
 - [pnpm](https://pnpm.io/) (monorepo package manager)
 
 ### Clone and Install
@@ -36,18 +36,38 @@ pnpm install
 
 ### Setup Environment
 
-- Copy and configure environment variables for each package (see `apps/web/.env.example` if present).
+```bash
+pnpm env:bootstrap
+```
+
+Copies `apps/web/.env.example` and `apps/core/.env.example` to `.env` when missing, replaces Zod-breaking placeholders, comments `BETTER_AUTH_COOKIE_DOMAIN` (required on localhost / portless), and sets web `APP_SIGNING_SECRET` equal to Core `BETTER_AUTH_SECRET`.
+
+One-time on a machine, start the portless HTTPS proxy (port 443, may prompt for sudo) and trust the local CA if `portless doctor` says it is untrusted:
+
+```bash
+pnpm exec portless trust    # once, if CA is not trusted
+pnpm portless:proxy         # HTTPS on 443
+```
 
 ## Development
 
-### Web App
+Named local URLs (worktree-safe). Linked worktrees get a branch prefix (`https://<branch>.web.sokosumi.localhost`):
 
 ```bash
-cd apps/web
-pnpm dev
+pnpm portless:dev
 ```
 
-- Runs the Next.js app at [http://localhost:3000](http://localhost:3000)
+- Web: `https://web.sokosumi.localhost` (`pnpm exec portless get web.sokosumi`)
+- Core: `https://core.sokosumi.localhost` (`pnpm exec portless get core.sokosumi`) — OpenAPI at `/v1/openapi.json`
+
+Classic single-checkout ports still work (`PORTLESS=0` bypasses the proxy):
+
+```bash
+pnpm web:dev    # http://localhost:3000
+pnpm core:dev   # http://localhost:8787
+```
+
+Agents should use `verify-sokosumi launch` (see [AGENTS.md](./AGENTS.md)) so `.env`, the 443 proxy, and named URLs stay in sync.
 
 Other available scripts:
 

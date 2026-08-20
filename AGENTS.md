@@ -180,8 +180,8 @@ const config = {
 ### Setup
 
 1. Run `pnpm install` at repo root
-2. Copy `apps/web/.env.example` to `apps/web/.env`
-3. Copy `apps/core/.env.example` to `apps/core/.env`
+2. `pnpm env:bootstrap` — copies `.env.example` → `.env` (web + core) and sanitizes placeholders / the `BETTER_AUTH_COOKIE_DOMAIN` trap. Do not leave `<…>` values; optional URL keys must be omitted, not set to `dummy`
+3. One-time per machine: `pnpm exec portless trust` if `portless doctor` reports an untrusted CA, then `pnpm portless:proxy` (HTTPS **443**, may sudo). Fail if the URL is `:1355` / `http://` — do not drive the fallback
 4. Bootstrap database: `pnpm prisma:migrate:dev`
 5. Generate Prisma clients: `pnpm prisma:generate`
 
@@ -194,9 +194,12 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 | Command                | Purpose                       |
 | ---------------------- | ----------------------------- |
 | `pnpm install`         | Install dependencies          |
-| `pnpm dev`             | Watch all workspace packages  |
-| `pnpm web:dev`         | Run web app dev server        |
-| `pnpm core:dev`        | Run core API dev server       |
+| `pnpm env:bootstrap`   | Create/sanitize local `.env` files |
+| `pnpm portless:proxy`  | Start portless HTTPS proxy on 443 |
+| `pnpm portless:dev`    | Web + Core via portless (worktree-safe named URLs) |
+| `pnpm dev`             | Watch all workspace packages (classic `:3000` / `:8787`) |
+| `pnpm web:dev`         | Web on `:3000` (`PORTLESS=0` equivalent) |
+| `pnpm core:dev`        | Core on `:8787` |
 | `pnpm build`           | Build for production          |
 | `pnpm web:build`       | Build web app for production  |
 | `pnpm core:build`      | Build core API for production |
@@ -387,7 +390,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ### Running & known local gotchas
 
-- Start services: `pnpm core:dev` / `pnpm web:dev` / `pnpm dev`, or `node scripts/cloud-agent-db/with-db.mjs -- pnpm dev` when an agent Neon branch is provisioned. Core API on `:8787` (Swagger at `/`, OpenAPI at `/v1/openapi.json`); web on `:3000`.
+- Start services: **`pnpm portless:dev`** (or `.cursor/skills/verify-sokosumi/bin/verify-sokosumi launch`). URLs: `pnpm exec portless get web.sokosumi` and `portless get core.sokosumi` (linked worktree prefixes the branch). Core OpenAPI at `$CORE_URL/v1/openapi.json`. Classic `pnpm core:dev` / `pnpm web:dev` still bind `:8787` / `:3000` when nothing else owns those ports. Cloud VM `start` may still wrap `pnpm dev`; local worktree agents must use portless so stacks do not collide.
 - **Auth for a test account:** on a provisioned agent Neon branch, use fixtures `admin@sokosumi.test` (platform admin), `alice@sokosumi.test`, or `bob@sokosumi.test` with password `Password123!` (upserted after migrate; agent branches only). Those three each own one org (`admin-fixture` / `alice-fixture` / `bob-fixture`) with an organization workspace. Identity-onboarding fixture: `zero@sokosumi.test` / `Password123!` — no personal workspace, no org. Otherwise email/password signup works with no email verification and auto sign-in (`/signup`). Google/Microsoft OAuth and magic-link email do **not** work (placeholder credentials).
 - **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.

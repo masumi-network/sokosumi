@@ -1038,6 +1038,10 @@ describe("core auth config", () => {
       "https://preprod.sokosumi.com",
       "https://*.preview.sokosumi.com",
       "http://localhost:*",
+      "https://localhost:*",
+      "http://*.localhost:*",
+      "https://*.localhost",
+      "https://*.localhost:*",
     ]);
   });
 

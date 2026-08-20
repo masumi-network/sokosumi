@@ -21,7 +21,7 @@ Preconditions:
 - Fixtures unavailable or intentionally unused. Prefer `verify-sokosumi sign-in --method vault` when a `sokosumi` profile exists.
 - Choose a unique email, e.g. `verify-$(date +%s)@sokosumi.test`, and a password meeting app rules (fixture-style `Password123!` is fine).
 
-- **Open form.** Run `agent-browser open http://localhost:3000/signup`, wait until the snapshot shows Name / Email / Password textboxes (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
+- **Open form.** Run `agent-browser open $WEB_URL/signup`, wait until the snapshot shows Name / Email / Password textboxes (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
 - **Fill required fields.** Prefer refs from that **fresh** snapshot (`textbox "Name"` / `"Email"` / `"Password"`). CSS `[data-testid="auth-field-name|email|password"]` works once the form is interactive; they fail if you fill before the fields appear. Optional marketing checkbox can stay unchecked.
 - **Accept terms.** Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen, or `#termsAccepted`). Submit stays **disabled** until terms are accepted.
 - **Submit.** When `Register` / `Registrieren` is enabled, **click** the snapshot ref (`@eN`, not bare `@N` — agent-browser needs the `e` prefix). Prefer click over Enter — Enter can leave the form unchanged. Wait for navigation away from `/signup` (often `/` then `/chat`). Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
@@ -33,9 +33,9 @@ Preconditions:
 Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen). If that still leaves `checked=false` / submit disabled, bootstrap the user via Better Auth then prove [Sign in](./sign-in.md) in the browser:
 
 ```bash
-curl -sS -X POST "http://localhost:8787/auth/sign-up/email" \
+curl -sS -X POST "$CORE_URL/auth/sign-up/email" \
   -H 'content-type: application/json' \
-  -H 'origin: http://localhost:3000' \
+  -H "origin: $WEB_URL" \
   -d '{"email":"<unique>@sokosumi.test","password":"Password123!","name":"Verify Agent","termsAccepted":true}'
 ```
 
@@ -48,5 +48,5 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 - OAuth and magic-link signup paths are invalid with placeholder credentials.
 - Do not reuse an email that already exists; pick a fresh address per run.
 - On cloud-agent branches, prefer fixtures over signup unless testing signup itself. On a coworker / shared Neon, prefer the vault over creating another disposable user.
-- Origin must be `http://localhost:3000` for Core auth API calls (`INVALID_ORIGIN` otherwise).
+- Origin must be `$WEB_URL` for Core auth API calls (`INVALID_ORIGIN` otherwise).
 - Submit button stays disabled until terms are accepted.
