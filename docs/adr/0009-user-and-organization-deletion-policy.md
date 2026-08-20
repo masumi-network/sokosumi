@@ -1,4 +1,4 @@
-# ADR 0008: User and Organization deletion blocks instead of canceling Stripe
+# ADR 0009: User and Organization deletion blocks instead of canceling Stripe
 
 - Status: Accepted
 - Date: 2026-08-20
