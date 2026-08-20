@@ -25,7 +25,9 @@ subscription whose status is `active`, `trialing`, `past_due`, or `unpaid`,
 including `cancelAtPeriodEnd` until the period ends) refuses User deletion
 (`referenceId = userId`) and Organization deletion (`referenceId =
 organizationId`). An active enterprise contract refuses Organization deletion
-only. This path never calls Stripe subscription cancel.
+only. This path never calls Stripe subscription cancel. Evaluate blockers for
+running subscription / enterprise / in-flight land in SOK-843/844; until then
+best-effort `customers.del` skips when a local running subscription remains.
 
 **Free is not running.** A local free subscription (`plan: free`, no Stripe
 subscription id) does not block deletion.

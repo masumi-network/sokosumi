@@ -561,12 +561,14 @@ export const auth = betterAuth({
           userCustomer?.stripeCustomerId ?? null;
       },
       afterDelete: async (user) => {
-        await deleteStripeCustomerBestEffort({
-          stripeCustomerId: (user as { stripeCustomerId?: string | null })
-            .stripeCustomerId,
-          ownerType: "user",
-          ownerId: user.id,
-        });
+        waitUntil(
+          deleteStripeCustomerBestEffort({
+            stripeCustomerId: (user as { stripeCustomerId?: string | null })
+              .stripeCustomerId,
+            ownerType: "user",
+            ownerId: user.id,
+          }),
+        );
       },
     },
     additionalFields: betterAuthUserAdditionalFields,
@@ -716,11 +718,13 @@ export const auth = betterAuth({
             organizationCustomer?.stripeCustomerId ?? null;
         },
         afterDeleteOrganization: async ({ organization }) => {
-          await deleteStripeCustomerBestEffort({
-            stripeCustomerId: organization.stripeCustomerId,
-            ownerType: "organization",
-            ownerId: organization.id,
-          });
+          waitUntil(
+            deleteStripeCustomerBestEffort({
+              stripeCustomerId: organization.stripeCustomerId,
+              ownerType: "organization",
+              ownerId: organization.id,
+            }),
+          );
         },
       },
       schema: {
