@@ -105,10 +105,15 @@ Sandro answered as node authority; each verified against masumi-payment-service
 1. **Error contract:** 400 = deterministic pre-sign rejection (bad accepts, no
    ChainIdLimit match, network disabled, requirements drift, identifier not
    advertised); 402 = budget/balance refusal; 500 = config/signing failure.
-   **Non-200 ⇒ no header issued ⇒ unsettleable ⇒ synchronous credit refund is
-   always safe** — "Local signing only — this service never sends the buyer's
-   request" (pay.ts). Even a lost-in-transit 200 is unsettleable from the
-   coworker's side.
+   A documented non-200 plus envelope proves only that **this call** issued
+   no header — "Local signing only — this service never sends the buyer's
+   request" (pay.ts). That is **not** "always-safe refund." Soko refunds
+   synchronously only on the **fresh first** sign attempt when no header
+   was written to the row. A `PENDING` replay refusal does not clear an
+   earlier attempt. A lost-in-transit **200** is **not** unsettleable if
+   the coworker already received the header — persist `VERIFIED` before
+   returning it (PR1-SPEC §3). Gateway / transport / malformed responses
+   stay ambiguous.
 2. **Idempotency: none, by design.** Every call reserves a new attempt and
    decrements budget. `paymentIdentifier` = fail-loud correlation echo into the
    signed payload's extensions (400 if the 402 doesn't advertise the
@@ -121,8 +126,9 @@ Sandro answered as node authority; each verified against masumi-payment-service
    consumed → settled-observed; unused → EXPIRED_UNUSED → post-hoc auto-refund
    (provably unpaid). New low-pri node ask: outbound settlement-observation
    surface.
-4. **By-attemptId lookup: downgraded to nice-to-have.** Refund-safety removes
-   the correctness need; paginate-and-match covers audit.
+4. **By-attemptId lookup: downgraded to nice-to-have.** Soko's idempotency
+   key is the sole dedupe; paginate-and-match covers audit. Lookup does not
+   make a `PENDING` refund safe.
 5. **Per-network readiness: compose Soko-side** from /x402/networks/available
    + /x402/budgets (per-chain today). Env-global /rail-readiness stays the
    coarse signal; low-pri ask to un-collapse the per-chain breakdown it

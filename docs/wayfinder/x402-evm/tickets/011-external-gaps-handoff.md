@@ -45,8 +45,10 @@ affected tickets.
 **Handoff never needed to be sent.** Sandro answered all seven questions as
 node authority (2026-08-11), each verified against masumi-payment-service
 `main` source. Full answers: [`../NODE-QUESTIONS.md`](../NODE-QUESTIONS.md)
-`## Answers`. Headlines: non-200 from /x402/pay ⇒ no header ⇒ synchronous
-refund always safe; no node idempotency (Soko's key is the sole dedupe);
+`## Answers`. Headlines: a documented non-200 from `/x402/pay` proves only
+that **this call** issued no header — Soko refunds on the fresh first
+attempt when no header was written, not on every non-200; no node
+idempotency (Soko's key is the sole dedupe);
 outbound terminal at Verified (settlement observation phased, EXPIRED_UNUSED
 post-hoc auto-refund later); by-id lookup + per-chain readiness downgraded to
 composition/nice-to-have; Soko normalizes both 402 dialects → v2; **deployed

@@ -51,32 +51,28 @@ Decided by Sandro (2026-08-11) across two grilling rounds. The endpoint is
    event id) into the metadata / `paymentIdentifier` slot.
 3. **Response** — pass-through of the node's 200: `attemptId`,
    `xPaymentHeader`, and the signed network/asset/amount/payTo tuple.
-4. **Dedupe** — a mandatory coworker-supplied idempotency key,
-   unique-constrained on the payment record (the `identifierFromPurchaser`
-   of this rail); same key returns the stored result idempotently. Payload
-   hashing cannot work: x402 402s carry no server nonce, so legitimate
-   repeats are byte-identical.
+4. **Dedupe** — `@@unique([taskId, idempotencyKey])` (`taskId` is the path
+   param, required). Status-specific: `VERIFIED` returns the stored live
+   header (no second charge or sign); `FAILED` / `REFUNDED` consume the
+   key (`409`); `PENDING` re-enters sign under a lease with **no second
+   debit**. Payload hashing cannot be the unique: x402 402s carry no
+   server nonce, so legitimate repeats are byte-identical.
 5. **Authz** — exactly the `masumiPayment` task-event model:
    `requireTaskCollaboration` + `isCoworkerAgentContext`, org and owner from
    the task row. Sub-tasks are `Task` rows linked by `TaskLink` `PARENT`
    (there is no `Task.parentTaskId` column); the same per-task gate covers
    them; no new permission concept, no org flag.
 
-Interlock with the refund policy (006): sign-failure refunds credits
-synchronously (provably unpaid); a crash between charge and sign leaves a
-PENDING record that goes to review — not auto-refund — because it is not
-provably unpaid. The durable payment record carries the idempotency key,
-`attemptId`, agent link (for per-endpoint aggregation), and the admin
-refund action. Field-level schema lands in the PR 1 spec (007).
+Interlock with the refund policy (006): a documented first-attempt
+sign-failure with no header written refunds credits synchronously; a
+crash between charge and a confirmed sign result stays `PENDING` for
+same-key replay (no second debit). Persist `VERIFIED` **before**
+returning the header. Auto-refund `PENDING` only when no header was ever
+written. Canonical write-up: [PR1-SPEC.md](../PR1-SPEC.md) §3.
 
-> **Superseded by the ticket-011 answers, then narrowed:** (a)
-> `paymentIdentifier` is stamped **only when the 402 advertises the
-> payment-identifier extension** (the node 400s otherwise), not on every
-> call; (b) a crash/timeout is **not** blanket-refund-safe. Persist
-> `VERIFIED` before returning the header. Auto-refund `PENDING` only when
-> no header was ever written; a same-key replay re-enters sign with no
-> second debit. See [PR1-SPEC.md](../PR1-SPEC.md) §3 and
-> [NODE-QUESTIONS.md](../NODE-QUESTIONS.md) `## Answers`.
+`paymentIdentifier` is stamped **only when the 402 advertises the
+payment-identifier extension** (the node 400s otherwise). Field-level
+schema lands in the PR 1 spec (007).
 
 ## Progress (superseded by Resolution above)
 

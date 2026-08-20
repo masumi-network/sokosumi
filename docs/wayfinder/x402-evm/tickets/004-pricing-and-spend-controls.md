@@ -42,9 +42,9 @@ Decided by Sandro (2026-08-11); two points inherited, two grilled:
    floor. The existing invariant holds; dust calls yield Soko margin rather
    than loss; the per-call minimum is documented for coworkers.
 4. **Spend caps: org/user credit balance, not a task pool.** There is no
-   `Task.maxCredits` column. x402 charges use the same
-   `chargeTaskCreditsOrMarkOutOfCredits` helper as other task charges —
-   the owner's ordinary balance. Optional request `maxCredits` is a
+   `Task.maxCredits` column. x402 charges use the same task-event credit
+   helper as other task charges (user + org balance). Optional request
+   `maxCredits` is a
    **per-intent** ceiling (mandatory for Dynamic quotes). A per-task
    cumulative budget is **not built**; a coworker looping fresh
    idempotency keys is bounded by the whole balance. The node's

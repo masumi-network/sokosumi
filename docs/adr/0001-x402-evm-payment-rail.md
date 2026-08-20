@@ -91,8 +91,9 @@ A dedicated model records the payment leg of an x402 job:
   payment-identifier extension. **Confirmed (ticket 011):** it is a fail-loud
   correlation echo into the signed payload's extensions — the node 400s if the
   402 does not advertise the extension — never an independent dedup key.
-- `caip2Network`, `asset`, `amount` (BigInt), `decimals` — what was paid,
-  denominated chain-natively.
+- `caip2Network`, `asset`, `amount` (a digit `String` of chain-native base
+  units), and `decimals` (from the **node-published** ready pair, never
+  the agent row) — what was paid.
 - Status mirrors the node's OUTBOUND attempt lifecycle: `PaymentRequired` →
   `Verified` | `Failed`, terminal at `Verified` once the payment is signed.
   There is no settle leg on this row — `Settled` belongs to the receiving

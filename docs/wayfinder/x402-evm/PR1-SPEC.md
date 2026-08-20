@@ -49,6 +49,11 @@ Ticket 005. Dedicated coworker-gated route; the end-user catalog's
   4. its network is in the per-environment EVM allowlist (preprod = testnet
      CAIP-2 ids only),
   5. x402 buy-side readiness OK (§6).
+- **`PricingType` on `main` is `FIXED | FREE | UNKNOWN`.** Registry
+  `Dynamic` is ingested as `UNKNOWN` and stays out of the Cardano catalog.
+  x402 Dynamic sources do not list until ingest keeps them distinct (add
+  `DYNAMIC`, or stop mapping x402 Dynamic → `UNKNOWN`). Until then the
+  Dynamic/`maxCredits` pay gate never runs.
 - **Response fields per agent:** id, name, description, image (all resolved
   through the existing `AgentMetadataOverride`-aware helpers — X402 agents
   carry the standard override fields so a later read-only UI needs no
@@ -103,24 +108,30 @@ Modeled on the node's own request so translation is minimal:
      The reconciler must not refund a row that is mid-retry.
 3. **Verify against the listed agent** — the 402's `payTo` + network + asset
    must match `agentId`'s registered payment source, the network must be in
-   the per-env allowlist, and the scheme must be `exact`. Amount vs registry
-   pricing, by `pricingType`:
+   the per-env allowlist, and the scheme must be `exact`. Native-amount
+   checks (still chain-native base units, **before** credit conversion):
    - **Fixed** — demanded amount must equal the advertised amount.
-   - **Dynamic** — demanded amount must be ≤ the caller's `maxCredits`
-     (mandatory); asset must be buy-side ready.
    - **Free** — reject a positive demand.
-   Any failure → `4xx` **before any charge**. Ticket 003.
-4. **Price** — convert the demanded amount to credits via the CAIP-19
-   `CreditCost` key (§ ticket 004) using **node-published** decimals for the
-   `(network, asset)` pair, never the agent-registered scale. **Ceil to at
-   least `MIN_CHARGEABLE_CREDITS`** (charge floor). Reject pre-charge if the
-   asset has no `CreditCost` row (fail closed).
-5. **Bound** — there is **no `Task.maxCredits` column**. The debit draws
-   from the task organization's ordinary credit balance
-   (`chargeTaskCreditsOrMarkOutOfCredits`). Optional request `maxCredits`
-   is a per-intent ceiling (required for Dynamic). A per-task cumulative
-   pool is **not built**. Insufficient balance → existing out-of-credits
-   path, no partial state.
+   - **Dynamic** — no advertised amount to match; the runtime 402 supplies
+     asset + amount. Asset must be buy-side ready.
+   On `main`, `PricingType` is `FIXED | FREE | UNKNOWN`. Registry
+   `Dynamic` is ingested as `UNKNOWN` so those agents stay out of the
+   Cardano catalog. x402 Dynamic **never lists and this gate never runs**
+   until ingest stops that map (add `DYNAMIC`, or keep x402 Dynamic
+   distinct from `UNKNOWN`). Any failure → `4xx` **before any charge**.
+   Ticket 003.
+4. **Price** — convert the demanded **native** amount to **credits** via the
+   CAIP-19 `CreditCost` key (§ ticket 004) using **node-published** decimals
+   for the `(network, asset)` pair, never the agent-registered scale.
+   **Ceil to at least `MIN_CHARGEABLE_CREDITS`** (charge floor). Reject
+   pre-charge if the asset has no `CreditCost` row (fail closed).
+5. **Bound** — there is **no `Task.maxCredits` column**. After step 4,
+   compare **converted credits** to optional request `maxCredits` (required
+   for Dynamic). Do not compare native amount to `maxCredits`. The debit
+   draws from the task organization's ordinary credit balance (the existing
+   task-event charge helper: user + org). A per-task cumulative pool is
+   **not built**. Insufficient balance → existing out-of-credits path, no
+   partial state.
 6. **Charge, then sign** — debit credits and create the payment record
    (`PENDING`) in one transaction; then call node `POST /x402/pay`.
 7. **Resolve the sign result:**
@@ -154,9 +165,11 @@ Pass-through of the node's 200 plus Soko's record id:
 
 ## 4. Data model — `TaskX402Payment`
 
-Sibling of `TaskPaymentClaim`, not a reuse — the escrow claim's state machine
-(processing lease, retry ladder, blockchainIdentifier) is meaningless here;
-this record is terminal at sign time.
+Sibling of `TaskPaymentClaim`, not a reuse — the escrow claim's Cardano
+retry ladder and `blockchainIdentifier` are meaningless here. This row
+**does** carry a **sign lease** (`processingAt`, `signAttemptCount`,
+`signRiskExpiresAt`) because the node has no idempotency. Terminal at
+successful sign. Conceptual sketch, not a migration.
 
 ```prisma
 model TaskX402Payment {
@@ -171,8 +184,13 @@ model TaskX402Payment {
   caip2Network   String
   asset          String
   amount         String                 // base units, chain-native
+  decimals       Int                    // node-published scale used at charge
   payTo          String
   attemptId      String?                // node attempt id, present once signed
+  xPaymentHeader String?                // exact bearer header; persist before return
+  signAttemptCount Int @default(0)      // bounded non-idempotent node calls
+  processingAt   DateTime?              // active sign lease
+  signRiskExpiresAt DateTime?           // latest possible unseen authorization expiry
   failureReason  String?
   // Phased settlement observation (ticket 011 Q3): stored now, consumed by a
   // later reconciler that checks EIP-3009 authorizationState after expiry —

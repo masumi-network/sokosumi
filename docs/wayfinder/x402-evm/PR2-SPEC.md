@@ -32,7 +32,9 @@ Ships **after** PR 1; reuses its helpers.
   `payTo`, `paymentIdentifier?`, `status`
   (`PENDING | VERIFIED | FAILED | REFUNDED` — terminal at `VERIFIED`,
   confirmed), `failureReason?`. **Signed-once fields are nullable** —
-  `attemptId?` and the phased-settlement group (`payerAddress?`,
+  `attemptId?`, `xPaymentHeader?`, sign-lease columns (`signAttemptCount`,
+  `processingAt?`, `signRiskExpiresAt?`), and the phased-settlement group
+  (`payerAddress?`,
   `payloadNonce?`, `paymentPayloadHash?`, `validBefore?`) fill in only when the
   node returns a 200, so `PENDING` rows lack them (mirrors the
   `TaskX402Payment` specified in [PR1-SPEC §4](PR1-SPEC.md); that table is
@@ -56,9 +58,10 @@ Ships **after** PR 1; reuses its helpers.
    applies. `paymentRail = X402` pinned; `JobX402Payment` row `PENDING` in
    the same transaction.
 2. **Call** the agent resource; expect 402. Normalize dialect (PR 1 helper),
-   verify payTo/network/asset against the job's snapshotted source, amount
-   ≤ the job's charged price (drift → fail the job, refund — provably
-   unpaid, nothing signed).
+   verify payTo/network/asset against the job's snapshotted source. Convert
+   the 402's native amount to credits (same Price step as PR 1), then
+   compare **credits ≤ the job's charged credits**. Native-vs-credits mix
+   is a bug. Drift → fail the job, refund — provably unpaid, nothing signed.
 3. **Pay** — node `POST /x402/pay` (Soko wallet, `paymentIdentifier` only if
    advertised). Three outcomes (the taxonomy specified in PR1-SPEC §3):
    - **Pre-sign refusal** (documented non-200, no header written) →

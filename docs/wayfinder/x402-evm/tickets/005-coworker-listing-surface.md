@@ -39,10 +39,11 @@ Decided by Sandro (2026-08-11):
    image/description through the same override-aware helpers, and the admin
    override surface remains usable for X402 entries.
 2. **Fail closed.** Listed ⇒ payable, right now: whitelisted (prod; preprod
-   lists everything per the 003 nuance), every advertised asset priced in
-   CreditCost, network inside the per-environment allowlist (preprod =
-   testnets only), x402 buy-side readiness OK. Same invariant the Cardano
-   catalog keeps; gives refund-count aggregation a stable population.
+   lists everything per the 003 nuance), every advertised source uses
+   scheme `exact`, every advertised asset priced in CreditCost, network
+   inside the per-environment allowlist (preprod = testnets only), x402
+   buy-side readiness OK. Same invariant the Cardano catalog keeps; gives
+   refund-count aggregation a stable population.
 3. **Coworker context only** — the same gate as the pay endpoint, so the
    two surfaces move together in this spec. Later PRs may widen **list**
    auth or fold the route into public `GET /v1/agents`; **pay stays

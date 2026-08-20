@@ -104,8 +104,9 @@ priority.
   provably-unpaid refund branch, admin refund + per-endpoint aggregation,
   env/operator prerequisites, test strategy. Approved first-pass; task-nested
   path and required `agentId` confirmed. All former ship-gates resolved by
-  the ticket-011 answers — spec upgraded in place (refund-safe timeout
-  branch, dialect normalizer, phased settlement fields).
+  the ticket-011 answers — spec upgraded in place (timeout/`PENDING` stays
+  held unless no header was written, dialect normalizer, phased settlement
+  fields).
 - [Ratify ADR 0001](tickets/008-ratify-adr-0001.md) — [ADR 0001](../../adr/0001-x402-evm-payment-rail.md)
   flipped **Proposed → Accepted**: refund policy folded in as the resolved
   blocker, `JobX402Payment`/`TaskX402Payment` fixed as two sibling tables,
@@ -114,7 +115,8 @@ priority.
   code. Accepted-with-caveats; PR 2 spec (009) unblocked.
 - [Node/registry handoff](tickets/011-external-gaps-handoff.md) — **all seven
   questions answered in-house** (Sandro + upstream `main` source), handoff
-  never sent: non-200 ⇒ unsettleable ⇒ synchronous refund always safe; no
+  never sent: documented first-attempt refusal with no written header
+  refunds; a `PENDING` replay or lost 200 after delivery does not; no
   node idempotency (Soko's key sole dedupe); outbound terminal at Verified
   with settlement observation phased (EXPIRED_UNUSED post-hoc refund later);
   readiness composed Soko-side; Soko normalizes both 402 dialects → v2;
