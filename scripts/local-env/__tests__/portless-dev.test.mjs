@@ -102,6 +102,15 @@ describe("portlessInstancePrefix", () => {
       "",
     );
   });
+
+  it("skips basename when git already sees a linked worktree", () => {
+    assert.equal(
+      portlessInstancePrefix("/Users/x/sokosumi/.worktrees/chore-foo", {
+        linkedWorktree: true,
+      }),
+      "",
+    );
+  });
 });
 
 describe("portlessAppName", () => {
@@ -154,5 +163,11 @@ describe("spawnPlan", () => {
     assert.equal(web.app, "web");
     assert.equal(web.env.CORE_APP_BASE_URL, urls.coreUrl);
     assert.equal(web.env.WEB_APP_BASE_URL, urls.webUrl);
+  });
+
+  it("plans grok copies with a basename prefix", () => {
+    const grok = "/Users/x/.grok/worktrees/masumi-network-sokosumi/3877";
+    const [web] = spawnPlan("web", urls, grok);
+    assert.equal(web.name, "3877.web.sokosumi");
   });
 });

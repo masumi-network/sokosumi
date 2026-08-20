@@ -12,6 +12,7 @@
     "portless:web": "node scripts/local-env/portless-dev.mjs run web",
     "portless:core": "node scripts/local-env/portless-dev.mjs run core",
     "portless:proxy": "node scripts/local-env/portless-dev.mjs proxy",
+    "portless:url": "node scripts/local-env/portless-dev.mjs url",
     "build": "turbo run build",
     "web:build": "pnpm --filter web build",
     "generate:core": "pnpm --filter web generate:core",

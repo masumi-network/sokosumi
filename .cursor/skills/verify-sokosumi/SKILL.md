@@ -11,7 +11,7 @@ Read `features/README.md` before driving. Use a matching feature file as the rec
 
 ## Launch
 
-Prefer **portless named HTTPS URLs** from `verify-sokosumi doctor` (`web_url=` / `core_url=`). Do not guess `:3000` / `:8787` — worktrees get a branch prefix (`https://main.web.sokosumi.localhost`). `PORTLESS=0 pnpm web:dev` still binds `:3000` for a single classic checkout.
+Prefer **portless named HTTPS URLs** from `verify-sokosumi doctor` (`web_url=` / `core_url=`). Do not guess `:3000` / `:8787` — print with `pnpm portless:url web`. Linked git worktrees get a branch prefix; Grok copies get a directory basename. Classic `pnpm web:dev` still binds `:3000`.
 
 Ready when:
 
@@ -41,7 +41,7 @@ pnpm portless:proxy   # HTTPS :443; may sudo once. Do not fall back to :1355.
 # or: pnpm portless:dev
 ```
 
-Read `web_url=` / `core_url=` from doctor (or `node scripts/local-env/portless-dev.mjs url web`). If `.cursor/cloud-agent-db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
+Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.cursor/cloud-agent-db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
 
 ### Durable human terminal
 
@@ -49,7 +49,7 @@ Read `web_url=` / `core_url=` from doctor (or `node scripts/local-env/portless-d
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi launch
 ```
 
-Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `portless <name> -- pnpm --filter … dev`. If `.cursor/cloud-agent-db.env` exists, both are wrapped with `with-db.mjs`.
+Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `pnpm portless:dev` (same coordinator). If `.cursor/cloud-agent-db.env` exists, both are wrapped with `with-db.mjs`.
 
 Teardown:
 
@@ -165,7 +165,7 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `portless get web.sokosumi` / `core.sokosumi`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
 
 ## Isolate
 
@@ -173,7 +173,7 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 
 ## Gotchas (always)
 
-- Portless proxy must be HTTPS on **443**. If `portless get web.sokosumi` prints `:1355` or `http://`, stop and run `pnpm portless:proxy` (sudo). Do not drive the fallback port.
+- Portless proxy must be HTTPS on **443**. If `pnpm portless:url web` prints `:1355` or `http://`, stop and run `pnpm portless:proxy` (sudo). Do not drive the fallback port.
 - One-time on a machine: `pnpm exec portless trust` (CA) if `portless doctor` says the CA is untrusted. Then `pnpm portless:proxy`.
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
 - Drive `$WEB_URL` from doctor, not `localhost:3000`. Cookie inject uses `--secure` on https named hosts.

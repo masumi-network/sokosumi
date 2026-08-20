@@ -8,7 +8,7 @@
  *   node scripts/local-env/portless-dev.mjs url web|core
  *   node scripts/local-env/portless-dev.mjs run
  */
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,13 +70,62 @@ export function portlessNameFor(app) {
 }
 
 /**
- * Grok/Cursor copies are full checkouts (not `git worktree add`), so portless
- * does not add a branch prefix. Prefix by directory basename so they cannot
- * steal `web.sokosumi` / `core.sokosumi` from the primary checkout.
+ * True when Portless will already prefix the branch (`git worktree add`).
  *
  * @param {string} [root]
  */
-export function portlessInstancePrefix(root = repoRoot) {
+export function isGitLinkedWorktree(root = repoRoot) {
+  try {
+    const gitDir = path.resolve(
+      root,
+      execFileSync("git", ["rev-parse", "--git-dir"], {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 5000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim(),
+    );
+    const commonDir = path.resolve(
+      root,
+      execFileSync("git", ["rev-parse", "--git-common-dir"], {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 5000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim(),
+    );
+    if (gitDir === commonDir) {
+      return false;
+    }
+    const porcelain = execFileSync("git", ["worktree", "list", "--porcelain"], {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const count = porcelain
+      .split("\n")
+      .filter((line) => line.startsWith("worktree ")).length;
+    return count > 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Grok/Cursor copies are full checkouts (not `git worktree add`), so portless
+ * does not add a branch prefix. Prefix by directory basename so they cannot
+ * steal `web.sokosumi` / `core.sokosumi` from the primary checkout. Linked
+ * git worktrees skip this — Portless already prefixes the branch.
+ *
+ * @param {string} [root]
+ * @param {{ linkedWorktree?: boolean }} [options]
+ */
+export function portlessInstancePrefix(root = repoRoot, options = {}) {
+  const linked = options.linkedWorktree ?? isGitLinkedWorktree(root);
+  if (linked) {
+    return "";
+  }
   const normalized = root.replaceAll("\\", "/");
   for (const marker of ["/.grok/worktrees/", "/.worktrees/"]) {
     if (normalized.includes(marker)) {

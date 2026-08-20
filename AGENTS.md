@@ -200,8 +200,9 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 | `pnpm portless:dev`    | Web + Core via portless (worktree-safe named URLs) |
 | `pnpm portless:web`    | Web only via portless (still injects both named URLs) |
 | `pnpm portless:core`   | Core only via portless (still injects both named URLs) |
+| `pnpm portless:url web` / `core` | Print this checkout's named HTTPS URL |
 | `pnpm dev`             | Watch all workspace packages (classic `:3000` / `:8787`) |
-| `pnpm web:dev`         | Web on `:3000` (`PORTLESS=0` equivalent) |
+| `pnpm web:dev`         | Web on `:3000` |
 | `pnpm core:dev`        | Core on `:8787` |
 | `pnpm build`           | Build for production          |
 | `pnpm web:build`       | Build web app for production  |
@@ -393,7 +394,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ### Running & known local gotchas
 
-- Start services: **`pnpm portless:dev`** (or `.cursor/skills/verify-sokosumi/bin/verify-sokosumi launch`). URLs: `node scripts/local-env/portless-dev.mjs url web` and `url core` (git worktrees prefix the branch; Grok copies under `.grok/worktrees/` prefix the directory basename, e.g. `3877.web.sokosumi.localhost`). Launch uses `--force` and stops the other app if Core/Web exits. Core OpenAPI at `$CORE_URL/v1/openapi.json`. Classic `pnpm core:dev` / `pnpm web:dev` still bind `:8787` / `:3000` when nothing else owns those ports. Cloud VM `start` may still wrap `pnpm dev`; local worktree agents must use portless so stacks do not collide.
+- Start services: **`pnpm portless:dev`** (or `.cursor/skills/verify-sokosumi/bin/verify-sokosumi launch`). URLs: `pnpm portless:url web` and `pnpm portless:url core` (git worktrees prefix the branch; Grok copies under `.grok/worktrees/` prefix the directory basename, e.g. `3877.web.sokosumi.localhost`). Do not use bare `portless get web.sokosumi` in Grok copies. Launch uses `--force` and stops the other app if Core/Web exits. Core OpenAPI at `$CORE_URL/v1/openapi.json`. Classic `pnpm core:dev` / `pnpm web:dev` still bind `:8787` / `:3000` when nothing else owns those ports. Cloud VM `start` may still wrap `pnpm dev`; local worktree agents must use portless so stacks do not collide.
 - **Auth for a test account:** on a provisioned agent Neon branch, use fixtures `admin@sokosumi.test` (platform admin), `alice@sokosumi.test`, or `bob@sokosumi.test` with password `Password123!` (upserted after migrate; agent branches only). Those three each own one org (`admin-fixture` / `alice-fixture` / `bob-fixture`) with an organization workspace. Identity-onboarding fixture: `zero@sokosumi.test` / `Password123!` — no personal workspace, no org. Otherwise email/password signup works with no email verification and auto sign-in (`/signup`). Google/Microsoft OAuth and magic-link email do **not** work (placeholder credentials).
 - **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.

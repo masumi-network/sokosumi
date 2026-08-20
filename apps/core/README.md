@@ -27,7 +27,7 @@ pnpm portless:core  # Core only (named Web URL still injected)
 pnpm core:dev       # classic http://localhost:8787
 ```
 
-Portless URL: `pnpm exec portless get core.sokosumi` (worktrees prefix the branch). OpenAPI at `$CORE_URL/v1/openapi.json`.
+Portless URL: `pnpm portless:url core` (git worktrees prefix the branch; Grok copies prefix the directory). OpenAPI at `$CORE_URL/v1/openapi.json`.
 
 ### Production
 

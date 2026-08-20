@@ -22,6 +22,7 @@ jobs:
           - { name: Web, command: "pnpm web:test:ci" }
           - { name: Core, command: "pnpm core:test:ci" }
           - { name: Packages, command: 'pnpm --filter "./packages/*" test:ci' }
+          - { name: Local env, command: "pnpm local-env:test" }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

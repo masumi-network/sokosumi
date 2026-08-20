@@ -77,7 +77,7 @@ mustInclude("AGENTS.md", "pnpm env:bootstrap");
 mustInclude("AGENTS.md", "pnpm portless:dev");
 mustInclude("AGENTS.md", "pnpm portless:web");
 mustInclude("AGENTS.md", "pnpm portless:core");
-mustInclude("AGENTS.md", "portless get web.sokosumi");
+mustInclude("AGENTS.md", "pnpm portless:url web");
 mustNotInclude("AGENTS.md", "simple-import-sort");
 mustNotInclude("AGENTS.md", "packages/services");
 mustNotInclude("AGENTS.md", "lint.mdc");

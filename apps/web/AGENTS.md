@@ -431,7 +431,7 @@ vault's submit **click** often no-ops while the field values look correct. The
 form itself is fine — submitting via **Enter** works because state has flushed
 by then.
 
-`$WEB_URL` is `pnpm exec portless get web.sokosumi` (or `web_url=` from `verify-sokosumi doctor`). Do not hardcode `:3000`.
+`$WEB_URL` is `pnpm portless:url web` (or `web_url=` from `verify-sokosumi doctor`). Do not hardcode `:3000`.
 
 Each coworker stores their **own** credentials (nothing shared/committed):
 

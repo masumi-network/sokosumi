@@ -69,7 +69,7 @@ apps/web
    pnpm portless:web     # web only (named Core URL still injected)
    ```
 
-   Web is at `https://web.sokosumi.localhost` (`pnpm exec portless get web.sokosumi`). Classic `pnpm dev` in this package still binds [http://localhost:3000](http://localhost:3000).
+   Web is at `https://web.sokosumi.localhost` (`pnpm portless:url web`). Classic `pnpm dev` in this package still binds [http://localhost:3000](http://localhost:3000).
 
 ## Development
 
