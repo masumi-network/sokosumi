@@ -1245,7 +1245,7 @@ export type ChatRoom = {
      */
     id: string;
     /**
-     * Active organization at create time for channels and directs. Null only for coworker 1:1 DMs created with no active organization.
+     * Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).
      */
     organizationId: string | null;
     /**
@@ -1288,6 +1288,10 @@ export type ChatRoom = {
      */
     markedUnread: boolean;
     myAccess: ChatRoomAccess;
+    /**
+     * True when every other human on a Direct is a Member of the caller's active organization. Used to put Personal Directs under Direct Messages vs External. False with no active organization.
+     */
+    peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
@@ -1378,7 +1382,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -2665,7 +2669,7 @@ export type UserDeletionEvaluation = {
     /**
      * Current User-deletion blockers. Empty means the existing wipe may proceed.
      */
-    blockers: Array<'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING'>;
+    blockers: Array<'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING'>;
 };
 
 export type PersistedDesignMd = {

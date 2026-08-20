@@ -461,7 +461,7 @@ export const postChatsInvitationsByIdDecline = <ThrowOnError extends boolean = f
 });
 
 /**
- * List chat rooms visible to the current user: active-org membership rooms plus external channels where the caller is a guest. With no active organization, lists personal coworker directs (`organizationId` null) and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
+ * List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), and external channels where the caller is a guest. With no active organization, lists personal Directs (`organizationId` null) and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
  */
 export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsData, ThrowOnError>): RequestResult<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsResponseTransformer,
@@ -470,7 +470,7 @@ export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.
+ * Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group). Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Coworker DMs may be personal (`organizationId` null) with no active org. Multi-human group Directs still require an active organization.
  */
 export const postChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<PostChatsRoomsData, ThrowOnError>): RequestResult<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).post<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsResponseTransformer,

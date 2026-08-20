@@ -166,9 +166,9 @@ export async function createDirectRoomAction(
     return roomFail(shapeError);
   }
 
-  // Human directs (1:1 or group) need an org (teammate roster). Coworker 1:1
-  // uses active org when set; Core stores null only with no active organization.
-  if (memberUserIds.length >= 1) {
+  // Multi-human groups need an org (teammate roster). 1:1 humans may be a
+  // Personal Direct from a shared External channel; Core enforces eligibility.
+  if (memberUserIds.length > 1) {
     const activeOrganization = await userService.getActiveOrganization();
     if (!activeOrganization) {
       return roomFail("Select an organization first.");

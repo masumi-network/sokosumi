@@ -50,8 +50,6 @@ describe("partitionRoomsForSidebar", () => {
       kind: "direct",
       myAccess: "member",
       discoverability: null,
-      organizationId: null,
-      organizationName: null,
     });
 
     const result = partitionRoomsForSidebar([guest, channel, direct]);
@@ -81,6 +79,69 @@ describe("partitionRoomsForSidebar", () => {
 
     expect(result.externalJoined.map((r) => r.id)).toEqual(["ext-member"]);
     expect(result.namedChannels.map((r) => r.id)).toEqual(["public-1"]);
+  });
+
+  it("puts personal human Directs under External when the peer is not an org teammate", () => {
+    const personal = makeRoom({
+      id: "personal-dm",
+      kind: "direct",
+      myAccess: "member",
+      discoverability: null,
+      organizationId: null,
+      organizationName: null,
+      peerInActiveOrganization: false,
+    });
+
+    const result = partitionRoomsForSidebar([personal]);
+
+    expect(result.externalJoined.map((r) => r.id)).toEqual(["personal-dm"]);
+    expect(result.directMessages).toEqual([]);
+  });
+
+  it("puts personal human Directs under Direct Messages when the peer is an org teammate", () => {
+    const personal = makeRoom({
+      id: "teammate-personal-dm",
+      kind: "direct",
+      myAccess: "member",
+      discoverability: null,
+      organizationId: null,
+      organizationName: null,
+      peerInActiveOrganization: true,
+    });
+
+    const result = partitionRoomsForSidebar([personal]);
+
+    expect(result.directMessages.map((r) => r.id)).toEqual([
+      "teammate-personal-dm",
+    ]);
+    expect(result.externalJoined).toEqual([]);
+  });
+
+  it("keeps personal coworker Directs under Direct Messages", () => {
+    const coworkerDm = makeRoom({
+      id: "coworker-dm",
+      kind: "direct",
+      myAccess: "member",
+      discoverability: null,
+      organizationId: null,
+      organizationName: null,
+      peerInActiveOrganization: false,
+      coworkerMembers: [
+        {
+          id: "cow_1",
+          name: "Elena",
+          slug: "elena",
+          caption: null,
+          image: null,
+          presence: "online",
+        },
+      ],
+    });
+
+    const result = partitionRoomsForSidebar([coworkerDm]);
+
+    expect(result.directMessages.map((r) => r.id)).toEqual(["coworker-dm"]);
+    expect(result.externalJoined).toEqual([]);
   });
 
   it("returns empty buckets for empty input", () => {

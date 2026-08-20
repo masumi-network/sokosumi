@@ -14,6 +14,7 @@ const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  memberFindManyMock,
   queryRawUnsafeMock,
   notificationGroupByMock,
   membershipFindManyMock,
@@ -23,6 +24,7 @@ const {
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
+      findMany: memberFindManyMock,
     },
     notification: {
       groupBy: notificationGroupByMock,
@@ -122,6 +125,7 @@ beforeEach(() => {
     name: "Acme Corp",
   });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
+  memberFindManyMock.mockResolvedValue([]);
   queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
   notificationGroupByMock.mockResolvedValue([
     { referenceId: ROOM_ID, _count: { _all: 1 } },

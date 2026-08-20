@@ -14,6 +14,7 @@ const {
   organizationFindUniqueMock,
   organizationFindManyMock,
   memberFindUniqueMock,
+  memberFindManyMock,
   messageGroupByMock,
   notificationGroupByMock,
   membershipFindManyMock,
@@ -26,6 +27,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   organizationFindManyMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   messageGroupByMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
+      findMany: memberFindManyMock,
     },
     chatRoomMessage: {
       groupBy: messageGroupByMock,
@@ -129,6 +132,7 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   organizationFindManyMock.mockResolvedValue([]);
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
+  memberFindManyMock.mockResolvedValue([]);
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
   messageGroupByMock.mockResolvedValue([]);
@@ -210,6 +214,11 @@ describe("GET /chats/rooms", () => {
       OR: [
         { organizationId: ORG_ID },
         { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+        {
+          organizationId: null,
+          kind: "direct",
+          coworkerMembers: { none: {} },
+        },
       ],
     });
     expect(where).not.toHaveProperty("createdByUserId");

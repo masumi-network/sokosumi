@@ -13,7 +13,8 @@ export interface PartitionedSidebarRooms {
  *
  * External channels (`discoverability === "external"`) — host members and
  * guests — live only under External, never under Channels, so they read as a
- * peer section next to Channels / Direct Messages.
+ * peer section next to Channels / Direct Messages. Personal human Directs
+ * whose other human is not a Member of the active organization also sit here.
  */
 export function partitionRoomsForSidebar(
   rooms: ChatRoom[],
@@ -40,7 +41,13 @@ export function partitionRoomsForSidebar(
     }
 
     if (room.kind === "direct") {
-      directMessages.push(room);
+      const isHumanPersonalDirect =
+        room.organizationId === null && room.coworkerMembers.length === 0;
+      if (isHumanPersonalDirect && !room.peerInActiveOrganization) {
+        externalJoined.push(room);
+      } else {
+        directMessages.push(room);
+      }
     }
   }
 

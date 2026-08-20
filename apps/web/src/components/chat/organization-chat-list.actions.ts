@@ -47,7 +47,7 @@ export async function listOrganizationChatRoomsAction(): Promise<
   OrganizationChatListActionResult<ChatRoomsPage>
 > {
   try {
-    // With no active org, Core lists personal coworker directs only.
+    // With no active org, Core lists personal Directs and guest rooms.
     const page = await chatRoomService.listRooms();
     return listOk(page);
   } catch {

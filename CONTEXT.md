@@ -68,6 +68,36 @@ _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboa
 The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
+### Chat rooms
+
+**Channel**:
+A named, organization-owned chat room people join by membership, not by participant set. Distinct from a Direct.
+_Avoid_: Room (all chats are rooms), conversation
+
+**External channel**:
+A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
+_Avoid_: Public channel (host-org only), guest channel, shared channel
+
+**Guest**:
+A platform user on one External channel’s room roster who is not a Member of the host Organization. Scope is that channel, not the organization. They keep their own workspace; they do not switch into the host organization.
+_Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
+
+**Direct**:
+A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name.
+_Avoid_: Conversation (retired), treating a DM as a Channel
+
+**Org Direct**:
+A Direct owned by an Organization. Human Directs today are Org Directs. Organization exit removes the leaving member from them.
+_Avoid_: Team DM, workspace DM
+
+**Personal Direct**:
+A Direct not owned by an Organization. Survives Organization exit.
+_Avoid_: Account DM, global DM
+
+**External** (sidebar):
+The chat sidebar section for External channels and for Directs whose other human is not a Member of the active Organization (or there is no active Organization). Distinct from Channels and Direct Messages. Always mounted; those Directs and Guest rooms appear in every workspace.
+_Avoid_: External channel (that is the room), guest sidebar
+
 ### Chat membership
 
 **Membership-visible rooms**:

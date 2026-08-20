@@ -790,9 +790,14 @@ export function RoomsClient({
 
   const isDirectRoom = selectedRoom?.kind === "direct";
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
-  // Guest rooms: no DM affordances from the host roster (channel-only guest).
+  const isExternalChannel =
+    selectedRoom?.kind === "channel" &&
+    selectedRoom.discoverability === "external";
+  // External channel roster: either side may Message another human (Core
+  // create-or-get). Other rooms: org teammates only, never from a guest seat.
   const canOpenHumanDirect =
-    Boolean(activeOrganization) && !isGuestInSelectedRoom;
+    isExternalChannel ||
+    (Boolean(activeOrganization) && !isGuestInSelectedRoom);
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;
