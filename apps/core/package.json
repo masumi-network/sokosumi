@@ -11,6 +11,9 @@
   "engines": {
     "node": "24.x"
   },
+  "portless": {
+    "name": "core.sokosumi"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",

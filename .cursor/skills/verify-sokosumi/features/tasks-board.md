@@ -21,7 +21,7 @@ Preconditions:
 - Signed in (see [Sign in](./sign-in.md)).
 - `verify-sokosumi doctor` ok.
 
-- **Open board.** Run `agent-browser open http://localhost:3000/tasks` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/tasks` (not `/signin`).
+- **Open board.** Run `agent-browser open $WEB_URL/tasks` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/tasks` (not `/signin`).
 - **Confirm shell.** Snapshot shows Tasks/Jobs tablist and five kanban column headings (**BACKLOG** / **TODO** / **IN PROGRESS** / **INPUT REQUIRED** / **DONE**, or Title Case equivalents), **or** a tasks empty-state / list-mode chrome with the same tabs. Note which.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/tasks-board` then screenshot + snapshot.
 

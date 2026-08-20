@@ -1,3 +1,4 @@
+import { TaskX402PaymentStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,6 +12,7 @@ const {
   taskPaymentClaimFindFirstMock,
   subscriptionFindFirstMock,
   enterpriseContractFindFirstMock,
+  taskX402PaymentFindFirstMock,
   getMembersByOrganizationIdMock,
   isLastWorkspaceMock,
   captureMessageMock,
@@ -18,6 +20,7 @@ const {
   taskPaymentClaimFindFirstMock: vi.fn(),
   subscriptionFindFirstMock: vi.fn(),
   enterpriseContractFindFirstMock: vi.fn(),
+  taskX402PaymentFindFirstMock: vi.fn(),
   getMembersByOrganizationIdMock: vi.fn(),
   isLastWorkspaceMock: vi.fn(),
   captureMessageMock: vi.fn(),
@@ -55,6 +58,9 @@ function createPrisma() {
     enterpriseContract: {
       findFirst: enterpriseContractFindFirstMock,
     },
+    taskX402Payment: {
+      findFirst: taskX402PaymentFindFirstMock,
+    },
   };
 }
 
@@ -88,6 +94,7 @@ describe("evaluateUserDeletion", () => {
     taskPaymentClaimFindFirstMock.mockResolvedValue(null);
     subscriptionFindFirstMock.mockResolvedValue(null);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
+    taskX402PaymentFindFirstMock.mockResolvedValue(null);
   });
 
   it("returns empty when no payment-claim blockers apply", async () => {
@@ -188,6 +195,44 @@ describe("evaluateUserDeletion", () => {
         ...RUNNING_SUBSCRIPTION_WHERE,
       },
       select: { id: true },
+    });
+  });
+
+  it("returns TASK_X402_PAYMENT_PENDING when a pending x402 payment exists", async () => {
+    mockClaimLookups({ reviewRequired: null, pending: null });
+    taskX402PaymentFindFirstMock.mockResolvedValue({ id: "x402_pending" });
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: ["TASK_X402_PAYMENT_PENDING"],
+      reviewRequiredClaim: null,
+    });
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        status: TaskX402PaymentStatus.PENDING,
+        OR: [
+          { transaction: { userId: "user_delete" } },
+          { refundTransaction: { userId: "user_delete" } },
+          { task: { ownerId: "user_delete" } },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+
+  it("lists claim blockers before x402 pending when both apply", async () => {
+    mockClaimLookups({
+      reviewRequired: null,
+      pending: { id: "claim_pending" },
+    });
+    taskX402PaymentFindFirstMock.mockResolvedValue({ id: "x402_pending" });
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: ["TASK_PAYMENT_CLAIM_PENDING", "TASK_X402_PAYMENT_PENDING"],
+      reviewRequiredClaim: null,
     });
   });
 
@@ -292,6 +337,23 @@ describe("throwIfUserDeletionBlocked", () => {
           code: "RUNNING_SUBSCRIPTION",
           message:
             "Cancel your running subscription and wait until the paid period ends before deleting.",
+        }),
+      }),
+    );
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("throws TASK_X402_PAYMENT_PENDING without paging Sentry", () => {
+    expect(() =>
+      throwIfUserDeletionBlocked("user_delete", {
+        blockers: ["TASK_X402_PAYMENT_PENDING"],
+        reviewRequiredClaim: null,
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        status: "BAD_REQUEST",
+        body: expect.objectContaining({
+          code: "TASK_X402_PAYMENT_PENDING",
         }),
       }),
     );

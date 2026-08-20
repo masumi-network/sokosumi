@@ -17,6 +17,7 @@ const envSchema = z.object({
 
   // Server
   PORT: z.coerce.number().min(1).max(65535).default(8787),
+  HOST: z.string().min(1).optional(),
 
   // Database
   DATABASE_URL: z.url(),

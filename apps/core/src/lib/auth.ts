@@ -449,7 +449,13 @@ export const auth = betterAuth({
       webAppBaseUrl,
       "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
       ...(env.NODE_ENV === "development"
-        ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
+        ? [
+            "http://localhost:*",
+            "https://localhost:*",
+            "http://*.localhost:*",
+            "https://*.localhost",
+            "https://*.localhost:*",
+          ]
         : []),
     ]),
   ),

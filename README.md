@@ -23,7 +23,7 @@ sokosumi/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20+ recommended)
+- [Node.js](https://nodejs.org/) 24.x
 - [pnpm](https://pnpm.io/) (monorepo package manager)
 
 ### Clone and Install
@@ -36,18 +36,44 @@ pnpm install
 
 ### Setup Environment
 
-- Copy and configure environment variables for each package (see `apps/web/.env.example` if present).
+```bash
+pnpm env:bootstrap
+```
+
+Copies `apps/web/.env.example` and `apps/core/.env.example` to `.env` when missing, replaces Zod-breaking placeholders, comments production `BETTER_AUTH_COOKIE_DOMAIN` in `.env` (portless injects `sokosumi.localhost` at runtime), and sets web `APP_SIGNING_SECRET` equal to Core `BETTER_AUTH_SECRET`. Grok copies (`.git/grok-worktree-source`) and linked git worktrees reuse the primary checkout `.env` so `BETTER_AUTH_SECRET` / `DATABASE_URL` match — unless the worktree already has a unique secret.
+
+One-time on a machine, start the portless HTTPS proxy (port 443, may prompt for sudo) and trust the local CA if `portless doctor` says it is untrusted:
+
+```bash
+pnpm exec portless trust    # once, if CA is not trusted
+pnpm portless:proxy         # HTTPS on 443
+```
 
 ## Development
 
-### Web App
+Named local URLs (worktree-safe). Linked worktrees get a branch prefix (`https://<branch>.web.sokosumi.localhost`):
 
 ```bash
-cd apps/web
-pnpm dev
+pnpm portless:dev     # web + core
+pnpm portless:web     # web only (still prints and injects both named URLs)
+pnpm portless:core    # core only
 ```
 
-- Runs the Next.js app at [http://localhost:3000](http://localhost:3000)
+- Web: `https://web.sokosumi.localhost` (`pnpm portless:url web`)
+- Core: `https://core.sokosumi.localhost` (`pnpm portless:url core`) — OpenAPI at `/v1/openapi.json`
+
+Grok/Cursor copies under `.grok/worktrees/` are not git worktrees, so portless cannot prefix the branch. `pnpm portless:dev` prefixes the directory basename (`https://3877.web.sokosumi.localhost`) and uses `--force` so a leftover process cannot keep Core from starting. Restarting kills the previous process for that name. Linked `git worktree add` checkouts (including `.worktrees/`) keep Portless's branch prefix only — do not stack a second basename. Always print URLs with `pnpm portless:url web` / `core` (bare `portless get web.sokosumi` skips the Grok basename).
+
+Single-app commands still wire `WEB_APP_BASE_URL` / `BETTER_AUTH_URL` / `CORE_APP_BASE_URL` from those named URLs. Start the other named host separately; classic `:3000` / `:8787` is not in play.
+
+Classic single-checkout ports still work:
+
+```bash
+pnpm web:dev    # http://localhost:3000
+pnpm core:dev   # http://localhost:8787
+```
+
+Agents should use `verify-sokosumi launch` (see [AGENTS.md](./AGENTS.md)) so `.env`, the 443 proxy, and named URLs stay in sync.
 
 Other available scripts:
 

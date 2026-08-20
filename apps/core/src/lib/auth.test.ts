@@ -80,6 +80,7 @@ const {
   const prismaSubscriptionFindFirstMock = vi.fn();
   const prismaEnterpriseContractFindFirstMock = vi.fn();
   const prismaTaskPaymentClaimFindFirstMock = vi.fn();
+  const prismaTaskX402PaymentFindFirstMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
@@ -99,6 +100,9 @@ const {
     },
     taskPaymentClaim: {
       findFirst: prismaTaskPaymentClaimFindFirstMock,
+    },
+    taskX402Payment: {
+      findFirst: prismaTaskX402PaymentFindFirstMock,
     },
   };
 
@@ -1073,6 +1077,10 @@ describe("core auth config", () => {
       "https://preprod.sokosumi.com",
       "https://*.preview.sokosumi.com",
       "http://localhost:*",
+      "https://localhost:*",
+      "http://*.localhost:*",
+      "https://*.localhost",
+      "https://*.localhost:*",
     ]);
   });
 

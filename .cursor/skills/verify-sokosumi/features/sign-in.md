@@ -40,22 +40,22 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 ### Manual UI recipe
 
-- **Open form.** Run `agent-browser open http://localhost:3000/signin` then `agent-browser snapshot -i`. The page exposes `[data-testid="auth-field-email"]` and `[data-testid="auth-field-currentPassword"]` (locale may label fields `E-Mail` / `Passwort`). Google / Microsoft / Passkey / Magic Link sit **above** the password form — ignore them.
+- **Open form.** Run `agent-browser open $WEB_URL/signin` then `agent-browser snapshot -i`. The page exposes `[data-testid="auth-field-email"]` and `[data-testid="auth-field-currentPassword"]` (locale may label fields `E-Mail` / `Passwort`). Google / Microsoft / Passkey / Magic Link sit **above** the password form — ignore them.
 - **Fill credentials.** Either `agent-browser auth login sokosumi --username-selector '[data-testid="auth-field-email"]' --password-selector '[data-testid="auth-field-currentPassword"]'` (vault) or `agent-browser fill` those same testids. Prefer CSS testids over snapshot refs so OAuth buttons are not selected by accident.
 - **Submit.** Wait briefly after fill (~400ms), then `agent-browser press Enter` if still on `/signin`. Do **not** `wait --load networkidle` here — post-login often lands on `/chat` and Ably hangs that wait.
-- **Persist.** Run `agent-browser open http://localhost:3000/agents` then `agent-browser wait --url "**/agents"`. URL stays on `/agents` (not bounced to `/signin`). Snapshot authenticated chrome there.
+- **Persist.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --url "**/agents"`. URL stays on `/agents` (not bounced to `/signin`). Snapshot authenticated chrome there.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-in`, save `snapshot -i` to `after-login.snapshot.txt`, run `agent-browser screenshot`, copy newest `~/.agent-browser/tmp/screenshots/*.png` to `after-login.png`. Artifacts show authenticated UI, not the sign-in form.
 
 ### Cookie bootstrap when UI login fails
 
-Use when Enter-submit stays on `/signin`, or the app briefly leaves `/signin` then bounces back (almost always `BETTER_AUTH_COOKIE_DOMAIN` still set, or OAuth/passkey stole the interaction). Fix Core env first (`BETTER_AUTH_COOKIE_DOMAIN` commented out), restart Core, retry UI. If UI still fails after env fix, prefer the harness:
+Use when Enter-submit stays on `/signin`, or the app briefly leaves `/signin` then bounces back (production `BETTER_AUTH_COOKIE_DOMAIN`, or OAuth/passkey stole the interaction). Doctor fails when `.env` scopes cookies to a production host (`sokosumi.com`). Comment that out for classic `:3000`/`:8787`. Named portless stacks inject `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.localhost` at process env — do not comment that away; Web middleware needs the parent domain to see Core's session cookie. Restart Core after editing `.env`, retry UI. If UI still fails after env fix, prefer the harness:
 
 ```bash
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in --method cookie
 ```
 
 Manual equivalent (prefer the harness — it percent-decodes values and sets
-`HttpOnly` + `SameSite=Lax` without `Secure` on `http://localhost`. Raw
+`HttpOnly` + `SameSite=Lax`, plus `Secure` when `$WEB_URL` is https. Raw
 `agent-browser cookies set --curl` often fails CDP with “Invalid cookie fields”
 on Better Auth’s dotted cookie names / large `session_data`):
 
@@ -64,12 +64,13 @@ on Better Auth’s dotted cookie names / large `session_data`):
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in --method cookie
 
 # Under the hood: POST Core → parse Set-Cookie → agent-browser cookies set
-# for sokosumi-localhost-preprod.session_token (+ session_data) on domain localhost.
+# for sokosumi-localhost-preprod.session_token (+ session_data) on the $WEB_URL host.
 ```
 
 Cookie names on local Preprod: `sokosumi-localhost-preprod.session_token` (required),
-`sokosumi-localhost-preprod.session_data` (short-lived cache). Host-scoped on
-`localhost` (shared across `:3000` / `:8787`).
+`sokosumi-localhost-preprod.session_data` (short-lived cache). On portless they
+use `Domain=sokosumi.localhost` so Web and Core share them. Classic `pnpm web:dev`
+is host-scoped on `localhost`.
 
 **API bootstrap alone is not UI sign-in proof** — only unlocks the rest of the map after a failed UI path; record that the UI path failed and why (`method=cookie` in artifacts).
 
@@ -89,5 +90,5 @@ Computer-use notes (live-proved with `alice@sokosumi.test`):
 - Wrong password / missing fixtures leave the user on `/signin` (Core returns non-2xx). Doctor `fixture_auth=fail` on a **cloud-agent** branch means provision/seed first. On a **coworker / shared Neon** it means use the vault or [Sign up](./sign-up.md) — do not seed Alice onto that database, and do not keep retrying the Alice form.
 - Fixtures exist only on cloud-agent Neon branches.
 - `127.0.0.1` can break auth cookies/origin; stick to `localhost`.
-- `BETTER_AUTH_COOKIE_DOMAIN` set to a production host (default in Core `.env.example`) breaks localhost sessions — comment it out before driving. Doctor fails when this trap is present.
-- Browser auth client posts to Core (`http://localhost:8787/auth`); session cookies are host-scoped on `localhost` (shared across ports). Cookie inject must target domain `localhost`, not `127.0.0.1`.
+- `BETTER_AUTH_COOKIE_DOMAIN` set to a production host (default in Core `.env.example`) breaks localhost and `*.sokosumi.localhost` sessions — comment it out of `.env` before driving. Doctor fails when this trap is present. Portless still sets `sokosumi.localhost` in the process env; that is required, not a trap.
+- Browser auth client posts to Core (`$CORE_URL/auth`). Cookie inject must target the `$WEB_URL` hostname, not `127.0.0.1`.

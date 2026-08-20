@@ -20,7 +20,7 @@ Preconditions:
 - Signed in (see [Sign in](./sign-in.md)).
 - `verify-sokosumi doctor` ok.
 
-- **Open projects.** Run `agent-browser open http://localhost:3000/projects` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/projects` (not `/signin`).
+- **Open projects.** Run `agent-browser open $WEB_URL/projects` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/projects` (not `/signin`).
 - **List or empty.** Snapshot shows project entries **or** heading “No projects yet”. Either is success; note which.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/projects` then screenshot + snapshot.
 
