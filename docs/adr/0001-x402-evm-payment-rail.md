@@ -1,10 +1,20 @@
 # ADR 0001: x402/EVM payment rail as a sibling of Cardano escrow
 
-- Status: Proposed
-- Date: 2026-07-28
+- Status: Accepted
+- Date: 2026-07-28 (proposed); 2026-08-11 (accepted)
 - Deciders: sokosumi core team
 - Technical story: follow-up phase to the Masumi payment-node V2 migration
   (PR #3440), which cut the sockets this rail plugs into.
+
+> **Ratified 2026-08-11** via the x402/EVM wayfinder map
+> (`docs/wayfinder/x402-evm/`). The refund-policy blocker below is resolved,
+> and the payment-record model is settled as a sibling of PR 1's
+> `TaskX402Payment`. The node behaviors the pinned spec did not guarantee are
+> now **confirmed** against masumi-payment-service `main`
+> (`docs/wayfinder/x402-evm/NODE-QUESTIONS.md` `## Answers`) and folded into
+> the body below; nothing external gates the PR 2 build. The only node-side
+> work still outstanding is the future settlement-observation surface, called
+> out as explicitly-future below.
 
 ## Context
 
@@ -15,7 +25,10 @@ on-chain. The payment node has since shipped an x402 rail: HTTP-402
 pay-per-call on EVM chains, where the node signs an `X-PAYMENT` header and the
 buyer replays the original request with it. The V2 registry already describes
 x402 agents (entry type `X402`, `x402ResourcesUrl`, EVM payment sources), and
-sokosumi already ingests them as unavailable-by-type.
+sokosumi already ingests them. They appear on public `GET /v1/agents` as
+`kind: "x402"` next to Cardano hire items (`kind: "cardano"`). There is no
+`/v1/agents/x402`. Web `/agents` stays Coworkers-only (SOK-805); paying an
+x402 agent stays coworker + assigned task.
 
 The two rails differ structurally, not just by network:
 
@@ -28,6 +41,12 @@ The two rails differ structurally, not just by network:
   lifecycle terminates at `Verified` (or `Failed`) once the payment is
   signed; settlement to `Settled` is the receiving side's concern. There is
   no escrow, no result hash, and no on-chain refund path.
+  **Confirmed (ticket 011):** the pinned spec exposes a flat five-value
+  `X402PaymentAttempt.status` (`PaymentRequired | Verified | Settled | Failed
+  | Replayed`), but for an OUTBOUND attempt the lifecycle terminates at
+  `Verified` | `Failed` — `Settled`/`Replayed` are inbound-only. Eventual
+  settlement (agent → facilitator → chain) is observed post-hoc by a later
+  reconciler (see the refund policy), never carried on this status.
 
 Relevant payment-node surface (pinned in `packages/masumi/spec/payment.openapi.json`):
 
@@ -72,13 +91,34 @@ A dedicated model records the payment leg of an x402 job:
   `/x402/payments`.
 - `paymentPayloadHash` — hash of the signed payment payload we replayed.
 - `paymentIdentifier` — present when the 402 advertises the Masumi
-  payment-identifier extension.
-- `caip2Network`, `asset`, `amount` (BigInt), `decimals` — what was paid,
-  denominated chain-natively.
+  payment-identifier extension. **Confirmed (ticket 011):** it is a fail-loud
+  correlation echo into the signed payload's extensions — the node 400s if the
+  402 does not advertise the extension — never an independent dedup key.
+- `caip2Network`, `asset`, `amount` (a digit `String` of chain-native base
+  units), and `decimals` (from the **node-published** ready pair, never
+  the agent row) — what was paid.
 - Status mirrors the node's OUTBOUND attempt lifecycle: `PaymentRequired` →
   `Verified` | `Failed`, terminal at `Verified` once the payment is signed.
   There is no settle leg on this row — `Settled` belongs to the receiving
   node's inbound lifecycle and never arrives for our outbound attempts.
+  (Terminal status confirmed — ticket 011; see Context above.) The persisted
+  Soko enum is `PENDING | VERIFIED | FAILED | REFUNDED` — `PENDING` is the
+  pre-sign row (the node's `PaymentRequired`), and `REFUNDED` is Soko's
+  compensating-refund state (admin goodwill lever or the future
+  `EXPIRED_UNUSED` reconciler), not a node status — matching the
+  `TaskX402Payment` specified in PR1-SPEC §4 (not on `main` until the
+  implementation PRs land). See also PR2-SPEC §2.
+
+`JobX402Payment` (job-scoped, **PR 2**) and `TaskX402Payment` (task-scoped,
+**PR 1** — the Bazaar coworker surface) are **two sibling tables, not one
+shared row**. Both record an x402 payment leg with the same core columns
+(`amount` is a digit `String` plus node-published `decimals`), but they hang
+off different parents and carry different lifecycles (a job flow vs a
+terminal coworker payment), exactly the JobPurchase-vs-escrow separation this
+ADR already argues for. Shared behavior — amount→credits conversion, the
+`/x402/pay` call, the verify-against-listed-source check, the CAIP-19 credit
+keys — factors into a helper, not a table with a nullable parent. Neither
+table is on `main` until those implementation PRs merge.
 
 ### 4. Job flow
 
@@ -90,12 +130,22 @@ A dedicated model records the payment leg of an x402 job:
    same flow.
 
 Timeouts and non-2xx replays leave the job failed with the payment attempt
-recorded. `/x402/payments` lookups by `attemptId` can confirm what was
-signed and charged, but NOT whether funds actually moved: the node's
-reconciler covers inbound settlements only, and outbound attempts never
-advance past `Verified`. A timed-out replay therefore stays genuinely
-ambiguous — the failure-handling and credit-refund policy must assume the
-payment may have been taken.
+recorded. `/x402/payments` lookups confirm what was signed and charged, but
+NOT whether funds actually moved: the node's reconciler covers inbound
+settlements only, and outbound attempts never advance past `Verified`. A
+signed-then-failed replay is therefore not provably unpaid at replay time —
+the agent holds a settleable header — so the debit stands, subject to the
+post-hoc `EXPIRED_UNUSED` refund defined below.
+
+**Confirmed (ticket 011):** the `/x402/pay` error contract is now known —
+400 = deterministic pre-sign rejection (bad `accepts`, no `ChainIdLimit`
+match, network disabled, requirements drift, identifier not advertised),
+402 = budget/balance refusal, 500 = config/signing failure. Any non-200 means
+no header was issued, so a pre-sign refusal is provably unpaid and refunds
+synchronously. `/x402/payments` still has no by-`attemptId` filter and no
+`/x402/payments/{id}` route, but that lookup is **not needed for
+correctness** — refund-safety removes the reconciliation need, and
+paginate-and-match covers audit — so it is a low-priority node nicety.
 
 ### 5. Credits pricing via CAIP-19-style unit keys
 
@@ -109,8 +159,25 @@ credit cost, exactly like the Cardano availability rule.
 Availability and pre-charge gates for x402 agents key on the node's
 `x402.purchasing_wallet` and `x402.budget` rail-readiness checks — not on
 the X402 rail's `isReady`, which only proves the node can *receive* x402
-payments. The same cached, TTL'd fail-closed pattern used for Cardano V2
-readiness applies, extended per EVM network.
+payments. Reuse the same cached readiness pattern Soko already runs for
+Cardano V2.
+
+Two corrections to how the proposed draft described this (both verified
+2026-08-11):
+
+- The Cardano V2 pattern is **not** TTL'd. It serves the last recorded value
+  and fails closed only in the never-recorded cold state
+  (`apps/core/src/helpers/agent.ts` `getCardanoV2ReadySources`,
+  `agent-sync.readiness.ts`). x402 readiness should follow the same shape,
+  not a TTL.
+- **Confirmed (ticket 011):** `/rail-readiness` exposes the x402 checks
+  **once per environment, not per network** — there is no x402 analog of the
+  Cardano `PurchaseSources` per-source readiness. Per-chain buy-side readiness
+  is therefore **composed Soko-side** from `/x402/networks/available` +
+  `/x402/budgets` (both per-chain today), reusing the same cached
+  last-known-value pattern; the env-global `/rail-readiness` checks stay the
+  coarse health signal. Un-collapsing the per-chain breakdown `/rail-readiness`
+  already computes is a low-priority node ask, not a build gate.
 
 ### 7. Node prerequisites (operator runbook, not code)
 
@@ -118,15 +185,67 @@ readiness applies, extended per EVM network.
 - A funded purchasing EVM wallet per chain, bound to the network.
 - The sokosumi API key's `ChainIdLimit` includes the relevant `eip155:*` ids.
 
-## Open product decision (blocking rollout, not design)
+### 8. One public `GET /v1/agents`
 
-**Credit-refund policy for failed x402 jobs.** With escrow, a
-never-delivered job ends in an on-chain refund. With x402 the node cannot
-claw back a settled payment: if the seller takes payment and returns garbage,
-sokosumi has spent real funds. Whether users are made whole in credits (and
-who absorbs the loss) is a product decision that must be made before the rail
-is user-visible. The design above records everything needed to implement
-either answer.
+x402 agents are agents. They share the public Cardano catalog:
+
+- `GET /v1/agents` returns a discriminated union on `kind`: `"cardano"`
+  (MIP-003 hire) or `"x402"` (EVM pay). Filter with `?kind=cardano`,
+  `?kind=x402`, or omit for both.
+- There is **no** `/v1/agents/x402`.
+- List auth is **public**, same as today's Cardano catalog.
+- **Pay** stays coworker + assigned task
+  (`POST /v1/tasks/{id}/x402-payments`). Listed ⇒ payable, fail-closed,
+  scheme `exact`.
+- Web `/agents` does **not** advertise x402 (or classic hire agents).
+  SOK-805: that page is Coworkers-only. x402, like classic agents, is
+  API-only.
+
+A dedicated coworker-only `/v1/agents/x402` was sketched and dropped
+during implementation. This ADR records the shipped contract.
+
+## Credit-refund policy (resolved 2026-08-11)
+
+The proposed draft left this as the blocking product decision. Resolved via
+the wayfinder map (ticket 006), stated per settlement layer — x402 direct
+settlement has no clawback by construction, Disputable (Masumi) escrow does,
+and by registry design an agent offers exactly one, so the two never compete
+on a single job:
+
+- **PR 2 (masumi jobs on x402): auto-refund only when provably unpaid.**
+  Credits return automatically only where Soko provably never put funds at
+  risk — the payment was never signed (a non-200 from `/x402/pay`), or the
+  replay was never sent. Once a header is signed the debit stands: a settled
+  payment, a garbage result, or a non-2xx / timed-out **replay** — the agent
+  holds a settleable header, so signed-and-used is non-refundable. There is
+  deliberately **no parity** with escrow-job refunds — escrow can claw back,
+  x402 cannot, and Soko does not absorb a settled loss silently.
+- **`EXPIRED_UNUSED` (phased settlement observation — explicitly future
+  work).** The one narrow exception to "signed ⇒ debit stands": an EIP-3009
+  authorization Soko signed but that **expired without ever being consumed**
+  on-chain is provably unpaid after its `validBefore`. Records store the
+  authorization fields (`from` / nonce / `validBefore` / payload hash) now; a
+  later settlement-observation reconciler checks `authorizationState` past
+  expiry — consumed → settled-observed, debit stands; **expired unused →
+  `EXPIRED_UNUSED` → post-hoc auto-refund**. This is distinct from an
+  unresolved in-flight timeout, which stays ambiguous (debit stands) until
+  expiry resolves it, and from a signed-and-used authorization, which is never
+  refunded. Consistent with PR2-SPEC §5; the reconciler and the node-side
+  outbound settlement-observation surface it depends on are not yet built and
+  do not gate the initial ship.
+- **PR 1 (Bazaar coworker payments): auto-refund only when unsettleable.**
+  Soko has no visibility into the externally-fetched result. Credits return
+  synchronously only when no header was ever written to the row — a
+  documented node refusal on the **fresh first** sign attempt. After a
+  header exists on the row (or was returned to the coworker), the debit
+  stands: garbage results, unused replay, and crash-after-delivery are
+  admin / future `EXPIRED_UNUSED`, not a sync refund. Persist `VERIFIED`
+  **before** returning the header. An **admin refund / resolve lever** plus
+  **per-agent refund/failure aggregation** feeds a **whitelist-disable**
+  for bleeding endpoints. Full state machine: PR1-SPEC §3.
+- **Absorbed loss is bounded operationally**, not by refund policy: the
+  per-endpoint aggregation + whitelist-disable is the control that stops a
+  bad agent from bleeding credits, on both rails.
 
 ## Alternatives considered
 
@@ -142,15 +261,29 @@ either answer.
   outlive agent revisions (agents are re-registered and superseded), so the
   rail must be pinned on the job at creation, consistent with the V2
   migration's snapshot-on-job pattern.
+- **Dedicated coworker-only `GET /v1/agents/x402`.** Rejected: callers see
+  one agent catalog. A `kind` discriminator on `GET /v1/agents` is enough.
+  Pay stays a separate coworker+task route. Web `/agents` is not a catalog.
 
 ## Consequences
 
-- Discovery needs no further work: x402 agents already ingest with their EVM
-  payment sources; flipping availability is gated on this rail shipping.
+- **Ingest** already lands x402 payment sources. Discovery is public
+  `GET /v1/agents` (`kind: "x402"`), not a dedicated `/v1/agents/x402`.
+  Web `/agents` stays Coworkers-only. Flipping Cardano-catalog hire
+  availability for x402 jobs is PR 2, not ingest.
 - The jobs pipeline gains one discriminator and one sibling model; escrow
   code paths remain untouched.
-- Status tooling must learn `/x402/payments` lookups by `attemptId` —
-  understanding they confirm signing/charging only, never settlement
-  (outbound attempts have no reconcilable settle state).
-- The credit-refund product decision is the rollout gate; engineering can
-  proceed to implementation behind a flag without it.
+- Status tooling uses `/x402/payments` lookups to confirm signing/charging
+  only, never settlement (outbound attempts have no reconcilable settle
+  state). The pinned spec offers no by-`attemptId` filter, but that is a
+  low-priority nicety, not a correctness gap — paginate-and-match suffices
+  (ticket 011).
+- The credit-refund product decision is **resolved** (above), and the
+  ticket-011 node confirmations have landed (`NODE-QUESTIONS.md` `## Answers`)
+  — nothing external gates the build. Engineering can proceed to the PR 2 spec
+  and implementation; the only remaining node-side work is the future
+  settlement-observation surface, which does not gate the initial ship.
+- PR 1 (the Bazaar coworker surface, `docs/wayfinder/x402-evm/PR1-SPEC.md`)
+  ships first and independently — it shares the CAIP-19 credit keys, the
+  `/x402/pay` delegation, and the refund policy with this rail, but no job
+  pipeline. PR 2 builds on the discriminator and sibling model here.

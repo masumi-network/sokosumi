@@ -10,7 +10,6 @@
   },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "pnpm --filter @sokosumi/net run build && pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/email run build",
     "build": "next build",
     "start": "next start",
     "lint": "biome lint .",

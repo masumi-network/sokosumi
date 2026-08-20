@@ -1,0 +1,22 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "envMode": "loose",
+  "tasks": {
+    "prisma:generate": {
+      "cache": false
+    },
+    "build": {
+      "dependsOn": ["^build", "prisma:generate"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "prisma:generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "prisma:generate"]
+    },
+    "test:ci": {
+      "dependsOn": ["^build", "prisma:generate"]
+    }
+  }
+}
