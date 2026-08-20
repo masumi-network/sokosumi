@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/node";
-import { TaskPaymentClaimStatus } from "@sokosumi/database";
+import {
+  TaskPaymentClaimStatus,
+  TaskX402PaymentStatus,
+} from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { memberRepository } from "@sokosumi/database/repositories";
 import { APIError } from "better-auth/api";
@@ -11,6 +14,7 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
 export const USER_DELETION_BLOCKER_CODES = [
   "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
   "TASK_PAYMENT_CLAIM_PENDING",
+  "TASK_X402_PAYMENT_PENDING",
 ] as const;
 
 export type UserDeletionBlocker = (typeof USER_DELETION_BLOCKER_CODES)[number];
@@ -36,6 +40,8 @@ const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED:
     "A task payment needs administrator review before your account can be deleted. Please contact support.",
   TASK_PAYMENT_CLAIM_PENDING:
+    "Wait for pending task payments to settle before deleting your account.",
+  TASK_X402_PAYMENT_PENDING:
     "Wait for pending task payments to settle before deleting your account.",
 };
 
@@ -87,6 +93,28 @@ export async function evaluateUserDeletion(
   });
   if (pendingPaymentClaim) {
     blockers.push("TASK_PAYMENT_CLAIM_PENDING");
+  }
+
+  // Same throw-priority as the claim guards above: evaluate reports this so
+  // GET /deletion can show it, and beforeDelete throws before the wipe. The
+  // task-owner branch matters because taskId is RESTRICT.
+  const pendingX402Payment = await prisma.taskX402Payment.findFirst({
+    where: {
+      status: TaskX402PaymentStatus.PENDING,
+      // refundTransaction should be impossible on a PENDING row (the refund
+      // is written when status flips), but nothing DB-level forbids it and
+      // the FK is RESTRICT — without this branch such a row would fail the
+      // user cascade with a raw FK 500 instead of this clean 400.
+      OR: [
+        { transaction: { userId } },
+        { refundTransaction: { userId } },
+        { task: { ownerId: userId } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (pendingX402Payment) {
+    blockers.push("TASK_X402_PAYMENT_PENDING");
   }
 
   return { blockers, reviewRequiredClaim: reviewRequired };

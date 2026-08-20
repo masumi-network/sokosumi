@@ -789,6 +789,7 @@ model Agent {
 
   userAgentRating UserAgentRating[]
   jobs            Job[]
+  x402Payments    TaskX402Payment[]
 
   tags       Tag[]      @relation("AgentTag")
   categories Category[] @relation("AgentCategory")
@@ -926,6 +927,8 @@ model Transaction {
   taskEvents               TaskEvent[]        @relation("TransactionTaskEvent")
   taskPaymentClaim         TaskPaymentClaim?  @relation("TransactionTaskPaymentClaim")
   refundedTaskPaymentClaim TaskPaymentClaim?  @relation("RefundedTransactionTaskPaymentClaim")
+  taskX402Payment          TaskX402Payment?   @relation("TransactionTaskX402Payment")
+  refundedTaskX402Payment  TaskX402Payment?   @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?     @relation("TransactionCoworkerUsage")
   orchestratorUsage        OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
@@ -1665,9 +1668,10 @@ model Task {
 
   share PublicShare?
 
-  events TaskEvent[]
-  jobs   Job[]
-  files  TaskFile[]
+  events       TaskEvent[]
+  jobs         Job[]
+  files        TaskFile[]
+  x402Payments TaskX402Payment[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -1795,6 +1799,19 @@ enum TaskPaymentClaimStatus {
   REFUNDED
 }
 
+/// VERIFIED is terminal for the automated flow (PR1-SPEC §4): the node signs
+/// the X-PAYMENT header locally and Soko cannot observe settlement, so nothing
+/// may auto-progress a VERIFIED record until the phased-settlement reconciler
+/// (ticket 011 Q3) ships. REFUNDED is reached from PENDING (stale-sign
+/// auto-refund), FAILED (synchronous provably-unpaid refund), or an operator
+/// goodwill refund — never by automated post-VERIFIED reconciliation.
+enum TaskX402PaymentStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  REFUNDED
+}
+
 model TaskEvent {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1823,6 +1840,7 @@ model TaskEvent {
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
   paymentClaim TaskPaymentClaim?
+  x402Payment  TaskX402Payment?
 
   @@index([transactionId])
   @@index([orchestratorId])
@@ -1890,6 +1908,176 @@ model TaskPaymentClaimAction {
   @@index([claimId, createdAt])
   @@index([operatorId, createdAt])
   @@map("task_payment_claim_action")
+}
+
+/// x402/Bazaar payment record (PR1-SPEC §4). Sibling of TaskPaymentClaim, not
+/// a reuse — the escrow claim's state machine (processing lease, retry ladder,
+/// blockchainIdentifier) is meaningless here; this record is terminal at sign
+/// time.
+model TaskX402Payment {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Coworker-supplied; the node has no idempotency of its own (ticket 011),
+  /// so [taskId, idempotencyKey] is the sole dedupe. Bounded at the DB level
+  /// (the route Zod also caps it at 200): it sits inside the composite btree
+  /// unique, and an unbounded value could exceed the 2704-byte index-row
+  /// limit — a length error the DB rejects cleanly beats an opaque overflow.
+  idempotencyKey String                @db.VarChar(200)
+  status         TaskX402PaymentStatus @default(PENDING)
+
+  // What was requested / signed.
+  //
+  // caip2Network and asset are bounded because they sit inside the nonce
+  // replay unique below — same 2704-byte btree reasoning as idempotencyKey.
+  // The lengths are generous against their real shapes (CAIP-2 `eip155:<id>`
+  // and a 42-char ERC-20 address); the app already validates both, so this is
+  // a backstop, not the primary check.
+  caip2Network  String  @db.VarChar(64)
+  asset         String  @db.VarChar(128)
+  amount        String // base units, chain-native
+  payTo         String
+  attemptId     String? // node attempt id, present once signed
+  failureReason String?
+
+  // Phased settlement observation (ticket 011 Q3): stored now, consumed by a
+  // later reconciler that checks EIP-3009 authorizationState after expiry —
+  // consumed → settled-observed; unused → EXPIRED_UNUSED → post-hoc
+  // auto-refund (provably unpaid). Terminal-at-VERIFIED until that ships.
+  //
+  // payerAddress and payloadNonce are bounded to their exact on-chain shapes
+  // (a 42-char `0x`-prefixed EVM address, a 66-char `0x`-prefixed bytes32
+  // nonce). They come straight off the node's response, which is an unbounded
+  // string upstream, so this is both the btree bound and the only shape check
+  // they get. A non-conforming value fails the VERIFIED update and leaves the
+  // row PENDING — refundable, which is the correct outcome for a payment
+  // whose authorization tuple Soko cannot record.
+  payerAddress       String?   @db.VarChar(42) // EIP-3009 `from`
+  payloadNonce       String?   @db.VarChar(66)
+  paymentPayloadHash String?
+  validBefore        DateTime? // authorization expiry
+
+  // Links: task identity, the charged agent (per-endpoint aggregation),
+  // the credit debit, and its compensating refund.
+
+  /// Restrict, not Cascade: a money record must never vanish with its task.
+  /// Account deletion resolves payments first (prepareTasksForUserDeletion) —
+  /// same reasoning as the claim's Restrict on its transactions.
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  /// Restrict: agentId is the per-endpoint aggregation key (PR1-SPEC §5);
+  /// agent rows are never hard-deleted while payment history exists.
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  taskEventId String?    @unique
+  taskEvent   TaskEvent? @relation(fields: [taskEventId], references: [id], onDelete: SetNull)
+
+  /// The credit charge. Restrict so the debit stays available for
+  /// refund/compensation for the record's lifetime.
+  transactionId String      @unique
+  transaction   Transaction @relation("TransactionTaskX402Payment", fields: [transactionId], references: [id], onDelete: Restrict)
+
+  refundTransactionId String?      @unique
+  refundTransaction   Transaction? @relation("RefundedTransactionTaskX402Payment", fields: [refundTransactionId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, idempotencyKey]) // the dedupe unique (ticket 003)
+  /// EIP-3009 replay protection, mirrored into the database. The chain
+  /// guarantees a given (payer, nonce) authorization can be consumed exactly
+  /// once, so two records carrying the same one mean two credit debits behind
+  /// a single settleable transfer. Scoped by network+asset because the
+  /// authorizationState mapping is per-token-contract, and partial because a
+  /// PENDING row has no nonce yet and many such rows must coexist.
+  ///
+  /// A btree unique treats NULLs as distinct, so on its own this index lets
+  /// two rows share a nonce whenever `payerAddress` is NULL. The migration
+  /// therefore also carries a CHECK
+  /// (`task_x402_payment_nonce_payer_together_chk`) making the pair
+  /// all-or-nothing, which Prisma cannot express here. Writers must set both
+  /// fields together or neither.
+  @@unique([caip2Network, asset, payerAddress, payloadNonce], map: "task_x402_payment_nonce_replay_uidx", where: { payloadNonce: { not: null } })
+  @@index([agentId, status]) // per-endpoint refund aggregation (PR1-SPEC §5)
+  @@index([status, validBefore]) // phased-settlement reconciler expiry scan
+  @@map("task_x402_payment")
+}
+
+/// Append-only audit trail for operator decisions on a task x402 payment.
+/// These actions move money (goodwill refund) or resolve a record, so
+/// attribution must live in rows that are never updated or deleted.
+///
+/// Deliberately FK-free: account deletion hard-deletes terminal payments and
+/// can remove the operator's User row, so a cascade would erase the financial
+/// audit trail while a restrict would block account deletion. Storing plain
+/// ids lets the record outlive both, which is the normal shape for an audit
+/// log.
+///
+/// Because `paymentId` can point at a hard-deleted row, the denormalized
+/// facts below are NOT NULL. Without them the surviving action row is an
+/// unresolvable pointer — no amount, no asset, no network, no task, no subject
+/// user — which is worthless as evidence for exactly the case (an operator
+/// refunding real on-chain money) the log exists to record. "Writers MUST
+/// populate them" was a comment nothing enforced: a writer that omitted one
+/// produced, silently, a row naming an operator who moved real money without
+/// saying whose. The constraint is at the database so that omission is a write
+/// error, not a discovery made during a dispute. Every one is derivable at
+/// write time from non-nullable sources (TaskX402Payment's own columns, and
+/// its mandatory charge Transaction), so none of them can legitimately be
+/// absent.
+model TaskX402PaymentAction {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  /// TaskX402Payment.id — intentionally not a relation (see above).
+  paymentId String
+
+  /// "refund" | "resolve"
+  action String
+
+  /// User.id of the acting administrator — intentionally not a relation.
+  operatorId String
+
+  /// Short coded rationale for the action ("duplicate_charge",
+  /// "node_unreachable", …) — never narrative. This table is append-only and
+  /// is deliberately never swept by prepareTasksForUserDeletion, so anything
+  /// written here outlives the erasure of every account it mentions. Free-text
+  /// prose about a third party would therefore survive a GDPR Art. 17 request
+  /// against that person, which no downstream deletion can undo. Bounded so
+  /// the column cannot quietly become a narrative field.
+  reason String @db.VarChar(500)
+
+  // Denormalized snapshot of the payment at action time. Plain columns, never
+  // relations: an FK here would defeat the point, either cascading the audit
+  // row away with the payment/task/agent/user or blocking account deletion.
+
+  /// Credit magnitude of the payment's debit, in cents — the money the
+  /// operator moved. Copied from the charge Transaction, whose sign convention
+  /// (negative = spend) does not survive here: store the magnitude.
+  /// Always available: TaskX402Payment.transactionId is non-nullable and
+  /// Transaction.amount is non-nullable.
+  cents BigInt
+
+  /// On-chain leg, copied verbatim from TaskX402Payment: base-unit amount,
+  /// asset, and CAIP-2 network. Same types as the source columns, all three of
+  /// which are non-nullable there.
+  amount       String
+  asset        String @db.VarChar(128)
+  caip2Network String @db.VarChar(64)
+
+  /// Correlation keys, copied from TaskX402Payment — Task.id and Agent.id as
+  /// plain values, not relations. Non-nullable at the source.
+  taskId  String
+  agentId String
+
+  /// User.id charged by the payment (the charge Transaction's userId) — the
+  /// subject of the refund, which the operator is not. Always available:
+  /// Transaction.userId is non-nullable.
+  chargedUserId String
+
+  @@index([paymentId, createdAt])
+  @@index([operatorId, createdAt])
+  @@map("task_x402_payment_action")
 }
 
 model CoworkerUsage {
