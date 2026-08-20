@@ -121,9 +121,11 @@ serve(
   {
     fetch: mainApp.fetch,
     port: getEnv().PORT,
+    ...(getEnv().HOST ? { hostname: getEnv().HOST } : {}),
   },
   (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
+    const host = getEnv().HOST || "localhost";
+    console.log(`Server is running on http://${host}:${info.port}`);
   },
 );
 

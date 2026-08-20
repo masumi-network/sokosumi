@@ -21,9 +21,9 @@ Preconditions:
 - Signed in (see [Sign in](./sign-in.md)).
 - `verify-sokosumi doctor` ok.
 
-- **Open landing.** Run `agent-browser open http://localhost:3000/chat` then `agent-browser wait --url "**/chat"`. Do not `wait --load networkidle` on `/chat` — Ably keeps the network busy and that wait hangs.
+- **Open landing.** Run `agent-browser open $WEB_URL/chat` then `agent-browser wait --url "**/chat"`. Do not `wait --load networkidle` on `/chat` — Ably keeps the network busy and that wait hangs.
 - **Confirm URL.** Run `agent-browser get url`. URL contains `/chat` and is not `/signin`.
-- **Auth `/` redirect.** Run `agent-browser open http://localhost:3000/` then wait; URL ends on `/chat` (covers `chat-default-landing` via the authenticated root hop).
+- **Auth `/` redirect.** Run `agent-browser open $WEB_URL/` then wait; URL ends on `/chat` (covers `chat-default-landing` via the authenticated root hop).
 - **Confirm shell.** Run `agent-browser snapshot -i`. Prefer welcome heading and/or `[data-testid="multimodal-input"]` / message composer plus app nav (`data-app-shell` / sidebar), not a room transcript.
 - **Ably note.** If a **Chat Error** boundary or **Something went wrong** app error card/overlay appears from Ably auth failure, screenshot it and continue — landing still counts if URL and chrome prove `/chat`. Do not claim message send/receive unless Ably keys are real.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/chat-landing`, save snapshot, `agent-browser screenshot`, copy newest shot into that directory.
