@@ -48,7 +48,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 ### Cookie bootstrap when UI login fails
 
-Use when Enter-submit stays on `/signin`, or the app briefly leaves `/signin` then bounces back (almost always `BETTER_AUTH_COOKIE_DOMAIN` still set, or OAuth/passkey stole the interaction). Fix Core env first (`BETTER_AUTH_COOKIE_DOMAIN` commented out), restart Core, retry UI. If UI still fails after env fix, prefer the harness:
+Use when Enter-submit stays on `/signin`, or the app briefly leaves `/signin` then bounces back (production `BETTER_AUTH_COOKIE_DOMAIN`, or OAuth/passkey stole the interaction). Doctor fails when `.env` scopes cookies to a production host (`sokosumi.com`). Comment that out for classic `:3000`/`:8787`. Named portless stacks inject `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.localhost` at process env — do not comment that away; Web middleware needs the parent domain to see Core's session cookie. Restart Core after editing `.env`, retry UI. If UI still fails after env fix, prefer the harness:
 
 ```bash
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in --method cookie
@@ -68,8 +68,9 @@ on Better Auth’s dotted cookie names / large `session_data`):
 ```
 
 Cookie names on local Preprod: `sokosumi-localhost-preprod.session_token` (required),
-`sokosumi-localhost-preprod.session_data` (short-lived cache). Host-scoped on
-the named `.localhost` host (or `localhost` for `PORTLESS=0`).
+`sokosumi-localhost-preprod.session_data` (short-lived cache). On portless they
+use `Domain=sokosumi.localhost` so Web and Core share them. Classic `pnpm web:dev`
+is host-scoped on `localhost`.
 
 **API bootstrap alone is not UI sign-in proof** — only unlocks the rest of the map after a failed UI path; record that the UI path failed and why (`method=cookie` in artifacts).
 
@@ -89,5 +90,5 @@ Computer-use notes (live-proved with `alice@sokosumi.test`):
 - Wrong password / missing fixtures leave the user on `/signin` (Core returns non-2xx). Doctor `fixture_auth=fail` on a **cloud-agent** branch means provision/seed first. On a **coworker / shared Neon** it means use the vault or [Sign up](./sign-up.md) — do not seed Alice onto that database, and do not keep retrying the Alice form.
 - Fixtures exist only on cloud-agent Neon branches.
 - `127.0.0.1` can break auth cookies/origin; stick to `localhost`.
-- `BETTER_AUTH_COOKIE_DOMAIN` set to a production host (default in Core `.env.example`) breaks localhost sessions — comment it out before driving. Doctor fails when this trap is present.
-- Browser auth client posts to Core (`$CORE_URL/auth`); session cookies are host-scoped on the `$WEB_URL` host. Cookie inject must target that hostname, not `127.0.0.1`.
+- `BETTER_AUTH_COOKIE_DOMAIN` set to a production host (default in Core `.env.example`) breaks localhost and `*.sokosumi.localhost` sessions — comment it out of `.env` before driving. Doctor fails when this trap is present. Portless still sets `sokosumi.localhost` in the process env; that is required, not a trap.
+- Browser auth client posts to Core (`$CORE_URL/auth`). Cookie inject must target the `$WEB_URL` hostname, not `127.0.0.1`.
