@@ -148,11 +148,10 @@ describe("OrganizationRemoveForm", () => {
         "This organization has an active enterprise contract and cannot be deleted.",
       ),
     ).toBeInTheDocument();
-    const billingLinks = screen.getAllByRole("link", { name: "Go to billing" });
-    expect(billingLinks).toHaveLength(2);
-    for (const link of billingLinks) {
-      expect(link).toHaveAttribute("href", "/billing");
-    }
+    expect(screen.getByRole("link", { name: "Go to billing" })).toHaveAttribute(
+      "href",
+      "/billing",
+    );
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 

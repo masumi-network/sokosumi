@@ -172,20 +172,6 @@ describe("evaluateUserDeletion", () => {
     });
   });
 
-  it("returns RUNNING_SUBSCRIPTION when cancelAtPeriodEnd is still in the paid period", async () => {
-    mockClaimLookups({ reviewRequired: null, pending: null });
-    subscriptionFindFirstMock.mockResolvedValue({
-      id: "sub_cancel_at_period_end",
-    });
-
-    await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
-    ).resolves.toEqual({
-      blockers: ["RUNNING_SUBSCRIPTION"],
-      reviewRequiredClaim: null,
-    });
-  });
-
   it("does not return RUNNING_SUBSCRIPTION for a local free subscription", async () => {
     mockClaimLookups({ reviewRequired: null, pending: null });
     subscriptionFindFirstMock.mockResolvedValue(null);
@@ -202,18 +188,6 @@ describe("evaluateUserDeletion", () => {
         ...RUNNING_SUBSCRIPTION_WHERE,
       },
       select: { id: true },
-    });
-  });
-
-  it("does not return RUNNING_SUBSCRIPTION for a canceled or ended paid subscription", async () => {
-    mockClaimLookups({ reviewRequired: null, pending: null });
-    subscriptionFindFirstMock.mockResolvedValue(null);
-
-    await expect(
-      evaluateUserDeletion("user_delete", createPrisma() as never),
-    ).resolves.toEqual({
-      blockers: [],
-      reviewRequiredClaim: null,
     });
   });
 

@@ -156,20 +156,17 @@ export default function OrganizationRemoveForm({
                 {blockers.map((code) => (
                   <li key={code}>
                     {organizationDeletionBlockerMessage(code, t)}
-                    {organizationDeletionBlockerHasBillingLink(code) ? (
-                      <>
-                        {" "}
-                        <Link
-                          href="/billing"
-                          className="underline underline-offset-2"
-                        >
-                          {t("Errors.billingLink")}
-                        </Link>
-                      </>
-                    ) : null}
                   </li>
                 ))}
               </ul>
+              {blockers.some(organizationDeletionBlockerHasBillingLink) ? (
+                <Link
+                  href="/billing"
+                  className="text-destructive text-sm underline underline-offset-2"
+                >
+                  {t("Errors.billingLink")}
+                </Link>
+              ) : null}
             </div>
           ) : null}
           <FormField
