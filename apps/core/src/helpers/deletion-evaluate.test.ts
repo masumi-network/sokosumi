@@ -249,6 +249,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["RUNNING_SUBSCRIPTION"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(subscriptionFindFirstMock).toHaveBeenCalledWith({
       where: {
@@ -268,6 +269,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(subscriptionFindFirstMock).toHaveBeenCalledWith({
       where: {
@@ -298,6 +300,7 @@ describe("evaluateUserDeletion", () => {
         id: "claim_review",
         reviewRequiredAt,
       },
+      ...EMPTY_X402_EVALUATION,
     });
   });
 
@@ -346,6 +349,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["USER_OWNS_ORGANIZATION"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(memberFindFirstMock).toHaveBeenCalledWith({
       where: { userId: "user_delete", role: MemberRole.OWNER },
@@ -361,6 +365,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
   });
 
@@ -379,6 +384,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["USER_OWNS_ORGANIZATION"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(memberFindFirstMock).toHaveBeenCalledWith({
       where: { userId: "user_delete", role: MemberRole.OWNER },
@@ -395,6 +401,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_JOB"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(jobFindFirstMock).toHaveBeenCalledWith({
       where: {
@@ -415,6 +422,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["UNSETTLED_ON_CHAIN_JOB"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(jobFindFirstMock).toHaveBeenCalledWith({
       where: {
@@ -438,6 +446,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_TASK"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
@@ -460,6 +469,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: ["IN_FLIGHT_JOB", "UNSETTLED_ON_CHAIN_JOB", "IN_FLIGHT_TASK"],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
     expect(jobFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -487,6 +497,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: [],
       reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
     });
   });
 
@@ -518,6 +529,7 @@ describe("evaluateUserDeletion", () => {
         id: "claim_review",
         reviewRequiredAt,
       },
+      ...EMPTY_X402_EVALUATION,
     });
   });
 });
