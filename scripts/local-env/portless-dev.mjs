@@ -70,6 +70,55 @@ export function portlessNameFor(app) {
 }
 
 /**
+ * Grok/Cursor copies are full checkouts (not `git worktree add`), so portless
+ * does not add a branch prefix. Prefix by directory basename so they cannot
+ * steal `web.sokosumi` / `core.sokosumi` from the primary checkout.
+ *
+ * @param {string} [root]
+ */
+export function portlessInstancePrefix(root = repoRoot) {
+  const normalized = root.replaceAll("\\", "/");
+  for (const marker of ["/.grok/worktrees/", "/.worktrees/"]) {
+    if (normalized.includes(marker)) {
+      return path
+        .basename(normalized)
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+  }
+  return "";
+}
+
+/**
+ * @param {"web" | "core"} app
+ * @param {string} [root]
+ */
+export function portlessAppName(app, root = repoRoot) {
+  const prefix = portlessInstancePrefix(root);
+  const base = portlessNameFor(app);
+  return prefix ? `${prefix}.${base}` : base;
+}
+
+/**
+ * @param {string} name
+ * @param {string} filter
+ */
+export function portlessSpawnArgs(name, filter) {
+  return [
+    "run",
+    "--name",
+    name,
+    "--force",
+    "--",
+    "pnpm",
+    "--filter",
+    filter,
+    "dev",
+  ];
+}
+
+/**
  * @param {string} [selector]
  * @returns {Array<"web" | "core">}
  */
@@ -88,26 +137,31 @@ export function parseRunApps(selector) {
  * @param {{ webUrl: string, coreUrl: string }} urls
  */
 export function envForDevApp(app, urls) {
+  const shared = {
+    WEB_APP_BASE_URL: urls.webUrl,
+    BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.localhost",
+  };
   if (app === "core") {
     return {
-      WEB_APP_BASE_URL: urls.webUrl,
+      ...shared,
       BETTER_AUTH_URL: urls.coreUrl,
     };
   }
   return {
+    ...shared,
     CORE_APP_BASE_URL: urls.coreUrl,
-    WEB_APP_BASE_URL: urls.webUrl,
   };
 }
 
 /**
  * @param {string} [selector]
  * @param {{ webUrl: string, coreUrl: string }} urls
+ * @param {string} [root]
  */
-export function spawnPlan(selector, urls) {
+export function spawnPlan(selector, urls, root = repoRoot) {
   return parseRunApps(selector).map((app) => ({
     app,
-    name: portlessNameFor(app),
+    name: portlessAppName(app, root),
     filter: app === "core" ? "@sokosumi/core" : "web",
     env: envForDevApp(app, urls),
   }));
@@ -117,7 +171,7 @@ export function spawnPlan(selector, urls) {
  * @param {"web" | "core"} app
  */
 export function getPortlessUrl(app) {
-  return runPortless(["get", portlessNameFor(app)]);
+  return runPortless(["get", portlessAppName(app)]);
 }
 
 /**
@@ -172,14 +226,9 @@ function spawnDev({ name, filter, env }) {
         path.join(repoRoot, "scripts", "cloud-agent-db", "with-db.mjs"),
         "--",
         bin,
-        name,
-        "--",
-        "pnpm",
-        "--filter",
-        filter,
-        "dev",
+        ...portlessSpawnArgs(name, filter),
       ]
-    : [bin, name, "--", "pnpm", "--filter", filter, "dev"];
+    : [bin, ...portlessSpawnArgs(name, filter)];
 
   const [cmd, ...args] = wrapped;
   const child = spawn(cmd, args, {
@@ -213,7 +262,12 @@ async function runStack(selector) {
     }),
   );
 
+  let shuttingDown = false;
   function shutdown(signal) {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
     for (const child of children) {
       if (!child.killed) {
         child.kill(signal);
@@ -228,7 +282,13 @@ async function runStack(selector) {
     children.map(
       (child) =>
         new Promise((resolve) => {
-          child.on("exit", (code, signal) => resolve(code ?? (signal ? 1 : 0)));
+          child.on("exit", (code, signal) => {
+            const exitCode = code ?? (signal ? 1 : 0);
+            if (exitCode !== 0) {
+              shutdown("SIGTERM");
+            }
+            resolve(exitCode);
+          });
         }),
     ),
   );

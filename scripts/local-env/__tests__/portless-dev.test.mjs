@@ -7,7 +7,10 @@ import {
   PORTLESS_CORE_NAME,
   PORTLESS_WEB_NAME,
   parseRunApps,
+  portlessAppName,
+  portlessInstancePrefix,
   portlessNameFor,
+  portlessSpawnArgs,
   spawnPlan,
 } from "../portless-dev.mjs";
 
@@ -66,6 +69,7 @@ describe("envForDevApp", () => {
     assert.deepEqual(envForDevApp("core", urls), {
       WEB_APP_BASE_URL: urls.webUrl,
       BETTER_AUTH_URL: urls.coreUrl,
+      BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.localhost",
     });
   });
 
@@ -73,7 +77,54 @@ describe("envForDevApp", () => {
     assert.deepEqual(envForDevApp("web", urls), {
       CORE_APP_BASE_URL: urls.coreUrl,
       WEB_APP_BASE_URL: urls.webUrl,
+      BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.localhost",
     });
+  });
+});
+
+describe("portlessInstancePrefix", () => {
+  it("prefixes grok and local worktree checkouts by directory basename", () => {
+    assert.equal(
+      portlessInstancePrefix(
+        "/Users/x/.grok/worktrees/masumi-network-sokosumi/3877",
+      ),
+      "3877",
+    );
+    assert.equal(
+      portlessInstancePrefix("/Users/x/sokosumi/.worktrees/chore-portless"),
+      "chore-portless",
+    );
+  });
+
+  it("leaves the primary checkout unprefixed", () => {
+    assert.equal(
+      portlessInstancePrefix("/Users/x/Developer/masumi-network/sokosumi"),
+      "",
+    );
+  });
+});
+
+describe("portlessAppName", () => {
+  it("uses grok basename so copies do not steal web.sokosumi", () => {
+    const root = "/Users/x/.grok/worktrees/masumi-network-sokosumi/portless";
+    assert.equal(portlessAppName("core", root), "portless.core.sokosumi");
+    assert.equal(portlessAppName("web", root), "portless.web.sokosumi");
+  });
+});
+
+describe("portlessSpawnArgs", () => {
+  it("uses portless run --name --force so restarts take over a stale route", () => {
+    assert.deepEqual(portlessSpawnArgs("core.sokosumi", "@sokosumi/core"), [
+      "run",
+      "--name",
+      "core.sokosumi",
+      "--force",
+      "--",
+      "pnpm",
+      "--filter",
+      "@sokosumi/core",
+      "dev",
+    ]);
   });
 });
 
@@ -82,9 +133,10 @@ describe("spawnPlan", () => {
     webUrl: "https://branch.web.sokosumi.localhost",
     coreUrl: "https://branch.core.sokosumi.localhost",
   };
+  const primaryRoot = "/Users/x/Developer/masumi-network/sokosumi";
 
   it("plans both apps by default, still wiring both URLs", () => {
-    const plan = spawnPlan(undefined, urls);
+    const plan = spawnPlan(undefined, urls, primaryRoot);
     assert.deepEqual(
       plan.map((item) => item.app),
       ["core", "web"],
@@ -98,7 +150,7 @@ describe("spawnPlan", () => {
   });
 
   it("plans web only without dropping core URL injection", () => {
-    const [web] = spawnPlan("web", urls);
+    const [web] = spawnPlan("web", urls, primaryRoot);
     assert.equal(web.app, "web");
     assert.equal(web.env.CORE_APP_BASE_URL, urls.coreUrl);
     assert.equal(web.env.WEB_APP_BASE_URL, urls.webUrl);
