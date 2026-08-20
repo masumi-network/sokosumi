@@ -40,14 +40,32 @@ export async function deleteStripeCustomerBestEffort(
     return;
   }
 
-  const runningSubscription = await prisma.subscription.findFirst({
-    where: {
-      referenceId: input.ownerId,
-      stripeSubscriptionId: { not: null },
-      status: { in: [...RUNNING_STRIPE_SUBSCRIPTION_STATUSES] },
-    },
-    select: { id: true },
-  });
+  let runningSubscription: { id: string } | null;
+  try {
+    runningSubscription = await prisma.subscription.findFirst({
+      where: {
+        referenceId: input.ownerId,
+        stripeSubscriptionId: { not: null },
+        status: { in: [...RUNNING_STRIPE_SUBSCRIPTION_STATUSES] },
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    captureExternalServiceError(error, {
+      label: "stripe_customer_delete",
+      sentry: {
+        tags: {
+          context: "stripe_customer_delete",
+          ownerType: input.ownerType,
+        },
+      },
+      extra: {
+        ownerId: input.ownerId,
+        stripeCustomerId: input.stripeCustomerId,
+      },
+    });
+    return;
+  }
   if (runningSubscription) {
     console.warn(
       `Skipping Stripe customer ${input.stripeCustomerId} delete: running subscription still present for ${input.ownerType} ${input.ownerId}`,

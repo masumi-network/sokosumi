@@ -87,6 +87,34 @@ describe("deleteStripeCustomerBestEffort", () => {
     expect(deleteCustomerMock).not.toHaveBeenCalled();
   });
 
+  it("skips Stripe customer delete when subscription lookup fails", async () => {
+    const lookupDown = new Error("subscription lookup failed");
+    subscriptionFindFirstMock.mockRejectedValue(lookupDown);
+
+    await expect(
+      deleteStripeCustomerBestEffort({
+        stripeCustomerId: "cus_1",
+        ownerType: "user",
+        ownerId: "user_1",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(deleteCustomerMock).not.toHaveBeenCalled();
+    expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(lookupDown, {
+      label: "stripe_customer_delete",
+      sentry: {
+        tags: {
+          context: "stripe_customer_delete",
+          ownerType: "user",
+        },
+      },
+      extra: {
+        ownerId: "user_1",
+        stripeCustomerId: "cus_1",
+      },
+    });
+  });
+
   it("logs a thrown Stripe delete and does not fail allow", async () => {
     const stripeDown = new Error("stripe unavailable");
     deleteCustomerMock.mockRejectedValue(stripeDown);
