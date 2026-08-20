@@ -26,6 +26,11 @@ describe("normalizeMasumiPaymentUnit", () => {
       TOKEN_UNIT,
     );
   });
+
+  it("trims long ASCII padding in linear time", () => {
+    const padded = `${"\t".repeat(10_000)}lovelace${"\t".repeat(10_000)}`;
+    expect(normalizeMasumiPaymentUnit(padded)).toBe("lovelace");
+  });
 });
 
 describe("aggregateMasumiPaymentAmounts", () => {
