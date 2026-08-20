@@ -25,7 +25,10 @@ on-chain. The payment node has since shipped an x402 rail: HTTP-402
 pay-per-call on EVM chains, where the node signs an `X-PAYMENT` header and the
 buyer replays the original request with it. The V2 registry already describes
 x402 agents (entry type `X402`, `x402ResourcesUrl`, EVM payment sources), and
-sokosumi already ingests them as unavailable-by-type.
+sokosumi already ingests them. They appear on public `GET /v1/agents` as
+`kind: "x402"` next to Cardano hire items (`kind: "cardano"`). There is no
+`/v1/agents/x402`. Web `/agents` stays Coworkers-only (SOK-805); paying an
+x402 agent stays coworker + assigned task.
 
 The two rails differ structurally, not just by network:
 
@@ -182,6 +185,25 @@ Two corrections to how the proposed draft described this (both verified
 - A funded purchasing EVM wallet per chain, bound to the network.
 - The sokosumi API key's `ChainIdLimit` includes the relevant `eip155:*` ids.
 
+### 8. One public `GET /v1/agents`
+
+x402 agents are agents. They share the public Cardano catalog:
+
+- `GET /v1/agents` returns a discriminated union on `kind`: `"cardano"`
+  (MIP-003 hire) or `"x402"` (EVM pay). Filter with `?kind=cardano`,
+  `?kind=x402`, or omit for both.
+- There is **no** `/v1/agents/x402`.
+- List auth is **public**, same as today's Cardano catalog.
+- **Pay** stays coworker + assigned task
+  (`POST /v1/tasks/{id}/x402-payments`). Listed ⇒ payable, fail-closed,
+  scheme `exact`.
+- Web `/agents` does **not** advertise x402 (or classic hire agents).
+  SOK-805: that page is Coworkers-only. x402, like classic agents, is
+  API-only.
+
+A dedicated coworker-only `/v1/agents/x402` was sketched and dropped
+during implementation. This ADR records the shipped contract.
+
 ## Credit-refund policy (resolved 2026-08-11)
 
 The proposed draft left this as the blocking product decision. Resolved via
@@ -239,13 +261,16 @@ on a single job:
   outlive agent revisions (agents are re-registered and superseded), so the
   rail must be pinned on the job at creation, consistent with the V2
   migration's snapshot-on-job pattern.
+- **Dedicated coworker-only `GET /v1/agents/x402`.** Rejected: callers see
+  one agent catalog. A `kind` discriminator on `GET /v1/agents` is enough.
+  Pay stays a separate coworker+task route. Web `/agents` is not a catalog.
 
 ## Consequences
 
-- **Ingest** needs no further work: x402 agents already land with their EVM
-  payment sources. PR 1 still needs a **list surface** (ticket 005) so
-  coworkers can discover them; flipping Cardano-catalog availability is
-  gated on the PR 2 rail, not on ingest.
+- **Ingest** already lands x402 payment sources. Discovery is public
+  `GET /v1/agents` (`kind: "x402"`), not a dedicated `/v1/agents/x402`.
+  Web `/agents` stays Coworkers-only. Flipping Cardano-catalog hire
+  availability for x402 jobs is PR 2, not ingest.
 - The jobs pipeline gains one discriminator and one sibling model; escrow
   code paths remain untouched.
 - Status tooling uses `/x402/payments` lookups to confirm signing/charging

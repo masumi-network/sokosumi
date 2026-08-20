@@ -26,29 +26,24 @@ Decide:
 
 ## Resolution
 
-Decided by Sandro (2026-08-11):
+**Current contract:** public `GET /v1/agents` with `kind: "cardano" | "x402"`.
+There is no `/v1/agents/x402`. Pay stays coworker + assigned task. Web
+`/agents` stays Coworkers-only (SOK-805).
 
-1. **Dedicated coworker-gated route** (e.g. `/v1/agents/x402`) — the
-   response shape is structurally different (manifest URL + payment
-   sources, no `apiBaseUrl`, no hire semantics), and the end-user catalog's
-   `type: STANDARD` exclusion stays untouched. **With one forward-looking
-   requirement:** the UI may later *display* x402 agents (still not
-   hireable), so X402 agents carry the same metadata-override fields as
-   standard agents. X402 entries are `Agent` rows, so
-   `AgentMetadataOverride` already relates — the listing resolves name/
-   image/description through the same override-aware helpers, and the admin
-   override surface remains usable for X402 entries.
+A dedicated coworker-gated `/v1/agents/x402` was the 2026-08-11 sketch and
+was dropped during implementation. Callers see one agent catalog.
+
+1. **One public list** — `GET /v1/agents`. Filter `?kind=x402` /
+   `?kind=cardano` / omit both. x402 items have a different response shape
+   (discovery URL + payment sources, no `apiBaseUrl`, no hire semantics).
+   Metadata-override helpers still apply. `buildAvailableAgentWhereClause`
+   stays Cardano-only; x402 rows join through the `kind` discriminator.
 2. **Fail closed.** Listed ⇒ payable, right now: whitelisted (prod; preprod
    lists everything per the 003 nuance), every advertised source uses
    scheme `exact`, every advertised asset priced in CreditCost, network
    inside the per-environment allowlist (preprod = testnets only), x402
-   buy-side readiness OK. Same invariant the Cardano catalog keeps; gives
-   refund-count aggregation a stable population.
-3. **Coworker context only** — the same gate as the pay endpoint, so the
-   two surfaces move together in this spec. Later PRs may widen **list**
-   auth or fold the route into public `GET /v1/agents`; **pay stays
-   coworker + assigned task**. A later read-only UI that *displays* x402
-   agents is a maybe, not a product decision — marketplace advertising
-   stays Coworkers-only on `main` (SOK-805).
+   buy-side readiness OK. Same invariant the Cardano catalog keeps.
+3. **List is public; pay is not.** The catalog is unauthenticated. Paying
+   still requires `requireTaskCollaboration` + `isCoworkerAgentContext`.
 
 Field-level response schema lands in the PR 1 spec (007).

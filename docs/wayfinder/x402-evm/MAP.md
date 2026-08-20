@@ -11,12 +11,13 @@ spec.
 
 
 Two implementation-ready specs, one per PR: **(1) Bazaar coworker payment
-surface** — coworker lists x402/Bazaar agents via API, calls the agent outside
-Soko, forwards the 402 to a Soko pay endpoint that charges the task's org in
-credits and returns a signed `X-PAYMENT` header, coworker replays for the
-result; **(2) masumi-job x402 rail** per ADR 0001, ratified. Every blocking
-decision resolved; implementation itself is out of scope. PR 1 is the
-priority.
+surface** — public `GET /v1/agents?kind=x402` lists payable agents; a
+coworker calls the agent outside Soko, forwards the 402 to a Soko pay
+endpoint that charges the task's org in credits and returns a signed
+`X-PAYMENT` header; coworker replays for the result; **(2) masumi-job x402
+rail** per ADR 0001, ratified. Every blocking decision resolved;
+implementation itself is out of scope. PR 1 is the priority. There is no
+`/v1/agents/x402`.
 
 ## Notes
 
@@ -93,11 +94,10 @@ priority.
   no `Task.maxCredits`); optional per-request `maxCredits` ceiling;
   node budgets as operator backstop.
 - [Coworker-facing Bazaar agent listing](tickets/005-coworker-listing-surface.md)
-  — dedicated coworker-gated route, **fail closed** (listed ⇒ payable now:
-  whitelist, `exact` scheme, priced assets, per-env network allowlist,
-  readiness), coworker context only. Later PRs may widen **list** auth or
-  fold into `GET /v1/agents`; pay stays coworker + assigned task. A later
-  read-only UI is a maybe, not a product decision.
+  — public `GET /v1/agents` with `kind: "cardano" | "x402"`. **No**
+  `/v1/agents/x402`. Fail closed (listed ⇒ payable: whitelist, `exact`
+  scheme, priced assets, per-env network allowlist, readiness). Pay stays
+  coworker + assigned task. Web `/agents` stays Coworkers-only (SOK-805).
 - [PR 1 spec](tickets/007-pr1-spec.md) — **first half of the destination
   reached.** Full spec at [PR1-SPEC.md](PR1-SPEC.md): listing + pay
   endpoints, `TaskX402Payment` sibling model, charge-then-sign flow with the

@@ -8,11 +8,12 @@
 
 ## 1. Scope
 
-API-only. A coworker assigned to a task can (a) **list** the x402/Bazaar
-agents Soko can pay right now, and (b) **pay** a 402 one of them returned,
-charged to the task's org in credits, receiving a signed `X-PAYMENT` header
-to replay with. No end-user catalog change, no hire flow, no job row — the
-coworker calls the agent **outside** Soko.
+API-only pay. Anyone can **list** x402/Bazaar agents on public
+`GET /v1/agents`. A coworker assigned to a task can **pay** a 402 one of
+them returned, charged to the task's org in credits, receiving a signed
+`X-PAYMENT` header to replay with. No end-user catalog change, no hire
+flow, no job row — the coworker calls the agent **outside** Soko. Web
+`/agents` stays Coworkers-only (SOK-805).
 
 Out of scope: masumi-job x402 (PR 2), direct CDP-Bazaar crawling (agents must
 be Masumi-registered), end-user hireability.
@@ -20,7 +21,7 @@ be Masumi-registered), end-user hireability.
 The full loop (Patrick's four steps):
 
 ```
-coworker → GET  /v1/agents/x402                     (list; pick base URL)
+anyone   → GET  /v1/agents?kind=x402                (list; pick base URL)
 coworker → call the Bazaar agent directly           (outside Soko) → 402
 coworker → POST /v1/tasks/{taskId}/x402-payments     (forward the 402)
    soko  → charge task org in credits, POST node /x402/pay, persist record
@@ -28,17 +29,16 @@ coworker ← { xPaymentHeader, attemptId, paymentId }
 coworker → replay the agent call with X-PAYMENT      (outside Soko) → result
 ```
 
-Later implementation PRs may fold listing into public `GET /v1/agents` (a
-`kind` filter) and widen **list** auth. **Pay stays coworker + assigned
-task.** This PR does not ship that fold.
+There is **no** `GET /v1/agents/x402`. Pay stays coworker + assigned task.
 
-## 2. Listing endpoint — `GET /v1/agents/x402`
+## 2. Listing endpoint — `GET /v1/agents`
 
-Ticket 005. Dedicated coworker-gated route; the end-user catalog's
-`type: STANDARD` exclusion in `buildAvailableAgentWhereClause` is untouched.
+Ticket 005. One public catalog. Items are a discriminated union on `kind`:
+`"cardano"` (MIP-003 hire) or `"x402"` (EVM pay). Filter with
+`?kind=cardano`, `?kind=x402`, or omit for both.
 
-- **Authz:** coworker context only (same gate as the pay endpoint) in this
-  spec. Later PRs may widen list auth; they must not widen pay.
+- **Authz:** public, same as the Cardano catalog. Paying stays coworker-only
+  on the task route.
 - **Fail closed** — an agent appears only if payable *now*:
   1. curated/whitelisted (production; preprod lists all — see §6),
   2. every advertised source uses scheme `exact` (EVM). `upto`,
