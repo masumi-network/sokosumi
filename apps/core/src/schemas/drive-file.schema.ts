@@ -53,7 +53,15 @@ export const createDriveFileUploadSessionRequestSchema = z
       if (data.scope === "org" && !data.organizationId) {
         return false;
       }
-      // Validate folder path if provided
+      return true;
+    },
+    {
+      message: "organizationId is required when scope=org",
+      path: ["organizationId"],
+    },
+  )
+  .refine(
+    (data) => {
       if (data.folder) {
         const normalized = normalizeDriveFolderPath(data.folder);
         const validationError = validateDriveFolderPath(normalized);
@@ -64,8 +72,7 @@ export const createDriveFileUploadSessionRequestSchema = z
       return true;
     },
     {
-      message:
-        "organizationId is required when scope=org; folder path cannot contain '.' or '..' segments",
+      message: 'Folder path cannot contain "." or ".." segments',
       path: ["folder"],
     },
   )
