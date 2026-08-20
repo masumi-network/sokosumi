@@ -9,7 +9,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 import OrganizationRemoveForm from "./form";
 
@@ -17,12 +20,16 @@ interface OrganizationRemoveModalProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
   organization: OrganizationRecord;
+  blockers?: OrganizationDeletionEvaluation["blockers"];
+  preflightFailed?: boolean;
 }
 
 export default function OrganizationRemoveModal({
   open,
   onOpenChange,
   organization,
+  blockers = [],
+  preflightFailed = false,
 }: OrganizationRemoveModalProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +56,8 @@ export default function OrganizationRemoveModal({
           organization={organization}
           setIsLoading={setIsLoading}
           onOpenChange={onOpenChange}
+          blockers={blockers}
+          preflightFailed={preflightFailed}
         />
       </AlertDialogContent>
     </AlertDialog>
