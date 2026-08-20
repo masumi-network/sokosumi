@@ -3194,6 +3194,11 @@
           "FAILED": "Fehlgeschlagen",
           "REFUNDED": "Erstattet"
         },
+        "RefundKinds": {
+          "NODE_REFUSAL": "Node-Ablehnung",
+          "OPERATOR_GOODWILL": "Kulanz-Erstattung",
+          "OPERATOR_RESOLVE": "Manuelle Lösung"
+        },
         "Rollup": {
           "title": "Endpunktstatus",
           "total": "Gesamt",

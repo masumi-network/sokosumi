@@ -83,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const [statusGroups, actionGroups] = await Promise.all([
       prisma.taskX402Payment.groupBy({
-        by: ["agentId", "status", "refundKind"],
+        by: ["agentId", "status"],
         where,
         _count: { _all: true },
       }),

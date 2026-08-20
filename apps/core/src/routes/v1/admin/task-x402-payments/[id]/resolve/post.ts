@@ -60,14 +60,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Task x402 payment not found");
     }
     if (result.status === "already_resolved") {
-      throw conflict("Task x402 payment has already been compensated");
+      throw conflict("Task x402 payment has already been compensated", {
+        kind: "already_resolved",
+      });
     }
     if (
       result.status === "sign_in_flight" ||
-      result.status === "sign_outcome_unresolved" ||
-      result.status === "not_resolvable"
+      result.status === "sign_outcome_unresolved"
     ) {
-      throw conflict(result.reason);
+      throw conflict(result.reason, {
+        kind: result.status,
+        extensions: {
+          retryAfter: result.retryAfter,
+          retryAfterSeconds: result.retryAfterSeconds,
+        },
+      });
+    }
+    if (result.status === "not_resolvable") {
+      throw conflict(result.reason, { kind: result.status });
     }
     return ok(c, resolveAdminTaskX402PaymentResultSchema.parse(result));
   });

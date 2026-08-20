@@ -218,6 +218,11 @@ export default async function AdminX402PaymentsPage({
                         <Badge variant={statusVariant(payment.status)}>
                           {t(`Statuses.${payment.status}`)}
                         </Badge>
+                        {payment.refundKind ? (
+                          <div className="text-muted-foreground mt-1">
+                            {t(`RefundKinds.${payment.refundKind}`)}
+                          </div>
+                        ) : null}
                       </TableCell>
                       <TableCell className="max-w-48 font-mono text-xs">
                         <div className="break-all">{payment.id}</div>

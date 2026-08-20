@@ -3194,6 +3194,11 @@
           "FAILED": "Fallido",
           "REFUNDED": "Reembolsado"
         },
+        "RefundKinds": {
+          "NODE_REFUSAL": "Rechazo del nodo",
+          "OPERATOR_GOODWILL": "Reembolso de cortesía",
+          "OPERATOR_RESOLVE": "Resolución del operador"
+        },
         "Rollup": {
           "title": "Estado de endpoints",
           "total": "Total",

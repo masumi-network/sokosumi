@@ -415,7 +415,6 @@ describe("admin task x402 payment routes", () => {
     expect(paymentGroupByMock.mock.calls[0]?.[0]?.by).toEqual([
       "agentId",
       "status",
-      "refundKind",
     ]);
     expect(actionGroupByMock.mock.calls[0]?.[0]).toMatchObject({
       by: ["agentId", "action"],
@@ -880,6 +879,7 @@ describe("admin task x402 payment routes", () => {
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({
+      kind: "not_resolvable",
       message: expect.stringContaining("goodwill refund"),
     });
   });
@@ -900,9 +900,12 @@ describe("admin task x402 payment routes", () => {
     });
 
     expect(response.status).toBe(409);
-    // The 409 is actionable: it carries the instant after which a retry works.
+    // Machine-readable retry instant, not only ISO buried in the message.
     await expect(response.json()).resolves.toMatchObject({
+      kind: "sign_in_flight",
       message: expect.stringContaining("2026-08-12T10:00:30.000Z"),
+      retryAfter: "2026-08-12T10:00:30.000Z",
+      retryAfterSeconds: 25,
     });
   });
 
@@ -923,7 +926,10 @@ describe("admin task x402 payment routes", () => {
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({
+      kind: "sign_outcome_unresolved",
       message: expect.stringContaining("2026-08-12T11:00:00.000Z"),
+      retryAfter: "2026-08-12T11:00:00.000Z",
+      retryAfterSeconds: 120,
     });
   });
 

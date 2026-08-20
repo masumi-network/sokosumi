@@ -3372,6 +3372,11 @@
           "FAILED": "Failed",
           "REFUNDED": "Refunded"
         },
+        "RefundKinds": {
+          "NODE_REFUSAL": "Node refusal",
+          "OPERATOR_GOODWILL": "Goodwill refund",
+          "OPERATOR_RESOLVE": "Operator resolve"
+        },
         "Rollup": {
           "title": "Endpoint health",
           "total": "Total",
