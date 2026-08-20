@@ -1,7 +1,7 @@
 "use client";
 
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveFileItem } from "@/lib/clients/generated/core";
+import type { DriveFileItem, DriveItem } from "@/lib/clients/generated/core";
 import { getDriveFiles } from "@/lib/clients/generated/core";
 
 /** Core max page size — fewer round trips than the default 20. */
@@ -20,7 +20,14 @@ interface ListDriveFilesOptions {
 export async function listDriveFiles(
   options: ListDriveFilesOptions,
 ): Promise<DriveFileItem[]> {
-  const files: DriveFileItem[] = [];
+  const items = await listDriveItems(options);
+  return items.filter((item): item is DriveFileItem => item.type === "file");
+}
+
+export async function listDriveItems(
+  options: ListDriveFilesOptions,
+): Promise<DriveItem[]> {
+  const items: DriveItem[] = [];
   let cursor: string | undefined;
 
   for (let page = 0; page < DRIVE_FILES_MAX_PAGES; page += 1) {
@@ -40,19 +47,15 @@ export async function listDriveFiles(
       throwOnError: true,
     });
 
-    // Filter to only files (exclude folders)
-    const items = response.data?.data ?? [];
-    const fileItems = items.filter(
-      (item) => item.type === "file",
-    ) as DriveFileItem[];
-    files.push(...fileItems);
+    const allItems = response.data?.data ?? [];
+    items.push(...allItems);
 
     const nextCursor = response.data?.meta?.pagination?.nextCursor ?? null;
     if (!nextCursor) {
-      return files;
+      return items;
     }
     cursor = nextCursor;
   }
 
-  return files;
+  return items;
 }
