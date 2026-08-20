@@ -5477,7 +5477,21 @@
       "createFolderDuplicateError": "A folder with this name already exists. Choose a different name.",
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
-      "moveFileError": "Failed to move file"
+      "moveFileError": "Failed to move file",
+      "tasksFolder": "Tasks",
+      "tasksEmptyTitle": "No task files yet",
+      "tasksEmptyDescription": "Task files will appear here when you complete tasks",
+      "loadTasksError": "Failed to load tasks",
+      "copyToDriveAction": "Copy to Drive",
+      "copyToDriveSuccess": "File copied to Drive",
+      "copyToDriveError": "Failed to copy file",
+      "copyToDriveDuplicateError": "A file with this name already exists in the destination",
+      "selectDestinationDrive": "Select destination",
+      "selectDestinationDescription": "Choose where to copy this file",
+      "myDriveDestination": "My Drive",
+      "organizationDriveDestination": "{name}",
+      "tasksBreadcrumbLabel": "Tasks",
+      "noProject": "No project"
     }
   },
   "Share": {
