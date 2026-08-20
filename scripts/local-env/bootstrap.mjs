@@ -2,16 +2,18 @@
 /**
  * Copy apps/{web,core}/.env.example → .env when missing, then make the
  * files bootable for local / worktree agents (Zod-safe dummies, cookie-domain
- * trap, matching signing secret). Does not overwrite existing non-placeholder
- * secrets.
+ * trap, matching signing secret). Grok/git worktrees reuse the primary
+ * checkout .env (BETTER_AUTH_SECRET, DATABASE_URL, …) unless the worktree
+ * already has a unique secret. Does not overwrite that unique secret.
  *
  * Usage: node scripts/local-env/bootstrap.mjs
  */
+import { execFileSync } from "node:child_process";
 import { copyFile, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_BETTER_AUTH_SECRET =
+export const DEFAULT_BETTER_AUTH_SECRET =
   "TFVfK91TGv2YVyVYFk0lu87Md5a13E4l7AjEaoZD8dQ=";
 const DUMMY_URL = "https://local.dev.invalid";
 const PLACEHOLDER_RE = /^<[^>]+>$/;
@@ -201,9 +203,103 @@ export function syncSigningSecret(webContents, coreContents) {
 }
 
 /**
+ * @param {string | null} contents
+ */
+async function tryRead(file) {
+  try {
+    return await readFile(file, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Worktree .env is missing, still a placeholder, or still the committed
+ * example secret — safe to replace from the primary checkout.
+ *
+ * @param {string | null} existingCoreContents
+ */
+export function shouldReusePrimaryEnv(existingCoreContents) {
+  if (existingCoreContents == null) {
+    return true;
+  }
+  const secret = readEnvValue(existingCoreContents, "BETTER_AUTH_SECRET");
+  return (
+    !secret ||
+    isPlaceholderValue(secret) ||
+    secret === DEFAULT_BETTER_AUTH_SECRET
+  );
+}
+
+/**
+ * First `git worktree list --porcelain` path, when this checkout is not it.
+ *
+ * @param {string} porcelain
+ * @param {string} repoRoot
+ */
+export function parsePrimaryWorktreePath(porcelain, repoRoot) {
+  const paths = [...porcelain.matchAll(/^worktree (.+)$/gm)].map(
+    (match) => match[1],
+  );
+  if (paths.length <= 1) {
+    return null;
+  }
+  const primary = paths[0];
+  if (path.resolve(primary) === path.resolve(repoRoot)) {
+    return null;
+  }
+  return primary;
+}
+
+/**
+ * @param {string} repoRoot
+ * @returns {Promise<string | null>}
+ */
+export async function resolvePrimaryEnvRoot(repoRoot) {
+  const grokSource = await tryRead(
+    path.join(repoRoot, ".git", "grok-worktree-source"),
+  );
+  if (grokSource) {
+    const src = grokSource.trim();
+    if (src && path.resolve(src) !== path.resolve(repoRoot)) {
+      const envFile = await tryRead(path.join(src, "apps", "core", ".env"));
+      if (envFile !== null) {
+        return src;
+      }
+    }
+  }
+
+  try {
+    const porcelain = execFileSync("git", ["worktree", "list", "--porcelain"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const primary = parsePrimaryWorktreePath(porcelain, repoRoot);
+    if (primary) {
+      const envFile = await tryRead(path.join(primary, "apps", "core", ".env"));
+      if (envFile !== null) {
+        return primary;
+      }
+    }
+  } catch {
+    // not a git checkout, or git is unavailable
+  }
+
+  return null;
+}
+
+/**
  * @param {string} repoRoot
  */
 export async function bootstrapLocalEnv(repoRoot) {
+  const primaryRoot = await resolvePrimaryEnvRoot(repoRoot);
+  const existingCore = await tryRead(
+    path.join(repoRoot, "apps", "core", ".env"),
+  );
+  const reuse = primaryRoot !== null && shouldReusePrimaryEnv(existingCore);
+
   const apps = ["core", "web"];
   /** @type {Record<string, string>} */
   const written = {};
@@ -213,15 +309,21 @@ export async function bootstrapLocalEnv(repoRoot) {
     const example = path.join(dir, ".env.example");
     const envPath = path.join(dir, ".env");
 
-    let existing = null;
-    try {
-      existing = await readFile(envPath, "utf8");
-    } catch {
+    let source = await tryRead(envPath);
+    if (reuse && primaryRoot) {
+      const fromPrimary = await tryRead(
+        path.join(primaryRoot, "apps", app, ".env"),
+      );
+      if (fromPrimary !== null) {
+        source = fromPrimary;
+      }
+    }
+    if (source === null) {
       await copyFile(example, envPath);
-      existing = await readFile(envPath, "utf8");
+      source = await readFile(envPath, "utf8");
     }
 
-    written[app] = sanitizeEnvContents(existing);
+    written[app] = sanitizeEnvContents(source);
   }
 
   written.web = syncSigningSecret(written.web, written.core);
@@ -240,6 +342,7 @@ export async function bootstrapLocalEnv(repoRoot) {
   return {
     core: path.join(repoRoot, "apps", "core", ".env"),
     web: path.join(repoRoot, "apps", "web", ".env"),
+    reusedFrom: reuse ? primaryRoot : null,
   };
 }
 
@@ -255,4 +358,7 @@ if (isMain) {
   );
   const paths = await bootstrapLocalEnv(repoRoot);
   console.log(`env bootstrap ok\n  core ${paths.core}\n  web  ${paths.web}`);
+  if (paths.reusedFrom) {
+    console.log(`env bootstrap: reused ${paths.reusedFrom}`);
+  }
 }

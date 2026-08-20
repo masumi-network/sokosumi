@@ -40,7 +40,7 @@ pnpm install
 pnpm env:bootstrap
 ```
 
-Copies `apps/web/.env.example` and `apps/core/.env.example` to `.env` when missing, replaces Zod-breaking placeholders, comments `BETTER_AUTH_COOKIE_DOMAIN` (required on localhost / portless), and sets web `APP_SIGNING_SECRET` equal to Core `BETTER_AUTH_SECRET`.
+Copies `apps/web/.env.example` and `apps/core/.env.example` to `.env` when missing, replaces Zod-breaking placeholders, comments `BETTER_AUTH_COOKIE_DOMAIN` (required on localhost / portless), and sets web `APP_SIGNING_SECRET` equal to Core `BETTER_AUTH_SECRET`. Grok copies (`.git/grok-worktree-source`) and linked git worktrees reuse the primary checkout `.env` so `BETTER_AUTH_SECRET` / `DATABASE_URL` match — unless the worktree already has a unique secret.
 
 One-time on a machine, start the portless HTTPS proxy (port 443, may prompt for sudo) and trust the local CA if `portless doctor` says it is untrusted:
 
