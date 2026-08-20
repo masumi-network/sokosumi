@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConsentActions } from "../consent-actions";
 
 const mockConsent = vi.hoisted(() => vi.fn());
+const mockEnsureOAuthWorkspaceAction = vi.hoisted(() => vi.fn());
+const mockToastError = vi.hoisted(() => vi.fn());
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -11,9 +13,13 @@ vi.mock("next-intl", () => ({
 
 vi.mock("sonner", () => ({
   toast: {
-    error: vi.fn(),
+    error: mockToastError,
     success: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/actions/workspace-gate", () => ({
+  ensureOAuthWorkspaceAction: mockEnsureOAuthWorkspaceAction,
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -29,6 +35,12 @@ describe("ConsentActions", () => {
 
   beforeEach(() => {
     mockConsent.mockReset();
+    mockEnsureOAuthWorkspaceAction.mockReset();
+    mockToastError.mockReset();
+    mockEnsureOAuthWorkspaceAction.mockResolvedValue({
+      ok: true,
+      value: { createdPersonalWorkspace: false },
+    });
     mockConsent.mockResolvedValue({
       data: null,
       error: { message: "Expected test error" },
@@ -41,11 +53,30 @@ describe("ConsentActions", () => {
     fireEvent.click(screen.getByRole("button", { name: "authorize" }));
 
     await waitFor(() => {
+      expect(mockEnsureOAuthWorkspaceAction).toHaveBeenCalledWith({});
       expect(mockConsent).toHaveBeenCalledWith({
         accept: true,
         oauth_query: oauthQuery,
       });
     });
+    expect(
+      mockEnsureOAuthWorkspaceAction.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockConsent.mock.invocationCallOrder[0]);
+  });
+
+  it("does not authorize when workspace preparation fails", async () => {
+    mockEnsureOAuthWorkspaceAction.mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL", message: "Core unavailable" },
+    });
+    render(<ConsentActions oauthQuery={oauthQuery} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "authorize" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("workspacePrepareError");
+    });
+    expect(mockConsent).not.toHaveBeenCalled();
   });
 
   it("submits the canonical signed query when denying", async () => {
@@ -59,5 +90,6 @@ describe("ConsentActions", () => {
         oauth_query: oauthQuery,
       });
     });
+    expect(mockEnsureOAuthWorkspaceAction).not.toHaveBeenCalled();
   });
 });

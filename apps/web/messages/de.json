@@ -4070,6 +4070,7 @@
           "authorizeError": "Anwendung konnte nicht autorisiert werden",
           "authorizeErrorRedirectUri": "Anwendung konnte nicht autorisiert werden. Bitte überprüfe deine Redirect-URI.",
           "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
+          "workspacePrepareError": "Dein Workspace konnte nicht vorbereitet werden. Bitte versuche es erneut.",
           "authorizeSuccess": "Anwendung erfolgreich autorisiert",
           "denyError": "Anwendung konnte nicht abgelehnt werden"
         },
@@ -5649,6 +5650,7 @@
       "personalDescription": "Arbeite für dich allein.",
       "organizationTitle": "Organisation",
       "organizationDescription": "Arbeite mit deinem Team.",
+      "organizationUnavailable": "Derzeit nicht verfügbar",
       "continue": "Weiter",
       "nameUpdateError": "Wir konnten deinen Namen nicht aktualisieren.",
       "organizationActivateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Workspace wechseln, sobald du im Produkt bist.",

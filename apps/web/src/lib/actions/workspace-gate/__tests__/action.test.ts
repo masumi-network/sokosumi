@@ -5,6 +5,7 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const createMyPersonalWorkspaceMock = vi.fn();
 const deleteMyPersonalWorkspaceMock = vi.fn();
+const getMyWorkspaceAccessMock = vi.fn();
 const clearPendingOrganizationJoinTokenMock = vi.fn();
 const getPendingOrganizationJoinTokenMock = vi.fn();
 const resolveOrganizationInviteLinkMock = vi.fn();
@@ -22,6 +23,8 @@ vi.mock("@/lib/clients/core.client", async () => {
         createMyPersonalWorkspaceMock(...args),
       deleteMyPersonalWorkspace: (...args: unknown[]) =>
         deleteMyPersonalWorkspaceMock(...args),
+      getMyWorkspaceAccess: (...args: unknown[]) =>
+        getMyWorkspaceAccessMock(...args),
       resolveOrganizationInviteLink: (...args: unknown[]) =>
         resolveOrganizationInviteLinkMock(...args),
     },
@@ -61,7 +64,97 @@ import {
   clearPendingOrganizationJoinCookieAction,
   createPersonalWorkspaceAction,
   deletePersonalWorkspaceAction,
+  ensureOAuthWorkspaceAction,
 } from "@/lib/actions/workspace-gate/action";
+
+describe("ensureOAuthWorkspaceAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("creates a personal workspace when the user has no workspace", async () => {
+    getMyWorkspaceAccessMock.mockResolvedValue({
+      data: {
+        hasPersonalWorkspace: false,
+        hasOrganizationMembership: false,
+      },
+    });
+    createMyPersonalWorkspaceMock.mockResolvedValue({
+      data: { workspaceId: "ws-1" },
+    });
+
+    const result = await ensureOAuthWorkspaceAction({});
+
+    expect(result).toEqual({
+      ok: true,
+      value: { createdPersonalWorkspace: true },
+    });
+    expect(createMyPersonalWorkspaceMock).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {
+      hasPersonalWorkspace: true,
+      hasOrganizationMembership: false,
+    },
+    {
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: true,
+    },
+  ])("does not create when workspace access already exists", async (access) => {
+    getMyWorkspaceAccessMock.mockResolvedValue({ data: access });
+
+    const result = await ensureOAuthWorkspaceAction({});
+
+    expect(result).toEqual({
+      ok: true,
+      value: { createdPersonalWorkspace: false },
+    });
+    expect(createMyPersonalWorkspaceMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a concurrent personal-workspace create as success", async () => {
+    getMyWorkspaceAccessMock.mockResolvedValue({
+      data: {
+        hasPersonalWorkspace: false,
+        hasOrganizationMembership: false,
+      },
+    });
+    createMyPersonalWorkspaceMock.mockRejectedValue(
+      new CoreApiRequestError("Personal workspace already exists", {
+        status: 409,
+      }),
+    );
+
+    const result = await ensureOAuthWorkspaceAction({});
+
+    expect(result).toEqual({
+      ok: true,
+      value: { createdPersonalWorkspace: false },
+    });
+  });
+
+  it("returns an error when workspace access cannot be checked", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getMyWorkspaceAccessMock.mockRejectedValue(
+      new CoreApiRequestError("Core backend timeout", { status: 503 }),
+    );
+
+    try {
+      const result = await ensureOAuthWorkspaceAction({});
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
+      }
+      expect(createMyPersonalWorkspaceMock).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+});
 
 describe("createPersonalWorkspaceAction", () => {
   beforeEach(() => {
