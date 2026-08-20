@@ -270,7 +270,7 @@ Core’s [`vercel.json`](./vercel.json) sets:
 - `installCommand` to `pnpm install --filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
 - `buildCommand` to `pnpm vercel-build`, which:
 
-1. Runs `pnpm run build` (workspace deps + `tsup`)
+1. Runs `pnpm run build` (`tsup`; workspace packages emit `dist` via their `prepare` scripts during install)
 2. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
 3. On migrate failure, the build exits non-zero and Vercel does not activate the new deployment
 
