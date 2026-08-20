@@ -4102,7 +4102,6 @@
           "authorizeError": "Failed to authorize application",
           "authorizeErrorRedirectUri": "Failed to authorize application. Please check your redirect URI.",
           "authorizeErrorGeneric": "An error occurred during authorization",
-          "workspacePrepareError": "Could not prepare your workspace. Please try again.",
           "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
         },
@@ -5650,7 +5649,6 @@
       "personalDescription": "Work on your own.",
       "organizationTitle": "Organization",
       "organizationDescription": "Work with your team.",
-      "organizationUnavailable": "Currently unavailable",
       "continue": "Continue",
       "nameUpdateError": "We could not update your name.",
       "organizationActivateError": "We could not switch you into that organization. You can switch workspaces after you enter.",

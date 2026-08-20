@@ -55,44 +55,6 @@ function toCreatePersonalWorkspaceError(error: unknown): ActionError {
   };
 }
 
-interface OAuthWorkspacePrepared {
-  createdPersonalWorkspace: boolean;
-}
-
-/**
- * Temporary OAuth onboarding policy: before consent approval, ensure users
- * without any personal or organization workspace receive a personal one.
- * Existing workspace ownership is never changed.
- */
-export const ensureOAuthWorkspaceAction = withSession<
-  AuthenticatedRequest,
-  ActionResultDto<OAuthWorkspacePrepared, ActionError>
->(async () => {
-  try {
-    const { data: workspaceAccess } = await coreClient.getMyWorkspaceAccess();
-    if (
-      workspaceAccess.hasPersonalWorkspace ||
-      workspaceAccess.hasOrganizationMembership
-    ) {
-      return toActionResult(ok({ createdPersonalWorkspace: false }));
-    }
-
-    try {
-      await coreClient.createMyPersonalWorkspace();
-      return toActionResult(ok({ createdPersonalWorkspace: true }));
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 409) {
-        // Another request created it after the access check.
-        return toActionResult(ok({ createdPersonalWorkspace: false }));
-      }
-      throw error;
-    }
-  } catch (error) {
-    console.error("Failed to prepare workspace for OAuth", error);
-    return toActionResult(err(toCreatePersonalWorkspaceError(error)));
-  }
-});
-
 /**
  * Create exactly one personal workspace for the signed-in user.
  * Core clears preferredOrganizationId on success; 409 when one already exists.

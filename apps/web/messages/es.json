@@ -4070,7 +4070,6 @@
           "authorizeError": "No se pudo autorizar la aplicación",
           "authorizeErrorRedirectUri": "No se pudo autorizar la aplicación. Por favor, verifica tu Redirect URI.",
           "authorizeErrorGeneric": "Ocurrió un error durante la autorización",
-          "workspacePrepareError": "No se pudo preparar tu espacio de trabajo. Inténtalo de nuevo.",
           "authorizeSuccess": "Aplicación autorizada correctamente",
           "denyError": "No se pudo rechazar la aplicación"
         },
@@ -5650,7 +5649,6 @@
       "personalDescription": "Trabaja por tu cuenta.",
       "organizationTitle": "Organización",
       "organizationDescription": "Trabaja con tu equipo.",
-      "organizationUnavailable": "No disponible actualmente",
       "continue": "Continuar",
       "nameUpdateError": "No pudimos actualizar tu nombre.",
       "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",
