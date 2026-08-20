@@ -6673,6 +6673,7 @@ export const CreateDriveFileUploadSessionRequestSchema = {
         },
         folder: {
             type: 'string',
+            maxLength: 1000,
             example: 'Projects/2026',
             description: 'Target folder path relative to scope root (empty/omit for root)'
         }
@@ -9181,7 +9182,8 @@ export const UserDeletionEvaluationSchema = {
                 type: 'string',
                 enum: [
                     'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
-                    'TASK_PAYMENT_CLAIM_PENDING'
+                    'TASK_PAYMENT_CLAIM_PENDING',
+                    'TASK_X402_PAYMENT_PENDING'
                 ]
             },
             description: 'Current User-deletion blockers. Empty means the existing wipe may proceed.',
