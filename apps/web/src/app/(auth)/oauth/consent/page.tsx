@@ -10,6 +10,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
+import {
+  buildSignedOAuthConsentQueryFromSearchParams,
+  serializeOAuthConsentSearchParams,
+} from "@/lib/auth/auth.utils";
 
 import { ConsentActions } from "./consent-actions";
 import { getOAuthConsentScopeFlags } from "./oauth-consent-scope-flags";
@@ -37,6 +41,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   const client_id = oauthSearchParams.get("client_id");
+  const redirectQuery = serializeOAuthConsentSearchParams(oauthSearchParams);
+  const signedOAuthQuery =
+    buildSignedOAuthConsentQueryFromSearchParams(oauthSearchParams);
   const { requestsCoreApi, requestsOfflineAccess } = getOAuthConsentScopeFlags(
     oauthSearchParams.get("scope"),
   );
@@ -58,8 +65,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   const session = await getSession();
 
   if (!session?.session) {
-    const queryString = oauthSearchParams.toString();
-    redirect(queryString ? `/signin?${queryString}` : "/signin");
+    redirect(redirectQuery ? `/signin?${redirectQuery}` : "/signin");
   }
 
   // Fetch public client info for display on consent page
@@ -121,7 +127,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
             ) : null}
           </div>
 
-          <ConsentActions />
+          <ConsentActions oauthQuery={signedOAuthQuery} />
         </CardContent>
       </Card>
     </div>
