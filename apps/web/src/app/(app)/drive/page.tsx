@@ -872,7 +872,7 @@ export default function DrivePage(): ReactElement {
           ) : emptyState ? (
             <div
               className={cn(
-                "bg-muted/30 border-border/50 flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+                "bg-muted/30 border-border/50 -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
                 PROJECTS_LIST_CARD_MIN_H_CLASS,
               )}
             >
