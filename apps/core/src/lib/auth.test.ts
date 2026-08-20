@@ -77,10 +77,13 @@ const {
   const prismaUserUpdateManyMock = vi.fn();
   const prismaUserFindUniqueMock = vi.fn();
   const prismaOrganizationFindUniqueMock = vi.fn();
-  const prismaSubscriptionFindFirstMock = vi.fn();
-  const prismaEnterpriseContractFindFirstMock = vi.fn();
+  const prismaMemberFindFirstMock = vi.fn();
+  const prismaJobFindFirstMock = vi.fn();
+  const prismaTaskFindFirstMock = vi.fn();
   const prismaTaskPaymentClaimFindFirstMock = vi.fn();
   const prismaTaskX402PaymentFindFirstMock = vi.fn();
+  const prismaSubscriptionFindFirstMock = vi.fn();
+  const prismaEnterpriseContractFindFirstMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
@@ -92,17 +95,26 @@ const {
     organization: {
       findUnique: prismaOrganizationFindUniqueMock,
     },
-    subscription: {
-      findFirst: prismaSubscriptionFindFirstMock,
+    member: {
+      findFirst: prismaMemberFindFirstMock,
     },
-    enterpriseContract: {
-      findFirst: prismaEnterpriseContractFindFirstMock,
+    job: {
+      findFirst: prismaJobFindFirstMock,
+    },
+    task: {
+      findFirst: prismaTaskFindFirstMock,
     },
     taskPaymentClaim: {
       findFirst: prismaTaskPaymentClaimFindFirstMock,
     },
     taskX402Payment: {
       findFirst: prismaTaskX402PaymentFindFirstMock,
+    },
+    subscription: {
+      findFirst: prismaSubscriptionFindFirstMock,
+    },
+    enterpriseContract: {
+      findFirst: prismaEnterpriseContractFindFirstMock,
     },
   };
 
@@ -436,9 +448,13 @@ describe("core auth config", () => {
     prismaMock.organization.findUnique.mockResolvedValue({
       stripeCustomerId: null,
     });
+    prismaMock.member.findFirst.mockResolvedValue(null);
+    prismaMock.job.findFirst.mockResolvedValue(null);
+    prismaMock.task.findFirst.mockResolvedValue(null);
+    prismaMock.taskPaymentClaim.findFirst.mockResolvedValue(null);
+    prismaMock.taskX402Payment.findFirst.mockResolvedValue(null);
     prismaMock.subscription.findFirst.mockResolvedValue(null);
     prismaMock.enterpriseContract.findFirst.mockResolvedValue(null);
-    prismaMock.taskPaymentClaim.findFirst.mockResolvedValue(null);
     deleteStripeCustomerBestEffortMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => callback({}));
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });

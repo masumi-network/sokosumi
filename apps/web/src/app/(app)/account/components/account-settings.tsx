@@ -40,6 +40,7 @@ interface AccountSettingsProps {
   deletionBlockers?: UserDeletionEvaluation["blockers"];
   deletionPreflightFailed?: boolean;
   deletionPreflightLoadError?: ReactNode;
+  ownedOrganizationSlug?: string | null;
 }
 
 export function AccountSettings({
@@ -60,6 +61,7 @@ export function AccountSettings({
   deletionBlockers = [],
   deletionPreflightFailed = false,
   deletionPreflightLoadError,
+  ownedOrganizationSlug = null,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -140,6 +142,7 @@ export function AccountSettings({
           <DeleteAccountForm
             blockers={deletionBlockers}
             preflightFailed={deletionPreflightFailed}
+            ownedOrganizationSlug={ownedOrganizationSlug}
           />
         </div>
       </div>
