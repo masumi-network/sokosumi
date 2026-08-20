@@ -8960,6 +8960,7 @@ export const UserDeletionEvaluationSchema = {
             items: {
                 type: 'string',
                 enum: [
+                    'RUNNING_SUBSCRIPTION',
                     'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
                     'TASK_PAYMENT_CLAIM_PENDING'
                 ]
@@ -10212,6 +10213,8 @@ export const OrganizationDeletionEvaluationSchema = {
             items: {
                 type: 'string',
                 enum: [
+                    'RUNNING_SUBSCRIPTION',
+                    'ENTERPRISE_CONTRACT_ACTIVE',
                     'ORGANIZATION_HAS_ADDITIONAL_MEMBERS',
                     'LAST_WORKSPACE'
                 ]

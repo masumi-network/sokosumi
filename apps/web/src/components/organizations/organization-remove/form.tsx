@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
@@ -22,8 +23,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE,
   LAST_WORKSPACE_ERROR_CODE,
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+  RUNNING_SUBSCRIPTION_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 import type {
@@ -43,10 +46,23 @@ interface OrganizationRemoveFormProps {
   preflightFailed?: boolean;
 }
 
+function organizationDeletionBlockerHasBillingLink(code: string): boolean {
+  return (
+    code === RUNNING_SUBSCRIPTION_ERROR_CODE ||
+    code === ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE
+  );
+}
+
 function organizationDeletionBlockerMessage(
   code: string,
   t: ReturnType<typeof useTranslations>,
 ): string {
+  if (code === RUNNING_SUBSCRIPTION_ERROR_CODE) {
+    return t("Errors.runningSubscription");
+  }
+  if (code === ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE) {
+    return t("Errors.enterpriseContractActive");
+  }
   if (code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE) {
     return t("Errors.additionalMembers");
   }
@@ -140,6 +156,17 @@ export default function OrganizationRemoveForm({
                 {blockers.map((code) => (
                   <li key={code}>
                     {organizationDeletionBlockerMessage(code, t)}
+                    {organizationDeletionBlockerHasBillingLink(code) ? (
+                      <>
+                        {" "}
+                        <Link
+                          href="/billing"
+                          className="underline underline-offset-2"
+                        >
+                          {t("Errors.billingLink")}
+                        </Link>
+                      </>
+                    ) : null}
                   </li>
                 ))}
               </ul>

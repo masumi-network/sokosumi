@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  RUNNING_SUBSCRIPTION_ERROR_CODE,
   TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE,
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
@@ -50,6 +52,9 @@ function userDeletionBlockerMessage(
   code: string,
   t: ReturnType<typeof useTranslations>,
 ): string {
+  if (code === RUNNING_SUBSCRIPTION_ERROR_CODE) {
+    return t("Errors.runningSubscription");
+  }
   if (code === TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE) {
     return t("Errors.taskPaymentClaimReviewRequired");
   }
@@ -128,7 +133,20 @@ export function DeleteAccountForm({
                 <p className="text-destructive text-sm">{t("blockersTitle")}</p>
                 <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
                   {blockers.map((code) => (
-                    <li key={code}>{userDeletionBlockerMessage(code, t)}</li>
+                    <li key={code}>
+                      {userDeletionBlockerMessage(code, t)}
+                      {code === RUNNING_SUBSCRIPTION_ERROR_CODE ? (
+                        <>
+                          {" "}
+                          <Link
+                            href="/billing"
+                            className="underline underline-offset-2"
+                          >
+                            {t("Errors.billingLink")}
+                          </Link>
+                        </>
+                      ) : null}
+                    </li>
                   ))}
                 </ul>
               </div>

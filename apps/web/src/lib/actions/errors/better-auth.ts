@@ -11,6 +11,11 @@ export const TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE =
 export const TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE =
   "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED";
 
+export const RUNNING_SUBSCRIPTION_ERROR_CODE = "RUNNING_SUBSCRIPTION";
+
+export const ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE =
+  "ENTERPRISE_CONTRACT_ACTIVE";
+
 export const betterAuthApiErrorSchema = z.object({
   status: z.string(),
   statusCode: z.number(),

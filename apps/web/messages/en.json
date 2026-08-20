@@ -677,6 +677,9 @@
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
           "lastWorkspace": "You cannot delete your last workspace.",
+          "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
+          "enterpriseContractActive": "This organization has an active enterprise contract and cannot be deleted.",
+          "billingLink": "Go to billing",
           "unauthorizedAction": "Login"
         },
         "Schema": {
@@ -3958,7 +3961,9 @@
         "retry": "Try again",
         "Errors": {
           "taskPaymentClaimPending": "Wait for pending task payments to settle before deleting your account.",
-          "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support."
+          "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support.",
+          "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
+          "billingLink": "Go to billing"
         }
       },
       "DeletePersonal": {
