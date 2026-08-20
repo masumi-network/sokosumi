@@ -110,7 +110,11 @@ describe("POST /v1/drive/tasks/copy", () => {
     // BlobNotFoundError for no collision
     const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
     headMock.mockRejectedValue(new BlobNotFoundError());
-    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: false,
+      cursor: undefined,
+    });
 
     const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
@@ -124,6 +128,7 @@ describe("POST /v1/drive/tasks/copy", () => {
       downloadUrl: "https://blob.example/drive/users/user_123/document.pdf",
       contentType: "application/pdf",
       contentDisposition: "inline",
+      etag: "etag123",
     });
 
     const app = createApp();
@@ -173,7 +178,11 @@ describe("POST /v1/drive/tasks/copy", () => {
 
     const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
     headMock.mockRejectedValue(new BlobNotFoundError());
-    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: false,
+      cursor: undefined,
+    });
 
     const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
@@ -333,7 +342,11 @@ describe("POST /v1/drive/tasks/copy", () => {
 
     const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
     headMock.mockRejectedValue(new BlobNotFoundError());
-    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: false,
+      cursor: undefined,
+    });
 
     const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
@@ -383,7 +396,11 @@ describe("POST /v1/drive/tasks/copy", () => {
 
     const BlobNotFoundError = (await import("@vercel/blob")).BlobNotFoundError;
     headMock.mockRejectedValue(new BlobNotFoundError());
-    listMock.mockResolvedValue({ blobs: [], hasMore: false, cursor: null });
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: false,
+      cursor: undefined,
+    });
 
     const arrayBuffer = new ArrayBuffer(1024);
     ssrfSafeFetchMock.mockResolvedValue({
@@ -397,6 +414,7 @@ describe("POST /v1/drive/tasks/copy", () => {
       downloadUrl: "https://blob.example/drive/users/user_123/document.pdf",
       contentType: "application/pdf",
       contentDisposition: "inline",
+      etag: "etag123",
     });
 
     const app = createApp();
