@@ -74,6 +74,7 @@ import {
   applyDesignMdMetadataGuardToUserCreate,
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
+import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
@@ -558,6 +559,22 @@ export const auth = betterAuth({
         const evaluation = await evaluateUserDeletion(user.id, prisma);
         throwIfUserDeletionBlocked(user.id, evaluation);
         await prepareTasksForUserDeletion(user.id, prisma);
+        const userCustomer = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { stripeCustomerId: true },
+        });
+        (user as { stripeCustomerId?: string | null }).stripeCustomerId =
+          userCustomer?.stripeCustomerId ?? null;
+      },
+      afterDelete: async (user) => {
+        waitUntil(
+          deleteStripeCustomerBestEffort({
+            stripeCustomerId: (user as { stripeCustomerId?: string | null })
+              .stripeCustomerId,
+            ownerType: "user",
+            ownerId: user.id,
+          }),
+        );
       },
     },
     additionalFields: betterAuthUserAdditionalFields,
@@ -699,6 +716,21 @@ export const auth = betterAuth({
             prisma,
           );
           throwIfOrganizationDeletionBlocked(evaluation);
+          const organizationCustomer = await prisma.organization.findUnique({
+            where: { id: organization.id },
+            select: { stripeCustomerId: true },
+          });
+          organization.stripeCustomerId =
+            organizationCustomer?.stripeCustomerId ?? null;
+        },
+        afterDeleteOrganization: async ({ organization }) => {
+          waitUntil(
+            deleteStripeCustomerBestEffort({
+              stripeCustomerId: organization.stripeCustomerId,
+              ownerType: "organization",
+              ownerId: organization.id,
+            }),
+          );
         },
       },
       schema: {

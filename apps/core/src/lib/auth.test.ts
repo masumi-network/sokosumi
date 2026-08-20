@@ -56,6 +56,7 @@ const {
   ensureCanAcceptOrganizationInvitationMock,
   syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
+  deleteStripeCustomerBestEffortMock,
   listOrganizationExitChatRoomIdsForAblyMock,
   publishOrganizationExitChatRevocationMock,
   prepareStripeEmailSyncForUserUpdateMock,
@@ -74,12 +75,18 @@ const {
     async (callback: (tx: unknown) => unknown) => callback({}),
   );
   const prismaUserUpdateManyMock = vi.fn();
+  const prismaUserFindUniqueMock = vi.fn();
+  const prismaOrganizationFindUniqueMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
       prismaTransactionMock(callback),
     user: {
       updateMany: prismaUserUpdateManyMock,
+      findUnique: prismaUserFindUniqueMock,
+    },
+    organization: {
+      findUnique: prismaOrganizationFindUniqueMock,
     },
   };
 
@@ -113,6 +120,8 @@ const {
     prismaMock,
     prismaTransactionMock,
     prismaUserUpdateManyMock,
+    prismaUserFindUniqueMock,
+    prismaOrganizationFindUniqueMock,
     reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
     renderMagicLinkEmailMock: vi.fn(),
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
@@ -127,6 +136,7 @@ const {
     ensureCanAcceptOrganizationInvitationMock: vi.fn(),
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
+    deleteStripeCustomerBestEffortMock: vi.fn(),
     listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
     publishOrganizationExitChatRevocationMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
@@ -331,6 +341,11 @@ vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
     upgradeGuestChatRoomMembershipsToMemberMock(...args),
 }));
 
+vi.mock("@/helpers/stripe-customer-delete", () => ({
+  deleteStripeCustomerBestEffort: (...args: unknown[]) =>
+    deleteStripeCustomerBestEffortMock(...args),
+}));
+
 vi.mock("@/helpers/chat-room-organization-exit", () => ({
   listOrganizationExitChatRoomIdsForAbly: (...args: unknown[]) =>
     listOrganizationExitChatRoomIdsForAblyMock(...args),
@@ -401,6 +416,11 @@ describe("core auth config", () => {
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     isLastWorkspaceMock.mockResolvedValue(false);
+    prismaMock.user.findUnique.mockResolvedValue({ stripeCustomerId: null });
+    prismaMock.organization.findUnique.mockResolvedValue({
+      stripeCustomerId: null,
+    });
+    deleteStripeCustomerBestEffortMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => callback({}));
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
