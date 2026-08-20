@@ -188,6 +188,35 @@ describe("OrganizationInformation", () => {
       "data-can-manage",
       "false",
     );
+    expect(
+      screen.queryByRole("button", { name: "Delete" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows delete only for the organization owner", async () => {
+    const ownerView = await OrganizationInformation({
+      organization: createOrganization({}),
+      member: createMember({ role: MemberRole.OWNER }),
+    });
+    const { unmount } = render(ownerView);
+
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    unmount();
+
+    const adminView = await OrganizationInformation({
+      organization: createOrganization({}),
+      member: createMember({ role: MemberRole.ADMIN }),
+    });
+    render(adminView);
+
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete" }),
+    ).not.toBeInTheDocument();
   });
 
   it("passes persisted organization DESIGN.md metadata to the shared section", async () => {

@@ -1,6 +1,7 @@
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import { CopyableValue } from "@/components/copyable-value";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import type {
   MemberRecord,
+  OrganizationDeletionEvaluation,
   OrganizationRecord,
 } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
@@ -26,15 +28,22 @@ import OrganizationRemoveButton from "./organization-remove-button";
 interface OrganizationInformationProps {
   organization: OrganizationRecord;
   member: MemberRecord;
+  deletionBlockers?: OrganizationDeletionEvaluation["blockers"];
+  deletionPreflightFailed?: boolean;
+  deletionPreflightLoadError?: ReactNode;
 }
 
 export default async function OrganizationInformation({
   organization,
   member,
+  deletionBlockers = [],
+  deletionPreflightFailed = false,
+  deletionPreflightLoadError,
 }: OrganizationInformationProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { role } = member;
-  const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
+  const isOwner = role === MemberRole.OWNER;
+  const isOwnerOrAdmin = isOwner || role === MemberRole.ADMIN;
   const organizationMetadata = getOrganizationMetadata(organization.metadata);
   const { url: websiteUrl } = organizationMetadata;
   const designMdValue = toDesignMdProfileValue(
@@ -109,10 +118,14 @@ export default async function OrganizationInformation({
                   organization={organization}
                   className="h-7 gap-1.5 px-2 text-xs"
                 />
-                <OrganizationRemoveButton
-                  organization={organization}
-                  className="h-7 gap-1.5 px-2 text-xs"
-                />
+                {isOwner ? (
+                  <OrganizationRemoveButton
+                    organization={organization}
+                    className="h-7 gap-1.5 px-2 text-xs"
+                    blockers={deletionBlockers}
+                    preflightFailed={deletionPreflightFailed}
+                  />
+                ) : null}
               </div>
             </CardAction>
           )}
@@ -136,6 +149,7 @@ export default async function OrganizationInformation({
           </CardContent>
         ) : null}
       </Card>
+      {deletionPreflightLoadError}
       <OrganizationDesignMdSection
         owner={{ type: "organization", organizationId: organization.id }}
         canManage={isOwnerOrAdmin}

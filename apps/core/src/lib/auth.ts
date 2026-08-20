@@ -63,13 +63,18 @@ import {
   publishOrganizationExitChatRevocation,
 } from "@/helpers/chat-room-organization-exit";
 import {
+  evaluateOrganizationDeletion,
+  evaluateUserDeletion,
+  throwIfOrganizationDeletionBlocked,
+  throwIfUserDeletionBlocked,
+} from "@/helpers/deletion-evaluate";
+import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
   applyDesignMdMetadataGuardToUserCreate,
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
-import { isLastWorkspace } from "@/helpers/workspace-access";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
@@ -90,9 +95,6 @@ import { webhookService } from "@/services/webhook.service";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
-const ORGANIZATION_HAS_ADDITIONAL_MEMBERS =
-  "ORGANIZATION_HAS_ADDITIONAL_MEMBERS";
-const LAST_WORKSPACE = "LAST_WORKSPACE";
 
 const env = getEnv();
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
@@ -216,26 +218,6 @@ async function ensureFreeSubscriptionForCreatedOrganization(organization: {
         organizationId: organization.id,
         organizationName: organization.name,
       },
-    });
-  }
-}
-
-async function ensureOrganizationHasNoAdditionalMembers(
-  organizationId: string,
-  userId: string,
-): Promise<void> {
-  const members = await memberRepository.getMembersByOrganizationId(
-    organizationId,
-    prisma,
-  );
-  const hasAdditionalMembers = members.some(
-    (member) => member.userId !== userId,
-  );
-
-  if (hasAdditionalMembers) {
-    throw new APIError("BAD_REQUEST", {
-      code: ORGANIZATION_HAS_ADDITIONAL_MEMBERS,
-      message: "Remove all other members before deleting this organization.",
     });
   }
 }
@@ -573,6 +555,8 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
       beforeDelete: async (user) => {
+        const evaluation = await evaluateUserDeletion(user.id, prisma);
+        throwIfUserDeletionBlocked(user.id, evaluation);
         await prepareTasksForUserDeletion(user.id, prisma);
       },
     },
@@ -709,22 +693,12 @@ export const auth = betterAuth({
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         beforeDeleteOrganization: async ({ organization, user }) => {
-          await ensureOrganizationHasNoAdditionalMembers(
+          const evaluation = await evaluateOrganizationDeletion(
             organization.id,
             user.id,
+            prisma,
           );
-          if (
-            await isLastWorkspace(
-              user.id,
-              { type: "organization", organizationId: organization.id },
-              prisma,
-            )
-          ) {
-            throw new APIError("BAD_REQUEST", {
-              code: LAST_WORKSPACE,
-              message: "Cannot delete the user's last workspace.",
-            });
-          }
+          throwIfOrganizationDeletionBlocked(evaluation);
         },
       },
       schema: {

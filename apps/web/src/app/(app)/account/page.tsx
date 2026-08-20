@@ -7,7 +7,10 @@ import { BillingPortalErrorToast } from "@/components/billing/billing-portal-err
 import DefaultLoading from "@/components/default-loading";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
+import type {
+  StripeCustomerBillingDetails,
+  UserDeletionEvaluation,
+} from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { userService } from "@/lib/services";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -29,6 +32,7 @@ async function AccountPageContent() {
 
   const t = await getTranslations("App.Account.LinkedAccounts");
   const tBilling = await getTranslations("App.Account.BillingDetails");
+  const tDelete = await getTranslations("App.Account.Delete");
   const [accountsResult, session] = await Promise.all([
     listUserAccounts(),
     getSession(),
@@ -61,6 +65,24 @@ async function AccountPageContent() {
     userService.getMyMembersWithOrganizations(),
   ]);
 
+  let deletionBlockers: UserDeletionEvaluation["blockers"] = [];
+  let deletionPreflightFailed = false;
+  let deletionPreflightLoadError: ReactNode | undefined;
+  try {
+    const deletionResponse = await coreClient.getMyDeletion();
+    deletionBlockers = deletionResponse.data.blockers;
+  } catch (error) {
+    console.error("Failed to load account deletion blockers", error);
+    deletionPreflightFailed = true;
+    deletionPreflightLoadError = (
+      <CoreAuthReadRetry
+        description={tDelete("preflightError")}
+        retryLabel={tDelete("retry")}
+        title={tDelete("loadErrorTitle")}
+      />
+    );
+  }
+
   return (
     <div className="min-h-full w-full">
       <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
@@ -90,6 +112,9 @@ async function AccountPageContent() {
           }
           fallbackOrganizationId={members[0]?.organization.id ?? null}
           currentOrganizationId={session?.session.activeOrganizationId ?? null}
+          deletionBlockers={deletionBlockers}
+          deletionPreflightFailed={deletionPreflightFailed}
+          deletionPreflightLoadError={deletionPreflightLoadError}
         />
       </div>
     </div>

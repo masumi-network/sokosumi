@@ -9,19 +9,15 @@ const {
   taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
-  taskPaymentClaimFindFirstMock,
   taskPaymentClaimDeleteManyMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
-  captureMessageMock,
 } = vi.hoisted(() => ({
-  captureMessageMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
-  taskPaymentClaimFindFirstMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
@@ -31,15 +27,10 @@ vi.mock("@/lib/blob", () => ({
   deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
 }));
 
-vi.mock("@sentry/node", () => ({
-  captureMessage: captureMessageMock,
-}));
-
 describe("prepareTasksForUserDeletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFileFindManyMock.mockResolvedValue([]);
-    taskPaymentClaimFindFirstMock.mockResolvedValue(null);
     taskPaymentClaimDeleteManyMock.mockResolvedValue({ count: 0 });
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
@@ -56,7 +47,6 @@ describe("prepareTasksForUserDeletion", () => {
           findMany: taskFileFindManyMock,
         },
         taskPaymentClaim: {
-          findFirst: taskPaymentClaimFindFirstMock,
           deleteMany: taskPaymentClaimDeleteManyMock,
         },
       }),
@@ -98,125 +88,6 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskDeleteManyMock).toHaveBeenCalledWith({
       where: { ownerId: "user_delete" },
     });
-  });
-
-  function mockPendingClaimLookups(options: {
-    reviewRequired?: { id: string; reviewRequiredAt: Date } | null;
-    pending?: { id: string } | null;
-  }) {
-    taskPaymentClaimFindFirstMock.mockImplementation(
-      async ({ where }: { where: Record<string, unknown> }) => {
-        if (
-          where.reviewRequiredAt &&
-          typeof where.reviewRequiredAt === "object" &&
-          where.reviewRequiredAt !== null &&
-          "not" in where.reviewRequiredAt
-        ) {
-          return options.reviewRequired ?? null;
-        }
-        return options.pending ?? null;
-      },
-    );
-  }
-
-  it("blocks deletion while a task payment claim is pending", async () => {
-    mockPendingClaimLookups({
-      reviewRequired: null,
-      pending: { id: "claim_pending" },
-    });
-
-    const promise = prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    await expect(promise).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: expect.objectContaining({ code: "TASK_PAYMENT_CLAIM_PENDING" }),
-    });
-    expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
-    expect(taskDeleteManyMock).not.toHaveBeenCalled();
-  });
-
-  it("directs reviewed claims to administrator recovery before deletion", async () => {
-    mockPendingClaimLookups({
-      reviewRequired: {
-        id: "claim_review",
-        reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
-      },
-    });
-
-    const promise = prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    await expect(promise).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: expect.objectContaining({
-        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
-      }),
-    });
-    expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
-    expect(taskDeleteManyMock).not.toHaveBeenCalled();
-    // Unlike a plain PENDING claim, this one clears only when an operator
-    // acts, so the user's deletion is blocked for an unbounded time by an
-    // internal queue. It has to be visible to someone who can clear it.
-    expect(captureMessageMock).toHaveBeenCalledWith(
-      "Account deletion blocked by a task payment claim awaiting review",
-      expect.objectContaining({
-        level: "error",
-        extra: expect.objectContaining({
-          userId: "user_delete",
-          taskPaymentClaimId: "claim_review",
-        }),
-      }),
-    );
-  });
-
-  it("prefers a review-required claim when the user also has plain pending ones", async () => {
-    mockPendingClaimLookups({
-      reviewRequired: {
-        id: "claim_review",
-        reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
-      },
-      // Would be the wrong branch if findFirst were unordered over both types.
-      pending: { id: "claim_pending" },
-    });
-
-    const promise = prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    await expect(promise).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: expect.objectContaining({
-        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
-      }),
-    });
-    expect(captureMessageMock).toHaveBeenCalledWith(
-      "Account deletion blocked by a task payment claim awaiting review",
-      expect.objectContaining({
-        extra: expect.objectContaining({
-          taskPaymentClaimId: "claim_review",
-        }),
-      }),
-    );
-    // Review path must short-circuit before the plain-PENDING lookup.
-    expect(taskPaymentClaimFindFirstMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not page for a pending claim that will settle on its own", async () => {
-    mockPendingClaimLookups({
-      reviewRequired: null,
-      pending: { id: "claim_pending" },
-    });
-
-    await expect(
-      prepareTasksForUserDeletion("user_delete", {
-        $transaction: transactionMock,
-      } as never),
-    ).rejects.toMatchObject({ status: "BAD_REQUEST" });
-
-    expect(captureMessageMock).not.toHaveBeenCalled();
   });
 
   it("removes terminal claims before transaction cascade", async () => {

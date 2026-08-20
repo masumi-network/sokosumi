@@ -8,6 +8,7 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  OrganizationDeletionEvaluation,
   OrganizationInviteLink,
   PendingInvitation,
   StripeCustomerBillingDetails,
@@ -87,6 +88,9 @@ export default async function OrganizationPage({
   const tInviteLinks = await getTranslations(
     "App.Organizations.OrganizationDetail.InviteLinks",
   );
+  const tDeletion = await getTranslations(
+    "Components.Organizations.RemoveModal",
+  );
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
@@ -141,6 +145,28 @@ export default async function OrganizationPage({
     }
   }
 
+  let deletionBlockers: OrganizationDeletionEvaluation["blockers"] = [];
+  let deletionPreflightFailed = false;
+  let deletionPreflightLoadError: ReactNode | undefined;
+  if (member.role === MemberRole.OWNER) {
+    try {
+      const deletionResponse = await coreClient.getOrganizationDeletion(
+        organization.id,
+      );
+      deletionBlockers = deletionResponse.data.blockers;
+    } catch (error) {
+      console.error("Failed to load organization deletion blockers", error);
+      deletionPreflightFailed = true;
+      deletionPreflightLoadError = (
+        <CoreAuthReadRetry
+          description={tDeletion("preflightError")}
+          retryLabel={tDeletion("retry")}
+          title={tDeletion("loadErrorTitle")}
+        />
+      );
+    }
+  }
+
   const { data: members } = await coreClient.getOrganizationMembers(
     organization.id,
   );
@@ -179,7 +205,13 @@ export default async function OrganizationPage({
           <p className="text-muted-foreground">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />
         </div>
-        <OrganizationInformation organization={organization} member={member} />
+        <OrganizationInformation
+          organization={organization}
+          member={member}
+          deletionBlockers={deletionBlockers}
+          deletionPreflightFailed={deletionPreflightFailed}
+          deletionPreflightLoadError={deletionPreflightLoadError}
+        />
         {isOwnerOrAdmin ? (
           <OrganizationBillingDetails
             billingDetails={billingDetails}
