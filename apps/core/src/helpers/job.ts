@@ -41,13 +41,15 @@ import {
   AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
   type CardanoV2ReadySource,
-  calculateCentsFromMasumiAmountStrings,
-  getAgentCost,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
   isCardanoV2SourceReady,
   toMasumiAgent,
 } from "@/helpers/agent";
+import {
+  calculateCentsFromMasumiAmountStrings,
+  getAgentCost,
+} from "@/helpers/agent-cost";
 import { incrementAgentJobCount } from "@/helpers/agent-job-count";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -55,7 +57,7 @@ import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import { flattenJob } from "@/types/job";
 
-import type { AgentCost } from "./agent";
+import type { AgentCost } from "./agent-cost";
 import { badRequest, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";

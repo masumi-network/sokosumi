@@ -1,0 +1,151 @@
+/**
+ * Canonical JSON for comparing two attacker-authored 402 values for equality
+ * regardless of key order.
+ *
+ * Split out of `payment-required.schema.ts` because it answers a third
+ * question — not what a payload may contain (the schema) and not how much of
+ * it may pass (the limits), but whether two values are THE SAME value.
+ *
+ * Written locally rather than delegated to `json-canonicalize` because that
+ * serializer short-circuits on `object.toJSON != null` and falls back to plain
+ * `JSON.stringify`, which emits INSERTION order, unsorted. `toJSON` need not
+ * be callable — the string `"x"` triggers it — and it is a spec-legal unknown
+ * key on an `accepts` entry: it collides with no validated field, so
+ * `dropShadowKeys` passes it and the loose entry schema keeps it. A resource
+ * server could therefore choose which of its own entries canonicalize
+ * inconsistently, and `narrowToChosenRequirement` would refuse the entry the
+ * payload really offered on any path that round-trips it (a replay, a queued
+ * job). It fails closed, so the outcome is an unpayable agent rather than a
+ * diverted payment — but the trigger is attacker-chosen, so the dependency
+ * goes.
+ *
+ * `json-canonicalize` stays a dependency: `src/hash/hash.ts` hashes values
+ * whose canonical form must keep matching what the payment node computes.
+ * This module is only for local value-equality, where the ONLY property that
+ * matters is that two equal values produce one string and two different values
+ * never do.
+ */
+
+import { X402_MAX_JSON_DEPTH } from "./payment-required.limits.js";
+
+/** Signals a value outside the JSON data model; never escapes this module. */
+class NotCanonicalizableError extends Error {}
+
+/**
+ * RFC 8785-style canonical JSON: object keys sorted by UTF-16 code unit at
+ * every depth, arrays in order, scalars exactly as `JSON.stringify` writes
+ * them. `undefined` properties are treated as absent (the `filterUndefined`
+ * behaviour the previous implementation was configured with).
+ *
+ * Returns `undefined` — never throws, for ANY input — when the value is
+ * outside the JSON data model (a cycle, a function, a `BigInt`, a symbol,
+ * `NaN`/`Infinity`), nested past `X402_MAX_JSON_DEPTH`, or when reading one of
+ * its properties throws. The caller treats that as "not equal", which is the
+ * fail-closed direction for a fund-diversion fence.
+ *
+ * Keys and string values BOTH go through `JSON.stringify`, so neither can
+ * forge the other's delimiters: a value containing `","` cannot appear as a
+ * second key, and a key containing `":"` cannot appear as a value. That is
+ * what makes an equal canonical string mean equal values, so it must survive
+ * any future edit here.
+ */
+export function canonicalJsonKey(value: unknown): string | undefined {
+  try {
+    return serialize(value, 0, new Set());
+  } catch {
+    // EVERY throw becomes `undefined`, not just `NotCanonicalizableError`.
+    // Reading a property can itself throw — an enumerable getter that throws
+    // is not reachable from `JSON.parse` output, but "never throws" is the
+    // documented contract and the only caller is a fund-diversion fence:
+    // rethrowing there surfaces as a 500 on the pay path instead of the
+    // fail-closed "not equal" the caller is written for. The cost is that a
+    // genuine defect in this module also reads as "not equal" — which still
+    // fails closed (an unpayable agent), the direction this fence must err in.
+    return undefined;
+  }
+}
+
+function serialize(
+  value: unknown,
+  depth: number,
+  ancestors: Set<object>,
+): string {
+  if (value === null) {
+    return "null";
+  }
+  switch (typeof value) {
+    case "boolean":
+      return value ? "true" : "false";
+    case "number":
+      // `JSON.stringify` writes NaN and ±Infinity as `null`, which would make
+      // them compare equal to a real `null`. Refuse instead.
+      if (!Number.isFinite(value)) {
+        throw new NotCanonicalizableError("non-finite number");
+      }
+      return JSON.stringify(value);
+    case "string":
+      return JSON.stringify(value);
+    case "object":
+      return serializeObject(value as object, depth, ancestors);
+    default:
+      // undefined, function, bigint, symbol — outside the JSON data model.
+      throw new NotCanonicalizableError(`unsupported type ${typeof value}`);
+  }
+}
+
+function serializeObject(
+  value: object,
+  depth: number,
+  ancestors: Set<object>,
+): string {
+  if (depth >= X402_MAX_JSON_DEPTH) {
+    throw new NotCanonicalizableError("nested too deep");
+  }
+  // NOT redundant behind the depth guard above: `ancestors` holds the objects
+  // on the CURRENT path, so a self-referencing value trips here at depth 1.
+  // Only a cycle whose loop is longer than X402_MAX_JSON_DEPTH reaches the
+  // depth error instead. Both answers are `undefined` to the caller, which is
+  // why no test can tell them apart from outside this module — the sibling
+  // walk in payment-required.sanitize.ts returns distinct messages and pins
+  // both halves.
+  if (ancestors.has(value)) {
+    throw new NotCanonicalizableError("circular reference");
+  }
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const elements: string[] = [];
+      // An index loop, not `map`: `Array.prototype.map` SKIPS holes, so a
+      // sparse array emitted nothing for them and produced `[,1]` — not valid
+      // JSON, and a string no `JSON.parse` output could ever equal. Visiting
+      // every index writes a hole or an `undefined` element as `null`, which
+      // is what `JSON.stringify` does and what keeps array length meaningful.
+      for (let index = 0; index < value.length; index += 1) {
+        const element: unknown = value[index];
+        elements.push(
+          element === undefined
+            ? "null"
+            : serialize(element, depth + 1, ancestors),
+        );
+      }
+      return `[${elements.join(",")}]`;
+    }
+    // Own enumerable string keys only, sorted by UTF-16 code unit — what
+    // `Array.prototype.sort` does by default, and what RFC 8785 specifies.
+    // `toJSON` is just another key here; it is never consulted.
+    const properties = Object.keys(value as Record<string, unknown>)
+      .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${serialize(
+            (value as Record<string, unknown>)[key],
+            depth + 1,
+            ancestors,
+          )}`,
+      );
+    return `{${properties.join(",")}}`;
+  } finally {
+    ancestors.delete(value);
+  }
+}

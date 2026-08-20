@@ -63,9 +63,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 vi.mock("@/helpers/agent", () => ({
   AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  calculateAgentRatings: calculateAgentRatingsMock,
   calculateAverageExecutionTimes: calculateAverageExecutionTimesMock,
-  getAgentCost: getAgentCostMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
@@ -73,6 +71,14 @@ vi.mock("@/helpers/agent", () => ({
   getAgentName: getAgentNameMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getCardanoV2ReadySources: () => Promise.resolve([]),
+}));
+
+vi.mock("@/helpers/agent-rating", () => ({
+  calculateAgentRatings: calculateAgentRatingsMock,
+}));
+
+vi.mock("@/helpers/agent-cost", () => ({
+  getAgentCost: getAgentCostMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

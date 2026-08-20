@@ -42,12 +42,16 @@ const {
 // Partial mock: the readiness matcher and unit normalizer come from the REAL
 // module. A hand-written copy here would mean every V2 readiness assertion in
 // this file validated the test's own logic instead of production's.
-vi.mock("@/helpers/agent", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/helpers/agent")>()),
-  buildAvailableAgentWhereClause: () => ({}),
+vi.mock("@/helpers/agent-cost", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/agent-cost")>()),
   calculateCentsFromMasumiAmountStrings:
     calculateCentsFromMasumiAmountStringsMock,
   getAgentCost: getAgentCostMock,
+}));
+
+vi.mock("@/helpers/agent", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/agent")>()),
+  buildAvailableAgentWhereClause: () => ({}),
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
   toMasumiAgent: (agent: {

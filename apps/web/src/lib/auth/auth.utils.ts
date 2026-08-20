@@ -4,6 +4,7 @@ const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const OAUTH_CONSENT_PATH = "/oauth/consent";
 const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
+const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
 
 const OAUTH_CONSENT_QUERY_KEYS = [
   "client_id",
@@ -271,6 +272,60 @@ type OAuthConsentParamRecord = Partial<
   Record<(typeof OAUTH_CONSENT_QUERY_KEYS)[number], string | undefined>
 >;
 
+function normalizeOAuthConsentQueryValue(key: string, value: string): string {
+  // Better Auth signs with standard base64. Its magic-link verifier decodes an
+  // already-parsed callback URL, turning `%2B` into `+`; subsequent form-style
+  // query parsing turns that `+` into a space. Restore the signature before
+  // serializing it back to `%2B`.
+  return key === "sig" ? value.replaceAll(" ", "+") : value;
+}
+
+export function serializeOAuthConsentSearchParams(
+  searchParams: URLSearchParams,
+): string {
+  const normalizedSearchParams = new URLSearchParams();
+
+  for (const [key, value] of searchParams.entries()) {
+    normalizedSearchParams.append(
+      key,
+      normalizeOAuthConsentQueryValue(key, value),
+    );
+  }
+
+  return normalizedSearchParams.toString();
+}
+
+export function buildSignedOAuthConsentQueryFromSearchParams(
+  searchParams: URLSearchParams,
+): string | undefined {
+  if (
+    !searchParams.has("client_id") ||
+    !searchParams.has("exp") ||
+    !searchParams.has("sig")
+  ) {
+    return undefined;
+  }
+
+  const signedParameterNames = new Set(
+    searchParams.getAll(SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY),
+  );
+  const signedSearchParams = new URLSearchParams();
+
+  for (const [key, value] of searchParams.entries()) {
+    const isSignedParameter =
+      signedParameterNames.size === 0 ||
+      key === "sig" ||
+      key === SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY ||
+      signedParameterNames.has(key);
+
+    if (isSignedParameter && !AUTH_REDIRECT_EXCLUDED_QUERY_KEYS.has(key)) {
+      signedSearchParams.append(key, value);
+    }
+  }
+
+  return serializeOAuthConsentSearchParams(signedSearchParams);
+}
+
 export function buildOAuthConsentReturnUrl(
   params: OAuthConsentParamRecord,
 ): string | undefined {
@@ -283,7 +338,7 @@ export function buildOAuthConsentReturnUrl(
   for (const key of OAUTH_CONSENT_QUERY_KEYS) {
     const value = params[key];
     if (value) {
-      searchParams.set(key, value);
+      searchParams.set(key, normalizeOAuthConsentQueryValue(key, value));
     }
   }
 
@@ -300,13 +355,11 @@ export function buildOAuthConsentReturnUrlFromSearchParams(
     }
   }
 
-  const hasSignedOAuthQuery =
-    filteredSearchParams.has("client_id") &&
-    filteredSearchParams.has("exp") &&
-    filteredSearchParams.has("sig");
+  const signedOAuthQuery =
+    buildSignedOAuthConsentQueryFromSearchParams(filteredSearchParams);
 
-  if (hasSignedOAuthQuery) {
-    return `${OAUTH_CONSENT_PATH}?${filteredSearchParams.toString()}`;
+  if (signedOAuthQuery) {
+    return `${OAUTH_CONSENT_PATH}?${signedOAuthQuery}`;
   }
 
   return buildOAuthConsentReturnUrl({

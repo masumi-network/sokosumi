@@ -220,3 +220,446 @@ Verification for this step:
 - `pnpm typecheck` — all workspaces clean.
 - `pnpm check` — 3119 files, no fixes.
 - `prisma format` / `prisma validate` — no churn beyond the added comment.
+## Sub-component 3 — buy-side helpers (`x402-3-helpers`) — 2026-08-11
+
+**Branch:** `x402-3-helpers`, cut from `x402-2-model` (clean tree). Three
+feature commits (one per area) plus this log entry. Framework-agnostic
+helpers only — no route, no wiring into the sync cron yet.
+
+### Area A — CAIP-19 pricing
+
+- `packages/masumi/src/utils/caip19.ts`: canonical lowercase
+  `eip155:<chainId>/erc20:<address>` CreditCost keys. Build throws on
+  malformed input; parse is case-insensitive and returns lowercase parts.
+  The form is a fixed point of `normalizeMasumiPaymentUnit` (it only
+  lowercases), so CAIP-19 rows need no ingestion-era dual-spelling dance.
+- `apps/core/src/helpers/x402-pricing.ts`:
+  `calculateCentsFromX402Amount`. **Pricing convention decided here:**
+  CAIP-19 CreditCost rows store `centsPerUnit` per **whole token**
+  (ticket 004's "explicit decimals handling"), NOT per base unit like
+  Cardano's `lovelace` rows — cents carry 10 decimal places, so a
+  per-base-unit price for any asset over 10 decimals would round to zero
+  and floor-charge everything. Conversion is ceiling division by
+  `10^decimals`, then floored at `MIN_CHARGEABLE_CREDITS`. Unknown asset,
+  non-positive row, malformed amount/decimals → 422 pre-charge.
+
+### Area B — 402 dialect normalizer
+
+- `packages/masumi/src/schemas/x402/payment-required.schema.ts`
+  (exported from `@sokosumi/masumi/schemas`): accepts a v1 JSON body
+  (`maxAmountRequired`, plain network names), a v2 JSON body, or the v2
+  base64 `PAYMENT-REQUIRED` header transport (string input), and returns
+  the node's v2 `paymentRequired` shape. Network-name map holds ONLY the
+  researched names (base→eip155:8453, base-sepolia→eip155:84532); unknown
+  names and non-EVM CAIP-2 namespaces error. Conflicting
+  `amount`/`maxAmountRequired` spellings error. `x402Version` is
+  preserved from the input (the node validates entry shape, not the
+  version number). `isX402PaymentIdentifierAdvertised` gates whether the
+  pay route may send `paymentIdentifier` (node 400s otherwise, 011 Q2).
+
+### Area C — buy-side readiness composition
+
+- Payment client grew thin `getX402AvailableNetworks` (passes
+  `isTestnet` derived from the client's Preprod/Mainnet network) and
+  `getX402Budgets`; both neverthrow, both raw node rows. NOTE:
+  `clients/index.ts` is a curated export list — `X402AvailableNetwork` /
+  `X402Budget` had to be added explicitly.
+- `apps/core/src/services/agent-sync.x402-readiness.ts`:
+  `syncX402BuySideReadiness` composes ready **(caip2Network, asset)
+  pairs** — chain enabled AND a budget in that asset with
+  `remainingAmount > 0`; `canSettle` deliberately ignored (buy side needs
+  no facilitator). Cache key `x402-buy-side-readiness` +
+  `…-failure` marker, copying the Cardano V2 pattern exactly: stale
+  served on failure, one page per failure streak via the createMany
+  latch, never-recorded bypasses the latch and keeps paging, empty-set
+  pages once on transition, `x402_readiness: stale|never_recorded` tags.
+- `apps/core/src/helpers/x402-readiness.ts`: `getX402ReadySources`
+  (fail closed when never recorded, drops malformed cached pairs, never
+  age-expired), `isX402SourceReady`, and the per-environment allowlist —
+  Preprod → `eip155:84532` only, Mainnet → `eip155:8453` only, unknown
+  never allowed. Environment comes from the existing `NETWORK` env;
+  helpers take it as a parameter so they stay pure.
+
+### Verification
+
+- `pnpm --filter @sokosumi/masumi test` — 14 files, 244 tests passed.
+- `pnpm --filter core test` on the three new test files — 40 passed;
+  plus `agent-sync.service.test.ts` + `agent.test.ts` (146 across 5
+  files) to guard the mirrored patterns.
+- Mutation-tested by hand (mutate → watch fail → revert → green):
+  dropped charge floor, truncating division, unknown-network guess in
+  the normalizer, fail-open allowlist. Each killed by a dedicated test.
+- `pnpm typecheck` all workspaces; `pnpm check` clean (3129 files).
+
+### What sub-components 4/5 need to know
+
+Exact signatures (all exported):
+
+- `buildCaip19AssetKey(caip2Network: string, assetAddress: string): string`
+  (throws on malformed input);
+  `parseCaip19AssetKey(key: string): Caip19AssetKeyParts | null`;
+  `isCaip19AssetKey(key: string): boolean`; patterns
+  `CAIP2_EVM_NETWORK_PATTERN`, `EVM_ADDRESS_PATTERN` — `@sokosumi/masumi`.
+- `calculateCentsFromX402Amount(input: { caip2Network; asset; amount;
+  decimals }, creditCosts: CreditCost[]): bigint` — throws 422
+  `HTTPException`; `@/helpers/x402-pricing`.
+- `normalizeX402PaymentRequired(input: unknown):
+  Result<X402PaymentRequired, string>`;
+  `isX402PaymentIdentifierAdvertised(pr): boolean`;
+  `x402PaymentRequiredSchema` (reuse it inside the route's request Zod)
+  — `@sokosumi/masumi/schemas`.
+- `paymentClient().getX402AvailableNetworks({ signal? })` /
+  `.getX402Budgets({ signal? })` →
+  `Result<X402AvailableNetwork[] | X402Budget[], string>`.
+- `syncX402BuySideReadiness({ signal? }): Promise<boolean>` (changed?) —
+  `@/services/agent-sync.x402-readiness`;
+  `getX402ReadySources(tx?)`, `isX402SourceReady(network, asset, pairs)`,
+  `getAllowedX402Caip2Networks(getEnv().NETWORK)`,
+  `isX402NetworkAllowed(network, getEnv().NETWORK)` —
+  `@/helpers/x402-readiness`.
+
+Handoff items:
+
+- **The readiness sync is NOT wired into `/sync/agents` yet.**
+  `helpers/agent.ts` (890 lines) and `agent-sync.service.ts` (973) both
+  sit over the 750-line ceiling, so nothing was added to them. Step 4:
+  call `syncX402BuySideReadiness` from `routes/sync/agents/get.ts`
+  (import the module directly, same signal/timeout treatment as the
+  Cardano call) and extend the `routes/sync/index.test.ts` service mock.
+- **Operator prerequisite:** CAIP-19 CreditCost rows price per whole
+  token — `POST /v1/credit-costs` `creditsPerUnit` = credits per 1 USDC,
+  unit = the `buildCaip19AssetKey` output.
+- The listing gate composes: readiness pair (`isX402SourceReady`) +
+  per-env allowlist (`isX402NetworkAllowed`) + CreditCost row + curation
+  (`isShown`, production only). All fail closed independently.
+- Rebuild `@sokosumi/masumi` (`pnpm --filter @sokosumi/masumi build`)
+  after pulling — core resolves it through `dist`.
+- Step-2 follow-up still open: bound `idempotencyKey` in the pay route's
+  Zod (max ~200) before it reaches the btree unique.
+
+### Step-3 review fixes (same branch) — 2026-08-11
+
+Eight findings from the step-3 review, fixed in place. Where they touch the
+handoff signatures above, this section supersedes it.
+
+**`GET /x402/budgets` is ADMIN-gated and unscoped — verified upstream.**
+Checked against masumi-payment-service `main`: `listX402BudgetsGet`
+(`src/routes/api/x402/index.ts`) is built with
+`adminAuthenticatedEndpointFactory` — a plain pay key is rejected — and its
+handler `listX402WalletBudgets(input.apiKeyId)` returns EVERY key's budget
+rows unless the optional `apiKeyId` query filter is passed; it is never
+ctx-scoped. Meanwhile `POST /x402/pay` (`pay.ts`, `createX402Payment`) only
+draws on budgets `where { apiKeyId: <calling key>, evmWalletId, asset,
+enabled }` — a foreign key's budget is never spendable by our key. Fixes:
+`getX402Budgets` now resolves its own key id via `GET /api-key-status` and
+passes the `apiKeyId` filter (fails loud if the status call fails — never a
+silent unscoped read), so readiness can never mark a pair ready off another
+key's budget; the wrong "node scopes to the caller" comment is gone; the
+admin-permission operator prerequisite is documented in PR1-SPEC §6.
+Note the original review suggestion (filter by wallet ids from
+`/x402/networks/available`) was unimplementable — that endpoint returns
+network rows only, no wallet ids; `apiKeyId` scoping matches the pay-time
+predicate exactly.
+
+**Ready pairs now carry `evmWalletId` (decision for steps 4/5).**
+`X402ReadySource` is `{ caip2Network, asset, evmWalletId }`; the pair's
+`evmWalletId` is the budget-backing wallet the pay route passes to
+`POST /x402/pay` — no per-payment `/x402/budgets` fetch. When several
+budgets back one (network, asset) pair, `composeX402ReadySources` records
+the one with the most remaining spend (tie-break: lexicographic wallet id)
+so the recorded set is deterministic. New helper
+`findX402ReadySource(caip2Network, asset, readySources):
+X402ReadySource | undefined` returns the pair (and wallet) for the matched
+402 entry; `isX402SourceReady` delegates to it. Cached rows without
+`evmWalletId` (pre-field or malformed) are dropped by `getX402ReadySources`
+— fail closed until the next sync rewrites the cache.
+
+**402 normalizer hardening.** The wild entry schema and the node-shape
+`x402PaymentRequirementsSchema` are now `looseObject`s: unknown entry keys
+(live Bazaar aliases like `currency`/`recipient`) survive normalization
+verbatim, because the chosen entry must be echoable byte-for-byte into the
+signed payload's `accepted` (research 001 §3) and a strict server re-402s a
+stripped echo AFTER the charge; only dialect-translated keys
+(`maxAmountRequired`→`amount`, per-entry `resource`→top-level) are
+consumed. `accepts` is capped at 20 entries (node `maxItems`) so an
+oversized 402 fails pre-charge. v1 multi-entry bodies with DISAGREEING
+per-entry resource URLs now error (never-guess, matching the
+conflicting-amounts guard); agreeing/single resources keep working. The
+dead not-valid-base64 catch is gone (`Buffer.from` never throws); the
+surviving error reads "not base64-encoded JSON".
+
+**CAIP-19 conventions fenced out of the Cardano pricing path.** The cost
+calculators moved from `helpers/agent.ts` (was over the 750-line ceiling)
+into `helpers/agent-cost.ts`: `getAgentCost`,
+`calculateCentsFromMasumiAmountStrings`, `AgentCost`, plus new
+`listCardanoBillableUnitSpellings`. `calculateCentsFromPricingAmountRows`
+throws 422 on a CAIP-19 unit (it bills per SMALLEST unit; CAIP-19 rows
+price per WHOLE token — honoring one would charge 10^decimals× wrong), and
+`buildAvailableAgentWhereClause` excludes CAIP-19 units from `validUnits`
+so a CAIP-19-keyed CreditCost row can never make a Cardano agent billable.
+Import sites updated (`job.ts`, `agent-summary.ts`, `events/post.ts`,
+`agents/[id]/get.ts`); mutation-tested (fence disabled → 2 tests fail →
+restored → green). `agent.ts` is now 765 lines — still over the ceiling;
+step 4 must keep extracting, not append.
+
+**Re-arm test fixed.** The readiness re-arm test now seeds a recorded
+readiness row before every failure call, so each failure takes the warm
+(latched) path: held latch stays silent (count 0), success deletes the
+marker, and the next failure's fresh insert (count 1) is what pages — the
+latch re-arm itself is what the assertion proves, not the cold-start
+bypass.
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 14 files / 250
+passed; core x402 + agent + deletion suites (12 files) 282 passed;
+`pnpm typecheck` all workspaces; `pnpm format` + `pnpm check` clean.
+
+### Step-3 re-review residuals (for step 4)
+
+- `apps/core/src/helpers/agent.ts` is 762 lines — still over the 750 ceiling.
+  Step 4 touches listing: extract the availability/where-clause helpers (or
+  the metadata-override getters) as part of its change, per the split rule.
+
+### Step-3 fourth review — trusted asset decimals + canonicalizer holes
+
+**Ready pairs now carry the NODE's `decimals`; the agent's copy is never
+priced off.** `X402ReadySource` is
+`{ caip2Network, asset, evmWalletId, decimals }` (the shape recorded above
+is superseded). `decimals` scales the charge inversely
+(`cents = ceil(amount x centsPerUnit / 10^decimals)`), and the only copy
+reaching `calculateCentsFromX402Amount` came from
+`registryPaymentSourcePricingSchema` — the agent's OWN registry entry,
+range-checked but never cross-checked. Registering USDC on Base with
+`decimals: 18` (true value 6) floored the charge at
+`MIN_CHARGEABLE_CREDITS` while the managed wallet signed away a real
+USDC; the demand still cleared the ceiling check, because that compares
+against the same agent-registered amount. `composeX402ReadySources` now
+reads `defaultAsset` + `defaultAssetDecimals` off
+`GET /x402/networks/available` (both required-but-nullable in the pinned
+spec) and records the node's scale, matching the budget's asset to the
+chain's default asset canonically. `getX402ReadySources` re-validates it
+on read like every other field (`isUsableAssetDecimals`, hoisted into
+`helpers/x402-pricing.ts` next to the formula that consumes it).
+
+Everything fails closed: null / non-integer / out-of-range decimals drop
+the pair; a chain listed twice with disagreeing scales drops entirely; a
+cached row predating the field drops until the next sync. **A funded
+budget in a NON-default asset also drops** — the node vouches for no
+scale on it, and the only other copy is the agent's, so unpriceable is
+unpayable. Nothing real is lost today (each allowed chain lists exactly
+the one USDC contract Soko pays in); a second asset needs the NODE to
+publish its decimals, not a Soko-side guess. Consequence: at most one
+pair per chain, so the compose-time sort is a no-op until an allowlist
+grows — kept, because the serialized array is the change-detection key.
+Mutation-tested: recording the agent-authored 18 instead fails the money
+assertion (`expected 1n to be 10000000000n`); restored green.
+
+**Steps 4/5 must consume it.** `helpers/x402-agent-listing.ts` and
+`helpers/x402-payment-verify.ts` still pass `amount.decimals` (the
+projected registry value) into pricing. They must take `decimals` from
+the matched `X402ReadySource` instead — `isX402SourceReady` becomes a
+`findX402ReadySource` call on the listing side — and keep the row's own
+`missing_decimals` / no-decimals rejections only as a registry sanity
+gate, never as the pricing input.
+
+**Canonical-JSON fences.** `canonicalJsonKey` swallows EVERY throw now,
+not just `NotCanonicalizableError`: a throwing enumerable getter escaped
+as a plain `Error`, which on the pay path is a 500 instead of the
+fail-closed "not equal" the caller is written for. Array holes serialize
+as `null` (an index loop, not `map`, which skips them) so a sparse array
+can no longer produce `[,1]`. The key-side `JSON.stringify` is now
+guarded by a test that a raw `"${key}":` makes red
+(`{ 'a":1,"b': 2 }` vs `{ a: 1, b: 2 }`) — the previous pair of
+assertions only exercised the value side and left the whole suite green
+under that mutation. `X402_MAX_ENCODED_PAYLOAD_LENGTH`'s doc now names
+its companion, the pay route's `bodyLimit`, since the v1 JSON-body
+dialect still has no total-size bound in the package (32 MB body: ~32 ms,
++9.4 MB heap through `stripPrototypePollutingKeys`).
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 322
+passed; `pnpm --filter core test` 359 files / 3275 passed (6 skipped);
+`pnpm typecheck` all workspaces; `pnpm check` clean.
+
+### Step-3 fifth review — `accepts` is a menu, not an all-or-nothing offer
+
+**One unsupported option no longer poisons a 402 that also carries a
+payable one.** `accepts` is a MENU and the client picks ONE, but every
+unsupported-option check was enforced payload-wide: `wildRequirementSchema`
+typed `scheme`, `extra.assetTransferMethod` and the `maxTimeoutSeconds`
+cap, so a single bad element failed `z.array(...)`, and the normalization
+loop `return err`ed on the first entry it could not translate. Measured
+before the fix — every payload below also carries the canonical payable
+entry from research 001 §2:
+
+```
+REFUSED  exact + batch-settlement          -> Invalid input: expected "exact"
+REFUSED  exact on Base + exact on Solana   -> Unknown x402 network "solana:5eykt4Us…"
+REFUSED  exact eip3009 + exact permit2     -> Invalid input: expected "eip3009"
+REFUSED  exact 3600s + exact 86400s        -> Too big: expected number to be <=3600
+REFUSED  exact + a 79-digit-amount entry   -> x402 amount is 79 digits
+OK       control: the payable entry alone
+```
+
+Not hypothetical: research 001 §2 records `batch-settlement` offered
+*alongside* `exact` by live Base-mainnet resources (`receiverAuthorizer`,
+`withdrawDelay: 86400`), and §3 records Permit2/ERC-7710 as standardized
+v2 exact/EVM fallbacks beside EIP-3009. Base mainnet `eip155:8453` is
+exactly what `X402_MAINNET_ALLOWED_CAIP2_NETWORKS` allows. The listing
+side composes payability from the registry plus readiness rather than
+from the live 402, so the agent stayed listed while every call 422'd —
+"listed ⇒ payable" broken against a real listing.
+
+**Selection is now per entry.** Those three fields are shape checks in the
+wild schema (`scheme` a bounded string, `assetTransferMethod` a bounded
+string, `maxTimeoutSeconds` an int without the cap); the VALUES are
+refused per entry in `selectPayableRequirement`, which `continue`s with a
+collected reason instead of failing the payload. The payload is refused
+only when NO entry survives, echoing every reason through
+`truncateDetail`: `No payable x402 requirement in accepts (N refused):
+[0] … | [1] …`. A field of the wrong TYPE is still a payload-wide parse
+failure — that is a malformed 402, not a menu option Soko does not
+support.
+
+**Nothing is guessed and no fence is weakened.** An unsupported option is
+not translated into a supported one, it is simply not selected.
+`x402PaymentRequirementsSchema` stays strict and is now the ONLY gate on
+an emitted entry — the scheme allowlist, the CAIP-2 and canonical-address
+patterns, the amount width, the timeout cap and the pinned
+`extra.assetTransferMethod` all re-run on every survivor (the translation
+step deliberately returns untyped data). The shadow-key filter, prototype
+sanitizer, length caps, echo truncation and the 20-entry cap are
+untouched, and `min(1)` becomes the structural nothing-payable backstop.
+Resource URLs are pooled over EVERY wild entry and evaluated BEFORE
+selection, so the cross-entry conflict fence keeps its meaning.
+
+**The downstream same-`(network, asset)` agreement fence is unaffected.**
+Removing a member from a group can only remove disagreements, so the only
+question is whether a skipped entry could have been one that *should*
+have refused the payload. It cannot: every skip reason either puts the
+entry in a different `(network, asset)` group (bad network, bad asset) —
+out of the fence's scope by definition — or makes it structurally
+unpayable (invalid `payTo`, unpersistable amount, unsupported scheme or
+transfer method, over-cap timeout), so it can never be the entry the node
+signs. A fully valid sibling that merely disagrees on `payTo`/`amount` is
+NOT skippable and still reaches the fence. And `narrowToChosenRequirement`
+forwards exactly one entry, so the node's own selection rule is
+irrelevant either way; even without it the node would see a strict subset
+of today's entries, all of them fully validated.
+
+**The sanitizer no longer rethrows.** Round 4 made `canonicalJsonKey`
+swallow every throw because a throwing enumerable getter escaped as a
+plain `Error`; the sibling recursive walker over the same
+attacker-authored value kept its narrow catch. `walk` reads `source[key]`,
+so any throwing property read escaped `stripPrototypePollutingKeys` and
+through it `normalizeX402PaymentRequired`, whose declared contract is
+`Result<X402PaymentRequired, string>` (measured: `canonicalJsonKey ->
+undefined`, the other two `-> THREW TypeError`). This walker runs FIRST
+and is the choke point that rebuilds the payload into plain data before
+zod sees it (`safeParse` throws on the same input). Same reachability
+round 4 accepted: `JSON.parse` output cannot carry a getter, so no live
+transport triggers it, but a caller handing the exported normalizer a
+hand-built payload can, and a throw there is an unhandled 500 where the
+contract is a fail-closed `err`. The message is FIXED rather than the
+thrown error's own, which is attacker-authored and unbounded.
+
+**`payment-required.schema.ts` split three ways** to stay under the
+750-line ceiling, by responsibility rather than line count:
+`payment-required.wild.ts` owns what Soko may READ (the lenient v1/v2
+dialect shapes, the per-field translations, `dropShadowKeys`,
+`selectPayableRequirement`); `payment-required.supported.ts` owns the
+option allowlists and the `extra`/`extensions` map shapes both sides need
+(so neither imports the other); the schema file keeps what Soko may EMIT.
+
+**Review premise that was wrong.** The cycle guard in
+`payment-required.canonical.ts` (and its twin in the sanitizer) is NOT
+unreachable behind the depth guard: `ancestors` holds the objects on the
+CURRENT path, so a self-referencing value trips it at depth 1 — verified
+by instrumenting the built module (`[reached the cycle guard at depth 1]`)
+and observable directly in the sanitizer, which answers `contains a
+circular reference` for a shallow cycle and `nested deeper than 64 levels`
+for a 100-long loop. It was merely indistinguishable by an `isErr`
+assertion, so deleting it left the suite green. Both halves are now pinned
+by message.
+
+**Also:** the top-level STRING arm of the wild `resource` union is covered
+(a normalizer reading only `resource.url` left all 92 tests green);
+`X402_MAX_ENCODED_PAYLOAD_LENGTH` is pinned two-sided like
+`X402_MAX_TIMEOUT_SECONDS` (raising it to 256 MB kept the suite green);
+the `dropShadowKeys` prototype-key comment is corrected — the sanitizer
+removes those keys before the wild schema parses, so `unknownKeys` can
+never hold one and the filter never fires (kept as belt and braces).
+
+**Mutation-tested.** Per-entry selection: `continue` → `return err` kills
+14; pooling resource URLs only over selectable entries kills 1; dropping
+the no-survivor guard kills 9 (and everything still fails closed, via
+`min(1)`); dropping the scheme / transfer-method / timeout check kills
+2 / 1 / 1. Sanitizer: restoring `throw error` kills 2; echoing the thrown
+error's own message kills 1; deleting the cycle guard now kills 1.
+Coverage additions: ignoring a top-level string `resource` kills 2;
+raising the encoded-payload cap kills 1. All restored green.
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 342
+passed; `pnpm --filter core test` 357 files / 3275 passed (2 files / 6
+skipped); `pnpm typecheck` all workspaces; `pnpm check` clean.
+
+### Step-3 sixth review (confirmation) — two test-quality fixes — 2026-08-13
+
+**Verdict: clean on security.** The confirmation round found both round-5
+fixes correct, the three-way file split behaviour-preserving, and no
+fund-diversion, fail-open or new DoS path. It left exactly two
+test-quality findings, both of them coverage a comment CLAIMED and the
+suite did not have. No production behaviour changed in this round.
+
+**1. The raw `scheme` length cap was covered by a vacuous assertion.** The
+oversized-strings test asserted only `isErr()` on a 65-character
+`scheme`, and the scheme ALLOWLIST refuses that value regardless of its
+length — so `.max(X402_MAX_RAW_SCHEME_LENGTH)` could be deleted from
+`wildRequirementSchema` with all 112 x402 tests green; the payload merely
+failed one fence later with a different message. The cap is triply
+redundant (a 1 MB scheme is refused by `boundedMapCheck`, and the echo is
+bounded by `truncateEcho` at 78 either way), so the impact was nil — but
+it is exactly the pattern earlier rounds kept catching. The case now has
+its own test asserting the MESSAGE on both sides of the cap: 65 characters
+gives `Unparseable x402 402 payload: … <=64 characters … accepts[0].scheme`
+and never `Unsupported x402 scheme`; 64 characters parses and gives
+`No payable x402 requirement in accepts … Unsupported x402 scheme`.
+
+**2. The output schema's half of the safety argument had zero tests.** The
+stated invariant is that the wild schema loosens three fields so a payload
+with an unsupported option still parses, and `x402PaymentRequirementsSchema`
+re-imposes all three on whatever survives selection. Every test of the
+re-imposition went through `normalizeX402PaymentRequired`, where
+`selectPayableRequirement` refuses the same values FIRST, so the emitted
+half was unpinned: four mutants survived. Node-shape entries are now fed
+DIRECTLY into the exported schemas, and the supported counterparts are
+asserted to pass so the bounds cannot be met by refusing everything. No
+exploit today — selection catches all four and the exported schemas have
+no consumer outside the module at this commit — but a later branch imports
+from this package, and this is the layer the comments call load-bearing.
+
+**Mutation-tested (all five went red, all restored green).**
+
+```
+wild.ts    scheme .max(64) deleted          -> kills 1 (the new cap test)
+schema.ts  scheme z.enum -> z.string()      -> kills 1
+schema.ts  maxTimeoutSeconds .max() dropped -> kills 1
+supported  assetTransferMethod literal      -> kills 1
+           -> z.string()
+schema.ts  accepts .min(1) -> .min(0)       -> kills 1
+```
+
+**Optional observation, taken as a comment.** An entry serialized at
+8186–8192 characters carrying a v1 network name grows past
+`X402_MAX_SERIALIZED_LENGTH` when `base` expands to `eip155:8453` (+7),
+and the trailing `safeParse` then refuses the whole payload including a
+payable sibling. Measured and confirmed (`base` fails at wild length 8186,
+`eip155:8453` only at 8193). Not a finding — fail-closed, identical to
+pre-change behaviour, only the resource server can author it, and 8 KiB
+entries are orders of magnitude past any live listing — so the asymmetry
+is documented on the constant (the ceiling is applied to the wild entry
+before translation and to the emitted entry after) rather than
+special-cased.
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 345
+passed (115 of them x402); `pnpm --filter core test` 357 files / 3275
+passed (2 files / 6 skipped); `pnpm typecheck` all workspaces;
+`pnpm check` clean.
