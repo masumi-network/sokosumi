@@ -6673,6 +6673,7 @@ export const CreateDriveFileUploadSessionRequestSchema = {
         },
         folder: {
             type: 'string',
+            maxLength: 1000,
             example: 'Projects/2026',
             description: 'Target folder path relative to scope root (empty/omit for root)'
         }
