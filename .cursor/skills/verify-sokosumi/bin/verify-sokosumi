@@ -13,8 +13,10 @@ LOG_DIR="$STATE_DIR/logs"
 PORTLESS_DEV="$REPO_ROOT/scripts/local-env/portless-dev.mjs"
 PORTLESS_CA="${HOME}/.portless/ca.pem"
 # Filled by resolve_stack_urls. Overrides: VERIFY_SOKOSUMI_WEB_URL / VERIFY_SOKOSUMI_CORE_URL.
-WEB_URL="${VERIFY_SOKOSUMI_WEB_URL:-}"
-CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-}"
+# Preserve inherited values — `source "$0" run_dev_*` from nohup must not
+# clobber URLs exported by launch.
+WEB_URL="${VERIFY_SOKOSUMI_WEB_URL:-${WEB_URL:-}}"
+CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-${CORE_URL:-}}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR" "$ARTIFACT_ROOT"
 
@@ -82,9 +84,20 @@ function run_dev() {
   else
     name="web.sokosumi"
   fi
+  if [[ -z "$WEB_URL" || -z "$CORE_URL" ]]; then
+    resolve_stack_urls
+  fi
+  if [[ -z "$WEB_URL" || -z "$CORE_URL" ]]; then
+    echo "error: missing WEB_URL/CORE_URL for portless launch" >&2
+    exit 1
+  fi
   export WEB_APP_BASE_URL="$WEB_URL"
   export BETTER_AUTH_URL="$CORE_URL"
   export CORE_APP_BASE_URL="$CORE_URL"
+  if [[ "$WEB_URL" == *".localhost"* ]]; then
+    # web.sokosumi.localhost and core.sokosumi.localhost must share cookies.
+    export BETTER_AUTH_COOKIE_DOMAIN="${BETTER_AUTH_COOKIE_DOMAIN:-sokosumi.localhost}"
+  fi
   if [[ -f "$REPO_ROOT/.cursor/cloud-agent-db.env" ]]; then
     exec node "$REPO_ROOT/scripts/cloud-agent-db/with-db.mjs" -- \
       pnpm exec portless "$name" -- pnpm --filter "$filter" dev
@@ -163,6 +176,10 @@ function launch() {
   node "$PORTLESS_DEV" proxy
 
   resolve_stack_urls
+  export WEB_URL CORE_URL
+  export WEB_APP_BASE_URL="$WEB_URL"
+  export BETTER_AUTH_URL="$CORE_URL"
+  export CORE_APP_BASE_URL="$CORE_URL"
   echo "web  $WEB_URL"
   echo "core $CORE_URL"
 
@@ -231,7 +248,12 @@ function cookie_domain_trap() {
     return 0
   fi
   echo "cookie_domain=$value"
-  echo "doctor fail: BETTER_AUTH_COOKIE_DOMAIN=$value breaks localhost sessions — comment it out in apps/core/.env and restart Core"
+  # Portless named hosts need a shared parent (sokosumi.localhost). Production
+  # hosts still break loopback sessions.
+  if [[ "$value" == "localhost" || "$value" == *.localhost ]]; then
+    return 0
+  fi
+  echo "doctor fail: BETTER_AUTH_COOKIE_DOMAIN=$value breaks loopback sessions — use sokosumi.localhost for portless, or comment it out for :3000/:8787"
   return 1
 }
 
