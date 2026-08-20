@@ -280,23 +280,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (projectId !== undefined) {
-      // Level 2: Task rows with files
+      // Level 2: Task rows with files, sorted by latest TaskFile.updatedAt desc
       const projectFilter =
         projectId === "null" ? { projectId: null } : { projectId };
 
-      const takePlusOne = take + 1;
       const tasksWhere = {
         ...baseTaskWhere,
         ...projectFilter,
       };
 
-      const [tasks, count] = await Promise.all([
+      // Fetch all tasks (up to a reasonable limit for sorting)
+      // Cursor pagination requires knowing position in sorted order
+      const MAX_TASKS_FOR_SORT = 10000;
+      const [allTasks, count] = await Promise.all([
         prisma.task.findMany({
           where: tasksWhere,
-          take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: MAX_TASKS_FOR_SORT,
           include: {
             files: {
               orderBy: { updatedAt: "desc" },
@@ -307,8 +306,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma.task.count({ where: tasksWhere }),
       ]);
 
-      const hasMore = tasks.length === takePlusOne;
-      const pagedTasks = tasks.slice(0, take);
+      // Sort by latest file updatedAt desc (spec requirement)
+      const sortedTasks = allTasks.sort((a, b) => {
+        const aTime = a.files[0]?.updatedAt.getTime() ?? 0;
+        const bTime = b.files[0]?.updatedAt.getTime() ?? 0;
+        if (bTime !== aTime) return bTime - aTime;
+        return b.id.localeCompare(a.id); // Stable sort by id desc
+      });
+
+      // Apply cursor pagination on sorted list
+      let startIndex = 0;
+      if (cursor) {
+        const cursorIndex = sortedTasks.findIndex((t) => t.id === cursor);
+        if (cursorIndex >= 0) {
+          startIndex = cursorIndex + 1; // Skip cursor item
+        }
+      }
+      startIndex += skip;
+
+      const pagedTasks = sortedTasks.slice(startIndex, startIndex + take);
+      const hasMore = startIndex + take < sortedTasks.length;
+
       const items: DriveTasksListItem[] = pagedTasks.map((task) => ({
         type: "task",
         id: task.id,
@@ -327,9 +345,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
-    // Level 1: Project rows + no-project row
-    const takePlusOne = take + 1;
-
+    // Level 1: Project rows + no-project row, sorted by latest TaskFile.updatedAt desc
     // Projects with at least one task with files
     const projectsWhere: Prisma.ProjectWhereInput = {
       workspaceId,
@@ -338,13 +354,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     };
 
-    const [projects, projectsCount] = await Promise.all([
+    // Fetch all projects (up to reasonable limit for sorting + no-project row)
+    const MAX_PROJECTS_FOR_SORT = 10000;
+    const [allProjects, noProjectTasksCount] = await Promise.all([
       prisma.project.findMany({
         where: projectsWhere,
-        take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: MAX_PROJECTS_FOR_SORT,
         include: {
           tasks: {
             where: baseTaskWhere,
@@ -359,51 +374,102 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         },
       }),
-      prisma.project.count({ where: projectsWhere }),
+      prisma.task.count({
+        where: {
+          ...baseTaskWhere,
+          projectId: null,
+        },
+      }),
     ]);
 
-    const hasMore = projects.length === takePlusOne;
-    const pagedProjects = projects.slice(0, take);
-    const items: DriveTasksListItem[] = pagedProjects.map((project) => ({
-      type: "project",
-      id: project.id,
-      name: project.name,
-      latestFileUpdatedAt:
+    // Build combined list: projects + no-project row
+    interface SortableItem {
+      type: "project" | "no-project";
+      id: string;
+      name?: string;
+      latestFileUpdatedAt: string;
+      latestFileTime: number;
+    }
+
+    const sortableItems: SortableItem[] = allProjects.map((project) => {
+      const latestFileUpdatedAt =
         project.tasks[0]?.files[0]?.updatedAt.toISOString() ??
-        new Date().toISOString(),
-    }));
-
-    // Check for no-project tasks with files
-    const noProjectWhere = {
-      ...baseTaskWhere,
-      projectId: null,
-    };
-
-    const noProjectTasksCount = await prisma.task.count({
-      where: noProjectWhere,
+        new Date().toISOString();
+      return {
+        type: "project" as const,
+        id: project.id,
+        name: project.name,
+        latestFileUpdatedAt,
+        latestFileTime: new Date(latestFileUpdatedAt).getTime(),
+      };
     });
 
+    // Add no-project row if it has tasks with files
     if (noProjectTasksCount > 0) {
       const latestNoProjectFile = await prisma.taskFile.findFirst({
         where: {
-          task: noProjectWhere,
+          task: {
+            ...baseTaskWhere,
+            projectId: null,
+          },
         },
         orderBy: { updatedAt: "desc" },
         select: { updatedAt: true },
       });
 
-      items.push({
+      const latestFileUpdatedAt =
+        latestNoProjectFile?.updatedAt.toISOString() ??
+        new Date().toISOString();
+
+      sortableItems.push({
         type: "no-project",
         id: "null",
-        latestFileUpdatedAt:
-          latestNoProjectFile?.updatedAt.toISOString() ??
-          new Date().toISOString(),
+        latestFileUpdatedAt,
+        latestFileTime: new Date(latestFileUpdatedAt).getTime(),
       });
     }
 
-    const totalCount = projectsCount + (noProjectTasksCount > 0 ? 1 : 0);
+    // Sort all items by latest file updatedAt desc (spec requirement)
+    sortableItems.sort((a, b) => {
+      if (b.latestFileTime !== a.latestFileTime) {
+        return b.latestFileTime - a.latestFileTime;
+      }
+      return b.id.localeCompare(a.id); // Stable sort by id desc
+    });
+
+    // Apply cursor pagination on sorted combined list
+    let startIndex = 0;
+    if (cursor) {
+      const cursorIndex = sortableItems.findIndex((item) => item.id === cursor);
+      if (cursorIndex >= 0) {
+        startIndex = cursorIndex + 1; // Skip cursor item
+      }
+    }
+    startIndex += skip;
+
+    const pagedItems = sortableItems.slice(startIndex, startIndex + take);
+    const hasMore = startIndex + take < sortableItems.length;
+
+    const items: DriveTasksListItem[] = pagedItems.map((item) => {
+      if (item.type === "project") {
+        return {
+          type: "project",
+          id: item.id,
+          name: item.name!,
+          latestFileUpdatedAt: item.latestFileUpdatedAt,
+        };
+      } else {
+        return {
+          type: "no-project",
+          id: "null",
+          latestFileUpdatedAt: item.latestFileUpdatedAt,
+        };
+      }
+    });
+
+    const totalCount = sortableItems.length;
     const paginationMeta = createPaginationMeta(
-      pagedProjects,
+      pagedItems,
       totalCount,
       take,
       hasMore,
