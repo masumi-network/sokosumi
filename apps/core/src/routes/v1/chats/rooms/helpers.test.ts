@@ -22,6 +22,7 @@ import {
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
   mapChatRoom,
   mapChatRoomMessage,
@@ -37,6 +38,7 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
   resolveWorkspaceIdForChatRoom,
+  usersShareExternalChannel,
   validateChatCoworkerIds,
 } from "./helpers";
 
@@ -1269,6 +1271,85 @@ describe("mapChatRoom guest-aware DTO fields", () => {
       { kind: "direct", discoverability: null, organizationId: null },
     );
     expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBeNull();
+  });
+});
+
+describe("usersShareExternalChannel", () => {
+  it("requires both humans on the same unarchived external channel", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: ROOM_ID });
+    const tx = {
+      chatRoom: { findFirst },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
+    ).resolves.toBe(true);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        kind: "channel",
+        discoverability: "external",
+        archivedAt: null,
+        AND: [
+          { userMembers: { some: { userId: MEMBER_ID } } },
+          { userMembers: { some: { userId: GUEST_ID } } },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+});
+
+describe("getPeerInActiveOrganizationFlags", () => {
+  const personalDirect = createExternalRoom(
+    [
+      createRoomMembership(MEMBER_ID, "member"),
+      createRoomMembership(GUEST_ID, "member"),
+    ],
+    {
+      id: "personal-dm",
+      kind: "direct",
+      discoverability: null,
+      organizationId: null,
+    },
+  );
+
+  it("is true when the other human is an org Member", async () => {
+    const findMany = vi.fn().mockResolvedValue([{ userId: GUEST_ID }]);
+    const tx = {
+      member: { findMany },
+    } as unknown as Prisma.TransactionClient;
+
+    const flags = await getPeerInActiveOrganizationFlags(
+      [personalDirect as never],
+      MEMBER_ID,
+      ORG_ID,
+      tx,
+    );
+
+    expect(flags.get("personal-dm")).toBe(true);
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: ORG_ID,
+        userId: { in: [GUEST_ID] },
+      },
+      select: { userId: true },
+    });
+  });
+
+  it("is false when the other human is not an org Member", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const tx = {
+      member: { findMany },
+    } as unknown as Prisma.TransactionClient;
+
+    const flags = await getPeerInActiveOrganizationFlags(
+      [personalDirect as never],
+      MEMBER_ID,
+      ORG_ID,
+      tx,
+    );
+
+    expect(flags.get("personal-dm")).toBe(false);
   });
 });
 

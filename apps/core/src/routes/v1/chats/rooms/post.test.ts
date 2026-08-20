@@ -402,6 +402,15 @@ describe("POST /chats/rooms", () => {
     const createdBody = await createResponse.json();
     expect(createdBody.data.kind).toBe("direct");
     expect(createdBody.data.id).toBe(ROOM_ID);
+    expect(createdBody.data.organizationId).toBe(ORG_ID);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: ORG_ID,
+          kind: "direct",
+        }),
+      }),
+    );
 
     roomFindFirstMock.mockResolvedValueOnce(created);
 
@@ -608,6 +617,20 @@ describe("POST /chats/rooms", () => {
           kind: "direct",
           directKey: DIRECT_KEY,
         }),
+      }),
+    );
+    expect(roomFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          kind: "channel",
+          discoverability: "external",
+          archivedAt: null,
+          AND: [
+            { userMembers: { some: { userId: USER_ID } } },
+            { userMembers: { some: { userId: OTHER_USER_ID } } },
+          ],
+        },
+        select: { id: true },
       }),
     );
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();

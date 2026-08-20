@@ -87,7 +87,7 @@ A chat room whose identity is its participant set (1:1 or multi-human group), no
 _Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Org Direct**:
-A Direct owned by an Organization. Human Directs today are Org Directs. Organization exit removes the leaving member from them.
+A Direct owned by an Organization. Human 1:1 is an Org Direct only when both people are Members of that Organization. Organization exit removes the leaving member from them.
 _Avoid_: Team DM, workspace DM
 
 **Personal Direct**:

@@ -160,6 +160,34 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(props.selectedRoomId).toBe(ROOM_ID);
   });
 
+  it("redirects a coworker personal Direct when another organization is active", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_A,
+      name: "Org A",
+      slug: "org-a",
+    });
+    getRoomMock.mockResolvedValue({
+      ...room({ organizationId: null, kind: "direct" }),
+      coworkerMembers: [
+        {
+          id: "cow_1",
+          name: "Elena",
+          slug: "elena",
+          caption: null,
+          image: null,
+          presence: "online",
+        },
+      ],
+    });
+
+    await expect(
+      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
+    ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
+
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
+  });
+
   it("redirects when room is missing", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,

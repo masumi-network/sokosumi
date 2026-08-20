@@ -151,7 +151,9 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   const isHostOrgRoom = selectedRoom.organizationId === activeOrganization.id;
   const isGuestRoom = selectedRoom.myAccess === "guest";
   const isPersonalDirect =
-    selectedRoom.organizationId === null && selectedRoom.kind === "direct";
+    selectedRoom.organizationId === null &&
+    selectedRoom.kind === "direct" &&
+    selectedRoom.coworkerMembers.length === 0;
   if (!isHostOrgRoom && !isGuestRoom && !isPersonalDirect) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
