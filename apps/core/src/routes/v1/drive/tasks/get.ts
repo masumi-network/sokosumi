@@ -120,7 +120,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Resolve workspace from Drive scope (must match Tasks list ACL)
     let workspaceId: string;
     let userId: string | null = null;
-    let coworkerOwnerId: string | null = null;
 
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
@@ -137,7 +136,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           prisma,
         );
         workspaceId = workspace.id;
-        coworkerOwnerId = userId;
 
         // Map Drive scope to workspace ownership
         if (scope === "me") {
@@ -335,7 +333,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Projects with at least one task with files
     const projectsWhere: Prisma.ProjectWhereInput = {
       workspaceId,
-      archivedAt: null,
       tasks: {
         some: baseTaskWhere,
       },

@@ -1,5 +1,8 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import mountPost from "./post";
 
 // Mock @vercel/blob
@@ -10,11 +13,6 @@ vi.mock("@vercel/blob", () => ({
   BlobNotFoundError: class BlobNotFoundError extends Error {},
 }));
 
-// Mock user context
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: vi.fn(),
-}));
-
 // Mock drive file access
 vi.mock("@/helpers/drive-file-access", () => ({
   requireUserDriveFileUploadAccess: vi.fn(),
@@ -22,41 +20,63 @@ vi.mock("@/helpers/drive-file-access", () => ({
 }));
 
 // Mock env
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    BLOB_READ_WRITE_TOKEN: "test-token",
-  }),
-}));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      BLOB_READ_WRITE_TOKEN: "test-token",
+      STRIPE_SECRET_KEY: "sk_test_123",
+    }),
+  };
+});
 
 import { head, list, put } from "@vercel/blob";
 import { requireUserDriveFileUploadAccess } from "@/helpers/drive-file-access";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 
 const headMock = vi.mocked(head);
 const listMock = vi.mocked(list);
 const putMock = vi.mocked(put);
-const requireUserContextMock = vi.mocked(requireUserContext);
 const requireUserDriveFileUploadAccessMock = vi.mocked(
   requireUserDriveFileUploadAccess,
 );
 
-describe("POST /v1/drive/folders (create folder)", () => {
-  let app: OpenAPIHonoWithAuth;
+const USER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: null,
+  role: "user",
+};
 
+function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & { requestId: string };
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+
+    return await next();
+  });
+
+  return app;
+}
+
+describe("POST /v1/drive/folders (create folder)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    app = new OpenAPIHonoWithAuth();
-    mountPost(app);
   });
 
   it("rejects 'Tasks' as root folder name (reserved)", async () => {
-    requireUserContextMock.mockReturnValue({
-      userId: "user_123",
-    });
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    const res = await app.request("/", {
+    const app = createApp();
+    mountPost(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,17 +89,17 @@ describe("POST /v1/drive/folders (create folder)", () => {
 
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error.message).toContain("reserved");
-    expect(json.error.message).toContain("Tasks");
+    expect(json.message).toContain("reserved");
+    expect(json.message).toContain("Tasks");
   });
 
   it("rejects 'Tasks' nested in path (root segment check)", async () => {
-    requireUserContextMock.mockReturnValue({
-      userId: "user_123",
-    });
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
-    const res = await app.request("/", {
+    const app = createApp();
+    mountPost(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -92,13 +112,10 @@ describe("POST /v1/drive/folders (create folder)", () => {
 
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error.message).toContain("reserved");
+    expect(json.message).toContain("reserved");
   });
 
   it("allows 'Tasks' as non-root segment", async () => {
-    requireUserContextMock.mockReturnValue({
-      userId: "user_123",
-    });
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
     listMock.mockResolvedValue({ blobs: [] });
@@ -108,7 +125,10 @@ describe("POST /v1/drive/folders (create folder)", () => {
       pathname: "drive/users/user_123/Projects/Tasks/__drive_folder__",
     });
 
-    const res = await app.request("/", {
+    const app = createApp();
+    mountPost(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -123,9 +143,6 @@ describe("POST /v1/drive/folders (create folder)", () => {
   });
 
   it("allows folder names other than 'Tasks'", async () => {
-    requireUserContextMock.mockReturnValue({
-      userId: "user_123",
-    });
     requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
 
     listMock.mockResolvedValue({ blobs: [] });
@@ -135,7 +152,10 @@ describe("POST /v1/drive/folders (create folder)", () => {
       pathname: "drive/users/user_123/Documents/__drive_folder__",
     });
 
-    const res = await app.request("/", {
+    const app = createApp();
+    mountPost(app as unknown as OpenAPIHonoWithAuth);
+
+    const res = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
