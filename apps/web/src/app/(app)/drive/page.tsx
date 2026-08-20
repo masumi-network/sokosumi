@@ -80,6 +80,8 @@ import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
   getDriveTasks,
+  getProjects,
+  getTasks,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
@@ -362,6 +364,62 @@ export default function DrivePage(): ReactElement {
       void loadItems();
     }
   }, [isTasksView, loadItems, loadTasksItems]);
+
+  // Resolve missing project/task names from URL on refresh
+  useEffect(() => {
+    if (!isTasksView) {
+      return;
+    }
+
+    async function resolveNames() {
+      const missingProjectName =
+        projectIdParam &&
+        projectIdParam !== "null" &&
+        !projectNames.has(projectIdParam);
+      const missingTaskName = taskIdParam && !taskNames.has(taskIdParam);
+
+      if (!missingProjectName && !missingTaskName) {
+        return;
+      }
+
+      try {
+        if (missingProjectName) {
+          const response = await getProjects({
+            client: getBrowserCoreClient(),
+            query: { limit: 100 },
+          });
+          const projects = response.data?.data ?? [];
+          const project = projects.find((p) => p.id === projectIdParam);
+          if (project) {
+            const newNames = new Map(projectNames);
+            newNames.set(project.id, project.name);
+            setProjectNames(newNames);
+          }
+        }
+
+        if (missingTaskName && projectIdParam) {
+          const response = await getTasks({
+            client: getBrowserCoreClient(),
+            query: {
+              projectId: projectIdParam === "null" ? undefined : projectIdParam,
+              limit: 100,
+            },
+          });
+          const tasks = response.data?.data ?? [];
+          const task = tasks.find((t) => t.id === taskIdParam);
+          if (task) {
+            const newNames = new Map(taskNames);
+            newNames.set(task.id, task.name);
+            setTaskNames(newNames);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to resolve names", err);
+      }
+    }
+
+    void resolveNames();
+  }, [isTasksView, projectIdParam, taskIdParam, projectNames, taskNames]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
