@@ -266,6 +266,13 @@ export const stripeClient = {
     );
   },
 
+  async deleteCustomer(
+    customerId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.DeletedCustomer> {
+    return await stripe.customers.del(customerId, undefined, requestOptions);
+  },
+
   async retrieveCustomerBillingDetails(
     customerId: string,
     requestOptions?: Stripe.RequestOptions,
