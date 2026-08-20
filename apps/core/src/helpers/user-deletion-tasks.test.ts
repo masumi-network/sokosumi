@@ -10,6 +10,9 @@ const {
   taskUpdateMock,
   taskDeleteManyMock,
   taskPaymentClaimDeleteManyMock,
+  chatRoomFindManyMock,
+  chatRoomUpdateMock,
+  chatRoomDeleteMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
 } = vi.hoisted(() => ({
@@ -19,6 +22,9 @@ const {
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
+  chatRoomFindManyMock: vi.fn(),
+  chatRoomUpdateMock: vi.fn(),
+  chatRoomDeleteMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
 }));
@@ -32,6 +38,9 @@ describe("prepareTasksForUserDeletion", () => {
     vi.clearAllMocks();
     taskFileFindManyMock.mockResolvedValue([]);
     taskPaymentClaimDeleteManyMock.mockResolvedValue({ count: 0 });
+    chatRoomFindManyMock.mockResolvedValue([]);
+    chatRoomUpdateMock.mockResolvedValue({});
+    chatRoomDeleteMock.mockResolvedValue({});
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
       callback({
@@ -48,6 +57,11 @@ describe("prepareTasksForUserDeletion", () => {
         },
         taskPaymentClaim: {
           deleteMany: taskPaymentClaimDeleteManyMock,
+        },
+        chatRoom: {
+          findMany: chatRoomFindManyMock,
+          update: chatRoomUpdateMock,
+          delete: chatRoomDeleteMock,
         },
       }),
     );
@@ -171,5 +185,60 @@ describe("prepareTasksForUserDeletion", () => {
       "https://abc.public.blob.vercel-storage.com/tasks/tsk_owned/a.pdf",
       "tsk_owned",
     );
+  });
+
+  it("repoints chat room createdByUserId to a remaining member", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_keep",
+        userMembers: [{ userId: "user_other" }],
+      },
+    ]);
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(chatRoomFindManyMock).toHaveBeenCalledWith({
+      where: { createdByUserId: "user_delete" },
+      select: {
+        id: true,
+        userMembers: {
+          where: { userId: { not: "user_delete" } },
+          select: { userId: true },
+          take: 1,
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    expect(chatRoomUpdateMock).toHaveBeenCalledWith({
+      where: { id: "room_keep" },
+      data: { createdByUserId: "user_other" },
+    });
+    expect(chatRoomDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes creator-only chat rooms so Restrict does not block allow", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_solo",
+        userMembers: [],
+      },
+    ]);
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(chatRoomDeleteMock).toHaveBeenCalledWith({
+      where: { id: "room_solo" },
+    });
+    expect(chatRoomUpdateMock).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ const {
   stripeCheckoutSessionsRetrieveMock,
   stripeCouponsRetrieveMock,
   stripeCustomersCreateMock,
+  stripeCustomersDelMock,
   stripeCustomersRetrieveMock,
   stripeInvoiceItemsCreateMock,
   stripeInvoicesCreateMock,
@@ -19,6 +20,7 @@ const {
   stripeCheckoutSessionsRetrieveMock: vi.fn(),
   stripeCouponsRetrieveMock: vi.fn(),
   stripeCustomersCreateMock: vi.fn(),
+  stripeCustomersDelMock: vi.fn(),
   stripeCustomersRetrieveMock: vi.fn(),
   stripeInvoiceItemsCreateMock: vi.fn(),
   stripeInvoicesCreateMock: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock("stripe", () => ({
   default: class StripeMock {
     customers = {
       create: (...args: unknown[]) => stripeCustomersCreateMock(...args),
+      del: (...args: unknown[]) => stripeCustomersDelMock(...args),
       retrieve: (...args: unknown[]) => stripeCustomersRetrieveMock(...args),
     };
 
@@ -153,6 +156,38 @@ describe("stripeClient", () => {
         timeout: 2500,
       },
     );
+  });
+
+  it("deletes a Stripe customer", async () => {
+    stripeCustomersDelMock.mockResolvedValue({
+      id: "cus_123",
+      deleted: true,
+      object: "customer",
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.deleteCustomer("cus_123");
+
+    expect(stripeCustomersDelMock).toHaveBeenCalledWith(
+      "cus_123",
+      undefined,
+      undefined,
+    );
+  });
+
+  it("forwards request options as Stripe customers.del options", async () => {
+    stripeCustomersDelMock.mockResolvedValue({
+      id: "cus_123",
+      deleted: true,
+      object: "customer",
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.deleteCustomer("cus_123", { timeout: 2500 });
+
+    expect(stripeCustomersDelMock).toHaveBeenCalledWith("cus_123", undefined, {
+      timeout: 2500,
+    });
   });
 
   it("returns null when a coupon lookup fails", async () => {

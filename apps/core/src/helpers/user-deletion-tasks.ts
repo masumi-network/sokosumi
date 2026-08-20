@@ -16,6 +16,9 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
  * - Payment-claim blockers live in `evaluateUserDeletion`. This prep runs only
  *   after that list is empty. Terminal claims are removed so their RESTRICT
  *   transaction relations do not block user cascade.
+ * - Chat rooms this user created re-point `createdByUserId` to another remaining
+ *   human member. Rooms with no other human member are deleted so Restrict does
+ *   not 500 an allowed wipe.
  * - Public blob files for owned tasks are best-effort deleted after the DB
  *   cascade (URLs remain public if blob GC fails).
  */
@@ -76,6 +79,34 @@ export async function prepareTasksForUserDeletion(
     await tx.task.deleteMany({
       where: { ownerId: userId },
     });
+
+    const createdRooms = await tx.chatRoom.findMany({
+      where: { createdByUserId: userId },
+      select: {
+        id: true,
+        userMembers: {
+          where: { userId: { not: userId } },
+          select: { userId: true },
+          take: 1,
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    for (const room of createdRooms) {
+      const nextCreatorId = room.userMembers[0]?.userId;
+      if (nextCreatorId) {
+        await tx.chatRoom.update({
+          where: { id: room.id },
+          data: { createdByUserId: nextCreatorId },
+        });
+        continue;
+      }
+
+      await tx.chatRoom.delete({
+        where: { id: room.id },
+      });
+    }
 
     return ownedFiles;
   });
