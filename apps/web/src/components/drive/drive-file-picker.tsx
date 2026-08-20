@@ -325,7 +325,7 @@ export function DriveFilePicker({
                           type="button"
                           className={cn(
                             buttonVariants({ variant: "ghost" }),
-                            "flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
+                            "h-auto whitespace-normal flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
                           )}
                           onClick={() => navigateToFolder(item.name)}
                         >
@@ -351,7 +351,7 @@ export function DriveFilePicker({
                         type="button"
                         className={cn(
                           buttonVariants({ variant: "ghost" }),
-                          "flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
+                          "h-auto whitespace-normal flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
                         )}
                         onClick={() => handleFileClick(item)}
                       >
