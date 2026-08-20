@@ -40,7 +40,7 @@ apps/web
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/en) (v20 or higher)
+- [Node.js](https://nodejs.org/) 24.x
 - [pnpm](https://pnpm.io/)
 
 ## URLs
