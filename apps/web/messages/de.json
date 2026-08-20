@@ -5490,7 +5490,14 @@
       "myDriveDestination": "Mein Drive",
       "organizationDriveDestination": "{name}",
       "tasksBreadcrumbLabel": "Aufgaben",
-      "noProject": "Kein Projekt"
+      "noProject": "Kein Projekt",
+      "filterTitle": "Filtern",
+      "filterSearchPlaceholder": "Suchen...",
+      "filterEmptyResults": "Keine Ergebnisse",
+      "filterAll": "Alle",
+      "filterCoworkerLabel": "Agent",
+      "filterProjectLabel": "Projekt",
+      "filterTaskLabel": "Aufgabe"
     }
   },
   "Share": {

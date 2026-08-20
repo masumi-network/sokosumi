@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -230,6 +231,7 @@ export default function DrivePage(): ReactElement {
   const isTasksView = viewParam === "tasks";
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
+  const assigneeIdParam = searchParams.get("assigneeId");
 
   useRegisterBreadcrumbOverride({
     pathname,
@@ -324,6 +326,7 @@ export default function DrivePage(): ReactElement {
             : {}),
           ...(projectIdParam ? { projectId: projectIdParam } : {}),
           ...(taskIdParam ? { taskId: taskIdParam } : {}),
+          ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
         },
         signal: controller.signal,
         throwOnError: true,
@@ -348,6 +351,7 @@ export default function DrivePage(): ReactElement {
     activeOrganizationId,
     projectIdParam,
     taskIdParam,
+    assigneeIdParam,
     t,
   ]);
 
@@ -610,7 +614,6 @@ export default function DrivePage(): ReactElement {
     params.set("projectId", projectId);
     params.delete("folder");
     params.delete("taskId");
-    params.delete("assigneeId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -619,7 +622,6 @@ export default function DrivePage(): ReactElement {
     params.set("view", "tasks");
     params.set("taskId", taskId);
     params.delete("folder");
-    params.delete("assigneeId");
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -954,6 +956,24 @@ export default function DrivePage(): ReactElement {
                 </TabsTrigger>
               )}
             </TabsList>
+
+            {isTasksView && (
+              <DriveTasksFilters
+                activeOrganizationId={activeOrganizationId}
+                assigneeId={assigneeIdParam}
+                projectId={projectIdParam}
+                taskId={taskIdParam}
+                labels={{
+                  title: t("filterTitle"),
+                  searchPlaceholder: t("filterSearchPlaceholder"),
+                  emptyResults: t("filterEmptyResults"),
+                  all: t("filterAll"),
+                  coworkerLabel: t("filterCoworkerLabel"),
+                  projectLabel: t("filterProjectLabel"),
+                  taskLabel: t("filterTaskLabel"),
+                }}
+              />
+            )}
 
             {!isTasksView && (
               <div className="hidden items-center gap-2 md:flex">
