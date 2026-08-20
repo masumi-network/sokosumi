@@ -4016,7 +4016,11 @@
           "userOwnsOrganization": "Übertrage die Owner-Rolle oder lösche jede Organisation, die du besitzt, bevor du deinen Account löschst.",
           "inFlightJob": "Warte, bis laufende Jobs abgeschlossen sind, bevor du deinen Account löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe abgeschlossen sind, bevor du deinen Account löschst.",
-          "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst."
+          "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst.",
+          "taskX402PaymentPending": "Eine Task-Zahlung ist noch ausstehend. Kontaktiere den Support, damit sie geklärt wird, und lösche deinen Account danach erneut.",
+          "taskX402PaymentUnresolved": "Eine Task-Zahlung blockiert die Account-Löschung. Kontaktiere den Support und lösche deinen Account danach erneut.",
+          "taskX402PaymentAuthorizationLive": "Eine signierte Task-Zahlungsautorisierung ist noch gültig. Versuche die Account-Löschung nach Ablauf erneut, oder kontaktiere den Support.",
+          "taskX402PaymentBillingOwnerMismatch": "Eine Task-Zahlung hat eine widersprüchliche Abrechnungszuordnung. Kontaktiere den Support zur Korrektur und lösche deinen Account danach erneut."
         },
         "Links": {
           "organizationMembers": "Organisationsmitglieder",

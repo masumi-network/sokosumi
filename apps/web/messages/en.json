@@ -4047,7 +4047,11 @@
           "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
-          "inFlightTask": "Wait for in-flight tasks to finish before deleting your account."
+          "inFlightTask": "Wait for in-flight tasks to finish before deleting your account.",
+          "taskX402PaymentPending": "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+          "taskX402PaymentUnresolved": "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+          "taskX402PaymentAuthorizationLive": "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+          "taskX402PaymentBillingOwnerMismatch": "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again."
         },
         "Links": {
           "organizationMembers": "Organization members",
