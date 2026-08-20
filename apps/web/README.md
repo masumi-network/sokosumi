@@ -40,7 +40,7 @@ apps/web
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/en) (v20 or higher)
+- [Node.js](https://nodejs.org/) 24.x
 - [pnpm](https://pnpm.io/)
 
 ## URLs
@@ -56,20 +56,20 @@ apps/web
    pnpm install
    ```
 
-2. Set up environment variables:
+2. Set up environment variables from the repo root:
 
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   pnpm env:bootstrap
    ```
 
-3. Start the development server:
+3. Start the stack from the repo root:
 
    ```bash
-   pnpm dev
+   pnpm portless:dev     # web + core
+   pnpm portless:web     # web only (named Core URL still injected)
    ```
 
-   The application will be available at [http://localhost:3000](http://localhost:3000)
+   Web is at `https://web.sokosumi.localhost` (`pnpm portless:url web`). Classic `pnpm dev` in this package still binds [http://localhost:3000](http://localhost:3000).
 
 ## Development
 

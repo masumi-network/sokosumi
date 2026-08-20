@@ -29,6 +29,10 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // Portless named URLs (`https://web.sokosumi.localhost`) and worktree
+  // prefixes (`https://main.web.sokosumi.localhost`) hit Next as cross-origin
+  // from the proxy. Classic `localhost:3000` still works.
+  allowedDevOrigins: ["localhost", "*.localhost"],
   async headers() {
     return [
       {

@@ -10,9 +10,13 @@ STATE_DIR="${VERIFY_SOKOSUMI_STATE_DIR:-$REPO_ROOT/.cursor/verify-sokosumi-artif
 ARTIFACT_ROOT="${VERIFY_SOKOSUMI_ARTIFACT_ROOT:-$REPO_ROOT/.cursor/verify-sokosumi-artifacts}"
 PID_FILE="$STATE_DIR/dev.pids"
 LOG_DIR="$STATE_DIR/logs"
-# Prefer localhost (not 127.0.0.1) so Better Auth origin/cookies match WEB_APP_BASE_URL.
-WEB_URL="${VERIFY_SOKOSUMI_WEB_URL:-http://localhost:3000}"
-CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-http://localhost:8787}"
+PORTLESS_DEV="$REPO_ROOT/scripts/local-env/portless-dev.mjs"
+PORTLESS_CA="${HOME}/.portless/ca.pem"
+# Filled by resolve_stack_urls. Overrides: VERIFY_SOKOSUMI_WEB_URL / VERIFY_SOKOSUMI_CORE_URL.
+# Preserve inherited values — `source "$0" run_dev_*` from nohup must not
+# clobber URLs exported by launch.
+WEB_URL="${VERIFY_SOKOSUMI_WEB_URL:-${WEB_URL:-}}"
+CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-${CORE_URL:-}}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR" "$ARTIFACT_ROOT"
 
@@ -26,9 +30,10 @@ function usage() {
 Usage: verify-sokosumi <command> [options]
 
 Commands:
-  launch     Start Core (:8787) and Web (:3000) for this verification run.
+  launch     Bootstrap .env, start the portless HTTPS proxy on 443, then start
+             Core (core.sokosumi) and Web (web.sokosumi) for this worktree.
              Uses with-db.mjs when .cursor/cloud-agent-db.env exists.
-  doctor     Read-only health check (ports, OpenAPI, sign-in page, fixture probe).
+  doctor     Read-only health check (named URLs, OpenAPI, sign-in page, fixture probe).
   sign-in    Authenticate into agent-browser (fixtures, then coworker vault).
   cleanup    Stop processes started by launch (keeps proof artifacts).
   core-smoke GET Core OpenAPI JSON; exit 0 if HTTP 200.
@@ -41,8 +46,8 @@ sign-in options:
   --vault               shorthand for --method vault
 
 Env overrides:
-  VERIFY_SOKOSUMI_WEB_URL   default http://localhost:3000
-  VERIFY_SOKOSUMI_CORE_URL  default http://localhost:8787
+  VERIFY_SOKOSUMI_WEB_URL   default: pnpm portless:url web
+  VERIFY_SOKOSUMI_CORE_URL  default: pnpm portless:url core
   VERIFY_SOKOSUMI_STATE_DIR state/pids/logs directory
   VERIFY_SOKOSUMI_ARTIFACT_ROOT proof artifact root
   VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  fixture credentials for sign-in
@@ -51,20 +56,57 @@ Env overrides:
 EOF
 }
 
-function run_dev() {
-  # $1 = core|web filter name for pnpm --filter
-  local filter="$1"
-  if [[ -f "$REPO_ROOT/.cursor/cloud-agent-db.env" ]]; then
-    exec node "$REPO_ROOT/scripts/cloud-agent-db/with-db.mjs" -- pnpm --filter "$filter" dev
-  else
-    exec pnpm --filter "$filter" dev
+function resolve_stack_urls() {
+  local web_override="${VERIFY_SOKOSUMI_WEB_URL:-}"
+  local core_override="${VERIFY_SOKOSUMI_CORE_URL:-}"
+
+  if [[ -n "$web_override" ]]; then
+    WEB_URL="$web_override"
   fi
+  if [[ -n "$core_override" ]]; then
+    CORE_URL="$core_override"
+  fi
+  if [[ -n "$WEB_URL" && -n "$CORE_URL" ]]; then
+    return 0
+  fi
+
+  if [[ -f "$PID_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$PID_FILE"
+    if [[ -z "$web_override" && -n "${web_url:-}" ]]; then
+      WEB_URL="$web_url"
+    fi
+    if [[ -z "$core_override" && -n "${core_url:-}" ]]; then
+      CORE_URL="$core_url"
+    fi
+  fi
+
+  if [[ -z "$WEB_URL" ]]; then
+    WEB_URL="$(node "$PORTLESS_DEV" url web)"
+  fi
+  if [[ -z "$CORE_URL" ]]; then
+    CORE_URL="$(node "$PORTLESS_DEV" url core)"
+  fi
+}
+
+function run_dev() {
+  # $1 = core|web — same coordinator as `pnpm portless:core` / `pnpm portless:web`
+  local app="$1"
+  if [[ "$app" != "core" && "$app" != "web" ]]; then
+    echo "error: run_dev expects core|web" >&2
+    exit 1
+  fi
+  exec node "$PORTLESS_DEV" run "$app"
 }
 
 function http_code() {
   local url="$1"
   local code
-  code="$(curl -sS -o /dev/null -w "%{http_code}" --max-time 5 "$url" 2>/dev/null)" || true
+  local -a ca_args=()
+  if [[ "$url" == https://* && -f "$PORTLESS_CA" ]]; then
+    ca_args=(--cacert "$PORTLESS_CA")
+  fi
+  code="$(curl -sS -o /dev/null -w "%{http_code}" --max-time 5 "${ca_args[@]}" "$url" 2>/dev/null)" || true
   if [[ -z "$code" ]]; then
     echo "000"
   else
@@ -120,12 +162,26 @@ function launch() {
     exit 1
   fi
 
+  echo "Bootstrapping local .env"
+  node "$REPO_ROOT/scripts/local-env/bootstrap.mjs"
+
+  echo "Starting portless HTTPS proxy on 443"
+  node "$PORTLESS_DEV" proxy
+
+  resolve_stack_urls
+  export WEB_URL CORE_URL
+  export WEB_APP_BASE_URL="$WEB_URL"
+  export BETTER_AUTH_URL="$CORE_URL"
+  export CORE_APP_BASE_URL="$CORE_URL"
+  echo "web  $WEB_URL"
+  echo "core $CORE_URL"
+
   local web_code core_code
   web_code="$(http_code "$WEB_URL/signin")"
   core_code="$(http_code "$CORE_URL/v1/openapi.json")"
   if [[ "$web_code" =~ ^[23] ]] || [[ "$core_code" =~ ^[23] ]]; then
-    echo "error: ports already answering (web=$web_code core=$core_code)." >&2
-    echo "Refuse to double-drive a shared instance. Stop foreign servers or change ports." >&2
+    echo "error: this worktree stack already answers (web=$web_code core=$core_code)." >&2
+    echo "Refuse to double-drive $WEB_URL / $CORE_URL. Run cleanup, or drive the existing instance read-only." >&2
     exit 1
   fi
 
@@ -185,7 +241,12 @@ function cookie_domain_trap() {
     return 0
   fi
   echo "cookie_domain=$value"
-  echo "doctor fail: BETTER_AUTH_COOKIE_DOMAIN=$value breaks localhost sessions — comment it out in apps/core/.env and restart Core"
+  # Portless named hosts need the shared parent sokosumi.localhost.
+  # web.sokosumi.localhost would not cover Core. Production hosts break loopback.
+  if [[ "$value" == "localhost" || "$value" == "sokosumi.localhost" ]]; then
+    return 0
+  fi
+  echo "doctor fail: BETTER_AUTH_COOKIE_DOMAIN=$value breaks loopback sessions — use sokosumi.localhost for portless, or comment it out for :3000/:8787"
   return 1
 }
 
@@ -198,13 +259,17 @@ function fixture_probe() {
   local tmp headers_file http_status
   tmp="$(mktemp -d)"
   headers_file="$tmp/fixture-probe.headers"
+  local -a ca_args=()
+  if [[ "$CORE_URL" == https://* && -f "$PORTLESS_CA" ]]; then
+    ca_args=(--cacert "$PORTLESS_CA")
+  fi
   http_status="$(
     curl -sS -o "$tmp/body.json" -D "$headers_file" -w "%{http_code}" \
       -X POST "$CORE_URL/auth/sign-in/email" \
       -H "content-type: application/json" \
       -H "origin: $WEB_URL" \
       -d "{\"email\":\"$email\",\"password\":\"$password\"}" \
-      --max-time 15 2>/dev/null || echo "000"
+      --max-time 15 "${ca_args[@]}" 2>/dev/null || echo "000"
   )"
   if [[ "$http_status" =~ ^2 ]]; then
     echo "fixture_auth=ok email=$email (Core POST /auth/sign-in/email → $http_status)"
@@ -335,7 +400,9 @@ function inject_cookies_from_headers() {
     if [[ "$attrs" =~ [Hh]ttp[Oo]nly ]]; then
       set_args+=(--httpOnly)
     fi
-    # Never set Secure on http://localhost — CDP rejects Secure cookies on non-HTTPS.
+    if [[ "$WEB_URL" == https://* ]]; then
+      set_args+=(--secure)
+    fi
     echo "sign-in cookie: injecting $name"
     if ! agent-browser "${set_args[@]}"; then
       echo "error: failed to set cookie $name" >&2
@@ -357,13 +424,17 @@ function sign_in_cookie() {
   require_agent_browser
 
   echo "sign-in cookie: POST $CORE_URL/auth/sign-in/email as $email"
+  local -a ca_args=()
+  if [[ "$CORE_URL" == https://* && -f "$PORTLESS_CA" ]]; then
+    ca_args=(--cacert "$PORTLESS_CA")
+  fi
   http_status="$(
     curl -sS -o "$body_file" -D "$headers_file" -w "%{http_code}" \
       -X POST "$CORE_URL/auth/sign-in/email" \
       -H "content-type: application/json" \
       -H "origin: $WEB_URL" \
       -d "{\"email\":\"$email\",\"password\":\"$password\"}" \
-      --max-time 20
+      --max-time 20 "${ca_args[@]}"
   )"
   echo "sign-in cookie: Core HTTP $http_status (headers → $headers_file)"
 
@@ -485,6 +556,7 @@ function sign_in_vault() {
   agent-browser wait 1500 >/dev/null || sleep 1.5
 
   if ! agent-browser auth login "$profile" \
+    --url "$WEB_URL/signin" \
     --username-selector "$AUTH_EMAIL_SELECTOR" \
     --password-selector "$AUTH_PASSWORD_SELECTOR"; then
     echo "error: agent-browser auth login $profile failed." >&2
@@ -564,6 +636,7 @@ function sign_in() {
     return 1
   fi
 
+  resolve_stack_urls
   # Prefer owned instance; warn if foreign.
   if [[ ! -f "$PID_FILE" ]]; then
     echo "warn: no pid file — signing into whatever answers $WEB_URL / $CORE_URL"
@@ -639,6 +712,10 @@ function sign_in() {
 function doctor() {
   local ok=1
   local core_code web_code
+
+  resolve_stack_urls
+  echo "web_url=$WEB_URL"
+  echo "core_url=$CORE_URL"
 
   core_code="$(http_code "$CORE_URL/v1/openapi.json")"
   web_code="$(http_code "$WEB_URL/signin")"
@@ -721,6 +798,7 @@ function cleanup() {
 
 function core_smoke() {
   local code
+  resolve_stack_urls
   code="$(http_code "$CORE_URL/v1/openapi.json")"
   echo "core_openapi=$code"
   [[ "$code" =~ ^[23] ]]

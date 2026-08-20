@@ -22,10 +22,12 @@ pnpm install
 Start the development server with hot reload:
 
 ```sh
-pnpm core:dev
+pnpm portless:dev   # from repo root; web + core
+pnpm portless:core  # Core only (named Web URL still injected)
+pnpm core:dev       # classic http://localhost:8787
 ```
 
-The server will start at `http://localhost:8787`
+Portless URL: `pnpm portless:url core` (git worktrees prefix the branch; Grok copies prefix the directory). OpenAPI at `$CORE_URL/v1/openapi.json`.
 
 ### Production
 
@@ -207,7 +209,7 @@ Browser `Origin` headers are allowed only when `resolveCorsAllowOrigin()` in `sr
 | Environment | Allowed origins |
 | ------------- | ---------------- |
 | Production / staging (`NODE_ENV` not `development`) | `https:` only, host `sokosumi.com` or `*.sokosumi.com` |
-| Local development (`NODE_ENV=development`) | Same as above, plus `http:` / `https:` with host `localhost` (any port) |
+| Local development (`NODE_ENV=development`) | Same as above, plus `http:` / `https:` with host `localhost` or `*.localhost` (any port; portless named URLs) |
 
 Wildcard preview hosts such as `*.vercel.app` are **not** allowlisted for CORS. Use a `*.sokosumi.com` deployment or local dev.
 
@@ -217,7 +219,7 @@ Additional behavior:
 - Methods and headers are configured per route group (`/auth` vs `/v1`)
 - Preflight responses set `Access-Control-Max-Age` to `TIME.CORS_MAX_AGE` (see `src/config/constants.ts`; browsers may cap effective cache duration)
 
-Better Auth’s `trustedOrigins` in Core and the web app should stay identical: `https://app.sokosumi.com`, `https://preprod.sokosumi.com`, and `https://*.preview.sokosumi.com`; development adds `http://localhost:*` for local browsers. CORS allowlisting is broader (`https://sokosumi.com` and `https://*.sokosumi.com`); do not widen `trustedOrigins` to match — it is a CSRF allowlist for browser auth flows, not general API access control.
+Better Auth’s `trustedOrigins` in Core and the web app should stay identical: `https://app.sokosumi.com`, `https://preprod.sokosumi.com`, and `https://*.preview.sokosumi.com`; development adds `http://localhost:*`, `https://*.localhost`, and related loopback patterns for local browsers and portless. CORS allowlisting is broader (`https://sokosumi.com` and `https://*.sokosumi.com`); do not widen `trustedOrigins` to match — it is a CSRF allowlist for browser auth flows, not general API access control.
 
 ## Authentication
 
