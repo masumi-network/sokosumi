@@ -25,6 +25,9 @@ const {
 
 vi.mock("@/helpers/agent", () => ({
   requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
+}));
+
+vi.mock("@/helpers/agent-rating", () => ({
   upsertUserAgentReview: upsertUserAgentReviewMock,
 }));
 

@@ -3,31 +3,20 @@ import {
   AgentEntryType,
   type AgentMetadataOverride,
   AgentStatus,
-  type AgentWithPricing,
   type CreditCost,
   PaymentType,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import {
-  listV2RegistryPolicyIds,
-  normalizeMasumiPaymentUnit,
-} from "@sokosumi/masumi";
+import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-import {
-  type AgentMyReview,
-  type AgentReview,
-  agentMyReviewSchema,
-  agentReviewSchema,
-  type RatingDistribution,
-  type RatingMetrics,
-} from "@/schemas/agent.schema";
 
+import { listCardanoBillableUnitSpellings } from "./agent-cost";
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
@@ -301,28 +290,10 @@ export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
   cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
-  // Both spellings of every unit, because the two sides of this comparison
-  // were written in different eras. Ingestion now stores
-  // normalizeMasumiPaymentUnit(...) — lowercased — but `CreditCost.unit` is
-  // free-form operator input (POST /v1/credit-costs takes z.string().min(1)),
-  // and rows ingested before this branch kept the registry's original casing.
-  // isSameAgentPricing normalizes before comparing, so a pure case change
-  // reads as "unchanged" and those older rows are never rewritten.
-  //
-  // Prisma `in` is a case-sensitive `= ANY(...)`, so matching on one spelling
-  // alone silently drops agents in SQL — no buildAgentSummaries skip, no log
-  // line, the row is simply absent from /v1/agents and /v1/categories and
-  // 404s from /v1/agents/{id}. Carrying both keeps pre- and post-branch rows
-  // matchable without a UnitValue backfill.
-  const validUnits = Array.from(
-    new Set(
-      creditCosts.flatMap((creditCost) =>
-        normalizeMasumiPaymentUnit(creditCost.unit) === "lovelace"
-          ? [creditCost.unit, "lovelace", ""]
-          : [creditCost.unit, normalizeMasumiPaymentUnit(creditCost.unit)],
-      ),
-    ),
-  );
+  // Both spellings of every billable unit; CAIP-19 rows are excluded — they
+  // price per whole token and must never make a Cardano-convention agent
+  // billable (see listCardanoBillableUnitSpellings).
+  const validUnits = listCardanoBillableUnitSpellings(creditCosts);
   // V2 availability is gated on rail readiness alone: the payment node must
   // have recently reported at least one purchase-ready Cardano V2 source.
   // That is the gate that actually reflects whether a V2 hire can settle — a
@@ -457,115 +428,9 @@ export const requireAvailableAgentOrThrow = async (
   }
 };
 
-export interface AgentCost {
-  cents: bigint;
-}
-
-/**
- * Gets an agent's cost.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The cost for the agent.
- */
-export const getAgentCost = (
-  agent: AgentWithPricing,
-  creditCosts: CreditCost[],
-): AgentCost => {
-  return calculateAgentCost(agent, creditCosts);
-};
-
-/**
- * Converts on-chain pricing rows (unit + amount in smallest units) to billable cents
- * using the CreditCost table. Used for fixed agent pricing and task masumi payments.
- */
-function calculateCentsFromPricingAmountRows(
-  rows: readonly { unit: string; amount: bigint }[],
-  creditCosts: CreditCost[],
-): bigint {
-  let totalCents = BigInt(0);
-  for (const row of rows) {
-    const unit = normalizeMasumiPaymentUnit(row.unit);
-    const creditCost = creditCosts.find(
-      (candidate) => normalizeMasumiPaymentUnit(candidate.unit) === unit,
-    );
-    if (!creditCost) {
-      throw unprocessableEntity(`Credit cost not found for unit ${unit}`);
-    }
-    totalCents += row.amount * creditCost.centsPerUnit;
-  }
-  return totalCents;
-}
-
-/**
- * Parses Masumi payment Amounts (string amounts) and returns billable cents.
- */
-export function calculateCentsFromMasumiAmountStrings(
-  amounts: readonly { amount: string; unit: string }[],
-  creditCosts: CreditCost[],
-): bigint {
-  if (amounts.length === 0) {
-    throw unprocessableEntity("Amounts must not be empty");
-  }
-
-  const rows: { unit: string; amount: bigint }[] = [];
-  for (const entry of amounts) {
-    let amount: bigint;
-    try {
-      amount = BigInt(entry.amount);
-    } catch {
-      throw unprocessableEntity(`Invalid amount: ${entry.amount}`);
-    }
-    if (amount <= 0n) {
-      throw unprocessableEntity("Amount must be positive");
-    }
-    const unit = normalizeMasumiPaymentUnit(entry.unit);
-    // Deliberately AFTER normalization: an empty unit is Masumi's spelling of
-    // ADA and becomes "lovelace", so only a whitespace-only unit — which
-    // normalizes to itself and names no asset — is rejected here.
-    if (unit.trim().length === 0) {
-      throw unprocessableEntity("Unit must not be empty");
-    }
-    rows.push({ unit, amount });
-  }
-
-  return calculateCentsFromPricingAmountRows(rows, creditCosts);
-}
-
-/**
- * Calculates the cost for an agent from its pricing configuration.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The cost for the agent.
- */
-const calculateAgentCost = (
-  agent: AgentWithPricing,
-  creditCosts: CreditCost[],
-): AgentCost => {
-  switch (agent.pricing.pricingType) {
-    case PricingType.FIXED: {
-      if (
-        !agent.pricing.fixedPricing ||
-        agent.pricing.fixedPricing.amounts.length === 0
-      ) {
-        throw unprocessableEntity("Agent has invalid or unknown pricing");
-      }
-      const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
-        unit: amount.unit,
-        amount: amount.amount,
-      }));
-
-      return {
-        cents: calculateCentsFromPricingAmountRows(pricing, creditCosts),
-      };
-    }
-    case PricingType.FREE: {
-      return { cents: BigInt(0) };
-    }
-    case PricingType.UNKNOWN: {
-      throw unprocessableEntity("Agent has invalid or unknown pricing");
-    }
-  }
-};
+// Agent pricing → billable cents lives in `./agent-cost` (getAgentCost,
+// calculateCentsFromMasumiAmountStrings), extracted with the CAIP-19
+// convention fence so this file stays within the size ceiling.
 
 /**
  * Calculates the average execution time (in seconds) for a given agent's jobs.
@@ -690,200 +555,7 @@ export const calculateAverageExecutionTimes = async (
   return averagesMap;
 };
 
-export const calculateAgentRating = async (
-  agentId: string,
-  tx: Prisma.TransactionClient,
-): Promise<RatingMetrics> => {
-  const ratingStats = await tx.userAgentRating.aggregate({
-    where: {
-      agentId,
-      isHidden: false,
-    },
-    _count: { rating: true },
-    _avg: { rating: true },
-  });
-  return {
-    total: ratingStats._count.rating ?? 0,
-    average: ratingStats._avg.rating ?? null,
-  };
-};
-
-export const calculateAgentRatings = async (
-  agentIds: string[],
-  tx: Prisma.TransactionClient,
-): Promise<Map<string, RatingMetrics>> => {
-  if (agentIds.length === 0) return new Map();
-
-  const ratings = await tx.userAgentRating.groupBy({
-    by: ["agentId"],
-    where: {
-      agentId: { in: agentIds },
-      isHidden: false,
-    },
-    _count: { rating: true },
-    _avg: { rating: true },
-  });
-
-  // Convert array to Map for O(1) lookups
-  const ratingsMap = new Map(
-    ratings.map((rating) => [
-      rating.agentId,
-      {
-        total: rating._count.rating,
-        average: rating._avg.rating,
-      },
-    ]),
-  );
-
-  // Initialize all agentIds with default values (for agents with no ratings)
-  for (const agentId of agentIds) {
-    if (!ratingsMap.has(agentId)) {
-      ratingsMap.set(agentId, {
-        total: 0,
-        average: null,
-      });
-    }
-  }
-  return ratingsMap;
-};
-
-export const getAgentRatingDistribution = async (
-  agentId: string,
-  tx: Prisma.TransactionClient,
-): Promise<RatingDistribution> => {
-  const ratings = await tx.userAgentRating.groupBy({
-    by: ["rating"],
-    where: {
-      agentId,
-      isHidden: false,
-    },
-    _count: { rating: true },
-  });
-
-  const distribution: RatingDistribution = {
-    "1": 0,
-    "2": 0,
-    "3": 0,
-    "4": 0,
-    "5": 0,
-  };
-
-  ratings.forEach((rating) => {
-    const key = String(rating.rating) as keyof RatingDistribution;
-    distribution[key] = rating._count.rating;
-  });
-
-  return distribution;
-};
-
-export const getRecentAgentReviews = async (
-  agentId: string,
-  limit: number,
-  tx: Prisma.TransactionClient,
-  offset: number = 0,
-): Promise<AgentReview[]> => {
-  const ratings = await tx.userAgentRating.findMany({
-    where: {
-      agentId,
-      isHidden: false,
-      AND: [{ comment: { not: null } }, { comment: { not: "" } }],
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          image: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    skip: offset,
-  });
-
-  return ratings.map((rating) =>
-    agentReviewSchema.parse({
-      id: rating.id,
-      rating: rating.rating,
-      comment: rating.comment,
-      createdAt: rating.createdAt,
-      updatedAt: rating.updatedAt,
-      user: {
-        id: rating.user.id,
-        name: rating.user.name,
-        image: rating.user.image
-          ? resolveIpfsOrHttpUrl(rating.user.image)
-          : rating.user.image,
-      },
-    }),
-  );
-};
-
-/**
- * Returns the authenticated caller's own rating for an agent, or null when they
- * have not rated it. Unlike the public review reads, this is not filtered by
- * `isHidden` — the caller may always see their own rating.
- */
-export const getUserAgentReview = async (
-  agentId: string,
-  userId: string,
-  tx: Prisma.TransactionClient,
-): Promise<AgentMyReview | null> => {
-  const rating = await tx.userAgentRating.findUnique({
-    where: {
-      userId_agentId: {
-        userId,
-        agentId,
-      },
-    },
-  });
-
-  if (!rating) {
-    return null;
-  }
-
-  return agentMyReviewSchema.parse({
-    id: rating.id,
-    rating: rating.rating,
-    comment: rating.comment,
-  });
-};
-
-/**
- * Creates or updates the caller's rating for an agent. Callers are responsible
- * for enforcing the eligibility gate (a finished job with the agent) before
- * invoking this helper.
- */
-export const upsertUserAgentReview = async (
-  agentId: string,
-  userId: string,
-  rating: number,
-  comment: string | null,
-  tx: Prisma.TransactionClient,
-): Promise<AgentMyReview> => {
-  const upserted = await tx.userAgentRating.upsert({
-    where: {
-      userId_agentId: {
-        userId,
-        agentId,
-      },
-    },
-    update: {
-      rating,
-      comment,
-    },
-    create: {
-      userId,
-      agentId,
-      rating,
-      comment,
-    },
-  });
-
-  return agentMyReviewSchema.parse({
-    id: upserted.id,
-    rating: upserted.rating,
-    comment: upserted.comment,
-  });
-};
+// Agent ratings and reviews (aggregates, the public review feed, and the
+// caller's own review) live in `./agent-rating`, extracted alongside
+// `./agent-cost` so this file keeps one responsibility and stays inside the
+// 750-line ceiling.

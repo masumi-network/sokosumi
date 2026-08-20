@@ -4,8 +4,8 @@ import {
   buildAvailableAgentWhereClause,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
-  getUserAgentReview,
 } from "@/helpers/agent";
+import { getUserAgentReview } from "@/helpers/agent-rating";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
