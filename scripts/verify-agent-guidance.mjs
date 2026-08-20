@@ -75,6 +75,8 @@ mustInclude("AGENTS.md", "@sokosumi/net");
 mustInclude("AGENTS.md", "Respond terse like smart caveman");
 mustInclude("AGENTS.md", "pnpm env:bootstrap");
 mustInclude("AGENTS.md", "pnpm portless:dev");
+mustInclude("AGENTS.md", "pnpm portless:web");
+mustInclude("AGENTS.md", "pnpm portless:core");
 mustInclude("AGENTS.md", "portless get web.sokosumi");
 mustNotInclude("AGENTS.md", "simple-import-sort");
 mustNotInclude("AGENTS.md", "packages/services");

@@ -197,6 +197,8 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 | `pnpm env:bootstrap`   | Create/sanitize local `.env` files |
 | `pnpm portless:proxy`  | Start portless HTTPS proxy on 443 |
 | `pnpm portless:dev`    | Web + Core via portless (worktree-safe named URLs) |
+| `pnpm portless:web`    | Web only via portless (still injects both named URLs) |
+| `pnpm portless:core`   | Core only via portless (still injects both named URLs) |
 | `pnpm dev`             | Watch all workspace packages (classic `:3000` / `:8787`) |
 | `pnpm web:dev`         | Web on `:3000` (`PORTLESS=0` equivalent) |
 | `pnpm core:dev`        | Core on `:8787` |

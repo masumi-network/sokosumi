@@ -182,6 +182,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 | ----------------- | ------------------------- |
 | `pnpm web:dev`       | Start development server on `:3000` |
 | `pnpm portless:dev`  | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
+| `pnpm portless:web`  | Web only via portless (still injects Core's named URL) |
 | `pnpm web:build`  | Build for production      |
 | `pnpm web:start`  | Test production build     |
 | `pnpm web:lint`   | Run Biome lint rules for the web app |
@@ -360,7 +361,7 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ## Development Workflow
 
-1. **Start Development**: `pnpm portless:dev` from repo root (or `pnpm web:dev` for classic `:3000`)
+1. **Start Development**: `pnpm portless:dev` from repo root (`pnpm portless:web` for web only; `pnpm web:dev` for classic `:3000`)
 2. **Testing**: Run `pnpm web:test` before committing
 3. **Formatting**: Run `pnpm format` after changes
 

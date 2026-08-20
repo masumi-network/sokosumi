@@ -22,7 +22,8 @@ pnpm install
 Start the development server with hot reload:
 
 ```sh
-pnpm portless:dev   # from repo root; https://core.sokosumi.localhost
+pnpm portless:dev   # from repo root; web + core
+pnpm portless:core  # Core only (named Web URL still injected)
 pnpm core:dev       # classic http://localhost:8787
 ```
 

@@ -9,6 +9,8 @@
     "core:dev": "pnpm --filter core dev",
     "env:bootstrap": "node scripts/local-env/bootstrap.mjs",
     "portless:dev": "node scripts/local-env/portless-dev.mjs run",
+    "portless:web": "node scripts/local-env/portless-dev.mjs run web",
+    "portless:core": "node scripts/local-env/portless-dev.mjs run core",
     "portless:proxy": "node scripts/local-env/portless-dev.mjs proxy",
     "build": "pnpm -r build",
     "web:build": "pnpm --filter web build",
