@@ -83,6 +83,7 @@ import { cn } from "@/lib/utils";
 import { listDriveItems } from "@/lib/utils/drive-file-list.client";
 import {
   isDriveFileUploadDuplicate,
+  isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
@@ -191,6 +192,8 @@ export default function DrivePage(): ReactElement {
     null,
   );
   const [movingItem, setMovingItem] = useState(false);
+  const [allFolders, setAllFolders] = useState<DriveItem[]>([]);
+  const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
@@ -522,33 +525,7 @@ export default function DrivePage(): ReactElement {
     } catch (err) {
       console.error("Failed to create folder", err);
 
-      // Detect 409 or "already exists" message (match mint detector pattern)
-      let isDuplicate = false;
-      if (err && typeof err === "object") {
-        // Check for status in error or error.response
-        const status =
-          "status" in err
-            ? (err.status as number)
-            : "response" in err &&
-                err.response &&
-                typeof err.response === "object" &&
-                "status" in err.response
-              ? (err.response.status as number)
-              : undefined;
-
-        const message =
-          "message" in err && typeof err.message === "string"
-            ? err.message
-            : undefined;
-
-        if (status === 409) {
-          isDuplicate = true;
-        } else if (message && /already exists?/i.test(message)) {
-          isDuplicate = true;
-        }
-      }
-
-      if (isDuplicate) {
+      if (isDuplicateResourceError(err)) {
         setCreateFolderDialogOpen(false);
         setNewFolderName("");
         setSnapshotFolder(null);
@@ -565,6 +542,31 @@ export default function DrivePage(): ReactElement {
     setItemToMove(item);
     setSelectedDestination(null);
     setMoveDialogOpen(true);
+    void loadAllFolders();
+  }
+
+  async function loadAllFolders() {
+    setLoadingAllFolders(true);
+    try {
+      if (scope === "org" && !activeOrganizationId) {
+        setAllFolders([]);
+        return;
+      }
+
+      const loaded = await listDriveItems({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+      });
+
+      setAllFolders(loaded.filter((item) => item.type === "folder"));
+    } catch (err) {
+      console.error("Failed to load all folders", err);
+      setAllFolders([]);
+    } finally {
+      setLoadingAllFolders(false);
+    }
   }
 
   async function handleMoveConfirm() {
@@ -609,6 +611,7 @@ export default function DrivePage(): ReactElement {
           ? t("moveFolderError")
           : t("moveFileError"),
       );
+      // Keep dialog open on error so user can see toast and retry or cancel
     } finally {
       setMovingItem(false);
     }
@@ -625,25 +628,54 @@ export default function DrivePage(): ReactElement {
 
     breadcrumbSegments.forEach((_, index) => {
       const ancestorPath = breadcrumbSegments.slice(0, index + 1).join("/");
+      // Skip currentFolder itself—can't move to where it already is
+      if (ancestorPath === currentFolder) {
+        return;
+      }
       destinations.push({
         path: ancestorPath,
         label: breadcrumbSegments.slice(0, index + 1).join(" / "),
       });
     });
 
-    const siblingFolders = items.filter(
-      (item) => item.type === "folder" && item.name !== itemToMove.name,
-    );
+    // Use allFolders (loaded on dialog open) instead of items (current folder only)
+    // to enable cross-branch moves
+    const foldersToShow = allFolders.filter((folder) => {
+      // Exclude the item being moved
+      const folderPath = folder.name;
+      const itemPath =
+        itemToMove.type === "file"
+          ? itemToMove.pathname
+          : currentFolder
+            ? `${currentFolder}/${itemToMove.name}`
+            : itemToMove.name;
 
-    siblingFolders.forEach((folder) => {
-      const folderPath = currentFolder
-        ? `${currentFolder}/${folder.name}`
-        : folder.name;
+      // Basic exclusion: don't show the item being moved
+      if (folderPath === itemPath) {
+        return false;
+      }
+
+      // For folders, exclude descendants to prevent moving into own subtree
+      if (itemToMove.type === "folder") {
+        const folderPathNormalized = folder.name;
+        const itemFolderPath = currentFolder
+          ? `${currentFolder}/${itemToMove.name}`
+          : itemToMove.name;
+        if (folderPathNormalized.startsWith(`${itemFolderPath}/`)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    foldersToShow.forEach((folder) => {
+      const folderPath = folder.name;
+      // Build a readable label from the folder path
+      const segments = folderPath.split("/");
       destinations.push({
         path: folderPath,
-        label: currentFolder
-          ? `${breadcrumbSegments.join(" / ")} / ${folder.name}`
-          : folder.name,
+        label: segments.join(" / "),
       });
     });
 
@@ -1179,22 +1211,28 @@ export default function DrivePage(): ReactElement {
             </DialogTitle>
             <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            {availableDestinations.map((dest) => (
-              <button
-                key={dest.path}
-                type="button"
-                onClick={() => setSelectedDestination(dest.path)}
-                className={cn(
-                  "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                  selectedDestination === dest.path &&
-                    "bg-muted border-primary",
-                )}
-              >
-                <Folder className="text-muted-foreground size-4 shrink-0" />
-                <span className="line-clamp-1 flex-1">{dest.label}</span>
-              </button>
-            ))}
+          <div className="max-h-96 space-y-2 overflow-y-auto">
+            {loadingAllFolders ? (
+              <p className="text-muted-foreground text-sm">
+                {t("loadingFolders")}
+              </p>
+            ) : (
+              availableDestinations.map((dest) => (
+                <button
+                  key={dest.path}
+                  type="button"
+                  onClick={() => setSelectedDestination(dest.path)}
+                  className={cn(
+                    "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    selectedDestination === dest.path &&
+                      "bg-muted border-primary",
+                  )}
+                >
+                  <Folder className="text-muted-foreground size-4 shrink-0" />
+                  <span className="line-clamp-1 flex-1">{dest.label}</span>
+                </button>
+              ))
+            )}
           </div>
           <DialogFooter>
             <Button

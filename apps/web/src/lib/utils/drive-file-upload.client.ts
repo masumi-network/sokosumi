@@ -24,6 +24,42 @@ export function isDriveFileUploadDuplicate(
   return error instanceof DriveFileUploadError && error.code === "duplicate";
 }
 
+/**
+ * Detect 409 Conflict or "already exists" message in error responses.
+ * Shared predicate for both file upload mint and folder create duplicate detection.
+ */
+export function isDuplicateResourceError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  // Check for status in error or error.response
+  const status =
+    "status" in error
+      ? (error.status as number)
+      : "response" in error &&
+          error.response &&
+          typeof error.response === "object" &&
+          "status" in error.response
+        ? (error.response.status as number)
+        : undefined;
+
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : undefined;
+
+  if (status === 409) {
+    return true;
+  }
+
+  if (message && /already exists?/i.test(message)) {
+    return true;
+  }
+
+  return false;
+}
+
 interface DriveFileUploadProgress {
   percentage: number;
 }
@@ -64,36 +100,11 @@ export async function uploadDriveFile(
     });
   } catch (err: unknown) {
     // Detect mint 409 or "already exists" message
-    if (err && typeof err === "object") {
-      // Check for status in error or error.response
-      const status =
-        "status" in err
-          ? (err.status as number)
-          : "response" in err &&
-              err.response &&
-              typeof err.response === "object" &&
-              "status" in err.response
-            ? (err.response.status as number)
-            : undefined;
-
-      const message =
-        "message" in err && typeof err.message === "string"
-          ? err.message
-          : undefined;
-
-      if (status === 409) {
-        throw new DriveFileUploadError(
-          "duplicate",
-          "A file with this name already exists",
-        );
-      }
-
-      if (message && /already exists?/i.test(message)) {
-        throw new DriveFileUploadError(
-          "duplicate",
-          "A file with this name already exists",
-        );
-      }
+    if (isDuplicateResourceError(err)) {
+      throw new DriveFileUploadError(
+        "duplicate",
+        "A file with this name already exists",
+      );
     }
     throw new DriveFileUploadError(
       "internal",
