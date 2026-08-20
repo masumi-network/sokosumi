@@ -2,11 +2,13 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import {
   buildAvailableAgentWhereClause,
-  getAgentRatingDistribution,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
-  getRecentAgentReviews,
 } from "@/helpers/agent";
+import {
+  getAgentRatingDistribution,
+  getRecentAgentReviews,
+} from "@/helpers/agent-rating";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";

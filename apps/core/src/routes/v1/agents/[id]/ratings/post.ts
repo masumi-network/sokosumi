@@ -1,10 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
-import {
-  requireAvailableAgentOrThrow,
-  upsertUserAgentReview,
-} from "@/helpers/agent";
+import { requireAvailableAgentOrThrow } from "@/helpers/agent";
+import { upsertUserAgentReview } from "@/helpers/agent-rating";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";

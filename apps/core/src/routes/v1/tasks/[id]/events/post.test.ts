@@ -102,6 +102,13 @@ vi.mock("@/helpers/agent", async (importOriginal) => {
     ...actual,
     getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
     getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  };
+});
+
+vi.mock("@/helpers/agent-cost", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/helpers/agent-cost")>();
+  return {
+    ...actual,
     calculateCentsFromMasumiAmountStrings:
       calculateCentsFromMasumiAmountStringsMock,
   };
