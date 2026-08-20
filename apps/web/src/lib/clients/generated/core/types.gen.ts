@@ -2665,7 +2665,7 @@ export type UserDeletionEvaluation = {
     /**
      * Current User-deletion blockers. Empty means the existing wipe may proceed.
      */
-    blockers: Array<'USER_OWNS_ORGANIZATION' | 'IN_FLIGHT_JOB' | 'UNSETTLED_ON_CHAIN_JOB' | 'IN_FLIGHT_TASK' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING'>;
+    blockers: Array<'USER_OWNS_ORGANIZATION' | 'IN_FLIGHT_JOB' | 'UNSETTLED_ON_CHAIN_JOB' | 'IN_FLIGHT_TASK' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING'>;
 };
 
 export type PersistedDesignMd = {

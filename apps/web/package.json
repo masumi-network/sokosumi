@@ -5,6 +5,9 @@
     "node": "24.x"
   },
   "private": true,
+  "portless": {
+    "name": "web.sokosumi"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

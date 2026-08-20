@@ -81,6 +81,7 @@ const {
   const prismaJobFindFirstMock = vi.fn();
   const prismaTaskFindFirstMock = vi.fn();
   const prismaTaskPaymentClaimFindFirstMock = vi.fn();
+  const prismaTaskX402PaymentFindFirstMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
@@ -103,6 +104,9 @@ const {
     },
     taskPaymentClaim: {
       findFirst: prismaTaskPaymentClaimFindFirstMock,
+    },
+    taskX402Payment: {
+      findFirst: prismaTaskX402PaymentFindFirstMock,
     },
   };
 
@@ -440,6 +444,7 @@ describe("core auth config", () => {
     prismaMock.job.findFirst.mockResolvedValue(null);
     prismaMock.task.findFirst.mockResolvedValue(null);
     prismaMock.taskPaymentClaim.findFirst.mockResolvedValue(null);
+    prismaMock.taskX402Payment.findFirst.mockResolvedValue(null);
     deleteStripeCustomerBestEffortMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => callback({}));
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
@@ -1078,6 +1083,10 @@ describe("core auth config", () => {
       "https://preprod.sokosumi.com",
       "https://*.preview.sokosumi.com",
       "http://localhost:*",
+      "https://localhost:*",
+      "http://*.localhost:*",
+      "https://*.localhost",
+      "https://*.localhost:*",
     ]);
   });
 

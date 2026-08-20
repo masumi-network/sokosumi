@@ -7,6 +7,12 @@
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
     "core:dev": "pnpm --filter core dev",
+    "env:bootstrap": "node scripts/local-env/bootstrap.mjs",
+    "portless:dev": "node scripts/local-env/portless-dev.mjs run",
+    "portless:web": "node scripts/local-env/portless-dev.mjs run web",
+    "portless:core": "node scripts/local-env/portless-dev.mjs run core",
+    "portless:proxy": "node scripts/local-env/portless-dev.mjs proxy",
+    "portless:url": "node scripts/local-env/portless-dev.mjs url",
     "build": "turbo run build",
     "web:build": "pnpm --filter web build",
     "generate:core": "pnpm --filter web generate:core",
@@ -87,6 +93,7 @@
     "cloud-agent-db:teardown": "node scripts/cloud-agent-db/teardown.mjs",
     "cloud-agent-db:seed-auth": "node scripts/cloud-agent-db/seed-auth-fixtures.mjs",
     "cloud-agent-db:test": "node --test scripts/cloud-agent-db/__tests__/cloud-agent-db.test.mjs",
+    "local-env:test": "node --test scripts/local-env/__tests__/bootstrap.test.mjs scripts/local-env/__tests__/portless-dev.test.mjs",
     "perf:report": "lighthouse https://sokosumi-app-preprod.vercel.app/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'",
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs",
     "prepare": "husky"
@@ -96,6 +103,7 @@
     "chrome-launcher": "1.2.1",
     "husky": "9.1.7",
     "lighthouse": "13.4.1",
+    "portless": "0.15.5",
     "tsx": "4.23.12",
     "turbo": "2.10.11"
   }

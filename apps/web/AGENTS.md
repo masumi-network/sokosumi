@@ -180,7 +180,9 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 | Command           | Purpose                   |
 | ----------------- | ------------------------- |
-| `pnpm web:dev`    | Start development server  |
+| `pnpm web:dev`       | Start development server on `:3000` |
+| `pnpm portless:dev`  | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
+| `pnpm portless:web`  | Web only via portless (still injects Core's named URL) |
 | `pnpm web:build`  | Build for production      |
 | `pnpm web:start`  | Test production build     |
 | `pnpm web:lint`   | Run Biome lint rules for the web app |
@@ -359,7 +361,7 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ## Development Workflow
 
-1. **Start Development**: `pnpm web:dev`
+1. **Start Development**: `pnpm portless:dev` from repo root (`pnpm portless:web` for web only; `pnpm web:dev` for classic `:3000`)
 2. **Testing**: Run `pnpm web:test` before committing
 3. **Formatting**: Run `pnpm format` after changes
 
@@ -429,12 +431,15 @@ vault's submit **click** often no-ops while the field values look correct. The
 form itself is fine — submitting via **Enter** works because state has flushed
 by then.
 
+`$WEB_URL` is `pnpm portless:url web` (or `web_url=` from `verify-sokosumi doctor`). Do not hardcode `:3000`.
+
 Each coworker stores their **own** credentials (nothing shared/committed):
 
 ```bash
 # one-time, per machine — password read from stdin, never echoed
+WEB_URL="$(pnpm portless:url web)"
 agent-browser auth save sokosumi \
-  --url http://localhost:3000/signin \
+  --url "$WEB_URL/signin" \
   --username you@example.com --password-stdin \
   --username-selector '[data-testid="auth-field-email"]' \
   --password-selector '[data-testid="auth-field-currentPassword"]'
@@ -443,12 +448,14 @@ agent-browser auth save sokosumi \
 Prefer `verify-sokosumi sign-in` (fixtures, then this vault). Manual recipe:
 
 ```bash
-agent-browser open http://localhost:3000/signin
+WEB_URL="$(pnpm portless:url web)"
+agent-browser open "$WEB_URL/signin"
 agent-browser auth login sokosumi \
+  --url "$WEB_URL/signin" \
   --username-selector '[data-testid="auth-field-email"]' \
   --password-selector '[data-testid="auth-field-currentPassword"]'
 # if still on /signin: press Enter (vault click can race react-hook-form)
-agent-browser open http://localhost:3000/agents
+agent-browser open "$WEB_URL/agents"
 agent-browser wait --url "**/agents"
 ```
 

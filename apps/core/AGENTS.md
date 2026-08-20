@@ -218,8 +218,8 @@ Environment variables are accessed via `process.env`, validated at startup with 
 
 **Common URL-related variables:**
 
-- `PORT` — HTTP port (default `8787`)
-- `WEB_APP_BASE_URL` — Default `http://localhost:3000`; used with `getWebAppBaseUrl()` and Vercel related projects
+- `PORT` — HTTP port (default `8787`; portless injects an ephemeral `4000–4999` port)
+- `WEB_APP_BASE_URL` — Browser origin. Default `http://localhost:3000`; `pnpm portless:dev` / `pnpm portless:core` set this to `pnpm portless:url web`
 - `BETTER_AUTH_SECRET` — Shared with the web Better Auth instance
 - `BETTER_AUTH_URL` — Public base URL of this Core service; used as Better Auth `baseURL` except on Vercel Preview
 - `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` — Optional; on Preview, `getBetterAuthPublicBaseUrl()` prefers `VERCEL_BRANCH_URL` over `VERCEL_URL`, and prefers a `*.sokosumi.com` candidate when only one of those is on the preview suffix (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
@@ -365,7 +365,9 @@ For internal async-ack sync routes (immediate `200` response + background execut
 
 | Command                           | Purpose                  |
 | --------------------------------- | ------------------------ |
-| `pnpm core:dev`                   | Start development server |
+| `pnpm core:dev`                   | Start development server on `:8787` |
+| `pnpm portless:dev`               | Web + Core via portless (repo root; named `https://core.sokosumi.localhost`) |
+| `pnpm portless:core`              | Core only via portless (still injects Web's named URL) |
 | `pnpm core:build`                 | Build for production     |
 | `pnpm --filter @sokosumi/core vercel-build` | Vercel: build then `prisma migrate deploy` |
 | `pnpm core:start`                 | Run production build     |
