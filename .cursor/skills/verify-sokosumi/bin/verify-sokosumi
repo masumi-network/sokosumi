@@ -46,8 +46,8 @@ sign-in options:
   --vault               shorthand for --method vault
 
 Env overrides:
-  VERIFY_SOKOSUMI_WEB_URL   default: portless get web.sokosumi
-  VERIFY_SOKOSUMI_CORE_URL  default: portless get core.sokosumi
+  VERIFY_SOKOSUMI_WEB_URL   default: pnpm portless:url web
+  VERIFY_SOKOSUMI_CORE_URL  default: pnpm portless:url core
   VERIFY_SOKOSUMI_STATE_DIR state/pids/logs directory
   VERIFY_SOKOSUMI_ARTIFACT_ROOT proof artifact root
   VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  fixture credentials for sign-in
@@ -57,22 +57,36 @@ EOF
 }
 
 function resolve_stack_urls() {
-  if [[ -n "${VERIFY_SOKOSUMI_WEB_URL:-}" && -n "${VERIFY_SOKOSUMI_CORE_URL:-}" ]]; then
-    WEB_URL="$VERIFY_SOKOSUMI_WEB_URL"
-    CORE_URL="$VERIFY_SOKOSUMI_CORE_URL"
+  local web_override="${VERIFY_SOKOSUMI_WEB_URL:-}"
+  local core_override="${VERIFY_SOKOSUMI_CORE_URL:-}"
+
+  if [[ -n "$web_override" ]]; then
+    WEB_URL="$web_override"
+  fi
+  if [[ -n "$core_override" ]]; then
+    CORE_URL="$core_override"
+  fi
+  if [[ -n "$WEB_URL" && -n "$CORE_URL" ]]; then
     return 0
   fi
+
   if [[ -f "$PID_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$PID_FILE"
-    if [[ -n "${web_url:-}" && -n "${core_url:-}" ]]; then
+    if [[ -z "$web_override" && -n "${web_url:-}" ]]; then
       WEB_URL="$web_url"
+    fi
+    if [[ -z "$core_override" && -n "${core_url:-}" ]]; then
       CORE_URL="$core_url"
-      return 0
     fi
   fi
-  WEB_URL="$(node "$PORTLESS_DEV" url web)"
-  CORE_URL="$(node "$PORTLESS_DEV" url core)"
+
+  if [[ -z "$WEB_URL" ]]; then
+    WEB_URL="$(node "$PORTLESS_DEV" url web)"
+  fi
+  if [[ -z "$CORE_URL" ]]; then
+    CORE_URL="$(node "$PORTLESS_DEV" url core)"
+  fi
 }
 
 function run_dev() {
@@ -227,9 +241,9 @@ function cookie_domain_trap() {
     return 0
   fi
   echo "cookie_domain=$value"
-  # Portless named hosts need a shared parent (sokosumi.localhost). Production
-  # hosts still break loopback sessions.
-  if [[ "$value" == "localhost" || "$value" == *.localhost ]]; then
+  # Portless named hosts need the shared parent sokosumi.localhost.
+  # web.sokosumi.localhost would not cover Core. Production hosts break loopback.
+  if [[ "$value" == "localhost" || "$value" == "sokosumi.localhost" ]]; then
     return 0
   fi
   echo "doctor fail: BETTER_AUTH_COOKIE_DOMAIN=$value breaks loopback sessions — use sokosumi.localhost for portless, or comment it out for :3000/:8787"

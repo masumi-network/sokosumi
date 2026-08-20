@@ -437,6 +437,7 @@ Each coworker stores their **own** credentials (nothing shared/committed):
 
 ```bash
 # one-time, per machine — password read from stdin, never echoed
+WEB_URL="$(pnpm portless:url web)"
 agent-browser auth save sokosumi \
   --url "$WEB_URL/signin" \
   --username you@example.com --password-stdin \
@@ -447,8 +448,10 @@ agent-browser auth save sokosumi \
 Prefer `verify-sokosumi sign-in` (fixtures, then this vault). Manual recipe:
 
 ```bash
+WEB_URL="$(pnpm portless:url web)"
 agent-browser open "$WEB_URL/signin"
 agent-browser auth login sokosumi \
+  --url "$WEB_URL/signin" \
   --username-selector '[data-testid="auth-field-email"]' \
   --password-selector '[data-testid="auth-field-currentPassword"]'
 # if still on /signin: press Enter (vault click can race react-hook-form)
