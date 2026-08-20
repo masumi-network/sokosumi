@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ensureOAuthWorkspaceAction } from "@/lib/actions/workspace-gate";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface ConsentActionsProps {
@@ -19,6 +20,13 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
   async function handleAuthorize() {
     setIsAuthorizing(true);
     try {
+      const workspaceResult = await ensureOAuthWorkspaceAction({});
+      if (!workspaceResult.ok) {
+        toast.error(t("workspacePrepareError"));
+        setIsAuthorizing(false);
+        return;
+      }
+
       const result = await authClient.oauth2.consent({
         accept: true,
         ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
