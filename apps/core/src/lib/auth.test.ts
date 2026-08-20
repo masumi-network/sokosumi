@@ -77,6 +77,13 @@ const {
   const prismaUserUpdateManyMock = vi.fn();
   const prismaUserFindUniqueMock = vi.fn();
   const prismaOrganizationFindUniqueMock = vi.fn();
+  const prismaMemberFindFirstMock = vi.fn();
+  const prismaJobFindFirstMock = vi.fn();
+  const prismaTaskFindFirstMock = vi.fn();
+  const prismaTaskPaymentClaimFindFirstMock = vi.fn();
+  const prismaTaskX402PaymentFindFirstMock = vi.fn();
+  const prismaSubscriptionFindFirstMock = vi.fn();
+  const prismaEnterpriseContractFindFirstMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
@@ -87,6 +94,27 @@ const {
     },
     organization: {
       findUnique: prismaOrganizationFindUniqueMock,
+    },
+    member: {
+      findFirst: prismaMemberFindFirstMock,
+    },
+    job: {
+      findFirst: prismaJobFindFirstMock,
+    },
+    task: {
+      findFirst: prismaTaskFindFirstMock,
+    },
+    taskPaymentClaim: {
+      findFirst: prismaTaskPaymentClaimFindFirstMock,
+    },
+    taskX402Payment: {
+      findFirst: prismaTaskX402PaymentFindFirstMock,
+    },
+    subscription: {
+      findFirst: prismaSubscriptionFindFirstMock,
+    },
+    enterpriseContract: {
+      findFirst: prismaEnterpriseContractFindFirstMock,
     },
   };
 
@@ -420,6 +448,13 @@ describe("core auth config", () => {
     prismaMock.organization.findUnique.mockResolvedValue({
       stripeCustomerId: null,
     });
+    prismaMock.member.findFirst.mockResolvedValue(null);
+    prismaMock.job.findFirst.mockResolvedValue(null);
+    prismaMock.task.findFirst.mockResolvedValue(null);
+    prismaMock.taskPaymentClaim.findFirst.mockResolvedValue(null);
+    prismaMock.taskX402Payment.findFirst.mockResolvedValue(null);
+    prismaMock.subscription.findFirst.mockResolvedValue(null);
+    prismaMock.enterpriseContract.findFirst.mockResolvedValue(null);
     deleteStripeCustomerBestEffortMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => callback({}));
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
@@ -506,7 +541,11 @@ describe("core auth config", () => {
               mapProfileToUser: (profile: {
                 name: string;
                 picture: string;
-              }) => Promise<{ name: string; image?: string | null }>;
+              }) => Promise<{
+                name: string;
+                image?: string | null;
+                emailVerified: boolean;
+              }>;
             };
           };
         },
@@ -523,6 +562,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: "https://cdn.example.com/avatar.png",
+      emailVerified: true,
     });
 
     const dataUri =
@@ -536,6 +576,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: "https://blob.example/avatar.png",
+      emailVerified: true,
     });
     expect(uploadProfileImageMock).toHaveBeenCalledWith(dataUri);
 
@@ -547,6 +588,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: undefined,
+      emailVerified: true,
     });
   });
 
@@ -563,7 +605,11 @@ describe("core auth config", () => {
               mapProfileToUser: (profile: {
                 name: string;
                 picture: string;
-              }) => Promise<{ name: string; image?: string | null }>;
+              }) => Promise<{
+                name: string;
+                image?: string | null;
+                emailVerified: boolean;
+              }>;
             };
           };
         },
@@ -578,6 +624,7 @@ describe("core auth config", () => {
     ).resolves.toEqual({
       name: "Andreas",
       image: undefined,
+      emailVerified: true,
     });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
   });

@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -34,8 +35,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  IN_FLIGHT_JOB_ERROR_CODE,
+  IN_FLIGHT_TASK_ERROR_CODE,
+  RUNNING_SUBSCRIPTION_ERROR_CODE,
   TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE,
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE,
+  UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
+  USER_OWNS_ORGANIZATION_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { deleteUser } from "@/lib/auth/auth.client";
 import type { UserDeletionEvaluation } from "@/lib/clients/generated/core";
@@ -44,24 +50,78 @@ import { type DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 interface DeleteAccountFormProps {
   blockers?: UserDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
+  ownedOrganizationSlug?: string | null;
+}
+
+interface DeletionBlockerCopy {
+  message: string;
+  href?: string;
+  linkLabel?: string;
+}
+
+function userDeletionBlockerCopy(
+  code: string,
+  t: ReturnType<typeof useTranslations>,
+  ownedOrganizationSlug?: string | null,
+): DeletionBlockerCopy {
+  if (code === USER_OWNS_ORGANIZATION_ERROR_CODE) {
+    return {
+      message: t("Errors.userOwnsOrganization"),
+      href: ownedOrganizationSlug
+        ? `/organizations/${encodeURIComponent(ownedOrganizationSlug)}`
+        : undefined,
+      linkLabel: t("Links.organizationMembers"),
+    };
+  }
+  if (code === IN_FLIGHT_JOB_ERROR_CODE) {
+    return {
+      message: t("Errors.inFlightJob"),
+      href: "/history",
+      linkLabel: t("Links.jobs"),
+    };
+  }
+  if (code === UNSETTLED_ON_CHAIN_JOB_ERROR_CODE) {
+    return {
+      message: t("Errors.unsettledOnChainJob"),
+      href: "/history",
+      linkLabel: t("Links.jobs"),
+    };
+  }
+  if (code === IN_FLIGHT_TASK_ERROR_CODE) {
+    return {
+      message: t("Errors.inFlightTask"),
+      href: "/tasks",
+      linkLabel: t("Links.tasks"),
+    };
+  }
+  if (code === RUNNING_SUBSCRIPTION_ERROR_CODE) {
+    return {
+      message: t("Errors.runningSubscription"),
+      href: "/billing",
+      linkLabel: t("Errors.billingLink"),
+    };
+  }
+  if (code === TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE) {
+    return { message: t("Errors.taskPaymentClaimReviewRequired") };
+  }
+  if (code === TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE) {
+    return { message: t("Errors.taskPaymentClaimPending") };
+  }
+  return { message: t("error") };
 }
 
 function userDeletionBlockerMessage(
   code: string,
   t: ReturnType<typeof useTranslations>,
+  ownedOrganizationSlug?: string | null,
 ): string {
-  if (code === TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE) {
-    return t("Errors.taskPaymentClaimReviewRequired");
-  }
-  if (code === TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE) {
-    return t("Errors.taskPaymentClaimPending");
-  }
-  return t("error");
+  return userDeletionBlockerCopy(code, t, ownedOrganizationSlug).message;
 }
 
 export function DeleteAccountForm({
   blockers = [],
   preflightFailed = false,
+  ownedOrganizationSlug = null,
 }: DeleteAccountFormProps) {
   const t = useTranslations("App.Account.Delete");
   const router = useRouter();
@@ -127,9 +187,26 @@ export function DeleteAccountForm({
               <div className="space-y-2">
                 <p className="text-destructive text-sm">{t("blockersTitle")}</p>
                 <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
-                  {blockers.map((code) => (
-                    <li key={code}>{userDeletionBlockerMessage(code, t)}</li>
-                  ))}
+                  {blockers.map((code) => {
+                    const copy = userDeletionBlockerCopy(
+                      code,
+                      t,
+                      ownedOrganizationSlug,
+                    );
+                    return (
+                      <li key={code}>
+                        {copy.message}
+                        {copy.href && copy.linkLabel ? (
+                          <>
+                            {" "}
+                            <Link href={copy.href} className="underline">
+                              {copy.linkLabel}
+                            </Link>
+                          </>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : null}

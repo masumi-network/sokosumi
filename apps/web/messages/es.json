@@ -661,7 +661,17 @@
         "Errors": {
           "additionalMembers": "Elimina primero a todos los demás miembros antes de eliminar esta organización.",
           "lastWorkspace": "No puedes eliminar tu último espacio de trabajo.",
-          "unauthorizedAction": "Iniciar sesión"
+          "unauthorizedAction": "Iniciar sesión",
+          "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
+          "enterpriseContractActive": "Esta organización tiene un contrato enterprise activo y no se puede eliminar.",
+          "billingLink": "Ir a facturación",
+          "inFlightJob": "Espera a que terminen los jobs en curso de esta organización antes de eliminarla.",
+          "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs de esta organización antes de eliminarla.",
+          "inFlightTask": "Espera a que terminen las tareas en curso de esta organización antes de eliminarla."
+        },
+        "Links": {
+          "jobs": "Jobs",
+          "tasks": "Tareas"
         },
         "Schema": {
           "Organization": {
@@ -3927,7 +3937,18 @@
         "retry": "Reintentar",
         "Errors": {
           "taskPaymentClaimPending": "Espera a que se liquiden los pagos de tareas pendientes antes de eliminar tu cuenta.",
-          "taskPaymentClaimReviewRequired": "Un pago de tarea necesita revisión del administrador antes de que puedas eliminar tu cuenta. Contacta con soporte."
+          "taskPaymentClaimReviewRequired": "Un pago de tarea necesita revisión del administrador antes de que puedas eliminar tu cuenta. Contacta con soporte.",
+          "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
+          "billingLink": "Ir a facturación",
+          "userOwnsOrganization": "Transfiere el rol de propietario o elimina todas las organizaciones que poseas antes de eliminar tu cuenta.",
+          "inFlightJob": "Espera a que terminen los jobs en curso antes de eliminar tu cuenta.",
+          "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs antes de eliminar tu cuenta.",
+          "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta."
+        },
+        "Links": {
+          "organizationMembers": "Miembros de la organización",
+          "jobs": "Jobs",
+          "tasks": "Tareas"
         }
       },
       "DeletePersonal": {
