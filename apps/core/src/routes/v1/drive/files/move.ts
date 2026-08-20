@@ -117,13 +117,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : buildOrganizationDriveFolderPrefix(ownerId, targetFolderPath);
       const targetPathname = `${targetPrefix}${filename}`;
 
-      // Check if target exists
+      // Check if target exists (file or folder)
       try {
         await head(targetPathname, { token });
         throw conflict("Target file already exists");
       } catch (error) {
         if (error instanceof BlobNotFoundError) {
-          // Target doesn't exist, proceed
+          // Target file doesn't exist, proceed
         } else if (
           error &&
           typeof error === "object" &&
@@ -134,6 +134,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         } else {
           throw error;
         }
+      }
+
+      // Check if a folder with the same name exists
+      const folderPrefix = `${targetPathname}/`;
+      const folderCheck = await list({
+        prefix: folderPrefix,
+        token,
+        limit: 1,
+      });
+      if (folderCheck.blobs.length > 0) {
+        throw conflict("A folder with that name already exists");
       }
 
       // Rename file

@@ -6,7 +6,7 @@ import {
   buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { BlobError, list, put } from "@vercel/blob";
+import { BlobError, BlobNotFoundError, head, list, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import {
@@ -108,6 +108,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (existingBlobs.blobs.length > 0) {
       throw conflict("Folder already exists");
+    }
+
+    // Check if a file with the same name exists (without the trailing slash)
+    const filePathname = prefix.slice(0, -1); // Remove trailing slash
+    try {
+      await head(filePathname, { token });
+      // If head succeeds, a file with the folder's name exists
+      throw conflict("A file with that name already exists");
+    } catch (error) {
+      if (error instanceof BlobNotFoundError) {
+        // File doesn't exist, proceed
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "kind" in error &&
+        error.kind === "conflict"
+      ) {
+        throw error;
+      } else {
+        throw error;
+      }
     }
 
     // Write the marker (one-byte blob; @vercel/blob requires non-empty body)
