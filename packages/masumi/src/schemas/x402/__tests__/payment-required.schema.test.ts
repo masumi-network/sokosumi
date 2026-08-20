@@ -475,6 +475,18 @@ describe("normalizeX402PaymentRequired", () => {
     expect(result._unsafeUnwrap().accepts[0]?.network).toBe("eip155:8453");
   });
 
+  it("rejects a leading-zero CAIP-2 chain id instead of emitting it as canonical", () => {
+    // `eip155:08453` used to pass the pattern verbatim, minting a second
+    // "canonical" spelling for chain 8453 — the exact thing the CAIP-19
+    // unit-key design promises can never exist.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [v2Entry({ network: "eip155:08453" })],
+    });
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Unknown x402 network/);
+  });
+
   it("rejects conflicting amount spellings", () => {
     const result = normalizeX402PaymentRequired({
       x402Version: 2,
@@ -499,6 +511,48 @@ describe("normalizeX402PaymentRequired", () => {
     });
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toMatch(/missing an amount/);
+  });
+
+  it("refuses an omitted identity field per entry, letting a payable sibling win", () => {
+    // Same menu rule as an unsupported scheme: one incomplete `accepts`
+    // option must not fail `z.array(...)` and drop a neighbor Soko can pay.
+    // Wrong TYPES stay payload-wide (malformed 402); omitted fields are
+    // unpayable options.
+    const fields = [
+      "scheme",
+      "network",
+      "asset",
+      "payTo",
+      "maxTimeoutSeconds",
+    ] as const;
+    for (const field of fields) {
+      const incompleteOnly = normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry({ [field]: undefined })],
+      });
+      expect(incompleteOnly.isErr()).toBe(true);
+      expect(incompleteOnly._unsafeUnwrapErr()).toMatch(
+        new RegExp(`missing ${field}`),
+      );
+      expect(incompleteOnly._unsafeUnwrapErr()).not.toMatch(/Unparseable/);
+
+      const withSibling = normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry({ [field]: undefined }), v2Entry({ amount: "1000" })],
+      });
+      expect(withSibling.isOk()).toBe(true);
+      expect(withSibling._unsafeUnwrap().accepts).toHaveLength(1);
+      expect(withSibling._unsafeUnwrap().accepts[0]?.amount).toBe("1000");
+    }
+  });
+
+  it("still refuses the whole payload when an identity field has the wrong type", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [v2Entry({ scheme: 1 }), v2Entry()],
+    });
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Unparseable x402 402 payload/);
   });
 
   it("rejects a non-integer amount", () => {

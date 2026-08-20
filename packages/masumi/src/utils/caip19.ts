@@ -9,13 +9,23 @@
  * ever exist for the same asset.
  */
 
-/** CAIP-2 EVM network id, e.g. `eip155:8453`. */
-export const CAIP2_EVM_NETWORK_PATTERN = /^eip155:\d+$/;
+/**
+ * CAIP-2 EVM network id, e.g. `eip155:8453`.
+ *
+ * The chain-id reference is anchored to CAIP-2's canonical integer form —
+ * no leading zeros, at most 32 characters — because this pattern is what
+ * DECIDES canonical spelling: `normalizeNetwork` passes any match through
+ * verbatim, so a pattern that accepted `eip155:08453` would mint a second
+ * spelling for chain 8453 and break the no-second-spelling guarantee the
+ * module doc promises.
+ */
+export const CAIP2_EVM_NETWORK_PATTERN = /^eip155:(0|[1-9]\d{0,31})$/;
 
 /** ERC-20 contract address: 0x + 40 hex chars. */
 export const EVM_ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 
-const CAIP19_ERC20_KEY_PATTERN = /^eip155:\d+\/erc20:0x[0-9a-f]{40}$/;
+const CAIP19_ERC20_KEY_PATTERN =
+  /^eip155:(0|[1-9]\d{0,31})\/erc20:0x[0-9a-f]{40}$/;
 
 export interface Caip19AssetKeyParts {
   /** Lowercase CAIP-2 network id, e.g. `eip155:8453`. */

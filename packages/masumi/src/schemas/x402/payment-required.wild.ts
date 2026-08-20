@@ -81,24 +81,26 @@ const V1_NETWORK_NAME_TO_CAIP2: ReadonlyMap<string, string> = new Map([
  * VALUES are refused per entry in `selectPayableRequirement`, and
  * `x402PaymentRequirementsSchema` re-imposes all three on whatever survives.
  *
- * The line is deliberate: a field of the wrong TYPE (a numeric `scheme`, a
- * fractional `maxTimeoutSeconds`) is still a payload-wide parse failure,
- * because that is a malformed 402 rather than a menu entry Soko happens not
- * to support.
+ * Identity fields (`scheme`, `network`, `asset`, `payTo`,
+ * `maxTimeoutSeconds`) are optional for the same reason: an omitted field is
+ * an unpayable menu option, not a malformed 402. `selectPayableRequirement`
+ * names the missing field per entry. A field of the wrong TYPE (a numeric
+ * `scheme`, a fractional `maxTimeoutSeconds`) is still a payload-wide parse
+ * failure.
  */
 const wildRequirementSchema = z
   .looseObject({
-    scheme: z.string().min(1).max(X402_MAX_RAW_SCHEME_LENGTH),
-    network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
-    asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
+    scheme: z.string().min(1).max(X402_MAX_RAW_SCHEME_LENGTH).optional(),
+    network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH).optional(),
+    asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH).optional(),
     // Both amount spellings stay loosely typed here: normalizeAmount owns
     // unifying them and is the single place that reports WHY an amount was
     // refused. Only the length is fenced, so neither spelling can reach an
     // error message as a megabyte string.
     amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
     maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-    payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-    maxTimeoutSeconds: z.number().int().positive(),
+    payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH).optional(),
+    maxTimeoutSeconds: z.number().int().positive().optional(),
     extra: wildX402ExtraSchema.optional(),
     /** v1 carries the resource URL per entry, as a plain string. */
     resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
@@ -281,6 +283,21 @@ function dropShadowKeys(
 export function selectPayableRequirement(
   entry: WildX402Requirement,
 ): Result<Record<string, unknown>, string> {
+  if (entry.scheme === undefined) {
+    return err("x402 requirement is missing scheme");
+  }
+  if (entry.network === undefined) {
+    return err("x402 requirement is missing network");
+  }
+  if (entry.asset === undefined) {
+    return err("x402 requirement is missing asset");
+  }
+  if (entry.payTo === undefined) {
+    return err("x402 requirement is missing payTo");
+  }
+  if (entry.maxTimeoutSeconds === undefined) {
+    return err("x402 requirement is missing maxTimeoutSeconds");
+  }
   // Exact spelling, no trim and no case fold: `Exact` is not `exact`, and a
   // scheme Soko has not seen the settlement semantics of is not one it can
   // charge credits against (see X402_SUPPORTED_SCHEMES).

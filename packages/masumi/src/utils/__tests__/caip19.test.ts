@@ -43,6 +43,24 @@ describe("buildCaip19AssetKey", () => {
     );
   });
 
+  it("refuses non-canonical chain-id spellings (leading zeros, overlong)", () => {
+    // The pattern DECIDES canonical spelling: a leading-zero chain id that
+    // passed here would mint a second unit key for the same chain.
+    expect(() => buildCaip19AssetKey("eip155:08453", USDC_BASE)).toThrow(
+      /Invalid CAIP-2 EVM network/,
+    );
+    expect(() => buildCaip19AssetKey("eip155:00", USDC_BASE)).toThrow(
+      /Invalid CAIP-2 EVM network/,
+    );
+    expect(() =>
+      buildCaip19AssetKey(`eip155:1${"0".repeat(32)}`, USDC_BASE),
+    ).toThrow(/Invalid CAIP-2 EVM network/);
+    // CAIP-2 canonical zero stays a single "0".
+    expect(buildCaip19AssetKey("eip155:0", USDC_BASE)).toBe(
+      `eip155:0/erc20:${USDC_BASE_LOWER}`,
+    );
+  });
+
   it("throws on a malformed asset address", () => {
     expect(() => buildCaip19AssetKey("eip155:8453", "USDC")).toThrow(
       /Invalid ERC-20 asset address/,
@@ -86,6 +104,15 @@ describe("parseCaip19AssetKey", () => {
       parseCaip19AssetKey(`eip155:8453/erc721:${USDC_BASE_LOWER}`),
     ).toBeNull();
     expect(parseCaip19AssetKey("eip155:8453/erc20:0x1234")).toBeNull();
+  });
+
+  it("returns null for non-canonical chain-id spellings", () => {
+    expect(
+      parseCaip19AssetKey(`eip155:08453/erc20:${USDC_BASE_LOWER}`),
+    ).toBeNull();
+    expect(
+      parseCaip19AssetKey(`eip155:1${"0".repeat(32)}/erc20:${USDC_BASE_LOWER}`),
+    ).toBeNull();
   });
 });
 
