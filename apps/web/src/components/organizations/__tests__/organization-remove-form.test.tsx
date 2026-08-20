@@ -27,6 +27,14 @@ const translations: Record<string, string> = {
   "Components.Organizations.RemoveModal.Errors.lastWorkspace":
     "You cannot delete your last workspace.",
   "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Login",
+  "Components.Organizations.RemoveModal.Errors.inFlightJob":
+    "Wait for in-flight jobs on this organization to finish before deleting it.",
+  "Components.Organizations.RemoveModal.Errors.unsettledOnChainJob":
+    "Wait for on-chain job purchases on this organization to settle before deleting it.",
+  "Components.Organizations.RemoveModal.Errors.inFlightTask":
+    "Wait for in-flight tasks on this organization to finish before deleting it.",
+  "Components.Organizations.RemoveModal.Links.jobs": "Jobs",
+  "Components.Organizations.RemoveModal.Links.tasks": "Tasks",
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.invalid":
     "Invalid organization name",
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.required":
@@ -34,6 +42,16 @@ const translations: Record<string, string> = {
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.mismatch":
     "Organization name doesn't match",
 };
+
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => <a href={href}>{children}</a>,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -120,6 +138,43 @@ describe("OrganizationRemoveForm", () => {
     expect(
       screen.getByText("You cannot delete your last workspace."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  });
+
+  it("lists in-flight work blockers with way-out links", () => {
+    render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={vi.fn()}
+        onOpenChange={vi.fn()}
+        blockers={["IN_FLIGHT_JOB", "UNSETTLED_ON_CHAIN_JOB", "IN_FLIGHT_TASK"]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Wait for in-flight jobs on this organization to finish before deleting it.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Wait for on-chain job purchases on this organization to settle before deleting it.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Jobs" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Jobs" })[0]).toHaveAttribute(
+      "href",
+      "/history",
+    );
+    expect(
+      screen.getByText(
+        "Wait for in-flight tasks on this organization to finish before deleting it.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tasks" })).toHaveAttribute(
+      "href",
+      "/tasks",
+    );
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 

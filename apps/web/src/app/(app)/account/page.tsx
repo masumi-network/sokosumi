@@ -7,9 +7,10 @@ import { BillingPortalErrorToast } from "@/components/billing/billing-portal-err
 import DefaultLoading from "@/components/default-loading";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type {
-  StripeCustomerBillingDetails,
-  UserDeletionEvaluation,
+import {
+  MemberRole,
+  type StripeCustomerBillingDetails,
+  type UserDeletionEvaluation,
 } from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { userService } from "@/lib/services";
@@ -115,6 +116,10 @@ async function AccountPageContent() {
           deletionBlockers={deletionBlockers}
           deletionPreflightFailed={deletionPreflightFailed}
           deletionPreflightLoadError={deletionPreflightLoadError}
+          ownedOrganizationSlug={
+            members.find((member) => member.role === MemberRole.OWNER)
+              ?.organization.slug ?? null
+          }
         />
       </div>
     </div>

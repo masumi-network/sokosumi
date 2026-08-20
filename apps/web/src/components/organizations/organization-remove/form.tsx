@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
@@ -22,8 +23,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  IN_FLIGHT_JOB_ERROR_CODE,
+  IN_FLIGHT_TASK_ERROR_CODE,
   LAST_WORKSPACE_ERROR_CODE,
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+  UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 import type {
@@ -43,17 +47,51 @@ interface OrganizationRemoveFormProps {
   preflightFailed?: boolean;
 }
 
+interface DeletionBlockerCopy {
+  message: string;
+  href?: string;
+  linkLabel?: string;
+}
+
+function organizationDeletionBlockerCopy(
+  code: string,
+  t: ReturnType<typeof useTranslations>,
+): DeletionBlockerCopy {
+  if (code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE) {
+    return { message: t("Errors.additionalMembers") };
+  }
+  if (code === LAST_WORKSPACE_ERROR_CODE) {
+    return { message: t("Errors.lastWorkspace") };
+  }
+  if (code === IN_FLIGHT_JOB_ERROR_CODE) {
+    return {
+      message: t("Errors.inFlightJob"),
+      href: "/history",
+      linkLabel: t("Links.jobs"),
+    };
+  }
+  if (code === UNSETTLED_ON_CHAIN_JOB_ERROR_CODE) {
+    return {
+      message: t("Errors.unsettledOnChainJob"),
+      href: "/history",
+      linkLabel: t("Links.jobs"),
+    };
+  }
+  if (code === IN_FLIGHT_TASK_ERROR_CODE) {
+    return {
+      message: t("Errors.inFlightTask"),
+      href: "/tasks",
+      linkLabel: t("Links.tasks"),
+    };
+  }
+  return { message: t("error") };
+}
+
 function organizationDeletionBlockerMessage(
   code: string,
   t: ReturnType<typeof useTranslations>,
 ): string {
-  if (code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE) {
-    return t("Errors.additionalMembers");
-  }
-  if (code === LAST_WORKSPACE_ERROR_CODE) {
-    return t("Errors.lastWorkspace");
-  }
-  return t("error");
+  return organizationDeletionBlockerCopy(code, t).message;
 }
 
 export default function OrganizationRemoveForm({
@@ -137,11 +175,22 @@ export default function OrganizationRemoveForm({
             <div className="space-y-2">
               <p className="text-destructive text-sm">{t("blockersTitle")}</p>
               <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
-                {blockers.map((code) => (
-                  <li key={code}>
-                    {organizationDeletionBlockerMessage(code, t)}
-                  </li>
-                ))}
+                {blockers.map((code) => {
+                  const copy = organizationDeletionBlockerCopy(code, t);
+                  return (
+                    <li key={code}>
+                      {copy.message}
+                      {copy.href && copy.linkLabel ? (
+                        <>
+                          {" "}
+                          <Link href={copy.href} className="underline">
+                            {copy.linkLabel}
+                          </Link>
+                        </>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : null}

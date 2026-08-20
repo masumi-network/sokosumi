@@ -677,7 +677,14 @@
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
           "lastWorkspace": "You cannot delete your last workspace.",
-          "unauthorizedAction": "Login"
+          "unauthorizedAction": "Login",
+          "inFlightJob": "Wait for in-flight jobs on this organization to finish before deleting it.",
+          "unsettledOnChainJob": "Wait for on-chain job purchases on this organization to settle before deleting it.",
+          "inFlightTask": "Wait for in-flight tasks on this organization to finish before deleting it."
+        },
+        "Links": {
+          "jobs": "Jobs",
+          "tasks": "Tasks"
         },
         "Schema": {
           "Organization": {
@@ -3958,7 +3965,16 @@
         "retry": "Try again",
         "Errors": {
           "taskPaymentClaimPending": "Wait for pending task payments to settle before deleting your account.",
-          "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support."
+          "taskPaymentClaimReviewRequired": "A task payment needs administrator review before your account can be deleted. Please contact support.",
+          "userOwnsOrganization": "Drop the owner role on every organization before deleting your account.",
+          "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
+          "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
+          "inFlightTask": "Wait for in-flight tasks to finish before deleting your account."
+        },
+        "Links": {
+          "organizationMembers": "Organization members",
+          "jobs": "Jobs",
+          "tasks": "Tasks"
         }
       },
       "DeletePersonal": {
