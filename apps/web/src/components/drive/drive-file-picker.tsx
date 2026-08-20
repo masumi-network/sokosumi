@@ -12,6 +12,7 @@ import {
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -228,13 +229,13 @@ export function DriveFilePicker({
                       "text-foreground font-medium",
                   )}
                   aria-label={
-                    scope === "org" && organizationName
-                      ? organizationName
+                    scope === "org"
+                      ? organizationName || t("organizationTabFallback")
                       : t("myDriveTab")
                   }
                   title={
-                    scope === "org" && organizationName
-                      ? organizationName
+                    scope === "org"
+                      ? organizationName || t("organizationTabFallback")
                       : t("myDriveTab")
                   }
                 >
@@ -322,7 +323,10 @@ export function DriveFilePicker({
                         <button
                           key={itemKey}
                           type="button"
-                          className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left hover:bg-accent"
+                          className={cn(
+                            buttonVariants({ variant: "ghost" }),
+                            "flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
+                          )}
                           onClick={() => navigateToFolder(item.name)}
                         >
                           <Folder className="text-muted-foreground size-5 shrink-0" />
@@ -345,7 +349,10 @@ export function DriveFilePicker({
                       <button
                         key={itemKey}
                         type="button"
-                        className="flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left hover:bg-accent"
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
+                        )}
                         onClick={() => handleFileClick(item)}
                       >
                         <FileIcon className="text-muted-foreground size-5 shrink-0" />
