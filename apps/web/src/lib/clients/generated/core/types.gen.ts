@@ -15464,7 +15464,7 @@ export type PatchDriveFilesMoveErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Unprocessable Entity - folder exceeds 500 descendant limit
      */
     422: {
         error: string;
@@ -16052,7 +16052,7 @@ export type PatchDriveFoldersRenameErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Unprocessable Entity - folder exceeds 500 descendant limit
      */
     422: {
         error: string;
