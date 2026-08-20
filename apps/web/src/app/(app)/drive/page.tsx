@@ -335,7 +335,33 @@ export default function DrivePage(): ReactElement {
       });
 
       if (!controller.signal.aborted) {
-        setTasksItems(response.data?.data ?? []);
+        const items = response.data?.data ?? [];
+        setTasksItems(items);
+
+        // Update name maps from response
+        setProjectNames((prev) => {
+          let updated = false;
+          const next = new Map(prev);
+          for (const item of items) {
+            if (item.type === "project" && !prev.has(item.id)) {
+              next.set(item.id, item.name);
+              updated = true;
+            }
+          }
+          return updated ? next : prev;
+        });
+
+        setTaskNames((prev) => {
+          let updated = false;
+          const next = new Map(prev);
+          for (const item of items) {
+            if (item.type === "task" && !prev.has(item.id)) {
+              next.set(item.id, item.name);
+              updated = true;
+            }
+          }
+          return updated ? next : prev;
+        });
       }
     } catch (err) {
       if (!controller.signal.aborted) {
@@ -372,18 +398,8 @@ export default function DrivePage(): ReactElement {
     }
 
     async function resolveNames() {
-      const missingProjectName =
-        projectIdParam &&
-        projectIdParam !== "null" &&
-        !projectNames.has(projectIdParam);
-      const missingTaskName = taskIdParam && !taskNames.has(taskIdParam);
-
-      if (!missingProjectName && !missingTaskName) {
-        return;
-      }
-
       try {
-        if (missingProjectName) {
+        if (projectIdParam && projectIdParam !== "null") {
           const response = await getProjects({
             client: getBrowserCoreClient(),
             query: { limit: 100 },
@@ -391,13 +407,18 @@ export default function DrivePage(): ReactElement {
           const projects = response.data?.data ?? [];
           const project = projects.find((p) => p.id === projectIdParam);
           if (project) {
-            const newNames = new Map(projectNames);
-            newNames.set(project.id, project.name);
-            setProjectNames(newNames);
+            setProjectNames((prev) => {
+              if (prev.has(project.id)) {
+                return prev;
+              }
+              const next = new Map(prev);
+              next.set(project.id, project.name);
+              return next;
+            });
           }
         }
 
-        if (missingTaskName && projectIdParam) {
+        if (taskIdParam && projectIdParam) {
           const response = await getTasks({
             client: getBrowserCoreClient(),
             query: {
@@ -408,9 +429,14 @@ export default function DrivePage(): ReactElement {
           const tasks = response.data?.data ?? [];
           const task = tasks.find((t) => t.id === taskIdParam);
           if (task) {
-            const newNames = new Map(taskNames);
-            newNames.set(task.id, task.name);
-            setTaskNames(newNames);
+            setTaskNames((prev) => {
+              if (prev.has(task.id)) {
+                return prev;
+              }
+              const next = new Map(prev);
+              next.set(task.id, task.name);
+              return next;
+            });
           }
         }
       } catch (err) {
@@ -419,7 +445,7 @@ export default function DrivePage(): ReactElement {
     }
 
     void resolveNames();
-  }, [isTasksView, projectIdParam, taskIdParam, projectNames, taskNames]);
+  }, [isTasksView, projectIdParam, taskIdParam]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -666,7 +692,20 @@ export default function DrivePage(): ReactElement {
     router.push(`/drive?${params.toString()}`);
   }
 
-  function navigateToProject(projectId: string) {
+  function navigateToProject(projectId: string, projectName?: string) {
+    if (projectName) {
+      setProjectNames((prev) => {
+        if (projectId !== "null" && prev.has(projectId)) {
+          return prev;
+        }
+        if (projectId === "null") {
+          return prev;
+        }
+        const next = new Map(prev);
+        next.set(projectId, projectName);
+        return next;
+      });
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", "tasks");
     params.set("projectId", projectId);
@@ -675,7 +714,17 @@ export default function DrivePage(): ReactElement {
     router.push(`/drive?${params.toString()}`);
   }
 
-  function navigateToTask(taskId: string) {
+  function navigateToTask(taskId: string, taskName?: string) {
+    if (taskName) {
+      setTaskNames((prev) => {
+        if (prev.has(taskId)) {
+          return prev;
+        }
+        const next = new Map(prev);
+        next.set(taskId, taskName);
+        return next;
+      });
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", "tasks");
     params.set("taskId", taskId);
