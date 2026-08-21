@@ -70,7 +70,24 @@ describe("ComposerWysiwygEditor", () => {
     render(<Harness />);
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveClass("markdown-compose-surface");
-    expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
+  });
+
+  it("does not put mention-picker scroll-margin on the overflowing editor host", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    // Any inline scroll-margin on the overflow:auto host makes Chromium
+    // yank scrollTop during mouse selection. Do not put picker clearance here.
+    expect(screen.getByRole("textbox").style.scrollMarginTop).toBe("");
   });
 
   it("uses data-placeholder for classic empty:before (single-line) placeholder", () => {
