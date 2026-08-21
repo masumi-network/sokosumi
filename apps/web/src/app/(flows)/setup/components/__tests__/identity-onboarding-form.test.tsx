@@ -92,7 +92,6 @@ const messages = {
       personalDescription: "Work on your own.",
       organizationTitle: "Organization",
       organizationDescription: "Work with your team.",
-      organizationUnavailable: "Currently unavailable",
       continue: "Continue",
       nameUpdateError: "Name update failed",
       personalCreateError: "Create failed",
@@ -101,17 +100,12 @@ const messages = {
   },
 };
 
-function renderForm(
-  initialName = "Ada Lovelace",
-  workspaceReady = false,
-  organizationSetupEnabled = false,
-) {
+function renderForm(initialName = "Ada Lovelace", workspaceReady = false) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <IdentityOnboardingForm
         initialName={initialName}
         workspaceReady={workspaceReady}
-        organizationSetupEnabled={organizationSetupEnabled}
       />
     </NextIntlClientProvider>,
   );
@@ -187,25 +181,24 @@ describe("IdentityOnboardingForm", () => {
     });
   });
 
-  it("shows organization setup as currently unavailable and blocks selection", async () => {
+  it("lets the user select Organization", async () => {
     const user = userEvent.setup();
     renderForm();
 
     const organizationChoice = screen.getByRole("radio", {
       name: /Organization/i,
     });
-    expect(organizationChoice).toBeDisabled();
-    expect(screen.getByText("Currently unavailable")).toBeTruthy();
+    expect(organizationChoice).not.toBeDisabled();
+    expect(screen.queryByText("Currently unavailable")).toBeNull();
 
     await user.click(organizationChoice);
 
-    expect(screen.getByRole("radio", { name: /Personal/i })).toBeChecked();
-    expect(screen.queryByTestId("create-org-wizard")).toBeNull();
+    expect(organizationChoice).toBeChecked();
   });
 
   it("does not create a personal workspace when Organization is chosen", async () => {
     const user = userEvent.setup();
-    renderForm(undefined, false, true);
+    renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -223,7 +216,7 @@ describe("IdentityOnboardingForm", () => {
 
   it("keeps an edited name after Back from the organization wizard", async () => {
     const user = userEvent.setup();
-    renderForm("Ada Lovelace", false, true);
+    renderForm("Ada Lovelace");
 
     const nameInput = screen.getByTestId("workspace-gate-identity-name");
     await user.clear(nameInput);
@@ -242,7 +235,7 @@ describe("IdentityOnboardingForm", () => {
     updateUserMock.mockResolvedValue({
       error: { message: "Name service down" },
     });
-    renderForm("Ada Lovelace", false, true);
+    renderForm("Ada Lovelace");
 
     const nameInput = screen.getByTestId("workspace-gate-identity-name");
     await user.clear(nameInput);
@@ -260,7 +253,7 @@ describe("IdentityOnboardingForm", () => {
 
   it("does not navigate away when the organization wizard opens", async () => {
     const user = userEvent.setup();
-    renderForm(undefined, false, true);
+    renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -284,7 +277,7 @@ describe("IdentityOnboardingForm", () => {
 
   it("keeps the organization wizard mounted when workspace becomes ready", async () => {
     const user = userEvent.setup();
-    const view = renderForm(undefined, false, true);
+    const view = renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -294,11 +287,7 @@ describe("IdentityOnboardingForm", () => {
 
     view.rerender(
       <NextIntlClientProvider locale="en" messages={messages}>
-        <IdentityOnboardingForm
-          initialName="Ada Lovelace"
-          workspaceReady
-          organizationSetupEnabled
-        />
+        <IdentityOnboardingForm initialName="Ada Lovelace" workspaceReady />
       </NextIntlClientProvider>,
     );
 
@@ -317,7 +306,7 @@ describe("IdentityOnboardingForm", () => {
           resolveActivate = resolve;
         }),
     );
-    const view = renderForm(undefined, false, true);
+    const view = renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -327,11 +316,7 @@ describe("IdentityOnboardingForm", () => {
 
     view.rerender(
       <NextIntlClientProvider locale="en" messages={messages}>
-        <IdentityOnboardingForm
-          initialName="Ada Lovelace"
-          workspaceReady
-          organizationSetupEnabled
-        />
+        <IdentityOnboardingForm initialName="Ada Lovelace" workspaceReady />
       </NextIntlClientProvider>,
     );
 
@@ -349,7 +334,7 @@ describe("IdentityOnboardingForm", () => {
 
   it("leaves the gate into the created organization when the wizard is ready", async () => {
     const user = userEvent.setup();
-    renderForm(undefined, false, true);
+    renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -369,7 +354,7 @@ describe("IdentityOnboardingForm", () => {
     activateOrganizationWorkspaceMock
       .mockRejectedValueOnce(new Error("setActive failed"))
       .mockResolvedValueOnce(undefined);
-    renderForm(undefined, false, true);
+    renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -387,7 +372,7 @@ describe("IdentityOnboardingForm", () => {
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),
     );
-    renderForm(undefined, false, true);
+    renderForm();
 
     await user.click(screen.getByRole("radio", { name: /Organization/i }));
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
