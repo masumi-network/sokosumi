@@ -20,6 +20,7 @@ const envDefaults: Record<string, string> = {
   HERMES_ORCH_BASE_URL: "https://example.com/hermes-orchestrator",
   HERMES_ORCH_TOKEN: "test-hermes-orchestrator-token",
   HERMES_INBOX_POLLING_ENABLED: "false",
+  REQUIRE_PERSONAL_WORKSPACE: "false",
   ORCHESTRATOR_SERVICE_TOKEN: "test-orchestrator-service-token0",
   CRON_SECRET: "test-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_example",
