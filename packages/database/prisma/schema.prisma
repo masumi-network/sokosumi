@@ -88,6 +88,7 @@ model User {
   chatRoomReactions                ChatRoomReaction[]
   chatRoomReadStates               ChatRoomReadState[]
   chatRoomThreadReadStates         ChatRoomThreadReadState[]
+  chatRoomUserMentions             ChatRoomUserMention[]
   chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
   chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
   chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
@@ -2441,10 +2442,11 @@ model ChatRoomMessage {
   /// Also mirrored in metadata.responses_api_response_id for transcript consumers.
   responsesApiResponseId String?
 
-  mentionsAsSource   ChatRoomMention[]         @relation("ChatRoomMentionSource")
-  mentionResponseFor ChatRoomMention?          @relation("ChatRoomMentionResponse")
-  reactions          ChatRoomReaction[]
-  threadReadStates   ChatRoomThreadReadState[]
+  mentionsAsSource     ChatRoomMention[]         @relation("ChatRoomMentionSource")
+  mentionResponseFor   ChatRoomMention?          @relation("ChatRoomMentionResponse")
+  userMentionsAsSource ChatRoomUserMention[]     @relation("ChatRoomUserMentionSource")
+  reactions            ChatRoomReaction[]
+  threadReadStates     ChatRoomThreadReadState[]
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -2513,6 +2515,24 @@ model ChatRoomThreadReadState {
   @@index([parentMessageId])
   @@index([userId])
   @@map("chat_room_thread_read_state")
+}
+
+/// Durable human @mention on a chat room message. Distinct from coworker
+/// ChatRoomMention (turn lifecycle) and from CHAT notifications (inbox).
+model ChatRoomUserMention {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation("ChatRoomUserMentionSource", fields: [messageId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+  @@map("chat_room_user_mention")
 }
 
 model ChatRoomMention {

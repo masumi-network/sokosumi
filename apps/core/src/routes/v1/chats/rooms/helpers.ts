@@ -113,15 +113,46 @@ function resolveUserPresence(
 }
 
 /**
+ * SQL predicate: viewer is a Participant of `parent` (ADR-0013).
+ * Parent author, remaining own reply, or remaining user mention on parent/reply.
+ */
+function sqlViewerIsThreadParticipant(userIdSql: string): string {
+  return `(
+    parent."senderUserId" = ${userIdSql}
+    OR EXISTS (
+      SELECT 1
+      FROM "chat_room_message" own_reply
+      WHERE own_reply."parentMessageId" = parent.id
+        AND own_reply."roomId" = parent."roomId"
+        AND own_reply."senderUserId" = ${userIdSql}
+        AND own_reply."deletedAt" IS NULL
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM "chat_room_user_mention" um
+      INNER JOIN "chat_room_message" um_msg
+        ON um_msg.id = um."messageId"
+      WHERE um."userId" = ${userIdSql}
+        AND um_msg."deletedAt" IS NULL
+        AND um_msg."roomId" = parent."roomId"
+        AND (
+          um_msg.id = parent.id
+          OR um_msg."parentMessageId" = parent.id
+        )
+    )
+  )`;
+}
+
+/**
  * Per-room unread message counts for sidebar attention.
  *
  * Dual baseline (matches the two read-state tables):
  * - Top-level messages (`parentMessageId IS NULL`): after room `lastReadAt`
  * - Thread replies: after per-thread look baseline
  *   (`ChatRoomThreadReadState.lastReadAt`, else room read-state `createdAt`,
- *   else -infinity). This sidebar fallback is intentionally not the ADR-0005
- *   rule used by `getChatRoomThreadAggregates`. Room mark-read must not
- *   clear thread look contribution; looking a thread must.
+ *   else -infinity), and only when the viewer is a Participant of that
+ *   Thread (ADR-0013). Room mark-read must not clear thread look contribution;
+ *   looking a thread must.
  *
  * Soft-deleted messages and the viewer's own user messages are excluded.
  */
@@ -177,6 +208,7 @@ export async function getChatRoomUnreadCounts(
         AND reply."deletedAt" IS NULL
         AND parent."deletedAt" IS NULL
         AND parent."parentMessageId" IS NULL
+        AND ${sqlViewerIsThreadParticipant(userIdPlaceholder)}
         AND reply."createdAt" > COALESCE(
           thread_read."lastReadAt",
           room_read."createdAt",
@@ -201,22 +233,16 @@ export interface ChatRoomThreadAggregate {
   lastUnreadReplyAt: Date | null;
   /** True when the viewer has a ChatRoomThreadReadState row for this parent. */
   hasLooked: boolean;
-  /**
-   * Non-self replies after dual-baseline look (thread lastReadAt, else room
-   * read-state createdAt, else -infinity). Drives thread-overview attention /
-   * Mark all; broader than ADR-0005 unreadReplyCount.
-   */
-  attentionReplyCount: number;
 }
 
 /**
  * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
  * with per-user unread counts.
  *
- * `unreadReplyCount` follows ADR-0005 (prior look required; never-looked → 0).
- * `attentionReplyCount` uses the sidebar dual-baseline. `unreadOnly` and the
- * Threads badge count filter on `attentionReplyCount >= 1` so never-looked
- * attention matches overview Mark all (SOK-811).
+ * `unreadReplyCount` is Participant-gated (ADR-0013): non-self replies after
+ * dual-baseline look (thread lastReadAt, else room join createdAt, else
+ * -infinity). Never-looked Participants can be > 0. Lurkers are 0.
+ * `unreadOnly` and Mark all filter on `unreadReplyCount >= 1`.
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -237,24 +263,24 @@ export async function getChatRoomThreadAggregates(
       COUNT(reply.id)::int AS "replyCount",
       MAX(reply."createdAt") AS "lastReplyAt",
       COUNT(reply.id) FILTER (
-        WHERE thread_read."lastReadAt" IS NOT NULL
+        WHERE ${sqlViewerIsThreadParticipant("$2")}
           AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
-          AND reply."createdAt" > thread_read."lastReadAt"
-      )::int AS "unreadReplyCount",
-      MAX(reply."createdAt") FILTER (
-        WHERE thread_read."lastReadAt" IS NOT NULL
-          AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
-          AND reply."createdAt" > thread_read."lastReadAt"
-      ) AS "lastUnreadReplyAt",
-      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked",
-      COUNT(reply.id) FILTER (
-        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
           AND reply."createdAt" > COALESCE(
             thread_read."lastReadAt",
             room_read."createdAt",
             '-infinity'::timestamp
           )
-      )::int AS "attentionReplyCount"
+      )::int AS "unreadReplyCount",
+      MAX(reply."createdAt") FILTER (
+        WHERE ${sqlViewerIsThreadParticipant("$2")}
+          AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > COALESCE(
+            thread_read."lastReadAt",
+            room_read."createdAt",
+            '-infinity'::timestamp
+          )
+      ) AS "lastUnreadReplyAt",
+      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked"
     FROM "chat_room_message" reply
     INNER JOIN "chat_room_message" parent
       ON parent.id = reply."parentMessageId"
@@ -304,7 +330,7 @@ export async function getChatRoomThreadAggregates(
   const recencySql = recency
     ? `
     SELECT * FROM (${innerSelect}) threads
-    WHERE "attentionReplyCount" = 0
+    WHERE "unreadReplyCount" = 0
     ${recencyCursorFilter}
     ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
     LIMIT $${recency.cursor ? 4 : 3}
@@ -312,7 +338,7 @@ export async function getChatRoomThreadAggregates(
     : unreadOnly
       ? `
     SELECT * FROM (${innerSelect}) threads
-    WHERE "attentionReplyCount" >= 1
+    WHERE "unreadReplyCount" >= 1
     ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
     `
       : `
@@ -336,7 +362,6 @@ export async function getChatRoomThreadAggregates(
       unreadReplyCount: number | bigint;
       lastUnreadReplyAt: Date | null;
       hasLooked: boolean;
-      attentionReplyCount: number | bigint;
     }>
   >(recencySql, ...queryArgs);
 
@@ -347,7 +372,6 @@ export async function getChatRoomThreadAggregates(
     unreadReplyCount: Number(row.unreadReplyCount),
     lastUnreadReplyAt: row.lastUnreadReplyAt,
     hasLooked: row.hasLooked === true,
-    attentionReplyCount: Number(row.attentionReplyCount),
   }));
 }
 
@@ -385,7 +409,6 @@ async function mapThreadAggregates(
         unreadReplyCount: aggregate.unreadReplyCount,
         lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
         hasLooked: aggregate.hasLooked,
-        attentionReplyCount: aggregate.attentionReplyCount,
       },
     ];
   });
@@ -393,7 +416,7 @@ async function mapThreadAggregates(
 
 /**
  * List threads in a room. When `unreadOnly`, only parents with
- * `attentionReplyCount >= 1` (dual-baseline; includes qualifying never-looked).
+ * `unreadReplyCount >= 1` (Participant-gated dual-baseline).
  */
 export async function listChatRoomThreads(
   roomId: string,
@@ -414,8 +437,8 @@ export interface ChatRoomThreadListPage {
 }
 
 /**
- * Full room thread list: all attention threads, then a recency page of the
- * rest (attentionReplyCount = 0) by last reply. Cursor pages are recency-only.
+ * Full room thread list: unread threads first (unreadReplyCount >= 1), then a
+ * recency page of the rest. Cursor pages are recency-only.
  */
 export async function listChatRoomThreadListPage(
   roomId: string,
@@ -496,6 +519,7 @@ export async function markChatRoomThreadRead(
   userId: string,
   parentMessageId: string,
   tx: Prisma.TransactionClient,
+  readAt: Date = new Date(),
 ): Promise<{ parentMessageId: string; lastReadAt: Date } | null> {
   const parent = await tx.chatRoomMessage.findFirst({
     where: {
@@ -508,8 +532,6 @@ export async function markChatRoomThreadRead(
   if (!parent) {
     return null;
   }
-
-  const readAt = new Date();
   const state = await tx.chatRoomThreadReadState.upsert({
     where: {
       userId_parentMessageId: {
@@ -532,11 +554,11 @@ export async function markChatRoomThreadRead(
 }
 
 /**
- * Count parents with `attentionReplyCount >= 1` (dual-baseline, including
- * qualifying never-looked). Cheap badge path: no parent hydrate, no row list.
- * Same eligibility as `unreadOnly` / Mark all / overview attention (SOK-811).
+ * Count parents with `unreadReplyCount >= 1` (Participant-gated dual-baseline).
+ * Cheap count path: no parent hydrate, no row list. Same eligibility as
+ * `unreadOnly` / Mark all (ADR-0013).
  */
-export async function countChatRoomAttentionThreads(
+export async function countChatRoomUnreadThreads(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
@@ -559,6 +581,7 @@ export async function countChatRoomAttentionThreads(
       AND reply."deletedAt" IS NULL
       AND parent."deletedAt" IS NULL
       AND parent."parentMessageId" IS NULL
+      AND ${sqlViewerIsThreadParticipant("$2")}
       AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
       AND reply."createdAt" > COALESCE(
         thread_read."lastReadAt",
@@ -573,12 +596,9 @@ export async function countChatRoomAttentionThreads(
 }
 
 /**
- * Upsert look state for every parent that still contributes thread replies to
- * sidebar dual-baseline unread: looked threads with newer non-self replies,
- * and never-looked threads with non-self replies after room read-state
- * createdAt / -infinity. Does not change room ChatRoomReadState or CHAT
- * notifications. Same dual-baseline set as `unreadOnly` / Threads badge /
- * overview attention (SOK-811).
+ * Upsert look state for every unread Thread the viewer Participates in.
+ * Does not change room ChatRoomReadState or CHAT notifications. Same
+ * Participant-gated set as `unreadOnly` (ADR-0013).
  */
 export async function markAllChatRoomThreadsRead(
   roomId: string,
@@ -603,6 +623,7 @@ export async function markAllChatRoomThreadsRead(
       AND reply."deletedAt" IS NULL
       AND parent."deletedAt" IS NULL
       AND parent."parentMessageId" IS NULL
+      AND ${sqlViewerIsThreadParticipant("$2")}
       AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
       AND reply."createdAt" > COALESCE(
         thread_read."lastReadAt",
@@ -2056,9 +2077,9 @@ export function contentIncludesRoomAllMention(content: string): boolean {
 
 /**
  * Resolve human @mentions for a room message. Candidates must already be room
- * members. The author is always excluded. Unlike coworkers, these IDs do not
- * create ChatRoomMention rows or trigger AI dispatch — they address humans via
- * content tokens; callers emit in-app notifications after the message commits.
+ * members. The author is always excluded. Callers persist ChatRoomUserMention
+ * rows and emit in-app CHAT notifications after the message commits. Distinct
+ * from coworker ChatRoomMention (AI dispatch).
  *
  * When content includes `@all` / `@all:all`, every room human except the author
  * is included. Explicit id `"all"` is ignored (not a room user).

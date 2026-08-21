@@ -30,7 +30,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/threads/read",
     description:
-      "Mark every thread that still needs a look in this room for the current user: looked threads with newer replies, and never-looked threads with replies after the dual-baseline (join / -infinity). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
+      "Mark every unread Thread the current user Participates in for this room (Look). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications. Does not Look lurker Threads.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
