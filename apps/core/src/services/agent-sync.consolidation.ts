@@ -17,6 +17,13 @@ export const PARKED_IDENTIFIER_PREFIX = "legacy-v2:";
  * unique constraint forbids duplicates), categories and any admin metadata
  * override follow the stable row. Notification retargeting runs separately
  * after this transaction completes.
+ *
+ * Every agent-keyed relation must be listed here (or moved by the caller,
+ * like Job and jobCount): a relation left behind sits misattributed on the
+ * parked row forever, and per-agent rollups keyed on the canonical id
+ * under-count. x402 payment rows and their FK-free action-ledger rows both
+ * carry a denormalized `agentId` for exactly such rollups, so both are
+ * repointed below.
  */
 export async function consolidateDuplicateAgentRelations(
   tx: Prisma.TransactionClient,
@@ -87,6 +94,20 @@ export async function consolidateDuplicateAgentRelations(
       });
     }
   }
+
+  // A rollback-era duplicate was live and hireable before parking, so x402
+  // payments may exist against it. `agentId` is not part of any unique on
+  // either table, so a plain repoint cannot conflict. The action ledger is
+  // FK-free and carries its own denormalized agentId — repoint it too, or the
+  // admin refund-rate rollup splits across the parked and canonical ids.
+  await tx.taskX402Payment.updateMany({
+    where: { agentId: duplicateAgentId },
+    data: { agentId: canonicalAgentId },
+  });
+  await tx.taskX402PaymentAction.updateMany({
+    where: { agentId: duplicateAgentId },
+    data: { agentId: canonicalAgentId },
+  });
 }
 
 /**

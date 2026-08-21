@@ -140,6 +140,7 @@ describe("workspaceMiddleware", () => {
         userId: "user_123",
         organizationId: "org_existing",
         role: "user",
+        authenticationMethod: "session",
       },
       workspaceContext: null,
     });
@@ -172,6 +173,7 @@ describe("workspaceMiddleware", () => {
         userId: "user_123",
         organizationId: null,
         role: "user",
+        authenticationMethod: "session",
       },
       workspaceContext: null,
     });
@@ -218,6 +220,7 @@ describe("workspaceMiddleware", () => {
         userId: "user_123",
         organizationId: "org_123",
         role: "user",
+        authenticationMethod: "session",
       },
       workspaceContext: {
         workspaceId: "workspace_123",
@@ -263,6 +266,7 @@ describe("workspaceMiddleware", () => {
         userId: "user_123",
         organizationId: "org_existing",
         role: "user",
+        authenticationMethod: "session",
       },
       workspaceContext: {
         workspaceId: "workspace_created",
@@ -295,6 +299,7 @@ describe("workspaceMiddleware", () => {
         userId: "user_123",
         organizationId: "org_existing",
         role: "user",
+        authenticationMethod: "session",
       },
       workspaceContext: null,
     });

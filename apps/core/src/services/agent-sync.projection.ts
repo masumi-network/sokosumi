@@ -501,8 +501,9 @@ export function resolveRegistryAgentVersion(
 
 /**
  * Projects a registry payment source's own pricing into the local pricing
- * shape. Dynamic pricing is unsupported and maps to UNKNOWN (agent stays
- * unavailable), matching the V1 behavior.
+ * shape. Dynamic source pricing is preserved distinctly so user-facing x402
+ * previews can identify it without treating malformed pricing as dynamic.
+ * Standard/V2 agent availability still excludes it.
  */
 function projectSourcePricing(
   pricing: RegistryPaymentSource["pricing"],
@@ -534,14 +535,8 @@ function projectSourcePricing(
     }
     case "Free":
       return { pricingType: PricingType.FREE };
-    // The payment node's third pricing type, deliberately unsupported rather
-    // than overlooked. The catalog advertises one price per agent and charges
-    // credits against it before the hire; a dynamically priced source has no
-    // price to advertise or charge, so there is nothing honest to show. UNKNOWN
-    // keeps the agent out of the catalog (buildAvailableAgentWhereClause
-    // excludes it) instead of guessing a number the seller never quoted.
     case "Dynamic":
-      return { pricingType: PricingType.UNKNOWN };
+      return { pricingType: PricingType.DYNAMIC };
     // Anything the node adds later lands here and is likewise excluded.
     default:
       return { pricingType: PricingType.UNKNOWN };

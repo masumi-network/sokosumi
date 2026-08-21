@@ -51,12 +51,15 @@ export const X402_SUPPORTED_ASSET_TRANSFER_METHOD = "eip3009";
  *
  * Exact spelling only, and strictness costs nothing today: every dialect in
  * scope (research 001 §2) and every Soko-side fence already assumes `exact`.
- * An allowlist rather than a literal so adding a second supported scheme is
- * one line here plus the settlement bookkeeping that earns it.
+ * An allowlist rather than a literal so every enforcement point shares one
+ * source: the 402 parser and settlement here, and core's listing gate and
+ * pay-side source matcher import it too. Growing it is therefore one edit —
+ * PLUS the settlement bookkeeping that earns it, PLUS teaching the source
+ * matcher to compare the demand's scheme against the source's (with one
+ * scheme they cannot disagree; with two, a demand for scheme B must not
+ * match a source registered under scheme A).
  */
 export const X402_SUPPORTED_SCHEMES = ["exact"] as const;
-
-export type X402SupportedScheme = (typeof X402_SUPPORTED_SCHEMES)[number];
 
 /** The 402's free-form `extensions` map, bounded like every other one. */
 export const x402ExtensionsSchema = z

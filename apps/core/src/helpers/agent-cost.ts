@@ -3,7 +3,10 @@ import {
   type CreditCost,
   PricingType,
 } from "@sokosumi/database";
-import { isCaip19AssetKey, normalizeMasumiPaymentUnit } from "@sokosumi/masumi";
+import {
+  isEvmNamespacedUnit,
+  normalizeMasumiPaymentUnit,
+} from "@sokosumi/masumi";
 
 import { unprocessableEntity } from "./error";
 
@@ -16,6 +19,12 @@ import { unprocessableEntity } from "./error";
  * (see `calculateCentsFromX402Amount` in `x402-pricing.ts`) — so a CAIP-19
  * unit reaching these readers would be charged 10^decimals× wrong. Each
  * entry point fences that out explicitly.
+ *
+ * The fence is `isEvmNamespacedUnit`, NOT `isCaip19AssetKey`: this is an
+ * exclusion, so it must catch the whole `eip155:` namespace including
+ * misspellings (a leading-zero chain id fails the canonical pattern but
+ * would still be a 10^decimals mischarge if priced here). See the fence's
+ * own doc in `@sokosumi/masumi`.
  */
 
 export interface AgentCost {
@@ -23,7 +32,7 @@ export interface AgentCost {
 }
 
 /**
- * Gets an agent's cost.
+ * Calculates an agent's cost from its pricing configuration.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
  * @returns The cost for the agent.
@@ -32,7 +41,31 @@ export const getAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
 ): AgentCost => {
-  return calculateAgentCost(agent, creditCosts);
+  switch (agent.pricing.pricingType) {
+    case PricingType.FIXED: {
+      if (
+        !agent.pricing.fixedPricing ||
+        agent.pricing.fixedPricing.amounts.length === 0
+      ) {
+        throw unprocessableEntity("Agent has invalid or unknown pricing");
+      }
+      const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
+        unit: amount.unit,
+        amount: amount.amount,
+      }));
+
+      return {
+        cents: calculateCentsFromPricingAmountRows(pricing, creditCosts),
+      };
+    }
+    case PricingType.FREE: {
+      return { cents: BigInt(0) };
+    }
+    case PricingType.DYNAMIC:
+    case PricingType.UNKNOWN: {
+      throw unprocessableEntity("Agent has invalid or unknown pricing");
+    }
+  }
 };
 
 /**
@@ -59,7 +92,7 @@ export function listCardanoBillableUnitSpellings(
       creditCosts
         .filter(
           (creditCost) =>
-            !isCaip19AssetKey(normalizeMasumiPaymentUnit(creditCost.unit)),
+            !isEvmNamespacedUnit(normalizeMasumiPaymentUnit(creditCost.unit)),
         )
         .flatMap((creditCost) =>
           normalizeMasumiPaymentUnit(creditCost.unit) === "lovelace"
@@ -81,13 +114,15 @@ function calculateCentsFromPricingAmountRows(
   let totalCents = BigInt(0);
   for (const row of rows) {
     const unit = normalizeMasumiPaymentUnit(row.unit);
-    if (isCaip19AssetKey(unit)) {
+    if (isEvmNamespacedUnit(unit)) {
       // Wrong convention path: CAIP-19 rows price per WHOLE token, this
       // reader multiplies per SMALLEST unit — honoring the row would charge
       // 10^decimals× wrong. x402 amounts go through
-      // calculateCentsFromX402Amount instead.
+      // calculateCentsFromX402Amount instead. The whole eip155: namespace is
+      // fenced, not just canonical keys — a misspelled key must fail here,
+      // never fall through to the smallest-unit lookup.
       throw unprocessableEntity(
-        `Unit ${unit} is a CAIP-19 asset key and cannot be priced per smallest unit`,
+        `Unit ${unit} is a CAIP-19 asset key (or a misspelling of one) and cannot be priced per smallest unit`,
       );
     }
     const creditCost = creditCosts.find(
@@ -135,39 +170,3 @@ export function calculateCentsFromMasumiAmountStrings(
 
   return calculateCentsFromPricingAmountRows(rows, creditCosts);
 }
-
-/**
- * Calculates the cost for an agent from its pricing configuration.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The cost for the agent.
- */
-const calculateAgentCost = (
-  agent: AgentWithPricing,
-  creditCosts: CreditCost[],
-): AgentCost => {
-  switch (agent.pricing.pricingType) {
-    case PricingType.FIXED: {
-      if (
-        !agent.pricing.fixedPricing ||
-        agent.pricing.fixedPricing.amounts.length === 0
-      ) {
-        throw unprocessableEntity("Agent has invalid or unknown pricing");
-      }
-      const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
-        unit: amount.unit,
-        amount: amount.amount,
-      }));
-
-      return {
-        cents: calculateCentsFromPricingAmountRows(pricing, creditCosts),
-      };
-    }
-    case PricingType.FREE: {
-      return { cents: BigInt(0) };
-    }
-    case PricingType.UNKNOWN: {
-      throw unprocessableEntity("Agent has invalid or unknown pricing");
-    }
-  }
-};

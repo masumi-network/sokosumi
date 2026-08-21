@@ -9,14 +9,11 @@ import {
   doMasumiPaymentAmountsMatch,
   toMasumiPaymentNodeAmounts,
 } from "../utils/payment-amounts.js";
+import { createX402PaymentMethods } from "./masumi-payment-x402.js";
+import { extractNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
-  type GetX402BudgetsResponses,
-  type GetX402NetworksAvailableResponses,
-  getApiKeyStatus,
   getRailReadiness,
-  getX402Budgets as getX402BudgetsRequest,
-  getX402NetworksAvailable,
   type PostPurchaseData,
   type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
@@ -31,37 +28,10 @@ interface PaymentClientRequestOptions {
 
 const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
-function extractNodeErrorMessage(error: unknown): string {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "error" in error &&
-    typeof error.error === "object" &&
-    error.error !== null &&
-    "message" in error.error &&
-    typeof error.error.message === "string"
-  ) {
-    return error.error.message;
-  }
-  try {
-    return JSON.stringify(error) ?? String(error);
-  } catch {
-    return String(error);
-  }
-}
-
 export interface CardanoV2ReadySource {
   policyId: string;
   smartContractAddress: string;
 }
-
-/** One x402 EVM chain the node reports accessible (`GET /x402/networks/available`). */
-export type X402AvailableNetwork =
-  GetX402NetworksAvailableResponses["200"]["data"]["Networks"][number];
-
-/** One x402 wallet budget granted to an API key (`GET /x402/budgets`). */
-export type X402Budget =
-  GetX402BudgetsResponses["200"]["data"]["Budgets"][number];
 
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
@@ -440,99 +410,7 @@ export function createPaymentClient(
       }
     },
 
-    /**
-     * x402 EVM chains the node reports accessible for this environment.
-     * Filtered node-side to the client's environment: the Cardano
-     * Preprod/Mainnet split maps onto the node's testnet/mainnet flag
-     * (PR1-SPEC §6). Raw node rows — buy-side readiness composition
-     * (enabled + funded budget) happens in the caller.
-     */
-    async getX402AvailableNetworks(
-      options: PaymentClientRequestOptions = {},
-    ): Promise<Result<X402AvailableNetwork[], string>> {
-      try {
-        const response = await getX402NetworksAvailable({
-          client: client(),
-          query: { isTestnet: network === "Preprod" ? "true" : "false" },
-          signal: options.signal,
-        });
-        if (response.error || !response.data) {
-          return err(
-            `x402 networks/available ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
-          );
-        }
-        return ok(response.data.data.Networks);
-      } catch (error) {
-        return err(String(error) || "Failed to get x402 available networks");
-      }
-    },
-
-    /**
-     * x402 wallet budgets this API key can actually draw on at pay time.
-     *
-     * Verified against masumi-payment-service `main`
-     * (`src/routes/api/x402/index.ts`): `GET /x402/budgets` requires ADMIN
-     * permission (`adminAuthenticatedEndpointFactory`) — a plain pay key is
-     * rejected outright — and its handler
-     * (`listX402WalletBudgets(input.apiKeyId)`) returns EVERY key's budget
-     * rows unless the optional `apiKeyId` query filter is passed; it is
-     * never scoped to the caller. `POST /x402/pay`, however, only draws on
-     * budgets whose `apiKeyId` equals the calling key (`pay.ts`,
-     * `createX402Payment`). So this method resolves its own key id via
-     * `GET /api-key-status`, asks the node to filter on it, AND re-filters
-     * the returned rows on `X402Budget.apiKeyId`: a foreign key's budget must
-     * never mark a (network, asset) pair buy-side ready. The request-side
-     * filter alone fails OPEN — a node that renames, drops, or ignores the
-     * query parameter answers 200 with every key's rows, and a funded foreign
-     * budget would then record an `evmWalletId` Soko cannot spend from,
-     * producing a post-charge 402. Rows are otherwise raw node rows — see
-     * getX402AvailableNetworks.
-     */
-    async getX402Budgets(
-      options: PaymentClientRequestOptions = {},
-    ): Promise<Result<X402Budget[], string>> {
-      try {
-        const statusResponse = await getApiKeyStatus({
-          client: client(),
-          signal: options.signal,
-        });
-        if (statusResponse.error || !statusResponse.data) {
-          return err(
-            `api-key-status ${statusResponse.response?.status ?? "unknown"}: ${extractNodeErrorMessage(statusResponse.error)}`,
-          );
-        }
-        // Runtime guard, not just the generated type: a version-skewed node
-        // answering 200 with a missing/empty id would make the query
-        // serializer silently DROP the apiKeyId param, turning this into the
-        // unscoped admin read this whole resolution exists to prevent.
-        const apiKeyId: unknown = statusResponse.data.data?.id;
-        if (typeof apiKeyId !== "string" || apiKeyId.length === 0) {
-          return err(
-            "api-key-status returned no key id; refusing unscoped budgets read",
-          );
-        }
-        const response = await getX402BudgetsRequest({
-          client: client(),
-          query: { apiKeyId },
-          signal: options.signal,
-        });
-        if (response.error || !response.data) {
-          return err(
-            `x402 budgets ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
-          );
-        }
-        // Re-filter what came back. A row with no apiKeyId is dropped too:
-        // unattributable is indistinguishable from foreign, and only a row
-        // this key can spend may mark a pair ready.
-        return ok(
-          response.data.data.Budgets.filter(
-            (budget) => budget.apiKeyId === apiKeyId,
-          ),
-        );
-      } catch (error) {
-        return err(String(error) || "Failed to get x402 budgets");
-      }
-    },
+    ...createX402PaymentMethods(client, network),
 
     async requestRefund(jobBlockchainIdentifier: string) {
       try {

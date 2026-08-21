@@ -4,12 +4,39 @@
  * purchase reconciliation) compares on, so it lives with the protocol types
  * rather than being restated per consumer.
  */
+function isAsciiWhitespace(code: number): boolean {
+  // tab, lf, vt, ff, cr, space
+  return (
+    code === 0x09 ||
+    code === 0x0a ||
+    code === 0x0b ||
+    code === 0x0c ||
+    code === 0x0d ||
+    code === 0x20
+  );
+}
+
+function trimAsciiWhitespace(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && isAsciiWhitespace(value.charCodeAt(start))) {
+    start += 1;
+  }
+  while (end > start && isAsciiWhitespace(value.charCodeAt(end - 1))) {
+    end -= 1;
+  }
+  return value.slice(start, end);
+}
+
 export function normalizeMasumiPaymentUnit(unit: string): string {
-  if (unit === "" || unit.toLowerCase() === "lovelace") {
+  // Protocol transport whitespace only (ASCII). Linear scan — a
+  // /^[\t\n\v\f\r ]+|...+$/ trim is polynomial ReDoS on unit strings.
+  const trimmedUnit = trimAsciiWhitespace(unit);
+  if (trimmedUnit === "" || trimmedUnit.toLowerCase() === "lovelace") {
     return "lovelace";
   }
   // Cardano policy-id + asset-name units are hex; casing is not meaningful.
-  return unit.toLowerCase();
+  return trimmedUnit.toLowerCase();
 }
 
 /**

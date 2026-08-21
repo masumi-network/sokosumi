@@ -39,6 +39,37 @@
 export const X402_MAX_TIMEOUT_SECONDS = 3600;
 
 /**
+ * Floor on an entry's `maxTimeoutSeconds`, enforced PRE-CHARGE.
+ *
+ * The mirror of the ceiling above, and it exists for a post-charge failure the
+ * ceiling cannot reach. `validBefore = signTime + maxTimeoutSeconds` is the
+ * whole life of the header, so a listed agent publishing `maxTimeoutSeconds:
+ * 1` mints an authorization that has already expired by the time the node's
+ * answer gets back to Soko. Nothing then recovers the charge inline: finalize
+ * refuses to write the terminal VERIFIED for a dead header (correctly — a
+ * false negative there is unrefundable), so the payment charges credits, holds
+ * PENDING, burns all five sign attempts across replays and dies at
+ * `x402_payment_sign_attempts_exhausted`. One operator ticket per payment,
+ * repeatable at will by any listed agent. The same shape occurs when Soko's
+ * host clock runs more than `maxTimeoutSeconds` ahead of the node's.
+ *
+ * Bounded by what has to fit inside the window, then rounded up to the
+ * tightest value the wild rejects nothing at:
+ *  - the node round trip is the hard floor — Soko abandons `POST /x402/pay` at
+ *    `TASK_X402_SIGN_REQUEST_TIMEOUT_MS` (20 s), so a shorter window cannot
+ *    survive even a successful call;
+ *  - the header must ALSO outlive the coworker presenting it to the resource
+ *    server, which is the entire purpose of the instrument, and no bound in
+ *    this repo covers that leg;
+ *  - research 001 §2 records 60–3600 s across live Bazaar listings, so 60 s is
+ *    the observed minimum of the real distribution.
+ *
+ * 60 s satisfies all three: 3× the sign timeout, and it rejects nothing that
+ * has ever been seen in the wild.
+ */
+export const X402_MIN_TIMEOUT_SECONDS = 60;
+
+/**
  * `accepts` entries allowed in one 402. The node caps its own
  * `paymentRequired.accepts` at 20 (`maxItems: 20`); mirroring the bound fails
  * an oversized 402 BEFORE any credits are charged.
@@ -134,13 +165,13 @@ export const X402_MAX_SERIALIZED_LENGTH = 8192;
  * resource server picks the size.
  *
  * THIS BOUND COVERS THE BASE64 HEADER ONLY. Its companion for the v1
- * JSON-body dialect is the Hono `bodyLimit` on the pay route,
- * `POST /v1/tasks/{id}/x402-payments` in `apps/core` — nothing in this package
- * bounds a parsed body's total size, and `stripPrototypePollutingKeys` walks
- * one in full before any per-field cap in this file applies (measured: a
- * 32 MB body costs ~32 ms and ~9.4 MB of heap). The two are one pair: raising
- * or removing either without the other reopens the asymmetry this constant
- * exists to close.
+ * JSON-body dialect is `X402_PAY_MAX_BODY_BYTES`, the Hono `bodyLimit` on the
+ * pay route `POST /v1/tasks/{id}/x402-payments` in `apps/core`, which is set
+ * to THIS constant — nothing in this package bounds a parsed body's total
+ * size, and `stripPrototypePollutingKeys` walks one in full before any
+ * per-field cap in this file applies (measured: a 32 MB body costs ~32 ms and
+ * ~9.4 MB of heap). The two are one pair: raising or removing either without
+ * the other reopens the asymmetry this constant exists to close.
  *
  * 256 KiB rejects nothing the rest of this file would accept. The largest
  * payload every other bound permits is `X402_MAX_ACCEPTS_ENTRIES` (20) x
