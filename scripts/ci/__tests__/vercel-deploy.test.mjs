@@ -293,6 +293,25 @@ describe("runPreviewDeployComment", () => {
     assert.match(posted[0], /fork/i);
   });
 
+  it("refuses pull requests whose head repo is missing", async () => {
+    const posted = [];
+    const result = await runPreviewDeployComment({
+      commentBody: "/deploy mainnet",
+      isPullRequest: true,
+      commentAuthor: "alice",
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        head: { sha: "abc", ref: "feat", repo: null },
+        base: { repo: { id: 1 } },
+      }),
+      postComment: async (body) => {
+        posted.push(body);
+      },
+    });
+    assert.equal(result.kind, "fork");
+    assert.match(posted[0], /fork/i);
+  });
+
   it("creates web and core previews for the named network", async () => {
     const posted = [];
     const created = [];
@@ -527,8 +546,9 @@ describe("git preview policy", () => {
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
     assert.match(
       workflow,
-      /contains\(lower\(github\.event\.comment\.body\), '\/deploy'\)/,
+      /contains\(github\.event\.comment\.body, '\/deploy'\)/,
     );
+    assert.doesNotMatch(workflow, /lower\(/);
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
   });
 

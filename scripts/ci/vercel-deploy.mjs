@@ -339,7 +339,7 @@ export async function runPreviewDeployComment(options) {
     throw new Error(`Pull request ${issueNumber} was not found`);
   }
 
-  if (pullRequest.head.repo.id !== pullRequest.base.repo.id) {
+  if (pullRequest.head.repo?.id !== pullRequest.base.repo.id) {
     await comment(
       "Preview deploy is only available for branches in this repository, not forks.",
     );
