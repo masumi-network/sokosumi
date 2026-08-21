@@ -36,19 +36,26 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
         {files.map((file) =>
           file.fileUrl ? (
-            <FileChip
-              key={file.id}
-              url={file.fileUrl}
-              fileName={file.name}
-              mediaType={file.mimeType}
-              size={file.size}
-            />
+            <div key={file.id} className="flex items-center gap-2">
+              <FileChip
+                url={file.fileUrl}
+                fileName={file.name}
+                mediaType={file.mimeType}
+                size={file.size}
+                sizeClass="size-8"
+                iconPx={32}
+                className="flex-1 min-w-0 p-1.5 gap-2 text-xs"
+              />
+              {hasStatus(file) && (
+                <TaskFileStatusBadge status={file.status as TaskFileStatus} />
+              )}
+            </div>
           ) : (
             <div
               key={file.id}
-              className="flex items-center gap-2 rounded-md border p-2"
+              className="flex items-center gap-2 rounded-md border p-1.5"
             >
-              <span className="flex-1 truncate text-sm">{file.name}</span>
+              <span className="flex-1 truncate text-xs">{file.name}</span>
               {hasStatus(file) && (
                 <TaskFileStatusBadge status={file.status as TaskFileStatus} />
               )}
