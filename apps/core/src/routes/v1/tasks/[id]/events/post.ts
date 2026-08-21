@@ -59,6 +59,7 @@ import {
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
+import { sourceImportService } from "@/services/source-import.service";
 import {
   createTaskPaymentClaim,
   processTaskPaymentClaim,
@@ -571,6 +572,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pausedForInsufficientBalance,
       cascadedChildTaskIds,
     } = transactionResult;
+
+    // Fire-and-forget enqueue of task-output files from comment
+    if (event.comment) {
+      sourceImportService
+        .enqueueTaskOutputsFromMarkdown(taskId, event.comment)
+        .catch((error) => {
+          console.error("Failed to enqueue task outputs from comment:", error);
+          Sentry.captureException(error, {
+            extra: {
+              taskId,
+              taskEventId: event.id,
+            },
+          });
+        });
+    }
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
       waitUntil(

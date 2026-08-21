@@ -1,6 +1,10 @@
 import { BlobStatus } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
-import { buildJobBlobPathname, getUrlBasename } from "@sokosumi/utils";
+import {
+  buildJobBlobPathname,
+  buildTaskFilePathname,
+  getUrlBasename,
+} from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
@@ -183,6 +187,96 @@ async function importBlob(
   }
 }
 
+async function importTaskFile(
+  taskFileId: string,
+  options: ImportPendingResultBlobsOptions,
+): Promise<void> {
+  if (!shouldContinueSync(options)) {
+    return;
+  }
+
+  const taskFile = await prisma.taskFile.findUnique({
+    where: { id: taskFileId },
+    include: {
+      task: {
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!taskFile || taskFile.status !== "PENDING" || !taskFile.sourceUrl) {
+    return;
+  }
+
+  const taskId = taskFile.task.id;
+
+  try {
+    const abortSignal = createImportAbortSignal(options);
+    // SSRF guard: validate the source URL against private addresses
+    const response = await ssrfSafeFetch(taskFile.sourceUrl, {
+      signal: abortSignal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch task file source: ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    const suggestedName =
+      parseContentDispositionFilename(
+        response.headers.get("content-disposition"),
+      ) ??
+      taskFile.name ??
+      getUrlBasename(taskFile.sourceUrl) ??
+      "file";
+
+    const arrayBuffer = await response.arrayBuffer();
+    const sourceFile = new File([arrayBuffer], suggestedName, {
+      type: contentType ?? "application/octet-stream",
+    });
+
+    const blobToken = getEnv().BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+    }
+
+    const pathname = buildTaskFilePathname(taskId, suggestedName);
+    const uploadResult = await put(pathname, sourceFile, {
+      access: "public",
+      addRandomSuffix: true,
+      abortSignal,
+      token: blobToken,
+    });
+    const blobMetadata = await head(uploadResult.url, {
+      abortSignal,
+      token: blobToken,
+    });
+
+    await prisma.taskFile.update({
+      where: { id: taskFile.id },
+      data: {
+        fileUrl: uploadResult.url,
+        mimeType: blobMetadata.contentType,
+        name: suggestedName,
+        size: BigInt(blobMetadata.size),
+        status: "READY",
+      },
+    });
+  } catch (error) {
+    if (!shouldContinueSync(options) && isAbortLikeError(error)) {
+      // Keep the task file pending so a future sync run can retry it.
+      return;
+    }
+
+    await prisma.taskFile.update({
+      where: { id: taskFile.id },
+      data: {
+        status: "FAILED",
+      },
+    });
+  }
+}
+
 async function importPendingResultBlobs(
   options: ImportPendingResultBlobsOptions,
 ): Promise<number> {
@@ -191,26 +285,45 @@ async function importPendingResultBlobs(
     orderBy: { createdAt: "asc" },
   });
 
+  const pendingTaskFiles = await prisma.taskFile.findMany({
+    where: { status: "PENDING", origin: "TASK_OUTPUT" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const totalPending = pendingBlobs.length + pendingTaskFiles.length;
+
   let nextPendingBlobIndex = 0;
-  const workerCount = Math.min(MAX_CONCURRENT_IMPORTS, pendingBlobs.length);
+  let nextPendingTaskFileIndex = 0;
+
+  const workerCount = Math.min(MAX_CONCURRENT_IMPORTS, totalPending);
   const workers = Array.from({ length: workerCount }, () =>
     (async () => {
       while (shouldContinueSync(options)) {
+        // Alternate between blobs and task files for fair processing
         const blob = pendingBlobs[nextPendingBlobIndex];
-        nextPendingBlobIndex += 1;
+        const taskFile = pendingTaskFiles[nextPendingTaskFileIndex];
 
-        if (!blob) {
+        if (!blob && !taskFile) {
           return;
         }
 
-        await importBlob(blob.id, options);
+        if (
+          blob &&
+          (!taskFile || nextPendingBlobIndex <= nextPendingTaskFileIndex)
+        ) {
+          nextPendingBlobIndex += 1;
+          await importBlob(blob.id, options);
+        } else if (taskFile) {
+          nextPendingTaskFileIndex += 1;
+          await importTaskFile(taskFile.id, options);
+        }
       }
     })(),
   );
 
   await Promise.allSettled(workers);
 
-  return pendingBlobs.length;
+  return totalPending;
 }
 
 export const sourceImportSyncService = {

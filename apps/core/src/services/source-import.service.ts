@@ -62,4 +62,48 @@ export const sourceImportService = {
       }
     }
   },
+
+  async enqueueTaskOutputsFromMarkdown(
+    taskId: string,
+    markdown: string,
+  ): Promise<void> {
+    const fileLinks = extractFileLikeLinks(markdown);
+
+    if (fileLinks.length === 0) {
+      return;
+    }
+
+    for (const url of fileLinks) {
+      if (!isHttpUrl(url)) {
+        continue;
+      }
+
+      try {
+        const basename = getUrlBasename(url) ?? "file";
+        // Upsert PENDING task-output TaskFile. Unique on (taskId, sourceUrl).
+        // Do NOT set fileUrl yet — source-import cron will fetch and upload.
+        await prisma.taskFile.upsert({
+          where: {
+            taskId_sourceUrl: {
+              taskId,
+              sourceUrl: url,
+            },
+          },
+          update: {
+            name: basename,
+          },
+          create: {
+            taskId,
+            name: basename,
+            sourceUrl: url,
+            fileUrl: null,
+            status: "PENDING",
+            origin: "TASK_OUTPUT",
+          },
+        });
+      } catch (error) {
+        Sentry.captureException(error);
+      }
+    }
+  },
 };
