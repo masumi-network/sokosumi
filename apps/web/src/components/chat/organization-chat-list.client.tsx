@@ -613,17 +613,19 @@ export function OrganizationChatList({
     setRespondingInvitation({ id: invitation.id, action: "accept" });
     startInviteResponseTransition(async () => {
       const result = await acceptChatRoomInvitationAction(invitation.id);
-      setRespondingInvitation(null);
       if (!result.ok) {
+        setRespondingInvitation(null);
         toast.error(result.error.message || tExternal("acceptError"));
         return;
       }
       toast.success(tExternal("acceptSuccess", { name: invitation.roomName }));
+      // Drop pending and upsert rooms in the same tick so External does not
+      // unmount between the last invite and the joined guest room.
+      const roomsResult = await listOrganizationChatRoomsAction();
+      setRespondingInvitation(null);
       setPendingRows((current) =>
         current.filter((row) => row.id !== invitation.id),
       );
-      // Guest room appears on next list refresh; pull rooms immediately.
-      const roomsResult = await listOrganizationChatRoomsAction();
       if (roomsResult.ok) {
         setRoomRows((current) =>
           applyRoomReadOverlays(
@@ -671,144 +673,141 @@ export function OrganizationChatList({
     <SidebarGroup className="w-full">
       {membershipRevokedBridge}
       <SidebarGroupContent className="space-y-2">
-        <Collapsible
-          open={channelSectionOpen}
-          onOpenChange={setChannelSectionOpen}
-        >
-          <SectionHeader
-            href={hasOrganization ? "/?create=channel" : undefined}
-            isOpen={channelSectionOpen}
-            label={t("createChannel")}
-            secondaryAction={
-              hasOrganization ? <BrowseChannelsDialog /> : undefined
-            }
-            dismissSheetOnNavigate={dismissSheetOnNavigate}
+        {hasOrganization ? (
+          <Collapsible
+            open={channelSectionOpen}
+            onOpenChange={setChannelSectionOpen}
           >
-            {t("title")}
-          </SectionHeader>
-          <CollapsibleContent>
-            <SidebarMenu className="gap-0">
-              {namedChannels.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  room={room}
-                  href={`/chat/rooms/${room.id}`}
-                  label={room.name}
-                  isActive={activeRoomId === room.id}
-                  leading={
-                    <ChannelDiscoverabilityIcon
-                      discoverability={room.discoverability}
-                    />
-                  }
-                  onRoomUpdated={handleRoomUpdated}
-                  dismissSheetOnNavigate={dismissSheetOnNavigate}
-                />
-              ))}
-              {namedChannels.length === 0 ? (
-                <SidebarMenuItem>
-                  <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
-                    {hasOrganization
-                      ? t("Empty.noChannels")
-                      : t("Empty.onlyInOrganizations")}
-                  </div>
-                </SidebarMenuItem>
-              ) : null}
-            </SidebarMenu>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
-          <SectionHeader isOpen={externalOpen}>
-            {tExternal("title")}
-          </SectionHeader>
-          <CollapsibleContent>
-            <SidebarMenu className="gap-0">
-              {pendingRows.map((invitation) => {
-                const anyBusy = respondingInvitation !== null;
-                const acceptBusy =
-                  respondingInvitation?.id === invitation.id &&
-                  respondingInvitation.action === "accept";
-                const declineBusy =
-                  respondingInvitation?.id === invitation.id &&
-                  respondingInvitation.action === "decline";
-                return (
-                  <SidebarMenuItem key={invitation.id}>
-                    <div
-                      aria-label={tExternal("pendingAria", {
-                        name: invitation.roomName,
-                        organization: invitation.organizationName,
-                      })}
-                      className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
-                    >
-                      <Globe2
-                        className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-                        aria-hidden
+            <SectionHeader
+              href="/?create=channel"
+              isOpen={channelSectionOpen}
+              label={t("createChannel")}
+              secondaryAction={<BrowseChannelsDialog />}
+              dismissSheetOnNavigate={dismissSheetOnNavigate}
+            >
+              {t("title")}
+            </SectionHeader>
+            <CollapsibleContent>
+              <SidebarMenu className="gap-0">
+                {namedChannels.map((room) => (
+                  <ChatRoomSidebarRow
+                    key={room.id}
+                    room={room}
+                    href={`/chat/rooms/${room.id}`}
+                    label={room.name}
+                    isActive={activeRoomId === room.id}
+                    leading={
+                      <ChannelDiscoverabilityIcon
+                        discoverability={room.discoverability}
                       />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium text-foreground">
-                          {invitation.roomName}
-                        </div>
-                        <div className="text-muted-foreground truncate text-xs leading-tight">
-                          {invitation.organizationName}
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            className="h-6 px-2 text-xs"
-                            disabled={anyBusy}
-                            onClick={() => handleAcceptInvitation(invitation)}
-                          >
-                            {acceptBusy ? t("loading") : tExternal("accept")}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-6 px-2 text-xs"
-                            disabled={anyBusy}
-                            onClick={() => handleDeclineInvitation(invitation)}
-                          >
-                            {declineBusy ? t("loading") : tExternal("decline")}
-                          </Button>
-                        </div>
-                      </div>
+                    }
+                    onRoomUpdated={handleRoomUpdated}
+                    dismissSheetOnNavigate={dismissSheetOnNavigate}
+                  />
+                ))}
+                {namedChannels.length === 0 ? (
+                  <SidebarMenuItem>
+                    <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                      {t("Empty.noChannels")}
                     </div>
                   </SidebarMenuItem>
-                );
-              })}
-              {externalJoined.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  room={room}
-                  href={`/chat/rooms/${room.id}`}
-                  label={room.name}
-                  subtitle={
-                    room.myAccess === "guest" && room.organizationName
-                      ? tExternal("hostOrganization", {
-                          organization: room.organizationName,
-                        })
-                      : undefined
-                  }
-                  isActive={activeRoomId === room.id}
-                  leading={
-                    <ChannelDiscoverabilityIcon discoverability="external" />
-                  }
-                  onRoomUpdated={handleRoomUpdated}
-                  dismissSheetOnNavigate={dismissSheetOnNavigate}
-                />
-              ))}
-              {pendingRows.length === 0 && externalJoined.length === 0 ? (
-                <SidebarMenuItem>
-                  <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
-                    {tExternal("empty")}
-                  </div>
-                </SidebarMenuItem>
-              ) : null}
-            </SidebarMenu>
-          </CollapsibleContent>
-        </Collapsible>
+                ) : null}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
+
+        {pendingRows.length > 0 || externalJoined.length > 0 ? (
+          <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
+            <SectionHeader isOpen={externalOpen}>
+              {tExternal("title")}
+            </SectionHeader>
+            <CollapsibleContent>
+              <SidebarMenu className="gap-0">
+                {pendingRows.map((invitation) => {
+                  const anyBusy = respondingInvitation !== null;
+                  const acceptBusy =
+                    respondingInvitation?.id === invitation.id &&
+                    respondingInvitation.action === "accept";
+                  const declineBusy =
+                    respondingInvitation?.id === invitation.id &&
+                    respondingInvitation.action === "decline";
+                  return (
+                    <SidebarMenuItem key={invitation.id}>
+                      <div
+                        aria-label={tExternal("pendingAria", {
+                          name: invitation.roomName,
+                          organization: invitation.organizationName,
+                        })}
+                        className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
+                      >
+                        <Globe2
+                          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium text-foreground">
+                            {invitation.roomName}
+                          </div>
+                          <div className="text-muted-foreground truncate text-xs leading-tight">
+                            {invitation.organizationName}
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="h-6 px-2 text-xs"
+                              disabled={anyBusy}
+                              onClick={() => handleAcceptInvitation(invitation)}
+                            >
+                              {acceptBusy ? t("loading") : tExternal("accept")}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs"
+                              disabled={anyBusy}
+                              onClick={() =>
+                                handleDeclineInvitation(invitation)
+                              }
+                            >
+                              {declineBusy
+                                ? t("loading")
+                                : tExternal("decline")}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </SidebarMenuItem>
+                  );
+                })}
+                {externalJoined.map((room) => (
+                  <ChatRoomSidebarRow
+                    key={room.id}
+                    room={room}
+                    href={`/chat/rooms/${room.id}`}
+                    label={room.name}
+                    subtitle={
+                      room.myAccess === "guest" && room.organizationName
+                        ? tExternal("hostOrganization", {
+                            organization: room.organizationName,
+                          })
+                        : undefined
+                    }
+                    isActive={activeRoomId === room.id}
+                    leading={
+                      <ChannelDiscoverabilityIcon discoverability="external" />
+                    }
+                    onRoomUpdated={handleRoomUpdated}
+                    dismissSheetOnNavigate={dismissSheetOnNavigate}
+                  />
+                ))}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
 
         {hasOrganization && sortedArchivedChannels.length > 0 ? (
           <Collapsible

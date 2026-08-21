@@ -5053,7 +5053,6 @@
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Próximamente",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -5284,7 +5283,6 @@
       },
       "External": {
         "title": "Externo",
-        "empty": "Aún no hay canales externos.",
         "accept": "Aceptar",
         "decline": "Rechazar",
         "acceptSuccess": "Te uniste a {name}.",
