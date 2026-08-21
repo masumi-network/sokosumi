@@ -343,6 +343,13 @@ describe("Drive Tasks Routes", () => {
           id: "prj_transferred",
           name: "Transferred Project",
         });
+
+        // Assert distinct is NOT used (relation filter + distinct can throw)
+        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            distinct: expect.anything(),
+          }),
+        );
       });
 
       it("shows fallback name when project row is missing but tasks exist", async () => {
