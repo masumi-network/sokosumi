@@ -113,6 +113,7 @@ import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
+  canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
@@ -790,14 +791,12 @@ export function RoomsClient({
 
   const isDirectRoom = selectedRoom?.kind === "direct";
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
-  const isExternalChannel =
-    selectedRoom?.kind === "channel" &&
-    selectedRoom.discoverability === "external";
-  // External channel roster: either side may Message another human (Core
-  // create-or-get). Other rooms: org teammates only, never from a guest seat.
-  const canOpenHumanDirect =
-    isExternalChannel ||
-    (Boolean(activeOrganization) && !isGuestInSelectedRoom);
+  const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
+    kind: selectedRoom?.kind,
+    discoverability: selectedRoom?.discoverability,
+    myAccess: selectedRoom?.myAccess,
+    hasActiveOrganization: Boolean(activeOrganization),
+  });
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;

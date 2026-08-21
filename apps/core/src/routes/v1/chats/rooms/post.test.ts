@@ -724,6 +724,43 @@ describe("POST /chats/rooms", () => {
     );
   });
 
+  it("returns an existing personal 1:1 after the pair no longer share an external channel", async () => {
+    const existingPersonal = directRoom({
+      organizationId: null,
+    });
+    roomFindFirstMock.mockImplementation(
+      async ({
+        where,
+      }: {
+        where?: { discoverability?: string; organizationId?: string | null };
+      }) => {
+        if (where?.organizationId === null) {
+          return existingPersonal;
+        }
+        return null;
+      },
+    );
+
+    const app = createApp({
+      ...userAuthContext,
+      organizationId: null,
+    });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.id).toBe(ROOM_ID);
+    expect(body.data.organizationId).toBeNull();
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
   it("returns an existing personal 1:1 when org teammates message each other", async () => {
     const existingPersonal = directRoom({
       organizationId: null,
