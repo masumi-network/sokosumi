@@ -349,19 +349,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Key project rows by tasks in the Drive workspace, not by Project.workspaceId
     // (transferred tasks may have Task.workspaceId !== Project.workspaceId)
 
-    // Find distinct non-null projectIds from tasks matching baseTaskWhere
+    // Find non-null projectIds from tasks matching baseTaskWhere
+    // (baseTaskWhere includes relation filter files.some, so distinct + orderBy can throw)
     const tasksWithProjects = await prisma.task.findMany({
       where: {
         ...baseTaskWhere,
         projectId: { not: null },
       },
       select: { projectId: true },
-      distinct: ["projectId"],
     });
 
-    const projectIds = tasksWithProjects
-      .map((t) => t.projectId)
-      .filter((id): id is string => id !== null);
+    // Unique in memory
+    const projectIds = Array.from(
+      new Set(
+        tasksWithProjects
+          .map((t) => t.projectId)
+          .filter((id): id is string => id !== null),
+      ),
+    );
 
     // Fetch all projects by id + no-project count
     const MAX_PROJECTS_FOR_SORT = 10000;
