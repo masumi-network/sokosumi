@@ -49,6 +49,30 @@ describe("OrganizationChatList section visibility", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lists a personal human Direct under Direct Messages, not External", () => {
+    const personal = makeRoom({
+      id: "personal-dm",
+      kind: "direct",
+      myAccess: "member",
+      discoverability: null,
+      organizationId: null,
+      organizationName: null,
+      peerInActiveOrganization: false,
+      name: "Guest User",
+    });
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [personal],
+    });
+
+    expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
+    expect(screen.getByText("room")).toBeInTheDocument();
+    expect(
+      screen.queryByText("App.Channels.External.title"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows External when the user has joined an external room", async () => {
     const external = makeRoom({
       id: "ext-1",
