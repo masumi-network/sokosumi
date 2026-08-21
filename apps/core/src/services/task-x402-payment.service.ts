@@ -219,7 +219,7 @@ async function runX402ChargePhase(
         throw notFound("x402 agent not found or not listed");
       }
 
-      // Enforce the same per-agent gates as GET /v1/agents/x402. Matching only
+      // Enforce the same per-agent gates as GET /v1/agents?kind=x402. Matching only
       // the demanded source would let a caller with a remembered id pay an
       // agent the listing hid because a sibling source is malformed,
       // cross-environment, or unavailable. Existing records resolve above this

@@ -36,7 +36,7 @@ export const createTaskX402PaymentRequestSchema = z.object({
   agentId: z.string().min(1).openapi({
     example: "cmaeygqwa000e8i0s9s7wif8i",
     description:
-      "The listed x402 agent this 402 came from (GET /v1/agents/x402)",
+      "The listed x402 agent this 402 came from (GET /v1/agents?kind=x402)",
   }),
   paymentRequired: z
     .unknown()
