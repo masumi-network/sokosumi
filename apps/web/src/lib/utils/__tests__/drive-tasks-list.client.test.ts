@@ -316,4 +316,62 @@ describe("listDriveTasks", () => {
       }),
     );
   });
+
+  it("handles string dates from Core runtime JSON", async () => {
+    const mockItems: DriveTasksListItem[] = [
+      {
+        type: "project",
+        id: "proj-1",
+        name: "Project 1",
+        latestFileUpdatedAt: "2026-01-01T00:00:00.000Z" as unknown as Date,
+      },
+      {
+        type: "task",
+        id: "task-1",
+        name: "Task 1",
+        latestFileUpdatedAt: "2026-01-02T00:00:00.000Z" as unknown as Date,
+      },
+      {
+        type: "task-file",
+        id: "file-1",
+        name: "output.txt",
+        fileUrl: "https://example.com/file.txt",
+        size: 1024,
+        mimeType: "text/plain",
+        updatedAt: "2026-01-03T00:00:00.000Z" as unknown as Date,
+      },
+      {
+        type: "no-project",
+        id: "null",
+        latestFileUpdatedAt: "2026-01-04T00:00:00.000Z" as unknown as Date,
+      },
+    ];
+
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: mockItems,
+        meta: { pagination: { nextCursor: null } },
+      },
+    });
+
+    const result = await listDriveTasks({ scope: "me" });
+
+    expect(result).toHaveLength(4);
+    expect(result[0]).toMatchObject({
+      type: "task-project",
+      latestFileUpdatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(result[1]).toMatchObject({
+      type: "task",
+      latestFileUpdatedAt: "2026-01-02T00:00:00.000Z",
+    });
+    expect(result[2]).toMatchObject({
+      type: "task-file",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    });
+    expect(result[3]).toMatchObject({
+      type: "task-no-project",
+      latestFileUpdatedAt: "2026-01-04T00:00:00.000Z",
+    });
+  });
 });
