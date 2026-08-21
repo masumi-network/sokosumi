@@ -262,7 +262,7 @@ function RoomParticipantStack({
   return (
     <button
       type="button"
-      className="flex -space-x-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex -space-x-2 cursor-pointer rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t("RoomRoster.open")}
       aria-expanded={rosterOpen}
       data-testid="room-roster-trigger"
@@ -775,6 +775,11 @@ export function RoomsClient({
     : "";
 
   const isDirectRoom = selectedRoom?.kind === "direct";
+  const showRoomRosterControl =
+    selectedRoom != null && shouldShowRoomRosterControl(selectedRoom);
+  if (rosterOpen && !showRoomRosterControl) {
+    setRosterOpen(false);
+  }
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
@@ -2584,30 +2589,28 @@ export function RoomsClient({
                   close: t("UnreadThreads.close"),
                 }}
               />
-            ) : (
-              rosterOpen && (
-                <RoomRosterPanel
-                  participants={getRoomParticipantPreviews(selectedRoom)}
-                  currentUserId={currentUserId}
-                  canOpenHumanDirect={canOpenHumanDirect}
-                  onOpenDirect={handleOpenDirectMessage}
-                  openingDirectKey={openingDirectKey}
-                  onClose={() => {
-                    setRosterOpen(false);
-                  }}
-                  labels={{
-                    title: t("RoomRoster.title"),
-                    close: t("RoomRoster.close"),
-                    empty: t("RoomRoster.empty"),
-                    coworkerBadge: t("coworkerBadge"),
-                    message: (name) => t("RoomRoster.message", { name }),
-                    copy: (value) => t("RoomRoster.copy", { value }),
-                    copySuccess: t("RoomRoster.copySuccess"),
-                    copyError: t("RoomRoster.copyError"),
-                  }}
-                />
-              )
-            )
+            ) : showRoomRosterControl && rosterOpen ? (
+              <RoomRosterPanel
+                participants={getRoomParticipantPreviews(selectedRoom)}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirect={handleOpenDirectMessage}
+                openingDirectKey={openingDirectKey}
+                onClose={() => {
+                  setRosterOpen(false);
+                }}
+                labels={{
+                  title: t("RoomRoster.title"),
+                  close: t("RoomRoster.close"),
+                  empty: t("RoomRoster.empty"),
+                  coworkerBadge: t("coworkerBadge"),
+                  message: (name) => t("RoomRoster.message", { name }),
+                  copy: (value) => t("RoomRoster.copy", { value }),
+                  copySuccess: t("RoomRoster.copySuccess"),
+                  copyError: t("RoomRoster.copyError"),
+                }}
+              />
+            ) : null
           }
         />
       </>

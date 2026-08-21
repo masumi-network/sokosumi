@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
@@ -271,23 +271,25 @@ const organization = {
   slug: "acme",
 } as Organization;
 
+function roomClientProps(room: ChatRoom) {
+  return {
+    activeOrganization: organization,
+    rooms: [room],
+    organizationMembers: [] as [],
+    currentUserId: "user-1",
+    coworkers: [] as [],
+    selectedRoomId: room.id,
+    isCreateChannelRequested: false,
+    isNewDirectMessage: false,
+    messageLoadFailed: false,
+    membersLoadFailed: false,
+    messages: [] as [],
+    messagesNextCursor: null,
+  };
+}
+
 function renderRoom(room: ChatRoom) {
-  return render(
-    <RoomsClient
-      activeOrganization={organization}
-      rooms={[room]}
-      organizationMembers={[]}
-      currentUserId="user-1"
-      coworkers={[]}
-      selectedRoomId={room.id}
-      isCreateChannelRequested={false}
-      isNewDirectMessage={false}
-      messageLoadFailed={false}
-      membersLoadFailed={false}
-      messages={[]}
-      messagesNextCursor={null}
-    />,
-  );
+  return render(<RoomsClient {...roomClientProps(room)} />);
 }
 
 describe("RoomsClient room header chrome", () => {
@@ -302,6 +304,7 @@ describe("RoomsClient room header chrome", () => {
     expect(title).not.toHaveClass("text-muted-foreground");
     expect(title.parentElement).toContainElement(search);
     expect(title.parentElement).not.toContainElement(threads);
+    expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
   });
 
   it("opens the Members rail from the face stack and yields the rail to threads", async () => {
@@ -323,11 +326,33 @@ describe("RoomsClient room header chrome", () => {
 
   it("hides the roster control on human 1:1 directs", async () => {
     renderRoom(humanDirectRoom());
+    await screen.findByTestId("unread-threads-trigger");
     await act(async () => {
       await Promise.resolve();
     });
     expect(screen.queryByTestId("room-roster-trigger")).toBeNull();
     expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
+  });
+
+  it("closes the Members rail when a group Direct shrinks to 1:1", async () => {
+    const user = userEvent.setup();
+    const group = groupDirectRoom();
+    const { rerender } = renderRoom(group);
+
+    const trigger = await screen.findByTestId("room-roster-trigger");
+    await user.click(trigger);
+    expect(screen.getByTestId("room-roster-panel")).toBeTruthy();
+
+    const pair: ChatRoom = {
+      ...group,
+      userMembers: group.userMembers.slice(0, 2),
+    };
+    rerender(<RoomsClient {...roomClientProps(pair)} />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("room-roster-panel")).toBeNull();
+      expect(screen.queryByTestId("room-roster-trigger")).toBeNull();
+    });
   });
 
   it("shows the roster control on group directs without channel settings", async () => {
