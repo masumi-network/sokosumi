@@ -12,7 +12,10 @@ permissions:
 jobs:
   preview:
     name: Comment preview
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/deploy')
+    if: >
+      github.event.issue.pull_request &&
+      github.event.comment.user.type != 'Bot' &&
+      contains(lower(github.event.comment.body), '/deploy')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

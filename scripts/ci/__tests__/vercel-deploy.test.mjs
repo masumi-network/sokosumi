@@ -381,6 +381,7 @@ describe("pollDeploymentUntilSettled", () => {
       fetchImpl: async () => {
         calls.push(true);
         return {
+          ok: true,
           json: async () => ({
             id: "dpl_1",
             url: "x.vercel.app",
@@ -391,6 +392,61 @@ describe("pollDeploymentUntilSettled", () => {
     });
     assert.equal(result.readyState, "READY");
     assert.equal(calls.length, 1);
+  });
+
+  it("keeps the last known deployment when a poll response is not ok", async () => {
+    const urls = [];
+    const result = await pollDeploymentUntilSettled({
+      deployment: { id: "dpl_1", readyState: "QUEUED" },
+      token: "tok",
+      teamId: VERCEL_TEAM_ID,
+      timeoutMs: 60_000,
+      intervalMs: 1,
+      sleep: async () => {},
+      fetchImpl: async (url) => {
+        urls.push(String(url));
+        if (urls.length === 1) {
+          return { ok: false, json: async () => ({ error: "rate limit" }) };
+        }
+        return {
+          ok: true,
+          json: async () => ({ id: "dpl_1", readyState: "READY" }),
+        };
+      },
+    });
+    assert.equal(result.readyState, "READY");
+    assert.equal(urls.length, 2);
+    assert.match(urls[1], /\/dpl_1/);
+  });
+
+  it("treats BLOCKED as terminal", async () => {
+    const result = await pollDeploymentUntilSettled({
+      deployment: { id: "dpl_1", readyState: "BLOCKED" },
+      token: "tok",
+      teamId: VERCEL_TEAM_ID,
+      fetchImpl: async () => {
+        throw new Error("should not poll");
+      },
+    });
+    assert.equal(result.readyState, "BLOCKED");
+  });
+
+  it("throws when polling times out", async () => {
+    await assert.rejects(
+      () =>
+        pollDeploymentUntilSettled({
+          deployment: { id: "dpl_1", readyState: "QUEUED" },
+          token: "tok",
+          teamId: VERCEL_TEAM_ID,
+          timeoutMs: 0,
+          intervalMs: 1,
+          sleep: async () => {},
+          fetchImpl: async () => {
+            throw new Error("should not poll");
+          },
+        }),
+      /did not finish/,
+    );
   });
 });
 
@@ -469,6 +525,11 @@ describe("git preview policy", () => {
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
+    assert.match(
+      workflow,
+      /contains\(lower\(github\.event\.comment\.body\), '\/deploy'\)/,
+    );
+    assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
   });
 
   it("deploys production from GitHub Actions on push to main", async () => {
@@ -482,5 +543,6 @@ describe("git preview policy", () => {
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs production/);
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
+    assert.match(workflow, /cancel-in-progress:\s*false/);
   });
 });

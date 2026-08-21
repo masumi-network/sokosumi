@@ -168,7 +168,12 @@ export async function createGitDeployment({
   return payload;
 }
 
-const TERMINAL_READY_STATES = new Set(["READY", "ERROR", "CANCELED"]);
+const TERMINAL_READY_STATES = new Set([
+  "READY",
+  "ERROR",
+  "CANCELED",
+  "BLOCKED",
+]);
 
 export async function pollDeploymentUntilSettled({
   deployment,
@@ -187,17 +192,29 @@ export async function pollDeploymentUntilSettled({
   let current = deployment;
   while (Date.now() < deadline) {
     await sleep(intervalMs);
+    if (!current.id) {
+      throw new Error("Vercel deployment poll lost deployment id");
+    }
     const url = new URL(`https://api.vercel.com/v13/deployments/${current.id}`);
     url.searchParams.set("teamId", teamId);
     const response = await fetchImpl(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    current = await response.json();
+    if (!response.ok) {
+      continue;
+    }
+    const payload = await response.json();
+    if (!payload?.id) {
+      continue;
+    }
+    current = payload;
     if (TERMINAL_READY_STATES.has(current.readyState)) {
       return current;
     }
   }
-  return current;
+  throw new Error(
+    `Vercel deployment ${current.id} did not finish (last state: ${current.readyState ?? "UNKNOWN"})`,
+  );
 }
 
 function githubHeaders(token) {
