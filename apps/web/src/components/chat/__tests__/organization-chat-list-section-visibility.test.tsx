@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -8,10 +9,13 @@ import type {
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
-const { listRoomsMock, listPendingMock } = vi.hoisted(() => ({
-  listRoomsMock: vi.fn(),
-  listPendingMock: vi.fn(),
-}));
+const { acceptInvitationMock, listRoomsMock, listPendingMock } = vi.hoisted(
+  () => ({
+    acceptInvitationMock: vi.fn(),
+    listRoomsMock: vi.fn(),
+    listPendingMock: vi.fn(),
+  }),
+);
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -50,7 +54,9 @@ vi.mock("@/hooks/use-chat-unread-document-title", () => ({
 }));
 
 vi.mock("@/app/chat/actions", () => ({
-  acceptChatRoomInvitationAction: vi.fn(),
+  acceptChatRoomInvitationAction: (
+    ...args: Parameters<typeof acceptInvitationMock>
+  ) => acceptInvitationMock(...args),
   declineChatRoomInvitationAction: vi.fn(),
   deleteRoomAction: vi.fn(),
   listPendingChatRoomInvitationsAction: (
@@ -227,10 +233,15 @@ function renderList({
 
 describe("OrganizationChatList section visibility", () => {
   beforeEach(() => {
+    acceptInvitationMock.mockReset();
     listRoomsMock.mockReset();
     listPendingMock.mockReset();
     listRoomsMock.mockResolvedValue(emptyListResult());
     listPendingMock.mockResolvedValue({ ok: true, value: [] });
+    acceptInvitationMock.mockResolvedValue({
+      ok: true,
+      value: makeInvitation(),
+    });
   });
 
   it("hides Channels in a personal workspace", () => {
@@ -297,5 +308,60 @@ describe("OrganizationChatList section visibility", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Partners")).toBeInTheDocument();
     expect(screen.getByText("Acme")).toBeInTheDocument();
+  });
+
+  it("keeps External visible while the last pending invite is accepted", async () => {
+    const invitation = makeInvitation();
+    const joined = makeRoom({
+      id: invitation.roomId,
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      name: invitation.roomName,
+    });
+    listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
+    listRoomsMock.mockReset();
+    listRoomsMock.mockResolvedValueOnce(emptyListResult());
+    let resolveRooms!: (value: ReturnType<typeof emptyListResult>) => void;
+    listRoomsMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRooms = resolve;
+      }),
+    );
+    acceptInvitationMock.mockResolvedValue({ ok: true, value: invitation });
+
+    renderList({
+      organizationId: "org-1",
+      pendingInvitations: [invitation],
+    });
+
+    expect(
+      await screen.findByText("App.Channels.External.title"),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "App.Channels.External.accept" }),
+    );
+
+    await waitFor(() => {
+      expect(listRoomsMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getByText("App.Channels.External.title")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "App.Channels.loading" }),
+    ).toBeInTheDocument();
+
+    resolveRooms(emptyListResult([joined]));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", {
+          name: "App.Channels.External.accept",
+        }),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("App.Channels.External.title")).toBeInTheDocument();
+    expect(screen.getByText("Partners")).toBeInTheDocument();
   });
 });

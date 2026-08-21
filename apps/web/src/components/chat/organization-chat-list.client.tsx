@@ -613,17 +613,19 @@ export function OrganizationChatList({
     setRespondingInvitation({ id: invitation.id, action: "accept" });
     startInviteResponseTransition(async () => {
       const result = await acceptChatRoomInvitationAction(invitation.id);
-      setRespondingInvitation(null);
       if (!result.ok) {
+        setRespondingInvitation(null);
         toast.error(result.error.message || tExternal("acceptError"));
         return;
       }
       toast.success(tExternal("acceptSuccess", { name: invitation.roomName }));
+      // Drop pending and upsert rooms in the same tick so External does not
+      // unmount between the last invite and the joined guest room.
+      const roomsResult = await listOrganizationChatRoomsAction();
+      setRespondingInvitation(null);
       setPendingRows((current) =>
         current.filter((row) => row.id !== invitation.id),
       );
-      // Guest room appears on next list refresh; pull rooms immediately.
-      const roomsResult = await listOrganizationChatRoomsAction();
       if (roomsResult.ok) {
         setRoomRows((current) =>
           applyRoomReadOverlays(
