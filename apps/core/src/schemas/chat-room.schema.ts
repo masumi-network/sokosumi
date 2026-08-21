@@ -125,7 +125,7 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0012.",
+        "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.",
       example: 2,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({
@@ -500,7 +500,7 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 /**
  * A top-level room message that has ≥1 non-deleted reply, with per-user look
- * metadata. `unreadReplyCount` is Participant-gated (ADR-0012): never-looked
+ * metadata. `unreadReplyCount` is Participant-gated (ADR-0013): never-looked
  * Participants can be > 0; lurkers are 0. Same set as room unread's thread
  * slice, `unread=true`, and Mark all.
  */

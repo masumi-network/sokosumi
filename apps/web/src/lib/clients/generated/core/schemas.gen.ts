@@ -5434,7 +5434,7 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0012.',
+            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.',
             example: 2
         },
         unreadMentionCount: {

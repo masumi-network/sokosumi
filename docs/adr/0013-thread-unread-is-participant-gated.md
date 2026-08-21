@@ -1,4 +1,4 @@
-# ADR 0012: Thread unread is Participant-gated
+# ADR 0013: Thread unread is Participant-gated
 
 - Status: Accepted
 - Date: 2026-08-21

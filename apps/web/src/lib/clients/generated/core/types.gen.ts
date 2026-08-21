@@ -1521,7 +1521,7 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0012.
+     * Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.
      */
     unreadCount: number;
     /**

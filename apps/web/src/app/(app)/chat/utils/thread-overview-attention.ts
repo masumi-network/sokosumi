@@ -1,6 +1,6 @@
 /**
  * Thread-overview unread uses Core `unreadReplyCount` — Participant-gated
- * dual-baseline (ADR-0012). Lurkers stay 0 even if they Looked.
+ * dual-baseline (ADR-0013). Lurkers stay 0 even if they Looked.
  */
 export function threadNeedsOverviewAttention(thread: {
   unreadReplyCount: number;

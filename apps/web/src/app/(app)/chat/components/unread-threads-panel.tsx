@@ -11,7 +11,7 @@ interface UnreadThreadsPanelProps {
   roomId: string;
   labels: UnreadThreadsPanelLabels;
   /**
-   * Unused: Threads control no longer shows an attention count (ADR-0012).
+   * Unused: Threads control no longer shows an attention count (ADR-0013).
    * Kept so existing callers need not change.
    */
   attentionRefreshToken?: number;

@@ -113,7 +113,7 @@ function resolveUserPresence(
 }
 
 /**
- * SQL predicate: viewer is a Participant of `parent` (ADR-0012).
+ * SQL predicate: viewer is a Participant of `parent` (ADR-0013).
  * Parent author, remaining own reply, or remaining user mention on parent/reply.
  */
 function sqlViewerIsThreadParticipant(userIdSql: string): string {
@@ -151,7 +151,7 @@ function sqlViewerIsThreadParticipant(userIdSql: string): string {
  * - Thread replies: after per-thread look baseline
  *   (`ChatRoomThreadReadState.lastReadAt`, else room read-state `createdAt`,
  *   else -infinity), and only when the viewer is a Participant of that
- *   Thread (ADR-0012). Room mark-read must not clear thread look contribution;
+ *   Thread (ADR-0013). Room mark-read must not clear thread look contribution;
  *   looking a thread must.
  *
  * Soft-deleted messages and the viewer's own user messages are excluded.
@@ -239,7 +239,7 @@ export interface ChatRoomThreadAggregate {
  * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
  * with per-user unread counts.
  *
- * `unreadReplyCount` is Participant-gated (ADR-0012): non-self replies after
+ * `unreadReplyCount` is Participant-gated (ADR-0013): non-self replies after
  * dual-baseline look (thread lastReadAt, else room join createdAt, else
  * -infinity). Never-looked Participants can be > 0. Lurkers are 0.
  * `unreadOnly` and Mark all filter on `unreadReplyCount >= 1`.
@@ -556,7 +556,7 @@ export async function markChatRoomThreadRead(
 /**
  * Count parents with `unreadReplyCount >= 1` (Participant-gated dual-baseline).
  * Cheap count path: no parent hydrate, no row list. Same eligibility as
- * `unreadOnly` / Mark all (ADR-0012).
+ * `unreadOnly` / Mark all (ADR-0013).
  */
 export async function countChatRoomAttentionThreads(
   roomId: string,
@@ -598,7 +598,7 @@ export async function countChatRoomAttentionThreads(
 /**
  * Upsert look state for every unread Thread the viewer Participates in.
  * Does not change room ChatRoomReadState or CHAT notifications. Same
- * Participant-gated set as `unreadOnly` (ADR-0012).
+ * Participant-gated set as `unreadOnly` (ADR-0013).
  */
 export async function markAllChatRoomThreadsRead(
   roomId: string,
