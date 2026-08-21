@@ -1,4 +1,5 @@
-import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { FileIcon } from "lucide-react";
+import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import type {
   PublicSharedTaskFile,
@@ -33,27 +34,31 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
       <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
         {title}
       </h2>
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
         {files.map((file) =>
-          file.fileUrl ? (
-            <div key={file.id} className="flex items-center gap-2">
-              <FileChipMiniPreviewWithMetadata
-                url={file.fileUrl}
-                fileName={file.name}
-                mediaType={file.mimeType}
-              />
-              {hasStatus(file) && (
-                <TaskFileStatusBadge status={file.status as TaskFileStatus} />
-              )}
-            </div>
+          file.fileUrl && hasStatus(file) && file.status === "READY" ? (
+            <FileChipWithMetadata
+              key={file.id}
+              url={file.fileUrl}
+              fileName={file.name}
+              mediaType={file.mimeType}
+              sizeClass="size-4"
+            />
           ) : (
             <div
               key={file.id}
-              className="flex items-center gap-2 rounded-md border p-1.5"
+              className="inline-flex items-center gap-2 rounded-md border p-2"
             >
-              <span className="flex-1 truncate text-xs">{file.name}</span>
+              <div className="inline-flex items-center justify-center">
+                <FileIcon className="text-muted-foreground size-4" />
+              </div>
+              <span className="text-foreground/80 w-full truncate text-sm">
+                {file.name}
+              </span>
               {hasStatus(file) && (
-                <TaskFileStatusBadge status={file.status as TaskFileStatus} />
+                <div className="inline-flex justify-end">
+                  <TaskFileStatusBadge status={file.status as TaskFileStatus} />
+                </div>
               )}
             </div>
           ),
