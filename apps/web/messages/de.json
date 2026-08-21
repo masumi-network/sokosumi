@@ -5262,6 +5262,16 @@
         "creating": "Wird erstellt…",
         "adding": "Wird hinzugefügt…"
       },
+      "RoomRoster": {
+        "open": "Mitglieder",
+        "title": "Mitglieder",
+        "close": "Mitglieder schließen",
+        "empty": "Keine Mitglieder vorhanden.",
+        "message": "Nachricht an {name}",
+        "copy": "{value} kopieren",
+        "copySuccess": "In die Zwischenablage kopiert",
+        "copyError": "Kopieren fehlgeschlagen."
+      },
       "UnreadThreads": {
         "open": "Threads",
         "title": "Threads",
