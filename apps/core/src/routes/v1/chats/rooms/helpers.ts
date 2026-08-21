@@ -1695,7 +1695,13 @@ export async function requireChatRoomCoworkerAccess(
   roomId: string,
   coworkerId: string,
   tx: Prisma.TransactionClient,
-): Promise<{ id: string }> {
+): Promise<{
+  id: string;
+  name: string;
+  kind: string;
+  organizationId: string | null;
+  userMembers: Array<{ userId: string }>;
+}> {
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
@@ -1704,7 +1710,13 @@ export async function requireChatRoomCoworkerAccess(
         some: { coworkerId },
       },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      organizationId: true,
+      userMembers: { select: { userId: true } },
+    },
   });
 
   if (!room) {
