@@ -106,6 +106,46 @@ export interface AgentRowOverrides {
   paymentSources?: unknown[];
 }
 
+/** STANDARD hire-catalog row the unified list can summarize as kind=cardano. */
+export function createCardanoAgentRow(overrides: { id?: string } = {}) {
+  return {
+    id: overrides.id ?? "agent_cardano_1",
+    type: "STANDARD" as const,
+    createdAt: new Date("2026-03-17T10:00:00.000Z"),
+    updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+    name: "Research Assistant",
+    description: "Finds information",
+    image: null,
+    icon: null,
+    summary: "A short summary",
+    riskClassification: "MINIMAL",
+    pricing: {
+      pricingType: "FREE",
+      fixedPricing: null,
+    },
+    jobCount: 0,
+    categories: [],
+    overrideAuthorName: null,
+    authorName: "Jane Doe",
+    overrideAuthorImage: null,
+    authorImage: null,
+    overrideAuthorOrganization: null,
+    authorOrganization: "Sokosumi",
+    overrideAuthorContactEmail: null,
+    authorContactEmail: "jane@example.com",
+    overrideAuthorContactOther: null,
+    authorContactOther: null,
+    overrideLegalPrivacyPolicy: null,
+    legalPrivacyPolicy: null,
+    overrideLegalTerms: null,
+    legalTerms: null,
+    overrideLegalDpa: null,
+    legalDpa: null,
+    overrideLegalOther: null,
+    legalOther: null,
+  };
+}
+
 export function createAgentRow(overrides: AgentRowOverrides = {}) {
   const type = overrides.type ?? "X402";
   return {

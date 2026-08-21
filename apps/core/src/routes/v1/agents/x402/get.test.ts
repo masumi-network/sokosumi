@@ -5,6 +5,7 @@ import {
   BASE_SEPOLIA,
   createAgentRow,
   createApp,
+  createCardanoAgentRow,
   createCreditCostRow,
   createReadinessRow,
   NODE_DECIMALS,
@@ -53,6 +54,7 @@ vi.mock("@/lib/db/prisma", () => ({
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
+    userAgentRating: { groupBy: () => Promise.resolve([]) },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -86,6 +88,27 @@ describe("GET /agents?kind=x402", () => {
     ]);
     agentFindManyMock.mockResolvedValue([createAgentRow()]);
     agentCountMock.mockResolvedValue(1);
+  });
+
+  it("returns cardano and x402 items on one unfiltered page", async () => {
+    agentFindManyMock.mockResolvedValue([
+      createCardanoAgentRow(),
+      createAgentRow(),
+    ]);
+    agentCountMock.mockResolvedValue(2);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      data: Array<{ kind: string; id: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((item) => item.kind)).toEqual(["cardano", "x402"]);
+    expect(body.data.map((item) => item.id)).toEqual([
+      "agent_cardano_1",
+      "agent_x402_1",
+    ]);
   });
 
   it("returns payable agents to an authenticated user actor", async () => {

@@ -232,14 +232,19 @@ const agentBaseSchema = z.object({
 
 export const agentSummarySchema = agentBaseSchema.openapi("Agent");
 
-export const cardanoAgentListItemSchema = agentSummarySchema.extend({
-  kind: z.literal("cardano"),
-});
+export const cardanoAgentListItemSchema = agentSummarySchema
+  .extend({
+    kind: z.literal("cardano"),
+  })
+  .openapi("CardanoAgentListItem");
 
 export type CardanoAgentListItem = z.infer<typeof cardanoAgentListItemSchema>;
 
+// Nested: kind splits the rails, then x402AgentSchema splits on pricingType.
+// Flattening the three x402 variants into this union throws — they share
+// kind:"x402".
 export const agentListItemSchema = z
-  .union([cardanoAgentListItemSchema, x402AgentSchema])
+  .discriminatedUnion("kind", [cardanoAgentListItemSchema, x402AgentSchema])
   .openapi("AgentListItem");
 
 export const agentListSchema = z.array(agentListItemSchema);
