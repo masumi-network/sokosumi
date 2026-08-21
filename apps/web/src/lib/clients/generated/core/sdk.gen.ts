@@ -1138,8 +1138,8 @@ export const getDriveTasks = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Copy a TaskFile or job output Blob to Drive root. Creates a new Drive file at Drive root using the source file name.
- * Source file unchanged. Requires read access to the task and write access to the destination Drive.
+ * Copy a TaskFile to Drive root. Creates a new Drive file at Drive root using TaskFile.name.
+ * Source TaskFile and blob unchanged. Requires read access to the task and write access to the destination Drive.
  */
 export const postDriveTasksCopy = <ThrowOnError extends boolean = false>(options: Options<PostDriveTasksCopyData, ThrowOnError>): RequestResult<PostDriveTasksCopyResponses, PostDriveTasksCopyErrors, ThrowOnError> => (options.client ?? client).post<PostDriveTasksCopyResponses, PostDriveTasksCopyErrors, ThrowOnError>({
     responseTransformer: postDriveTasksCopyResponseTransformer,

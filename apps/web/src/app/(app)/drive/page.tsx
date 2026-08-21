@@ -245,7 +245,12 @@ type ExploreItem =
   | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
   | { kind: "tasks-root" }
   | ({
-      kind: "task-project" | "task-no-project" | "task" | "task-file";
+      kind:
+        | "task-project"
+        | "task-no-project"
+        | "task"
+        | "task-file"
+        | "job-output";
     } & DriveTasksListItem);
 
 export default function DrivePage(): ReactElement {
@@ -956,7 +961,7 @@ export default function DrivePage(): ReactElement {
   }
 
   function openCopyDialog(item: DriveTasksListItem) {
-    if (item.type !== "task-file") {
+    if (item.type !== "task-file" && item.type !== "job-output") {
       return;
     }
     setTaskFileToCopy(item);
@@ -967,7 +972,8 @@ export default function DrivePage(): ReactElement {
   async function handleCopyConfirm() {
     if (
       !taskFileToCopy ||
-      taskFileToCopy.type !== "task-file" ||
+      (taskFileToCopy.type !== "task-file" &&
+        taskFileToCopy.type !== "job-output") ||
       !copyDestinationScope
     ) {
       return;
@@ -977,13 +983,24 @@ export default function DrivePage(): ReactElement {
     try {
       await postDriveTasksCopy({
         client: getBrowserCoreClient(),
-        body: {
-          taskFileId: taskFileToCopy.id,
-          scope: copyDestinationScope,
-          ...(copyDestinationScope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-        },
+        body:
+          taskFileToCopy.type === "task-file"
+            ? {
+                kind: "task-file",
+                taskFileId: taskFileToCopy.id,
+                scope: copyDestinationScope,
+                ...(copyDestinationScope === "org" && activeOrganizationId
+                  ? { organizationId: activeOrganizationId }
+                  : {}),
+              }
+            : {
+                kind: "job-output",
+                blobId: taskFileToCopy.id,
+                scope: copyDestinationScope,
+                ...(copyDestinationScope === "org" && activeOrganizationId
+                  ? { organizationId: activeOrganizationId }
+                  : {}),
+              },
         throwOnError: true,
       });
 
@@ -1074,6 +1091,9 @@ export default function DrivePage(): ReactElement {
         }
         if (item.type === "task") {
           return { kind: "task", ...item };
+        }
+        if (item.type === "job-output") {
+          return { kind: "job-output", ...item };
         }
         return { kind: "task-file", ...item };
       });
@@ -1607,6 +1627,108 @@ export default function DrivePage(): ReactElement {
                     return (
                       <article
                         key={`task-file-${item.id}`}
+                        className={cn(
+                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center">
+                            <FileTypeIcon extension={extension || "file"} />
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <TaskFileNameWithPreview
+                              name={item.name}
+                              fileUrl={item.fileUrl}
+                              isPreviewable={isPreviewable}
+                              isImage={isImage}
+                              documentKind={documentKind}
+                            />
+                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                              <span>
+                                {item.size ? formatBytes(item.size) : "—"}
+                              </span>
+                              <span>
+                                {formatter.dateTime(new Date(item.updatedAt), {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                            <span>
+                              {item.size ? formatBytes(item.size) : "—"}
+                            </span>
+                            <span>
+                              {formatter.dateTime(new Date(item.updatedAt), {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 pl-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                aria-label={t("moreActions")}
+                              >
+                                <MoreHorizontal
+                                  className="size-4"
+                                  aria-hidden
+                                />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  handleDownload(item.fileUrl, item.name);
+                                }}
+                              >
+                                <Download className="size-4" aria-hidden />
+                                {t("downloadAction")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  openCopyDialog(item);
+                                }}
+                              >
+                                <Copy className="size-4" aria-hidden />
+                                {t("copyToDriveAction")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </article>
+                    );
+                  }
+
+                  if (item.kind === "job-output") {
+                    if (!("type" in item) || item.type !== "job-output") {
+                      return null;
+                    }
+                    const extension = getExtensionFromUrl(item.name);
+                    const { isImage, documentKind } = classifyFilePreview(
+                      item.fileUrl,
+                      item.name,
+                    );
+                    const isPreviewable = isImage || documentKind !== null;
+
+                    return (
+                      <article
+                        key={`job-output-${item.id}`}
                         className={cn(
                           "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
                           PROJECTS_LIST_ROW_LAYOUT_CLASS,
