@@ -60,6 +60,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
+const PEER_ID = "user_456";
 const ORG_ID = "org_1";
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -116,6 +117,37 @@ function room() {
   };
 }
 
+function personalDirectRoom() {
+  return {
+    ...room(),
+    organizationId: null,
+    name: "Ada, Guest",
+    kind: "direct",
+    userMembers: [
+      {
+        userId: USER_ID,
+        user: {
+          id: USER_ID,
+          name: "Ada",
+          email: "ada@example.com",
+          image: null,
+          sessions: [],
+        },
+      },
+      {
+        userId: PEER_ID,
+        user: {
+          id: PEER_ID,
+          name: "Guest",
+          email: "guest@example.com",
+          image: null,
+          sessions: [],
+        },
+      },
+    ],
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   roomFindFirstMock.mockResolvedValue(room());
@@ -159,6 +191,36 @@ describe("GET /chats/rooms/{id}", () => {
       pinnedAt: null,
       markedUnread: false,
     });
+  });
+
+  it("sets peerInActiveOrganization true for a Personal Direct whose peer is an org Member", async () => {
+    roomFindFirstMock.mockResolvedValue(personalDirectRoom());
+    memberFindManyMock.mockResolvedValue([{ userId: PEER_ID }]);
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.peerInActiveOrganization).toBe(true);
+    expect(body.data.organizationId).toBeNull();
+    expect(memberFindManyMock).toHaveBeenCalledWith({
+      where: {
+        organizationId: ORG_ID,
+        userId: { in: [PEER_ID] },
+      },
+      select: { userId: true },
+    });
+  });
+
+  it("sets peerInActiveOrganization false for a Personal Direct whose peer is not an org Member", async () => {
+    roomFindFirstMock.mockResolvedValue(personalDirectRoom());
+    memberFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.peerInActiveOrganization).toBe(false);
   });
 
   it("returns 404 when the room is missing", async () => {

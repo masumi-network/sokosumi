@@ -476,6 +476,9 @@ async function createOrGetDirectRoom(params: {
 
         if (!targetsAreOrgTeammates) {
           const peerUserId = memberUserIds[0];
+          if (!peerUserId) {
+            throw badRequest("Choose a direct message target");
+          }
           const shareChannel = await usersShareExternalChannel(
             currentUserId,
             peerUserId,
