@@ -2,30 +2,31 @@
  * Temporary overlay (ADR 0010): create a personal workspace for every user
  * who has an organization membership and no personal workspace.
  *
- * Does not change preferredOrganizationId. Skips zero-workspace users.
- * No-op unless REQUIRE_PERSONAL_WORKSPACE=true.
+ * Loads DATABASE_URL from this package's `.env` (same as Prisma CLI).
+ * Does not read Core env. Skips zero-workspace users.
  *
  *   pnpm data-migration:org-only-personal-workspaces
  */
 
-import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { config as loadEnv } from "dotenv";
 
 import { createPrismaClient } from "../src/client.js";
 import { backfillPersonalWorkspacesForOrgOnlyUsers } from "../src/helpers/org-only-personal-workspace-backfill.js";
 
-async function main(): Promise<void> {
-  const required =
-    process.env.REQUIRE_PERSONAL_WORKSPACE?.trim().toLowerCase() === "true";
-  if (!required) {
-    console.log(
-      "Skipped org-only personal workspace backfill (REQUIRE_PERSONAL_WORKSPACE is not true).",
-    );
-    return;
-  }
+loadEnv({
+  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"),
+});
 
-  const databaseUrl = process.env.DATABASE_URL;
+async function main(): Promise<void> {
+  const databaseUrl =
+    process.env.DATABASE_URL_UNPOOLED?.trim() ||
+    process.env.DATABASE_URL?.trim();
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is required");
+    throw new Error(
+      "DATABASE_URL is required (packages/database/.env, same as prisma migrate)",
+    );
   }
 
   const prisma = createPrismaClient(databaseUrl);

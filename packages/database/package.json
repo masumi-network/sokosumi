@@ -66,7 +66,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "data-migration:better-auth-1-7-harvest": "tsx --env-file=../../apps/core/.env scripts/better-auth-1-7-harvest.ts",
-    "data-migration:org-only-personal-workspaces": "tsx --env-file=../../apps/core/.env scripts/backfill-org-only-personal-workspaces.ts",
+    "data-migration:org-only-personal-workspaces": "tsx scripts/backfill-org-only-personal-workspaces.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"
