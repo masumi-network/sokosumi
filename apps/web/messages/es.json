@@ -509,6 +509,12 @@
         "loadMoreError": "No se pudieron cargar más jobs"
       }
     },
+    "Tasks": {
+      "TaskFileStatusBadge": {
+        "pending": "Pendiente",
+        "failed": "Falló"
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Propietario",
@@ -1684,10 +1690,6 @@
           "addCredits": "Añadir Credits",
           "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar.",
           "statusUnavailable": "Este task se ha quedado sin créditos."
-        },
-        "TaskFileStatusBadge": {
-          "pending": "Pendiente",
-          "failed": "Falló"
         },
         "actions": {
           "edit": "Editar",

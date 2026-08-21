@@ -525,6 +525,12 @@
         "loadMoreError": "Failed to load more jobs"
       }
     },
+    "Tasks": {
+      "TaskFileStatusBadge": {
+        "pending": "Pending",
+        "failed": "Failed"
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Owner",
@@ -1685,10 +1691,6 @@
           "addCredits": "Add credits",
           "placeholder": "This task needs credits to continue. Open billing to proceed.",
           "statusUnavailable": "This task is out of credits."
-        },
-        "TaskFileStatusBadge": {
-          "pending": "Pending",
-          "failed": "Failed"
         },
         "actions": {
           "edit": "Edit",

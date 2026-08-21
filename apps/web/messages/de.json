@@ -509,6 +509,12 @@
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
     },
+    "Tasks": {
+      "TaskFileStatusBadge": {
+        "pending": "Ausstehend",
+        "failed": "Fehlgeschlagen"
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Eigentümer",
@@ -1684,10 +1690,6 @@
           "addCredits": "Credits hinzufügen",
           "placeholder": "Dieser Task benötigt Credits. Geh zu Billing, um fortzufahren.",
           "statusUnavailable": "Dieser Task hat keine Credits mehr."
-        },
-        "TaskFileStatusBadge": {
-          "pending": "Ausstehend",
-          "failed": "Fehlgeschlagen"
         },
         "actions": {
           "edit": "Bearbeiten",
