@@ -28,23 +28,14 @@ import { cn } from "@/lib/utils";
 
 type WorkspaceChoice = "personal" | "organization";
 
-/**
- * Temporary registration policy. Organization setup remains implemented below
- * so re-enabling it later only requires changing this default.
- */
-const ORGANIZATION_SETUP_ENABLED = false;
-
 interface IdentityOnboardingFormProps {
   initialName: string;
   workspaceReady: boolean;
-  /** Keeps the dormant organization path covered while its UI is disabled. */
-  organizationSetupEnabled?: boolean;
 }
 
 export function IdentityOnboardingForm({
   initialName,
   workspaceReady,
-  organizationSetupEnabled = ORGANIZATION_SETUP_ENABLED,
 }: IdentityOnboardingFormProps) {
   const t = useTranslations("WorkspaceGate.Identity");
   const tSchema = useTranslations("Library.Auth.Schema");
@@ -169,7 +160,7 @@ export function IdentityOnboardingForm({
   }
 
   function handleSetupSubmit(values: NameFormType) {
-    if (choice === "organization" && organizationSetupEnabled) {
+    if (choice === "organization") {
       void handleOrganizationContinue(values);
       return;
     }
@@ -215,10 +206,7 @@ export function IdentityOnboardingForm({
                 <RadioGroup
                   value={choice}
                   onValueChange={(value) => {
-                    if (
-                      value === "personal" ||
-                      (organizationSetupEnabled && value === "organization")
-                    ) {
+                    if (value === "personal" || value === "organization") {
                       setChoice(value);
                     }
                   }}
@@ -249,12 +237,8 @@ export function IdentityOnboardingForm({
                   </Label>
                   <Label
                     htmlFor="workspace-choice-organization"
-                    aria-disabled={!organizationSetupEnabled}
                     className={cn(
-                      "border-input flex items-start gap-3 rounded-lg border p-4",
-                      organizationSetupEnabled
-                        ? "hover:bg-accent/40 cursor-pointer"
-                        : "cursor-not-allowed opacity-60",
+                      "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "organization" &&
                         "border-primary bg-accent/30",
                     )}
@@ -262,19 +246,11 @@ export function IdentityOnboardingForm({
                     <RadioGroupItem
                       value="organization"
                       id="workspace-choice-organization"
-                      disabled={!organizationSetupEnabled}
                       className="mt-0.5"
                     />
                     <span className="space-y-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {t("organizationTitle")}
-                        </span>
-                        {!organizationSetupEnabled ? (
-                          <span className="text-muted-foreground text-xs font-normal">
-                            {t("organizationUnavailable")}
-                          </span>
-                        ) : null}
+                      <span className="block text-sm font-medium">
+                        {t("organizationTitle")}
                       </span>
                       <span className="text-muted-foreground block text-sm font-normal">
                         {t("organizationDescription")}

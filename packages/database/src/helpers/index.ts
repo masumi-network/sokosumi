@@ -40,6 +40,7 @@ export * from "./enterprise-contract-scheduler.js";
 export * from "./free-credits.js";
 export * from "./job.js";
 export * from "./job-sync.js";
+export * from "./org-only-personal-workspace-backfill.js";
 export * from "./organization-billing-plan.js";
 export * from "./organization-owner.js";
 export * from "./organization-seat-credits.js";

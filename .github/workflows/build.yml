@@ -38,6 +38,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     services:
       postgres:
         image: postgres:17
@@ -58,6 +61,8 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
 
       - name: Run Prisma Migrate
         run: pnpm prisma:migrate:dev
