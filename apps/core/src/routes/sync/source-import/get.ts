@@ -22,7 +22,21 @@ export default function mount(app: Hono) {
           });
 
         console.info(
-          `[sync/source-import] Completed sync (pendingBlobs=${pendingBlobCount}, durationMs=${Date.now() - startedAt})`,
+          `[sync/source-import] Completed import sync (pendingBlobs=${pendingBlobCount}, durationMs=${Date.now() - startedAt})`,
+        );
+
+        // Backfill historical TaskEvent comments
+        console.info("[sync/source-import] Starting comment backfill");
+        const backfillStartedAt = Date.now();
+        const backfilledCount =
+          await sourceImportSyncService.backfillTaskEventComments({
+            abortSignal: context.abortSignal,
+            deadlineMs: context.deadlineMs,
+            shouldContinue: context.shouldContinue,
+          });
+
+        console.info(
+          `[sync/source-import] Completed comment backfill (processedEvents=${backfilledCount}, durationMs=${Date.now() - backfillStartedAt})`,
         );
       },
     );

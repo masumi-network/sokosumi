@@ -354,6 +354,79 @@ async function importPendingResultBlobs(
   return totalPending;
 }
 
+interface BackfillTaskEventCommentsOptions {
+  abortSignal: AbortSignal;
+  deadlineMs: number;
+  shouldContinue: () => boolean;
+  batchSize?: number;
+}
+
+async function backfillTaskEventComments(
+  options: BackfillTaskEventCommentsOptions,
+): Promise<number> {
+  const { sourceImportService } = await import("./source-import.service");
+  const batchSize = options.batchSize ?? 100;
+  let processedCount = 0;
+
+  while (shouldContinueSync(options as ImportPendingResultBlobsOptions)) {
+    // Fetch a batch of task events with comments, oldest first
+    const events = await prisma.taskEvent.findMany({
+      where: {
+        comment: { not: null },
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        taskId: true,
+        comment: true,
+      },
+      take: batchSize,
+      skip: processedCount,
+    });
+
+    if (events.length === 0) {
+      break;
+    }
+
+    for (const event of events) {
+      if (!shouldContinueSync(options as ImportPendingResultBlobsOptions)) {
+        return processedCount;
+      }
+
+      if (!event.comment) {
+        continue;
+      }
+
+      try {
+        // Use a transaction to ensure atomicity
+        await prisma.$transaction(async (tx) => {
+          await sourceImportService.enqueueTaskOutputsFromMarkdown(
+            event.taskId,
+            event.comment as string,
+            tx,
+          );
+        });
+      } catch (error) {
+        // Log but continue - individual failures shouldn't stop the batch
+        console.error(
+          `Failed to backfill TaskEvent ${event.id} comment:`,
+          error,
+        );
+      }
+    }
+
+    processedCount += events.length;
+
+    // If we got fewer than batchSize, we've reached the end
+    if (events.length < batchSize) {
+      break;
+    }
+  }
+
+  return processedCount;
+}
+
 export const sourceImportSyncService = {
   importPendingResultBlobs,
+  backfillTaskEventComments,
 };

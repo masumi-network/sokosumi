@@ -10,6 +10,9 @@ const {
   taskFileFindManyMock,
   taskFileFindUniqueMock,
   taskFileUpdateMock,
+  taskEventFindManyMock,
+  prismaTransactionMock,
+  enqueueTaskOutputsFromMarkdownMock,
 } = vi.hoisted(() => ({
   blobFindManyMock: vi.fn(),
   blobFindUniqueMock: vi.fn(),
@@ -19,6 +22,9 @@ const {
   taskFileFindManyMock: vi.fn(),
   taskFileFindUniqueMock: vi.fn(),
   taskFileUpdateMock: vi.fn(),
+  taskEventFindManyMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  enqueueTaskOutputsFromMarkdownMock: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -39,6 +45,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: taskFileFindUniqueMock,
       update: taskFileUpdateMock,
     },
+    taskEvent: {
+      findMany: taskEventFindManyMock,
+    },
+    $transaction: prismaTransactionMock,
   },
 }));
 
@@ -52,6 +62,12 @@ vi.mock("@vercel/blob", () => ({
 // keep exercising the worker's scheduling/cancellation behavior.
 vi.mock("@sokosumi/net", () => ({
   ssrfSafeFetch: (url: string, init?: RequestInit) => global.fetch(url, init),
+}));
+
+vi.mock("./source-import.service", () => ({
+  sourceImportService: {
+    enqueueTaskOutputsFromMarkdown: enqueueTaskOutputsFromMarkdownMock,
+  },
 }));
 
 const originalFetch = global.fetch;
@@ -526,6 +542,127 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       expect(blobPutMock).toHaveBeenCalled();
       expect(blobUpdateMock).toHaveBeenCalled();
       expect(taskFileUpdateMock).toHaveBeenCalled();
+    });
+  });
+
+  describe("backfillTaskEventComments", () => {
+    beforeEach(() => {
+      enqueueTaskOutputsFromMarkdownMock.mockClear();
+      taskEventFindManyMock.mockClear();
+      prismaTransactionMock.mockClear();
+    });
+
+    it("processes historical TaskEvent comments with file-like URLs", async () => {
+      const events = [
+        {
+          id: "evt_1",
+          taskId: "tsk_1",
+          comment: "https://example.com/file.pdf",
+        },
+        {
+          id: "evt_2",
+          taskId: "tsk_2",
+          comment: "Check this: https://example.com/report.pdf",
+        },
+      ];
+
+      taskEventFindManyMock
+        .mockResolvedValueOnce(events)
+        .mockResolvedValueOnce([]);
+      prismaTransactionMock.mockImplementation((callback) =>
+        callback({ taskFile: { upsert: vi.fn() } }),
+      );
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      const count = await sourceImportSyncService.backfillTaskEventComments(
+        createImportOptions(),
+      );
+
+      expect(count).toBe(2);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledTimes(2);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        "tsk_1",
+        "https://example.com/file.pdf",
+        expect.any(Object),
+      );
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        "tsk_2",
+        "Check this: https://example.com/report.pdf",
+        expect.any(Object),
+      );
+    });
+
+    it("is idempotent - second run does not fail on existing TaskFiles", async () => {
+      const events = [
+        {
+          id: "evt_1",
+          taskId: "tsk_1",
+          comment: "https://example.com/file.pdf",
+        },
+      ];
+
+      // Each findMany call returns the event (pagination exits due to length < batchSize)
+      taskEventFindManyMock
+        .mockResolvedValueOnce(events)
+        .mockResolvedValueOnce(events);
+      prismaTransactionMock.mockImplementation((callback) =>
+        callback({ taskFile: { upsert: vi.fn() } }),
+      );
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+
+      // First run
+      const count1 = await sourceImportSyncService.backfillTaskEventComments(
+        createImportOptions(),
+      );
+      expect(count1).toBe(1);
+
+      // Second run with same data
+      const count2 = await sourceImportSyncService.backfillTaskEventComments(
+        createImportOptions(),
+      );
+      expect(count2).toBe(1);
+
+      // Transaction was called twice (once per run)
+      expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("continues processing after individual failures", async () => {
+      const events = [
+        {
+          id: "evt_1",
+          taskId: "tsk_1",
+          comment: "https://example.com/file1.pdf",
+        },
+        {
+          id: "evt_2",
+          taskId: "tsk_2",
+          comment: "https://example.com/file2.pdf",
+        },
+      ];
+
+      taskEventFindManyMock
+        .mockResolvedValueOnce(events)
+        .mockResolvedValueOnce([]);
+      let callCount = 0;
+      prismaTransactionMock.mockImplementation(async (callback) => {
+        callCount++;
+        if (callCount === 1) {
+          // First transaction fails
+          throw new Error("Network error");
+        }
+        return callback({ taskFile: { upsert: vi.fn() } });
+      });
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      const count = await sourceImportSyncService.backfillTaskEventComments(
+        createImportOptions(),
+      );
+
+      // Count is events examined (paginated through), not succeeded
+      expect(count).toBe(2);
+      // Transaction was attempted twice
+      expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
     });
   });
 });
