@@ -16,6 +16,24 @@ import {
  * peer merges do not reorder a frozen pending row (ADR-0004). Incoming rows
  * that carry the same client turn id confirm a pending shell in place first.
  */
+/**
+ * Apply a full Ably chat_room_message event.
+ * Hard-delete (`delete` with `deletedAt == null`) removes the row — user
+ * tombstones (`deletedAt` set) still merge so the deleted chrome stays.
+ */
+export function applyFullChatRoomMessageEvent(
+  existing: readonly ChatRoomMessage[],
+  event: {
+    eventType: "create" | "update" | "delete";
+    message: ChatRoomMessage;
+  },
+): ChatRoomMessage[] {
+  if (event.eventType === "delete" && event.message.deletedAt == null) {
+    return existing.filter((row) => row.id !== event.message.id);
+  }
+  return mergeRoomMessages(existing, [event.message]);
+}
+
 export function mergeRoomMessages(
   existing: readonly ChatRoomMessage[],
   incoming: readonly ChatRoomMessage[],

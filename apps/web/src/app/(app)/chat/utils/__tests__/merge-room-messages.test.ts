@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
+  applyFullChatRoomMessageEvent,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "../merge-room-messages";
@@ -61,6 +62,40 @@ function coworkerMessage(
     },
   };
 }
+
+describe("applyFullChatRoomMessageEvent", () => {
+  it("removes a hard-deleted streaming shell (deletedAt null)", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const placeholder = {
+      ...coworkerMessage("reply_1", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { streaming: true, mention_id: "mention_1" },
+    };
+
+    const next = applyFullChatRoomMessageEvent([chat, placeholder], {
+      eventType: "delete",
+      message: placeholder,
+    });
+
+    expect(next.map((row) => row.id)).toEqual(["m1"]);
+  });
+
+  it("merges a user tombstone so deleted chrome stays", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
+    const tombstone = {
+      ...chat,
+      content: "",
+      deletedAt: new Date("2026-07-01T10:01:00.000Z"),
+    };
+
+    const next = applyFullChatRoomMessageEvent([chat], {
+      eventType: "delete",
+      message: tombstone,
+    });
+
+    expect(next).toHaveLength(1);
+    expect(next[0]?.deletedAt).not.toBeNull();
+  });
+});
 
 describe("mergeRoomMessages", () => {
   it("keeps pending shells after confirmed rows when peers merge", () => {

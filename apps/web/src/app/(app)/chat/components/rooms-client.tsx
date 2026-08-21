@@ -54,6 +54,7 @@ import {
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
+  applyFullChatRoomMessageEvent,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
@@ -977,16 +978,28 @@ export function RoomsClient({
         threadParentMessageIdRef.current,
         event.eventType,
       );
+      const isHardDelete =
+        event.eventType === "delete" && message.deletedAt == null;
+
       if (route.mergeIntoRoomTimeline) {
         applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
-          filterTopLevelChatRoomMessages(mergeRoomMessages(current, [message])),
+          filterTopLevelChatRoomMessages(
+            applyFullChatRoomMessageEvent(current, {
+              eventType: event.eventType,
+              message,
+            }),
+          ),
         );
       }
-      setThreadParentMessage((current) =>
-        current?.id === message.id ? message : current,
-      );
+      setThreadParentMessage((current) => {
+        if (current?.id !== message.id) {
+          return current;
+        }
+        return isHardDelete ? current : message;
+      });
 
       if (
+        !isHardDelete &&
         shouldSignalUnreadThreadsAttention(message, currentUserIdRef.current)
       ) {
         setAttentionRefreshToken((token) => token + 1);
@@ -994,7 +1007,10 @@ export function RoomsClient({
 
       if (route.mergeIntoOpenThread) {
         applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
-          mergeRoomMessages(current, [message]),
+          applyFullChatRoomMessageEvent(current, {
+            eventType: event.eventType,
+            message,
+          }),
         );
         // Look first, then room re-sync — mark-read effect can race if it
         // runs before look lands; open path uses the same order.

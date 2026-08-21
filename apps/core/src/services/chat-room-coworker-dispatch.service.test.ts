@@ -745,6 +745,63 @@ describe("dispatchChatRoomMention claim", () => {
       },
     });
   });
+
+  it("discards the Thought placeholder when the provider stream throws", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    streamTextMock.mockReturnValue({
+      text: Promise.resolve("Hello back"),
+      reasoning: Promise.resolve([
+        { type: "reasoning", text: "Looked up the room context." },
+      ]),
+      fullStream: {
+        async *[Symbol.asyncIterator]() {
+          yield {
+            type: "reasoning-delta",
+            text: "Looked up the room context.",
+          };
+          throw new Error("stream aborted");
+        },
+      },
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalled();
+    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
+    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: { not: "responded" } },
+      data: expect.objectContaining({
+        status: "failed",
+      }),
+    });
+  });
+
+  it("publishes delete for a streaming placeholder when finalize loses the claim", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    transactionUpdateManyMock.mockResolvedValue({ count: 0 });
+    streamTextMock.mockReturnValue({
+      text: Promise.resolve("Hello back"),
+      reasoning: Promise.resolve([
+        { type: "reasoning", text: "Looked up the room context." },
+      ]),
+      fullStream: asyncStreamParts([
+        {
+          type: "reasoning-delta",
+          text: "Looked up the room context.",
+        },
+        { type: "text-delta", text: "Hello back" },
+      ]),
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalled();
+    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
+    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
+  });
 });
 
 describe("listStaleSentChatRoomMentionIds", () => {

@@ -82,7 +82,7 @@ async function consumeMentionProviderStream(
     text?: PromiseLike<string>;
     reasoning?: PromiseLike<unknown>;
   },
-  onThought: (steps: Array<{ type: string; text: string }>) => Promise<void>,
+  onThought: (steps: Array<{ type: string; text: string }>) => void,
 ): Promise<MentionStreamConsumption> {
   const iterable = mentionStreamIterable(result);
   if (!iterable) {
@@ -101,7 +101,7 @@ async function consumeMentionProviderStream(
       currentReasoning += part.text;
       const preview = previewReasoningSteps(reasoningSteps, currentReasoning);
       if (preview.length > 0) {
-        await onThought(preview);
+        onThought(preview);
       }
     } else if (
       part.type === "reasoning" ||
@@ -117,7 +117,7 @@ async function consumeMentionProviderStream(
       }
       currentReasoning = "";
       if (reasoningSteps.length > 0) {
-        await onThought(reasoningSteps);
+        onThought(reasoningSteps);
       }
     } else if (part.type === "text-delta" && typeof part.text === "string") {
       text += part.text;
@@ -172,6 +172,7 @@ async function publishMentionThoughtPlaceholder(params: {
 
 async function discardMentionThoughtPlaceholder(
   placeholderId: string | null,
+  parentMessageId: string | null,
 ): Promise<void> {
   if (!placeholderId) {
     return;
@@ -180,6 +181,9 @@ async function discardMentionThoughtPlaceholder(
   await prisma.chatRoomMessage
     .delete({ where: { id: placeholderId } })
     .catch(() => undefined);
+  if (parentMessageId) {
+    await publishChatRoomMessageRealtimeById(parentMessageId, "update");
+  }
 }
 
 /** How many prior messages the coworker sees as conversation context. */
@@ -551,163 +555,189 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   });
   let placeholderId: string | null = existingPlaceholder?.id ?? null;
   let lastThoughtPublishAt = 0;
-  const { text: streamedText, reasoningSteps: streamedReasoning } =
-    await consumeMentionProviderStream(result, async (steps) => {
-      const now = Date.now();
-      if (
-        placeholderId != null &&
-        now - lastThoughtPublishAt < MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS
-      ) {
-        return;
-      }
-      lastThoughtPublishAt = now;
-      placeholderId = await publishMentionThoughtPlaceholder({
-        placeholderId,
-        roomId: mention.message.roomId,
-        parentMessageId: mention.message.parentMessageId,
-        sourceMessageId: mention.message.id,
+  let thoughtPublishQueue = Promise.resolve();
+  let mentionPublished = false;
+  const parentMessageId = mention.message.parentMessageId;
+
+  try {
+    const { text: streamedText, reasoningSteps: streamedReasoning } =
+      await consumeMentionProviderStream(result, (steps) => {
+        thoughtPublishQueue = thoughtPublishQueue
+          .then(async () => {
+            const now = Date.now();
+            if (
+              placeholderId != null &&
+              now - lastThoughtPublishAt <
+                MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS
+            ) {
+              return;
+            }
+            lastThoughtPublishAt = now;
+            placeholderId = await publishMentionThoughtPlaceholder({
+              placeholderId,
+              roomId: mention.message.roomId,
+              parentMessageId,
+              sourceMessageId: mention.message.id,
+              mentionId,
+              coworkerId: coworker.id,
+              reasoningSteps: steps,
+            });
+          })
+          .catch((publishError) => {
+            console.error("Mention Thought placeholder publish failed:", {
+              mentionId,
+              error: publishError,
+            });
+          });
+      });
+    await thoughtPublishQueue;
+
+    let responseText = streamedText;
+    if (!responseText) {
+      responseText = ((await result.text) ?? "").trim();
+    }
+    let reasoningSteps = streamedReasoning;
+    if (reasoningSteps.length === 0) {
+      reasoningSteps = reasoningPartsToMetadata(await result.reasoning) ?? [];
+    }
+    const generationEndedAtMs = Date.now();
+    if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
+      await markMentionFailed(
         mentionId,
-        coworkerId: coworker.id,
-        reasoningSteps: steps,
-      });
-    });
-
-  let responseText = streamedText;
-  if (!responseText) {
-    responseText = ((await result.text) ?? "").trim();
-  }
-  let reasoningSteps = streamedReasoning;
-  if (reasoningSteps.length === 0) {
-    reasoningSteps = reasoningPartsToMetadata(await result.reasoning) ?? [];
-  }
-  const generationEndedAtMs = Date.now();
-  if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
-    await discardMentionThoughtPlaceholder(placeholderId);
-    await markMentionFailed(
-      mentionId,
-      responseText || "Coworker returned an empty response",
-    );
-    return;
-  }
-
-  const hasReasoning = reasoningSteps.length > 0;
-  const thoughtTiming = hasReasoning
-    ? {
-        startedAtMs: generationStartedAtMs,
-        endedAtMs: generationEndedAtMs,
-      }
-    : undefined;
-  const thoughtMeta = thoughtMetadataFields(reasoningSteps, thoughtTiming);
-  const replyMetadata = {
-    in_reply_to_message_id: mention.message.id,
-    mention_id: mention.id,
-    ...thoughtMeta,
-  };
-
-  const publishedMessageIds = await prisma.$transaction(async (tx) => {
-    // Re-check membership after the provider call: eviction during streamText
-    // must not land a reply in a room the coworker left.
-    const stillMember = await tx.chatRoomCoworkerMember.findUnique({
-      where: {
-        roomId_coworkerId: {
-          roomId: mention.message.roomId,
-          coworkerId: coworker.id,
-        },
-      },
-      select: { id: true },
-    });
-    if (!stillMember) {
-      await tx.chatRoomMention.updateMany({
-        where: {
-          id: mention.id,
-          status: { in: ["pending", "sent"] },
-        },
-        data: {
-          status: "failed",
-          error: "Coworker is no longer a member of this room",
-        },
-      });
-      return null;
+        responseText || "Coworker returned an empty response",
+      );
+      return;
     }
 
-    // Soft-delete during streamText cancels the mention to `failed` and
-    // wipes content; do not post a reply under a tombstone.
-    const sourceMessage = await tx.chatRoomMessage.findUnique({
-      where: { id: mention.message.id },
-      select: { deletedAt: true },
-    });
-    if (!sourceMessage || sourceMessage.deletedAt != null) {
-      await tx.chatRoomMention.updateMany({
-        where: {
-          id: mention.id,
-          status: { in: ["pending", "sent"] },
-        },
-        data: {
-          status: "failed",
-          error: "Source message was deleted",
-        },
-      });
-      return null;
-    }
+    const hasReasoning = reasoningSteps.length > 0;
+    const thoughtTiming = hasReasoning
+      ? {
+          startedAtMs: generationStartedAtMs,
+          endedAtMs: generationEndedAtMs,
+        }
+      : undefined;
+    const thoughtMeta = thoughtMetadataFields(reasoningSteps, thoughtTiming);
+    const replyMetadata = {
+      in_reply_to_message_id: mention.message.id,
+      mention_id: mention.id,
+      ...thoughtMeta,
+    };
 
-    // Persist the reply first, then claim the mention transition. If another
-    // worker already finalized (or reclaim stole the claim), discard this
-    // duplicate reply so the room does not double-post.
-    const responseMessage = placeholderId
-      ? await tx.chatRoomMessage.update({
-          where: { id: placeholderId },
-          data: {
-            content: responseText,
-            metadata: replyMetadata,
-          },
-        })
-      : await tx.chatRoomMessage.create({
-          data: {
+    const publishedMessageIds = await prisma.$transaction(async (tx) => {
+      // Re-check membership after the provider call: eviction during streamText
+      // must not land a reply in a room the coworker left.
+      const stillMember = await tx.chatRoomCoworkerMember.findUnique({
+        where: {
+          roomId_coworkerId: {
             roomId: mention.message.roomId,
-            parentMessageId: mention.message.parentMessageId,
-            senderCoworkerId: coworker.id,
-            content: responseText,
-            metadata: replyMetadata,
+            coworkerId: coworker.id,
+          },
+        },
+        select: { id: true },
+      });
+      if (!stillMember) {
+        await tx.chatRoomMention.updateMany({
+          where: {
+            id: mention.id,
+            status: { in: ["pending", "sent"] },
+          },
+          data: {
+            status: "failed",
+            error: "Coworker is no longer a member of this room",
           },
         });
+        return null;
+      }
 
-    const finalized = await tx.chatRoomMention.updateMany({
-      where: { id: mention.id, status: "sent" },
-      data: {
-        status: "responded",
-        error: null,
-        providerResponseId,
+      // Soft-delete during streamText cancels the mention to `failed` and
+      // wipes content; do not post a reply under a tombstone.
+      const sourceMessage = await tx.chatRoomMessage.findUnique({
+        where: { id: mention.message.id },
+        select: { deletedAt: true },
+      });
+      if (!sourceMessage || sourceMessage.deletedAt != null) {
+        await tx.chatRoomMention.updateMany({
+          where: {
+            id: mention.id,
+            status: { in: ["pending", "sent"] },
+          },
+          data: {
+            status: "failed",
+            error: "Source message was deleted",
+          },
+        });
+        return null;
+      }
+
+      // Persist the reply first, then claim the mention transition. If another
+      // worker already finalized (or reclaim stole the claim), discard this
+      // duplicate reply so the room does not double-post.
+      const responseMessage = placeholderId
+        ? await tx.chatRoomMessage.update({
+            where: { id: placeholderId },
+            data: {
+              content: responseText,
+              metadata: replyMetadata,
+            },
+          })
+        : await tx.chatRoomMessage.create({
+            data: {
+              roomId: mention.message.roomId,
+              parentMessageId: mention.message.parentMessageId,
+              senderCoworkerId: coworker.id,
+              content: responseText,
+              metadata: replyMetadata,
+            },
+          });
+
+      const finalized = await tx.chatRoomMention.updateMany({
+        where: { id: mention.id, status: "sent" },
+        data: {
+          status: "responded",
+          error: null,
+          providerResponseId,
+          responseMessageId: responseMessage.id,
+        },
+      });
+
+      if (finalized.count !== 1) {
+        // Leave a streaming placeholder for discard so Ably can still load it.
+        if (!placeholderId) {
+          await tx.chatRoomMessage.delete({
+            where: { id: responseMessage.id },
+          });
+        }
+        return null;
+      }
+
+      await tx.chatRoom.update({
+        where: { id: mention.message.roomId },
+        data: { updatedAt: new Date() },
+      });
+
+      return {
         responseMessageId: responseMessage.id,
-      },
+        sourceMessageId: mention.message.id,
+      };
     });
 
-    if (finalized.count !== 1) {
-      await tx.chatRoomMessage.delete({ where: { id: responseMessage.id } });
-      return null;
+    if (!publishedMessageIds) {
+      return;
     }
 
-    await tx.chatRoom.update({
-      where: { id: mention.message.roomId },
-      data: { updatedAt: new Date() },
-    });
-
-    return {
-      responseMessageId: responseMessage.id,
-      sourceMessageId: mention.message.id,
-    };
-  });
-
-  if (!publishedMessageIds) {
-    await discardMentionThoughtPlaceholder(placeholderId);
-    return;
+    mentionPublished = true;
+    await publishChatRoomMessageRealtimeById(
+      publishedMessageIds.responseMessageId,
+      placeholderId ? "update" : "create",
+    );
+    await publishChatRoomMessageRealtimeById(
+      publishedMessageIds.sourceMessageId,
+      "mention_status",
+    );
+  } finally {
+    if (!mentionPublished) {
+      await thoughtPublishQueue.catch(() => undefined);
+      await discardMentionThoughtPlaceholder(placeholderId, parentMessageId);
+    }
   }
-
-  await publishChatRoomMessageRealtimeById(
-    publishedMessageIds.responseMessageId,
-    placeholderId ? "update" : "create",
-  );
-  await publishChatRoomMessageRealtimeById(
-    publishedMessageIds.sourceMessageId,
-    "mention_status",
-  );
 }
