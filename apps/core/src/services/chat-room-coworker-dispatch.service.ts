@@ -12,13 +12,17 @@ import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-co
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
-/** AI SDK stall budgets; content chunks reset these. */
-export const ROOM_COWORKER_FIRST_CHUNK_MS = 90_000;
+/** AI SDK stall budget after content has started; content chunks reset this. */
 export const ROOM_COWORKER_CHUNK_MS = 90_000;
 
+/**
+ * No `firstChunkMs`: some coworkers think/tool for >90s with no content-bearing
+ * SSE. Mentions are waitUntil jobs and must still terminate — `totalMs` is that
+ * bound. `chunkMs` still kills a stall after output starts. Coworker 1:1 DMs
+ * omit this timeout entirely (live SSE + function cap).
+ */
 export const ROOM_COWORKER_STREAM_TIMEOUT = {
   totalMs: ROOM_COWORKER_TOTAL_MS,
-  firstChunkMs: ROOM_COWORKER_FIRST_CHUNK_MS,
   chunkMs: ROOM_COWORKER_CHUNK_MS,
 } as const;
 

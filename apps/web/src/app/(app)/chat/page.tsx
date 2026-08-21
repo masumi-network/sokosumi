@@ -63,9 +63,7 @@ async function ChatChatsListWithArchived({
     <OrganizationChatList
       key={activeOrganizationId ?? "personal"}
       rooms={chatRoomsPage.rooms}
-      roomsNextCursor={chatRoomsPage.nextCursor}
       archivedRooms={archivedChatRoomsPage.rooms}
-      archivedRoomsNextCursor={archivedChatRoomsPage.nextCursor}
       currentUserId={currentUserId}
       organizationId={activeOrganizationId}
       canDeleteArchivedRooms={canDeleteArchivedRooms}
@@ -128,9 +126,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
               <OrganizationChatList
                 key={listKey}
                 rooms={chatRoomsPage.rooms}
-                roomsNextCursor={chatRoomsPage.nextCursor}
                 archivedRooms={[]}
-                archivedRoomsNextCursor={null}
                 currentUserId={currentUserId}
                 organizationId={activeOrganizationId}
                 canDeleteArchivedRooms={false}
