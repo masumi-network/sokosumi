@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import {
   agentDetailSchema,
   agentLegalSchema,
+  agentListItemSchema,
+  agentListSchema,
   agentSummarySchema,
   getAgentExampleOutputsFromAgent,
   getAgentLegalFromAgent,
@@ -233,5 +235,79 @@ describe("getAgentExampleOutputsFromAgent", () => {
         url: "https://example.com/override.png",
       },
     ]);
+  });
+});
+
+function cardanoListItem() {
+  return {
+    kind: "cardano" as const,
+    id: "agent_cardano_1",
+    createdAt: "2026-03-17T10:00:00.000Z",
+    updatedAt: "2026-03-17T10:00:00.000Z",
+    name: "Research Assistant",
+    image: null,
+    icon: null,
+    credits: 0,
+    summary: null,
+    description: "Finds information",
+    metrics: {
+      executions: { count: 0, averageTime: null },
+      ratings: { total: 0, average: null },
+    },
+    author: {
+      name: "Jane Doe",
+      image: null,
+      organization: null,
+      email: null,
+      other: null,
+    },
+    legal: {
+      privacyPolicy: null,
+      terms: null,
+      dpa: null,
+      other: null,
+    },
+    categories: [],
+  };
+}
+
+function x402ListItem() {
+  return {
+    kind: "x402" as const,
+    id: "agent_x402_1",
+    specification: "bazaar" as const,
+    name: "Bazaar Research Agent",
+    description: null,
+    image: null,
+    x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+    openApiSpecUrl: null,
+    pricingType: "fixed" as const,
+    isPayable: true as const,
+    paymentSources: [
+      {
+        caip2Network: "eip155:84532",
+        asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+        decimals: 6,
+        payTo: "0x1111111111111111111111111111111111111111",
+        amount: "250000",
+        credits: 0.5,
+      },
+    ],
+  };
+}
+
+describe("agentListItemSchema", () => {
+  it("discriminates a mixed catalog page on kind", () => {
+    const parsed = agentListSchema.parse([cardanoListItem(), x402ListItem()]);
+    expect(parsed.map((item) => item.kind)).toEqual(["cardano", "x402"]);
+  });
+
+  it("rejects an item whose kind is neither rail", () => {
+    expect(
+      agentListItemSchema.safeParse({
+        ...cardanoListItem(),
+        kind: "solana",
+      }).success,
+    ).toBe(false);
   });
 });

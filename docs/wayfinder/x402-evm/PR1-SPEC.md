@@ -11,9 +11,10 @@
 API-only pay. Anyone can **list** x402/Bazaar agents on public
 `GET /v1/agents`. A coworker assigned to a task can **pay** a 402 one of
 them returned, charged to the task's org in credits, receiving a signed
-`X-PAYMENT` header to replay with. No end-user catalog change, no hire
-flow, no job row — the coworker calls the agent **outside** Soko. Web
-`/agents` stays Coworkers-only (SOK-805).
+`X-PAYMENT` header to replay with. No end-user hire flow or job row — the
+coworker calls the agent **outside** Soko. Web `/agents` stays
+Coworkers-only (SOK-805). A temporary gallery preview existed 2026-08-14
+and was disabled; x402 is not advertised there.
 
 Out of scope: masumi-job x402 (PR 2), direct CDP-Bazaar crawling (agents must
 be Masumi-registered), end-user hireability.
@@ -25,8 +26,8 @@ anyone   → GET  /v1/agents?kind=x402                (list; pick base URL)
 coworker → call the Bazaar agent directly           (outside Soko) → 402
 coworker → POST /v1/tasks/{taskId}/x402-payments     (forward the 402)
    soko  → charge task org in credits, POST node /x402/pay, persist record
-coworker ← { xPaymentHeader, attemptId, paymentId }
-coworker → replay the agent call with X-PAYMENT      (outside Soko) → result
+coworker ← { paymentHeader: { x402Version, name, value }, attemptId, paymentId }
+coworker → replay with paymentHeader.name/value     (outside Soko) → result
 ```
 
 There is **no** `GET /v1/agents/x402`. Pay stays coworker + assigned task.
@@ -36,33 +37,60 @@ There is **no** `GET /v1/agents/x402`. Pay stays coworker + assigned task.
 Ticket 005. One public catalog. Items are a discriminated union on `kind`:
 `"cardano"` (MIP-003 hire) or `"x402"` (EVM pay). Filter with
 `?kind=cardano`, `?kind=x402`, or omit for both.
+`buildAvailableAgentWhereClause` still excludes x402 rows from the cardano
+branch.
 
 - **Authz:** public, same as the Cardano catalog. Paying stays coworker-only
   on the task route.
-- **Fail closed** — an agent appears only if payable *now*:
+- **Fixed-price entries fail closed** — an agent appears only if payable *now*:
   1. curated/whitelisted (production; preprod lists all — see §6),
-  2. every advertised source uses scheme `exact` (EVM). `upto`,
-     `batch-settlement`, and any other scheme never appear in `accepts[]`
-     and never list (research 001 saw those in the wild; Soko only signs
-     `exact`),
-  3. every advertised asset resolves to a `CreditCost` row,
-  4. its network is in the per-environment EVM allowlist (preprod = testnet
+  2. entry type `X402` or `OPEN_API` with a valid **absolute HTTP(S)**
+     type-specific discovery URL (`hasValidX402DiscoveryUrl`; anything else is
+     dropped and logged `invalid_discovery_url`),
+  3. every fixed source uses the `exact` scheme with an EVM `0x…` `payTo`
+     (`upto` / `batch-settlement` never list),
+  4. every fixed source carries `FIXED` pricing with at least one amount row,
+     priced at the **node-published** asset decimals (never the
+     agent-registered scale),
+  5. every advertised asset resolves to a `CreditCost` row,
+  6. its network is in the per-environment EVM allowlist (preprod = testnet
      CAIP-2 ids only),
-  5. x402 buy-side readiness OK (§6).
+  7. x402 buy-side readiness OK (§6),
+  8. the `(network, asset)` pair has a locally trusted exact-EVM EIP-712
+     domain.
+
+  Same-`(network, asset)` rows that demand different prices are dropped as
+  `conflicting_price` — the listing never picks one of two disagreeing
+  registrations. The catalog predicate (curation/status/type plus the
+  discovery-URL gate) is shared verbatim with the pay endpoint's agent
+  lookup, so a coworker can never pay an agent the listing would not show.
 - **`PricingType` on `main` is `FIXED | FREE | UNKNOWN`.** This stack adds
   `DYNAMIC` and stops mapping registry Dynamic → `UNKNOWN`. x402 Dynamic
   entries list with `pricingType: "dynamic"`; `isPayable` is true when
   every advertised network has a priced buy-side-ready asset, otherwise
   they stay visible as non-payable previews. The Dynamic/`maxCredits` pay
   gate **runs** on this stack.
-- **Response fields per agent:** id, name, description, image (all resolved
-  through the existing `AgentMetadataOverride`-aware helpers — X402 agents
-  carry the standard override fields so a later read-only UI needs no
-  rework), `x402ResourcesUrl`, and the payment sources (CAIP-2 network,
-  asset, decimals, `payTo`, advertised price in both native units and
-  converted credits).
-- Listed ⇒ payable gives per-endpoint refund aggregation (§5) a stable
-  population to count against.
+- **Response shape has two discriminators.** `specification` selects the
+  discovery URL. Bazaar rows return `x402ResourcesUrl` and a null
+  `openApiSpecUrl`. OpenAPI rows return `openApiSpecUrl` and a null
+  `x402ResourcesUrl`. `pricingType` selects fixed, dynamic, or mixed payment
+  source shapes. Fixed sources include network, asset, decimals, `payTo`,
+  native amount, and converted credits. Dynamic sources include network and
+  `payTo` only. Every row also carries `isPayable`. Metadata uses the existing
+  `AgentMetadataOverride`-aware helpers.
+- Fixed-price listed ⇒ payable gives per-agent refund aggregation (§5) a
+  stable population to count against. Dynamic payments use the same accounting
+  and refund records, with the caller's mandatory `maxCredits` as the quote
+  ceiling (compared in **credits**, after conversion).
+- **Fail-closed granularity is per-AGENT, ratified at build review** (stack
+  step 4): one unpriced x402 asset, disallowed x402 network, or unready pair
+  hides the whole agent. Non-x402 payment rails are excluded first. Known
+  consequence, accepted: an agent registering both a mainnet and a testnet
+  source is unlistable in both environments until re-registered — the safe
+  direction, and out-of-env assets rarely carry CreditCost rows anyway. If
+  mixed-env registrations turn out to be common, the follow-up is an env
+  scoping PRE-filter (drop out-of-env sources, then per-agent fail-closed
+  over the remainder), not per-source listing.
 
 ## 3. Pay endpoint — `POST /v1/tasks/{taskId}/x402-payments`
 
@@ -77,13 +105,13 @@ Modeled on the node's own request so translation is minimal:
   "idempotencyKey": "coworker-supplied, unique per intent",   // required
   "agentId": "the listed agent this 402 came from",           // required
   "paymentRequired": { /* the raw 402 body, verbatim, either dialect */ },
-  "maxCredits": 2 // optional per-request ceiling; required for Dynamic
+  "maxCredits": 2 // required for dynamic; recommended for fixed
 }
 ```
 
 - `evmWalletId` is **never** caller-supplied — Soko owns the purchasing
   wallet per environment/network.
-- Task identity (taskId, the created event id) is stamped into the node
+- Task identity (`${taskId}_${paymentId}`) is stamped into the node
   call's `paymentIdentifier` — **only when the agent's 402 advertises the
   payment-identifier extension** (the node 400s otherwise; ticket 011 Q2).
   It is a fail-loud correlation echo, never a dedup key.
@@ -102,16 +130,20 @@ Modeled on the node's own request so translation is minimal:
    (there is no `Task.parentTaskId` column); the same per-task gate covers
    them. Ticket 003.
 2. **Idempotency** — look up by `@@unique([taskId, idempotencyKey])`
-   (`taskId` is required; it is the path param). Status-specific:
-   - `VERIFIED` — return the stored live header. Do not charge or sign.
-   - `FAILED` / `REFUNDED` — consume the key; return `409`.
-   - `PENDING` — re-enter the sign path under a lease. **No second debit.**
-     The reconciler must not refund a row that is mid-retry.
+   (`taskId` is the path param, required). A canonical SHA-256 fingerprint
+   binds the key to the narrowed protocol payload. Status-specific:
+   `VERIFIED` validates the demand and returns the stored live header
+   without charging or signing; unbound/mismatched/expired/purged header
+   → `409`. `PENDING` re-verifies and may re-sign under a lease — **no
+   second debit**; the reconciler must not refund a mid-retry row.
+   `FAILED` / `REFUNDED` consume the key → `409`.
 3. **Verify against the listed agent** — the 402's `payTo` + network + asset
    must match `agentId`'s registered payment source, the network must be in
    the per-env allowlist, and the scheme must be `exact`. Native-amount
-   checks (still chain-native base units, **before** credit conversion):
-   - **Fixed** — demanded amount must equal the advertised amount.
+   checks (chain-native base units, **before** credit conversion):
+   - **Fixed** — demanded amount must be **≤ advertised** (`amountRow.amount`).
+     Cheaper per-resource prices charge fewer credits (safe). Above the
+     advertised ceiling is a manipulated 402 and is rejected.
    - **Free** — reject a positive demand.
    - **Dynamic** — no advertised amount to match; the runtime 402 supplies
      asset + amount. Asset must be buy-side ready.
@@ -119,6 +151,10 @@ Modeled on the node's own request so translation is minimal:
    `DYNAMIC`. The Dynamic gate **runs**: runtime 402 supplies asset +
    amount; `maxCredits` is mandatory after credit conversion. Any failure
    → `4xx` **before any charge**. Ticket 003.
+   Soko then narrows the forwarded 402 to that one verified requirement. It
+   never forwards unverified sibling entries. For v2, the signed response's
+   `accepted` terms must match every charged field, and the replay header
+   restores the resource server's original requirement spelling.
 4. **Price** — convert the demanded **native** amount to **credits** via the
    CAIP-19 `CreditCost` key (§ ticket 004) using **node-published** decimals
    for the `(network, asset)` pair, never the agent-registered scale.
@@ -132,45 +168,63 @@ Modeled on the node's own request so translation is minimal:
    **not built**. Insufficient balance → existing out-of-credits path, no
    partial state.
 6. **Charge, then sign** — debit credits and create the payment record
-   (`PENDING`) in one transaction; then call node `POST /x402/pay`.
+   (`PENDING`) in one transaction; atomically take a bounded sign-attempt lease,
+   then call node `POST /x402/pay`. Same-key retries never overlap an active
+   node call and stop after `TASK_X402_MAX_SIGN_ATTEMPTS`.
 7. **Resolve the sign result:**
-   - **200 with a usable header** — persist `VERIFIED` **and the header on
-     the row before returning the header**. Then return it. A crash after
-     the coworker received the header must not auto-refund (the header is
-     settleable). That case is review / future `EXPIRED_UNUSED`, not a
-     sync refund.
+   - **200 with a usable header** — parse and verify the signed authorization
+     against the charged requirement. Persist `VERIFIED` **and the header on
+     the row before returning the header**. Then return the protocol-aware
+     descriptor. A crash after the coworker received the header must not
+     auto-refund. Malformed or mismatched signed results return
+     `502 x402_pay_outcome_unknown`, page operations, and keep `PENDING`.
    - **documented node refusal on the fresh first sign attempt** (400 / 402
-     / 500 + documented envelope) — no header was written: refund
-     synchronously, mark `FAILED`, return an actionable error. Ticket 006.
-   - **same-key `PENDING` replay that the node refuses** — an earlier
-     ambiguous attempt may still be live. Keep `PENDING`. Do not refund.
+     / 500 + documented envelope, no header written) — refund synchronously,
+     mark `FAILED`, return an actionable error. Ticket 006. A same-key
+     `PENDING` replay refusal does **not** refund: an earlier attempt may
+     still be live.
    - **crash / timeout / transport / malformed 200** — keep `PENDING` for
-     same-key replay (re-enter sign, no second debit). A null header is
-     **not** unsettleable (a lost 200 can hide a signed authorization).
-     Do **not** auto-refund stale `PENDING`. Admin resolve after the
-     sign-risk fence; unused expiry is future `EXPIRED_UNUSED`. The
-     reconciler must not refund a row with an active sign lease.
+     same-key replay (re-enter sign, no second debit). Persist
+     `signRiskExpiresAt` before the node call. A null header is **not**
+     unsettleable (a lost 200 can hide a signed authorization). Do **not**
+     auto-refund stale `PENDING`. Admin resolve after the sign-risk fence;
+     unused expiry is future `EXPIRED_UNUSED`. The reconciler must not
+     refund a row with an active sign lease.
 
 ### Response
 
-Pass-through of the node's 200 plus Soko's record id:
+Protocol-aware replay header plus Soko's record id:
 
 ```jsonc
 {
   "paymentId": "soko payment-record id (support / admin refund / status)",
   "attemptId": "node attempt id",
-  "xPaymentHeader": "base64 value to replay with",
+  "paymentHeader": {
+    "x402Version": 2,
+    "name": "PAYMENT-SIGNATURE", // or "X-PAYMENT" for v1
+    "value": "base64 value to replay under `name`"
+  },
   "caip2Network": "...", "asset": "...", "amount": "...", "payTo": "..."
 }
 ```
+
+The column that stores the bearer is `TaskX402Payment.xPaymentHeader`. The
+coworker JSON field is `paymentHeader` (descriptor: version, header name,
+value). The node's `POST /x402/pay` body still uses `xPaymentHeader`.
 
 ## 4. Data model — `TaskX402Payment`
 
 Sibling of `TaskPaymentClaim`, not a reuse — the escrow claim's Cardano
 retry ladder and `blockchainIdentifier` are meaningless here. This row
 **does** carry a **sign lease** (`processingAt`, `signAttemptCount`,
-`signRiskExpiresAt`) because the node has no idempotency. Terminal at
-successful sign. Conceptual sketch, not a migration.
+`signRiskExpiresAt`) because the node has no idempotency. Successful sign
+ends the automatic signing flow (`PENDING → VERIFIED`); the record is not
+terminal — an admin goodwill refund may still move `VERIFIED → REFUNDED`.
+
+The block below is a conceptual relationship sketch, not the migration source
+of truth. Canonical fields, partial indexes, CHECK constraints, refund kind,
+action relations, and header-purge indexes live in
+`packages/database/prisma/schema.prisma` plus the ordered migrations.
 
 ```prisma
 model TaskX402Payment {
@@ -187,8 +241,9 @@ model TaskX402Payment {
   amount         String                 // base units, chain-native
   decimals       Int                    // node-published scale used at charge
   payTo          String
+  demandFingerprint String?             // SHA-256 exact replay binding
   attemptId      String?                // node attempt id, present once signed
-  xPaymentHeader String?                // exact bearer header; persist before return
+  xPaymentHeader String?                // persist before return; bearer
   signAttemptCount Int @default(0)      // bounded non-idempotent node calls
   processingAt   DateTime?              // active sign lease
   signRiskExpiresAt DateTime?           // latest possible unseen authorization expiry
@@ -202,7 +257,7 @@ model TaskX402Payment {
   paymentPayloadHash String?
   validBefore    DateTime?              // authorization expiry
 
-  // Links: task identity, the charged agent (per-endpoint aggregation),
+  // Links: task identity, the charged agent (per-agent aggregation),
   // the credit debit, and its compensating refund.
   taskId         String
   agentId        String                 // FK → Agent, the aggregation key
@@ -211,7 +266,7 @@ model TaskX402Payment {
   refundTransactionId String? @unique   // the compensating refund, if any
 
   @@unique([taskId, idempotencyKey])     // the dedupe unique (ticket 003)
-  @@index([agentId, status])             // per-endpoint refund aggregation (§5)
+  @@index([agentId, status])             // per-agent refund aggregation (§5)
   @@map("task_x402_payment")
 }
 ```
@@ -226,27 +281,37 @@ Ticket 006. Two levers, both hanging off the payment record:
 - **Admin refund action** on a `TaskX402Payment` — goodwill / support-driven,
   writes a `TaskX402PaymentAction` and a compensating refund transaction.
   Mirrors the admin task-payment-claims surface.
-- **Per-endpoint aggregation** — refund count, failure count, and any
-  quality/rating signal grouped by `agentId`, surfaced in the admin
-  dashboard so a bleeding endpoint can be **disabled / removed from the
-  whitelist**. The `@@index([agentId, status])` backs this.
+- **Per-agent aggregation** — refund count, failure count, and operator-action
+  count grouped by `agentId`. The dashboard uses this data to identify a
+  failing agent and remove it from the whitelist. The
+  `@@index([agentId, status])` backs this query.
 
 ## 6. Environment & operator prerequisites
 
 Cardano-parallel Preprod/Mainnet split (ticket 003):
 
-- **Preprod:** every agent is listed (curation is not the gate); the guard is
-  the network allowlist — **EVM testnet CAIP-2 ids only**.
+- **Preprod:** curation is bypassed, but agents still must be online, use a
+  supported exact scheme and valid recipient, and pass pricing, readiness, and
+  the **testnet-only EVM network allowlist**. Fixed failures hide the agent;
+  dynamic readiness failures produce a non-payable preview.
 - **Production:** curation/whitelist + mainnet networks.
 - **Buy-side readiness (ticket 011 Q5):** composed Soko-side from
-  `/x402/networks/available` + `/x402/budgets` (both per-chain today), reusing
-  the cached last-known-value pattern from Cardano V2 readiness. The
+  `/x402/networks/available` + `/x402/budgets` + `/x402/wallets` +
+  `/x402/wallets/balance`, reusing the cached last-known-value pattern from
+  Cardano V2 readiness. The
   env-global `/rail-readiness` x402 checks remain the coarse health signal.
   `GET /x402/budgets` requires **admin permission** and returns every key's
   rows unless filtered — the client resolves its own key id via
   `/api-key-status` and passes the `apiKeyId` filter, because `/x402/pay`
   only draws on budgets granted to the calling key (verified against
   upstream `main`, `src/routes/api/x402/index.ts` + `pay.ts`).
+- A pair is ready only when the key has usable budget or admin access and its
+  single purchasing wallet has both positive native gas and positive balance
+  of the priced token. Missing or ambiguous wallet data fails closed. Core
+  also requires a local trusted-domain entry for the exact `(network, asset)`
+  pair. The resource server cannot supply this EIP-712 domain metadata.
+  Current entries are Base Sepolia USDC (`USDC`, version `2`) and Base mainnet
+  USDC (`USD Coin`, version `2`).
 - **Node setup per chain:** X402Network enabled, a funded purchasing EVM
   wallet bound to it, the Soko API key's `ChainIdLimit` covering the target
   `eip155:*` ids, and the key holding **admin permission** (the budgets
@@ -259,12 +324,12 @@ Cardano-parallel Preprod/Mainnet split (ticket 003):
 All confirmed against masumi-payment-service `main`; see
 [NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`:
 
-- **Error contract:** 400 = pre-sign rejection, 402 = budget/balance refusal,
-  500 = config/signing failure. A documented refusal plus envelope proves
-  only that **this call** issued no header. Synchronous refund is safe on
-  the **fresh first attempt**. A `PENDING` replay refusal is not proof the
-  earlier attempt never signed — keep the charge. Gateway / transport /
-  malformed responses are ambiguous.
+- **Error contract:** the node handler documents 400 = pre-sign rejection,
+  402 = budget/balance refusal, and 500 = config/signing failure. One of those
+  statuses plus the documented envelope proves only that the current call did
+  not issue a header. It permits synchronous refund on the fresh first attempt;
+  a PENDING replay remains held behind every earlier attempt's risk window.
+  Gateway/transport statuses and malformed responses are also ambiguous.
 - **Idempotency: none by design** — Soko's key is the sole dedupe; a
   double-call costs node budget only, never user funds.
 - **By-`attemptId` lookup:** not needed for correctness; paginate-and-match

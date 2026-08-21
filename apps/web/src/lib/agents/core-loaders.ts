@@ -44,10 +44,15 @@ export async function getAllCoreAgents(): Promise<CoreAgent[]> {
   do {
     const response = await coreCatalogClient.getAgents({
       cursor,
+      kind: ["cardano"],
       limit: AGENTS_PAGE_SIZE,
     });
 
-    agents.push(...response.data);
+    for (const item of response.data) {
+      if (item.kind === "cardano") {
+        agents.push(item);
+      }
+    }
     cursor = response.meta?.pagination?.nextCursor ?? undefined;
   } while (cursor);
 

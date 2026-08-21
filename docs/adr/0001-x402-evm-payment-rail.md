@@ -24,8 +24,8 @@ contract, the seller submits a result hash, and disputes/refunds resolve
 on-chain. The payment node has since shipped an x402 rail: HTTP-402
 pay-per-call on EVM chains, where the node signs an `X-PAYMENT` header and the
 buyer replays the original request with it. The V2 registry already describes
-x402 agents (entry type `X402`, `x402ResourcesUrl`, EVM payment sources), and
-sokosumi already ingests them. They appear on public `GET /v1/agents` as
+x402 agents (`X402` manifests and `OpenApi` entries with EVM payment sources),
+and sokosumi already ingests them. They appear on public `GET /v1/agents` as
 `kind: "x402"` next to Cardano hire items (`kind: "cardano"`). There is no
 `/v1/agents/x402`. Web `/agents` stays Coworkers-only (SOK-805); paying an
 x402 agent stays coworker + assigned task.
@@ -61,7 +61,8 @@ Relevant payment-node surface (pinned in `packages/masumi/spec/payment.openapi.j
 
 Schema sockets already in place after the V2 migration:
 
-- `AgentEntryType.X402` and `Agent.x402ResourcesUrl`.
+- `AgentEntryType.X402`, `AgentEntryType.OPEN_API`,
+  `Agent.x402ResourcesUrl`, and `Agent.openApiSpecUrl`.
 - `AgentPaymentSource.network` is a plain string that carries either a
   Cardano network name or a CAIP-2 id (`eip155:8453`), with `payTo`,
   `scheme`, and `resource` columns.
@@ -123,9 +124,10 @@ table is on `main` until those implementation PRs merge.
 ### 4. Job flow
 
 1. Call the agent resource; expect `402 Payment Required`.
-2. Forward the 402 body to the node: `POST /x402/pay` with the configured
-   `evmWalletId` and, when the 402 advertises it, the `paymentIdentifier`.
-3. Replay the original request with the returned `X-PAYMENT` header.
+2. Normalize and narrow the 402 to one verified requirement. Forward that
+   requirement to `POST /x402/pay` with Soko's configured `evmWalletId`.
+3. Store the exact returned bearer header. Replay with its protocol-specific
+   header name and value.
 4. The response is the job result — persist it and complete the job in the
    same flow.
 
@@ -140,12 +142,14 @@ post-hoc `EXPIRED_UNUSED` refund defined below.
 **Confirmed (ticket 011):** the `/x402/pay` error contract is now known —
 400 = deterministic pre-sign rejection (bad `accepts`, no `ChainIdLimit`
 match, network disabled, requirements drift, identifier not advertised),
-402 = budget/balance refusal, 500 = config/signing failure. Any non-200 means
-no header was issued, so a pre-sign refusal is provably unpaid and refunds
-synchronously. `/x402/payments` still has no by-`attemptId` filter and no
-`/x402/payments/{id}` route, but that lookup is **not needed for
-correctness** — refund-safety removes the reconciliation need, and
-paginate-and-match covers audit — so it is a low-priority node nicety.
+402 = budget/balance refusal, and 500 = config/signing failure. Core refunds
+only when one of these node-owned statuses also has the documented error
+envelope. Transport failures, gateway statuses, malformed responses, and lost
+responses remain ambiguous. `/x402/payments` still has no by-`attemptId`
+filter and no `/x402/payments/{id}` route. Core therefore treats every ambiguous sign as
+potentially live through a persisted `signRiskExpiresAt` fence; only after that
+window may an operator resolve the held charge. Paginate-and-match remains
+adequate for audit, so a direct node lookup is a low-priority nicety.
 
 ### 5. Credits pricing via CAIP-19-style unit keys
 
@@ -156,11 +160,17 @@ credit cost, exactly like the Cardano availability rule.
 
 ### 6. Buy-side readiness gating
 
-Availability and pre-charge gates for x402 agents key on the node's
-`x402.purchasing_wallet` and `x402.budget` rail-readiness checks — not on
-the X402 rail's `isReady`, which only proves the node can *receive* x402
-payments. Reuse the same cached readiness pattern Soko already runs for
-Cardano V2.
+Availability and pre-charge gates use Soko's cached set of ready
+`(network, asset, evmWalletId, evmWalletAddress, decimals)` sources. A source
+requires an enabled x402 network with a usable default-asset scale. Core also
+requires a locally trusted exact-EVM EIP-712 domain for that pair. The Soko API
+key needs a positive budget tied to a purchasing wallet. A confirmed admin key
+with no binding budget can instead use exactly one Purchasing wallet. The
+selected wallet must have positive native gas and positive default-token
+balance. Environment-global
+`x402.purchasing_wallet` / `x402.budget` rail checks remain coarse diagnostics,
+not listing or pre-charge gates. The cache follows Cardano V2's
+last-known-value pattern.
 
 Two corrections to how the proposed draft described this (both verified
 2026-08-11):
@@ -173,11 +183,16 @@ Two corrections to how the proposed draft described this (both verified
 - **Confirmed (ticket 011):** `/rail-readiness` exposes the x402 checks
   **once per environment, not per network** — there is no x402 analog of the
   Cardano `PurchaseSources` per-source readiness. Per-chain buy-side readiness
-  is therefore **composed Soko-side** from `/x402/networks/available` +
-  `/x402/budgets` (both per-chain today), reusing the same cached
+  is therefore **composed Soko-side** from `/x402/networks/available`,
+  Soko-key `/x402/budgets`, admin `/x402/wallets`, and
+  `/x402/wallets/balance`, reusing the same cached
   last-known-value pattern; the env-global `/rail-readiness` checks stay the
   coarse health signal. Un-collapsing the per-chain breakdown `/rail-readiness`
   already computes is a low-priority node ask, not a build gate.
+
+The trusted exact-EVM domain allowlist currently contains Base Sepolia USDC
+(`USDC`, version `2`) and Base mainnet USDC (`USD Coin`, version `2`). The
+resource server cannot override this signing domain.
 
 ### 7. Node prerequisites (operator runbook, not code)
 
@@ -213,11 +228,14 @@ and by registry design an agent offers exactly one, so the two never compete
 on a single job:
 
 - **PR 2 (masumi jobs on x402): auto-refund only when provably unpaid.**
-  Credits return automatically only where Soko provably never put funds at
-  risk — the payment was never signed (a non-200 from `/x402/pay`), or the
-  replay was never sent. Once a header is signed the debit stands: a settled
-  payment, a garbage result, or a non-2xx / timed-out **replay** — the agent
-  holds a settleable header, so signed-and-used is non-refundable. There is
+  Credits return synchronously only when the node's documented refusal status
+  and error envelope prove signing never happened. Transport failures,
+  gateway statuses, malformed 200s, and lost responses remain ambiguous and
+  held because a header may have been signed. Once a usable header is delivered
+  for replay, the debit stands: a settled payment, a garbage result, or a
+  non-2xx / timed-out **replay** leaves the agent holding a settleable header.
+  A signed-but-unused authorization becomes provably unpaid only after the
+  expiry observation below. There is
   deliberately **no parity** with escrow-job refunds — escrow can claw back,
   x402 cannot, and Soko does not absorb a settled loss silently.
 - **`EXPIRED_UNUSED` (phased settlement observation — explicitly future
@@ -244,7 +262,7 @@ on a single job:
   **per-agent refund/failure aggregation** feeds a **whitelist-disable**
   for bleeding endpoints. Full state machine: PR1-SPEC §3.
 - **Absorbed loss is bounded operationally**, not by refund policy: the
-  per-endpoint aggregation + whitelist-disable is the control that stops a
+  per-agent aggregation + whitelist-disable is the control that stops a
   bad agent from bleeding credits, on both rails.
 
 ## Alternatives considered

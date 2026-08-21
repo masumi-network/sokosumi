@@ -13,7 +13,9 @@ const {
   syncRegistryAgentsMock,
   syncSourceImportMock,
   syncStripeCustomersMock,
+  syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
+  purgeExpiredTaskX402PaymentHeadersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
@@ -26,7 +28,9 @@ const {
   syncRegistryAgentsMock: vi.fn(),
   syncSourceImportMock: vi.fn(),
   syncStripeCustomersMock: vi.fn(),
+  syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
+  purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -52,6 +56,10 @@ vi.mock("@/services/agent-sync.service", () => ({
     syncAgentSummaries: syncAgentSummariesMock,
     syncCardanoV2RailReadiness: syncCardanoV2RailReadinessMock,
   },
+}));
+
+vi.mock("@/services/agent-sync.x402-readiness", () => ({
+  syncX402BuySideReadiness: syncX402BuySideReadinessMock,
 }));
 
 vi.mock("@/services/source-import-sync.service", () => ({
@@ -93,6 +101,12 @@ vi.mock("@/services/stripe-customer-sync.service", () => ({
 vi.mock("@/services/chat-room-guest-invitation-sync.service", () => ({
   chatRoomGuestInvitationSyncService: {
     expireStaleGuestInvitations: expireStaleGuestInvitationsMock,
+  },
+}));
+
+vi.mock("@/services/task-x402-payment.purge", () => ({
+  taskX402PaymentPurgeService: {
+    purgeExpiredTaskX402PaymentHeaders: purgeExpiredTaskX402PaymentHeadersMock,
   },
 }));
 
@@ -140,6 +154,7 @@ describe("sync routes", () => {
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
     syncCardanoV2RailReadinessMock.mockResolvedValue(false);
+    syncX402BuySideReadinessMock.mockResolvedValue(false);
     syncJobsMock.mockResolvedValue({
       processed: 0,
       unfinishedFound: 0,
@@ -343,6 +358,72 @@ describe("sync routes", () => {
     expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
   });
 
+  it("refreshes the x402 buy-side readiness before the registry sync", async () => {
+    const deferred = createDeferred();
+    syncX402BuySideReadinessMock.mockImplementation(() => deferred.promise);
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncX402BuySideReadinessMock).toHaveBeenCalledTimes(1);
+    // Same treatment as the Cardano readiness: an abort signal so a hung
+    // payment node cannot pin the sync lock past its hard timeout.
+    expect(syncX402BuySideReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    // Runs after the Cardano readiness refresh, before the registry replay.
+    expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
+    expect(syncRegistryAgentsMock).not.toHaveBeenCalled();
+
+    deferred.resolve();
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reset the registry cursor when only the x402 readiness changed", async () => {
+    // The x402 listing reads getX402ReadySources at request time; nothing
+    // readiness-dependent is baked into agent rows, so no replay is needed.
+    syncX402BuySideReadinessMock.mockResolvedValue(true);
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      "agents-sync-metadata:dynamic-pricing-v1",
+      expect.not.objectContaining({ resetCursor: true }),
+    );
+  });
+
+  it("still runs the registry sync when x402 readiness throws", async () => {
+    // x402 readiness is advisory; the registry sync is this route's primary
+    // job. An unhandled throw from the readiness refresh (e.g. its 10s abort
+    // firing) must be swallowed so the registry replay still runs.
+    syncX402BuySideReadinessMock.mockRejectedValue(new Error("node timeout"));
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not request a cursor reset on the recurring agents sync", async () => {
     const app = await createApp();
 
@@ -355,7 +436,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
   });
@@ -373,7 +454,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.objectContaining({ resetCursor: true }),
     );
   });
@@ -692,6 +773,53 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 401 for missing cron auth on x402 header purge sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/task-x402-payment-headers-purge",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(purgeExpiredTaskX402PaymentHeadersMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the x402 header purge lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/task-x402-payment-headers-purge",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(409);
+    expect(purgeExpiredTaskX402PaymentHeadersMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and starts the x402 header purge exactly once in background", async () => {
+    purgeExpiredTaskX402PaymentHeadersMock.mockResolvedValue({ purged: 2 });
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/task-x402-payment-headers-purge",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "task-x402-payment-headers-purge-sync",
+    );
+
+    await flushMicrotasks();
+    expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
+    expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+    );
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("releases guest invitation expiry lock after completion", async () => {

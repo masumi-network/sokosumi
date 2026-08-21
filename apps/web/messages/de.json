@@ -3155,6 +3155,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "x402Payments": {
+            "title": "x402-Zahlungen",
+            "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
+          },
           "freeCredits": {
             "title": "Kostenlose Credits",
             "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
@@ -3171,6 +3175,88 @@
             "title": "Agenten",
             "description": "Alle Marketplace-Agenten durchsuchen und Sokosumi-Anzeige-Metadaten-Overrides verwalten."
           }
+        }
+      },
+      "X402Payments": {
+        "title": "x402-Zahlungen",
+        "description": "Direktzahlungen überwachen, auffällige Endpunkte finden und protokollierte Support-Aktionen ausführen.",
+        "Filters": {
+          "status": "Status",
+          "allStatuses": "Alle Status",
+          "agentId": "Agent-ID",
+          "network": "Netzwerk (zum Beispiel eip155:8453)",
+          "apply": "Filter anwenden",
+          "clear": "Zurücksetzen"
+        },
+        "Statuses": {
+          "PENDING": "Ausstehend",
+          "VERIFIED": "Verifiziert",
+          "FAILED": "Fehlgeschlagen",
+          "REFUNDED": "Erstattet"
+        },
+        "RefundKinds": {
+          "NODE_REFUSAL": "Node-Ablehnung",
+          "OPERATOR_GOODWILL": "Kulanz-Erstattung",
+          "OPERATOR_RESOLVE": "Manuelle Lösung"
+        },
+        "Rollup": {
+          "title": "Endpunktstatus",
+          "total": "Gesamt",
+          "pending": "Ausstehend",
+          "verified": "Verifiziert",
+          "failed": "Fehlgeschlagen",
+          "refunded": "Erstattet",
+          "goodwill": "Kulanz-Erstattungen",
+          "failures": "Node-Fehler",
+          "resolves": "Manuelle Lösungen",
+          "empty": "Keine Endpunktaktivität entspricht diesen Filtern."
+        },
+        "FailureReasons": {
+          "node_refused_payload": "Node lehnte Payload ab",
+          "node_refused_operational": "Node-Ablehnung (betrieblich)"
+        },
+        "Payments": {
+          "title": "{count, plural, one {# Zahlung} other {# Zahlungen}}",
+          "empty": "Keine Zahlungen entsprechen diesen Filtern.",
+          "next": "Nächste Seite",
+          "resolveAfter": "Sicher lösbar nach {date}"
+        },
+        "Columns": {
+          "created": "Erstellt",
+          "status": "Status",
+          "payment": "Zahlungs-ID",
+          "task": "Aufgabe",
+          "agent": "Agent",
+          "network": "Netzwerk",
+          "asset": "Asset",
+          "payTo": "Empfänger",
+          "amount": "Basiseinheiten",
+          "credits": "Credits",
+          "attempts": "Signaturversuche",
+          "actions": "Aktionen"
+        },
+        "Actions": {
+          "refund": "Erstatten",
+          "resolve": "Lösen",
+          "reason": "Prüfgrund",
+          "cancel": "Abbrechen",
+          "submitting": "Speichern…",
+          "refundConfirmTitle": "Verifizierte Zahlung erstatten?",
+          "refundConfirmDescription": "Dies erstellt eine ausgleichende Credit-Transaktion und schließt die Zahlung dauerhaft als erstattet.",
+          "resolveConfirmTitle": "Ausstehende Zahlung lösen?",
+          "resolveConfirmDescription": "Nur für blockierte Zahlungen nach Ablauf des Autorisierungs-Risikofensters verwenden. Dies erstellt eine ausgleichende Credit-Transaktion.",
+          "refundSuccess": "Zahlung erstattet.",
+          "resolveSuccess": "Zahlung gelöst.",
+          "actionFailed": "Aktion fehlgeschlagen. Seite aktualisieren, erneut anmelden und noch einmal versuchen."
+        },
+        "Reasons": {
+          "agent_output_quality": "Qualität der Agent-Ausgabe",
+          "duplicate_charge": "Doppelte Abbuchung",
+          "support_adjustment": "Support-Korrektur",
+          "account_deletion_blocked": "Kontolöschung blockiert",
+          "node_unreachable": "Zahlungs-Node nicht erreichbar",
+          "sign_attempts_exhausted": "Signaturversuche ausgeschöpft",
+          "unsettleable_authorization": "Nicht ausführbare Autorisierung"
         }
       },
       "Users": {
@@ -3943,7 +4029,11 @@
           "userOwnsOrganization": "Übertrage die Owner-Rolle oder lösche jede Organisation, die du besitzt, bevor du deinen Account löschst.",
           "inFlightJob": "Warte, bis laufende Jobs abgeschlossen sind, bevor du deinen Account löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe abgeschlossen sind, bevor du deinen Account löschst.",
-          "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst."
+          "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst.",
+          "taskX402PaymentPending": "Eine Task-Zahlung ist noch ausstehend. Kontaktiere den Support, damit sie geklärt wird, und lösche deinen Account danach erneut.",
+          "taskX402PaymentUnresolved": "Eine Task-Zahlung blockiert die Account-Löschung. Kontaktiere den Support und lösche deinen Account danach erneut.",
+          "taskX402PaymentAuthorizationLive": "Eine signierte Task-Zahlungsautorisierung ist noch gültig. Versuche die Account-Löschung nach Ablauf erneut, oder kontaktiere den Support.",
+          "taskX402PaymentBillingOwnerMismatch": "Eine Task-Zahlung hat eine widersprüchliche Abrechnungszuordnung. Kontaktiere den Support zur Korrektur und lösche deinen Account danach erneut."
         },
         "Links": {
           "organizationMembers": "Organisationsmitglieder",
@@ -5650,7 +5740,6 @@
       "personalDescription": "Arbeite für dich allein.",
       "organizationTitle": "Organisation",
       "organizationDescription": "Arbeite mit deinem Team.",
-      "organizationUnavailable": "Derzeit nicht verfügbar",
       "continue": "Weiter",
       "nameUpdateError": "Wir konnten deinen Namen nicht aktualisieren.",
       "organizationActivateError": "Der Wechsel zu dieser Organisation war nicht möglich. Du kannst den Workspace wechseln, sobald du im Produkt bist.",

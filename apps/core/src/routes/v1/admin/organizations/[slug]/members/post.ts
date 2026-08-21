@@ -9,6 +9,7 @@ import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overvie
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { created } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription.js";
 import prisma from "@/lib/db/prisma";
@@ -78,6 +79,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const role = body.role as MemberRole;
 
     const member = await prisma.$transaction(async (tx) => {
+      await ensurePersonalWorkspaceForOrganizationMembership(body.userId, {
+        tx,
+        organizationId: organization.id,
+      });
       const created = await memberRepository.createMember(
         body.userId,
         organization.id,

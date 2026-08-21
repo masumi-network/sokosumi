@@ -74,6 +74,10 @@ import {
   applyDesignMdMetadataGuardToUserCreate,
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
+import {
+  ensurePersonalWorkspaceForOrganizationMembership,
+  pinPreferredOrganizationIfUnset,
+} from "@/helpers/org-membership-personal-workspace";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
@@ -558,13 +562,19 @@ export const auth = betterAuth({
       beforeDelete: async (user) => {
         const evaluation = await evaluateUserDeletion(user.id, prisma);
         throwIfUserDeletionBlocked(user.id, evaluation);
-        await prepareTasksForUserDeletion(user.id, prisma);
+        // Snapshot before the helper: it deletes the User row in the same
+        // transaction as the payment/task sweep. afterDelete still best-effort
+        // deletes the Stripe customer.
         const userCustomer = await prisma.user.findUnique({
           where: { id: user.id },
           select: { stripeCustomerId: true },
         });
         (user as { stripeCustomerId?: string | null }).stripeCustomerId =
           userCustomer?.stripeCustomerId ?? null;
+        // This helper performs the User delete inside the same transaction as
+        // its payment/task sweep. Better Auth's following adapter delete is a
+        // deliberate not-found no-op; separating them reopens a charge race.
+        await prepareTasksForUserDeletion(user.id, prisma);
       },
       afterDelete: async (user) => {
         waitUntil(
@@ -635,15 +645,17 @@ export const auth = betterAuth({
     jwt({ disableSettingJwtHeader: true }),
     organization({
       organizationHooks: {
-        beforeCreateOrganization: async ({ organization }) => {
+        beforeCreateOrganization: async ({ organization, user }) => {
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
           return {
             data: applyDesignMdMetadataGuardToOrganizationCreate(
               organization as Record<string, unknown>,
             ),
           };
         },
-        afterCreateOrganization: async ({ organization }) => {
+        afterCreateOrganization: async ({ organization, user }) => {
           await ensureWorkspaceForCreatedOrganization(organization);
+          await pinPreferredOrganizationIfUnset(user.id, organization.id);
           await ensureFreeSubscriptionForCreatedOrganization(organization);
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
@@ -668,8 +680,16 @@ export const auth = betterAuth({
             ),
           };
         },
-        beforeAcceptInvitation: async ({ organization }) => {
+        beforeAcceptInvitation: async ({ organization, user }) => {
           await ensureCanAcceptOrganizationInvitation(organization.id);
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
+            organizationId: organization.id,
+          });
+        },
+        beforeAddMember: async ({ user, organization }) => {
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
+            organizationId: organization.id,
+          });
         },
         afterAcceptInvitation: async ({ organization, user }) => {
           await upgradeGuestChatRoomMembershipsToMember(

@@ -3159,6 +3159,10 @@
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
+          "x402Payments": {
+            "title": "Pagos x402",
+            "description": "Revisa pagos directos y resuelve cargos x402 retenidos o disputados."
+          },
           "freeCredits": {
             "title": "Créditos gratuitos",
             "description": "Otorga créditos gratuitos directamente a un usuario u organización sin factura de Stripe."
@@ -3171,6 +3175,88 @@
             "title": "Vendors",
             "description": "Crea y edita vendors del marketplace, incluido el nombre y los logos."
           }
+        }
+      },
+      "X402Payments": {
+        "title": "Pagos x402",
+        "description": "Supervisa pagos directos, detecta endpoints problemáticos y ejecuta acciones de soporte auditadas.",
+        "Filters": {
+          "status": "Estado",
+          "allStatuses": "Todos los estados",
+          "agentId": "ID del agente",
+          "network": "Red (por ejemplo eip155:8453)",
+          "apply": "Aplicar filtros",
+          "clear": "Limpiar"
+        },
+        "Statuses": {
+          "PENDING": "Pendiente",
+          "VERIFIED": "Verificado",
+          "FAILED": "Fallido",
+          "REFUNDED": "Reembolsado"
+        },
+        "RefundKinds": {
+          "NODE_REFUSAL": "Rechazo del nodo",
+          "OPERATOR_GOODWILL": "Reembolso de cortesía",
+          "OPERATOR_RESOLVE": "Resolución del operador"
+        },
+        "Rollup": {
+          "title": "Estado de endpoints",
+          "total": "Total",
+          "pending": "Pendiente",
+          "verified": "Verificado",
+          "failed": "Fallido",
+          "refunded": "Reembolsado",
+          "goodwill": "Reembolsos de cortesía",
+          "failures": "Fallos del nodo",
+          "resolves": "Resoluciones del operador",
+          "empty": "No hay actividad de endpoints para estos filtros."
+        },
+        "FailureReasons": {
+          "node_refused_payload": "El nodo rechazó el payload",
+          "node_refused_operational": "El nodo rechazó (operacional)"
+        },
+        "Payments": {
+          "title": "{count, plural, one {# pago} other {# pagos}}",
+          "empty": "No hay pagos para estos filtros.",
+          "next": "Página siguiente",
+          "resolveAfter": "Resolución segura después de {date}"
+        },
+        "Columns": {
+          "created": "Creado",
+          "status": "Estado",
+          "payment": "ID del pago",
+          "task": "Tarea",
+          "agent": "Agente",
+          "network": "Red",
+          "asset": "Activo",
+          "payTo": "Destinatario",
+          "amount": "Unidades base",
+          "credits": "Créditos",
+          "attempts": "Intentos de firma",
+          "actions": "Acciones"
+        },
+        "Actions": {
+          "refund": "Reembolsar",
+          "resolve": "Resolver",
+          "reason": "Motivo de auditoría",
+          "cancel": "Cancelar",
+          "submitting": "Guardando…",
+          "refundConfirmTitle": "¿Reembolsar el pago verificado?",
+          "refundConfirmDescription": "Esto crea una transacción compensatoria de créditos y cierra el pago permanentemente como reembolsado.",
+          "resolveConfirmTitle": "¿Resolver el pago pendiente?",
+          "resolveConfirmDescription": "Úsalo solo para un pago bloqueado cuando haya vencido la ventana de riesgo de autorización. Esto crea una transacción compensatoria de créditos.",
+          "refundSuccess": "Pago reembolsado.",
+          "resolveSuccess": "Pago resuelto.",
+          "actionFailed": "La acción falló. Actualiza la página, vuelve a iniciar sesión e inténtalo de nuevo."
+        },
+        "Reasons": {
+          "agent_output_quality": "Calidad del resultado del agente",
+          "duplicate_charge": "Cargo duplicado",
+          "support_adjustment": "Ajuste de soporte",
+          "account_deletion_blocked": "Eliminación de cuenta bloqueada",
+          "node_unreachable": "Nodo de pago inaccesible",
+          "sign_attempts_exhausted": "Intentos de firma agotados",
+          "unsettleable_authorization": "Autorización no liquidable"
         }
       },
       "Users": {
@@ -3943,7 +4029,11 @@
           "userOwnsOrganization": "Transfiere el rol de propietario o elimina todas las organizaciones que poseas antes de eliminar tu cuenta.",
           "inFlightJob": "Espera a que terminen los jobs en curso antes de eliminar tu cuenta.",
           "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs antes de eliminar tu cuenta.",
-          "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta."
+          "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta.",
+          "taskX402PaymentPending": "Un pago de tarea sigue pendiente; contacta con soporte para resolverlo y vuelve a eliminar tu cuenta.",
+          "taskX402PaymentUnresolved": "Un pago de tarea está en un estado que impide eliminar la cuenta. Contacta con soporte y vuelve a eliminar tu cuenta.",
+          "taskX402PaymentAuthorizationLive": "Una autorización firmada de un pago de tarea sigue activa. Vuelve a intentar eliminar la cuenta cuando caduque, o contacta con soporte.",
+          "taskX402PaymentBillingOwnerMismatch": "Un pago de tarea tiene una titularidad de facturación incoherente; contacta con soporte para repararlo y vuelve a eliminar tu cuenta."
         },
         "Links": {
           "organizationMembers": "Miembros de la organización",
@@ -5650,7 +5740,6 @@
       "personalDescription": "Trabaja por tu cuenta.",
       "organizationTitle": "Organización",
       "organizationDescription": "Trabaja con tu equipo.",
-      "organizationUnavailable": "No disponible actualmente",
       "continue": "Continuar",
       "nameUpdateError": "No pudimos actualizar tu nombre.",
       "organizationActivateError": "No pudimos cambiarte a esa organización. Puedes cambiar de espacio de trabajo cuando entres.",

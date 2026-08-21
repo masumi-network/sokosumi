@@ -119,3 +119,27 @@ export function isBlockchainIdentifierUniqueConstraintError(
 ): boolean {
   return isPrismaUniqueViolationOnField(error, "blockchainIdentifier");
 }
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on `idempotencyKey` (the composite `taskId` + `idempotencyKey` on
+ * TaskX402Payment). Scoped for the same reason as the blockchainIdentifier
+ * matcher: a bare P2002 check would relabel any other unique violation raised
+ * in the same transaction as a duplicate payment intent.
+ */
+export function isIdempotencyKeyUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "idempotencyKey");
+}
+
+/**
+ * Member @@unique([userId, organizationId]). Do not treat a personal-workspace
+ * unique on `userId` alone as an existing membership.
+ */
+export function isMemberUserOrganizationUniqueConstraintError(
+  error: unknown,
+): boolean {
+  return (
+    isPrismaUniqueViolationOnField(error, "userId") &&
+    isPrismaUniqueViolationOnField(error, "organizationId")
+  );
+}

@@ -3,11 +3,12 @@ import {
   buildCaip19AssetKey,
   normalizeMasumiPaymentUnit,
 } from "@sokosumi/masumi";
+import { truncateEcho } from "@sokosumi/masumi/schemas";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 
-import { unprocessableEntity } from "./error";
+import { internalServerError, unprocessableEntity } from "./error";
 
 /**
  * Widest asset scale this module will price — an ERC-20 `decimals` is a
@@ -53,13 +54,22 @@ export function isUsableAssetDecimals(value: unknown): value is number {
  * Fail closed: an asset without a `CreditCost` row rejects pre-charge with a
  * 422, mirroring the Cardano availability rule.
  */
-export interface X402AmountPricingInput {
-  /** CAIP-2 EVM network from the matched 402 entry, e.g. `eip155:8453`. */
+/**
+ * The buy-side-ready pair a demand is priced against: its CAIP-19 identity AND
+ * its scale, from ONE row.
+ *
+ * Deliberately a single object rather than loose `asset` / `decimals`
+ * arguments. The two are only meaningful together — `decimals` is the scale OF
+ * `asset` — and passing them separately let a caller pair the demand's asset
+ * with some other row's scale, which is a 10^n mischarge that nothing
+ * downstream can detect. `X402ReadySource` satisfies this structurally, so the
+ * only value that fits is the one the node vouched for.
+ */
+export interface X402PricedPair {
+  /** CAIP-2 EVM network id, e.g. `eip155:8453`. */
   caip2Network: string;
-  /** ERC-20 contract address of the demanded asset. */
+  /** ERC-20 contract address of the asset. */
   asset: string;
-  /** Demanded amount in token base units (`^\d+$`, chain-native). */
-  amount: string;
   /**
    * Base units per whole token for `asset` (USDC = 6).
    *
@@ -72,24 +82,36 @@ export interface X402AmountPricingInput {
   decimals: number;
 }
 
+export interface X402AmountPricingInput {
+  /** The node-vouched pair whose identity and scale price this amount. */
+  pair: X402PricedPair;
+  /** Demanded amount in token base units (`^\d+$`, chain-native). */
+  amount: string;
+}
+
 export function calculateCentsFromX402Amount(
   input: X402AmountPricingInput,
   creditCosts: CreditCost[],
 ): bigint {
   if (!/^\d+$/.test(input.amount)) {
-    throw unprocessableEntity(`Invalid x402 amount: ${input.amount}`);
+    // Truncate the echo: `amount` arrives from the wire on some callers, and
+    // an unbounded non-digit string would otherwise be reflected into the 422
+    // body (and any log line carrying it) at full length.
+    throw unprocessableEntity(
+      `Invalid x402 amount: ${truncateEcho(input.amount)}`,
+    );
   }
   const amount = BigInt(input.amount);
   if (amount <= 0n) {
     throw unprocessableEntity("x402 amount must be positive");
   }
-  if (!isUsableAssetDecimals(input.decimals)) {
-    throw unprocessableEntity(`Invalid asset decimals: ${input.decimals}`);
+  if (!isUsableAssetDecimals(input.pair.decimals)) {
+    throw unprocessableEntity(`Invalid asset decimals: ${input.pair.decimals}`);
   }
 
   let unit: string;
   try {
-    unit = buildCaip19AssetKey(input.caip2Network, input.asset);
+    unit = buildCaip19AssetKey(input.pair.caip2Network, input.pair.asset);
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid x402 asset identity",
@@ -97,10 +119,17 @@ export function calculateCentsFromX402Amount(
   }
 
   // CreditCost.unit is free-form operator input; normalize both sides like
-  // calculateCentsFromPricingAmountRows so casing can never unlist an asset.
-  const creditCost = creditCosts.find(
+  // calculateCentsFromPricingAmountRows so casing or legacy surrounding
+  // whitespace can never unlist an asset.
+  const matchingCreditCosts = creditCosts.filter(
     (candidate) => normalizeMasumiPaymentUnit(candidate.unit) === unit,
   );
+  if (matchingCreditCosts.length > 1) {
+    throw internalServerError(
+      `Multiple credit costs normalize to unit ${unit}; canonicalize the operator configuration`,
+    );
+  }
+  const [creditCost] = matchingCreditCosts;
   if (!creditCost) {
     // Fail closed (ticket 004): no priced asset, no charge, no signing.
     throw unprocessableEntity(`Credit cost not found for unit ${unit}`);
@@ -111,7 +140,7 @@ export function calculateCentsFromX402Amount(
     throw unprocessableEntity(`Credit cost for unit ${unit} is not positive`);
   }
 
-  const baseUnitsPerToken = 10n ** BigInt(input.decimals);
+  const baseUnitsPerToken = 10n ** BigInt(input.pair.decimals);
   // Ceiling division: partial base units always round the charge UP.
   const cents =
     (amount * creditCost.centsPerUnit + baseUnitsPerToken - 1n) /

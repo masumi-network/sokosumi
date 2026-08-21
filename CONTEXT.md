@@ -18,9 +18,23 @@ _Avoid_: Purchase, subscribe (billing), assign (Task → Coworker)
 One run of an Agent for a user or workspace. Not a Task.
 _Avoid_: Task, run (unless a UI label)
 
+**Task**:
+Work assigned to a Coworker. Not a Job.
+_Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
+
 **Coworker**:
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), assistant (Hermes)
+
+### Task payments
+
+**Task payment claim**:
+The Cardano escrow payment record for a Task.
+_Avoid_: Purchase (Job hire), x402 payment
+
+**Task x402 payment**:
+The x402 signed-authorization charge for a Task. The parent is the Task; do not drop that from the name while this is a Task-scoped record.
+_Avoid_: X402Payment (unmarked), x402 payment (when meaning the payment node's attempt), treating this as a Job hire payment
 
 ### Notifications
 

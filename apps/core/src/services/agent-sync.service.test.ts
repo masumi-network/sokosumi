@@ -21,6 +21,8 @@ const {
   ratingDeleteMock,
   overrideFindUniqueMock,
   overrideUpdateMock,
+  x402PaymentUpdateManyMock,
+  x402ActionUpdateManyMock,
   executeRawMock,
   queryRawMock,
   agentFindManyMock,
@@ -54,6 +56,8 @@ const {
   ratingDeleteMock: vi.fn(),
   overrideFindUniqueMock: vi.fn(),
   overrideUpdateMock: vi.fn(),
+  x402PaymentUpdateManyMock: vi.fn(),
+  x402ActionUpdateManyMock: vi.fn(),
   executeRawMock: vi.fn(),
   queryRawMock: vi.fn(),
   agentFindManyMock: vi.fn(),
@@ -207,6 +211,12 @@ function createTransactionClientMock() {
       findUnique: overrideFindUniqueMock,
       update: overrideUpdateMock,
     },
+    taskX402Payment: {
+      updateMany: x402PaymentUpdateManyMock,
+    },
+    taskX402PaymentAction: {
+      updateMany: x402ActionUpdateManyMock,
+    },
     $executeRaw: executeRawMock,
   };
 }
@@ -330,6 +340,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
     ratingDeleteMock.mockResolvedValue(undefined);
     overrideFindUniqueMock.mockResolvedValue(null);
     overrideUpdateMock.mockResolvedValue(undefined);
+    x402PaymentUpdateManyMock.mockResolvedValue({ count: 0 });
+    x402ActionUpdateManyMock.mockResolvedValue({ count: 0 });
     executeRawMock.mockResolvedValue(0);
     queryRawMock.mockResolvedValue([]);
     agentFindUniqueMock.mockResolvedValue(null);
@@ -663,6 +675,17 @@ describe("agentSyncService.syncRegistryAgents", () => {
       where: { id: "override-dup" },
       data: { agentId: "agent-canonical" },
     });
+    // x402 payments and their FK-free action-ledger rows follow the stable
+    // row too — a rollback-era duplicate was hireable before parking, and the
+    // admin refund-rate rollup groups by these denormalized agentId columns.
+    expect(x402PaymentUpdateManyMock).toHaveBeenCalledWith({
+      where: { agentId: "agent-rollback-dup" },
+      data: { agentId: "agent-canonical" },
+    });
+    expect(x402ActionUpdateManyMock).toHaveBeenCalledWith({
+      where: { agentId: "agent-rollback-dup" },
+      data: { agentId: "agent-canonical" },
+    });
     // Deep links are retargeted OUTSIDE the park transaction.
     expect(executeRawMock).toHaveBeenCalled();
   });
@@ -990,6 +1013,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
         blockchainIdentifier: true,
         metadataVersion: true,
         apiBaseUrl: true,
+        type: true,
+        x402ResourcesUrl: true,
+        openApiSpecUrl: true,
         isShown: true,
       },
     });
@@ -1526,6 +1552,138 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(update?.[0]?.data).not.toHaveProperty("isShown");
   });
 
+  it("unpublishes a pointer entry whose discovery URL moves without a promotion", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-x402-1",
+      pricingId: "pricing-1",
+      registryVersion: 1,
+      blockchainIdentifier: createV2AgentIdentifier(1),
+      metadataVersion: 1,
+      apiBaseUrl: null,
+      isShown: true,
+      type: AgentEntryType.X402,
+      x402ResourcesUrl: "https://original-seller.example.com/x402",
+      openApiSpecUrl: null,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-x402-moved", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          type: "X402",
+          apiBaseUrl: null,
+          paymentType: "None",
+          AgentPricing: null,
+          x402ResourcesUrl: "https://attacker.example.com/x402",
+          SupportedPaymentSources: [],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    // Same registryVersion on purpose: the projection rewrites discovery
+    // fields on every sync update, so curated exposure must not survive a
+    // discovery move that arrives without a revision promotion.
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-x402-1" },
+        data: expect.objectContaining({ isShown: false }),
+      }),
+    );
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Agent revision changed its discovery identity; unpublishing pending review",
+      expect.objectContaining({ level: "error" }),
+    );
+  });
+
+  it("unpublishes a curated row whose entry type flips to a pointer surface", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-standard-1",
+      pricingId: "pricing-1",
+      registryVersion: 1,
+      blockchainIdentifier: createV2AgentIdentifier(1),
+      metadataVersion: 1,
+      apiBaseUrl: "https://example.com",
+      isShown: true,
+      type: AgentEntryType.STANDARD,
+      x402ResourcesUrl: null,
+      openApiSpecUrl: null,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-becomes-x402", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          type: "X402",
+          apiBaseUrl: null,
+          paymentType: "None",
+          AgentPricing: null,
+          x402ResourcesUrl: "https://attacker.example.com/x402",
+          SupportedPaymentSources: [],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "agent-standard-1" },
+        data: expect.objectContaining({ isShown: false }),
+      }),
+    );
+  });
+
+  it("keeps a pointer entry published when its discovery identity is unchanged", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-x402-1",
+      pricingId: "pricing-1",
+      registryVersion: 1,
+      blockchainIdentifier: createV2AgentIdentifier(1),
+      metadataVersion: 1,
+      apiBaseUrl: null,
+      isShown: true,
+      type: AgentEntryType.X402,
+      x402ResourcesUrl: "https://example.com/x402-resources",
+      openApiSpecUrl: null,
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-x402-stable", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          type: "X402",
+          apiBaseUrl: null,
+          paymentType: "None",
+          AgentPricing: null,
+          x402ResourcesUrl: "https://example.com/x402-resources",
+          SupportedPaymentSources: [],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const update = agentUpdateMock.mock.calls.find(
+      (call) => call[0]?.where?.id === "agent-x402-1",
+    );
+    expect(update?.[0]?.data).not.toHaveProperty("isShown");
+    expect(captureMessageMock).not.toHaveBeenCalledWith(
+      "Agent revision changed its discovery identity; unpublishing pending review",
+      expect.anything(),
+    );
+  });
+
   it("promotes a newer V2 revision on the existing stable Agent row", async () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-stable-1",
@@ -1561,6 +1719,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
         blockchainIdentifier: true,
         metadataVersion: true,
         apiBaseUrl: true,
+        type: true,
+        x402ResourcesUrl: true,
+        openApiSpecUrl: true,
         isShown: true,
       },
     });
@@ -1620,6 +1781,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
         blockchainIdentifier: true,
         metadataVersion: true,
         apiBaseUrl: true,
+        type: true,
+        x402ResourcesUrl: true,
+        openApiSpecUrl: true,
         isShown: true,
       },
     });
@@ -1908,6 +2072,46 @@ describe("agentSyncService.syncRegistryAgents", () => {
       ],
     });
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves dynamic X402 source pricing for runtime quotes", async () => {
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-x402-dynamic", {
+          type: "X402",
+          apiBaseUrl: null,
+          paymentType: "None",
+          AgentPricing: null,
+          x402ResourcesUrl: "https://example.com/x402-resources",
+          SupportedPaymentSources: [
+            {
+              sourceIndex: 0,
+              chain: "EVM",
+              network: "eip155:84532",
+              paymentSourceType: null,
+              address: "0x1111111111111111111111111111111111111111",
+              payTo: "0x2222222222222222222222222222222222222222",
+              scheme: "exact",
+              resource: null,
+              pricing: { pricingType: "Dynamic" },
+            },
+          ],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.paymentSources.create[0]).toMatchObject({
+      network: "eip155:84532",
+      pricingType: PricingType.DYNAMIC,
+    });
+    expect(createCall.data.paymentSources.create[0].amounts).toBeUndefined();
   });
 
   it("ingests entries without an apiBaseUrl storing a null apiBaseUrl", async () => {
