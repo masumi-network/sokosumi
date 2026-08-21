@@ -40,6 +40,10 @@ Decide:
 Decided by Sandro (2026-08-11) across two grilling rounds. The endpoint is
 **modeled after the node's own `POST /x402/pay`** on both sides of the wire:
 
+> **Current contract, 2026-08-17.** The original five points and interlock
+> paragraph record design history. PR1-SPEC §3 is authoritative. The
+> correction below replaces the historical wire, retry, and refund details.
+
 1. **Trust boundary — listed agents only.** The 402's `payTo` + network +
    asset must reverse-match a registered x402 agent's payment source, and
    the amount is sanity-checked against that agent's registry pricing. Plus
@@ -70,9 +74,15 @@ same-key replay (no second debit). Persist `VERIFIED` **before**
 returning the header. Auto-refund `PENDING` only when no header was ever
 written. Canonical write-up: [PR1-SPEC.md](../PR1-SPEC.md) §3.
 
-`paymentIdentifier` is stamped **only when the 402 advertises the
-payment-identifier extension** (the node 400s otherwise). Field-level
-schema lands in the PR 1 spec (007).
+The endpoint accepts either supported wild 402 dialect and narrows it to one
+verified v2 requirement. It returns a protocol-aware `paymentHeader`
+descriptor. It stamps `${taskId}_${paymentId}` only when the requirement
+advertises the extension. A canonical demand fingerprint binds
+`(taskId, idempotencyKey)`. `VERIFIED` replay returns the stored live
+header; `PENDING` re-enters sign under a lease with no second debit;
+`FAILED` / `REFUNDED` consume the key. `signRiskExpiresAt` blocks
+operator resolve while an unseen authorization can remain live. There is
+no `Task.maxCredits`.
 
 ## Progress (superseded by Resolution above)
 
@@ -80,7 +90,7 @@ schema lands in the PR 1 spec (007).
   for **listed agents** — the 402's `payTo` + network + asset must match a
   registered x402 agent's advertised payment source, and the amount is
   sanity-checked against that agent's registry pricing. No arbitrary-402
-  signing; this is what makes the whitelist-disable lever and per-endpoint
+  signing; this is what makes the whitelist-disable lever and per-agent
   aggregation from the refund policy bite.
 - **Environment nuance** (Sandro, same session): on preprod every agent is
   listed — curation is not the gate there. The preprod guard is the network
