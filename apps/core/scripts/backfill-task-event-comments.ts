@@ -93,6 +93,51 @@ Examples:
     }
   }
 
+  // Validate batch-size
+  if (
+    !Number.isInteger(options.batchSize) ||
+    options.batchSize <= 0 ||
+    !Number.isFinite(options.batchSize)
+  ) {
+    console.error(
+      `Error: --batch-size must be a positive integer, got: ${options.batchSize}`,
+    );
+    process.exit(1);
+  }
+
+  // Validate limit
+  if (
+    options.limit !== undefined &&
+    (!Number.isInteger(options.limit) ||
+      options.limit <= 0 ||
+      !Number.isFinite(options.limit))
+  ) {
+    console.error(
+      `Error: --limit must be a positive integer, got: ${options.limit}`,
+    );
+    process.exit(1);
+  }
+
+  // Validate after-created-at
+  if (options.afterCreatedAt !== undefined) {
+    if (Number.isNaN(options.afterCreatedAt.getTime())) {
+      console.error(
+        `Error: --after-created-at must be a valid ISO 8601 date, got invalid date`,
+      );
+      process.exit(1);
+    }
+  }
+
+  // Validate cursor completeness
+  const hasAfterId = options.afterId !== undefined;
+  const hasAfterCreatedAt = options.afterCreatedAt !== undefined;
+  if (hasAfterId !== hasAfterCreatedAt) {
+    console.error(
+      "Error: --after-id and --after-created-at must both be present or both absent",
+    );
+    process.exit(1);
+  }
+
   return options;
 }
 
