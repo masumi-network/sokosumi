@@ -52,6 +52,7 @@ import {
   enqueueClassicOutboundJob,
 } from "@/app/chat/utils/classic-outbound-queue";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
+import { isPersistedMentionThoughtShell } from "@/app/chat/utils/coworker-thought";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
@@ -995,7 +996,7 @@ export function RoomsClient({
         if (current?.id !== message.id) {
           return current;
         }
-        return isHardDelete ? current : message;
+        return isHardDelete ? null : message;
       });
 
       if (
@@ -2367,6 +2368,9 @@ export function RoomsClient({
                   messageDayKey(previousMessage.createdAt) !==
                     messageDayKey(message.createdAt));
               const isStreamOverlay = message.id.startsWith("stream:");
+              const isThinkingShell = isPersistedMentionThoughtShell(
+                message.metadata,
+              );
               const isOutboundLocal = isOutboundLocalMessage(message);
               return (
                 <div
@@ -2400,6 +2404,7 @@ export function RoomsClient({
                         shouldShowChatRoomThreadButton({
                           room: selectedRoom,
                           isStreamOverlay,
+                          isThinkingShell,
                         })
                           ? handleOpenThreadFromMessage
                           : undefined
@@ -2431,6 +2436,7 @@ export function RoomsClient({
                         shouldShowChatRoomThreadButton({
                           room: selectedRoom,
                           isStreamOverlay,
+                          isThinkingShell,
                         })
                       }
                       isFirstOfDay={showDaySeparator}

@@ -38,6 +38,7 @@ const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
 interface MentionStreamPart {
   type: string;
   text?: string;
+  error?: unknown;
 }
 
 interface MentionStreamConsumption {
@@ -121,6 +122,14 @@ async function consumeMentionProviderStream(
       }
     } else if (part.type === "text-delta" && typeof part.text === "string") {
       text += part.text;
+    } else if (part.type === "error") {
+      const message =
+        typeof part.error === "string"
+          ? part.error
+          : part.error instanceof Error
+            ? part.error.message
+            : "Coworker stream error";
+      throw new Error(message);
     }
   }
 
@@ -157,20 +166,30 @@ async function publishMentionThoughtPlaceholder(params: {
     await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
     return params.placeholderId;
   }
-  const created = await prisma.chatRoomMessage.create({
-    data: {
-      roomId: params.roomId,
-      parentMessageId: params.parentMessageId,
-      senderCoworkerId: params.coworkerId,
-      content: "",
-      metadata,
-    },
+  const created = await prisma.$transaction(async (tx) => {
+    const row = await tx.chatRoomMessage.create({
+      data: {
+        roomId: params.roomId,
+        parentMessageId: params.parentMessageId,
+        senderCoworkerId: params.coworkerId,
+        content: "",
+        metadata,
+      },
+    });
+    await tx.chatRoomMention.update({
+      where: { id: params.mentionId },
+      data: { responseMessageId: row.id },
+    });
+    return row;
   });
-  await prisma.chatRoomMention.update({
-    where: { id: params.mentionId },
-    data: { responseMessageId: created.id },
-  });
-  await publishChatRoomMessageRealtimeById(created.id, "create");
+  try {
+    await publishChatRoomMessageRealtimeById(created.id, "create");
+  } catch (publishError) {
+    console.error("Mention Thought placeholder Ably create failed:", {
+      mentionId: params.mentionId,
+      error: publishError,
+    });
+  }
   return created.id;
 }
 
@@ -742,7 +761,16 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   } finally {
     if (!mentionPublished) {
       await thoughtPublishQueue.catch(() => undefined);
-      await discardMentionThoughtPlaceholder(placeholderId, parentMessageId);
+      const latest = await prisma.chatRoomMention.findUnique({
+        where: { id: mentionId },
+        select: { status: true, responseMessageId: true },
+      });
+      const winnerKeptRow =
+        latest?.status === "responded" &&
+        latest.responseMessageId === placeholderId;
+      if (!winnerKeptRow) {
+        await discardMentionThoughtPlaceholder(placeholderId, parentMessageId);
+      }
     }
   }
 }

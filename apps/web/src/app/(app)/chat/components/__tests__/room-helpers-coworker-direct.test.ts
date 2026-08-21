@@ -96,6 +96,16 @@ describe("coworker DM cutover gating (rooms-client wiring)", () => {
     ).toBe(true);
   });
 
+  it("hides thread button on persisted mention Thought shells", () => {
+    expect(
+      shouldShowChatRoomThreadButton({
+        room: humanChannel,
+        isStreamOverlay: false,
+        isThinkingShell: true,
+      }),
+    ).toBe(false);
+  });
+
   it("hides thread button on stream overlays even for channels", () => {
     expect(
       shouldShowChatRoomThreadButton({

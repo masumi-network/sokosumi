@@ -77,7 +77,10 @@ vi.mock("@/lib/db/prisma", () => ({
           findUnique: messageFindUniqueMock,
           update: updateMessageMock,
         },
-        chatRoomMention: { updateMany: transactionUpdateManyMock },
+        chatRoomMention: {
+          updateMany: transactionUpdateManyMock,
+          update: updateMock,
+        },
         chatRoomCoworkerMember: { findUnique: coworkerMemberFindUniqueMock },
         chatRoom: { update: vi.fn() },
       }),
@@ -116,8 +119,8 @@ import {
 const publishRealtimeMock = vi.mocked(publishChatRoomMessageRealtimeById);
 
 function asyncStreamParts(
-  parts: Array<{ type: string; text?: string }>,
-): AsyncIterable<{ type: string; text?: string }> {
+  parts: Array<{ type: string; text?: string; error?: unknown }>,
+): AsyncIterable<{ type: string; text?: string; error?: unknown }> {
   return {
     async *[Symbol.asyncIterator]() {
       for (const part of parts) {
@@ -784,6 +787,74 @@ describe("dispatchChatRoomMention claim", () => {
         status: "failed",
       }),
     });
+  });
+
+  it("fails closed when fullStream emits an error part after Thought", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    streamTextMock.mockReturnValue({
+      text: Promise.resolve("partial"),
+      reasoning: Promise.resolve([
+        { type: "reasoning", text: "Looked up the room context." },
+      ]),
+      fullStream: asyncStreamParts([
+        {
+          type: "reasoning-delta",
+          text: "Looked up the room context.",
+        },
+        { type: "error", error: "stream aborted" },
+        { type: "text-delta", text: "partial" },
+      ]),
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalled();
+    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
+    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
+    expect(transactionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "responded" }),
+      }),
+    );
+  });
+
+  it("does not discard a reused placeholder the winning worker already finalized", async () => {
+    findUniqueMock
+      .mockResolvedValueOnce({
+        ...pendingMention(),
+        responseMessageId: "reply_existing",
+      })
+      .mockResolvedValue({
+        ...pendingMention(),
+        status: "responded",
+        responseMessageId: "reply_existing",
+      });
+    updateManyMock.mockResolvedValue({ count: 1 });
+    transactionUpdateManyMock.mockResolvedValue({ count: 0 });
+    updateMessageMock.mockResolvedValue({ id: "reply_existing" });
+    streamTextMock.mockReturnValue({
+      text: Promise.resolve("Hello back"),
+      reasoning: Promise.resolve([
+        { type: "reasoning", text: "Looked up the room context." },
+      ]),
+      fullStream: asyncStreamParts([
+        {
+          type: "reasoning-delta",
+          text: "Looked up the room context.",
+        },
+        { type: "text-delta", text: "Hello back" },
+      ]),
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(publishRealtimeMock).not.toHaveBeenCalledWith(
+      "reply_existing",
+      "delete",
+    );
   });
 
   it("publishes delete for a streaming placeholder when finalize loses the claim", async () => {
