@@ -14,10 +14,10 @@
  *
  * The chain-id reference is anchored to CAIP-2's canonical integer form —
  * no leading zeros, at most 32 characters — because this pattern is what
- * DECIDES canonical spelling: `normalizeNetwork` passes any match through
- * verbatim, so a pattern that accepted `eip155:08453` would mint a second
- * spelling for chain 8453 and break the no-second-spelling guarantee the
- * module doc promises.
+ * DECIDES canonical spelling: `normalizeX402NetworkId` passes any match
+ * through verbatim, so a pattern that accepted `eip155:08453` would mint a
+ * second spelling for chain 8453 and break the no-second-spelling guarantee
+ * the module doc promises.
  */
 export const CAIP2_EVM_NETWORK_PATTERN = /^eip155:(0|[1-9]\d{0,31})$/;
 
@@ -82,4 +82,24 @@ export function parseCaip19AssetKey(key: string): Caip19AssetKeyParts | null {
 /** Whether a `CreditCost.unit` value is a CAIP-19 ERC-20 asset key. */
 export function isCaip19AssetKey(key: string): boolean {
   return parseCaip19AssetKey(key) !== null;
+}
+
+/**
+ * Whether a `CreditCost.unit` spelling belongs to the EVM (`eip155:`)
+ * namespace AT ALL — canonical or not.
+ *
+ * This is the EXCLUSION fence, deliberately broader than
+ * {@link isCaip19AssetKey}. The canonical pattern answers "may this key
+ * enter the whole-token pricing path" — a positive gate, where strictness
+ * fails closed. This answers the opposite question: "must this unit be kept
+ * OUT of the per-smallest-unit Cardano path". There, strictness fails OPEN:
+ * a misspelled key such as `eip155:08453/erc20:0x…` fails the canonical
+ * pattern, but if the Cardano path honored it the row would be priced per
+ * smallest unit against a whole-token `centsPerUnit` — a 10^decimals
+ * mischarge. So the fence catches the whole namespace, not only well-formed
+ * keys. No Cardano unit can ever start with `eip155:` (they are `lovelace`,
+ * the empty string, or hex policy/asset ids, which cannot contain `:`).
+ */
+export function isEvmNamespacedUnit(unit: string): boolean {
+  return unit.trim().toLowerCase().startsWith("eip155:");
 }

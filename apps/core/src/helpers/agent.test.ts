@@ -12,8 +12,15 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
+  getAgentApiBaseUrl,
+  getAgentAuthorImage,
+  getAgentDescription,
+  getAgentIcon,
+  getAgentImage,
+  getAgentName,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
+  getJobDetailsAgentOverrideFields,
   isCardanoV2SourceReady,
   requireAvailableAgentOrThrow,
   toMasumiAgent,
@@ -509,5 +516,125 @@ describe("requireAvailableAgentOrThrow", () => {
     await expect(
       requireAvailableAgentOrThrow("missing", tx),
     ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("getAgentImage", () => {
+  it("prefers the override image and resolves ipfs URLs", () => {
+    expect(
+      getAgentImage({
+        image: "https://registry.example.com/image.png",
+        metadataOverride: { image: "ipfs://bafyoverride" },
+      }),
+    ).toBe("https://c-ipfs-gw.nmkr.io/ipfs/bafyoverride");
+  });
+
+  it("falls back to the registry image and returns null when absent", () => {
+    expect(
+      getAgentImage({
+        image: "https://registry.example.com/image.png",
+        metadataOverride: null,
+      }),
+    ).toBe("https://registry.example.com/image.png");
+    expect(getAgentImage({ image: null, metadataOverride: null })).toBeNull();
+  });
+});
+
+describe("getAgentIcon", () => {
+  it("resolves the icon URL and returns null when absent", () => {
+    expect(getAgentIcon({ icon: "ipfs://bafyicon" })).toBe(
+      "https://c-ipfs-gw.nmkr.io/ipfs/bafyicon",
+    );
+    expect(getAgentIcon({ icon: null })).toBeNull();
+  });
+});
+
+describe("getAgentName", () => {
+  it("prefers the override name over the registry name", () => {
+    expect(
+      getAgentName({
+        name: "Registry Name",
+        metadataOverride: { name: "Override Name" },
+      }),
+    ).toBe("Override Name");
+    expect(
+      getAgentName({ name: "Registry Name", metadataOverride: null }),
+    ).toBe("Registry Name");
+  });
+});
+
+describe("getAgentDescription", () => {
+  it("prefers the override description over the registry description", () => {
+    expect(
+      getAgentDescription({
+        description: "Registry description",
+        metadataOverride: { description: "Override description" },
+      }),
+    ).toBe("Override description");
+    expect(
+      getAgentDescription({ description: null, metadataOverride: null }),
+    ).toBeNull();
+  });
+});
+
+describe("getAgentAuthorImage", () => {
+  it("prefers the override author image and resolves ipfs URLs", () => {
+    expect(
+      getAgentAuthorImage({
+        authorImage: "https://registry.example.com/author.png",
+        metadataOverride: { authorImage: "ipfs://bafyauthor" },
+      }),
+    ).toBe("https://c-ipfs-gw.nmkr.io/ipfs/bafyauthor");
+    expect(
+      getAgentAuthorImage({ authorImage: null, metadataOverride: null }),
+    ).toBeNull();
+  });
+});
+
+describe("getAgentApiBaseUrl", () => {
+  it("prefers the override endpoint over the registry endpoint", () => {
+    expect(
+      getAgentApiBaseUrl({
+        apiBaseUrl: "https://registry.example.com",
+        metadataOverride: { apiBaseUrl: "https://override.example.com" },
+      }),
+    ).toBe("https://override.example.com");
+    expect(
+      getAgentApiBaseUrl({ apiBaseUrl: null, metadataOverride: null }),
+    ).toBeNull();
+  });
+});
+
+describe("getJobDetailsAgentOverrideFields", () => {
+  it("maps every override field and nulls the rest", () => {
+    expect(
+      getJobDetailsAgentOverrideFields({
+        metadataOverride: {
+          name: "Override Name",
+          image: "ipfs://bafyoverride",
+          legalPrivacyPolicy: "Privacy",
+          legalTerms: null,
+          legalDpa: null,
+          legalOther: null,
+        },
+      }),
+    ).toEqual({
+      overrideName: "Override Name",
+      overrideImage: "ipfs://bafyoverride",
+      overrideLegalPrivacyPolicy: "Privacy",
+      overrideLegalTerms: null,
+      overrideLegalDpa: null,
+      overrideLegalOther: null,
+    });
+    expect(
+      getJobDetailsAgentOverrideFields({ metadataOverride: null }),
+    ).toEqual({
+      overrideName: null,
+      overrideImage: null,
+      overrideLegalPrivacyPolicy: null,
+      overrideLegalTerms: null,
+      overrideLegalDpa: null,
+      overrideLegalOther: null,
+    });
   });
 });

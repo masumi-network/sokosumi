@@ -54,7 +54,7 @@ import {
  * A `Map`, not an object literal, because the lookup key is attacker-authored.
  * Indexing a literal walks `Object.prototype`, and `constructor` / `__proto__`
  * both survive the caller's `.toLowerCase()` and both return non-`undefined` —
- * so `normalizeNetwork` answered `ok(<function Object>)` / `ok(Object.
+ * so `normalizeX402NetworkId` answered `ok(<function Object>)` / `ok(Object.
  * prototype)` and pushed a NON-STRING `network`. It failed closed at the
  * trailing re-validation, but with the wrong error, and only for as long as
  * that trailing `safeParse` stayed in place. A Map has no prototype chain to
@@ -88,23 +88,25 @@ const V1_NETWORK_NAME_TO_CAIP2: ReadonlyMap<string, string> = new Map([
  * `scheme`, a fractional `maxTimeoutSeconds`) is still a payload-wide parse
  * failure.
  */
+const wildRequirementShape = {
+  scheme: z.string().min(1).max(X402_MAX_RAW_SCHEME_LENGTH).optional(),
+  network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH).optional(),
+  asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH).optional(),
+  // Both amount spellings stay loosely typed here: normalizeAmount owns
+  // unifying them and is the single place that reports WHY an amount was
+  // refused. Only the length is fenced, so neither spelling can reach an
+  // error message as a megabyte string.
+  amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
+  maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
+  payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH).optional(),
+  maxTimeoutSeconds: z.number().int().positive().optional(),
+  extra: wildX402ExtraSchema.optional(),
+  /** v1 carries the resource URL per entry, as a plain string. */
+  resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
+};
+
 const wildRequirementSchema = z
-  .looseObject({
-    scheme: z.string().min(1).max(X402_MAX_RAW_SCHEME_LENGTH).optional(),
-    network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH).optional(),
-    asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH).optional(),
-    // Both amount spellings stay loosely typed here: normalizeAmount owns
-    // unifying them and is the single place that reports WHY an amount was
-    // refused. Only the length is fenced, so neither spelling can reach an
-    // error message as a megabyte string.
-    amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-    maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-    payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH).optional(),
-    maxTimeoutSeconds: z.number().int().positive().optional(),
-    extra: wildX402ExtraSchema.optional(),
-    /** v1 carries the resource URL per entry, as a plain string. */
-    resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
-  })
+  .looseObject(wildRequirementShape)
   .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
 
 export type WildX402Requirement = z.infer<typeof wildRequirementSchema>;
@@ -125,7 +127,20 @@ export const wildPaymentRequiredSchema = z.object({
   extensions: x402ExtensionsSchema.optional(),
 });
 
-function normalizeNetwork(network: string): Result<string, string> {
+/**
+ * Canonicalizes an x402 `network` to a lowercase CAIP-2 id, accepting the v1
+ * plain names as aliases.
+ *
+ * Exported because the 402 is not the only place a network id arrives: the
+ * signed `X-PAYMENT` header's envelope carries one too, and `apps/core` has to
+ * compare it against the CAIP-2 network the charge was priced on. Both sides
+ * must fold the same dialects or the cross-check is a spelling test — a node
+ * answering `base-sepolia` for a charge on `eip155:84532` would read as a
+ * chain mismatch and hold a perfectly good payment.
+ */
+export function normalizeX402NetworkId(
+  network: string,
+): Result<string, string> {
   const trimmed = network.trim().toLowerCase();
   if (CAIP2_EVM_NETWORK_PATTERN.test(trimmed)) {
     return ok(trimmed);
@@ -185,6 +200,13 @@ function normalizeAmount(entry: WildX402Requirement): Result<string, string> {
   if (!/^\d+$/.test(value)) {
     return err(`Invalid x402 amount: ${truncateEcho(value)}`);
   }
+  if (BigInt(value) === 0n) {
+    // A zero demand is refused HERE, per entry, rather than downstream at
+    // pricing: refusing at selection lets a payable sibling entry win, and
+    // downstream the refusal would land only after the payload as a whole
+    // was accepted — as a charge-time 422 instead of a skipped menu entry.
+    return err("x402 amount is 0; a zero demand cannot be charged");
+  }
   if (BigInt(value) > X402_MAX_AMOUNT_BASE_UNITS) {
     // The node persists base units in Postgres BIGINT columns, so a larger
     // demand is refused there — after the credits are charged.
@@ -199,18 +221,18 @@ function normalizeAmount(entry: WildX402Requirement): Result<string, string> {
  * Every key a dialect translation recognizes on a requirement entry, folded
  * to lowercase — i.e. exactly the fields destructured out of an entry before
  * the remainder is forwarded.
+ *
+ * DERIVED from the wild schema's shape rather than listed a second time: a
+ * field added to `wildRequirementShape` but forgotten here would silently
+ * become forwardable in shadow spellings (`PayTo` alongside `payTo`) — the
+ * exact hole `dropShadowKeys` closes. Deriving makes that drift impossible;
+ * the exact-case destructure in `selectPayableRequirement` stays the one
+ * hand-maintained list, and a key missed THERE is dropped by this filter
+ * rather than forwarded raw (the safe direction).
  */
-const X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE: ReadonlySet<string> = new Set([
-  "scheme",
-  "network",
-  "asset",
-  "amount",
-  "maxamountrequired",
-  "payto",
-  "maxtimeoutseconds",
-  "extra",
-  "resource",
-]);
+const X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE: ReadonlySet<string> = new Set(
+  Object.keys(wildRequirementShape).map((key) => key.toLowerCase()),
+);
 
 /**
  * Drops any forwarded key that collides case-insensitively with a recognized
@@ -324,7 +346,7 @@ export function selectPayableRequirement(
       `x402 maxTimeoutSeconds ${entry.maxTimeoutSeconds} is above the ${X402_MAX_TIMEOUT_SECONDS}-second cap`,
     );
   }
-  const network = normalizeNetwork(entry.network);
+  const network = normalizeX402NetworkId(entry.network);
   if (network.isErr()) {
     return err(network.error);
   }

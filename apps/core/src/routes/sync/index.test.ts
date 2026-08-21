@@ -13,6 +13,7 @@ const {
   syncRegistryAgentsMock,
   syncSourceImportMock,
   syncStripeCustomersMock,
+  syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
@@ -26,6 +27,7 @@ const {
   syncRegistryAgentsMock: vi.fn(),
   syncSourceImportMock: vi.fn(),
   syncStripeCustomersMock: vi.fn(),
+  syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
 }));
 
@@ -52,6 +54,10 @@ vi.mock("@/services/agent-sync.service", () => ({
     syncAgentSummaries: syncAgentSummariesMock,
     syncCardanoV2RailReadiness: syncCardanoV2RailReadinessMock,
   },
+}));
+
+vi.mock("@/services/agent-sync.x402-readiness", () => ({
+  syncX402BuySideReadiness: syncX402BuySideReadinessMock,
 }));
 
 vi.mock("@/services/source-import-sync.service", () => ({
@@ -140,6 +146,7 @@ describe("sync routes", () => {
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
     syncCardanoV2RailReadinessMock.mockResolvedValue(false);
+    syncX402BuySideReadinessMock.mockResolvedValue(false);
     syncJobsMock.mockResolvedValue({
       processed: 0,
       unfinishedFound: 0,
@@ -343,6 +350,72 @@ describe("sync routes", () => {
     expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
   });
 
+  it("refreshes the x402 buy-side readiness before the registry sync", async () => {
+    const deferred = createDeferred();
+    syncX402BuySideReadinessMock.mockImplementation(() => deferred.promise);
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncX402BuySideReadinessMock).toHaveBeenCalledTimes(1);
+    // Same treatment as the Cardano readiness: an abort signal so a hung
+    // payment node cannot pin the sync lock past its hard timeout.
+    expect(syncX402BuySideReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    // Runs after the Cardano readiness refresh, before the registry replay.
+    expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
+    expect(syncRegistryAgentsMock).not.toHaveBeenCalled();
+
+    deferred.resolve();
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reset the registry cursor when only the x402 readiness changed", async () => {
+    // The x402 listing reads getX402ReadySources at request time; nothing
+    // readiness-dependent is baked into agent rows, so no replay is needed.
+    syncX402BuySideReadinessMock.mockResolvedValue(true);
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      "agents-sync-metadata:dynamic-pricing-v1",
+      expect.not.objectContaining({ resetCursor: true }),
+    );
+  });
+
+  it("still runs the registry sync when x402 readiness throws", async () => {
+    // x402 readiness is advisory; the registry sync is this route's primary
+    // job. An unhandled throw from the readiness refresh (e.g. its 10s abort
+    // firing) must be swallowed so the registry replay still runs.
+    syncX402BuySideReadinessMock.mockRejectedValue(new Error("node timeout"));
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not request a cursor reset on the recurring agents sync", async () => {
     const app = await createApp();
 
@@ -355,7 +428,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
   });
@@ -373,7 +446,7 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
+      "agents-sync-metadata:dynamic-pricing-v1",
       expect.objectContaining({ resetCursor: true }),
     );
   });

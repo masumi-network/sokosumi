@@ -44,19 +44,21 @@ export function jsonSuccessResponse(
  * @param schema - The data schema (typically an array schema)
  * @param description - Description of the response
  * @param example - Optional example response
+ * @param paginationMetaSchema - Pagination meta object; defaults to the shared cursor schema
  * @returns OpenAPI response definition with pagination metadata
  */
 export function jsonPaginatedSuccessResponse(
   schema: z.ZodTypeAny,
   description: string,
   example?: Record<string, unknown>,
+  paginationMetaSchema: z.ZodTypeAny = cursorPaginationMetaSchema,
 ) {
   const paginatedSchema = z.object({
     data: schema,
     meta: z.object({
       timestamp: dateTimeSchema,
       requestId: z.string(),
-      pagination: cursorPaginationMetaSchema,
+      pagination: paginationMetaSchema,
     }),
   });
 

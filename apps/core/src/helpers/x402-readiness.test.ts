@@ -6,7 +6,7 @@ import {
   getAllowedX402Caip2Networks,
   getX402ReadySources,
   isX402NetworkAllowed,
-  isX402SourceReady,
+  requiresX402AgentCuration,
   X402_BUY_SIDE_READINESS_KEY,
 } from "./x402-readiness";
 
@@ -30,6 +30,7 @@ const X402_READY_SOURCE = {
   caip2Network: "eip155:84532",
   asset: USDC_BASE_SEPOLIA,
   evmWalletId: "wallet_1",
+  evmWalletAddress: "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea",
   decimals: 6,
 };
 
@@ -94,7 +95,7 @@ describe("getX402ReadySources", () => {
     await expect(getX402ReadySources(tx)).resolves.toEqual([]);
   });
 
-  it("drops cached pairs with malformed networks, assets, or missing wallets", async () => {
+  it("drops cached pairs with malformed networks, assets, or wallet identity", async () => {
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([
         { ...X402_READY_SOURCE, caip2Network: "base-sepolia" },
@@ -105,6 +106,15 @@ describe("getX402ReadySources", () => {
         { caip2Network: "eip155:84532", asset: USDC_BASE_SEPOLIA },
         { ...X402_READY_SOURCE, evmWalletId: "" },
         { ...X402_READY_SOURCE, evmWalletId: "   " },
+        { ...X402_READY_SOURCE, evmWalletAddress: "not-an-address" },
+        // Rows cached before the expected address existed cannot bind the
+        // signed payer to the wallet whose funds made this pair ready.
+        {
+          caip2Network: X402_READY_SOURCE.caip2Network,
+          asset: X402_READY_SOURCE.asset,
+          evmWalletId: X402_READY_SOURCE.evmWalletId,
+          decimals: X402_READY_SOURCE.decimals,
+        },
         X402_READY_SOURCE,
       ]),
       lastSyncedAt: new Date(),
@@ -137,6 +147,20 @@ describe("getX402ReadySources", () => {
     ]);
   });
 
+  it("drops a legacy cached pair without trusted EIP-712 metadata", async () => {
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        {
+          ...X402_READY_SOURCE,
+          asset: "0x2222222222222222222222222222222222222222",
+        },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+  });
+
   it("drops cached pairs whose decimals are missing or out of range", async () => {
     // Decimals scale the charge INVERSELY, so an unusable value must never be
     // guessed at or fall back to the agent-registered number. A row cached
@@ -162,22 +186,18 @@ describe("getX402ReadySources", () => {
   });
 
   it("serves the cached decimals at the edges of the valid range", async () => {
-    const { tx } = createSyncMetadataTransactionClient({
-      cursorId: JSON.stringify([
-        { ...X402_READY_SOURCE, decimals: 0 },
-        {
-          ...X402_READY_SOURCE,
-          evmWalletId: "wallet_2",
-          decimals: 255,
-        },
-      ]),
-      lastSyncedAt: new Date(),
-    });
+    // One row per read: this environment allows exactly one (network, asset)
+    // pair, and a repeated pair is poisoned by the duplicate rule above.
+    for (const decimals of [0, 255]) {
+      const { tx } = createSyncMetadataTransactionClient({
+        cursorId: JSON.stringify([{ ...X402_READY_SOURCE, decimals }]),
+        lastSyncedAt: new Date(),
+      });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([
-      { ...X402_READY_SOURCE, decimals: 0 },
-      { ...X402_READY_SOURCE, evmWalletId: "wallet_2", decimals: 255 },
-    ]);
+      await expect(getX402ReadySources(tx)).resolves.toEqual([
+        { ...X402_READY_SOURCE, decimals },
+      ]);
+    }
   });
 
   it("canonicalizes a mixed-case cached asset and drops cached extras", async () => {
@@ -194,6 +214,9 @@ describe("getX402ReadySources", () => {
           caip2Network: "eip155:84532",
           asset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
           evmWalletId: "wallet_1",
+          evmWalletAddress: X402_READY_SOURCE.evmWalletAddress
+            .toUpperCase()
+            .replace("0X", "0x"),
           decimals: 6,
           remainingSpend: "999",
         },
@@ -228,6 +251,7 @@ describe("getX402ReadySources", () => {
           caip2Network: "eip155:8453",
           asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
           evmWalletId: "wallet_mainnet",
+          evmWalletAddress: "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea",
           decimals: 6,
         },
         X402_READY_SOURCE,
@@ -236,6 +260,50 @@ describe("getX402ReadySources", () => {
     });
 
     await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+
+  it("collapses an exact duplicate cached pair to one row", async () => {
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([X402_READY_SOURCE, X402_READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+
+  it("poisons a cached pair repeated with a disagreeing wallet or scale", async () => {
+    // The compose side keys its output on (network, asset), so a healthy
+    // cache never repeats a pair. A hand-edited or legacy cache that does —
+    // with a different wallet or decimals — must not let array order pick
+    // the signer or the charge scale: the pair drops entirely.
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        X402_READY_SOURCE,
+        { ...X402_READY_SOURCE, evmWalletId: "wallet_2" },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+  });
+
+  it("poisons a duplicate pair even when the repeats differ only in spelling", async () => {
+    // Canonicalization happens BEFORE duplicate detection, so a mixed-case
+    // respelling of the same asset cannot smuggle a second wallet past the
+    // poison rule.
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        X402_READY_SOURCE,
+        {
+          ...X402_READY_SOURCE,
+          asset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
+          decimals: 18,
+        },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
   });
 
   it("serves the mainnet pair and drops the testnet one on Mainnet", async () => {
@@ -247,6 +315,7 @@ describe("getX402ReadySources", () => {
       caip2Network: "eip155:8453",
       asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
       evmWalletId: "wallet_mainnet",
+      evmWalletAddress: "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea",
       decimals: 6,
     };
     const { tx } = createSyncMetadataTransactionClient({
@@ -259,52 +328,42 @@ describe("getX402ReadySources", () => {
 });
 
 describe("findX402ReadySource", () => {
-  it("returns the recorded pair with its backing wallet id", () => {
+  it("returns the recorded pair with its backing wallet id and decimals", () => {
     expect(
       findX402ReadySource("EIP155:84532", USDC_BASE_SEPOLIA.toUpperCase(), [
         X402_READY_SOURCE,
       ]),
     ).toEqual(X402_READY_SOURCE);
+  });
+
+  it("requires the exact network and asset pair", () => {
+    // Callers take the charged `decimals` and the signing `evmWalletId` off
+    // the returned pair, so a near-miss must be undefined rather than the
+    // wrong chain's or the wrong token's numbers.
     expect(
       findX402ReadySource("eip155:8453", USDC_BASE_SEPOLIA, [
         X402_READY_SOURCE,
       ]),
     ).toBeUndefined();
-  });
-});
-
-describe("isX402SourceReady", () => {
-  it("requires the exact network and asset pair", () => {
     expect(
-      isX402SourceReady("eip155:84532", USDC_BASE_SEPOLIA, [X402_READY_SOURCE]),
-    ).toBe(true);
-    expect(
-      isX402SourceReady("eip155:8453", USDC_BASE_SEPOLIA, [X402_READY_SOURCE]),
-    ).toBe(false);
-    expect(
-      isX402SourceReady(
+      findX402ReadySource(
         "eip155:84532",
         "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
         [X402_READY_SOURCE],
       ),
-    ).toBe(false);
-    expect(isX402SourceReady("eip155:84532", USDC_BASE_SEPOLIA, [])).toBe(
-      false,
-    );
-  });
-
-  it("normalizes network and asset casing", () => {
+    ).toBeUndefined();
     expect(
-      isX402SourceReady(
-        "EIP155:84532",
-        USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
-        [X402_READY_SOURCE],
-      ),
-    ).toBe(true);
+      findX402ReadySource("eip155:84532", USDC_BASE_SEPOLIA, []),
+    ).toBeUndefined();
   });
 });
 
 describe("per-environment network allowlist", () => {
+  it("curates only production catalog entries", () => {
+    expect(requiresX402AgentCuration("Preprod")).toBe(false);
+    expect(requiresX402AgentCuration("Mainnet")).toBe(true);
+  });
+
   it("allows only testnet networks on Preprod", () => {
     expect(getAllowedX402Caip2Networks("Preprod")).toEqual(["eip155:84532"]);
     expect(isX402NetworkAllowed("eip155:84532", "Preprod")).toBe(true);
