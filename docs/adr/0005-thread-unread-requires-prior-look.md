@@ -1,5 +1,7 @@
 # Thread unread requires a prior look
 
+- Status: Superseded by [ADR-0012](./0012-thread-unread-is-participant-gated.md)
+
 A **Thread** is an **unread thread** (`unreadReplyCount`) only if the user has already **looked** it and there is at least one non-self reply after that look. A never-looked Thread has `unreadReplyCount` 0 and sorts by last reply among non-attention rows.
 
 **SOK-811 (product override):** Threads badge (`unread=true`), thread overview chrome, and Mark all use dual-baseline **`attentionReplyCount`**, which **does** include qualifying never-looked replies (same baseline as sidebar room unread). Do not re-gate the badge on ADR-0005 `unreadReplyCount` alone.

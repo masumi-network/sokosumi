@@ -5,41 +5,38 @@ import {
 } from "../thread-overview-attention";
 
 describe("threadNeedsOverviewAttention", () => {
-  it("is true when attentionReplyCount > 0 (qualifying never-looked)", () => {
+  it("is true when unreadReplyCount > 0 (including never-looked Participants)", () => {
     expect(
       threadNeedsOverviewAttention({
-        attentionReplyCount: 37,
+        unreadReplyCount: 37,
+      }),
+    ).toBe(true);
+    expect(
+      threadNeedsOverviewAttention({
+        unreadReplyCount: 2,
       }),
     ).toBe(true);
   });
 
-  it("is true for looked threads with dual-baseline replies after look", () => {
+  it("is false when unreadReplyCount is 0 (lurkers, including Looked lurkers)", () => {
     expect(
       threadNeedsOverviewAttention({
-        attentionReplyCount: 2,
-      }),
-    ).toBe(true);
-  });
-
-  it("is false when attentionReplyCount is 0 (including non-qualifying never-looked)", () => {
-    expect(
-      threadNeedsOverviewAttention({
-        attentionReplyCount: 0,
+        unreadReplyCount: 0,
       }),
     ).toBe(false);
   });
 });
 
 describe("threadOverviewAttentionReplyCount", () => {
-  it("returns the server qualifying count only", () => {
+  it("returns unreadReplyCount", () => {
     expect(
       threadOverviewAttentionReplyCount({
-        attentionReplyCount: 37,
+        unreadReplyCount: 37,
       }),
     ).toBe(37);
     expect(
       threadOverviewAttentionReplyCount({
-        attentionReplyCount: 0,
+        unreadReplyCount: 0,
       }),
     ).toBe(0);
   });

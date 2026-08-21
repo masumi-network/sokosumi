@@ -30,7 +30,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/{id}/threads/attention-count",
     description:
-      "Count attention threads in a room (dual-baseline `attentionReplyCount`, including qualifying never-looked). Cheap Threads-badge path: returns a count only, no thread items. Same eligibility as `unread=true`, thread overview, and Mark all. Independent of room mark-read.",
+      "Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,

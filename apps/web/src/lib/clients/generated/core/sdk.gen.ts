@@ -710,7 +710,7 @@ export const postChatsRoomsByIdUnread = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List threads in a room. `unread=true` returns every attention thread (dual-baseline `attentionReplyCount`, including qualifying never-looked) and ignores `cursor`/`limit`. Otherwise returns attention threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.
+ * List threads in a room. `unread=true` returns every unread thread (Participant-gated `unreadReplyCount`) and ignores `cursor`/`limit`. Otherwise returns unread threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsResponseTransformer,
@@ -719,7 +719,7 @@ export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Count attention threads in a room (dual-baseline `attentionReplyCount`, including qualifying never-looked). Cheap Threads-badge path: returns a count only, no thread items. Same eligibility as `unread=true`, thread overview, and Mark all. Independent of room mark-read.
+ * Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreadsAttentionCount = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsAttentionCountData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsAttentionCountResponses, GetChatsRoomsByIdThreadsAttentionCountErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsAttentionCountResponses, GetChatsRoomsByIdThreadsAttentionCountErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsAttentionCountResponseTransformer,
@@ -728,7 +728,7 @@ export const getChatsRoomsByIdThreadsAttentionCount = <ThrowOnError extends bool
 });
 
 /**
- * Mark every thread that still needs a look in this room for the current user: looked threads with newer replies, and never-looked threads with replies after the dual-baseline (join / -infinity). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.
+ * Mark every unread Thread the current user Participates in for this room (Look). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications. Does not Look lurker Threads.
  */
 export const postChatsRoomsByIdThreadsRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdThreadsReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdThreadsReadResponseTransformer,

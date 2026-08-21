@@ -498,7 +498,7 @@ describe("mergeUnfurlsIntoMessageMetadata", () => {
 });
 
 describe("getChatRoomUnreadCounts", () => {
-  it("counts top-level by room lastReadAt and thread replies by look baseline", async () => {
+  it("counts top-level by room lastReadAt and participant thread replies by look baseline", async () => {
     const queryRawUnsafe = vi
       .fn()
       .mockResolvedValue([{ roomId: "room-a", unreadCount: 3 }]);
@@ -515,6 +515,9 @@ describe("getChatRoomUnreadCounts", () => {
     expect(sql).toContain('thread_read."lastReadAt"');
     expect(sql).toContain('room_read."createdAt"');
     expect(sql).toContain('reply."parentMessageId" IS NOT NULL');
+    expect(sql).toContain('parent."senderUserId"');
+    expect(sql).toContain("chat_room_user_mention");
+    expect(sql).toContain("own_reply");
     expect(sql).not.toMatch(
       /reply\."createdAt" > COALESCE\(\s*read_state\."lastReadAt"/,
     );
@@ -801,7 +804,7 @@ describe("chatRoomMessageInclude thread reply aggregates", () => {
 });
 
 describe("getChatRoomThreadAggregates", () => {
-  it("counts unread only after a prior look row and excludes soft-deleted/self replies", async () => {
+  it("counts participant unread after dual-baseline and excludes soft-deleted/self replies", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([
       {
         parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
@@ -810,7 +813,6 @@ describe("getChatRoomThreadAggregates", () => {
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
         hasLooked: true,
-        attentionReplyCount: 3,
       },
     ]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
@@ -829,16 +831,16 @@ describe("getChatRoomThreadAggregates", () => {
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
         hasLooked: true,
-        attentionReplyCount: 3,
       },
     ]);
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('thread_read."lastReadAt" IS NOT NULL');
-    expect(sql).toContain('reply."createdAt" > thread_read."lastReadAt"');
+    expect(sql).toContain("chat_room_user_mention");
+    expect(sql).toContain("own_reply");
+    expect(sql).toContain('parent."senderUserId"');
     expect(sql).toContain('MAX(thread_read."lastReadAt") IS NOT NULL');
     expect(sql).toContain('"hasLooked"');
-    expect(sql).toContain('"attentionReplyCount"');
+    expect(sql).not.toContain('"attentionReplyCount"');
     expect(sql).toContain('room_read."createdAt"');
     expect(sql).toContain("'-infinity'::timestamp");
     expect(sql).not.toMatch(/room_read\."lastReadAt"/);
@@ -849,7 +851,7 @@ describe("getChatRoomThreadAggregates", () => {
     );
   });
 
-  it("filters attention threads in SQL (dual-baseline), newest reply first", async () => {
+  it("filters unread threads in SQL (participant dual-baseline), newest reply first", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
@@ -861,15 +863,15 @@ describe("getChatRoomThreadAggregates", () => {
     );
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('"attentionReplyCount" >= 1');
+    expect(sql).toContain('"unreadReplyCount" >= 1');
     expect(sql).toContain(
       'ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC',
     );
-    expect(sql).not.toContain('"unreadReplyCount" >= 1');
+    expect(sql).not.toContain('"attentionReplyCount"');
     expect(sql).not.toContain('"lastUnreadReplyAt" DESC');
   });
 
-  it("pages looked and never-looked threads by last reply, excluding attention", async () => {
+  it("pages looked and never-looked threads by last reply, excluding unread", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
@@ -886,8 +888,8 @@ describe("getChatRoomThreadAggregates", () => {
     );
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('"attentionReplyCount" = 0');
-    expect(sql).not.toContain('"unreadReplyCount" = 0');
+    expect(sql).toContain('"unreadReplyCount" = 0');
+    expect(sql).not.toContain('"attentionReplyCount"');
     expect(sql).toContain("LIMIT $4");
     expect(sql).toContain(
       'ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC',
@@ -922,7 +924,7 @@ describe("getChatRoomThreadAggregates", () => {
     );
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('"attentionReplyCount" = 0');
+    expect(sql).toContain('"unreadReplyCount" = 0');
     expect(sql).toContain("LIMIT $3");
     expect(sql).not.toContain("$3::uuid IS NULL");
     expect(sql).not.toContain('SELECT MAX(r."createdAt")');
@@ -935,7 +937,7 @@ describe("getChatRoomThreadAggregates", () => {
 });
 
 describe("countChatRoomAttentionThreads", () => {
-  it("counts dual-baseline attention parents without hydrating rows", async () => {
+  it("counts participant unread parents without hydrating rows", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([{ count: 4 }]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
@@ -957,7 +959,8 @@ describe("countChatRoomAttentionThreads", () => {
     expect(sql).toMatch(
       /reply\."senderUserId" IS NULL OR reply\."senderUserId" <>/,
     );
-    expect(sql).not.toContain('"unreadReplyCount"');
+    expect(sql).toContain("chat_room_user_mention");
+    expect(sql).toContain("own_reply");
     expect(sql).not.toContain("ORDER BY");
     expect(sql).not.toContain("LIMIT");
     expect(queryRawUnsafe.mock.calls[0]?.slice(1)).toEqual([
@@ -968,7 +971,7 @@ describe("countChatRoomAttentionThreads", () => {
 });
 
 describe("markAllChatRoomThreadsRead", () => {
-  it("upserts looks for dual-baseline attention parents including never-looked", async () => {
+  it("upserts looks for participant unread parents including never-looked", async () => {
     const queryRawUnsafe = vi
       .fn()
       .mockResolvedValue([
@@ -992,7 +995,8 @@ describe("markAllChatRoomThreadsRead", () => {
     expect(sql).toContain('room_read."createdAt"');
     expect(sql).toContain("'-infinity'::timestamp");
     expect(sql).toContain('thread_read."lastReadAt"');
-    expect(sql).not.toContain('"unreadReplyCount"');
+    expect(sql).toContain("chat_room_user_mention");
+    expect(sql).toContain("own_reply");
     expect(upsert).toHaveBeenCalledTimes(2);
   });
 

@@ -83,7 +83,7 @@ function threadItem(overrides: Partial<ChatRoomThread> = {}): ChatRoomThread {
     unreadReplyCount: 2,
     lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     hasLooked: true,
-    attentionReplyCount: 2,
+
     ...overrides,
   };
 }
@@ -138,7 +138,6 @@ describe("ThreadListPanel", () => {
             unreadReplyCount: 0,
             lastUnreadReplyAt: null,
             hasLooked: true,
-            attentionReplyCount: 0,
           }),
         ],
         nextCursor: null,
@@ -187,7 +186,6 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
-              attentionReplyCount: 0,
             }),
           ],
           nextCursor: "cursor-1",
@@ -205,7 +203,6 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
-              attentionReplyCount: 0,
             }),
           ],
           nextCursor: null,
@@ -268,7 +265,6 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
-              attentionReplyCount: 0,
             }),
           ],
           nextCursor: "cursor-1",
@@ -287,7 +283,6 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
-              attentionReplyCount: 0,
             }),
             threadItem({
               parentMessage: parentMessage({
@@ -298,7 +293,6 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
-              attentionReplyCount: 0,
             }),
           ],
           nextCursor: "cursor-2",
@@ -324,16 +318,14 @@ describe("ThreadListPanel", () => {
     expect(screen.getByTestId("thread-list-load-older")).toBeInTheDocument();
   });
 
-  it("shows attention chrome and Mark all for never-looked with dual-baseline replies", async () => {
+  it("shows unread chrome and Mark all for never-looked Participant threads", async () => {
     listThreadsActionMock.mockResolvedValue({
       ok: true,
       value: {
         threads: [
           threadItem({
-            unreadReplyCount: 0,
-            lastUnreadReplyAt: null,
+            unreadReplyCount: 37,
             hasLooked: false,
-            attentionReplyCount: 37,
             replyCount: 37,
           }),
         ],
@@ -363,7 +355,7 @@ describe("ThreadListPanel", () => {
             unreadReplyCount: 0,
             lastUnreadReplyAt: null,
             hasLooked: false,
-            attentionReplyCount: 0,
+
             replyCount: 4,
           }),
         ],

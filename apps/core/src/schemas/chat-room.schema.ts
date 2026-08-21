@@ -125,7 +125,7 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.",
+        "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0012.",
       example: 2,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({
@@ -500,10 +500,9 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 /**
  * A top-level room message that has ≥1 non-deleted reply, with per-user look
- * metadata. `unreadReplyCount` requires a prior look row (ADR-0005).
- * `attentionReplyCount` uses the sidebar dual-baseline; Threads badge
- * (`GET …/threads/attention-count`), `unread=true`, and overview Mark all
- * use that count (SOK-811).
+ * metadata. `unreadReplyCount` is Participant-gated (ADR-0012): never-looked
+ * Participants can be > 0; lurkers are 0. Same set as room unread's thread
+ * slice, `unread=true`, and Mark all.
  */
 export const chatRoomThreadSchema = z
   .object({
@@ -518,7 +517,7 @@ export const chatRoomThreadSchema = z
     }),
     unreadReplyCount: z.number().int().min(0).openapi({
       description:
-        "Non-deleted replies from others after a prior look. Zero when the viewer has never looked this thread.",
+        "Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.",
       example: 2,
     }),
     lastUnreadReplyAt: dateTimeSchema.nullable().openapi({
@@ -530,11 +529,6 @@ export const chatRoomThreadSchema = z
       description:
         "True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.",
       example: true,
-    }),
-    attentionReplyCount: z.number().int().min(0).openapi({
-      description:
-        "Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.",
-      example: 3,
     }),
   })
   .openapi("ChatRoomThread");
@@ -559,12 +553,12 @@ export const chatRoomThreadsMarkAllSchema = z
   })
   .openapi("ChatRoomThreadsMarkAll");
 
-/** Cheap Threads-badge count. Same dual-baseline set as `unread=true`. */
+/** Cheap unread-thread count. Same Participant-gated set as `unread=true`. */
 export const chatRoomThreadsAttentionCountSchema = z
   .object({
     count: z.number().int().min(0).openapi({
       description:
-        "Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.",
+        "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.",
       example: 4,
     }),
   })
