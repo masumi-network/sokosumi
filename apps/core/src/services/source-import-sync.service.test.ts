@@ -546,12 +546,6 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
   });
 
   describe("backfillTaskEventComments", () => {
-    beforeEach(() => {
-      enqueueTaskOutputsFromMarkdownMock.mockClear();
-      taskEventFindManyMock.mockClear();
-      prismaTransactionMock.mockClear();
-    });
-
     it("processes historical TaskEvent comments with file-like URLs", async () => {
       const events = [
         {
@@ -593,6 +587,9 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     });
 
     it("is idempotent - second run does not fail on existing TaskFiles", async () => {
+      taskEventFindManyMock.mockReset();
+      prismaTransactionMock.mockReset();
+
       const events = [
         {
           id: "evt_1",
@@ -628,6 +625,9 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     });
 
     it("continues processing after individual failures", async () => {
+      taskEventFindManyMock.mockReset();
+      prismaTransactionMock.mockReset();
+
       const events = [
         {
           id: "evt_1",
@@ -641,9 +641,7 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         },
       ];
 
-      taskEventFindManyMock
-        .mockResolvedValueOnce(events)
-        .mockResolvedValueOnce([]);
+      taskEventFindManyMock.mockResolvedValueOnce(events);
       let callCount = 0;
       prismaTransactionMock.mockImplementation(async (callback) => {
         callCount++;
