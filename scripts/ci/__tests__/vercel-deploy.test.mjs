@@ -332,13 +332,15 @@ describe("runPreviewDeployComment", () => {
     assert.equal(created[0].repoId, 99);
     assert.equal(posted.length, 1);
     assert.match(posted[0], /mainnet/);
-    assert.match(
-      posted[0],
-      /sokosumi-app-mainnet-git-feat-x.preview.sokosumi.com/,
+    assert.ok(
+      posted[0].includes(
+        "https://sokosumi-app-mainnet-git-feat-x.preview.sokosumi.com",
+      ),
     );
-    assert.match(
-      posted[0],
-      /sokosumi-core-mainnet-git-feat-x.preview.sokosumi.com/,
+    assert.ok(
+      posted[0].includes(
+        "https://sokosumi-core-mainnet-git-feat-x.preview.sokosumi.com",
+      ),
     );
   });
 
