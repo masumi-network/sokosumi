@@ -327,6 +327,7 @@ describe("Drive Tasks Routes", () => {
             id: "tsk_1",
             name: "Task 1",
             files: [{ updatedAt: new Date("2026-03-25T12:00:00.000Z") }],
+            jobs: [],
           },
         ];
 
@@ -373,6 +374,7 @@ describe("Drive Tasks Routes", () => {
             tasks: [
               {
                 files: [{ updatedAt: new Date("2026-03-25T14:00:00.000Z") }],
+                jobs: [],
               },
             ],
           },
@@ -384,6 +386,7 @@ describe("Drive Tasks Routes", () => {
         prismaTaskFileFindFirstMock.mockResolvedValue({
           updatedAt: new Date("2026-03-25T12:00:00.000Z"),
         });
+        prismaBlobFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/?scope=me");
@@ -401,6 +404,7 @@ describe("Drive Tasks Routes", () => {
             tasks: [
               {
                 files: [{ updatedAt: new Date("2026-03-25T14:00:00.000Z") }],
+                jobs: [],
               },
             ],
           },
@@ -412,6 +416,7 @@ describe("Drive Tasks Routes", () => {
         prismaTaskFileFindFirstMock.mockResolvedValue({
           updatedAt: new Date("2026-03-25T12:00:00.000Z"),
         });
+        prismaBlobFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/?scope=me&limit=1");
@@ -443,6 +448,7 @@ describe("Drive Tasks Routes", () => {
           tasks: [
             {
               files: [{ updatedAt: new Date("2026-03-25T15:00:00.000Z") }],
+              jobs: [],
             },
           ],
         };
@@ -504,6 +510,7 @@ describe("Drive Tasks Routes", () => {
         prismaTaskFileFindFirstMock.mockResolvedValue({
           updatedAt: new Date("2026-03-25T12:00:00.000Z"),
         });
+        prismaBlobFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/?scope=me");
