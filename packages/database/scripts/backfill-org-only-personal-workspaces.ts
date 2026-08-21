@@ -18,6 +18,7 @@ import { backfillPersonalWorkspacesForOrgOnlyUsers } from "../src/helpers/org-on
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"),
 });
+// Same as Prisma CLI: ambient DATABASE_URL wins over this file.
 
 async function main(): Promise<void> {
   const databaseUrl =

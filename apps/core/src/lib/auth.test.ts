@@ -472,7 +472,16 @@ describe("core auth config", () => {
     prismaMock.subscription.findFirst.mockResolvedValue(null);
     prismaMock.enterpriseContract.findFirst.mockResolvedValue(null);
     deleteStripeCustomerBestEffortMock.mockResolvedValue(undefined);
-    prismaTransactionMock.mockImplementation(async (callback) => callback({}));
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            preferredOrganizationId: null,
+          }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+      }),
+    );
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
     getBetterAuthSubscriptionPlansMock.mockResolvedValue([]);
@@ -1575,11 +1584,11 @@ describe("core auth config", () => {
         credits: 3000,
         userId: "user_123",
       }),
-      {},
+      expect.anything(),
     );
     expect(markOutOfCreditsTasksAsToppedUpMock).toHaveBeenCalledWith({
       organizationId: null,
-      tx: {},
+      tx: expect.anything(),
       userId: "user_123",
     });
   });
@@ -1666,7 +1675,7 @@ describe("core auth config", () => {
         credits: 3000,
         userId: "user_123",
       }),
-      {},
+      expect.anything(),
     );
   });
 
@@ -1898,6 +1907,7 @@ describe("core auth config", () => {
                 id: string;
                 name: string;
               };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -1905,6 +1915,7 @@ describe("core auth config", () => {
     >;
 
     await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
       organization: {
         id: "org_123",
         name: "Org One",
@@ -1936,6 +1947,7 @@ describe("core auth config", () => {
                 slug: string;
                 createdAt: Date;
               };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -1944,6 +1956,7 @@ describe("core auth config", () => {
 
     const createdAt = new Date("2026-07-01T00:00:00.000Z");
     await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
       organization: {
         id: "org_123",
         name: "Org One",
@@ -1952,6 +1965,7 @@ describe("core auth config", () => {
       },
     });
 
+    expect(prismaUserUpdateManyMock).not.toHaveBeenCalled();
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
       {
         createdAt,
@@ -1988,6 +2002,34 @@ describe("core auth config", () => {
     expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
       userId: "user-1",
       tx: expect.anything(),
+    });
+  });
+
+  it("pins preferred organization after create when overlay is on", async () => {
+    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: { id: string; name: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
+      organization: { id: "org_123", name: "Org One" },
+    });
+
+    expect(prismaUserUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "user-1", preferredOrganizationId: null },
+      data: { preferredOrganizationId: "org_123" },
     });
   });
 
@@ -2141,6 +2183,7 @@ describe("core auth config", () => {
                 slug: string;
                 createdAt: Date;
               };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2149,6 +2192,7 @@ describe("core auth config", () => {
 
     await expect(
       config.organizationHooks.afterCreateOrganization({
+        user: { id: "user-1" },
         organization: {
           id: "org_123",
           name: "Org One",
@@ -2628,6 +2672,7 @@ describe("core auth config", () => {
                 name: string;
                 slug: string;
               };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2635,6 +2680,7 @@ describe("core auth config", () => {
     >;
 
     await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
       organization: {
         id: "org-1",
         metadata: null,
@@ -2670,6 +2716,7 @@ describe("core auth config", () => {
                 name: string;
                 slug: string;
               };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2677,6 +2724,7 @@ describe("core auth config", () => {
     >;
 
     await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
       organization: {
         id: "org-1",
         metadata: null,

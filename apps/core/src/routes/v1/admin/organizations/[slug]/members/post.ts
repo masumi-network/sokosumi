@@ -79,7 +79,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const role = body.role as MemberRole;
 
     const member = await prisma.$transaction(async (tx) => {
-      await ensurePersonalWorkspaceForOrganizationMembership(body.userId, tx);
+      await ensurePersonalWorkspaceForOrganizationMembership(body.userId, {
+        tx,
+        organizationId: organization.id,
+      });
       const created = await memberRepository.createMember(
         body.userId,
         organization.id,

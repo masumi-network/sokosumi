@@ -74,7 +74,10 @@ import {
   applyDesignMdMetadataGuardToUserCreate,
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
-import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
+import {
+  ensurePersonalWorkspaceForOrganizationMembership,
+  pinPreferredOrganizationIfUnset,
+} from "@/helpers/org-membership-personal-workspace";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
@@ -650,8 +653,9 @@ export const auth = betterAuth({
             ),
           };
         },
-        afterCreateOrganization: async ({ organization }) => {
+        afterCreateOrganization: async ({ organization, user }) => {
           await ensureWorkspaceForCreatedOrganization(organization);
+          await pinPreferredOrganizationIfUnset(user.id, organization.id);
           await ensureFreeSubscriptionForCreatedOrganization(organization);
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
@@ -678,10 +682,14 @@ export const auth = betterAuth({
         },
         beforeAcceptInvitation: async ({ organization, user }) => {
           await ensureCanAcceptOrganizationInvitation(organization.id);
-          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
+            organizationId: organization.id,
+          });
         },
-        beforeAddMember: async ({ user }) => {
-          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
+        beforeAddMember: async ({ user, organization }) => {
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
+            organizationId: organization.id,
+          });
         },
         afterAcceptInvitation: async ({ organization, user }) => {
           await upgradeGuestChatRoomMembershipsToMember(

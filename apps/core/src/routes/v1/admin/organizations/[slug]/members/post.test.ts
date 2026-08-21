@@ -163,7 +163,10 @@ describe("POST /admin/organizations/{slug}/members", () => {
     expect(response.status).toBe(201);
     expect(
       ensurePersonalWorkspaceForOrganizationMembershipMock,
-    ).toHaveBeenCalledWith("user_target", expect.anything());
+    ).toHaveBeenCalledWith("user_target", {
+      tx: expect.anything(),
+      organizationId: "org_1",
+    });
     expect(createMemberMock).toHaveBeenCalled();
   });
 

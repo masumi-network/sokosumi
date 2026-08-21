@@ -225,7 +225,10 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(ensureGateMock).toHaveBeenCalledWith("org_1");
     expect(
       ensurePersonalWorkspaceForOrganizationMembershipMock,
-    ).toHaveBeenCalledWith("user_123", expect.anything());
+    ).toHaveBeenCalledWith("user_123", {
+      tx: expect.anything(),
+      organizationId: "org_1",
+    });
     expect(createMemberMock).toHaveBeenCalledWith(
       "user_123",
       "org_1",
@@ -253,6 +256,7 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     const response = await post();
 
     expect(response.status).toBe(500);
+    expect(createMemberMock).not.toHaveBeenCalled();
     expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
@@ -275,7 +279,10 @@ describe("POST /organization-invite-links/{token}/accept", () => {
 
   it("treats a concurrent unique-violation as already_member", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(liveLink());
-    createMemberMock.mockRejectedValue({ code: "P2002" });
+    createMemberMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["userId", "organizationId"] },
+    });
 
     const response = await post();
     const body = await response.json();
@@ -287,6 +294,21 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(
       cancelPendingOrganizationInvitationsForUserMock,
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
+  });
+
+  it("does not map a personal-workspace unique violation to already_member", async () => {
+    getInviteLinkByTokenMock.mockResolvedValue(liveLink());
+    ensurePersonalWorkspaceForOrganizationMembershipMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["userId"] },
+      }),
+    );
+
+    const response = await post();
+
+    expect(response.status).toBe(500);
+    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the link is depleted at consume time", async () => {

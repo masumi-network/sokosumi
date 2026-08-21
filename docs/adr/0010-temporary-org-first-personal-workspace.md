@@ -6,4 +6,6 @@ This contradicts ADR 0005 (personal is optional; invitees should not get a lefto
 
 OAuth Allow still uses `ensureOAuthWorkspaceAction` (PR 3885): empty inventory gets a personal workspace before consent. That path is independent of identity onboarding.
 
+Better Auth `beforeCreateOrganization` / `beforeAcceptInvitation` / `beforeAddMember` cannot share a Prisma transaction with the membership write. Personal create is fail-closed (membership does not proceed). The reverse is not: if BA then fails, a leftover personal workspace can remain. Join-link and admin add-member do share a transaction.
+
 Rejected: disable Organization on identity onboarding; create personal on Continue before the org exists; auto-delete personal after org create; change the workspace gate to require personal.

@@ -130,3 +130,16 @@ export function isBlockchainIdentifierUniqueConstraintError(
 export function isIdempotencyKeyUniqueConstraintError(error: unknown): boolean {
   return isPrismaUniqueViolationOnField(error, "idempotencyKey");
 }
+
+/**
+ * Member @@unique([userId, organizationId]). Do not treat a personal-workspace
+ * unique on `userId` alone as an existing membership.
+ */
+export function isMemberUserOrganizationUniqueConstraintError(
+  error: unknown,
+): boolean {
+  return (
+    isPrismaUniqueViolationOnField(error, "userId") &&
+    isPrismaUniqueViolationOnField(error, "organizationId")
+  );
+}
