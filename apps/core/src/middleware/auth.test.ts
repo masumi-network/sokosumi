@@ -7,6 +7,7 @@ import {
   authMiddleware,
   forbidCoworkerActor,
   requireAdminAuthContext,
+  requireInteractiveAdminAuthContext,
   requireOwnerUserContext,
 } from "./auth";
 
@@ -287,6 +288,7 @@ describe("authMiddleware", () => {
       userId: "user_api_key",
       organizationId: null,
       role: "user",
+      authenticationMethod: "api_key",
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "user_api_key" },
@@ -355,6 +357,7 @@ describe("authMiddleware", () => {
       userId: "user_oauth",
       organizationId: null,
       role: "user",
+      authenticationMethod: "oauth",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
@@ -567,6 +570,7 @@ describe("authMiddleware", () => {
       userId: "user_session",
       organizationId: "org_session",
       role: "user",
+      authenticationMethod: "session",
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
@@ -652,6 +656,40 @@ describe("requireAdminAuthContext", () => {
       }),
     ).toThrowError("User authentication required");
   });
+});
+
+describe("requireInteractiveAdminAuthContext", () => {
+  it("allows an interactive admin session", () => {
+    expect(
+      requireInteractiveAdminAuthContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "admin",
+        authenticationMethod: "session",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        userId: "user_123",
+        authenticationMethod: "session",
+      }),
+    );
+  });
+
+  it.each(["api_key", "oauth", undefined] as const)(
+    "rejects non-session admin credential %s",
+    (authenticationMethod) => {
+      expect(() =>
+        requireInteractiveAdminAuthContext({
+          actor: "user",
+          userId: "user_123",
+          organizationId: null,
+          role: "admin",
+          authenticationMethod,
+        }),
+      ).toThrowError("Interactive admin session required");
+    },
+  );
 });
 
 describe("forbidCoworkerActor", () => {

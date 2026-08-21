@@ -3390,6 +3390,417 @@ export const ReviewedTaskPaymentClaimActionBodySchema = {
     ]
 } as const;
 
+export const AdminTaskX402PaymentSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'VERIFIED',
+                'FAILED',
+                'REFUNDED'
+            ]
+        },
+        taskId: {
+            type: 'string'
+        },
+        agentId: {
+            type: 'string'
+        },
+        caip2Network: {
+            type: 'string'
+        },
+        asset: {
+            type: 'string'
+        },
+        amount: {
+            type: 'string',
+            description: 'Demanded amount in token base units',
+            example: '250000'
+        },
+        payTo: {
+            type: 'string'
+        },
+        creditsCharged: {
+            type: 'number',
+            minimum: 0,
+            description: 'Credits debited from the task org for this payment',
+            example: 3
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attemptId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        signAttemptCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        signRiskExpiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Do not resolve a PENDING payment before this instant: an unseen authorization from its last sign attempt may still be live'
+        },
+        validBefore: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'EIP-3009 authorization expiry, present once signed'
+        },
+        taskEventId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        transactionId: {
+            type: 'string'
+        },
+        refundTransactionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The compensating refund transaction, if the payment was refunded'
+        },
+        refundKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'NODE_REFUSAL',
+                'OPERATOR_GOODWILL',
+                'OPERATOR_RESOLVE',
+                null
+            ],
+            description: 'Which lever minted the refund: NODE_REFUSAL (automated, row stays FAILED), OPERATOR_GOODWILL (VERIFIED → REFUNDED), or OPERATOR_RESOLVE (wedged PENDING → REFUNDED). Null when no refund was minted. Without it a REFUNDED row cannot be told apart from a goodwill refund on this surface either.'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'status',
+        'taskId',
+        'agentId',
+        'caip2Network',
+        'asset',
+        'amount',
+        'payTo',
+        'creditsCharged',
+        'failureReason',
+        'attemptId',
+        'signAttemptCount',
+        'signRiskExpiresAt',
+        'validBefore',
+        'taskEventId',
+        'transactionId',
+        'refundTransactionId',
+        'refundKind'
+    ]
+} as const;
+
+export const AdminTaskX402PaymentAgentAggregateSchema = {
+    type: 'object',
+    properties: {
+        agentId: {
+            type: 'string'
+        },
+        total: {
+            type: 'integer',
+            minimum: 0
+        },
+        pending: {
+            type: 'integer',
+            minimum: 0
+        },
+        verified: {
+            type: 'integer',
+            minimum: 0
+        },
+        failed: {
+            type: 'integer',
+            minimum: 0
+        },
+        refunded: {
+            type: 'integer',
+            minimum: 0
+        },
+        failureCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Durable count of node-refused failures — the §5 secondary signal; survives terminal-payment deletion'
+        },
+        goodwillRefundCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Durable count of operator goodwill refunds (VERIFIED → REFUNDED) — the §5 primary quality signal and sort key; survives terminal-payment deletion'
+        },
+        operatorResolveCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Durable count of operator resolves of wedged PENDING charges. Visible but excluded from quality ranking; survives terminal-payment deletion.'
+        }
+    },
+    required: [
+        'agentId',
+        'total',
+        'pending',
+        'verified',
+        'failed',
+        'refunded',
+        'failureCount',
+        'goodwillRefundCount',
+        'operatorResolveCount'
+    ]
+} as const;
+
+export const RefundAdminTaskX402PaymentResultSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'refunded'
+            ]
+        },
+        paymentId: {
+            type: 'string'
+        },
+        reason: {
+            type: 'string'
+        },
+        compensated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'status',
+        'paymentId',
+        'reason',
+        'compensated'
+    ]
+} as const;
+
+export const AdminTaskX402RefundConflictResponseSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'already_refunded',
+                'not_refundable'
+            ],
+            description: 'already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
+export const RefundAdminTaskX402PaymentBodySchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            enum: [
+                'agent_output_quality',
+                'duplicate_charge',
+                'support_adjustment'
+            ],
+            description: 'Coded refund rationale. Narrative text and personal data are not accepted because the audit row survives account deletion.',
+            example: 'agent_output_quality'
+        }
+    },
+    required: [
+        'reason'
+    ]
+} as const;
+
+export const ResolveAdminTaskX402PaymentResultSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'resolved'
+            ]
+        },
+        paymentId: {
+            type: 'string'
+        },
+        reason: {
+            type: 'string'
+        },
+        compensated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'status',
+        'paymentId',
+        'reason',
+        'compensated'
+    ]
+} as const;
+
+export const AdminTaskX402ResolveConflictResponseSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'already_resolved',
+                'sign_in_flight',
+                'sign_outcome_unresolved',
+                'not_resolvable'
+            ],
+            description: 'sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds'
+        },
+        retryAfter: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-12T10:00:30.000Z',
+            description: 'ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Whole seconds until retryAfter. Present with retryAfter.',
+            example: 25
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
+export const ResolveAdminTaskX402PaymentBodySchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            enum: [
+                'account_deletion_blocked',
+                'node_unreachable',
+                'sign_attempts_exhausted',
+                'unsettleable_authorization'
+            ],
+            description: 'Coded resolution rationale. Narrative text and personal data are not accepted because the audit row survives account deletion.',
+            example: 'sign_attempts_exhausted'
+        }
+    },
+    required: [
+        'reason'
+    ]
+} as const;
+
 export const VendorListSchema = {
     type: 'array',
     items: {
@@ -3524,221 +3935,43 @@ export const PatchVendorRequestSchema = {
     }
 } as const;
 
-export const AgentSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'agent_123'
+export const AgentListItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/CardanoAgentListItem'
         },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        name: {
-            type: 'string',
-            example: 'Research Assistant'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/image.png'
-        },
-        icon: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/icon.svg'
-        },
-        credits: {
-            type: 'number',
-            example: 100,
-            description: 'Price in credits'
-        },
-        summary: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'A research assistant that can help you with your research'
-        },
-        description: {
-            type: 'string',
-            example: 'A research assistant that can help you with your research'
-        },
-        metrics: {
-            type: 'object',
-            properties: {
-                executions: {
-                    type: 'object',
-                    properties: {
-                        count: {
-                            type: 'number',
-                            example: 100,
-                            description: 'Number of executions'
-                        },
-                        averageTime: {
-                            type: [
-                                'number',
-                                'null'
-                            ],
-                            example: 100000,
-                            description: 'Average execution time in seconds'
-                        }
-                    },
-                    required: [
-                        'count',
-                        'averageTime'
-                    ],
-                    description: 'Execution metrics'
-                },
-                ratings: {
-                    type: 'object',
-                    properties: {
-                        total: {
-                            type: 'number',
-                            example: 100,
-                            description: 'Total number of ratings'
-                        },
-                        average: {
-                            type: [
-                                'number',
-                                'null'
-                            ],
-                            example: 4.5,
-                            description: 'Average rating (out of 5 stars). Null if there are no ratings.'
-                        }
-                    },
-                    required: [
-                        'total',
-                        'average'
-                    ],
-                    description: 'Rating metrics'
-                }
-            },
-            required: [
-                'executions',
-                'ratings'
-            ],
-            description: 'Execution and rating metrics'
-        },
-        author: {
-            type: 'object',
-            properties: {
-                name: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'John Doe'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/image.png'
-                },
-                organization: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'John Doe\'s Organization'
-                },
-                email: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'email',
-                    example: 'john.doe@example.com'
-                },
-                other: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'Other contact information'
-                }
-            },
-            required: [
-                'name',
-                'image',
-                'organization',
-                'other'
-            ]
-        },
-        legal: {
-            type: 'object',
-            properties: {
-                privacyPolicy: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'Privacy Policy'
-                },
-                terms: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'Terms of Service'
-                },
-                dpa: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'Data Processing Agreement (DPA)'
-                },
-                other: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'Other'
-                }
-            },
-            required: [
-                'privacyPolicy',
-                'terms',
-                'dpa',
-                'other'
-            ]
-        },
-        categories: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/Category'
-            },
-            description: 'Categories this agent belongs to'
+        {
+            $ref: '#/components/schemas/X402Agent'
         }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'name',
-        'image',
-        'icon',
-        'credits',
-        'summary',
-        'description',
-        'metrics',
-        'author',
-        'legal',
-        'categories'
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            cardano: '#/components/schemas/CardanoAgentListItem',
+            x402: '#/components/schemas/X402Agent'
+        }
+    }
+} as const;
+
+export const CardanoAgentListItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Agent'
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'cardano'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        }
     ]
 } as const;
 
@@ -3987,6 +4220,583 @@ export const CategoryStylesSchema = {
             color: 'text-default-foreground'
         }
     }
+} as const;
+
+export const AgentSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: 'string',
+            example: 'Research Assistant'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/image.png'
+        },
+        icon: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/icon.svg'
+        },
+        credits: {
+            type: 'number',
+            example: 100,
+            description: 'Price in credits'
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'A research assistant that can help you with your research'
+        },
+        description: {
+            type: 'string',
+            example: 'A research assistant that can help you with your research'
+        },
+        metrics: {
+            type: 'object',
+            properties: {
+                executions: {
+                    type: 'object',
+                    properties: {
+                        count: {
+                            type: 'number',
+                            example: 100,
+                            description: 'Number of executions'
+                        },
+                        averageTime: {
+                            type: [
+                                'number',
+                                'null'
+                            ],
+                            example: 100000,
+                            description: 'Average execution time in seconds'
+                        }
+                    },
+                    required: [
+                        'count',
+                        'averageTime'
+                    ],
+                    description: 'Execution metrics'
+                },
+                ratings: {
+                    type: 'object',
+                    properties: {
+                        total: {
+                            type: 'number',
+                            example: 100,
+                            description: 'Total number of ratings'
+                        },
+                        average: {
+                            type: [
+                                'number',
+                                'null'
+                            ],
+                            example: 4.5,
+                            description: 'Average rating (out of 5 stars). Null if there are no ratings.'
+                        }
+                    },
+                    required: [
+                        'total',
+                        'average'
+                    ],
+                    description: 'Rating metrics'
+                }
+            },
+            required: [
+                'executions',
+                'ratings'
+            ],
+            description: 'Execution and rating metrics'
+        },
+        author: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'John Doe'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                organization: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'John Doe\'s Organization'
+                },
+                email: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'email',
+                    example: 'john.doe@example.com'
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Other contact information'
+                }
+            },
+            required: [
+                'name',
+                'image',
+                'organization',
+                'other'
+            ]
+        },
+        legal: {
+            type: 'object',
+            properties: {
+                privacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Privacy Policy'
+                },
+                terms: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Terms of Service'
+                },
+                dpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Data Processing Agreement (DPA)'
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Other'
+                }
+            },
+            required: [
+                'privacyPolicy',
+                'terms',
+                'dpa',
+                'other'
+            ]
+        },
+        categories: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Category'
+            },
+            description: 'Categories this agent belongs to'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'image',
+        'icon',
+        'credits',
+        'summary',
+        'description',
+        'metrics',
+        'author',
+        'legal',
+        'categories'
+    ]
+} as const;
+
+export const X402AgentSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cmaeygqwa000e8i0s9s7wif8i'
+                },
+                specification: {
+                    type: 'string',
+                    enum: [
+                        'bazaar',
+                        'openapi'
+                    ],
+                    example: 'bazaar',
+                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Bazaar Research Agent'
+                },
+                description: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'A research agent payable via x402'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                x402ResourcesUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/.well-known/x402',
+                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
+                },
+                openApiSpecUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/openapi.json',
+                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'x402'
+                    ]
+                },
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'fixed'
+                    ]
+                },
+                isPayable: {
+                    type: 'boolean',
+                    enum: [
+                        true
+                    ]
+                },
+                paymentSources: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/X402FixedAgentPaymentSource'
+                    },
+                    minItems: 1,
+                    description: 'Payment sources Sokosumi can pay right now (fail-closed filtered)'
+                }
+            },
+            required: [
+                'id',
+                'specification',
+                'name',
+                'description',
+                'image',
+                'x402ResourcesUrl',
+                'openApiSpecUrl',
+                'kind',
+                'pricingType',
+                'isPayable',
+                'paymentSources'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cmaeygqwa000e8i0s9s7wif8i'
+                },
+                specification: {
+                    type: 'string',
+                    enum: [
+                        'bazaar',
+                        'openapi'
+                    ],
+                    example: 'bazaar',
+                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Bazaar Research Agent'
+                },
+                description: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'A research agent payable via x402'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                x402ResourcesUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/.well-known/x402',
+                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
+                },
+                openApiSpecUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/openapi.json',
+                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'x402'
+                    ]
+                },
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'dynamic'
+                    ]
+                },
+                isPayable: {
+                    type: 'boolean',
+                    description: 'Whether this deployment currently has a priced buy-side-ready asset on every advertised dynamic network. Runtime payment still requires maxCredits and verifies the 402\'s actual asset.'
+                },
+                paymentSources: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/X402DynamicAgentPaymentSource'
+                    },
+                    minItems: 1,
+                    description: 'Dynamic sources whose runtime 402 quote can use the coworker payment endpoint with a mandatory maxCredits ceiling.'
+                }
+            },
+            required: [
+                'id',
+                'specification',
+                'name',
+                'description',
+                'image',
+                'x402ResourcesUrl',
+                'openApiSpecUrl',
+                'kind',
+                'pricingType',
+                'isPayable',
+                'paymentSources'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cmaeygqwa000e8i0s9s7wif8i'
+                },
+                specification: {
+                    type: 'string',
+                    enum: [
+                        'bazaar',
+                        'openapi'
+                    ],
+                    example: 'bazaar',
+                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Bazaar Research Agent'
+                },
+                description: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'A research agent payable via x402'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                x402ResourcesUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/.well-known/x402',
+                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
+                },
+                openApiSpecUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/openapi.json',
+                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'x402'
+                    ]
+                },
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'mixed'
+                    ]
+                },
+                isPayable: {
+                    type: 'boolean',
+                    description: 'Whether every fixed and dynamic payment source is currently payable on this deployment. Mixed agents remain visible as previews when a dynamic source is not buy-side ready.'
+                },
+                paymentSources: {
+                    type: 'array',
+                    items: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/X402FixedAgentPaymentSource'
+                            },
+                            {
+                                $ref: '#/components/schemas/X402DynamicAgentPaymentSource'
+                            }
+                        ]
+                    },
+                    minItems: 2,
+                    description: 'Fixed and dynamic payment sources advertised by one agent. Runtime verification preserves fixed ceilings when registrations overlap.'
+                }
+            },
+            required: [
+                'id',
+                'specification',
+                'name',
+                'description',
+                'image',
+                'x402ResourcesUrl',
+                'openApiSpecUrl',
+                'kind',
+                'pricingType',
+                'isPayable',
+                'paymentSources'
+            ]
+        }
+    ]
+} as const;
+
+export const X402FixedAgentPaymentSourceSchema = {
+    type: 'object',
+    properties: {
+        caip2Network: {
+            type: 'string',
+            example: 'eip155:84532',
+            description: 'CAIP-2 EVM network id the agent accepts payment on'
+        },
+        asset: {
+            type: 'string',
+            example: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+            description: 'ERC-20 contract address of the accepted asset (lowercase)'
+        },
+        decimals: {
+            type: 'integer',
+            example: 6,
+            description: 'Base units per whole token for this (network, asset) pair, as the Sokosumi payment node publishes it — never the scale the agent registered. It is the scale `credits` was computed at.'
+        },
+        payTo: {
+            type: 'string',
+            example: '0x1111111111111111111111111111111111111111',
+            description: 'Recipient address the agent\'s 402 will demand'
+        },
+        amount: {
+            type: 'string',
+            example: '250000',
+            description: 'Advertised price in chain-native base units'
+        },
+        credits: {
+            type: 'number',
+            example: 0.5,
+            description: 'Advertised price converted to Sokosumi credits (charge-floored)'
+        }
+    },
+    required: [
+        'caip2Network',
+        'asset',
+        'decimals',
+        'payTo',
+        'amount',
+        'credits'
+    ]
+} as const;
+
+export const X402DynamicAgentPaymentSourceSchema = {
+    type: 'object',
+    properties: {
+        pricingType: {
+            type: 'string',
+            enum: [
+                'dynamic'
+            ],
+            example: 'dynamic'
+        },
+        caip2Network: {
+            type: 'string',
+            example: 'eip155:84532',
+            description: 'CAIP-2 EVM network the dynamic source advertises'
+        },
+        payTo: {
+            type: 'string',
+            example: '0x1111111111111111111111111111111111111111',
+            description: 'Recipient address the dynamic source advertises'
+        }
+    },
+    required: [
+        'pricingType',
+        'caip2Network',
+        'payTo'
+    ]
 } as const;
 
 export const AgentDetailSchema = {
@@ -4938,7 +5748,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Discoverability is not allowed on directs.'
+                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -6676,6 +7486,12 @@ export const CreateDriveFileUploadSessionRequestSchema = {
             type: 'string',
             example: 'org_123',
             description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Projects/2026',
+            description: 'Target folder path relative to scope root (empty/omit for root)'
         }
     },
     required: [
@@ -6686,11 +7502,82 @@ export const CreateDriveFileUploadSessionRequestSchema = {
     ]
 } as const;
 
-export const DriveFilesSchema = {
+export const DriveItemsSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/DriveFile'
+        $ref: '#/components/schemas/DriveItem'
     }
+} as const;
+
+export const DriveItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveFolder'
+        },
+        {
+            $ref: '#/components/schemas/DriveFileItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            folder: '#/components/schemas/DriveFolder',
+            file: '#/components/schemas/DriveFileItem'
+        }
+    }
+} as const;
+
+export const DriveFolderSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'folder'
+            ],
+            example: 'folder',
+            description: 'Item type discriminator'
+        },
+        name: {
+            type: 'string',
+            example: 'Documents',
+            description: 'Folder name (next path segment)'
+        },
+        path: {
+            type: 'string',
+            example: 'Documents',
+            description: 'Relative folder path from current folder (single segment)'
+        }
+    },
+    required: [
+        'type',
+        'name',
+        'path'
+    ]
+} as const;
+
+export const DriveFileItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/DriveFile'
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'file'
+                    ],
+                    example: 'file',
+                    description: 'Item type discriminator'
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
+    ]
 } as const;
 
 export const DriveFileSchema = {
@@ -6733,6 +7620,51 @@ export const DriveFileSchema = {
     ]
 } as const;
 
+export const MoveDriveItemRequestSchema = {
+    type: 'object',
+    properties: {
+        sourcePathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Source pathname (file) or folder path relative to scope root (folder)'
+        },
+        targetFolderPath: {
+            type: 'string',
+            example: 'Archive/2026',
+            description: 'Target folder path relative to scope root (empty string for root)'
+        },
+        itemType: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ],
+            example: 'file',
+            description: 'Type of item being moved'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope (required for folder moves): \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org for folder moves)'
+        }
+    },
+    required: [
+        'sourcePathname',
+        'targetFolderPath',
+        'itemType'
+    ]
+} as const;
+
 export const RenameDriveFileRequestSchema = {
     type: 'object',
     properties: {
@@ -6768,6 +7700,105 @@ export const DeleteDriveFileRequestSchema = {
     },
     required: [
         'pathname'
+    ]
+} as const;
+
+export const CreateDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            example: 'Projects/2026',
+            description: 'Folder path relative to scope root (may be nested with slashes)'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'folderPath',
+        'scope'
+    ]
+} as const;
+
+export const DeleteDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            example: 'Projects/OldProject',
+            description: 'Folder path relative to scope root'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'folderPath',
+        'scope'
+    ]
+} as const;
+
+export const RenameDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        oldFolderPath: {
+            type: 'string',
+            minLength: 1,
+            example: 'Projects',
+            description: 'Current folder path relative to scope root'
+        },
+        newFolderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            example: 'ArchivedProjects',
+            description: 'New folder path relative to scope root'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'oldFolderPath',
+        'newFolderPath',
+        'scope'
     ]
 } as const;
 
@@ -8973,7 +10004,10 @@ export const UserDeletionEvaluationSchema = {
                     'IN_FLIGHT_TASK',
                     'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED',
                     'TASK_PAYMENT_CLAIM_PENDING',
-                    'TASK_X402_PAYMENT_PENDING'
+                    'TASK_X402_PAYMENT_PENDING',
+                    'TASK_X402_PAYMENT_UNRESOLVED',
+                    'TASK_X402_PAYMENT_AUTHORIZATION_LIVE',
+                    'TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH'
                 ]
             },
             description: 'Current User-deletion blockers. Empty means the existing wipe may proceed.',
@@ -14125,6 +15159,86 @@ export const CreateTaskFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const TaskX402PaymentSignedSchema = {
+    type: 'object',
+    properties: {
+        paymentId: {
+            type: 'string',
+            example: '0198b2f4-1111-7000-8000-000000000000',
+            description: 'Sokosumi payment-record id (support, admin refund, status lookups)'
+        },
+        attemptId: {
+            type: 'string',
+            example: 'attempt_1',
+            description: 'Payment-node attempt id'
+        },
+        paymentHeader: {
+            type: 'object',
+            properties: {
+                x402Version: {
+                    anyOf: [
+                        {
+                            type: 'number',
+                            enum: [
+                                1
+                            ]
+                        },
+                        {
+                            type: 'number',
+                            enum: [
+                                2
+                            ]
+                        }
+                    ]
+                },
+                name: {
+                    type: 'string',
+                    enum: [
+                        'X-PAYMENT',
+                        'PAYMENT-SIGNATURE'
+                    ]
+                },
+                value: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'x402Version',
+                'name',
+                'value'
+            ],
+            description: 'Protocol-normalized replay header. Send value under name exactly as returned: X-PAYMENT for v1, PAYMENT-SIGNATURE for v2.'
+        },
+        caip2Network: {
+            type: 'string',
+            example: 'eip155:84532'
+        },
+        asset: {
+            type: 'string',
+            example: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+            description: 'ERC-20 contract address of the signed asset'
+        },
+        amount: {
+            type: 'string',
+            example: '250000',
+            description: 'Signed amount in token base units'
+        },
+        payTo: {
+            type: 'string',
+            example: '0x1111111111111111111111111111111111111111'
+        }
+    },
+    required: [
+        'paymentId',
+        'attemptId',
+        'paymentHeader',
+        'caip2Network',
+        'asset',
+        'amount',
+        'payTo'
     ]
 } as const;
 

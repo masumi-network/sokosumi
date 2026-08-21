@@ -18,9 +18,23 @@ _Avoid_: Purchase, subscribe (billing), assign (Task → Coworker)
 One run of an Agent for a user or workspace. Not a Task.
 _Avoid_: Task, run (unless a UI label)
 
+**Task**:
+Work assigned to a Coworker. Not a Job.
+_Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
+
 **Coworker**:
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), assistant (Hermes)
+
+### Task payments
+
+**Task payment claim**:
+The Cardano escrow payment record for a Task.
+_Avoid_: Purchase (Job hire), x402 payment
+
+**Task x402 payment**:
+The x402 signed-authorization charge for a Task. The parent is the Task; do not drop that from the name while this is a Task-scoped record.
+_Avoid_: X402Payment (unmarked), x402 payment (when meaning the payment node's attempt), treating this as a Job hire payment
 
 ### Notifications
 
@@ -83,19 +97,23 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name.
+A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1.
 _Avoid_: Conversation (retired), treating a DM as a Channel
+
+**Coworker 1:1**:
+A Direct with exactly one human member and exactly one coworker.
+_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape
 
 **Org Direct**:
 A Direct owned by an Organization. Human 1:1 is an Org Direct only when both people are Members of that Organization. Organization exit removes the leaving member from them.
 _Avoid_: Team DM, workspace DM
 
 **Personal Direct**:
-A Direct not owned by an Organization. Survives Organization exit.
+A Direct not owned by an Organization. Survives Organization exit. Human 1:1 from a shared External channel is a Personal Direct; coworker 1:1 may also be personal.
 _Avoid_: Account DM, global DM
 
 **External** (sidebar):
-The chat sidebar section for External channels and for Directs whose other human is not a Member of the active Organization (or there is no active Organization). Distinct from Channels and Direct Messages. Always mounted; those Directs and Guest rooms appear in every workspace.
+The chat sidebar section for External channels and for Directs whose other human is not a Member of the active Organization (or there is no active Organization). Distinct from Channels and Direct Messages. Shown when that set is non-empty; those Directs and Guest rooms appear in every workspace.
 _Avoid_: External channel (that is the room), guest sidebar
 
 ### Chat membership

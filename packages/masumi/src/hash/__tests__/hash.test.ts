@@ -234,6 +234,12 @@ describe("hashCanonicalJsonValue", () => {
   it("should return null for unsupported values", () => {
     expect(hashCanonicalJsonValue(123n as unknown)).toBeNull();
   });
+
+  it("should return null for non-finite numbers", () => {
+    expect(hashCanonicalJsonValue(Number.NaN)).toBeNull();
+    expect(hashCanonicalJsonValue(Number.POSITIVE_INFINITY)).toBeNull();
+    expect(hashCanonicalJsonValue(Number.NEGATIVE_INFINITY)).toBeNull();
+  });
 });
 
 describe("hashResult", () => {

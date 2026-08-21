@@ -84,6 +84,7 @@
     "ai-provider:format": "pnpm --filter @sokosumi/ai-provider format",
     "masumi:format": "pnpm --filter @sokosumi/masumi format",
     "data-migration:better-auth-1-7-harvest": "pnpm --filter @sokosumi/database data-migration:better-auth-1-7-harvest",
+    "data-migration:org-only-personal-workspaces": "pnpm --filter @sokosumi/database data-migration:org-only-personal-workspaces",
     "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
@@ -94,6 +95,7 @@
     "cloud-agent-db:seed-auth": "node scripts/cloud-agent-db/seed-auth-fixtures.mjs",
     "cloud-agent-db:test": "node --test scripts/cloud-agent-db/__tests__/cloud-agent-db.test.mjs",
     "local-env:test": "node --test scripts/local-env/__tests__/bootstrap.test.mjs scripts/local-env/__tests__/portless-dev.test.mjs",
+    "ci:test": "node --test scripts/ci/__tests__/turbo-remote-cache.test.mjs",
     "perf:report": "lighthouse https://sokosumi-app-preprod.vercel.app/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'",
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs",
     "prepare": "husky"

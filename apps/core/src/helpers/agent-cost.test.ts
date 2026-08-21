@@ -72,6 +72,24 @@ describe("calculateCentsFromMasumiAmountStrings", () => {
       ),
     ).toThrowError(/CAIP-19 asset key/);
   });
+
+  it("rejects a MISSPELLED CAIP-19 unit — the fence covers the namespace", () => {
+    // The exclusion fence must be broader than the canonical key pattern: a
+    // leading-zero chain id fails `isCaip19AssetKey`, but if it fell through
+    // to the smallest-unit lookup a whole-token-priced row in the same
+    // spelling would be a 10^decimals mischarge. Anything in the eip155:
+    // namespace is refused here, well-formed or not.
+    const misspelled = CAIP19_USDC_BASE_SEPOLIA.replace(
+      "eip155:84532",
+      "eip155:084532",
+    );
+    expect(() =>
+      calculateCentsFromMasumiAmountStrings(
+        [{ amount: "1000000", unit: misspelled }],
+        [...sampleCreditCosts, createCreditCost(misspelled)],
+      ),
+    ).toThrowError(/CAIP-19 asset key/);
+  });
 });
 
 describe("getAgentCost", () => {
@@ -120,6 +138,20 @@ describe("listCardanoBillableUnitSpellings", () => {
       listCardanoBillableUnitSpellings([
         createCreditCost(CAIP19_USDC_BASE_SEPOLIA),
         createCreditCost(CAIP19_USDC_BASE_SEPOLIA.toUpperCase()),
+        createCreditCost("lovelace"),
+      ]),
+    ).toEqual(["lovelace", ""]);
+  });
+
+  it("excludes misspelled CAIP-19 units too (namespace fence, not key fence)", () => {
+    // An operator-authored row with a leading-zero chain id is not a valid
+    // key, but it must not become Cardano-billable either — that would price
+    // a whole-token row per smallest unit.
+    expect(
+      listCardanoBillableUnitSpellings([
+        createCreditCost(
+          CAIP19_USDC_BASE_SEPOLIA.replace("eip155:84532", "eip155:084532"),
+        ),
         createCreditCost("lovelace"),
       ]),
     ).toEqual(["lovelace", ""]);

@@ -5,9 +5,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ensureOAuthWorkspaceAction } from "@/lib/actions/workspace-gate";
 import { authClient } from "@/lib/auth/auth.client";
 
-export function ConsentActions() {
+interface ConsentActionsProps {
+  oauthQuery?: string;
+}
+
+export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
   const t = useTranslations("App.Account.OAuthConsent.actions");
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isDenying, setIsDenying] = useState(false);
@@ -15,8 +20,16 @@ export function ConsentActions() {
   async function handleAuthorize() {
     setIsAuthorizing(true);
     try {
+      const workspaceResult = await ensureOAuthWorkspaceAction({});
+      if (!workspaceResult.ok) {
+        toast.error(t("workspacePrepareError"));
+        setIsAuthorizing(false);
+        return;
+      }
+
       const result = await authClient.oauth2.consent({
         accept: true,
+        ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
       });
 
       if (result.error) {
@@ -41,7 +54,10 @@ export function ConsentActions() {
 
   async function handleDeny() {
     setIsDenying(true);
-    const result = await authClient.oauth2.consent({ accept: false });
+    const result = await authClient.oauth2.consent({
+      accept: false,
+      ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+    });
 
     if (result.error) {
       toast.error(result.error.message || t("denyError"));

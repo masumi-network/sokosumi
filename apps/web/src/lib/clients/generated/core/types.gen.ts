@@ -912,6 +912,134 @@ export type ReviewedTaskPaymentClaimActionBody = {
     reason: string;
 };
 
+export type AdminTaskX402Payment = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    status: 'PENDING' | 'VERIFIED' | 'FAILED' | 'REFUNDED';
+    taskId: string;
+    agentId: string;
+    caip2Network: string;
+    asset: string;
+    /**
+     * Demanded amount in token base units
+     */
+    amount: string;
+    payTo: string;
+    /**
+     * Credits debited from the task org for this payment
+     */
+    creditsCharged: number;
+    failureReason: string | null;
+    attemptId: string | null;
+    signAttemptCount: number;
+    /**
+     * Do not resolve a PENDING payment before this instant: an unseen authorization from its last sign attempt may still be live
+     */
+    signRiskExpiresAt: Date | null;
+    /**
+     * EIP-3009 authorization expiry, present once signed
+     */
+    validBefore: Date | null;
+    taskEventId: string | null;
+    transactionId: string;
+    /**
+     * The compensating refund transaction, if the payment was refunded
+     */
+    refundTransactionId: string | null;
+    /**
+     * Which lever minted the refund: NODE_REFUSAL (automated, row stays FAILED), OPERATOR_GOODWILL (VERIFIED → REFUNDED), or OPERATOR_RESOLVE (wedged PENDING → REFUNDED). Null when no refund was minted. Without it a REFUNDED row cannot be told apart from a goodwill refund on this surface either.
+     */
+    refundKind: 'NODE_REFUSAL' | 'OPERATOR_GOODWILL' | 'OPERATOR_RESOLVE' | null;
+};
+
+export type AdminTaskX402PaymentAgentAggregate = {
+    agentId: string;
+    total: number;
+    pending: number;
+    verified: number;
+    failed: number;
+    refunded: number;
+    /**
+     * Durable count of node-refused failures — the §5 secondary signal; survives terminal-payment deletion
+     */
+    failureCount: number;
+    /**
+     * Durable count of operator goodwill refunds (VERIFIED → REFUNDED) — the §5 primary quality signal and sort key; survives terminal-payment deletion
+     */
+    goodwillRefundCount: number;
+    /**
+     * Durable count of operator resolves of wedged PENDING charges. Visible but excluded from quality ranking; survives terminal-payment deletion.
+     */
+    operatorResolveCount: number;
+};
+
+export type RefundAdminTaskX402PaymentResult = {
+    status: 'refunded';
+    paymentId: string;
+    reason: string;
+    compensated: boolean;
+};
+
+export type AdminTaskX402RefundConflictResponse = {
+    error: string;
+    message: string;
+    /**
+     * already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.
+     */
+    kind?: 'already_refunded' | 'not_refundable';
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
+export type RefundAdminTaskX402PaymentBody = {
+    /**
+     * Coded refund rationale. Narrative text and personal data are not accepted because the audit row survives account deletion.
+     */
+    reason: 'agent_output_quality' | 'duplicate_charge' | 'support_adjustment';
+};
+
+export type ResolveAdminTaskX402PaymentResult = {
+    status: 'resolved';
+    paymentId: string;
+    reason: string;
+    compensated: boolean;
+};
+
+export type AdminTaskX402ResolveConflictResponse = {
+    error: string;
+    message: string;
+    /**
+     * sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds
+     */
+    kind?: 'already_resolved' | 'sign_in_flight' | 'sign_outcome_unresolved' | 'not_resolvable';
+    /**
+     * ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.
+     */
+    retryAfter?: Date;
+    /**
+     * Whole seconds until retryAfter. Present with retryAfter.
+     */
+    retryAfterSeconds?: number;
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
+export type ResolveAdminTaskX402PaymentBody = {
+    /**
+     * Coded resolution rationale. Narrative text and personal data are not accepted because the audit row survives account deletion.
+     */
+    reason: 'account_deletion_blocked' | 'node_unreachable' | 'sign_attempts_exhausted' | 'unsettleable_authorization';
+};
+
 export type VendorList = Array<Vendor>;
 
 export type Vendor = {
@@ -944,6 +1072,69 @@ export type PatchVendorRequest = {
     slug?: string;
     logos?: VendorLogosInput;
 };
+
+export type AgentListItem = CardanoAgentListItem | X402Agent;
+
+export type CardanoAgentListItem = Agent & {
+    kind: 'cardano';
+};
+
+export type Category = {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    image: string | null;
+    icon: string | null;
+    priority: number;
+    styles: CategoryStyles;
+};
+
+/**
+ * Optional category-specific UI styles.
+ */
+export type CategoryStyles = {
+    light?: {
+        color?: string;
+        border?: {
+            gradient: {
+                type: string;
+                angle?: number;
+                shape?: string;
+                extent?: string;
+                position?: {
+                    x: number;
+                    y: number;
+                };
+                stops: Array<{
+                    color: string;
+                    offset: number;
+                    opacity?: number;
+                }>;
+            };
+        };
+    };
+    dark?: {
+        color?: string;
+        border?: {
+            gradient: {
+                type: string;
+                angle?: number;
+                shape?: string;
+                extent?: string;
+                position?: {
+                    x: number;
+                    y: number;
+                };
+                stops: Array<{
+                    color: string;
+                    offset: number;
+                    opacity?: number;
+                }>;
+            };
+        };
+    };
+} | null;
 
 export type Agent = {
     id: string;
@@ -1008,62 +1199,124 @@ export type Agent = {
     categories: Array<Category>;
 };
 
-export type Category = {
+export type X402Agent = {
     id: string;
+    /**
+     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
+     */
+    specification: 'bazaar' | 'openapi';
     name: string;
-    slug: string;
     description: string | null;
     image: string | null;
-    icon: string | null;
-    priority: number;
-    styles: CategoryStyles;
+    /**
+     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
+     */
+    x402ResourcesUrl: string | null;
+    /**
+     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
+     */
+    openApiSpecUrl: string | null;
+    kind: 'x402';
+    pricingType: 'fixed';
+    isPayable: true;
+    /**
+     * Payment sources Sokosumi can pay right now (fail-closed filtered)
+     */
+    paymentSources: Array<X402FixedAgentPaymentSource>;
+} | {
+    id: string;
+    /**
+     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
+     */
+    specification: 'bazaar' | 'openapi';
+    name: string;
+    description: string | null;
+    image: string | null;
+    /**
+     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
+     */
+    x402ResourcesUrl: string | null;
+    /**
+     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
+     */
+    openApiSpecUrl: string | null;
+    kind: 'x402';
+    pricingType: 'dynamic';
+    /**
+     * Whether this deployment currently has a priced buy-side-ready asset on every advertised dynamic network. Runtime payment still requires maxCredits and verifies the 402's actual asset.
+     */
+    isPayable: boolean;
+    /**
+     * Dynamic sources whose runtime 402 quote can use the coworker payment endpoint with a mandatory maxCredits ceiling.
+     */
+    paymentSources: Array<X402DynamicAgentPaymentSource>;
+} | {
+    id: string;
+    /**
+     * Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources
+     */
+    specification: 'bazaar' | 'openapi';
+    name: string;
+    description: string | null;
+    image: string | null;
+    /**
+     * The agent's advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.
+     */
+    x402ResourcesUrl: string | null;
+    /**
+     * The agent's advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.
+     */
+    openApiSpecUrl: string | null;
+    kind: 'x402';
+    pricingType: 'mixed';
+    /**
+     * Whether every fixed and dynamic payment source is currently payable on this deployment. Mixed agents remain visible as previews when a dynamic source is not buy-side ready.
+     */
+    isPayable: boolean;
+    /**
+     * Fixed and dynamic payment sources advertised by one agent. Runtime verification preserves fixed ceilings when registrations overlap.
+     */
+    paymentSources: Array<X402FixedAgentPaymentSource | X402DynamicAgentPaymentSource>;
 };
 
-/**
- * Optional category-specific UI styles.
- */
-export type CategoryStyles = {
-    light?: {
-        color?: string;
-        border?: {
-            gradient: {
-                type: string;
-                angle?: number;
-                shape?: string;
-                extent?: string;
-                position?: {
-                    x: number;
-                    y: number;
-                };
-                stops: Array<{
-                    color: string;
-                    offset: number;
-                    opacity?: number;
-                }>;
-            };
-        };
-    };
-    dark?: {
-        color?: string;
-        border?: {
-            gradient: {
-                type: string;
-                angle?: number;
-                shape?: string;
-                extent?: string;
-                position?: {
-                    x: number;
-                    y: number;
-                };
-                stops: Array<{
-                    color: string;
-                    offset: number;
-                    opacity?: number;
-                }>;
-            };
-        };
-    };
-} | null;
+export type X402FixedAgentPaymentSource = {
+    /**
+     * CAIP-2 EVM network id the agent accepts payment on
+     */
+    caip2Network: string;
+    /**
+     * ERC-20 contract address of the accepted asset (lowercase)
+     */
+    asset: string;
+    /**
+     * Base units per whole token for this (network, asset) pair, as the Sokosumi payment node publishes it — never the scale the agent registered. It is the scale `credits` was computed at.
+     */
+    decimals: number;
+    /**
+     * Recipient address the agent's 402 will demand
+     */
+    payTo: string;
+    /**
+     * Advertised price in chain-native base units
+     */
+    amount: string;
+    /**
+     * Advertised price converted to Sokosumi credits (charge-floored)
+     */
+    credits: number;
+};
+
+export type X402DynamicAgentPaymentSource = {
+    pricingType: 'dynamic';
+    /**
+     * CAIP-2 EVM network the dynamic source advertises
+     */
+    caip2Network: string;
+    /**
+     * Recipient address the dynamic source advertises
+     */
+    payTo: string;
+};
 
 export type AgentDetail = {
     id: string;
@@ -1382,7 +1635,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -1902,9 +2155,41 @@ export type CreateDriveFileUploadSessionRequest = {
      * Organization ID (required when scope=org)
      */
     organizationId?: string;
+    /**
+     * Target folder path relative to scope root (empty/omit for root)
+     */
+    folder?: string;
 };
 
-export type DriveFiles = Array<DriveFile>;
+export type DriveItems = Array<DriveItem>;
+
+export type DriveItem = ({
+    type: 'folder';
+} & DriveFolder) | ({
+    type: 'file';
+} & DriveFileItem);
+
+export type DriveFolder = {
+    /**
+     * Item type discriminator
+     */
+    type: 'folder';
+    /**
+     * Folder name (next path segment)
+     */
+    name: string;
+    /**
+     * Relative folder path from current folder (single segment)
+     */
+    path: string;
+};
+
+export type DriveFileItem = DriveFile & {
+    /**
+     * Item type discriminator
+     */
+    type: 'file';
+};
 
 export type DriveFile = {
     /**
@@ -1929,6 +2214,29 @@ export type DriveFile = {
     uploadedAt: Date;
 };
 
+export type MoveDriveItemRequest = {
+    /**
+     * Source pathname (file) or folder path relative to scope root (folder)
+     */
+    sourcePathname: string;
+    /**
+     * Target folder path relative to scope root (empty string for root)
+     */
+    targetFolderPath: string;
+    /**
+     * Type of item being moved
+     */
+    itemType: 'file' | 'folder';
+    /**
+     * Owner scope (required for folder moves): 'me' for personal drive, 'org' for organization drive
+     */
+    scope?: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org for folder moves)
+     */
+    organizationId?: string;
+};
+
 export type RenameDriveFileRequest = {
     /**
      * Current blob pathname
@@ -1945,6 +2253,55 @@ export type DeleteDriveFileRequest = {
      * Blob pathname to delete
      */
     pathname: string;
+};
+
+export type CreateDriveFolderRequest = {
+    /**
+     * Folder path relative to scope root (may be nested with slashes)
+     */
+    folderPath: string;
+    /**
+     * Owner scope: 'me' for personal drive, 'org' for organization drive
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+};
+
+export type DeleteDriveFolderRequest = {
+    /**
+     * Folder path relative to scope root
+     */
+    folderPath: string;
+    /**
+     * Owner scope: 'me' for personal drive, 'org' for organization drive
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+};
+
+export type RenameDriveFolderRequest = {
+    /**
+     * Current folder path relative to scope root
+     */
+    oldFolderPath: string;
+    /**
+     * New folder path relative to scope root
+     */
+    newFolderPath: string;
+    /**
+     * Owner scope: 'me' for personal drive, 'org' for organization drive
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
 };
 
 export type EnterpriseContract = {
@@ -2669,7 +3026,7 @@ export type UserDeletionEvaluation = {
     /**
      * Current User-deletion blockers. Empty means the existing wipe may proceed.
      */
-    blockers: Array<'RUNNING_SUBSCRIPTION' | 'USER_OWNS_ORGANIZATION' | 'IN_FLIGHT_JOB' | 'UNSETTLED_ON_CHAIN_JOB' | 'IN_FLIGHT_TASK' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING'>;
+    blockers: Array<'RUNNING_SUBSCRIPTION' | 'USER_OWNS_ORGANIZATION' | 'IN_FLIGHT_JOB' | 'UNSETTLED_ON_CHAIN_JOB' | 'IN_FLIGHT_TASK' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING' | 'TASK_X402_PAYMENT_UNRESOLVED' | 'TASK_X402_PAYMENT_AUTHORIZATION_LIVE' | 'TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH'>;
 };
 
 export type PersistedDesignMd = {
@@ -4207,6 +4564,35 @@ export type CreateTaskFileUploadSessionRequest = {
      * File size in bytes
      */
     size: number;
+};
+
+export type TaskX402PaymentSigned = {
+    /**
+     * Sokosumi payment-record id (support, admin refund, status lookups)
+     */
+    paymentId: string;
+    /**
+     * Payment-node attempt id
+     */
+    attemptId: string;
+    /**
+     * Protocol-normalized replay header. Send value under name exactly as returned: X-PAYMENT for v1, PAYMENT-SIGNATURE for v2.
+     */
+    paymentHeader: {
+        x402Version: 1 | 2;
+        name: 'X-PAYMENT' | 'PAYMENT-SIGNATURE';
+        value: string;
+    };
+    caip2Network: string;
+    /**
+     * ERC-20 contract address of the signed asset
+     */
+    asset: string;
+    /**
+     * Signed amount in token base units
+     */
+    amount: string;
+    payTo: string;
 };
 
 export type SiteIconResult = {
@@ -6650,6 +7036,338 @@ export type RetryAdminTaskPaymentClaimResponses = {
 
 export type RetryAdminTaskPaymentClaimResponse = RetryAdminTaskPaymentClaimResponses[keyof RetryAdminTaskPaymentClaimResponses];
 
+export type ListAdminTaskX402PaymentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter by payment status
+         */
+        status?: 'PENDING' | 'VERIFIED' | 'FAILED' | 'REFUNDED';
+        /**
+         * Filter by the charged agent (aggregation key)
+         */
+        agentId?: string;
+        /**
+         * Filter by CAIP-2 network id (e.g. eip155:84532)
+         */
+        caip2Network?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/admin/task-x402-payments';
+};
+
+export type ListAdminTaskX402PaymentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminTaskX402PaymentsError = ListAdminTaskX402PaymentsErrors[keyof ListAdminTaskX402PaymentsErrors];
+
+export type ListAdminTaskX402PaymentsResponses = {
+    /**
+     * Task x402 payments
+     */
+    200: {
+        data: Array<AdminTaskX402Payment>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminTaskX402PaymentsResponse = ListAdminTaskX402PaymentsResponses[keyof ListAdminTaskX402PaymentsResponses];
+
+export type AggregateAdminTaskX402PaymentsByAgentData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Restrict the rollup to one payment status
+         */
+        status?: 'PENDING' | 'VERIFIED' | 'FAILED' | 'REFUNDED';
+        /**
+         * Restrict the rollup to a single agent
+         */
+        agentId?: string;
+        /**
+         * Restrict the rollup to a single CAIP-2 network id
+         */
+        caip2Network?: string;
+    };
+    url: '/admin/task-x402-payments/aggregate';
+};
+
+export type AggregateAdminTaskX402PaymentsByAgentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AggregateAdminTaskX402PaymentsByAgentError = AggregateAdminTaskX402PaymentsByAgentErrors[keyof AggregateAdminTaskX402PaymentsByAgentErrors];
+
+export type AggregateAdminTaskX402PaymentsByAgentResponses = {
+    /**
+     * Per-agent x402 payment aggregation
+     */
+    200: {
+        data: Array<AdminTaskX402PaymentAgentAggregate>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AggregateAdminTaskX402PaymentsByAgentResponse = AggregateAdminTaskX402PaymentsByAgentResponses[keyof AggregateAdminTaskX402PaymentsByAgentResponses];
+
+export type RefundAdminTaskX402PaymentData = {
+    body: RefundAdminTaskX402PaymentBody;
+    path: {
+        /**
+         * Task x402 payment ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/task-x402-payments/{id}/refund';
+};
+
+export type RefundAdminTaskX402PaymentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - payment does not exist
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - payment is not refundable. Branch on `kind`: already_refunded (idempotent) or not_refundable (PENDING must use resolve; other statuses are already compensated or not goodwill-refundable).
+     */
+    409: AdminTaskX402RefundConflictResponse;
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RefundAdminTaskX402PaymentError = RefundAdminTaskX402PaymentErrors[keyof RefundAdminTaskX402PaymentErrors];
+
+export type RefundAdminTaskX402PaymentResponses = {
+    /**
+     * Task x402 payment refund result
+     */
+    200: {
+        data: RefundAdminTaskX402PaymentResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RefundAdminTaskX402PaymentResponse = RefundAdminTaskX402PaymentResponses[keyof RefundAdminTaskX402PaymentResponses];
+
+export type ResolveAdminTaskX402PaymentData = {
+    body: ResolveAdminTaskX402PaymentBody;
+    path: {
+        /**
+         * Task x402 payment ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/task-x402-payments/{id}/resolve';
+};
+
+export type ResolveAdminTaskX402PaymentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - payment does not exist
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - payment is not resolvable. Branch on `kind`: already_resolved, not_resolvable (no retry fields), sign_in_flight, or sign_outcome_unresolved (`retryAfter` / `retryAfterSeconds` say when to retry).
+     */
+    409: AdminTaskX402ResolveConflictResponse;
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResolveAdminTaskX402PaymentError = ResolveAdminTaskX402PaymentErrors[keyof ResolveAdminTaskX402PaymentErrors];
+
+export type ResolveAdminTaskX402PaymentResponses = {
+    /**
+     * Task x402 payment resolution result
+     */
+    200: {
+        data: ResolveAdminTaskX402PaymentResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResolveAdminTaskX402PaymentResponse = ResolveAdminTaskX402PaymentResponses[keyof ResolveAdminTaskX402PaymentResponses];
+
 export type ListAdminVendorsData = {
     body?: never;
     path?: never;
@@ -6988,9 +7706,13 @@ export type GetAgentsData = {
          */
         limit?: number;
         /**
-         * Filter by category slug. Supports repeated values and comma-separated lists. The reserved value `uncategorized` matches agents without assigned categories. When multiple categories are provided, agents matching any category are returned.
+         * Filter Cardano-rail agents by category slug. Supports repeated values and comma-separated lists. The reserved value `uncategorized` matches agents without assigned categories. When multiple categories are provided, agents matching any category are returned. Rejected when `kind` is only `x402`.
          */
         category?: Array<string>;
+        /**
+         * Rail to list. `cardano` is the MIP-003 hire catalog; `x402` is the EVM pay catalog. Omit to return both. Supports repeated values and comma-separated lists.
+         */
+        kind?: Array<'cardano' | 'x402'>;
     };
     url: '/agents';
 };
@@ -7019,11 +7741,16 @@ export type GetAgentsResponses = {
      * Retrieve all agents
      */
     200: {
-        data: Array<Agent>;
+        data: Array<AgentListItem>;
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: PaginationMetadata & {
+                /**
+                 * Candidate-row count matching the query filters, before x402 fail-closed drops. Can exceed `data.length` and `limit`.
+                 */
+                total?: number;
+            };
         };
     };
 };
@@ -15021,7 +15748,11 @@ export type GetDriveFilesData = {
          */
         organizationId?: string;
         /**
-         * Search query for filename filtering (case-sensitive prefix match)
+         * Folder path relative to scope root (empty/omit for root, nested with slashes)
+         */
+        folder?: string;
+        /**
+         * Search query for filename filtering at current folder level (case-sensitive prefix match)
          */
         q?: string;
         /**
@@ -15127,10 +15858,10 @@ export type GetDriveFilesError = GetDriveFilesErrors[keyof GetDriveFilesErrors];
 
 export type GetDriveFilesResponses = {
     /**
-     * Drive files
+     * Drive items
      */
     200: {
-        data: DriveFiles;
+        data: DriveItems;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15280,6 +16011,132 @@ export type PostDriveFilesResponses = {
 };
 
 export type PostDriveFilesResponse = PostDriveFilesResponses[keyof PostDriveFilesResponses];
+
+export type PatchDriveFilesMoveData = {
+    body: MoveDriveItemRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files/move';
+};
+
+export type PatchDriveFilesMoveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - folder exceeds 500 descendant limit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFilesMoveError = PatchDriveFilesMoveErrors[keyof PatchDriveFilesMoveErrors];
+
+export type PatchDriveFilesMoveResponses = {
+    /**
+     * Drive item moved successfully
+     */
+    200: {
+        data: MoveDriveItemRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
 
 export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;
@@ -15511,6 +16368,363 @@ export type DeleteDriveFilesDeleteResponses = {
 };
 
 export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[keyof DeleteDriveFilesDeleteResponses];
+
+export type PostDriveFoldersData = {
+    body: CreateDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders';
+};
+
+export type PostDriveFoldersErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - folder already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFoldersError = PostDriveFoldersErrors[keyof PostDriveFoldersErrors];
+
+export type PostDriveFoldersResponses = {
+    /**
+     * Folder created (marker written)
+     */
+    201: {
+        data: CreateDriveFolderRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFoldersResponse = PostDriveFoldersResponses[keyof PostDriveFoldersResponses];
+
+export type DeleteDriveFoldersDeleteData = {
+    body: DeleteDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders/delete';
+};
+
+export type DeleteDriveFoldersDeleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveFoldersDeleteError = DeleteDriveFoldersDeleteErrors[keyof DeleteDriveFoldersDeleteErrors];
+
+export type DeleteDriveFoldersDeleteResponses = {
+    /**
+     * Drive folder deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveFoldersDeleteResponse = DeleteDriveFoldersDeleteResponses[keyof DeleteDriveFoldersDeleteResponses];
+
+export type PatchDriveFoldersRenameData = {
+    body: RenameDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders/rename';
+};
+
+export type PatchDriveFoldersRenameErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target folder already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - folder exceeds 500 descendant limit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFoldersRenameError = PatchDriveFoldersRenameErrors[keyof PatchDriveFoldersRenameErrors];
+
+export type PatchDriveFoldersRenameResponses = {
+    /**
+     * Drive folder renamed
+     */
+    200: {
+        data: RenameDriveFolderRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
 
 export type GetEnterpriseContractsData = {
     body?: never;
@@ -32962,6 +34176,181 @@ export type PostTasksByIdJobsResponses = {
 };
 
 export type PostTasksByIdJobsResponse = PostTasksByIdJobsResponses[keyof PostTasksByIdJobsResponses];
+
+export type PostTasksByIdX402PaymentsData = {
+    body: {
+        /**
+         * Coworker-supplied key, unique per payment intent within the task. Replaying the same key never charges twice — a completed payment returns its stored header; only an attempt whose sign outcome is still unknown is re-signed. Leading/trailing whitespace is rejected.
+         */
+        idempotencyKey: string;
+        /**
+         * The listed x402 agent this 402 came from (GET /v1/agents?kind=x402)
+         */
+        agentId: string;
+        /**
+         * The agent's 402 response, verbatim: either dialect JSON body or the base64 PAYMENT-REQUIRED header transport string
+         */
+        paymentRequired: unknown;
+        /**
+         * Maximum credits this payment may cost. Required for dynamically priced agents; optional but strongly recommended for fixed pricing. The runtime 402 demand is compared against it before any debit.
+         */
+        maxCredits?: number;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/x402-payments';
+};
+
+export type PostTasksByIdX402PaymentsErrors = {
+    /**
+     * Bad Request. A fresh dynamic quote requires maxCredits, or the priced demand exceeds the supplied maxCredits. Nothing was charged and the idempotencyKey is not consumed; supply or raise the cap and retry with the SAME key.
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden. The caller is not a direct coworker, lacks task capability/assignment, or the task is parked awaiting workspace access.
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found. The task is absent, archived, inaccessible, or DRAFT; inaccessible task state is intentionally not disclosed.
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict. Branch on `kind`: x402_payment_key_consumed (terminal payment, charge already refunded — use a new key), x402_payment_key_reused (same key, different agent/demand — use a new key), x402_payment_key_in_flight (concurrent request holds the sign — retry the SAME key), x402_payment_header_expired (the stored authorization expired or has too little life left to deliver; the charge stands, nothing was refunded — a new key is a new payment intent), x402_payment_sign_attempts_exhausted (contact support; do NOT retry or use a new key — earlier ambiguous attempts may hold a live authorization), x402_payment_demand_unbound (pre-fingerprint record — contact support, never mint a new key), concurrency_conflict (serializable-transaction contention — retry the SAME request unchanged).
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity. Branch on `kind`: absent (verification failed before any charge — nothing charged, key not consumed), insufficient_balance (mid-run balance shortfall paused the task to OUT_OF_CREDITS; nothing charged), or x402_pay_refused (the node deterministically rejected the forwarded 402 with status 400 AFTER the charge — the charge was refunded and the idempotencyKey is consumed; re-fetch the 402 and use a NEW key).
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        data?: null;
+        attemptedCredits?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway. Branch on `kind`: x402_pay_refused (node operational refusal — credits refunded, use a new idempotencyKey), x402_pay_outcome_unknown (sign outcome unknown or refund incomplete — charge held on the pending record, retry with the SAME idempotencyKey; a new key would charge twice), or x402_pay_pending_held (current catalog state blocks re-signing the held charge: agent unlisted, demand no longer verifying, or pair not buy-side ready — retry the SAME key later or contact support; a new key would charge twice).
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdX402PaymentsError = PostTasksByIdX402PaymentsErrors[keyof PostTasksByIdX402PaymentsErrors];
+
+export type PostTasksByIdX402PaymentsResponses = {
+    /**
+     * The signed x402 payment (fresh or idempotent replay)
+     */
+    200: {
+        data: TaskX402PaymentSigned;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdX402PaymentsResponse = PostTasksByIdX402PaymentsResponses[keyof PostTasksByIdX402PaymentsResponses];
 
 export type GetToolsSiteIconData = {
     body?: never;

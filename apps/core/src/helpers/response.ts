@@ -73,6 +73,10 @@ export const created = <T>(
   );
 };
 
+export const empty = (c: Context) => {
+  return c.body(null, 204);
+};
+
 export const conflictWithData = <T>(c: Context, data: T) => {
   return c.json<SuccessResponse<T>, 409>(
     {

@@ -1,10 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
-  buildOrganizationDriveFilePathname,
-  buildUserDriveFilePathname,
+  buildOrganizationDriveFilePathnameWithFolder,
+  buildOrganizationDriveFilePrefix,
+  buildUserDriveFilePathnameWithFolder,
+  buildUserDriveFilePrefix,
   clampDriveFileName,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, rename } from "@vercel/blob";
+import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
@@ -74,12 +76,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Verify access
     await requireDriveFileAccess(authContext, scope, ownerId);
 
-    // Build new pathname
+    // Extract parent folder path from old pathname
+    const prefix =
+      scope === "user"
+        ? buildUserDriveFilePrefix(ownerId)
+        : buildOrganizationDriveFilePrefix(ownerId);
+
+    if (!oldPathname.startsWith(prefix)) {
+      throw notFound("Source file not found");
+    }
+
+    const relativePathname = oldPathname.slice(prefix.length);
+    const lastSlashIndex = relativePathname.lastIndexOf("/");
+    const folderPath =
+      lastSlashIndex >= 0 ? relativePathname.slice(0, lastSlashIndex) : "";
+
+    // Build new pathname, preserving parent folder
     const sanitizedName = clampDriveFileName(newFilename);
     const newPathname =
       scope === "user"
-        ? buildUserDriveFilePathname(ownerId, sanitizedName)
-        : buildOrganizationDriveFilePathname(ownerId, sanitizedName);
+        ? buildUserDriveFilePathnameWithFolder(
+            ownerId,
+            folderPath,
+            sanitizedName,
+          )
+        : buildOrganizationDriveFilePathnameWithFolder(
+            ownerId,
+            folderPath,
+            sanitizedName,
+          );
 
     // Get source blob metadata for preservation
     let sourceMetadata;
@@ -92,15 +117,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    // Check if target already exists
+    // Check if target already exists (file or folder)
     try {
       await head(newPathname, { token });
-      // If head succeeds, target exists
+      // If head succeeds, target file exists
       throw conflict("Target pathname already exists");
     } catch (error) {
       // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
-        // Target doesn't exist, proceed with rename
+        // Target file doesn't exist, proceed
       } else if (
         error &&
         typeof error === "object" &&
@@ -113,6 +138,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Unexpected error from head
         throw error;
       }
+    }
+
+    // Check if a folder with the same name exists
+    const folderPrefix = `${newPathname}/`;
+    const folderCheck = await list({
+      prefix: folderPrefix,
+      token,
+      limit: 1,
+    });
+    if (folderCheck.blobs.length > 0) {
+      throw conflict("A folder with that name already exists");
     }
 
     // Rename (copy + delete atomically)

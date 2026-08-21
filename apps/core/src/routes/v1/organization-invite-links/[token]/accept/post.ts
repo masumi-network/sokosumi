@@ -11,7 +11,8 @@ import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-gue
 import { badRequest, notFound } from "@/helpers/error";
 import { cancelPendingOrganizationInvitationsForUser } from "@/helpers/invitation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
+import { isMemberUserOrganizationUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -132,6 +133,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         if (!consumed) return "depleted";
 
+        await ensurePersonalWorkspaceForOrganizationMembership(
+          userContext.userId,
+          { tx, organizationId },
+        );
+
         await memberRepository.createMember(
           userContext.userId,
           organizationId,
@@ -152,8 +158,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     } catch (error) {
       // Concurrent join inserted the membership first; the failing tx rolled
-      // back its own consume, so we simply report already_member.
-      if (isPrismaUniqueViolation(error)) {
+      // back its own consume, so we simply report already_member. Do not treat
+      // a personal-workspace unique on userId as already_member.
+      if (isMemberUserOrganizationUniqueConstraintError(error)) {
         await cancelPendingOrganizationInvitationsForUser(
           userContext.userId,
           organizationId,

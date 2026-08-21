@@ -40,6 +40,10 @@ import {
   RUNNING_SUBSCRIPTION_ERROR_CODE,
   TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE,
   TASK_PAYMENT_CLAIM_REVIEW_REQUIRED_ERROR_CODE,
+  TASK_X402_PAYMENT_AUTHORIZATION_LIVE_ERROR_CODE,
+  TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH_ERROR_CODE,
+  TASK_X402_PAYMENT_PENDING_ERROR_CODE,
+  TASK_X402_PAYMENT_UNRESOLVED_ERROR_CODE,
   UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
   USER_OWNS_ORGANIZATION_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
@@ -106,6 +110,18 @@ function userDeletionBlockerCopy(
   }
   if (code === TASK_PAYMENT_CLAIM_PENDING_ERROR_CODE) {
     return { message: t("Errors.taskPaymentClaimPending") };
+  }
+  if (code === TASK_X402_PAYMENT_PENDING_ERROR_CODE) {
+    return { message: t("Errors.taskX402PaymentPending") };
+  }
+  if (code === TASK_X402_PAYMENT_UNRESOLVED_ERROR_CODE) {
+    return { message: t("Errors.taskX402PaymentUnresolved") };
+  }
+  if (code === TASK_X402_PAYMENT_AUTHORIZATION_LIVE_ERROR_CODE) {
+    return { message: t("Errors.taskX402PaymentAuthorizationLive") };
+  }
+  if (code === TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH_ERROR_CODE) {
+    return { message: t("Errors.taskX402PaymentBillingOwnerMismatch") };
   }
   return { message: t("error") };
 }

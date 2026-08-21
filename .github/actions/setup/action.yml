@@ -1,6 +1,12 @@
 name: Setup
 description: Install pnpm, Node.js, and workspace dependencies
 
+inputs:
+  turbo_team:
+    description: Vercel team slug for Turborepo Remote Cache (OIDC)
+    required: false
+    default: ""
+
 runs:
   using: composite
   steps:
@@ -15,3 +21,10 @@ runs:
     - name: Install Dependencies
       run: pnpm install
       shell: bash
+
+    - name: Set up Turborepo Remote Cache
+      if: ${{ inputs.turbo_team != '' }}
+      continue-on-error: true
+      uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+      with:
+        team: ${{ inputs.turbo_team }}

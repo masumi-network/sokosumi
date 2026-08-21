@@ -1,4 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import {
+  normalizeDriveFolderPath,
+  validateDriveFolderPath,
+} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -38,6 +42,11 @@ export const createDriveFileUploadSessionRequestSchema = z
       example: "org_123",
       description: "Organization ID (required when scope=org)",
     }),
+    folder: z.string().max(1000).optional().openapi({
+      example: "Projects/2026",
+      description:
+        "Target folder path relative to scope root (empty/omit for root)",
+    }),
   })
   .refine(
     (data) => {
@@ -49,6 +58,22 @@ export const createDriveFileUploadSessionRequestSchema = z
     {
       message: "organizationId is required when scope=org",
       path: ["organizationId"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.folder) {
+        const normalized = normalizeDriveFolderPath(data.folder);
+        const validationError = validateDriveFolderPath(normalized);
+        if (validationError) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: 'Folder path cannot contain "." or ".." segments',
+      path: ["folder"],
     },
   )
   .openapi("CreateDriveFileUploadSessionRequest");
@@ -163,3 +188,254 @@ export const deleteDriveFileRequestSchema = z
     }),
   })
   .openapi("DeleteDriveFileRequest");
+
+/**
+ * Drive folder item (folder row in list result).
+ */
+export const driveFolderSchema = z
+  .object({
+    type: z.literal("folder").openapi({
+      example: "folder",
+      description: "Item type discriminator",
+    }),
+    name: z.string().openapi({
+      example: "Documents",
+      description: "Folder name (next path segment)",
+    }),
+    path: z.string().openapi({
+      example: "Documents",
+      description: "Relative folder path from current folder (single segment)",
+    }),
+  })
+  .openapi("DriveFolder");
+
+export type DriveFolder = z.infer<typeof driveFolderSchema>;
+
+/**
+ * Drive file item (file row in list result) with type discriminator.
+ */
+export const driveFileItemSchema = driveFileSchema
+  .extend({
+    type: z.literal("file").openapi({
+      example: "file",
+      description: "Item type discriminator",
+    }),
+  })
+  .openapi("DriveFileItem");
+
+export type DriveFileItem = z.infer<typeof driveFileItemSchema>;
+
+/**
+ * Drive list item (folder or file).
+ */
+export const driveItemSchema = z
+  .discriminatedUnion("type", [driveFolderSchema, driveFileItemSchema])
+  .openapi("DriveItem");
+
+export type DriveItem = z.infer<typeof driveItemSchema>;
+
+/**
+ * List of drive items (folders and files).
+ */
+export const driveItemsSchema = z.array(driveItemSchema).openapi("DriveItems");
+
+/**
+ * Create folder request.
+ */
+export const createDriveFolderRequestSchema = z
+  .object({
+    folderPath: z.string().min(1).max(1000).openapi({
+      example: "Projects/2026",
+      description:
+        "Folder path relative to scope root (may be nested with slashes)",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Owner scope: 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      // Normalized folderPath must be non-empty
+      const normalized = normalizeDriveFolderPath(data.folderPath);
+      if (!normalized) {
+        return false;
+      }
+      // Reject "." and ".." segments
+      const validationError = validateDriveFolderPath(normalized);
+      if (validationError) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "organizationId is required when scope=org; folderPath cannot be empty or contain '.' or '..' segments after normalization",
+      path: ["folderPath"],
+    },
+  )
+  .openapi("CreateDriveFolderRequest");
+
+/**
+ * Rename folder request.
+ */
+export const renameDriveFolderRequestSchema = z
+  .object({
+    oldFolderPath: z.string().min(1).openapi({
+      example: "Projects",
+      description: "Current folder path relative to scope root",
+    }),
+    newFolderPath: z.string().min(1).max(1000).openapi({
+      example: "ArchivedProjects",
+      description: "New folder path relative to scope root",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Owner scope: 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      // Normalized old/new paths must be non-empty
+      const normalizedOld = normalizeDriveFolderPath(data.oldFolderPath);
+      const normalizedNew = normalizeDriveFolderPath(data.newFolderPath);
+      if (!normalizedOld || !normalizedNew) {
+        return false;
+      }
+      // Reject "." and ".." segments
+      const oldValidationError = validateDriveFolderPath(normalizedOld);
+      const newValidationError = validateDriveFolderPath(normalizedNew);
+      if (oldValidationError || newValidationError) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "organizationId is required when scope=org; folder paths cannot be empty or contain '.' or '..' segments after normalization",
+      path: ["newFolderPath"],
+    },
+  )
+  .openapi("RenameDriveFolderRequest");
+
+/**
+ * Delete folder request.
+ */
+export const deleteDriveFolderRequestSchema = z
+  .object({
+    folderPath: z.string().min(1).openapi({
+      example: "Projects/OldProject",
+      description: "Folder path relative to scope root",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Owner scope: 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
+  .refine(
+    (data) => {
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      // Normalized folderPath must be non-empty
+      const normalized = normalizeDriveFolderPath(data.folderPath);
+      if (!normalized) {
+        return false;
+      }
+      // Reject "." and ".." segments
+      const validationError = validateDriveFolderPath(normalized);
+      if (validationError) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "organizationId is required when scope=org; folderPath cannot be empty or contain '.' or '..' segments after normalization",
+      path: ["folderPath"],
+    },
+  )
+  .openapi("DeleteDriveFolderRequest");
+
+/**
+ * Move file or folder request.
+ */
+export const moveDriveItemRequestSchema = z
+  .object({
+    sourcePathname: z.string().min(1).openapi({
+      example: "drive/users/user_123/report.pdf",
+      description:
+        "Source pathname (file) or folder path relative to scope root (folder)",
+    }),
+    targetFolderPath: z.string().openapi({
+      example: "Archive/2026",
+      description:
+        "Target folder path relative to scope root (empty string for root)",
+    }),
+    itemType: z.enum(["file", "folder"]).openapi({
+      example: "file",
+      description: "Type of item being moved",
+    }),
+    scope: driveFileScopeSchema.optional().openapi({
+      description:
+        "Owner scope (required for folder moves): 'me' for personal drive, 'org' for organization drive",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org for folder moves)",
+    }),
+  })
+  .refine(
+    (data) => {
+      // For folder moves, scope is required
+      if (data.itemType === "folder" && !data.scope) {
+        return false;
+      }
+      // When scope=org, organizationId is required
+      if (data.scope === "org" && !data.organizationId) {
+        return false;
+      }
+      // For folder moves, normalized sourcePathname must be non-empty
+      if (data.itemType === "folder") {
+        const normalized = normalizeDriveFolderPath(data.sourcePathname);
+        if (!normalized) {
+          return false;
+        }
+        // Reject "." and ".." segments in source and target
+        const sourceValidationError = validateDriveFolderPath(normalized);
+        if (sourceValidationError) {
+          return false;
+        }
+      }
+      // Validate targetFolderPath (can be empty for root)
+      const normalizedTarget = normalizeDriveFolderPath(data.targetFolderPath);
+      const targetValidationError = validateDriveFolderPath(normalizedTarget);
+      if (targetValidationError) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "scope is required for folder moves; organizationId is required when scope=org; folder paths cannot contain '.' or '..' segments",
+    },
+  )
+  .openapi("MoveDriveItemRequest");

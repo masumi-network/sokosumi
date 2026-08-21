@@ -102,6 +102,13 @@ const envSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
+  // Temporary overlay (ADR 0010): org-first membership also gets a personal
+  // workspace. Default false is ADR 0005 (personal optional).
+  REQUIRE_PERSONAL_WORKSPACE: z
+    .string()
+    .default("false")
+    .transform((val: string) => val.trim().toLowerCase() === "true"),
+
   // Hermes → Core service auth (shared secret; not a per-user DB key).
   // Min 32 matches `openssl rand -hex 16` (16 bytes → 32 hex chars).
   // Must not use coworker_/orch_ prefixes: bearer middleware routes those

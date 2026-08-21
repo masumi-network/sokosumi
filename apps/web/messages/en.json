@@ -3337,6 +3337,10 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
+          "x402Payments": {
+            "title": "x402 payments",
+            "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
+          },
           "coworkers": {
             "title": "Coworkers",
             "description": "Manage capabilities, priority, whitelist, archive state, and display metadata for all coworkers."
@@ -3349,6 +3353,88 @@
             "title": "Agents",
             "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides."
           }
+        }
+      },
+      "X402Payments": {
+        "title": "x402 payments",
+        "description": "Monitor direct payments, find bleeding endpoints, and perform audited support actions.",
+        "Filters": {
+          "status": "Status",
+          "allStatuses": "All statuses",
+          "agentId": "Agent ID",
+          "network": "Network (for example eip155:8453)",
+          "apply": "Apply filters",
+          "clear": "Clear"
+        },
+        "Statuses": {
+          "PENDING": "Pending",
+          "VERIFIED": "Verified",
+          "FAILED": "Failed",
+          "REFUNDED": "Refunded"
+        },
+        "RefundKinds": {
+          "NODE_REFUSAL": "Node refusal",
+          "OPERATOR_GOODWILL": "Goodwill refund",
+          "OPERATOR_RESOLVE": "Operator resolve"
+        },
+        "Rollup": {
+          "title": "Endpoint health",
+          "total": "Total",
+          "pending": "Pending",
+          "verified": "Verified",
+          "failed": "Failed",
+          "refunded": "Refunded",
+          "goodwill": "Goodwill refunds",
+          "failures": "Node failures",
+          "resolves": "Operator resolves",
+          "empty": "No endpoint activity matches these filters."
+        },
+        "FailureReasons": {
+          "node_refused_payload": "Node refused payload",
+          "node_refused_operational": "Node refused (operational)"
+        },
+        "Payments": {
+          "title": "{count, plural, one {# payment} other {# payments}}",
+          "empty": "No payments match these filters.",
+          "next": "Next page",
+          "resolveAfter": "Safe resolve after {date}"
+        },
+        "Columns": {
+          "created": "Created",
+          "status": "Status",
+          "payment": "Payment ID",
+          "task": "Task",
+          "agent": "Agent",
+          "network": "Network",
+          "asset": "Asset",
+          "payTo": "Recipient",
+          "amount": "Base units",
+          "credits": "Credits",
+          "attempts": "Sign attempts",
+          "actions": "Actions"
+        },
+        "Actions": {
+          "refund": "Refund",
+          "resolve": "Resolve",
+          "reason": "Audit reason",
+          "cancel": "Cancel",
+          "submitting": "Saving…",
+          "refundConfirmTitle": "Refund verified payment?",
+          "refundConfirmDescription": "This creates a compensating credit transaction and permanently closes the payment as refunded.",
+          "resolveConfirmTitle": "Resolve pending payment?",
+          "resolveConfirmDescription": "Use only for a wedged payment after its authorization-risk window has expired. This creates a compensating credit transaction.",
+          "refundSuccess": "Payment refunded.",
+          "resolveSuccess": "Payment resolved.",
+          "actionFailed": "Action failed. Refresh the page, sign in again, and retry."
+        },
+        "Reasons": {
+          "agent_output_quality": "Agent output quality",
+          "duplicate_charge": "Duplicate charge",
+          "support_adjustment": "Support adjustment",
+          "account_deletion_blocked": "Account deletion blocked",
+          "node_unreachable": "Payment node unreachable",
+          "sign_attempts_exhausted": "Sign attempts exhausted",
+          "unsettleable_authorization": "Unsettleable authorization"
         }
       },
       "Users": {
@@ -3974,7 +4060,11 @@
           "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
-          "inFlightTask": "Wait for in-flight tasks to finish before deleting your account."
+          "inFlightTask": "Wait for in-flight tasks to finish before deleting your account.",
+          "taskX402PaymentPending": "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+          "taskX402PaymentUnresolved": "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+          "taskX402PaymentAuthorizationLive": "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+          "taskX402PaymentBillingOwnerMismatch": "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again."
         },
         "Links": {
           "organizationMembers": "Organization members",
@@ -4102,6 +4192,7 @@
           "authorizeError": "Failed to authorize application",
           "authorizeErrorRedirectUri": "Failed to authorize application. Please check your redirect URI.",
           "authorizeErrorGeneric": "An error occurred during authorization",
+          "workspacePrepareError": "Could not prepare your workspace. Please try again.",
           "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
         },
@@ -4962,7 +5053,6 @@
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Coming soon",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -5193,7 +5283,6 @@
       },
       "External": {
         "title": "External",
-        "empty": "No external channels yet.",
         "accept": "Accept",
         "decline": "Decline",
         "acceptSuccess": "You joined {name}.",
@@ -5324,6 +5413,7 @@
     },
     "Drive": {
       "breadcrumb": "Drive",
+      "breadcrumbNavLabel": "Drive folder navigation",
       "myDriveTab": "My Drive",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
@@ -5345,6 +5435,9 @@
       "loadFilesError": "Failed to load files",
       "uploadError": "Failed to upload file",
       "renameError": "Failed to rename file",
+      "renameFileToFolderConflictError": "A folder with this name already exists",
+      "renameFolderToFileConflictError": "A file with this name already exists",
+      "renameConflictError": "A file or folder with this name already exists",
       "deleteError": "Failed to delete file",
       "organizationTabFallback": "Organization",
       "uploadDuplicateError": "A file with this name already exists. Rename it and try again.",
@@ -5353,7 +5446,26 @@
       "uploadFile": "Upload file",
       "fromDrive": "From Drive",
       "moreActions": "More actions",
-      "uploadFab": "Upload file"
+      "uploadFab": "Upload file",
+      "folder": "Folder",
+      "createFolder": "Create folder",
+      "folderName": "Folder name",
+      "createFolderDialogTitle": "Create new folder",
+      "createFolderDialogDescription": "Enter a name for the new folder",
+      "createFolderDialogConfirm": "Create",
+      "deleteFolderDialogTitle": "Delete folder",
+      "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
+      "moveAction": "Move",
+      "moveDialogTitle": "Move {itemName}",
+      "moveDialogDescription": "Select the destination folder",
+      "moveHere": "Move here",
+      "rootFolder": "Root folder",
+      "loadingFolders": "Loading folders...",
+      "createFolderError": "Failed to create folder",
+      "createFolderDuplicateError": "A folder with this name already exists. Choose a different name.",
+      "deleteFolderError": "Failed to delete folder",
+      "moveFolderError": "Failed to move folder",
+      "moveFileError": "Failed to move file"
     }
   },
   "Share": {

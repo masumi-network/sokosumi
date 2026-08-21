@@ -44,10 +44,8 @@ Decided by Sandro (2026-08-11); two points inherited, two grilled:
 4. **Spend caps: org/user credit balance, not a task pool.** There is no
    `Task.maxCredits` column. x402 charges use the same task-event credit
    helper as other task charges (user + org balance). Optional request
-   `maxCredits` is a
-   **per-intent** ceiling (mandatory for Dynamic quotes). A per-task
-   cumulative budget is **not built**; a coworker looping fresh
-   idempotency keys is bounded by the whole balance. The node's
-   per-apiKey x402 budgets remain the operator-level backstop; a node
-   budget refusal maps to an actionable coworker error and (per 003/006)
-   a synchronous credit refund **only on the fresh first sign attempt**.
+   `maxCredits` is a **per-intent** ceiling (mandatory for Dynamic,
+   optional for Fixed) and is compared **after** native→credit conversion.
+   A per-task cumulative budget is **not built**. Node Soko-key budgets
+   are the operator backstop. A documented first-attempt refusal refunds
+   synchronously; ambiguous outcomes remain held.

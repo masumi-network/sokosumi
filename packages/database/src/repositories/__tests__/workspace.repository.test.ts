@@ -154,4 +154,96 @@ describe("workspaceRepository", () => {
     );
     assert.equal(createCalled, false);
   });
+
+  it("creates a missing personal workspace without clearing preferredOrganizationId", async () => {
+    let createCall: unknown;
+    let userUpdateCalled = false;
+    const tx = {
+      workspace: {
+        findUnique: async () => null,
+        create: async (args: unknown) => {
+          createCall = args;
+          return {
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            id: "workspace-user-2",
+            organizationId: null,
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+            userId: "user-2",
+          };
+        },
+      },
+      user: {
+        update: async () => {
+          userUpdateCalled = true;
+          throw new Error("must not clear preferredOrganizationId");
+        },
+      },
+      vendorGrant: {
+        findUnique: async () => null,
+        create: async () => ({ id: "grant-1" }),
+      },
+      vendor: {
+        findUnique: async () => ({
+          id: "01960001-0001-7001-8001-000000000001",
+        }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result =
+      await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
+        userId: "user-2",
+        tx,
+      });
+
+    assert.equal(result.created, true);
+    assert.equal(result.workspace.id, "workspace-user-2");
+    assert.deepEqual(createCall, {
+      data: { userId: "user-2" },
+    });
+    assert.equal(userUpdateCalled, false);
+  });
+
+  it("returns the existing personal workspace without creating", async () => {
+    let createCalled = false;
+    const existing = {
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      id: "workspace-user-1",
+      organizationId: null,
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user-1",
+    };
+    const tx = {
+      workspace: {
+        findUnique: async () => existing,
+        create: async () => {
+          createCalled = true;
+          throw new Error("create should not be called");
+        },
+      },
+      user: {
+        update: async () => {
+          throw new Error("must not clear preferredOrganizationId");
+        },
+      },
+      vendorGrant: {
+        findUnique: async () => ({ id: "grant-1" }),
+        create: async () => ({ id: "grant-1" }),
+      },
+      vendor: {
+        findUnique: async () => ({
+          id: "01960001-0001-7001-8001-000000000001",
+        }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result =
+      await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
+        userId: "user-1",
+        tx,
+      });
+
+    assert.equal(result.created, false);
+    assert.equal(result.workspace.id, "workspace-user-1");
+    assert.equal(createCalled, false);
+  });
 });

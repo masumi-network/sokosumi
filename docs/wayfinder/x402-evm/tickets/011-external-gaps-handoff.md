@@ -51,7 +51,8 @@ attempt when no header was written, not on every non-200; no node
 idempotency (Soko's key is the sole dedupe);
 outbound terminal at Verified (settlement observation phased, EXPIRED_UNUSED
 post-hoc auto-refund later); by-id lookup + per-chain readiness downgraded to
-composition/nice-to-have; Soko normalizes both 402 dialects → v2; **deployed
+composition/nice-to-have; readiness also checks wallet balances and trusted
+EIP-712 domains; Soko normalizes both 402 dialects → v2; **deployed
 nodes already run latest main** — spec refresh and preprod e2e can start now.
 Two low-priority node asks remain (outbound settlement observation,
 per-chain readiness breakdown) — neither gates anything.

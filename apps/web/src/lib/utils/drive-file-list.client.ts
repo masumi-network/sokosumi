@@ -1,7 +1,7 @@
 "use client";
 
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveFile } from "@/lib/clients/generated/core";
+import type { DriveFileItem, DriveItem } from "@/lib/clients/generated/core";
 import { getDriveFiles } from "@/lib/clients/generated/core";
 
 /** Core max page size — fewer round trips than the default 20. */
@@ -13,13 +13,21 @@ interface ListDriveFilesOptions {
   scope: "me" | "org";
   organizationId?: string;
   q?: string;
+  folder?: string;
   signal?: AbortSignal;
 }
 
 export async function listDriveFiles(
   options: ListDriveFilesOptions,
-): Promise<DriveFile[]> {
-  const files: DriveFile[] = [];
+): Promise<DriveFileItem[]> {
+  const items = await listDriveItems(options);
+  return items.filter((item): item is DriveFileItem => item.type === "file");
+}
+
+export async function listDriveItems(
+  options: ListDriveFilesOptions,
+): Promise<DriveItem[]> {
+  const items: DriveItem[] = [];
   let cursor: string | undefined;
 
   for (let page = 0; page < DRIVE_FILES_MAX_PAGES; page += 1) {
@@ -31,6 +39,7 @@ export async function listDriveFiles(
         ...(options.scope === "org" && options.organizationId
           ? { organizationId: options.organizationId }
           : {}),
+        ...(options.folder ? { folder: options.folder } : {}),
         ...(options.q?.trim() ? { q: options.q.trim() } : {}),
         ...(cursor ? { cursor } : {}),
       },
@@ -38,14 +47,15 @@ export async function listDriveFiles(
       throwOnError: true,
     });
 
-    files.push(...(response.data?.data ?? []));
+    const allItems = response.data?.data ?? [];
+    items.push(...allItems);
 
     const nextCursor = response.data?.meta?.pagination?.nextCursor ?? null;
     if (!nextCursor) {
-      return files;
+      return items;
     }
     cursor = nextCursor;
   }
 
-  return files;
+  return items;
 }

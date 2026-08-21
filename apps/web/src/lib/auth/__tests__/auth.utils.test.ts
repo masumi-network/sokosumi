@@ -3,6 +3,7 @@ import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
+  buildSignedOAuthConsentQueryFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
@@ -11,6 +12,26 @@ import {
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
+
+describe("buildSignedOAuthConsentQueryFromSearchParams", () => {
+  it("repairs base64 plus characters and keeps only signed parameters", () => {
+    const params = new URLSearchParams(
+      "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&debug=unsigned&sig=abc+def%2Fghi%3D",
+    );
+
+    expect(buildSignedOAuthConsentQueryFromSearchParams(params)).toBe(
+      "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=abc%2Bdef%2Fghi%3D",
+    );
+  });
+
+  it("returns undefined for an unsigned query", () => {
+    expect(
+      buildSignedOAuthConsentQueryFromSearchParams(
+        new URLSearchParams("client_id=client_1"),
+      ),
+    ).toBeUndefined();
+  });
+});
 
 describe("getAuthOAuthRedirect", () => {
   it("returns redirect metadata from top-level payload", () => {
@@ -322,6 +343,16 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
 
     expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
       "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+    );
+  });
+
+  it("repairs a base64 signature whose encoded plus was decoded as a space", () => {
+    const params = new URLSearchParams(
+      "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
+    );
+
+    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });
 });

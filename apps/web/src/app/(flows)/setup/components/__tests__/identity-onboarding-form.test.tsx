@@ -181,6 +181,21 @@ describe("IdentityOnboardingForm", () => {
     });
   });
 
+  it("lets the user select Organization", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    const organizationChoice = screen.getByRole("radio", {
+      name: /Organization/i,
+    });
+    expect(organizationChoice).not.toBeDisabled();
+    expect(screen.queryByText("Currently unavailable")).toBeNull();
+
+    await user.click(organizationChoice);
+
+    expect(organizationChoice).toBeChecked();
+  });
+
   it("does not create a personal workspace when Organization is chosen", async () => {
     const user = userEvent.setup();
     renderForm();

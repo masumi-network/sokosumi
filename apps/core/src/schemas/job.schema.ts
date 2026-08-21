@@ -297,7 +297,12 @@ export const createJobRequestSchema = z.object({
       z.array(z.number()),
     ]),
   ),
-  maxCredits: z.number().positive().optional().openapi({ example: 10 }),
+  maxCredits: z
+    .number()
+    .positive()
+    .finite()
+    .optional()
+    .openapi({ example: 10 }),
   projectId: z
     .string()
     .uuid()
