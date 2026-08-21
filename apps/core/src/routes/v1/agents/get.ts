@@ -144,9 +144,32 @@ function logX402ListingDrops(
 }
 
 function listedPaymentSources(agent: {
-  paymentSources?: readonly X402AgentPaymentSourceRow[];
+  paymentSources?: readonly {
+    network: string;
+    payTo: string | null;
+    pricingType: X402AgentPaymentSourceRow["pricingType"];
+    scheme: string | null;
+    amounts?: X402AgentPaymentSourceRow["amounts"];
+  }[];
 }): readonly X402AgentPaymentSourceRow[] {
-  return agent.paymentSources ?? [];
+  const sources = agent.paymentSources;
+  if (!sources) {
+    return [];
+  }
+  const listed: X402AgentPaymentSourceRow[] = [];
+  for (const source of sources) {
+    if (!source.amounts) {
+      return [];
+    }
+    listed.push({
+      network: source.network,
+      payTo: source.payTo,
+      pricingType: source.pricingType,
+      scheme: source.scheme,
+      amounts: source.amounts,
+    });
+  }
+  return listed;
 }
 
 function toX402ListItem(
