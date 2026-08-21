@@ -38,8 +38,8 @@ const route = createRoute({
   method: "post",
   path: "/copy",
   description: [
-    "Copy a TaskFile to Drive root. Creates a new Drive file at Drive root using TaskFile.name.",
-    "Source TaskFile and blob unchanged. Requires read access to the task and write access to the destination Drive.",
+    "Copy a TaskFile or job output Blob to Drive root. Creates a new Drive file at Drive root using the source file name.",
+    "Source file unchanged. Requires read access to the task and write access to the destination Drive.",
   ].join("\n"),
   tags: ["Drive"],
   request: {
@@ -78,20 +78,67 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    // Find TaskFile
-    const taskFile = await prisma.taskFile.findUnique({
-      where: { id: body.taskFileId },
-      include: {
-        task: true,
-      },
-    });
+    // Determine source file details based on kind
+    let sourceUrl: string;
+    let fileName: string;
+    let mimeType: string | null;
+    let taskId: string;
 
-    if (!taskFile) {
-      throw notFound("TaskFile not found");
+    if (body.kind === "task-file") {
+      // Find TaskFile
+      const taskFile = await prisma.taskFile.findUnique({
+        where: { id: body.taskFileId },
+        include: {
+          task: true,
+        },
+      });
+
+      if (!taskFile) {
+        throw notFound("TaskFile not found");
+      }
+
+      taskId = taskFile.task.id;
+      sourceUrl = taskFile.fileUrl;
+      fileName = taskFile.name;
+      mimeType = taskFile.mimeType;
+    } else {
+      // kind === "job-output"
+      // Find Blob
+      const blob = await prisma.blob.findUnique({
+        where: { id: body.blobId },
+        include: {
+          event: {
+            include: {
+              job: {
+                include: {
+                  task: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!blob) {
+        throw notFound("Blob not found");
+      }
+
+      if (blob.status !== "READY") {
+        throw badRequest("Blob is not ready for copy");
+      }
+
+      if (!blob.event.job.task) {
+        throw notFound("Blob is not associated with a task");
+      }
+
+      taskId = blob.event.job.task.id;
+      sourceUrl = blob.fileUrl ?? blob.sourceUrl;
+      fileName = blob.name ?? "output";
+      mimeType = blob.mimeType;
     }
 
     // Check read access to task
-    await requireTaskReadForRouteVars(c.var, taskFile.task.id);
+    await requireTaskReadForRouteVars(c.var, taskId);
 
     // Determine destination pathname
     let destPathname: string;
@@ -100,7 +147,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireUserDriveFileUploadAccess(authContext, ownerId);
       destPathname = buildUserDriveFilePathname(
         ownerId,
-        sanitizeDriveFileName(taskFile.name),
+        sanitizeDriveFileName(fileName),
       );
     } else {
       // scope === "org"
@@ -111,7 +158,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
       destPathname = buildOrganizationDriveFilePathname(
         ownerId,
-        sanitizeDriveFileName(taskFile.name),
+        sanitizeDriveFileName(fileName),
       );
     }
 
@@ -148,7 +195,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Copy blob: fetch source then put to dest
     let sourceBlob: ArrayBuffer;
     try {
-      const fetchResult = await ssrfSafeFetch(taskFile.fileUrl);
+      const fetchResult = await ssrfSafeFetch(sourceUrl);
       if (!fetchResult.ok) {
         throw serviceUnavailable(
           `Failed to fetch source blob: ${fetchResult.status}`,
@@ -165,7 +212,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       token,
       access: "public",
       addRandomSuffix: false,
-      contentType: taskFile.mimeType ?? "application/octet-stream",
+      contentType: mimeType ?? "application/octet-stream",
     };
 
     try {
@@ -174,7 +221,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(
         c,
         copyTaskFileToDriveResponseSchema.parse({
-          name: sanitizeDriveFileName(taskFile.name),
+          name: sanitizeDriveFileName(fileName),
           fileUrl: result.url,
           pathname: result.pathname,
         }),
