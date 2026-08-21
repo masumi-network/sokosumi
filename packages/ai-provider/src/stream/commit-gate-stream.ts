@@ -47,8 +47,8 @@ function isHeldSetupLifecyclePart(part: LanguageModelV4StreamPart): boolean {
 /**
  * Progress parts that leave the gate before answer text commits.
  *
- * Room coworker `streamText` uses AI SDK `firstChunkMs` / `chunkMs`. Those
- * timers only reset on output chunks (non-empty reasoning-delta, tool-call,
+ * Room coworker mention `streamText` uses AI SDK `chunkMs` (and `totalMs`).
+ * `chunkMs` only resets on output chunks (non-empty reasoning-delta, tool-call,
  * tool-input-delta, text-delta). Coworkers may run tools for minutes while
  * only emitting reasoning heartbeats — if the gate buffers those, Sokosumi
  * aborts as stalled even though the upstream stream is alive.
