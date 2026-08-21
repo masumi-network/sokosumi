@@ -54,7 +54,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/messages",
     description:
-      "Post a room message. Mentioned AI coworkers — and, for thread replies, every coworker already part of the thread — are called asynchronously and reply into the room. Coworker API keys may post as the coworker itself into rooms it is a member of.",
+      "Post a room message. Mentioned AI coworkers — and, for thread replies, every coworker already part of the thread — are called asynchronously and reply into the room. Coworker API keys may post as the coworker itself into rooms it is a member of. Coworker posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender (mute honored; the coworker has no user id to skip).",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -89,7 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // dispatch loops.
     if (isCoworkerAuthContext(authContext)) {
       const coworkerId = authContext.coworkerId;
-      const message = await prisma.$transaction(async (tx) => {
+      const persisted = await prisma.$transaction(async (tx) => {
         const room = await requireChatRoomCoworkerAccess(id, coworkerId, tx);
 
         const parentMessageId = await resolveThreadParentMessageId(
@@ -120,12 +120,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: { updatedAt: new Date() },
         });
 
-        return message;
+        return { message, room };
       });
+
+      const { message, room } = persisted;
 
       await publishChatRoomMessageRealtime(message, "create");
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+
+      if (room.kind === "direct") {
+        const memberUserIds = (
+          await prisma.chatRoomUserMember.findMany({
+            where: { roomId: room.id },
+            select: { userId: true },
+          })
+        ).map((member) => member.userId);
+
+        if (
+          shouldEmitChatDirectMessageNotifications({
+            kind: room.kind,
+            memberUserIds,
+          })
+        ) {
+          waitUntil(
+            emitChatDirectMessageNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              organizationId: room.organizationId,
+              messageId: message.id,
+              authorUserId: null,
+              authorName: message.senderCoworker?.name ?? "Someone",
+              recipientUserIds: memberUserIds,
+            }),
+          );
+        }
+      }
 
       return created(
         c,

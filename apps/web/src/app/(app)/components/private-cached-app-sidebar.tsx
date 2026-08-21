@@ -82,10 +82,7 @@ async function PrivateCachedSidebarRooms({
 
   const { members } = chatListChrome;
   const chatRooms = chatListChrome.chatRoomsPage.rooms;
-  const chatRoomsNextCursor = chatListChrome.chatRoomsPage.nextCursor;
   const archivedChatRooms = chatListChrome.archivedChatRoomsPage.rooms;
-  const archivedChatRoomsNextCursor =
-    chatListChrome.archivedChatRoomsPage.nextCursor;
 
   const canDeleteArchivedRooms = Boolean(
     activeOrganizationId &&
@@ -100,9 +97,7 @@ async function PrivateCachedSidebarRooms({
     <OrganizationChatList
       key={activeOrganizationId ?? "personal"}
       rooms={chatRooms}
-      roomsNextCursor={chatRoomsNextCursor}
       archivedRooms={archivedChatRooms}
-      archivedRoomsNextCursor={archivedChatRoomsNextCursor}
       currentUserId={userId}
       organizationId={activeOrganizationId}
       canDeleteArchivedRooms={canDeleteArchivedRooms}

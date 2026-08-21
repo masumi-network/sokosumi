@@ -322,7 +322,13 @@ describe("chat room user auth guards", () => {
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
           chatRoom: {
-            findFirst: vi.fn().mockResolvedValue({ id: ROOM_ID }),
+            findFirst: vi.fn().mockResolvedValue({
+              id: ROOM_ID,
+              name: "general",
+              kind: "channel",
+              organizationId: ORG_ID,
+              userMembers: [],
+            }),
             update: vi.fn(),
           },
           chatRoomMessage: {

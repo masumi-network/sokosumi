@@ -26,7 +26,8 @@ export interface EmitChatDirectMessageNotificationsParams {
   roomName: string;
   organizationId: string | null;
   messageId: string;
-  authorUserId: string;
+  /** Human author to skip. Null when the author is a coworker. */
+  authorUserId: string | null;
   authorName: string;
   recipientUserIds: readonly string[];
 }
@@ -38,7 +39,8 @@ export async function emitChatDirectMessageNotifications(
   const recipientUserIds = [
     ...new Set(
       params.recipientUserIds.filter(
-        (userId) => userId !== params.authorUserId,
+        (userId) =>
+          params.authorUserId === null || userId !== params.authorUserId,
       ),
     ),
   ];

@@ -5042,9 +5042,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
       "directMessages": "Direct Messages",
-      "loadMore": "Load more",
       "loading": "Loading...",
-      "loadMoreError": "Failed to load more chats",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Channels coming soon",
@@ -5053,7 +5051,6 @@
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
-        "onlyInOrganizations": "Coming soon",
         "noMessagesTitle": "No messages yet",
         "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
@@ -5284,7 +5281,6 @@
       },
       "External": {
         "title": "External",
-        "empty": "No external channels yet.",
         "accept": "Accept",
         "decline": "Decline",
         "acceptSuccess": "You joined {name}.",

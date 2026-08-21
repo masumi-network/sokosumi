@@ -82,10 +82,20 @@ _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboa
 The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
+### Chat rooms
+
+**Direct**:
+A chat room whose identity is its participant set, not a named channel. Human 1:1, multi-human group, or coworker 1:1. Scoped to an Organization, except coworker 1:1s which may also be personal (no Organization).
+_Avoid_: Conversation (retired), Channel (when meaning this), Slack DM (as the domain object)
+
+**Coworker 1:1**:
+A Direct with exactly one human member and exactly one coworker.
+_Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape
+
 ### Chat membership
 
 **Membership-visible rooms**:
-The set of chat rooms the current user is a member of and may see in the chat room list (sidebar / chats list). Losing membership removes a room from this set.
+The set of chat rooms the current user is a member of and may see in the chat room list (sidebar / chats list) for the current workspace. The list shows that whole set. Losing membership removes a room from this set.
 _Avoid_: Roster (for this set), channel list (unless referring to a specific UI label)
 
 **Room roster**:
