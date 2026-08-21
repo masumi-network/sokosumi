@@ -95,7 +95,7 @@ _Avoid_: Channel @mention thread, mixing extra humans or coworkers into this sha
 ### Chat membership
 
 **Membership-visible rooms**:
-The set of chat rooms the current user is a member of and may see in the chat room list (sidebar / chats list). Losing membership removes a room from this set.
+The set of chat rooms the current user is a member of and may see in the chat room list (sidebar / chats list) for the current workspace. The list shows that whole set. Losing membership removes a room from this set.
 _Avoid_: Roster (for this set), channel list (unless referring to a specific UI label)
 
 **Room roster**:

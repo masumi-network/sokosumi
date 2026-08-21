@@ -24,7 +24,7 @@ describe("loadChatListChromeData", () => {
     getMyMembersWithOrganizationsMock.mockReset();
     listRoomsMock.mockResolvedValue({
       rooms: [{ id: "room-1" }],
-      nextCursor: "next",
+      nextCursor: null,
     });
     listArchivedRoomsMock.mockResolvedValue({
       rooms: [{ id: "archived-1" }],
