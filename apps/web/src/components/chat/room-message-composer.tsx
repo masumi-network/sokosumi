@@ -14,6 +14,7 @@ import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mo
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
+import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
 import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
@@ -161,9 +162,12 @@ export function RoomMessageComposer({
       onSubmit={onSubmit}
     >
       <div className="w-full">
+        {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
+            uses editor scroll-margin during mouse selection and jumps long drafts. */}
         <div
           className="border-border overflow-hidden rounded-xl border bg-background"
           data-room-composer-mention-anchor
+          style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
         >
           {attachments.length > 0 ? (
             <div className="flex flex-wrap gap-2 px-4 pt-4">
