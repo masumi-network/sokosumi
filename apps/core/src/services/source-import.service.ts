@@ -13,6 +13,8 @@ import {
 
 import prisma from "@/lib/db/prisma";
 
+type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
+
 export const sourceImportService = {
   async enqueueFromMarkdown(
     jobEventId: string,
@@ -67,7 +69,7 @@ export const sourceImportService = {
   async enqueueTaskOutputsFromMarkdown(
     taskId: string,
     markdown: string,
-    tx: Prisma.TransactionClient,
+    client: PrismaClientOrTx,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
 
@@ -85,7 +87,7 @@ export const sourceImportService = {
         // Upsert PENDING task-output TaskFile. Unique on (taskId, sourceUrl).
         // Do NOT set fileUrl yet — source-import cron will fetch and upload.
         // update: {} preserves READY name on repeat URL (no-op update).
-        await tx.taskFile.upsert({
+        await client.taskFile.upsert({
           where: {
             taskId_sourceUrl: {
               taskId,

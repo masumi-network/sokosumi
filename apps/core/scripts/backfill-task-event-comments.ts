@@ -6,13 +6,22 @@
  * TASK_OUTPUT TaskFiles for file-like URLs. Idempotent on (taskId, sourceUrl).
  * Does not reset FAILED rows. Safe to re-run.
  *
- * Usage:
- *   tsx apps/core/scripts/backfill-task-event-comments.ts [--batch-size=N] [--limit=N]
+ * Usage (preview):
+ *   # Full run
+ *   tsx apps/core/scripts/backfill-task-event-comments.ts
+ *
+ *   # Dry-run to preview
+ *   tsx apps/core/scripts/backfill-task-event-comments.ts --dry-run --limit=1000
+ *
+ *   # Resume from a specific point (use last logged event ID)
+ *   tsx apps/core/scripts/backfill-task-event-comments.ts --after-id=evt_xyz --after-created-at=2025-01-15T10:30:00.000Z
  *
  * Options:
- *   --batch-size=N  Number of events to process per batch (default: 100)
- *   --limit=N       Maximum number of events to process (default: unlimited)
- *   --dry-run       Show what would be processed without making changes
+ *   --batch-size=N           Number of events to process per batch (default: 500)
+ *   --limit=N                Maximum number of events to process (default: unlimited)
+ *   --after-id=ID            Resume after this event ID (cursor pagination)
+ *   --after-created-at=ISO   Resume after this timestamp (ISO 8601)
+ *   --dry-run                Show what would be processed without making changes
  */
 
 import * as Sentry from "@sentry/node";
@@ -23,21 +32,28 @@ import { sourceImportService } from "@/services/source-import.service";
 interface BackfillOptions {
   batchSize: number;
   limit?: number;
+  afterId?: string;
+  afterCreatedAt?: Date;
   dryRun: boolean;
 }
 
 function parseArgs(): BackfillOptions {
   const args = process.argv.slice(2);
   const options: BackfillOptions = {
-    batchSize: 100,
+    batchSize: 500,
     dryRun: false,
   };
 
   for (const arg of args) {
     if (arg.startsWith("--batch-size=")) {
-      options.batchSize = Number.parseInt(arg.split("=")[1] ?? "100", 10);
+      options.batchSize = Number.parseInt(arg.split("=")[1] ?? "500", 10);
     } else if (arg.startsWith("--limit=")) {
       options.limit = Number.parseInt(arg.split("=")[1] ?? "0", 10);
+    } else if (arg.startsWith("--after-id=")) {
+      options.afterId = arg.split("=")[1];
+    } else if (arg.startsWith("--after-created-at=")) {
+      const dateStr = arg.split("=")[1];
+      options.afterCreatedAt = dateStr ? new Date(dateStr) : undefined;
     } else if (arg === "--dry-run") {
       options.dryRun = true;
     } else if (arg === "--help" || arg === "-h") {
@@ -45,10 +61,22 @@ function parseArgs(): BackfillOptions {
 Usage: tsx apps/core/scripts/backfill-task-event-comments.ts [options]
 
 Options:
-  --batch-size=N  Number of events to process per batch (default: 100)
-  --limit=N       Maximum number of events to process (default: unlimited)
-  --dry-run       Show what would be processed without making changes
-  --help, -h      Show this help message
+  --batch-size=N           Number of events to process per batch (default: 500)
+  --limit=N                Maximum number of events to process (default: unlimited)
+  --after-id=ID            Resume after this event ID (cursor pagination)
+  --after-created-at=ISO   Resume after this timestamp (ISO 8601)
+  --dry-run                Show what would be processed without making changes
+  --help, -h               Show this help message
+
+Examples:
+  # Dry-run preview
+  tsx apps/core/scripts/backfill-task-event-comments.ts --dry-run --limit=1000
+
+  # Full run
+  tsx apps/core/scripts/backfill-task-event-comments.ts
+
+  # Resume from checkpoint
+  tsx apps/core/scripts/backfill-task-event-comments.ts --after-id=evt_xyz --after-created-at=2025-01-15T10:30:00.000Z
       `);
       process.exit(0);
     }
@@ -60,11 +88,13 @@ Options:
 async function backfillTaskEventComments(
   options: BackfillOptions,
 ): Promise<number> {
-  const { batchSize, limit, dryRun } = options;
+  const { batchSize, limit, afterId, afterCreatedAt, dryRun } = options;
   let processedCount = 0;
+  let cursorId: string | undefined = afterId;
+  let cursorCreatedAt: Date | undefined = afterCreatedAt;
 
   console.log(
-    `Starting backfill (batch=${batchSize}, limit=${limit ?? "unlimited"}, dryRun=${dryRun})`,
+    `Starting backfill (batch=${batchSize}, limit=${limit ?? "unlimited"}, dryRun=${dryRun}, cursor=${cursorId ? `${cursorCreatedAt?.toISOString()}/${cursorId}` : "start"})`,
   );
 
   while (true) {
@@ -74,20 +104,43 @@ async function backfillTaskEventComments(
       break;
     }
 
-    // Fetch a batch of task events with comments, oldest first
+    const remainingLimit =
+      limit !== undefined ? limit - processedCount : undefined;
+    const effectiveTake =
+      remainingLimit !== undefined
+        ? Math.min(batchSize, remainingLimit)
+        : batchSize;
+
+    // Build where clause for cursor-based pagination
+    const where: {
+      comment: { not: null };
+      OR?: Array<{
+        createdAt: { gt: Date } | Date;
+        id?: { gt: string };
+      }>;
+    } = {
+      comment: { not: null },
+    };
+
+    // Continue from last cursor using (createdAt, id) for stable ordering
+    if (cursorId && cursorCreatedAt) {
+      where.OR = [
+        { createdAt: { gt: cursorCreatedAt } },
+        { createdAt: cursorCreatedAt, id: { gt: cursorId } },
+      ];
+    }
+
+    // Fetch events with stable ordering (createdAt, id)
     const events = await prisma.taskEvent.findMany({
-      where: {
-        comment: { not: null },
-      },
-      orderBy: { createdAt: "asc" },
+      where,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       select: {
         id: true,
         taskId: true,
         comment: true,
         createdAt: true,
       },
-      take: batchSize,
-      skip: processedCount,
+      take: effectiveTake,
     });
 
     if (events.length === 0) {
@@ -95,10 +148,12 @@ async function backfillTaskEventComments(
       break;
     }
 
+    const batchStartTime = Date.now();
     console.log(
-      `Processing batch of ${events.length} events (offset=${processedCount})`,
+      `Processing batch of ${events.length} events (cursor=${cursorId ?? "start"})`,
     );
 
+    // Process the entire batch without per-event transactions
     for (const event of events) {
       if (!event.comment) {
         continue;
@@ -106,22 +161,24 @@ async function backfillTaskEventComments(
 
       try {
         if (dryRun) {
+          // In dry-run, don't log comment bodies
           console.log(
             `[DRY RUN] Would process TaskEvent ${event.id} (task=${event.taskId}, created=${event.createdAt.toISOString()})`,
           );
         } else {
-          // Use a transaction to ensure atomicity
-          await prisma.$transaction(async (tx) => {
-            await sourceImportService.enqueueTaskOutputsFromMarkdown(
-              event.taskId,
-              event.comment as string,
-              tx,
-            );
-          });
+          // Pass the regular prisma client instead of wrapping in a transaction
+          await sourceImportService.enqueueTaskOutputsFromMarkdown(
+            event.taskId,
+            event.comment,
+            prisma,
+          );
         }
       } catch (error) {
         // Log but continue - individual failures shouldn't stop the batch
-        console.error(`Failed to backfill TaskEvent ${event.id}:`, error);
+        console.error(
+          `Failed to backfill TaskEvent ${event.id} (task=${event.taskId}):`,
+          error instanceof Error ? error.message : String(error),
+        );
         Sentry.captureException(error, {
           extra: {
             taskEventId: event.id,
@@ -132,10 +189,19 @@ async function backfillTaskEventComments(
     }
 
     processedCount += events.length;
-    console.log(`Processed ${processedCount} events so far`);
+    const lastEvent = events[events.length - 1];
+    const batchDuration = Date.now() - batchStartTime;
 
-    // If we got fewer than batchSize, we've reached the end
-    if (events.length < batchSize) {
+    if (lastEvent) {
+      cursorId = lastEvent.id;
+      cursorCreatedAt = lastEvent.createdAt;
+      console.log(
+        `Processed ${processedCount} events so far (${batchDuration}ms) | Last: ${lastEvent.id} @ ${lastEvent.createdAt.toISOString()}`,
+      );
+    }
+
+    // If we got fewer than requested, we've reached the end
+    if (events.length < effectiveTake) {
       break;
     }
   }
