@@ -3,6 +3,7 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 import {
   buildJobBlobPathname,
   buildTaskFilePathname,
+  FILE_UPLOAD_MAX_SIZE_BYTES,
   getUrlBasename,
 } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
@@ -11,6 +12,7 @@ import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const MAX_CONCURRENT_IMPORTS = 5;
+const MAX_IMPORT_SIZE_BYTES = FILE_UPLOAD_MAX_SIZE_BYTES;
 
 interface ImportPendingResultBlobsOptions {
   abortSignal: AbortSignal;
@@ -60,6 +62,18 @@ function shouldContinueSync(options: ImportPendingResultBlobsOptions): boolean {
   }
 
   return hasTimeRemaining(options.deadlineMs);
+}
+
+function validateResponseSize(response: Response): void {
+  const contentLength = response.headers.get("content-length");
+  if (contentLength) {
+    const size = Number.parseInt(contentLength, 10);
+    if (size > MAX_IMPORT_SIZE_BYTES) {
+      throw new Error(
+        `Response size ${size} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
+      );
+    }
+  }
 }
 
 function createImportAbortSignal(
@@ -131,6 +145,8 @@ async function importBlob(
       throw new Error(`Failed to fetch blob source: ${response.status}`);
     }
 
+    validateResponseSize(response);
+
     const contentType = response.headers.get("content-type");
     const suggestedName =
       parseContentDispositionFilename(
@@ -141,6 +157,11 @@ async function importBlob(
       "file";
 
     const arrayBuffer = await response.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
+      throw new Error(
+        `Response body ${arrayBuffer.byteLength} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
+      );
+    }
     const sourceFile = new File([arrayBuffer], suggestedName, {
       type: contentType ?? "application/octet-stream",
     });
@@ -221,6 +242,8 @@ async function importTaskFile(
       throw new Error(`Failed to fetch task file source: ${response.status}`);
     }
 
+    validateResponseSize(response);
+
     const contentType = response.headers.get("content-type");
     const suggestedName =
       parseContentDispositionFilename(
@@ -231,6 +254,11 @@ async function importTaskFile(
       "file";
 
     const arrayBuffer = await response.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
+      throw new Error(
+        `Response body ${arrayBuffer.byteLength} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
+      );
+    }
     const sourceFile = new File([arrayBuffer], suggestedName, {
       type: contentType ?? "application/octet-stream",
     });

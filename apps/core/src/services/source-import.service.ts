@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import { Prisma } from "@sokosumi/database";
 import {
   blobRepository,
   linkRepository,
@@ -66,6 +67,7 @@ export const sourceImportService = {
   async enqueueTaskOutputsFromMarkdown(
     taskId: string,
     markdown: string,
+    tx: Prisma.TransactionClient,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
 
@@ -82,16 +84,15 @@ export const sourceImportService = {
         const basename = getUrlBasename(url) ?? "file";
         // Upsert PENDING task-output TaskFile. Unique on (taskId, sourceUrl).
         // Do NOT set fileUrl yet — source-import cron will fetch and upload.
-        await prisma.taskFile.upsert({
+        // update: {} preserves READY name on repeat URL (no-op update).
+        await tx.taskFile.upsert({
           where: {
             taskId_sourceUrl: {
               taskId,
               sourceUrl: url,
             },
           },
-          update: {
-            name: basename,
-          },
+          update: {},
           create: {
             taskId,
             name: basename,

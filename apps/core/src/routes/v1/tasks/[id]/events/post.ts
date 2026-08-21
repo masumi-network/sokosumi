@@ -543,6 +543,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? masumiPayment
           : null;
 
+      // Enqueue PENDING task-output files from comment (in-transaction for durability)
+      if (comment) {
+        await sourceImportService.enqueueTaskOutputsFromMarkdown(
+          taskId,
+          comment,
+          tx,
+        );
+      }
+
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
@@ -572,26 +581,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pausedForInsufficientBalance,
       cascadedChildTaskIds,
     } = transactionResult;
-
-    // Enqueue task-output files from comment (durable via waitUntil)
-    if (event.comment) {
-      waitUntil(
-        sourceImportService
-          .enqueueTaskOutputsFromMarkdown(taskId, event.comment)
-          .catch((error) => {
-            console.error(
-              "Failed to enqueue task outputs from comment:",
-              error,
-            );
-            Sentry.captureException(error, {
-              extra: {
-                taskId,
-                taskEventId: event.id,
-              },
-            });
-          }),
-      );
-    }
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
       waitUntil(

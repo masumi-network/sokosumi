@@ -197,6 +197,9 @@ interface TransactionMock {
     updateMany: ReturnType<typeof vi.fn>;
     findUnique?: ReturnType<typeof vi.fn>;
   };
+  taskFile?: {
+    upsert?: ReturnType<typeof vi.fn>;
+  };
   taskLink?: {
     findMany: ReturnType<typeof vi.fn>;
   };
@@ -3431,6 +3434,9 @@ describe("POST /{id}/events", () => {
             .mockResolvedValue(createTask({ status: TaskStatus.READY })),
           updateMany: vi.fn(),
         },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
       };
 
       mockTransaction(tx);
@@ -3453,15 +3459,14 @@ describe("POST /{id}/events", () => {
 
       expect(response.status).toBe(201);
       expect(tx.taskEvent.create).toHaveBeenCalled();
-
-      await Promise.all(waitUntilCapturedPromises);
       expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
         TASK_ID,
         "Check out this report: https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+        tx,
       );
     });
 
-    it("enqueues extensionless /deliverables/ URLs as TASK_OUTPUT", async () => {
+    it("forwards a comment containing an extensionless deliverables URL", async () => {
       const tx: TransactionMock = {
         taskEvent: {
           create: vi.fn().mockResolvedValue(
@@ -3479,6 +3484,9 @@ describe("POST /{id}/events", () => {
             .fn()
             .mockResolvedValue(createTask({ status: TaskStatus.READY })),
           updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
         },
       };
 
@@ -3501,20 +3509,14 @@ describe("POST /{id}/events", () => {
       });
 
       expect(response.status).toBe(201);
-      await Promise.all(waitUntilCapturedPromises);
       expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
         TASK_ID,
         "File at https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+        tx,
       );
     });
 
     it("returns 201 without awaiting TaskFile import", async () => {
-      let resolveEnqueue: (() => void) | undefined;
-      const enqueuePending = new Promise<void>((resolve) => {
-        resolveEnqueue = resolve;
-      });
-      enqueueTaskOutputsFromMarkdownMock.mockReturnValue(enqueuePending);
-
       const tx: TransactionMock = {
         taskEvent: {
           create: vi.fn().mockResolvedValue(
@@ -3531,6 +3533,9 @@ describe("POST /{id}/events", () => {
             .fn()
             .mockResolvedValue(createTask({ status: TaskStatus.READY })),
           updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
         },
       };
 
@@ -3553,14 +3558,9 @@ describe("POST /{id}/events", () => {
 
       expect(response.status).toBe(201);
       expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalled();
-
-      if (resolveEnqueue) {
-        resolveEnqueue();
-      }
-      await Promise.all(waitUntilCapturedPromises);
     });
 
-    it("enqueues QA fixture bare URLs (.pdf + extensionless /deliverables/)", async () => {
+    it("forwards a multiline comment containing several bare URLs", async () => {
       const tx: TransactionMock = {
         taskEvent: {
           create: vi.fn().mockResolvedValue(
@@ -3578,6 +3578,9 @@ describe("POST /{id}/events", () => {
             .fn()
             .mockResolvedValue(createTask({ status: TaskStatus.READY })),
           updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
         },
       };
 
@@ -3601,11 +3604,10 @@ describe("POST /{id}/events", () => {
 
       expect(response.status).toBe(201);
       expect(tx.taskEvent.create).toHaveBeenCalled();
-
-      await Promise.all(waitUntilCapturedPromises);
       expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
         TASK_ID,
         "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+        tx,
       );
     });
   });

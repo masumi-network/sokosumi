@@ -205,5 +205,18 @@ https://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-0000000
       const links = extractFileLikeLinks(markdown);
       expect(links).toEqual(["https://example.com/file.pdf"]);
     });
+
+    it("handles repeated unclosed autolinks in linear time", () => {
+      // Nested <http:// without closing > — must not be quadratic
+      const attack = "<http://".repeat(1000);
+      const links = extractFileLikeLinks(attack);
+      expect(links).toEqual([]);
+    });
+
+    it("extracts valid autolink after nested unclosed ones", () => {
+      const markdown = "<http://<http://<https://example.com/file.pdf>";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual(["https://example.com/file.pdf"]);
+    });
   });
 });

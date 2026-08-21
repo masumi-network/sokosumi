@@ -69,7 +69,7 @@ function findAutolinks(markdown: string): AutolinkMatch[] {
       continue;
     }
 
-    // Scan until `>` or whitespace
+    // Scan until `>`, whitespace, or another `<` (prevents quadratic on "<http://".repeat(n))
     let j = open + 1;
     while (j < markdown.length) {
       const ch = markdown[j];
@@ -84,9 +84,16 @@ function findAutolinks(markdown: string): AutolinkMatch[] {
         i = j + 1;
         break;
       }
-      if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
-        // Whitespace before closing bracket — not a valid autolink
-        i = open + 1;
+      if (
+        ch === " " ||
+        ch === "\t" ||
+        ch === "\n" ||
+        ch === "\r" ||
+        ch === "<"
+      ) {
+        // Whitespace or `<` before closing bracket — not a valid autolink
+        // Resume at `<` so nested `<http://` can be scanned
+        i = ch === "<" ? j : open + 1;
         break;
       }
       j += 1;
