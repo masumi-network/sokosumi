@@ -102,6 +102,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
     assert.match(setup, /turbo_team:/);
     assert.match(setup, /vercel\/setup-turborepo-remote-cache-action@v1\.0\.0/);
+    assert.match(setup, /continue-on-error:\s*true/);
   });
 
   it("jobs that run setup and turbo grant id-token write", async () => {

@@ -24,6 +24,7 @@ runs:
 
     - name: Set up Turborepo Remote Cache
       if: ${{ inputs.turbo_team != '' }}
+      continue-on-error: true
       uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
       with:
         team: ${{ inputs.turbo_team }}

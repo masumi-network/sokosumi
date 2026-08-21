@@ -7,7 +7,7 @@ pnpm stays the package manager. Turborepo runs `build`, `typecheck`, and `test` 
 
 Vercel filtered installs still emit package `dist` via per-package `prepare`. App-level `prebuild` / `build:workspace-deps` are removed so turbo is the only orchestrator on the root `build`/`typecheck`/`test` path.
 
-CI uses Vercel Remote Cache via GitHub OIDC (`vercel/setup-turborepo-remote-cache-action`). `turbo.json` lists hashed `globalEnv` and unhashed `globalPassThroughEnv`; default strict `envMode` (do not set `envMode: "loose"`). Do not add GitHub `actions/cache` on `.turbo`. `dev`, Biome, Husky, and `pnpm --filter` aliases stay.
+CI uses Vercel Remote Cache via GitHub OIDC (`vercel/setup-turborepo-remote-cache-action`). `turbo.json` lists hashed `globalEnv` and unhashed `globalPassThroughEnv`; default strict `envMode` (do not set `envMode: "loose"`). Do not add GitHub `actions/cache` on `.turbo`. The OIDC step continues on error so CI stays green until the Vercel Turborepo CLI OIDC policy exists. `dev`, Biome, Husky, and `pnpm --filter` aliases stay.
 
 ## Considered Options
 
