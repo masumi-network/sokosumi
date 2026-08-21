@@ -330,17 +330,14 @@ describe("runPreviewDeployComment", () => {
     assert.equal(created[0].sha, "deadbeef");
     assert.equal(created[0].ref, "feat/x");
     assert.equal(created[0].repoId, 99);
-    assert.equal(posted.length, 1);
-    assert.match(posted[0], /mainnet/);
-    assert.ok(
-      posted[0].includes(
-        "https://sokosumi-app-mainnet-git-feat-x.preview.sokosumi.com",
-      ),
-    );
-    assert.ok(
-      posted[0].includes(
-        "https://sokosumi-core-mainnet-git-feat-x.preview.sokosumi.com",
-      ),
+    assert.equal(
+      posted[0],
+      [
+        "Preview deploy for **mainnet** at `deadbee`:",
+        "",
+        "- sokosumi-app-mainnet (READY): https://sokosumi-app-mainnet-git-feat-x.preview.sokosumi.com",
+        "- sokosumi-core-mainnet (READY): https://sokosumi-core-mainnet-git-feat-x.preview.sokosumi.com",
+      ].join("\n"),
     );
   });
 
