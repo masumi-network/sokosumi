@@ -49,6 +49,27 @@ describe("OrganizationChatList section visibility", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows External when a personal human Direct is not an org teammate", () => {
+    const personal = makeRoom({
+      id: "personal-dm",
+      kind: "direct",
+      myAccess: "member",
+      discoverability: null,
+      organizationId: null,
+      organizationName: null,
+      peerInActiveOrganization: false,
+      name: "Guest User",
+    });
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [personal],
+    });
+
+    expect(screen.getByText("App.Channels.External.title")).toBeInTheDocument();
+    expect(screen.getByText("room")).toBeInTheDocument();
+  });
+
   it("shows External when the user has joined an external room", async () => {
     const external = makeRoom({
       id: "ext-1",
