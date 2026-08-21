@@ -3559,5 +3559,54 @@ describe("POST /{id}/events", () => {
       }
       await Promise.all(waitUntilCapturedPromises);
     });
+
+    it("enqueues QA fixture bare URLs (.pdf + extensionless /deliverables/)", async () => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_127",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment:
+                "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment:
+            "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(tx.taskEvent.create).toHaveBeenCalled();
+
+      await Promise.all(waitUntilCapturedPromises);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        TASK_ID,
+        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+      );
+    });
   });
 });

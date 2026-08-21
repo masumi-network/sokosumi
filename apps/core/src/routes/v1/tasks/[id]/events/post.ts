@@ -573,19 +573,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cascadedChildTaskIds,
     } = transactionResult;
 
-    // Fire-and-forget enqueue of task-output files from comment
+    // Enqueue task-output files from comment (durable via waitUntil)
     if (event.comment) {
-      sourceImportService
-        .enqueueTaskOutputsFromMarkdown(taskId, event.comment)
-        .catch((error) => {
-          console.error("Failed to enqueue task outputs from comment:", error);
-          Sentry.captureException(error, {
-            extra: {
-              taskId,
-              taskEventId: event.id,
-            },
-          });
-        });
+      waitUntil(
+        sourceImportService
+          .enqueueTaskOutputsFromMarkdown(taskId, event.comment)
+          .catch((error) => {
+            console.error(
+              "Failed to enqueue task outputs from comment:",
+              error,
+            );
+            Sentry.captureException(error, {
+              extra: {
+                taskId,
+                taskEventId: event.id,
+              },
+            });
+          }),
+      );
     }
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
