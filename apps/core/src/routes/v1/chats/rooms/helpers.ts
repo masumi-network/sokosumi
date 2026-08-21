@@ -1700,7 +1700,6 @@ export async function requireChatRoomCoworkerAccess(
   name: string;
   kind: string;
   organizationId: string | null;
-  userMembers: Array<{ userId: string }>;
 }> {
   const room = await tx.chatRoom.findFirst({
     where: {
@@ -1715,7 +1714,6 @@ export async function requireChatRoomCoworkerAccess(
       name: true,
       kind: true,
       organizationId: true,
-      userMembers: { select: { userId: true } },
     },
   });
 

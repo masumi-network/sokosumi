@@ -129,24 +129,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
 
-      const memberUserIds = room.userMembers.map((member) => member.userId);
-      if (
-        shouldEmitChatDirectMessageNotifications({
-          kind: room.kind,
-          memberUserIds,
-        })
-      ) {
-        waitUntil(
-          emitChatDirectMessageNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            organizationId: room.organizationId,
-            messageId: message.id,
-            authorUserId: null,
-            authorName: message.senderCoworker?.name ?? "Someone",
-            recipientUserIds: memberUserIds,
-          }),
-        );
+      if (room.kind === "direct") {
+        const memberUserIds = (
+          await prisma.chatRoomUserMember.findMany({
+            where: { roomId: room.id },
+            select: { userId: true },
+          })
+        ).map((member) => member.userId);
+
+        if (
+          shouldEmitChatDirectMessageNotifications({
+            kind: room.kind,
+            memberUserIds,
+          })
+        ) {
+          waitUntil(
+            emitChatDirectMessageNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              organizationId: room.organizationId,
+              messageId: message.id,
+              authorUserId: null,
+              authorName: message.senderCoworker?.name ?? "Someone",
+              recipientUserIds: memberUserIds,
+            }),
+          );
+        }
       }
 
       return created(

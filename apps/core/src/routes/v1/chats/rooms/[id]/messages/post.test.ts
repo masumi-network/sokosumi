@@ -14,6 +14,7 @@ const {
   messageFindUniqueMock,
   messageFindManyMock,
   messageCreateMock,
+  membershipFindManyMock,
   readStateUpsertMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
@@ -30,6 +31,7 @@ const {
   messageFindUniqueMock: vi.fn(),
   messageFindManyMock: vi.fn(),
   messageCreateMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -49,6 +51,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       findUnique: messageFindUniqueMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
     },
   },
 }));
@@ -382,8 +387,12 @@ describe("POST /chats/rooms/{id}/messages", () => {
           where: expect.objectContaining({
             coworkerMembers: { some: { coworkerId: COWORKER_ID } },
           }),
+          select: expect.not.objectContaining({
+            userMembers: expect.anything(),
+          }),
         }),
       );
+      expect(membershipFindManyMock).not.toHaveBeenCalled();
     });
 
     it("emits a CHAT Direct notification to the human in a coworker 1:1", async () => {
@@ -392,8 +401,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
         name: "Hannah",
         kind: "direct",
         organizationId: "org_1",
-        userMembers: [{ userId: ALICE_ID }],
       });
+      membershipFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
       messageCreateMock.mockResolvedValue(
         createdMessage({ senderCoworkerId: COWORKER_ID }),
       );
@@ -406,6 +415,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
+      expect(membershipFindManyMock).toHaveBeenCalledWith({
+        where: { roomId: ROOM_ID },
+        select: { userId: true },
+      });
       expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "Hannah",
@@ -424,7 +437,6 @@ describe("POST /chats/rooms/{id}/messages", () => {
         name: "general",
         kind: "channel",
         organizationId: "org_1",
-        userMembers: [{ userId: ALICE_ID }, { userId: BOB_ID }],
       });
       messageCreateMock.mockResolvedValue(
         createdMessage({ senderCoworkerId: COWORKER_ID }),
@@ -438,6 +450,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
+      expect(membershipFindManyMock).not.toHaveBeenCalled();
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
       expect(waitUntilMock).toHaveBeenCalledTimes(1);
     });

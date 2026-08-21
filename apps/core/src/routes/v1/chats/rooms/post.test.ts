@@ -42,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     chatRoom: {
       findFirst: roomFindFirstMock,
+      update: roomUpdateMock,
     },
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
@@ -999,7 +1000,7 @@ describe("POST /chats/rooms", () => {
   });
 
   describe("coworker actor", () => {
-    it("creates an org-scoped coworker 1:1 with the target member", async () => {
+    it("creates an org-scoped coworker 1:1 with the target as createdByUserId when context user differs", async () => {
       const created = coworkerDirectRoom();
       roomFindFirstMock.mockResolvedValueOnce(null);
       roomCreateMock.mockResolvedValueOnce(created);
@@ -1041,6 +1042,38 @@ describe("POST /chats/rooms", () => {
           }),
         }),
       );
+    });
+
+    it("does not return the target human's sidebar flags", async () => {
+      const created = coworkerDirectRoom();
+      roomFindFirstMock.mockResolvedValueOnce(null);
+      roomCreateMock.mockResolvedValueOnce(created);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+      membershipFindManyMock.mockResolvedValue([
+        {
+          roomId: ROOM_ID,
+          pinnedAt: new Date("2025-01-01T00:00:00.000Z"),
+          mutedAt: new Date("2025-01-02T00:00:00.000Z"),
+        },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.pinnedAt).toBeNull();
+      expect(body.data.mutedAt).toBeNull();
+      expect(body.data.markedUnread).toBe(false);
     });
 
     it("returns the existing coworker 1:1 for the same pair", async () => {
@@ -1109,7 +1142,9 @@ describe("POST /chats/rooms", () => {
       });
 
       expect(response.status).toBe(403);
-      expect(await response.text()).toBe("User authentication required");
+      expect(await response.text()).toBe(
+        "Coworker API keys cannot create channels",
+      );
       expect(roomCreateMock).not.toHaveBeenCalled();
     });
 
@@ -1148,9 +1183,77 @@ describe("POST /chats/rooms", () => {
 
       expect(response.status).toBe(400);
       expect(await response.text()).toBe(
-        "Group direct messages cannot include coworkers.",
+        "Coworker API keys cannot include coworkerIds",
       );
       expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects omitted memberUserIds with 400", async () => {
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe("Choose a direct message target");
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects more than one memberUserId with 400", async () => {
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe("Choose a direct message target");
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("unarchives on directKey unique-retry when the winner is archived", async () => {
+      const archived = coworkerDirectRoom({
+        archivedAt: new Date("2025-06-01T00:00:00.000Z"),
+      });
+      const restored = coworkerDirectRoom({ archivedAt: null });
+      roomFindFirstMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(archived);
+      roomCreateMock.mockRejectedValue({
+        code: "P2002",
+        meta: { target: ["organizationId", "directKey"] },
+      });
+      roomUpdateMock.mockResolvedValueOnce(restored);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(roomUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ROOM_ID },
+          data: { archivedAt: null },
+        }),
+      );
+      expect(roomCreateMock).toHaveBeenCalled();
     });
 
     it("rejects a coworker that is not usable in the workspace with 400", async () => {
@@ -1169,6 +1272,30 @@ describe("POST /chats/rooms", () => {
       expect(response.status).toBe(400);
       expect(await response.text()).toBe(
         "Room AI coworkers must be active chat coworkers",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects a target who is not an organization member with 400", async () => {
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+      memberFindUniqueMock.mockResolvedValue(null);
+      memberFindManyMock.mockResolvedValue([]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe(
+        "Room human members must belong to the organization",
       );
       expect(roomCreateMock).not.toHaveBeenCalled();
     });

@@ -29,6 +29,7 @@ import {
   buildUniqueRoomSlug,
   chatRoomInclude,
   isOrganizationOwnerOrAdmin,
+  mapChatRoom,
   mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
   requireActiveOrganizationId,
@@ -205,7 +206,7 @@ async function createOrGetCoworkerOriginatedDirect(params: {
   kind: "channel" | "direct";
 }): Promise<{ room: ChatRoom; created: boolean }> {
   if (params.kind !== "direct") {
-    throw forbidden("User authentication required");
+    throw forbidden("Coworker API keys cannot create channels");
   }
 
   if (!params.organizationId) {
@@ -213,7 +214,7 @@ async function createOrGetCoworkerOriginatedDirect(params: {
   }
 
   if (params.coworkerIds.length > 0) {
-    throw badRequest("Group direct messages cannot include coworkers.");
+    throw badRequest("Coworker API keys cannot include coworkerIds");
   }
 
   if (params.memberUserIds.length !== 1) {
@@ -225,6 +226,7 @@ async function createOrGetCoworkerOriginatedDirect(params: {
     currentUserId: params.memberUserIds[0]!,
     memberUserIds: [],
     coworkerIds: [params.coworkerId],
+    viewerUserId: null,
   });
 }
 
@@ -255,6 +257,17 @@ async function findOrRestoreDirectByKey(
     data: { archivedAt: null },
     include: chatRoomInclude,
   });
+}
+
+async function serializeDirectRoomForViewer(
+  room: Parameters<typeof mapChatRoom>[0],
+  viewerUserId: string | null,
+): Promise<ChatRoom> {
+  return chatRoomSchema.parse(
+    viewerUserId
+      ? await mapChatRoomWithSidebarFlags(room, viewerUserId, prisma)
+      : mapChatRoom(room),
+  );
 }
 
 /**
@@ -331,8 +344,12 @@ async function createOrGetDirectRoom(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
+  /** Sidebar viewer. Null skips pin/mute/unread (coworker actor has none). */
+  viewerUserId?: string | null;
 }): Promise<{ room: ChatRoom; created: boolean }> {
   const { currentUserId } = params;
+  const viewerUserId =
+    params.viewerUserId === undefined ? currentUserId : params.viewerUserId;
   const shape = parseDirectCreateShape({
     currentUserId,
     memberUserIds: params.memberUserIds,
@@ -357,11 +374,22 @@ async function createOrGetDirectRoom(params: {
     try {
       const result = await prisma.$transaction(async (tx) => {
         if (roomOrganizationId) {
-          await resolveMemberOrganizationById({
-            id: roomOrganizationId,
-            userId: currentUserId,
-            tx,
-          });
+          if (shape.kind === "human-direct") {
+            await resolveMemberOrganizationById({
+              id: roomOrganizationId,
+              userId: currentUserId,
+              tx,
+            });
+          } else {
+            // Coworker 1:1 owner is the human on the room (user actor or
+            // originated target). A missing owner is a bad target, not
+            // "you are not a member".
+            await validateOrganizationUserIds(
+              roomOrganizationId,
+              [currentUserId],
+              tx,
+            );
+          }
         }
 
         const memberUserIds = roomOrganizationId
@@ -464,9 +492,7 @@ async function createOrGetDirectRoom(params: {
       });
 
       return {
-        room: chatRoomSchema.parse(
-          await mapChatRoomWithSidebarFlags(result.room, currentUserId, prisma),
-        ),
+        room: await serializeDirectRoomForViewer(result.room, viewerUserId),
         created: result.created,
       };
     } catch (error) {
@@ -479,13 +505,7 @@ async function createOrGetDirectRoom(params: {
 
         if (existing) {
           return {
-            room: chatRoomSchema.parse(
-              await mapChatRoomWithSidebarFlags(
-                existing,
-                currentUserId,
-                prisma,
-              ),
-            ),
+            room: await serializeDirectRoomForViewer(existing, viewerUserId),
             created: false,
           };
         }
