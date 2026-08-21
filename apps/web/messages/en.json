@@ -5262,6 +5262,17 @@
         "creating": "Creating…",
         "adding": "Adding…"
       },
+      "RoomRoster": {
+        "open": "Members",
+        "title": "Members",
+        "close": "Close members",
+        "empty": "No members to show.",
+        "error": "Could not load members.",
+        "message": "Message {name}",
+        "copy": "Copy {value}",
+        "copySuccess": "Copied to clipboard",
+        "copyError": "Could not copy."
+      },
       "UnreadThreads": {
         "open": "Threads",
         "title": "Threads",

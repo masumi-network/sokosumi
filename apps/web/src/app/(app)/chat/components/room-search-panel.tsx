@@ -169,7 +169,7 @@ export function RoomSearchPanel({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        align="end"
+        align="start"
         className="w-[min(100vw-2rem,24rem)] p-0"
         data-testid="room-search-panel"
       >

@@ -1,0 +1,257 @@
+"use client";
+
+import { Loader2, MessageCircle, X } from "lucide-react";
+import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils/text";
+import {
+  canShowOpenDirect,
+  participantDirectKey,
+} from "./open-direct-with-participant";
+import type { ChatParticipantHoverProfile } from "./room-helpers";
+
+export interface RoomRosterPanelLabels {
+  title: string;
+  close: string;
+  empty: string;
+  error: string;
+  coworkerBadge: string;
+  message: (name: string) => string;
+  copy: (value: string) => string;
+  copySuccess: string;
+  copyError: string;
+}
+
+function rosterMemberCaption(
+  participant: ChatParticipantHoverProfile,
+): string | null {
+  if (participant.kind === "human") {
+    return participant.email || null;
+  }
+  return participant.slug ? `@${participant.slug}` : null;
+}
+
+function RosterMemberAvatar({
+  participant,
+}: {
+  participant: ChatParticipantHoverProfile;
+}) {
+  return (
+    <span className="relative inline-flex size-8 shrink-0">
+      <Avatar className="size-8">
+        <AvatarImage src={participant.image ?? undefined} alt="" />
+        <AvatarFallback
+          className={cn(
+            "text-[0.625rem]",
+            participant.kind === "coworker"
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {getInitials(participant.name)}
+        </AvatarFallback>
+      </Avatar>
+      <LiveMemberPresenceDot
+        className="absolute -right-0.5 -bottom-0.5"
+        fallback={participant.presence}
+        isCoworker={participant.kind === "coworker"}
+        userId={participant.id}
+      />
+    </span>
+  );
+}
+
+function RosterMemberRow({
+  participant,
+  canMessage,
+  isOpening,
+  isDirectActionBusy,
+  onOpenDirect,
+  labels,
+}: {
+  participant: ChatParticipantHoverProfile;
+  canMessage: boolean;
+  isOpening: boolean;
+  isDirectActionBusy: boolean;
+  onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
+  labels: RoomRosterPanelLabels;
+}) {
+  const messageLabel = labels.message(participant.name);
+  const caption = rosterMemberCaption(participant);
+  const copyLabel = caption ? labels.copy(caption) : null;
+
+  const nameBlock = (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="truncate font-medium">{participant.name}</span>
+      {participant.kind === "coworker" ? (
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {labels.coworkerBadge}
+        </span>
+      ) : null}
+    </span>
+  );
+
+  const messageIcon = isOpening ? (
+    <Loader2
+      className="text-muted-foreground size-4 shrink-0 animate-spin"
+      aria-hidden
+    />
+  ) : (
+    <MessageCircle
+      className="text-muted-foreground size-4 shrink-0 opacity-70 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100"
+      data-testid="room-roster-message-icon"
+      aria-hidden
+    />
+  );
+
+  function handleOpenDirect() {
+    onOpenDirect(participant);
+  }
+
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+        (canMessage || caption) && "hover:bg-accent",
+      )}
+      data-testid="room-roster-member"
+    >
+      {canMessage ? (
+        <button
+          type="button"
+          className="shrink-0 cursor-pointer"
+          tabIndex={-1}
+          aria-hidden
+          disabled={isOpening || isDirectActionBusy}
+          onClick={handleOpenDirect}
+        >
+          <RosterMemberAvatar participant={participant} />
+        </button>
+      ) : (
+        <RosterMemberAvatar participant={participant} />
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {canMessage ? (
+          <button
+            type="button"
+            className="min-w-0 cursor-pointer truncate text-left"
+            aria-label={messageLabel}
+            title={messageLabel}
+            disabled={isOpening || isDirectActionBusy}
+            onClick={handleOpenDirect}
+          >
+            {nameBlock}
+          </button>
+        ) : (
+          nameBlock
+        )}
+        {caption && copyLabel ? (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground max-w-full cursor-pointer self-start truncate text-left text-xs leading-tight hover:underline"
+            aria-label={copyLabel}
+            title={copyLabel}
+            onClick={() => {
+              void copyTextWithToast(caption, {
+                copySuccessMessage: labels.copySuccess,
+                copyErrorMessage: labels.copyError,
+              });
+            }}
+          >
+            {caption}
+          </button>
+        ) : null}
+      </div>
+      {canMessage ? (
+        <button
+          type="button"
+          className="shrink-0 cursor-pointer"
+          tabIndex={-1}
+          aria-hidden
+          disabled={isOpening || isDirectActionBusy}
+          onClick={handleOpenDirect}
+        >
+          {messageIcon}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+interface RoomRosterPanelProps {
+  participants: ChatParticipantHoverProfile[];
+  currentUserId: string;
+  canOpenHumanDirect: boolean;
+  onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectKey: string | null;
+  membersLoadFailed: boolean;
+  onClose: () => void;
+  labels: RoomRosterPanelLabels;
+}
+
+export function RoomRosterPanel({
+  participants,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirect,
+  openingDirectKey,
+  membersLoadFailed,
+  onClose,
+  labels,
+}: RoomRosterPanelProps) {
+  return (
+    <aside
+      className="bg-background absolute inset-0 z-30 flex min-h-0 w-full shrink-0 flex-col lg:static lg:z-auto lg:w-80 lg:border-l"
+      data-testid="room-roster-panel"
+    >
+      <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
+        <h2 className="truncate text-sm font-semibold">{labels.title}</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 rounded-full"
+          aria-label={labels.close}
+          title={labels.close}
+          onClick={onClose}
+        >
+          <X className="size-4" aria-hidden />
+        </Button>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto p-1">
+        {membersLoadFailed ? (
+          <p
+            className="text-muted-foreground px-2 py-6 text-center text-sm"
+            data-testid="room-roster-error"
+          >
+            {labels.error}
+          </p>
+        ) : participants.length === 0 ? (
+          <p className="text-muted-foreground px-2 py-6 text-center text-sm">
+            {labels.empty}
+          </p>
+        ) : (
+          participants.map((participant) => (
+            <RosterMemberRow
+              key={`${participant.kind}-${participant.id}`}
+              participant={participant}
+              canMessage={canShowOpenDirect({
+                profile: participant,
+                currentUserId,
+                canOpenHumanDirect,
+                onOpenDirect,
+              })}
+              isOpening={openingDirectKey === participantDirectKey(participant)}
+              isDirectActionBusy={openingDirectKey != null}
+              onOpenDirect={onOpenDirect}
+              labels={labels}
+            />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}

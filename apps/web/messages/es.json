@@ -5262,6 +5262,17 @@
         "creating": "Creando…",
         "adding": "Añadiendo…"
       },
+      "RoomRoster": {
+        "open": "Miembros",
+        "title": "Miembros",
+        "close": "Cerrar miembros",
+        "empty": "No hay miembros.",
+        "error": "No se pudieron cargar los miembros.",
+        "message": "Mensaje a {name}",
+        "copy": "Copiar {value}",
+        "copySuccess": "Copiado al portapapeles",
+        "copyError": "No se pudo copiar."
+      },
       "UnreadThreads": {
         "open": "Hilos",
         "title": "Hilos",
