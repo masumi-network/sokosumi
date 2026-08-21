@@ -95,6 +95,8 @@ pnpm test
 
 [`vercel.json`](./vercel.json) sets `installCommand` to `pnpm install --filter web...` so only the web app and its workspace deps (`@sokosumi/chat`, `@sokosumi/email`, `@sokosumi/masumi`, `@sokosumi/net`, `@sokosumi/utils`) are installed. `@sokosumi/database` is not a dependency and is not built on web deploys — no Neon/`DATABASE_URL*` vars are required.
 
+`buildCommand` runs [`scripts/vercel-build.mjs`](./scripts/vercel-build.mjs), which invokes `turbo run build --filter=web` (Vercel's global `turbo`; the filtered install does not include root `turbo`). Vercel Remote Cache is enabled automatically. Production (`VERCEL_ENV=production`) always uses `--force`. Preview may restore when inputs match. Unique deploy env (`VERCEL_URL`, related-project URLs) and Next Skew Protection often produce a miss; use the deployment Run Summary to confirm. Do not put `turbo` in the web `build` script (recursive turbo).
+
 ### Database setup
 
 The web app does not connect to Postgres directly. Bootstrap the database from the repo root (`pnpm prisma:migrate:dev`, `pnpm prisma:generate`) and configure `apps/core/.env` — see the root `AGENTS.md` setup section.
