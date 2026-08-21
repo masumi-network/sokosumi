@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * One-shot backfill script for historical TaskEvent comments.
  *
@@ -6,9 +7,12 @@
  * TASK_OUTPUT TaskFiles for file-like URLs. Idempotent on (taskId, sourceUrl).
  * Does not reset FAILED rows. Safe to re-run.
  *
- * Usage (preview):
- *   # Full run
- *   tsx apps/core/scripts/backfill-task-event-comments.ts
+ * Usage (local preview with custom connection_limit):
+ *   # Set DATABASE_URL with connection_limit matching concurrency (default 16):
+ *   # postgresql://user:pass@host:5432/db?connection_limit=16
+ *   #
+ *   # Full run with concurrency
+ *   tsx apps/core/scripts/backfill-task-event-comments.ts --concurrency=16
  *
  *   # Dry-run to preview
  *   tsx apps/core/scripts/backfill-task-event-comments.ts --dry-run --limit=1000
@@ -17,7 +21,8 @@
  *   tsx apps/core/scripts/backfill-task-event-comments.ts --after-id=evt_xyz --after-created-at=2025-01-15T10:30:00.000Z
  *
  * Options:
- *   --batch-size=N           Number of events to process per batch (default: 500)
+ *   --batch-size=N           Number of events to fetch per batch (default: 1000)
+ *   --concurrency=N          Number of concurrent enqueues per batch (default: 16)
  *   --limit=N                Maximum number of events to process (default: unlimited)
  *   --after-id=ID            Resume after this event ID (cursor pagination)
  *   --after-created-at=ISO   Resume after this timestamp (ISO 8601)
@@ -25,12 +30,14 @@
  */
 
 import * as Sentry from "@sentry/node";
+import pLimit from "p-limit";
 
 import prisma from "@/lib/db/prisma";
 import { sourceImportService } from "@/services/source-import.service";
 
 interface BackfillOptions {
   batchSize: number;
+  concurrency: number;
   limit?: number;
   afterId?: string;
   afterCreatedAt?: Date;
@@ -40,13 +47,16 @@ interface BackfillOptions {
 function parseArgs(): BackfillOptions {
   const args = process.argv.slice(2);
   const options: BackfillOptions = {
-    batchSize: 500,
+    batchSize: 1000,
+    concurrency: 16,
     dryRun: false,
   };
 
   for (const arg of args) {
     if (arg.startsWith("--batch-size=")) {
-      options.batchSize = Number.parseInt(arg.split("=")[1] ?? "500", 10);
+      options.batchSize = Number.parseInt(arg.split("=")[1] ?? "1000", 10);
+    } else if (arg.startsWith("--concurrency=")) {
+      options.concurrency = Number.parseInt(arg.split("=")[1] ?? "16", 10);
     } else if (arg.startsWith("--limit=")) {
       options.limit = Number.parseInt(arg.split("=")[1] ?? "0", 10);
     } else if (arg.startsWith("--after-id=")) {
@@ -61,7 +71,8 @@ function parseArgs(): BackfillOptions {
 Usage: tsx apps/core/scripts/backfill-task-event-comments.ts [options]
 
 Options:
-  --batch-size=N           Number of events to process per batch (default: 500)
+  --batch-size=N           Number of events to fetch per batch (default: 1000)
+  --concurrency=N          Number of concurrent enqueues per batch (default: 16)
   --limit=N                Maximum number of events to process (default: unlimited)
   --after-id=ID            Resume after this event ID (cursor pagination)
   --after-created-at=ISO   Resume after this timestamp (ISO 8601)
@@ -72,8 +83,8 @@ Examples:
   # Dry-run preview
   tsx apps/core/scripts/backfill-task-event-comments.ts --dry-run --limit=1000
 
-  # Full run
-  tsx apps/core/scripts/backfill-task-event-comments.ts
+  # Full run with custom concurrency (match DATABASE_URL connection_limit)
+  tsx apps/core/scripts/backfill-task-event-comments.ts --concurrency=16
 
   # Resume from checkpoint
   tsx apps/core/scripts/backfill-task-event-comments.ts --after-id=evt_xyz --after-created-at=2025-01-15T10:30:00.000Z
@@ -88,13 +99,14 @@ Examples:
 async function backfillTaskEventComments(
   options: BackfillOptions,
 ): Promise<number> {
-  const { batchSize, limit, afterId, afterCreatedAt, dryRun } = options;
+  const { batchSize, concurrency, limit, afterId, afterCreatedAt, dryRun } =
+    options;
   let processedCount = 0;
   let cursorId: string | undefined = afterId;
   let cursorCreatedAt: Date | undefined = afterCreatedAt;
 
   console.log(
-    `Starting backfill (batch=${batchSize}, limit=${limit ?? "unlimited"}, dryRun=${dryRun}, cursor=${cursorId ? `${cursorCreatedAt?.toISOString()}/${cursorId}` : "start"})`,
+    `Starting backfill (batch=${batchSize}, concurrency=${concurrency}, limit=${limit ?? "unlimited"}, dryRun=${dryRun}, cursor=${cursorId ? `${cursorCreatedAt?.toISOString()}/${cursorId}` : "start"})`,
   );
 
   while (true) {
@@ -150,43 +162,49 @@ async function backfillTaskEventComments(
 
     const batchStartTime = Date.now();
     console.log(
-      `Processing batch of ${events.length} events (cursor=${cursorId ?? "start"})`,
+      `Processing batch of ${events.length} events (concurrency=${concurrency}, cursor=${cursorId ?? "start"})`,
     );
 
-    // Process the entire batch without per-event transactions
-    for (const event of events) {
-      if (!event.comment) {
-        continue;
-      }
-
-      try {
-        if (dryRun) {
-          // In dry-run, don't log comment bodies
-          console.log(
-            `[DRY RUN] Would process TaskEvent ${event.id} (task=${event.taskId}, created=${event.createdAt.toISOString()})`,
-          );
-        } else {
-          // Pass the regular prisma client instead of wrapping in a transaction
-          await sourceImportService.enqueueTaskOutputsFromMarkdown(
-            event.taskId,
-            event.comment,
-            prisma,
-          );
+    // Process events concurrently with a concurrency limit
+    const limitFn = pLimit(concurrency);
+    const tasks = events.map((event) =>
+      limitFn(async () => {
+        if (!event.comment) {
+          return;
         }
-      } catch (error) {
-        // Log but continue - individual failures shouldn't stop the batch
-        console.error(
-          `Failed to backfill TaskEvent ${event.id} (task=${event.taskId}):`,
-          error instanceof Error ? error.message : String(error),
-        );
-        Sentry.captureException(error, {
-          extra: {
-            taskEventId: event.id,
-            taskId: event.taskId,
-          },
-        });
-      }
-    }
+
+        try {
+          if (dryRun) {
+            // In dry-run, don't log comment bodies
+            console.log(
+              `[DRY RUN] Would process TaskEvent ${event.id} (task=${event.taskId}, created=${event.createdAt.toISOString()})`,
+            );
+          } else {
+            // Pass the regular prisma client instead of wrapping in a transaction
+            await sourceImportService.enqueueTaskOutputsFromMarkdown(
+              event.taskId,
+              event.comment,
+              prisma,
+            );
+          }
+        } catch (error) {
+          // Log but continue - individual failures shouldn't stop the batch
+          console.error(
+            `Failed to backfill TaskEvent ${event.id} (task=${event.taskId}):`,
+            error instanceof Error ? error.message : String(error),
+          );
+          Sentry.captureException(error, {
+            extra: {
+              taskEventId: event.id,
+              taskId: event.taskId,
+            },
+          });
+        }
+      }),
+    );
+
+    // Wait for all tasks in the batch to complete
+    await Promise.allSettled(tasks);
 
     processedCount += events.length;
     const lastEvent = events[events.length - 1];
@@ -195,8 +213,9 @@ async function backfillTaskEventComments(
     if (lastEvent) {
       cursorId = lastEvent.id;
       cursorCreatedAt = lastEvent.createdAt;
+      const eventsPerSec = Math.round((events.length / batchDuration) * 1000);
       console.log(
-        `Processed ${processedCount} events so far (${batchDuration}ms) | Last: ${lastEvent.id} @ ${lastEvent.createdAt.toISOString()}`,
+        `Processed ${processedCount} events so far (${batchDuration}ms, ~${eventsPerSec}/s) | Last: ${lastEvent.id} @ ${lastEvent.createdAt.toISOString()}`,
       );
     }
 
