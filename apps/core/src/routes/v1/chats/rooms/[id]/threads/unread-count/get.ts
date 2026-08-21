@@ -8,10 +8,10 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomThreadsAttentionCountSchema } from "@/schemas/chat-room.schema";
+import { chatRoomThreadsUnreadCountSchema } from "@/schemas/chat-room.schema";
 
 import {
-  countChatRoomAttentionThreads,
+  countChatRoomUnreadThreads,
   requireChatRoomUserAccess,
 } from "../../../helpers";
 
@@ -28,17 +28,17 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/{id}/threads/attention-count",
+    path: "/{id}/threads/unread-count",
     description:
-      "Count attention threads in a room (dual-baseline `attentionReplyCount`, including qualifying never-looked). Cheap Threads-badge path: returns a count only, no thread items. Same eligibility as `unread=true`, thread overview, and Mark all. Independent of room mark-read.",
+      "Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
       200: jsonSuccessResponse(
-        chatRoomThreadsAttentionCountSchema,
-        "Attention thread count",
+        chatRoomThreadsUnreadCountSchema,
+        "Unread thread count",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -59,13 +59,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const count = await countChatRoomAttentionThreads(
+    const count = await countChatRoomUnreadThreads(
       room.id,
       userContext.userId,
       prisma,
     );
 
     c.header("Cache-Control", "no-store");
-    return ok(c, chatRoomThreadsAttentionCountSchema.parse({ count }));
+    return ok(c, chatRoomThreadsUnreadCountSchema.parse({ count }));
   });
 }

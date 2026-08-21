@@ -1521,7 +1521,7 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.
+     * Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.
      */
     unreadCount: number;
     /**
@@ -1776,7 +1776,7 @@ export type ChatRoomThread = {
      */
     lastReplyAt: Date;
     /**
-     * Non-deleted replies from others after a prior look. Zero when the viewer has never looked this thread.
+     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.
      */
     unreadReplyCount: number;
     /**
@@ -1787,10 +1787,6 @@ export type ChatRoomThread = {
      * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
      */
     hasLooked: boolean;
-    /**
-     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.
-     */
-    attentionReplyCount: number;
 };
 
 export type ChatRoomMessage = {
@@ -1894,9 +1890,9 @@ export type ChatRoomMessageUnfurl = {
     siteName: string | null;
 };
 
-export type ChatRoomThreadsAttentionCount = {
+export type ChatRoomThreadsUnreadCount = {
     /**
-     * Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.
+     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.
      */
     count: number;
 };
@@ -13241,7 +13237,7 @@ export type GetChatsRoomsByIdThreadsData = {
          */
         limit?: number;
         /**
-         * When `true`, only attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). `cursor` and `limit` are ignored. When omitted or `false`, attention threads first then a recency page of the rest.
+         * When `true`, only unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
@@ -13339,7 +13335,7 @@ export type GetChatsRoomsByIdThreadsResponses = {
 
 export type GetChatsRoomsByIdThreadsResponse = GetChatsRoomsByIdThreadsResponses[keyof GetChatsRoomsByIdThreadsResponses];
 
-export type GetChatsRoomsByIdThreadsAttentionCountData = {
+export type GetChatsRoomsByIdThreadsUnreadCountData = {
     body?: never;
     headers?: {
         /**
@@ -13351,10 +13347,10 @@ export type GetChatsRoomsByIdThreadsAttentionCountData = {
         id: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/threads/attention-count';
+    url: '/chats/rooms/{id}/threads/unread-count';
 };
 
-export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
+export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
     /**
      * Unauthorized
      */
@@ -13427,14 +13423,14 @@ export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
     };
 };
 
-export type GetChatsRoomsByIdThreadsAttentionCountError = GetChatsRoomsByIdThreadsAttentionCountErrors[keyof GetChatsRoomsByIdThreadsAttentionCountErrors];
+export type GetChatsRoomsByIdThreadsUnreadCountError = GetChatsRoomsByIdThreadsUnreadCountErrors[keyof GetChatsRoomsByIdThreadsUnreadCountErrors];
 
-export type GetChatsRoomsByIdThreadsAttentionCountResponses = {
+export type GetChatsRoomsByIdThreadsUnreadCountResponses = {
     /**
-     * Attention thread count
+     * Unread thread count
      */
     200: {
-        data: ChatRoomThreadsAttentionCount;
+        data: ChatRoomThreadsUnreadCount;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13443,7 +13439,7 @@ export type GetChatsRoomsByIdThreadsAttentionCountResponses = {
     };
 };
 
-export type GetChatsRoomsByIdThreadsAttentionCountResponse = GetChatsRoomsByIdThreadsAttentionCountResponses[keyof GetChatsRoomsByIdThreadsAttentionCountResponses];
+export type GetChatsRoomsByIdThreadsUnreadCountResponse = GetChatsRoomsByIdThreadsUnreadCountResponses[keyof GetChatsRoomsByIdThreadsUnreadCountResponses];
 
 export type PostChatsRoomsByIdThreadsReadData = {
     body?: never;
