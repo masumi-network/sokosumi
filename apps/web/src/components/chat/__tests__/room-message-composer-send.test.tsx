@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
 
-import { RoomMessageComposer } from "../room-message-composer";
+import {
+  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
+  RoomMessageComposer,
+} from "../room-message-composer";
 
 vi.mock("@/components/chat/emoji-picker", () => ({
   EmojiPicker: () => null,
@@ -199,7 +202,9 @@ describe("RoomMessageComposer send pointer path", () => {
       </RoomMessageComposer>,
     );
 
-    const shell = document.querySelector("[data-room-composer-mention-anchor]");
+    const shell = document.querySelector(
+      `[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`,
+    );
     expect(shell).toHaveStyle({
       scrollMarginTop: `${MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX}px`,
     });
