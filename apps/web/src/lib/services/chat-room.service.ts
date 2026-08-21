@@ -60,8 +60,11 @@ export const chatRoomService = (() => {
         ...(kind ? { kind } : {}),
         ...(cursor ? { cursor } : {}),
       });
-      rooms.push(...response.data);
       const nextCursor = response.meta?.pagination?.nextCursor ?? null;
+      if (cursor !== undefined && nextCursor === cursor) {
+        return { rooms, nextCursor: null };
+      }
+      rooms.push(...response.data);
       if (!nextCursor) {
         return { rooms, nextCursor: null };
       }

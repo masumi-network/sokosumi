@@ -122,6 +122,26 @@ describe("chatRoomService.listRooms", () => {
     });
   });
 
+  it("stops when nextCursor does not advance", async () => {
+    getChatRoomsMock.mockResolvedValue(emptyPage([room("room-1")], "room-1"));
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const page = await chatRoomService.listRooms();
+
+    expect(page.rooms.map((item) => item.id)).toEqual(["room-1"]);
+    expect(page.nextCursor).toBeNull();
+    expect(getChatRoomsMock).toHaveBeenCalledTimes(2);
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(1, {
+      limit: 100,
+      status: "active",
+    });
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(2, {
+      limit: 100,
+      status: "active",
+      cursor: "room-1",
+    });
+  });
+
   it("passes archived status when listing archived rooms", async () => {
     getChatRoomsMock.mockResolvedValue(emptyPage([room("archived-1")]));
 
