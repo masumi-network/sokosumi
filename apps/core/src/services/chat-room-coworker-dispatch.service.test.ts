@@ -99,7 +99,6 @@ import {
   dispatchChatRoomMention,
   listStaleSentChatRoomMentionIds,
   ROOM_COWORKER_CHUNK_MS,
-  ROOM_COWORKER_FIRST_CHUNK_MS,
   ROOM_COWORKER_STREAM_TIMEOUT,
   ROOM_COWORKER_TOTAL_MS,
   ROOM_SENT_STALE_MS,
@@ -175,14 +174,14 @@ beforeEach(() => {
 });
 
 describe("room coworker stream timeout budgets", () => {
-  it("uses idle chunk timeouts under a hard total, with stale above total", () => {
+  it("omits firstChunkMs so silent think is bounded only by totalMs", () => {
     expect(ROOM_COWORKER_STREAM_TIMEOUT).toEqual({
       totalMs: ROOM_COWORKER_TOTAL_MS,
-      firstChunkMs: ROOM_COWORKER_FIRST_CHUNK_MS,
       chunkMs: ROOM_COWORKER_CHUNK_MS,
     });
+    expect(ROOM_COWORKER_STREAM_TIMEOUT).not.toHaveProperty("firstChunkMs");
     expect(ROOM_COWORKER_CHUNK_MS).toBe(90_000);
-    expect(ROOM_COWORKER_FIRST_CHUNK_MS).toBe(90_000);
+    expect(ROOM_COWORKER_TOTAL_MS).toBe(240_000);
     expect(ROOM_COWORKER_TOTAL_MS).toBeGreaterThan(ROOM_COWORKER_CHUNK_MS);
     expect(ROOM_SENT_STALE_MS).toBeGreaterThan(ROOM_COWORKER_TOTAL_MS);
   });
