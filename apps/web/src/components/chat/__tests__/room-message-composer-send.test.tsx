@@ -3,6 +3,8 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
+
 import { RoomMessageComposer } from "../room-message-composer";
 
 vi.mock("@/components/chat/emoji-picker", () => ({
@@ -180,5 +182,26 @@ describe("RoomMessageComposer send pointer path", () => {
       detail: 1,
     });
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts mention-picker scroll-margin on the mention-anchor shell", () => {
+    render(
+      <RoomMessageComposer
+        onSubmit={(event) => event.preventDefault()}
+        attachments={[]}
+        onRemoveAttachment={() => undefined}
+        removeAttachmentLabel={(name) => name}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+      >
+        <div role="textbox" contentEditable tabIndex={0} />
+      </RoomMessageComposer>,
+    );
+
+    const shell = document.querySelector("[data-room-composer-mention-anchor]");
+    expect(shell).toHaveStyle({
+      scrollMarginTop: `${MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX}px`,
+    });
   });
 });

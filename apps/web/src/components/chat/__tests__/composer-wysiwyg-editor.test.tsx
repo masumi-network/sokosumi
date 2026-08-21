@@ -10,6 +10,7 @@ import {
   ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
   ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
 } from "@/components/chat/room-message-composer";
+import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
 
 const getPopupPositionFromRect = vi.hoisted(() =>
   vi.fn(() => ({
@@ -70,7 +71,26 @@ describe("ComposerWysiwygEditor", () => {
     render(<Harness />);
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveClass("markdown-compose-surface");
-    expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
+  });
+
+  it("does not put mention-picker scroll-margin on the overflowing editor host", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    // Chromium uses this margin inside overflow:auto during mouse selection.
+    // 252px on a max-h-40 editor jumps scrollTop to the start and explodes the range.
+    expect(screen.getByRole("textbox")).not.toHaveStyle({
+      scrollMarginTop: `${MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX}px`,
+    });
   });
 
   it("uses data-placeholder for classic empty:before (single-line) placeholder", () => {
