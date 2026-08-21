@@ -165,4 +165,26 @@ https://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-0000000
       expect(links).toEqual([]);
     });
   });
+
+  describe("escaped markdown destinations", () => {
+    it("does not double-count escaped paren in markdown destination as bare URL", () => {
+      const links = extractFileLikeLinks(
+        "[label](https://example.com/image\\).png)",
+      );
+      expect(links).toEqual(["https://example.com/image).png"]);
+    });
+
+    it("extracts only unescaped URL from markdown with escaped backslash", () => {
+      const markdown = [
+        "[doc](https://example.com/file.pdf)",
+        "[image with escaped paren](https://example.com/image\\).png)",
+      ].join("\n");
+
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toContain("https://example.com/file.pdf");
+      expect(links).toContain("https://example.com/image).png");
+      expect(links).not.toContain("https://example.com/image\\).png");
+      expect(links).toHaveLength(2);
+    });
+  });
 });

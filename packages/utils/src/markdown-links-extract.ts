@@ -23,6 +23,11 @@ const TRAILING_PUNCTUATION_CHARS = new Set([
   "]",
 ]);
 
+interface CharRange {
+  start: number;
+  end: number;
+}
+
 function isBareUrlStopChar(ch: string): boolean {
   return (
     ch === " " ||
@@ -48,15 +53,62 @@ function normalizeBareUrl(raw: string): string {
   return end === raw.length ? raw : raw.slice(0, end);
 }
 
+/** Check if a position falls within any of the excluded ranges. */
+function isPositionExcluded(
+  position: number,
+  excludedRanges: CharRange[],
+): boolean {
+  for (const range of excludedRanges) {
+    if (position >= range.start && position < range.end) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Collect character ranges for markdown link destinations and autolinks
+ * so bare URL scanner can skip them.
+ */
+function collectExcludedRanges(markdown: string): CharRange[] {
+  const ranges: CharRange[] = [];
+
+  // Markdown links: exclude the entire [text](url) match
+  for (const link of findMarkdownLinks(markdown)) {
+    ranges.push({
+      start: link.index,
+      end: link.index + link.match.length,
+    });
+  }
+
+  // Autolinks: exclude the entire <url> match
+  for (const match of markdown.matchAll(AUTO_LINKS)) {
+    const start = match.index!;
+    ranges.push({
+      start,
+      end: start + match[0].length,
+    });
+  }
+
+  return ranges;
+}
+
 /**
  * Linear scan for bare `http://` / `https://` URLs in text (no regex — CodeQL ReDoS).
+ * Skips ranges already covered by markdown links and autolinks.
  */
-function findBareHttpUrls(text: string): string[] {
+function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
   const results: string[] = [];
   const seen = new Set<string>();
   let i = 0;
 
   while (i < text.length) {
+    // Skip if current position is inside an excluded range
+    if (isPositionExcluded(i, excludedRanges)) {
+      i += 1;
+      continue;
+    }
+
     const httpsIndex = text.indexOf("https://", i);
     const httpIndex = text.indexOf("http://", i);
     let start = -1;
@@ -69,6 +121,12 @@ function findBareHttpUrls(text: string): string[] {
     }
     if (start === -1) {
       break;
+    }
+
+    // Skip if this URL start is inside an excluded range
+    if (isPositionExcluded(start, excludedRanges)) {
+      i = start + 1;
+      continue;
     }
 
     let end = start;
@@ -121,8 +179,9 @@ export function extractFileLikeLinks(markdown: string): string[] {
     }
   }
 
-  // Also extract bare URLs from text
-  const bareUrls = findBareHttpUrls(markdown);
+  // Also extract bare URLs from text (skip ranges already covered by markdown/autolinks)
+  const excludedRanges = collectExcludedRanges(markdown);
+  const bareUrls = findBareHttpUrls(markdown, excludedRanges);
   for (const url of bareUrls) {
     if (isFileLikeUrl(url)) {
       fileLinks.add(url);
