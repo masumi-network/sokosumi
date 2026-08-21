@@ -318,4 +318,174 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       vi.useRealTimers();
     }
   });
+
+  describe("TaskFile import (task-output files from comments)", () => {
+    it("imports PENDING TASK_OUTPUT TaskFile and marks READY", async () => {
+      const taskFileId = "tfile_123";
+      const taskId = "tsk_123";
+      const sourceUrl = "https://example.com/report.pdf";
+      const fileContent = "test file content";
+
+      const pendingTaskFile = {
+        id: taskFileId,
+        taskId,
+        sourceUrl,
+        fileUrl: null,
+        name: "report.pdf",
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      };
+
+      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      blobFindManyMock.mockResolvedValue([]);
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(fileContent, {
+          status: 200,
+          headers: { "Content-Type": "application/pdf" },
+        }),
+      );
+      global.fetch = fetchMock;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(sourceUrl, expect.anything());
+      expect(blobPutMock).toHaveBeenCalledWith(
+        `tasks/${taskId}/report.pdf`,
+        expect.any(Blob),
+        expect.objectContaining({
+          contentType: "application/pdf",
+        }),
+      );
+      expect(taskFileUpdateMock).toHaveBeenCalledWith({
+        where: { id: taskFileId },
+        data: {
+          status: "READY",
+          fileUrl: `https://blob.example/tasks/${taskId}/report.pdf`,
+          mimeType: "application/pdf",
+          size: BigInt(fileContent.length),
+        },
+      });
+    });
+
+    it("marks TaskFile FAILED when fetch fails", async () => {
+      const taskFileId = "tfile_124";
+      const taskId = "tsk_124";
+      const sourceUrl = "https://example.com/missing.pdf";
+
+      const pendingTaskFile = {
+        id: taskFileId,
+        taskId,
+        sourceUrl,
+        fileUrl: null,
+        name: "missing.pdf",
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      };
+
+      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      blobFindManyMock.mockResolvedValue([]);
+
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response(null, { status: 404 }));
+      global.fetch = fetchMock;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(sourceUrl, expect.anything());
+      expect(blobPutMock).not.toHaveBeenCalled();
+      expect(taskFileUpdateMock).toHaveBeenCalledWith({
+        where: { id: taskFileId },
+        data: {
+          status: "FAILED",
+        },
+      });
+    });
+
+    it("keeps TaskFile PENDING when deadline is reached", async () => {
+      const taskFileId = "tfile_125";
+      const taskId = "tsk_125";
+      const sourceUrl = "https://example.com/slow.pdf";
+
+      const pendingTaskFile = {
+        id: taskFileId,
+        taskId,
+        sourceUrl,
+        fileUrl: null,
+        name: "slow.pdf",
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      };
+
+      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      blobFindManyMock.mockResolvedValue([]);
+
+      const fetchMock = vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () => resolve(new Response("content", { status: 200 })),
+              5000,
+            );
+          }),
+      );
+      global.fetch = fetchMock;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions({
+          deadlineMs: Date.now() + 10,
+        }),
+      );
+
+      expect(fetchMock).toHaveBeenCalled();
+      expect(blobPutMock).not.toHaveBeenCalled();
+      expect(taskFileUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("processes blobs and TaskFiles together", async () => {
+      const pendingBlob = createPendingBlob(1);
+      const pendingTaskFile = {
+        id: "tfile_126",
+        taskId: "tsk_126",
+        sourceUrl: "https://example.com/task-file.pdf",
+        fileUrl: null,
+        name: "task-file.pdf",
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+        createdAt: new Date("2026-02-25T10:00:01.000Z"),
+      };
+
+      blobFindManyMock.mockResolvedValue([pendingBlob]);
+      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response("content", {
+          status: 200,
+          headers: { "Content-Type": "text/plain" },
+        }),
+      );
+      global.fetch = fetchMock;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(blobPutMock).toHaveBeenCalledTimes(2);
+      expect(blobUpdateMock).toHaveBeenCalled();
+      expect(taskFileUpdateMock).toHaveBeenCalled();
+    });
+  });
 });
