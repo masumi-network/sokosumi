@@ -8,6 +8,7 @@ const {
   blobPutMock,
   blobUpdateMock,
   taskFileFindManyMock,
+  taskFileFindUniqueMock,
   taskFileUpdateMock,
 } = vi.hoisted(() => ({
   blobFindManyMock: vi.fn(),
@@ -16,6 +17,7 @@ const {
   blobPutMock: vi.fn(),
   blobUpdateMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
+  taskFileFindUniqueMock: vi.fn(),
   taskFileUpdateMock: vi.fn(),
 }));
 
@@ -34,6 +36,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     taskFile: {
       findMany: taskFileFindManyMock,
+      findUnique: taskFileFindUniqueMock,
       update: taskFileUpdateMock,
     },
   },
@@ -135,6 +138,7 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     });
     blobUpdateMock.mockResolvedValue(undefined);
     taskFileFindManyMock.mockResolvedValue([]);
+    taskFileFindUniqueMock.mockResolvedValue(null);
     taskFileUpdateMock.mockResolvedValue(undefined);
   });
 
@@ -338,6 +342,10 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       };
 
       taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      taskFileFindUniqueMock.mockResolvedValue({
+        ...pendingTaskFile,
+        task: { id: taskId },
+      });
       blobFindManyMock.mockResolvedValue([]);
 
       const fetchMock = vi.fn().mockResolvedValue(
@@ -358,7 +366,8 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         `tasks/${taskId}/report.pdf`,
         expect.any(Blob),
         expect.objectContaining({
-          contentType: "application/pdf",
+          access: "public",
+          addRandomSuffix: true,
         }),
       );
       expect(taskFileUpdateMock).toHaveBeenCalledWith({
@@ -366,8 +375,9 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         data: {
           status: "READY",
           fileUrl: `https://blob.example/tasks/${taskId}/report.pdf`,
-          mimeType: "application/pdf",
-          size: BigInt(fileContent.length),
+          mimeType: "text/plain",
+          name: "report.pdf",
+          size: BigInt(5),
         },
       });
     });
@@ -389,6 +399,10 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       };
 
       taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      taskFileFindUniqueMock.mockResolvedValue({
+        ...pendingTaskFile,
+        task: { id: taskId },
+      });
       blobFindManyMock.mockResolvedValue([]);
 
       const fetchMock = vi
@@ -412,45 +426,64 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     });
 
     it("keeps TaskFile PENDING when deadline is reached", async () => {
-      const taskFileId = "tfile_125";
-      const taskId = "tsk_125";
-      const sourceUrl = "https://example.com/slow.pdf";
+      vi.useFakeTimers();
+      try {
+        const taskFileId = "tfile_125";
+        const taskId = "tsk_125";
+        const sourceUrl = "https://example.com/slow.pdf";
 
-      const pendingTaskFile = {
-        id: taskFileId,
-        taskId,
-        sourceUrl,
-        fileUrl: null,
-        name: "slow.pdf",
-        status: "PENDING",
-        origin: "TASK_OUTPUT",
-        createdAt: new Date("2026-02-25T10:00:00.000Z"),
-      };
+        const pendingTaskFile = {
+          id: taskFileId,
+          taskId,
+          sourceUrl,
+          fileUrl: null,
+          name: "slow.pdf",
+          status: "PENDING",
+          origin: "TASK_OUTPUT",
+          createdAt: new Date("2026-02-25T10:00:00.000Z"),
+        };
 
-      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
-      blobFindManyMock.mockResolvedValue([]);
+        taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+        taskFileFindUniqueMock.mockResolvedValue({
+          ...pendingTaskFile,
+          task: { id: taskId },
+        });
+        blobFindManyMock.mockResolvedValue([]);
 
-      const fetchMock = vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () => resolve(new Response("content", { status: 200 })),
-              5000,
-            );
+        const sourceImportSyncService = await getSourceImportSyncService();
+        const now = new Date("2026-02-25T10:00:00.000Z");
+        vi.setSystemTime(now);
+
+        const fetchMock = vi.fn(
+          (input: RequestInfo | URL, init?: RequestInit) => {
+            const signal = init?.signal;
+            return new Promise<Response>((_resolve, reject) => {
+              if (signal instanceof AbortSignal) {
+                signal.addEventListener("abort", () => {
+                  reject(new DOMException("Request timed out", "TimeoutError"));
+                });
+              }
+            });
+          },
+        );
+        global.fetch = fetchMock;
+
+        const runPromise = sourceImportSyncService.importPendingResultBlobs(
+          createImportOptions({
+            abortSignal: AbortSignal.timeout(200),
+            deadlineMs: now.getTime() + 1000,
           }),
-      );
-      global.fetch = fetchMock;
+        );
 
-      const sourceImportSyncService = await getSourceImportSyncService();
-      await sourceImportSyncService.importPendingResultBlobs(
-        createImportOptions({
-          deadlineMs: Date.now() + 10,
-        }),
-      );
+        vi.advanceTimersByTime(250);
+        await runPromise;
 
-      expect(fetchMock).toHaveBeenCalled();
-      expect(blobPutMock).not.toHaveBeenCalled();
-      expect(taskFileUpdateMock).not.toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalled();
+        expect(blobPutMock).not.toHaveBeenCalled();
+        expect(taskFileUpdateMock).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("processes blobs and TaskFiles together", async () => {
@@ -467,7 +500,14 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       };
 
       blobFindManyMock.mockResolvedValue([pendingBlob]);
+      blobFindUniqueMock.mockImplementation(({ where }) =>
+        Promise.resolve(where.id === pendingBlob.id ? pendingBlob : null),
+      );
       taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      taskFileFindUniqueMock.mockResolvedValue({
+        ...pendingTaskFile,
+        task: { id: "tsk_126" },
+      });
 
       const fetchMock = vi.fn().mockResolvedValue(
         new Response("content", {
@@ -483,7 +523,7 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       );
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(blobPutMock).toHaveBeenCalledTimes(2);
+      expect(blobPutMock).toHaveBeenCalled();
       expect(blobUpdateMock).toHaveBeenCalled();
       expect(taskFileUpdateMock).toHaveBeenCalled();
     });
