@@ -84,13 +84,37 @@ _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup p
 
 ### Chat rooms
 
+**Channel**:
+A named, organization-owned chat room people join by membership, not by participant set. Distinct from a Direct.
+_Avoid_: Room (all chats are rooms), conversation
+
+**External channel**:
+A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
+_Avoid_: Public channel (host-org only), guest channel, shared channel
+
+**Guest**:
+A platform user on one External channel’s room roster who is not a Member of the host Organization. Scope is that channel, not the organization. They keep their own workspace; they do not switch into the host organization.
+_Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
+
 **Direct**:
-A chat room whose identity is its participant set, not a named channel. Human 1:1, multi-human group, or coworker 1:1. Scoped to an Organization, except coworker 1:1s which may also be personal (no Organization).
-_Avoid_: Conversation (retired), Channel (when meaning this), Slack DM (as the domain object)
+A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1.
+_Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Coworker 1:1**:
 A Direct with exactly one human member and exactly one coworker.
 _Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape
+
+**Org Direct**:
+A Direct owned by an Organization. Human 1:1 is an Org Direct only when both people are Members of that Organization. Organization exit removes the leaving member from them.
+_Avoid_: Team DM, workspace DM
+
+**Personal Direct**:
+A Direct not owned by an Organization. Survives Organization exit. Human 1:1 from a shared External channel is a Personal Direct; coworker 1:1 may also be personal.
+_Avoid_: Account DM, global DM
+
+**External** (sidebar):
+The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Guest rooms appear in every workspace. Human Directs list under Direct Messages, including Personal Directs with a Guest.
+_Avoid_: External channel (that is the room), guest sidebar
 
 ### Chat membership
 

@@ -113,6 +113,7 @@ import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
+  canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
@@ -778,9 +779,12 @@ export function RoomsClient({
 
   const isDirectRoom = selectedRoom?.kind === "direct";
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
-  // Guest rooms: no DM affordances from the host roster (channel-only guest).
-  const canOpenHumanDirect =
-    Boolean(activeOrganization) && !isGuestInSelectedRoom;
+  const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
+    kind: selectedRoom?.kind,
+    discoverability: selectedRoom?.discoverability,
+    myAccess: selectedRoom?.myAccess,
+    hasActiveOrganization: Boolean(activeOrganization),
+  });
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;

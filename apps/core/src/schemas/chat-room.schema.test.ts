@@ -73,6 +73,11 @@ describe("chatRoomSchema", () => {
     expect(parsed.organizationName).toBeNull();
   });
 
+  it("defaults peerInActiveOrganization to false", () => {
+    const parsed = chatRoomSchema.parse(baseRoom);
+    expect(parsed.peerInActiveOrganization).toBe(false);
+  });
+
   it("fails without myAccess", () => {
     const { myAccess: _myAccess, ...without } = baseRoom;
     expect(() => chatRoomSchema.parse(without)).toThrow();
