@@ -15,20 +15,26 @@ jobs:
   test:
     name: Test ${{ matrix.target.name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
         target:
-          - { name: Web, command: "pnpm web:test:ci" }
-          - { name: Core, command: "pnpm core:test:ci" }
-          - { name: Packages, command: 'pnpm --filter "./packages/*" test:ci' }
+          - { name: Web, command: "pnpm exec turbo run test:ci --filter=web" }
+          - { name: Core, command: "pnpm exec turbo run test:ci --filter=@sokosumi/core" }
+          - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"' }
           - { name: Local env, command: "pnpm local-env:test" }
+          - { name: CI config, command: "pnpm ci:test" }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
 
       - name: Run Tests
         run: ${{ matrix.target.command }}
