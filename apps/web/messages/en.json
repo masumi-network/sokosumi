@@ -1686,6 +1686,10 @@
           "placeholder": "This task needs credits to continue. Open billing to proceed.",
           "statusUnavailable": "This task is out of credits."
         },
+        "TaskFileStatusBadge": {
+          "pending": "Pending",
+          "failed": "Failed"
+        },
         "actions": {
           "edit": "Edit",
           "archive": "Archive",

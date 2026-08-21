@@ -1685,6 +1685,10 @@
           "placeholder": "Dieser Task benötigt Credits. Geh zu Billing, um fortzufahren.",
           "statusUnavailable": "Dieser Task hat keine Credits mehr."
         },
+        "TaskFileStatusBadge": {
+          "pending": "Ausstehend",
+          "failed": "Fehlgeschlagen"
+        },
         "actions": {
           "edit": "Bearbeiten",
           "archive": "Archivieren",

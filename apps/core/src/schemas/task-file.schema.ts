@@ -28,6 +28,14 @@ export const taskFileUploaderSchema = z
   ])
   .openapi("TaskFileUploader");
 
+export const taskFileStatusSchema = z
+  .enum(["PENDING", "READY", "FAILED"])
+  .openapi("TaskFileStatus");
+
+export const taskFileOriginSchema = z
+  .enum(["USER_UPLOAD", "TASK_OUTPUT"])
+  .openapi("TaskFileOrigin");
+
 export const taskFileSchema = z
   .object({
     id: z.string().openapi({ example: "tfile_123" }),
@@ -62,6 +70,16 @@ export const taskFileSchema = z
       .nonnegative()
       .nullable()
       .openapi({ example: 2048000 }),
+    status: taskFileStatusSchema.openapi({
+      description: "Sync status of the file",
+    }),
+    origin: taskFileOriginSchema.openapi({
+      description: "Origin of the file",
+    }),
+    sourceUrl: z.string().url().nullable().openapi({
+      example: "https://example.com/source.pdf",
+      description: "Original source URL for output files",
+    }),
     uploader: taskFileUploaderSchema.nullable().openapi({
       description:
         "Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).",
