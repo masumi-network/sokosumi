@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { NotificationKind, Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -30,7 +30,6 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
-import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
@@ -38,18 +37,17 @@ import { created, unprocessableWithData } from "@/helpers/response";
 import {
   type CascadedCancelChild,
   cascadeCancelNonTerminalScheduleRuns,
-  getTaskStatusUpdateDataForEvent,
   mapTaskEvent,
   taskEventApiInclude,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
 import {
-  createTaskEventTransaction,
-  isInsufficientBalanceError,
-} from "@/helpers/task-credits";
+  applyGuardedTaskStatusUpdate,
+  chargeTaskCreditsOrMarkOutOfCredits,
+} from "@/helpers/task-event-charge";
+import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import { publishTaskEventData } from "@/lib/ably/publish";
-import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -154,54 +152,6 @@ function getCoworkerActorData(authContext: AuthenticationContext) {
     coworkerId: authContext.coworkerId,
     orchestratorId: null,
   };
-}
-
-/** Statuses that may be paused to OUT_OF_CREDITS on insufficient balance. */
-const OUT_OF_CREDITS_PAUSE_STATUSES = new Set<TaskStatus>([
-  TaskStatus.DRAFT,
-  TaskStatus.QUEUED,
-  TaskStatus.READY,
-  TaskStatus.GRANT_PENDING,
-  TaskStatus.INPUT_REQUIRED,
-  TaskStatus.APPROVAL_REQUIRED,
-  TaskStatus.AUTHENTICATION_REQUIRED,
-  TaskStatus.CREDITS_TOPPED_UP,
-  TaskStatus.RUNNING,
-  TaskStatus.AWAITING_EXTERNAL,
-]);
-
-async function chargeTaskCreditsOrMarkOutOfCredits(params: {
-  userId: string;
-  organizationId: string | null;
-  cents: bigint;
-  currentStatus: TaskStatus;
-  tx: Prisma.TransactionClient;
-}): Promise<{
-  transactionId: string | null;
-  /** When set, the billed status was rejected for balance and replaced. */
-  eventStatus: TaskStatus | null;
-}> {
-  try {
-    const transactionId = await createTaskEventTransaction({
-      userId: params.userId,
-      organizationId: params.organizationId,
-      cents: params.cents,
-      tx: params.tx,
-    });
-    return { transactionId, eventStatus: null };
-  } catch (error) {
-    // Terminal tasks (COMPLETED/FAILED/CANCELED) and already-OUT_OF_CREDITS keep
-    // their status — rethrow as 422. Only mid-run tasks pause to OUT_OF_CREDITS.
-    if (
-      !isInsufficientBalanceError(error) ||
-      !OUT_OF_CREDITS_PAUSE_STATUSES.has(params.currentStatus)
-    ) {
-      throw error;
-    }
-    // Route persists OUT_OF_CREDITS then returns 422 with that event in `data`
-    // (not 201 — the requested billed status did not land).
-    return { transactionId: null, eventStatus: TaskStatus.OUT_OF_CREDITS };
-  }
 }
 
 interface SettleTaskEventChargeParams {
@@ -356,93 +306,6 @@ async function mapCreatedTaskEventForResponse(
     throw new Error(`Task event not found after create: ${eventId}`);
   }
   return mapTaskEvent(row);
-}
-
-async function dispatchTaskNotification(
-  task: {
-    id: string;
-    ownerId: string;
-    name: string | null;
-    assignee: { name: string } | null;
-    project: { name: string } | null;
-    projectId: string | null;
-    workspaceId: string | null;
-    owner: { notificationsOptIn: boolean };
-  },
-  eventId: string,
-  status: string,
-): Promise<void> {
-  if (!task.owner.notificationsOptIn) {
-    return;
-  }
-
-  try {
-    let messageKey: string;
-    switch (status) {
-      case "INPUT_REQUIRED":
-        messageKey = "Notifications.Task.inputRequired";
-        break;
-      case "APPROVAL_REQUIRED":
-        messageKey = "Notifications.Task.approvalRequired";
-        break;
-      case "AUTHENTICATION_REQUIRED":
-        messageKey = "Notifications.Task.authenticationRequired";
-        break;
-      case "OUT_OF_CREDITS":
-        messageKey = "Notifications.Task.outOfCredits";
-        break;
-      case "COMPLETED":
-        messageKey = "Notifications.Task.completed";
-        break;
-      case "FAILED":
-        messageKey = "Notifications.Task.failed";
-        break;
-      case "CANCELED":
-        messageKey = "Notifications.Task.canceled";
-        break;
-      default:
-        return;
-    }
-
-    const taskName = task.name ?? "Untitled task";
-    const coworkerName = task.assignee?.name ?? "Assistant";
-    const projectName = task.project?.name;
-
-    const messageParams: Record<string, unknown> = {
-      coworkerName,
-      taskName,
-    };
-
-    if (projectName) {
-      messageParams.projectName = projectName;
-    }
-
-    const metadata: Record<string, unknown> = {};
-    if (task.projectId) {
-      metadata.projectId = task.projectId;
-    }
-    if (task.workspaceId) {
-      metadata.workspaceId = task.workspaceId;
-    }
-
-    await createNotification({
-      userId: task.ownerId,
-      kind: NotificationKind.TASK,
-      referenceId: task.id,
-      eventId,
-      messageKey,
-      messageParams,
-      metadata: Object.keys(metadata).length > 0 ? metadata : null,
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        taskId: task.id,
-        userId: task.ownerId,
-        notificationType: "task-notification",
-      },
-    });
-  }
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -658,13 +521,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
       // credit-only bodies that had no status).
       if (eventStatus != null) {
-        const updateResult = await tx.task.updateMany({
-          where: { id: taskId, status: task.status },
-          data: getTaskStatusUpdateDataForEvent(eventStatus),
+        await applyGuardedTaskStatusUpdate({
+          tx,
+          taskId,
+          expectedStatus: task.status,
+          eventStatus,
         });
-        if (updateResult.count !== 1) {
-          throw conflict("Task status was changed by another request");
-        }
 
         if (eventStatus === TaskStatus.CANCELED) {
           cascadedChildren = await cascadeCancelNonTerminalScheduleRuns({
@@ -729,56 +591,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (event.status) {
-      const taskEventId = event.id;
-      const taskEventStatus = event.status;
-
-      waitUntil(
-        (async () => {
-          try {
-            const taskWithRelations = await prisma.task.findUnique({
-              where: { id: taskId },
-              select: {
-                id: true,
-                ownerId: true,
-                name: true,
-                projectId: true,
-                workspaceId: true,
-                assignee: {
-                  select: {
-                    name: true,
-                  },
-                },
-                project: {
-                  select: {
-                    name: true,
-                  },
-                },
-                owner: {
-                  select: {
-                    notificationsOptIn: true,
-                  },
-                },
-              },
-            });
-
-            if (taskWithRelations) {
-              await dispatchTaskNotification(
-                taskWithRelations,
-                taskEventId,
-                taskEventStatus,
-              );
-            }
-          } catch (error) {
-            Sentry.captureException(error, {
-              extra: {
-                taskId,
-                eventId: taskEventId,
-                notificationType: "task-notification",
-              },
-            });
-          }
-        })(),
-      );
+      waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
     }
 
     // Unreachable by construction (a charged payment always writes its claim

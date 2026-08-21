@@ -180,4 +180,24 @@ describe("POST /tasks/{id}/jobs", () => {
       "tsk_123",
     );
   });
+
+  it("rejects a non-finite maxCredits before creating a job", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+    });
+    const raw = requestBody.replace('"maxCredits":5', '"maxCredits":1e400');
+
+    const response = await app.request("http://localhost/tsk_123/jobs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: raw,
+    });
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+  });
 });

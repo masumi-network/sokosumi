@@ -684,6 +684,10 @@ pin the sequencing, the abort signal, and the no-reset decision.
 
 ### Listing endpoint — `GET /v1/agents/x402`
 
+> **Superseded.** That dedicated route was dropped. Listing is public
+> `GET /v1/agents?kind=x402` on the unified catalog. The notes below are
+> the original sketch.
+
 - **Route:** `apps/core/src/routes/v1/agents/x402/get.ts`, mounted on the
   authed agents sub-router **before** `mountGetAgentById` so the static
   `/x402` segment can never be captured by `/{id}`.

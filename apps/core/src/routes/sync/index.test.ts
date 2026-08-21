@@ -15,6 +15,7 @@ const {
   syncStripeCustomersMock,
   syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
+  purgeExpiredTaskX402PaymentHeadersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   syncStripeCustomersMock: vi.fn(),
   syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
+  purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -99,6 +101,12 @@ vi.mock("@/services/stripe-customer-sync.service", () => ({
 vi.mock("@/services/chat-room-guest-invitation-sync.service", () => ({
   chatRoomGuestInvitationSyncService: {
     expireStaleGuestInvitations: expireStaleGuestInvitationsMock,
+  },
+}));
+
+vi.mock("@/services/task-x402-payment.purge", () => ({
+  taskX402PaymentPurgeService: {
+    purgeExpiredTaskX402PaymentHeaders: purgeExpiredTaskX402PaymentHeadersMock,
   },
 }));
 
@@ -765,6 +773,53 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 401 for missing cron auth on x402 header purge sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/task-x402-payment-headers-purge",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(purgeExpiredTaskX402PaymentHeadersMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the x402 header purge lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/task-x402-payment-headers-purge",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(409);
+    expect(purgeExpiredTaskX402PaymentHeadersMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and starts the x402 header purge exactly once in background", async () => {
+    purgeExpiredTaskX402PaymentHeadersMock.mockResolvedValue({ purged: 2 });
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/task-x402-payment-headers-purge",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "task-x402-payment-headers-purge-sync",
+    );
+
+    await flushMicrotasks();
+    expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
+    expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+    );
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("releases guest invitation expiry lock after completion", async () => {

@@ -16,6 +16,7 @@ import {
 } from "@sokosumi/database/types/job";
 import { APIError } from "better-auth/api";
 
+import { SWEEPABLE_X402_STATUSES } from "@/helpers/user-deletion-tasks";
 import { isLastWorkspace } from "@/helpers/workspace-access";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
@@ -29,6 +30,9 @@ export const USER_DELETION_BLOCKER_CODES = [
   "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
   "TASK_PAYMENT_CLAIM_PENDING",
   "TASK_X402_PAYMENT_PENDING",
+  "TASK_X402_PAYMENT_UNRESOLVED",
+  "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
+  "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH",
 ] as const;
 
 export type UserDeletionBlocker = (typeof USER_DELETION_BLOCKER_CODES)[number];
@@ -49,6 +53,13 @@ export type OrganizationDeletionBlocker =
 export interface UserDeletionEvaluation {
   blockers: UserDeletionBlocker[];
   reviewRequiredClaim: { id: string; reviewRequiredAt: Date } | null;
+  pendingX402Payment: { id: string } | null;
+  unresolvedX402Payment: { id: string; status: string } | null;
+  foreignChargePayment: {
+    id: string;
+    taskId: string;
+    chargedUserId: string;
+  } | null;
 }
 
 export interface OrganizationDeletionEvaluation {
@@ -73,7 +84,13 @@ const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
   TASK_PAYMENT_CLAIM_PENDING:
     "Wait for pending task payments to settle before deleting your account.",
   TASK_X402_PAYMENT_PENDING:
-    "Wait for pending task payments to settle before deleting your account.",
+    "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+  TASK_X402_PAYMENT_UNRESOLVED:
+    "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+  TASK_X402_PAYMENT_AUTHORIZATION_LIVE:
+    "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+  TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH:
+    "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again.",
 };
 
 const ORGANIZATION_DELETION_MESSAGES: Record<
@@ -233,29 +250,88 @@ export async function evaluateUserDeletion(
     blockers.push("TASK_PAYMENT_CLAIM_PENDING");
   }
 
-  // Same throw-priority as the claim guards above: evaluate reports this so
-  // GET /deletion can show it, and beforeDelete throws before the wipe. The
-  // task-owner branch matters because taskId is RESTRICT.
-  const pendingX402Payment = await prisma.taskX402Payment.findFirst({
+  const x402RestrictBranches = {
+    OR: [
+      { transaction: { userId } },
+      { refundTransaction: { userId } },
+      { task: { ownerId: userId } },
+    ],
+  };
+
+  // Unlocked preview of the same unresolved-status guard the wipe re-checks
+  // under lock. PENDING and any future enum member share this predicate so
+  // GET /deletion cannot advertise a wipe that prepareTasks will 400.
+  const unresolvedX402Payment = await prisma.taskX402Payment.findFirst({
     where: {
-      status: TaskX402PaymentStatus.PENDING,
-      // refundTransaction should be impossible on a PENDING row (the refund
-      // is written when status flips), but nothing DB-level forbids it and
-      // the FK is RESTRICT — without this branch such a row would fail the
-      // user cascade with a raw FK 500 instead of this clean 400.
-      OR: [
-        { transaction: { userId } },
-        { refundTransaction: { userId } },
-        { task: { ownerId: userId } },
+      status: { notIn: [...SWEEPABLE_X402_STATUSES] },
+      ...x402RestrictBranches,
+    },
+    select: { id: true, status: true },
+  });
+  const pendingX402Payment =
+    unresolvedX402Payment?.status === TaskX402PaymentStatus.PENDING
+      ? { id: unresolvedX402Payment.id }
+      : null;
+  const unresolvedX402 =
+    unresolvedX402Payment &&
+    unresolvedX402Payment.status !== TaskX402PaymentStatus.PENDING
+      ? {
+          id: unresolvedX402Payment.id,
+          status: unresolvedX402Payment.status,
+        }
+      : null;
+  if (pendingX402Payment) {
+    blockers.push("TASK_X402_PAYMENT_PENDING");
+  } else if (unresolvedX402) {
+    blockers.push("TASK_X402_PAYMENT_UNRESOLVED");
+  }
+
+  const liveAuthorizationX402Payment = await prisma.taskX402Payment.findFirst({
+    where: {
+      xPaymentHeader: { not: null },
+      AND: [
+        {
+          OR: [{ validBefore: null }, { validBefore: { gt: new Date() } }],
+        },
+        x402RestrictBranches,
       ],
     },
     select: { id: true },
   });
-  if (pendingX402Payment) {
-    blockers.push("TASK_X402_PAYMENT_PENDING");
+  if (liveAuthorizationX402Payment) {
+    blockers.push("TASK_X402_PAYMENT_AUTHORIZATION_LIVE");
   }
 
-  return { blockers, reviewRequiredClaim: reviewRequired };
+  const foreignChargeRow = await prisma.taskX402Payment.findFirst({
+    where: {
+      status: { in: [...SWEEPABLE_X402_STATUSES] },
+      transaction: { userId: { not: userId } },
+      OR: [{ refundTransaction: { userId } }, { task: { ownerId: userId } }],
+    },
+    select: {
+      id: true,
+      taskId: true,
+      transaction: { select: { userId: true } },
+    },
+  });
+  const foreignChargePayment = foreignChargeRow
+    ? {
+        id: foreignChargeRow.id,
+        taskId: foreignChargeRow.taskId,
+        chargedUserId: foreignChargeRow.transaction.userId,
+      }
+    : null;
+  if (foreignChargePayment) {
+    blockers.push("TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH");
+  }
+
+  return {
+    blockers,
+    reviewRequiredClaim: reviewRequired,
+    pendingX402Payment,
+    unresolvedX402Payment: unresolvedX402,
+    foreignChargePayment,
+  };
 }
 
 /**
@@ -352,6 +428,50 @@ export function throwIfUserDeletionBlocked(
           taskPaymentClaimId: evaluation.reviewRequiredClaim?.id,
           reviewRequiredAt:
             evaluation.reviewRequiredClaim?.reviewRequiredAt.toISOString(),
+        },
+      },
+    );
+  } else if (code === "TASK_X402_PAYMENT_PENDING") {
+    Sentry.captureMessage(
+      "Account deletion blocked by a pending x402 task payment",
+      {
+        level: "error",
+        tags: { error_type: "user_deletion_blocked_by_x402_pending" },
+        extra: {
+          userId,
+          taskX402PaymentId: evaluation.pendingX402Payment?.id,
+          resolveEndpoint: evaluation.pendingX402Payment
+            ? `POST /v1/admin/task-x402-payments/${evaluation.pendingX402Payment.id}/resolve`
+            : undefined,
+        },
+      },
+    );
+  } else if (code === "TASK_X402_PAYMENT_UNRESOLVED") {
+    Sentry.captureMessage(
+      "Account deletion blocked by an x402 task payment in an unhandled status",
+      {
+        level: "error",
+        tags: { error_type: "user_deletion_blocked_by_x402_unhandled" },
+        extra: {
+          userId,
+          taskX402PaymentId: evaluation.unresolvedX402Payment?.id,
+          status: evaluation.unresolvedX402Payment?.status,
+        },
+      },
+    );
+  } else if (code === "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH") {
+    Sentry.captureMessage(
+      "Account deletion would remove a task x402 payment charged to another user",
+      {
+        level: "error",
+        tags: { error_type: "user_deletion_x402_payment_foreign_charge" },
+        extra: {
+          userId,
+          taskX402PaymentId: evaluation.foreignChargePayment?.id,
+          taskId: evaluation.foreignChargePayment?.taskId,
+          chargedUserId: evaluation.foreignChargePayment?.chargedUserId,
+          repair:
+            "No admin endpoint clears this. Repair the ownership mismatch manually (align Task.ownerId with the charge Transaction's userId, or reassign the charge), then have the user retry deletion.",
         },
       },
     );

@@ -168,6 +168,17 @@ export const internalServerError = (
 };
 
 /**
+ * 502 Bad Gateway
+ * An upstream dependency (e.g. the payment node) failed or answered unusably
+ */
+export const badGateway = (
+  message: string = "Bad Gateway",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(502, message, metadata);
+};
+
+/**
  * 503 Service Unavailable
  * The server is not ready to handle the request
  */
@@ -230,6 +241,7 @@ export function getErrorName(status: ContentfulStatusCode): string {
     422: "UnprocessableEntity",
     429: "TooManyRequests",
     500: "InternalServerError",
+    502: "BadGateway",
     503: "ServiceUnavailable",
   };
   return errorNames[status] || "Error";
