@@ -39,7 +39,7 @@ const querySchema = cursorPaginationQuerySchema.extend({
     .openapi({
       param: { name: "unread", in: "query" },
       description:
-        "When `true`, only attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). `cursor` and `limit` are ignored. When omitted or `false`, attention threads first then a recency page of the rest.",
+        "When `true`, only unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.",
       example: "true",
     }),
 });
@@ -49,7 +49,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/{id}/threads",
     description:
-      "List threads in a room. `unread=true` returns every attention thread (dual-baseline `attentionReplyCount`, including qualifying never-looked) and ignores `cursor`/`limit`. Otherwise returns attention threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.",
+      "List threads in a room. `unread=true` returns every unread thread (Participant-gated `unreadReplyCount`) and ignores `cursor`/`limit`. Otherwise returns unread threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,

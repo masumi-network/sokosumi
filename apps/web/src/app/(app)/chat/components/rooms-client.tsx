@@ -75,7 +75,6 @@ import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
-import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
@@ -314,7 +313,6 @@ interface RoomHeaderChromeProps {
   isDirectRoom: boolean;
   topLevelRoomMessages: ChatRoomMessage[];
   onOpenThread: (message: ChatRoomMessage) => boolean | Promise<boolean>;
-  attentionRefreshToken: number;
   threadListOpen: boolean;
   onToggleThreadList: () => void;
   rosterOpen: boolean;
@@ -337,7 +335,6 @@ function RoomHeaderChrome({
   isDirectRoom,
   topLevelRoomMessages,
   onOpenThread,
-  attentionRefreshToken,
   threadListOpen,
   onToggleThreadList,
   rosterOpen,
@@ -392,8 +389,6 @@ function RoomHeaderChrome({
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
         <UnreadThreadsPanel
           key={`unread-threads-${room.id}`}
-          roomId={room.id}
-          attentionRefreshToken={attentionRefreshToken}
           isOpen={threadListOpen}
           onToggle={onToggleThreadList}
           labels={{
@@ -617,18 +612,10 @@ export function RoomsClient({
   // handlers must not merge into messagesState after the selection moved.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
-  const currentUserIdRef = useRef(currentUserId);
-  currentUserIdRef.current = currentUserId;
   const syncRoomAttentionAfterThreadLookRef = useRef<
     (roomId: string) => Promise<void>
   >(async () => {});
-  const [attentionRefreshToken, setAttentionRefreshToken] = useState(0);
-  const [syncedAttentionRoomId, setSyncedAttentionRoomId] =
-    useState(selectedRoomId);
-  if (selectedRoomId !== syncedAttentionRoomId) {
-    setSyncedAttentionRoomId(selectedRoomId);
-    setAttentionRefreshToken(0);
-  }
+
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
   const [_isReacting, startReactionTransition] = useTransition();
@@ -980,12 +967,6 @@ export function RoomsClient({
         current?.id === message.id ? message : current,
       );
 
-      if (
-        shouldSignalUnreadThreadsAttention(message, currentUserIdRef.current)
-      ) {
-        setAttentionRefreshToken((token) => token + 1);
-      }
-
       if (route.mergeIntoOpenThread) {
         applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
           mergeRoomMessages(current, [message]),
@@ -1002,7 +983,6 @@ export function RoomsClient({
               if (!result.ok) {
                 return;
               }
-              setAttentionRefreshToken((token) => token + 1);
               await syncRoomAttentionAfterThreadLookRef.current(roomId);
             },
           );
@@ -1453,7 +1433,6 @@ export function RoomsClient({
           mergeRoomMessages(current, threadResult.value.messages),
         );
       }
-      setAttentionRefreshToken((token) => token + 1);
     };
 
     const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
@@ -1690,7 +1669,6 @@ export function RoomsClient({
       // already excludes this thread when the sidebar event lands.
       const markResult = await markThreadReadAction(roomId, parentMessage.id);
       if (markResult.ok) {
-        setAttentionRefreshToken((token) => token + 1);
         await syncRoomAttentionAfterThreadLook(roomId);
       }
       if (generation !== threadLoadGenerationRef.current) {
@@ -2262,7 +2240,6 @@ export function RoomsClient({
         isDirectRoom={isDirectRoom}
         topLevelRoomMessages={topLevelRoomMessages}
         onOpenThread={handleOpenThreadFromMessage}
-        attentionRefreshToken={attentionRefreshToken}
         threadListOpen={threadListOpen}
         onToggleThreadList={() => {
           setRosterOpen(false);
@@ -2571,7 +2548,6 @@ export function RoomsClient({
                   setThreadListOpen(false);
                 }}
                 onAllThreadsLooked={() => {
-                  setAttentionRefreshToken((token) => token + 1);
                   void syncRoomAttentionAfterThreadLook(selectedRoom.id);
                 }}
                 labels={{

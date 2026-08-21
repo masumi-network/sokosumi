@@ -29,9 +29,9 @@ import mountRoomStream from "./[id]/stream/index.js";
 import mountGetChatRoomThread from "./[id]/threads/[parentMessageId]/get.js";
 import mountGetChatRoomThreadMessages from "./[id]/threads/[parentMessageId]/messages/get.js";
 import mountPostChatRoomThreadRead from "./[id]/threads/[parentMessageId]/read/post.js";
-import mountGetChatRoomThreadsAttentionCount from "./[id]/threads/attention-count/get.js";
 import mountGetChatRoomThreads from "./[id]/threads/get.js";
 import mountPostChatRoomThreadsRead from "./[id]/threads/read/post.js";
+import mountGetChatRoomThreadsUnreadCount from "./[id]/threads/unread-count/get.js";
 import mountPostChatRoomUnread from "./[id]/unread/post.js";
 import mountDiscoverableChatRooms from "./discoverable/get.js";
 import mountGetChatRooms from "./get.js";
@@ -64,10 +64,10 @@ mountDeleteChatRoomSelfMembership(app);
 mountDeleteChatRoomMember(app);
 mountPostChatRoomRead(app);
 mountPostChatRoomUnread(app);
-// Static `/threads/attention-count` and `/threads/read` before
+// Static `/threads/unread-count` and `/threads/read` before
 // `/threads/{parentMessageId}`.
 mountGetChatRoomThreads(app);
-mountGetChatRoomThreadsAttentionCount(app);
+mountGetChatRoomThreadsUnreadCount(app);
 mountPostChatRoomThreadsRead(app);
 mountGetChatRoomThread(app);
 mountGetChatRoomThreadMessages(app);
