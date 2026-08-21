@@ -1780,6 +1780,28 @@ describe("POST /{id}/x402-payments", () => {
       },
     );
 
+    it("rejects a non-finite maxCredits before any transaction", async () => {
+      // JSON.parse("1e400") is Infinity; z.number().positive() accepts it.
+      // convertCreditsToCents then throws → 500. Finite at the schema is a 422.
+      const app = createApp(COWORKER_AGENT_CONTEXT);
+      const raw = JSON.stringify(validBody()).replace(
+        /}$/,
+        ',"maxCredits":1e400}',
+      );
+
+      const response = await app.request(
+        `http://localhost/${TASK_ID}/x402-payments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: raw,
+        },
+      );
+
+      expect(response.status).toBe(422);
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+    });
+
     it("prices off the node's decimals, not the agent-registered value", async () => {
       // `decimals` scales the charge INVERSELY, and the registry copy sits on
       // the agent's OWN entry. An agent registering USDC (true value 6) as 18 divides

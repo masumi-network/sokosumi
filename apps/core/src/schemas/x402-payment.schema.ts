@@ -65,7 +65,7 @@ export const createTaskX402PaymentRequestSchema = z.object({
    * its own source row. Nothing else in the flow knows which resource the
    * caller meant to buy.
    */
-  maxCredits: z.number().positive().optional().openapi({
+  maxCredits: z.number().positive().finite().optional().openapi({
     example: 2,
     description:
       "Maximum credits this payment may cost. Required for dynamically priced agents; optional but strongly recommended for fixed pricing. The runtime 402 demand is compared against it before any debit.",
