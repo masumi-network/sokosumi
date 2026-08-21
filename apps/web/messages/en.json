@@ -5042,9 +5042,7 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
       "directMessages": "Direct Messages",
-      "loadMore": "Load more",
       "loading": "Loading...",
-      "loadMoreError": "Failed to load more chats",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Channels coming soon",

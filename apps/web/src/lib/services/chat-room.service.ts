@@ -22,11 +22,11 @@ import type {
 
 const ROOM_MESSAGE_LIMIT = 100;
 const THREAD_LIST_PAGE_LIMIT = 50;
-/** Cold fill / poll / load-more page size — Core default and tasks parity. */
-const ROOM_LIST_PAGE_LIMIT = 20;
+/** Membership-visible / archived list page size — Core max, fewer walks. */
+const ROOM_LIST_PAGE_LIMIT = 100;
 /** Discoverable browse may still walk multiple pages up to Core max page size. */
 const DISCOVERABLE_CHANNEL_PAGE_LIMIT = 100;
-/** Hard stop so a bad nextCursor cannot loop forever on discoverable walks. */
+/** Hard stop so a bad nextCursor cannot loop forever on list walks. */
 const ROOM_LIST_MAX_PAGES = 50;
 
 export interface ChatRoomMessagesPage {
@@ -45,22 +45,30 @@ export interface ChatRoomThreadsPage {
 }
 
 export const chatRoomService = (() => {
+  /** Walk Core pages so the sidebar shows the full membership-visible set. */
   const listRooms = cache(async function listRooms(
     kind?: ChatRoomKind,
     status: "active" | "archived" = "active",
-    options?: { cursor?: string },
   ): Promise<ChatRoomsPage> {
-    const cursor = options?.cursor;
-    const response = await coreClient.getChatRooms({
-      limit: ROOM_LIST_PAGE_LIMIT,
-      status,
-      ...(kind ? { kind } : {}),
-      ...(cursor ? { cursor } : {}),
-    });
-    return {
-      rooms: response.data,
-      nextCursor: response.meta?.pagination?.nextCursor ?? null,
-    };
+    const rooms: ChatRoom[] = [];
+    let cursor: string | undefined;
+
+    for (let page = 0; page < ROOM_LIST_MAX_PAGES; page += 1) {
+      const response = await coreClient.getChatRooms({
+        limit: ROOM_LIST_PAGE_LIMIT,
+        status,
+        ...(kind ? { kind } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+      rooms.push(...response.data);
+      const nextCursor = response.meta?.pagination?.nextCursor ?? null;
+      if (!nextCursor) {
+        return { rooms, nextCursor: null };
+      }
+      cursor = nextCursor;
+    }
+
+    return { rooms, nextCursor: null };
   });
 
   async function listDiscoverableChannels(options?: {
@@ -93,11 +101,11 @@ export const chatRoomService = (() => {
     return rooms;
   }
 
-  const listArchivedRooms = cache(async function listArchivedRooms(options?: {
-    cursor?: string;
-  }): Promise<ChatRoomsPage> {
-    return listRooms("channel", "archived", options);
-  });
+  const listArchivedRooms = cache(
+    async function listArchivedRooms(): Promise<ChatRoomsPage> {
+      return listRooms("channel", "archived");
+    },
+  );
 
   /** Pending room invitations for the signed-in invitee (External sidebar). */
   const listPendingInvitations = cache(

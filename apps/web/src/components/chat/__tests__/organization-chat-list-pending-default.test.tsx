@@ -83,8 +83,6 @@ vi.mock("../organization-chat-list.actions", () => ({
     ok: true,
     value: { rooms: [], nextCursor: null },
   })),
-  loadMoreOrganizationArchivedChatRoomsAction: vi.fn(),
-  loadMoreOrganizationChatRoomsAction: vi.fn(),
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -158,9 +156,7 @@ function renderChatsTabList() {
   return (
     <OrganizationChatList
       rooms={emptyRooms}
-      roomsNextCursor={null}
       archivedRooms={emptyRooms}
-      archivedRoomsNextCursor={null}
       currentUserId="user-1"
       organizationId="org-1"
       canDeleteArchivedRooms={false}
