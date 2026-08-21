@@ -16,6 +16,7 @@ import {
   getChatRoomUnreadMentionCounts,
   mapChatRoom,
   requireChatRoomUserAccess,
+  resolvePeerInActiveOrganization,
 } from "../helpers";
 
 const paramsSchema = z.object({
@@ -61,18 +62,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const [unreadCounts, unreadMentionCounts, sidebarFlags, organization] =
-      await Promise.all([
-        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-        getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-        room.organizationId
-          ? prisma.organization.findUnique({
-              where: { id: room.organizationId },
-              select: { name: true },
-            })
-          : Promise.resolve(null),
-      ]);
+    const [
+      unreadCounts,
+      unreadMentionCounts,
+      sidebarFlags,
+      organization,
+      peerInActiveOrganization,
+    ] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+      getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
+      room.organizationId
+        ? prisma.organization.findUnique({
+            where: { id: room.organizationId },
+            select: { name: true },
+          })
+        : Promise.resolve(null),
+      resolvePeerInActiveOrganization(
+        room,
+        userContext.userId,
+        userContext.organizationId,
+        prisma,
+      ),
+    ]);
     const flags = sidebarFlags.get(room.id);
 
     return ok(
@@ -85,6 +97,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           mutedAt: flags?.mutedAt ?? null,
           markedUnread: flags?.markedUnread ?? false,
           organizationName: organization?.name ?? null,
+          peerInActiveOrganization,
         }),
       ),
     );

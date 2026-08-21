@@ -32,7 +32,6 @@ import {
   getPopupPositionFromRect,
   getSuggestionPopupFixedStyle,
   isWhitespaceChar,
-  MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
   type MentionSuggestionGroup,
@@ -1251,7 +1250,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
         data-placeholder={placeholder}
         role="textbox"
         aria-multiline="true"
-        style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
         className={cn(
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",

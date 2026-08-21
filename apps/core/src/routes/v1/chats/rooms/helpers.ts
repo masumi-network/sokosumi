@@ -705,6 +705,8 @@ export interface MapChatRoomAttentionOptions {
   myAccess?: "member" | "guest";
   /** Host org display name when batch-loaded (Task 5+); null for directs. */
   organizationName?: string | null;
+  /** Other humans on this Direct are Members of the caller's active org. */
+  peerInActiveOrganization?: boolean;
 }
 
 function resolveMyAccess(
@@ -738,6 +740,7 @@ export function mapChatRoom(
     markedUnread = false,
     myAccess: myAccessOverride,
     organizationName = null,
+    peerInActiveOrganization = false,
   } = attention;
 
   return {
@@ -761,6 +764,7 @@ export function mapChatRoom(
     pinnedAt,
     mutedAt,
     markedUnread,
+    peerInActiveOrganization,
     myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
     userMembers: room.userMembers.map((member) => ({
       id: member.user.id,
@@ -808,7 +812,7 @@ export interface ChatRoomSidebarFlags {
 export async function getChatRoomSidebarFlags(
   roomIds: readonly string[],
   userId: string,
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | typeof prisma,
 ): Promise<Map<string, ChatRoomSidebarFlags>> {
   const uniqueRoomIds = normalizeUniqueStrings(roomIds);
   if (uniqueRoomIds.length === 0) {
@@ -864,19 +868,107 @@ export async function getChatRoomSidebarFlags(
   return flagged;
 }
 
+export async function resolvePeerInActiveOrganization(
+  room: Pick<
+    ChatRoomWithMembers,
+    "kind" | "organizationId" | "userMembers" | "coworkerMembers"
+  >,
+  currentUserId: string,
+  activeOrganizationId: string | null,
+  tx: Prisma.TransactionClient | typeof prisma,
+): Promise<boolean> {
+  if (
+    !activeOrganizationId ||
+    room.kind !== "direct" ||
+    room.organizationId !== null ||
+    room.coworkerMembers.length > 0
+  ) {
+    return false;
+  }
+  const otherUserIds = room.userMembers
+    .map((member) => member.user.id)
+    .filter((userId) => userId !== currentUserId);
+  if (otherUserIds.length === 0) {
+    return false;
+  }
+  const members = await tx.member.findMany({
+    where: {
+      organizationId: activeOrganizationId,
+      userId: { in: otherUserIds },
+    },
+    select: { userId: true },
+  });
+  return members.length === otherUserIds.length;
+}
+
+export async function getPeerInActiveOrganizationFlags(
+  rooms: ChatRoomWithMembers[],
+  currentUserId: string,
+  activeOrganizationId: string | null,
+  tx: Prisma.TransactionClient | typeof prisma,
+): Promise<Map<string, boolean>> {
+  const flags = new Map<string, boolean>();
+  if (!activeOrganizationId) {
+    return flags;
+  }
+  const personalHumanDirects = rooms.filter(
+    (room) =>
+      room.kind === "direct" &&
+      room.organizationId === null &&
+      room.coworkerMembers.length === 0,
+  );
+  const otherUserIds = [
+    ...new Set(
+      personalHumanDirects.flatMap((room) =>
+        room.userMembers
+          .map((member) => member.user.id)
+          .filter((userId) => userId !== currentUserId),
+      ),
+    ),
+  ];
+  if (otherUserIds.length === 0) {
+    return flags;
+  }
+  const members = await tx.member.findMany({
+    where: {
+      organizationId: activeOrganizationId,
+      userId: { in: otherUserIds },
+    },
+    select: { userId: true },
+  });
+  const memberIds = new Set(members.map((member) => member.userId));
+  for (const room of personalHumanDirects) {
+    const others = room.userMembers
+      .map((member) => member.user.id)
+      .filter((userId) => userId !== currentUserId);
+    flags.set(
+      room.id,
+      others.length > 0 && others.every((userId) => memberIds.has(userId)),
+    );
+  }
+  return flags;
+}
+
 /** mapChatRoom with per-user pin/mute/markedUnread loaded for the viewer. */
 export async function mapChatRoomWithSidebarFlags(
   room: ChatRoomWithMembers,
   userId: string,
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | typeof prisma,
   attention: {
     unreadCount?: number;
     unreadMentionCount?: number;
     lastActivityAt?: Date | null;
+    activeOrganizationId?: string | null;
   } = {},
 ) {
   const flags = (await getChatRoomSidebarFlags([room.id], userId, tx)).get(
     room.id,
+  );
+  const peerInActiveOrganization = await resolvePeerInActiveOrganization(
+    room,
+    userId,
+    attention.activeOrganizationId ?? null,
+    tx,
   );
 
   return mapChatRoom(room, userId, {
@@ -886,6 +978,7 @@ export async function mapChatRoomWithSidebarFlags(
     pinnedAt: flags?.pinnedAt ?? null,
     mutedAt: flags?.mutedAt ?? null,
     markedUnread: flags?.markedUnread ?? false,
+    peerInActiveOrganization,
   });
 }
 
@@ -1724,7 +1817,7 @@ export async function requireChatRoomCoworkerAccess(
   return room;
 }
 
-export async function validateOrganizationUserIds(
+export async function filterOrganizationUserIds(
   organizationId: string,
   userIds: readonly string[],
   tx: Prisma.TransactionClient,
@@ -1742,13 +1835,76 @@ export async function validateOrganizationUserIds(
     select: { userId: true },
   });
   const found = new Set(members.map((member) => member.userId));
-  const missing = uniqueUserIds.filter((userId) => !found.has(userId));
+  return uniqueUserIds.filter((userId) => found.has(userId));
+}
+
+export async function validateOrganizationUserIds(
+  organizationId: string,
+  userIds: readonly string[],
+  tx: Prisma.TransactionClient,
+): Promise<string[]> {
+  const uniqueUserIds = normalizeUniqueStrings(userIds);
+  const found = await filterOrganizationUserIds(
+    organizationId,
+    uniqueUserIds,
+    tx,
+  );
+  const missing = uniqueUserIds.filter((userId) => !found.includes(userId));
 
   if (missing.length > 0) {
     throw badRequest("Room human members must belong to the organization");
   }
 
   return uniqueUserIds;
+}
+
+export async function usersShareExternalChannel(
+  userIdA: string,
+  userIdB: string,
+  tx: Prisma.TransactionClient,
+): Promise<boolean> {
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      kind: "channel",
+      discoverability: "external",
+      archivedAt: null,
+      AND: [
+        { userMembers: { some: { userId: userIdA } } },
+        { userMembers: { some: { userId: userIdB } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return room != null;
+}
+
+export async function findLiveDirectByParticipantKey(
+  tx: Prisma.TransactionClient | typeof prisma,
+  directKey: string,
+  organizationId: string | null,
+) {
+  const personal = await tx.chatRoom.findFirst({
+    where: {
+      organizationId: null,
+      directKey,
+      archivedAt: null,
+    },
+    include: chatRoomInclude,
+  });
+  if (personal) {
+    return personal;
+  }
+  if (!organizationId) {
+    return null;
+  }
+  return tx.chatRoom.findFirst({
+    where: {
+      organizationId,
+      directKey,
+      archivedAt: null,
+    },
+    include: chatRoomInclude,
+  });
 }
 
 /**

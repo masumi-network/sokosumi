@@ -13,7 +13,8 @@ export interface PartitionedSidebarRooms {
  *
  * External channels (`discoverability === "external"`) — host members and
  * guests — live only under External, never under Channels, so they read as a
- * peer section next to Channels / Direct Messages.
+ * peer section next to Channels / Direct Messages. Every Direct lists under
+ * Direct Messages, including Personal 1:1s with a Guest.
  */
 export function partitionRoomsForSidebar(
   rooms: ChatRoom[],

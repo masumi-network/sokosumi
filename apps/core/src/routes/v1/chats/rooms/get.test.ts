@@ -14,6 +14,7 @@ const {
   organizationFindUniqueMock,
   organizationFindManyMock,
   memberFindUniqueMock,
+  memberFindManyMock,
   messageGroupByMock,
   notificationGroupByMock,
   membershipFindManyMock,
@@ -26,6 +27,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   organizationFindManyMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   messageGroupByMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
+      findMany: memberFindManyMock,
     },
     chatRoomMessage: {
       groupBy: messageGroupByMock,
@@ -65,9 +68,11 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const USER_ID = "user_123";
+const PEER_USER_ID = "user_456";
 const ORG_ID = "org_1";
 const HOST_ORG_ID = "org_host";
 const GUEST_ROOM_ID = "550e8400-e29b-41d4-a716-446655440099";
+const PERSONAL_DIRECT_ID = "550e8400-e29b-41d4-a716-446655440088";
 
 function createApp(organizationId: string | null) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>({
@@ -124,11 +129,65 @@ function guestRoomRow() {
   };
 }
 
+function personalDirectRow() {
+  return {
+    id: PERSONAL_DIRECT_ID,
+    organizationId: null,
+    name: "Bob",
+    slug: "bob",
+    kind: "direct",
+    directKey: `${USER_ID}:${PEER_USER_ID}`,
+    topic: null,
+    discoverability: null,
+    createdByUserId: USER_ID,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    archivedAt: null,
+    providerConversationId: null,
+    userMembers: [
+      {
+        id: "cum_self",
+        roomId: PERSONAL_DIRECT_ID,
+        userId: USER_ID,
+        access: "member",
+        pinnedAt: null,
+        mutedAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        user: {
+          id: USER_ID,
+          name: "Ada",
+          email: "ada@example.com",
+          image: null,
+          sessions: [],
+        },
+      },
+      {
+        id: "cum_peer",
+        roomId: PERSONAL_DIRECT_ID,
+        userId: PEER_USER_ID,
+        access: "member",
+        pinnedAt: null,
+        mutedAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        user: {
+          id: PEER_USER_ID,
+          name: "Bob",
+          email: "bob@example.com",
+          image: null,
+          sessions: [],
+        },
+      },
+    ],
+    coworkerMembers: [],
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   organizationFindManyMock.mockResolvedValue([]);
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
+  memberFindManyMock.mockResolvedValue([]);
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
   messageGroupByMock.mockResolvedValue([]);
@@ -210,6 +269,11 @@ describe("GET /chats/rooms", () => {
       OR: [
         { organizationId: ORG_ID },
         { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+        {
+          organizationId: null,
+          kind: "direct",
+          coworkerMembers: { none: {} },
+        },
       ],
     });
     expect(where).not.toHaveProperty("createdByUserId");
@@ -256,6 +320,45 @@ describe("GET /chats/rooms", () => {
         { organizationId: null, kind: "direct" },
         { userMembers: { some: { userId: USER_ID, access: "guest" } } },
       ],
+    });
+  });
+
+  it("sets peerInActiveOrganization true when the other human is an org Member", async () => {
+    roomFindManyMock.mockResolvedValue([personalDirectRow()]);
+    roomCountMock.mockResolvedValue(1);
+    memberFindManyMock.mockResolvedValue([{ userId: PEER_USER_ID }]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      id: PERSONAL_DIRECT_ID,
+      organizationId: null,
+      kind: "direct",
+      peerInActiveOrganization: true,
+    });
+    expect(memberFindManyMock).toHaveBeenCalledWith({
+      where: {
+        organizationId: ORG_ID,
+        userId: { in: [PEER_USER_ID] },
+      },
+      select: { userId: true },
+    });
+  });
+
+  it("sets peerInActiveOrganization false when the other human is not an org Member", async () => {
+    roomFindManyMock.mockResolvedValue([personalDirectRow()]);
+    roomCountMock.mockResolvedValue(1);
+    memberFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      id: PERSONAL_DIRECT_ID,
+      peerInActiveOrganization: false,
     });
   });
 
