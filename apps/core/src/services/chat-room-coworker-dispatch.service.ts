@@ -4,7 +4,10 @@ import { streamText } from "ai";
 
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
-import { thoughtMetadataFields } from "@/helpers/persist-assistant-to-chat-room";
+import {
+  reasoningPartsToMetadata,
+  thoughtMetadataFields,
+} from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
@@ -29,6 +32,155 @@ export const ROOM_COWORKER_STREAM_TIMEOUT = {
 /** Must exceed `ROOM_COWORKER_TOTAL_MS` so reclaim cannot steal an in-flight run. */
 export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TOTAL_MS + 30_000;
 const STALE_SENT_RECLAIM_LIMIT = 10;
+/** Cap Ably thought updates; first beat always publishes. */
+const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
+
+interface MentionStreamPart {
+  type: string;
+  text?: string;
+}
+
+interface MentionStreamConsumption {
+  text: string;
+  reasoningSteps: Array<{ type: string; text: string }>;
+}
+
+function mentionStreamIterable(result: {
+  fullStream?: AsyncIterable<MentionStreamPart>;
+  stream?: AsyncIterable<MentionStreamPart>;
+}): AsyncIterable<MentionStreamPart> | null {
+  if (
+    result.fullStream &&
+    typeof result.fullStream[Symbol.asyncIterator] === "function"
+  ) {
+    return result.fullStream;
+  }
+  if (
+    result.stream &&
+    typeof result.stream[Symbol.asyncIterator] === "function"
+  ) {
+    return result.stream;
+  }
+  return null;
+}
+
+function previewReasoningSteps(
+  completed: Array<{ type: string; text: string }>,
+  currentDelta: string,
+): Array<{ type: string; text: string }> {
+  const trimmed = currentDelta.trim();
+  if (!trimmed) {
+    return completed;
+  }
+  return [...completed, { type: "reasoning", text: trimmed }];
+}
+
+async function consumeMentionProviderStream(
+  result: {
+    fullStream?: AsyncIterable<MentionStreamPart>;
+    stream?: AsyncIterable<MentionStreamPart>;
+    text?: PromiseLike<string>;
+    reasoning?: PromiseLike<unknown>;
+  },
+  onThought: (steps: Array<{ type: string; text: string }>) => Promise<void>,
+): Promise<MentionStreamConsumption> {
+  const iterable = mentionStreamIterable(result);
+  if (!iterable) {
+    const responseText = ((await result.text) ?? "").trim();
+    const reasoningSteps =
+      reasoningPartsToMetadata(await result.reasoning) ?? [];
+    return { text: responseText, reasoningSteps };
+  }
+
+  const reasoningSteps: Array<{ type: string; text: string }> = [];
+  let currentReasoning = "";
+  let text = "";
+
+  for await (const part of iterable) {
+    if (part.type === "reasoning-delta" && typeof part.text === "string") {
+      currentReasoning += part.text;
+      const preview = previewReasoningSteps(reasoningSteps, currentReasoning);
+      if (preview.length > 0) {
+        await onThought(preview);
+      }
+    } else if (
+      part.type === "reasoning" ||
+      part.type === "reasoning-end" ||
+      part.type === "reasoning-part-finish"
+    ) {
+      const stepText =
+        typeof part.text === "string" && part.text.trim().length > 0
+          ? part.text.trim()
+          : currentReasoning.trim();
+      if (stepText) {
+        reasoningSteps.push({ type: "reasoning", text: stepText });
+      }
+      currentReasoning = "";
+      if (reasoningSteps.length > 0) {
+        await onThought(reasoningSteps);
+      }
+    } else if (part.type === "text-delta" && typeof part.text === "string") {
+      text += part.text;
+    }
+  }
+
+  if (currentReasoning.trim()) {
+    reasoningSteps.push({
+      type: "reasoning",
+      text: currentReasoning.trim(),
+    });
+  }
+
+  return { text: text.trim(), reasoningSteps };
+}
+
+async function publishMentionThoughtPlaceholder(params: {
+  placeholderId: string | null;
+  roomId: string;
+  parentMessageId: string | null;
+  sourceMessageId: string;
+  mentionId: string;
+  coworkerId: string;
+  reasoningSteps: Array<{ type: string; text: string }>;
+}): Promise<string> {
+  const metadata = {
+    in_reply_to_message_id: params.sourceMessageId,
+    mention_id: params.mentionId,
+    streaming: true,
+    reasoning: params.reasoningSteps,
+  };
+  if (params.placeholderId) {
+    await prisma.chatRoomMessage.update({
+      where: { id: params.placeholderId },
+      data: { metadata },
+    });
+    await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
+    return params.placeholderId;
+  }
+  const created = await prisma.chatRoomMessage.create({
+    data: {
+      roomId: params.roomId,
+      parentMessageId: params.parentMessageId,
+      senderCoworkerId: params.coworkerId,
+      content: "",
+      metadata,
+    },
+  });
+  await publishChatRoomMessageRealtimeById(created.id, "create");
+  return created.id;
+}
+
+async function discardMentionThoughtPlaceholder(
+  placeholderId: string | null,
+): Promise<void> {
+  if (!placeholderId) {
+    return;
+  }
+  await publishChatRoomMessageRealtimeById(placeholderId, "delete");
+  await prisma.chatRoomMessage
+    .delete({ where: { id: placeholderId } })
+    .catch(() => undefined);
+}
 
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
@@ -387,9 +539,50 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       sokosumi: providerOptions,
     } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
   });
-  const responseText = (await result.text).trim();
+
+  const existingPlaceholder = await prisma.chatRoomMessage.findFirst({
+    where: {
+      roomId: mention.message.roomId,
+      senderCoworkerId: coworker.id,
+      deletedAt: null,
+      metadata: { path: ["mention_id"], equals: mentionId },
+    },
+    select: { id: true },
+  });
+  let placeholderId: string | null = existingPlaceholder?.id ?? null;
+  let lastThoughtPublishAt = 0;
+  const { text: streamedText, reasoningSteps: streamedReasoning } =
+    await consumeMentionProviderStream(result, async (steps) => {
+      const now = Date.now();
+      if (
+        placeholderId != null &&
+        now - lastThoughtPublishAt < MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS
+      ) {
+        return;
+      }
+      lastThoughtPublishAt = now;
+      placeholderId = await publishMentionThoughtPlaceholder({
+        placeholderId,
+        roomId: mention.message.roomId,
+        parentMessageId: mention.message.parentMessageId,
+        sourceMessageId: mention.message.id,
+        mentionId,
+        coworkerId: coworker.id,
+        reasoningSteps: steps,
+      });
+    });
+
+  let responseText = streamedText;
+  if (!responseText) {
+    responseText = ((await result.text) ?? "").trim();
+  }
+  let reasoningSteps = streamedReasoning;
+  if (reasoningSteps.length === 0) {
+    reasoningSteps = reasoningPartsToMetadata(await result.reasoning) ?? [];
+  }
   const generationEndedAtMs = Date.now();
   if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
+    await discardMentionThoughtPlaceholder(placeholderId);
     await markMentionFailed(
       mentionId,
       responseText || "Coworker returned an empty response",
@@ -397,16 +590,19 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  const reasoningParts = await result.reasoning;
-  const hasReasoning =
-    Array.isArray(reasoningParts) && reasoningParts.length > 0;
+  const hasReasoning = reasoningSteps.length > 0;
   const thoughtTiming = hasReasoning
     ? {
         startedAtMs: generationStartedAtMs,
         endedAtMs: generationEndedAtMs,
       }
     : undefined;
-  const thoughtMeta = thoughtMetadataFields(reasoningParts, thoughtTiming);
+  const thoughtMeta = thoughtMetadataFields(reasoningSteps, thoughtTiming);
+  const replyMetadata = {
+    in_reply_to_message_id: mention.message.id,
+    mention_id: mention.id,
+    ...thoughtMeta,
+  };
 
   const publishedMessageIds = await prisma.$transaction(async (tx) => {
     // Re-check membership after the provider call: eviction during streamText
@@ -457,19 +653,23 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     // Persist the reply first, then claim the mention transition. If another
     // worker already finalized (or reclaim stole the claim), discard this
     // duplicate reply so the room does not double-post.
-    const responseMessage = await tx.chatRoomMessage.create({
-      data: {
-        roomId: mention.message.roomId,
-        parentMessageId: mention.message.parentMessageId,
-        senderCoworkerId: coworker.id,
-        content: responseText,
-        metadata: {
-          in_reply_to_message_id: mention.message.id,
-          mention_id: mention.id,
-          ...thoughtMeta,
-        },
-      },
-    });
+    const responseMessage = placeholderId
+      ? await tx.chatRoomMessage.update({
+          where: { id: placeholderId },
+          data: {
+            content: responseText,
+            metadata: replyMetadata,
+          },
+        })
+      : await tx.chatRoomMessage.create({
+          data: {
+            roomId: mention.message.roomId,
+            parentMessageId: mention.message.parentMessageId,
+            senderCoworkerId: coworker.id,
+            content: responseText,
+            metadata: replyMetadata,
+          },
+        });
 
     const finalized = await tx.chatRoomMention.updateMany({
       where: { id: mention.id, status: "sent" },
@@ -497,14 +697,17 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     };
   });
 
-  if (publishedMessageIds) {
-    await publishChatRoomMessageRealtimeById(
-      publishedMessageIds.responseMessageId,
-      "create",
-    );
-    await publishChatRoomMessageRealtimeById(
-      publishedMessageIds.sourceMessageId,
-      "mention_status",
-    );
+  if (!publishedMessageIds) {
+    await discardMentionThoughtPlaceholder(placeholderId);
+    return;
   }
+
+  await publishChatRoomMessageRealtimeById(
+    publishedMessageIds.responseMessageId,
+    placeholderId ? "update" : "create",
+  );
+  await publishChatRoomMessageRealtimeById(
+    publishedMessageIds.sourceMessageId,
+    "mention_status",
+  );
 }

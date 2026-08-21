@@ -112,8 +112,23 @@ function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
   return message.membership != null;
 }
 
+function isStreamingCoworkerPlaceholder(message: ChatRoomMessage): boolean {
+  if (message.sender.type !== "coworker") {
+    return false;
+  }
+  const metadata = message.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+  return (metadata as Record<string, unknown>).streaming === true;
+}
+
 function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
-  return isMembershipStatusMessage(message) || hasVisibleMessageBody(message);
+  return (
+    isMembershipStatusMessage(message) ||
+    hasVisibleMessageBody(message) ||
+    isStreamingCoworkerPlaceholder(message)
+  );
 }
 
 /** Empty stream coworker shells stay visible (avatar/name + waiting state). */

@@ -142,6 +142,36 @@ describe("resolveCoworkerThoughtViewModel", () => {
     });
   });
 
+  it("shows live beat on a persisted streaming coworker shell with no answer", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "",
+      isStreamOverlay: false,
+      metadata: {
+        streaming: true,
+        mention_id: "mention_1",
+        reasoning: [{ type: "reasoning", text: "Looked up the room context." }],
+      },
+    });
+    expect(vm).toEqual({
+      liveBeat: "Looked up the room context.",
+      disclosure: null,
+      showThinkingFallback: false,
+    });
+  });
+
+  it("falls back to Thinking on a persisted streaming coworker shell with no Thought yet", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "   ",
+      isStreamOverlay: false,
+      metadata: { streaming: true, mention_id: "mention_1" },
+    });
+    expect(vm).toEqual({
+      liveBeat: null,
+      disclosure: null,
+      showThinkingFallback: true,
+    });
+  });
+
   it("uses only the latest Thought step for the live beat", () => {
     const vm = resolveCoworkerThoughtViewModel({
       content: "",

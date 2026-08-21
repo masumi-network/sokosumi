@@ -382,6 +382,25 @@ describe("mergeMessagesWithStreamOverlay", () => {
     expect(merged[2]?.membership?.action).toBe("left");
   });
 
+  it("keeps an empty persisted streaming coworker Thought shell when overlay is idle", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const placeholder = {
+      ...coworkerMessage("reply_1", "2026-07-01T10:00:01.000Z", ""),
+      metadata: {
+        streaming: true,
+        mention_id: "mention_1",
+        reasoning: [{ type: "reasoning", text: "Looked up the room context." }],
+      },
+    };
+
+    const merged = mergeMessagesWithStreamOverlay([chat, placeholder], []);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1", "reply_1"]);
+    expect(merged[1]?.metadata).toEqual(
+      expect.objectContaining({ streaming: true }),
+    );
+  });
+
   it("keeps membership status in history while stream overlay is active", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "earlier");
     const joined = {

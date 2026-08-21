@@ -131,6 +131,19 @@ export function formatThoughtDurationLabel(totalSeconds: number): string {
   return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
 }
 
+function isLiveThoughtShell(input: {
+  isStreamOverlay: boolean;
+  metadata?: unknown;
+}): boolean {
+  if (input.isStreamOverlay) {
+    return true;
+  }
+  if (!input.metadata || typeof input.metadata !== "object") {
+    return false;
+  }
+  return (input.metadata as Record<string, unknown>).streaming === true;
+}
+
 export function resolveCoworkerThoughtViewModel(input: {
   content: string;
   isStreamOverlay: boolean;
@@ -147,7 +160,7 @@ export function resolveCoworkerThoughtViewModel(input: {
     extractLatestThoughtBeatFromMessageParts(input.parts ?? null);
   const durationSeconds = extractThoughtDurationSeconds(input.metadata);
 
-  if (input.isStreamOverlay && answer.length === 0) {
+  if (isLiveThoughtShell(input) && answer.length === 0) {
     if (liveBeatText.length > 0) {
       return {
         liveBeat: liveBeatText,
