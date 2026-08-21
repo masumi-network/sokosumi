@@ -41,6 +41,14 @@ const translations: Record<string, string> = {
   "App.Account.Delete.Links.organizationMembers": "Organization members",
   "App.Account.Delete.Links.jobs": "Jobs",
   "App.Account.Delete.Links.tasks": "Tasks",
+  "App.Account.Delete.Errors.taskX402PaymentPending":
+    "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+  "App.Account.Delete.Errors.taskX402PaymentUnresolved":
+    "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+  "App.Account.Delete.Errors.taskX402PaymentAuthorizationLive":
+    "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+  "App.Account.Delete.Errors.taskX402PaymentBillingOwnerMismatch":
+    "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again.",
   "Library.Auth.Schema.Password.required": "Password is required",
 };
 
@@ -95,6 +103,10 @@ describe("DeleteAccountForm", () => {
         blockers={[
           "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
           "TASK_PAYMENT_CLAIM_PENDING",
+          "TASK_X402_PAYMENT_PENDING",
+          "TASK_X402_PAYMENT_UNRESOLVED",
+          "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
+          "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH",
         ]}
       />,
     );
@@ -114,6 +126,26 @@ describe("DeleteAccountForm", () => {
     expect(
       screen.getByText(
         "Wait for pending task payments to settle before deleting your account.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -240,6 +272,35 @@ describe("DeleteAccountForm", () => {
     });
     expect(toast.error).toHaveBeenCalledWith(
       "Wait for pending task payments to settle before deleting your account.",
+    );
+  });
+
+  it("maps an x402 blocker if delete is refused after load", async () => {
+    const { toast } = await import("sonner");
+    deleteUserMock.mockResolvedValue({
+      error: {
+        code: "TASK_X402_PAYMENT_PENDING",
+        message: "Backend fallback",
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    render(<DeleteAccountForm blockers={[]} />);
+
+    const user = await openDialog();
+    await user.type(screen.getByLabelText("Current password"), "Password123!");
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    await waitFor(() => {
+      expect(deleteUserMock).toHaveBeenCalledWith({
+        password: "Password123!",
+      });
+    });
+    expect(toast.error).toHaveBeenCalledWith(
+      "A task payment is still pending; contact support to have it resolved, then delete your account again.",
     );
   });
 });

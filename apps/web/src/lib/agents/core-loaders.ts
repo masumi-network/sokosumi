@@ -42,20 +42,16 @@ export async function getAllCoreAgents(): Promise<CoreAgent[]> {
   // TODO(core-api): replace all-page loading after Core supports gallery search
   // and a pagination strategy that preserves the current filter UX.
   do {
-    // Core omit = both rails. Generated GetAgentsData on this SHA has no
-    // `kind`; extra query keys still serialize. Snapshot regen is #3785.
-    const query = {
+    const response = await coreCatalogClient.getAgents({
       cursor,
       kind: ["cardano"],
       limit: AGENTS_PAGE_SIZE,
-    };
-    const response = await coreCatalogClient.getAgents(query);
+    });
 
     for (const item of response.data) {
-      if ((item as { kind?: unknown }).kind === "x402") {
-        continue;
+      if (item.kind === "cardano") {
+        agents.push(item);
       }
-      agents.push(item);
     }
     cursor = response.meta?.pagination?.nextCursor ?? undefined;
   } while (cursor);

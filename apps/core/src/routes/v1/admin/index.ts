@@ -8,6 +8,7 @@ import invoicesRouter from "./invoices/index.js";
 import organizationsRouter from "./organizations/index.js";
 import searchRouter from "./search/index.js";
 import taskPaymentClaimsRouter from "./task-payment-claims/index.js";
+import taskX402PaymentsRouter from "./task-x402-payments/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 import vendorsRouter from "./vendors/index.js";
@@ -28,6 +29,7 @@ app.route("/invoices", invoicesRouter);
 app.route("/credits", creditsRouter);
 app.route("/tasks", tasksRouter);
 app.route("/task-payment-claims", taskPaymentClaimsRouter);
+app.route("/task-x402-payments", taskX402PaymentsRouter);
 app.route("/vendors", vendorsRouter);
 
 export default app;

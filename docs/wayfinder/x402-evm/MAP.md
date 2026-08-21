@@ -74,30 +74,34 @@ implementation itself is out of scope. PR 1 is the priority. There is no
   payment-service `main`, which is ahead of our pinned specs.
 - [Refund policy](tickets/006-refund-policy.md) — PR 1: **auto-refund only
   when unsettleable** (documented first-attempt refusal; header never
-  written). No auto-refund after a header exists. Admin refund/resolve +
-  per-agent aggregation feeding a whitelist disable. PR 2: **auto-refund
-  only when provably unpaid** (never signed / never sent); after signing,
-  admin lever only — no parity with escrow. Disputable-vs-x402 preference
-  moot: different agents by registry design.
+  written). No result-based refund after header delivery. Admin
+  resolve/goodwill + per-agent aggregation feed a whitelist disable. PR 2:
+  **auto-refund only when provably unpaid**; ambiguous sign outcomes stay
+  held until resolved or observed expired-unused. Disputable-vs-x402
+  preference moot: different agents by registry design.
 - [Coworker pay-endpoint contract](tickets/003-pay-endpoint-contract.md) —
-  modeled after the node's `POST /x402/pay` on both sides: raw 402 in,
-  node-response pass-through out, Soko owns `evmWalletId` and stamps task
-  identity into metadata. Signs for **listed agents only** (payTo/network/
-  asset reverse-match + pricing sanity check), per-env EVM network allowlist
-  (preprod = testnets only), mandatory coworker idempotency key as the
-  dedupe unique, authz identical to the `masumiPayment` task-event gate
-  (sub-tasks covered via `TaskLink` `PARENT`; there is no `Task.parentTaskId`).
+  modeled after the node's `POST /x402/pay`: accepts either wild 402 dialect,
+  narrows it to one verified registered requirement, and returns a
+  protocol-aware replay-header descriptor. Soko owns `evmWalletId` and stamps
+  `${taskId}_${paymentId}` only when the extension is advertised. A canonical
+  demand fingerprint plus status/header-expiry gates bind idempotent replay.
+  Per-env EVM allowlist and task-event authz match the payment flow.
+  Sub-tasks use `TaskLink` `PARENT` (no `Task.parentTaskId`).
 - [Pricing and spend controls](tickets/004-pricing-and-spend-controls.md) —
   CAIP-19 CreditCost keys + fail-closed unknown assets (inherited from ADR
   0001); **charge floor** at `MIN_CHARGEABLE_CREDITS` for micro-payments
-  (ceil, never below); debit from the org/user **credit balance** (there is
-  no `Task.maxCredits`); optional per-request `maxCredits` ceiling;
-  node budgets as operator backstop.
+  (ceil, never below); caller `maxCredits` bounds each payment intent
+  (mandatory for dynamic quotes). There is **no `Task.maxCredits`**. Ordinary
+  organization credit balance and node budgets remain the
+  aggregate/operator backstops.
 - [Coworker-facing Bazaar agent listing](tickets/005-coworker-listing-surface.md)
   — public `GET /v1/agents` with `kind: "cardano" | "x402"`. **No**
   `/v1/agents/x402`. Fail closed (listed ⇒ payable: whitelist, `exact`
-  scheme, priced assets, per-env network allowlist, readiness). Pay stays
-  coworker + assigned task. Web `/agents` stays Coworkers-only (SOK-805).
+  scheme, priced assets, per-env network allowlist, readiness). Dynamic
+  and mixed agents remain visible as explicit non-payable previews when
+  ingest keeps Dynamic distinct from `UNKNOWN`. The API discriminates
+  Bazaar and OpenAPI discovery URLs. Web catalog stays Coworkers-only
+  (SOK-805). Pay stays coworker + assigned task.
 - [PR 1 spec](tickets/007-pr1-spec.md) — **first half of the destination
   reached.** Full spec at [PR1-SPEC.md](PR1-SPEC.md): listing + pay
   endpoints, `TaskX402Payment` sibling model, charge-then-sign flow with
@@ -116,10 +120,13 @@ implementation itself is out of scope. PR 1 is the priority. There is no
 - [Node/registry handoff](tickets/011-external-gaps-handoff.md) — **all seven
   questions answered in-house** (Sandro + upstream `main` source), handoff
   never sent: documented first-attempt refusal with no written header
-  refunds; a `PENDING` replay or lost 200 after delivery does not; no
-  node idempotency (Soko's key sole dedupe); outbound terminal at Verified
-  with settlement observation phased (EXPIRED_UNUSED post-hoc refund later);
-  readiness composed Soko-side; Soko normalizes both 402 dialects → v2;
+  refunds; a `PENDING` replay or lost 200 after delivery does not. A replay
+  refusal proves only the current call safe. The node has no idempotency
+  (Soko's key is the sole dedupe). Outbound attempts terminate at Verified.
+  Settlement observation remains phased (`EXPIRED_UNUSED` post-hoc refund
+  later). Readiness uses networks, Soko-key budgets, wallet balances, and
+  a trusted exact-EVM domain allowlist. Soko normalizes both 402 dialects
+  → v2;
   **deployed nodes already run latest main** — nothing external gates the
   build. Answers: [NODE-QUESTIONS.md](NODE-QUESTIONS.md).
 - [PR 2 spec](tickets/009-pr2-spec.md) — **second half of the destination
