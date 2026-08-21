@@ -981,6 +981,21 @@ export type RefundAdminTaskX402PaymentResult = {
     compensated: boolean;
 };
 
+export type AdminTaskX402RefundConflictResponse = {
+    error: string;
+    message: string;
+    /**
+     * already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.
+     */
+    kind?: 'already_refunded' | 'not_refundable';
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
 export type RefundAdminTaskX402PaymentBody = {
     /**
      * Coded refund rationale. Narrative text and personal data are not accepted because the audit row survives account deletion.
@@ -7219,19 +7234,9 @@ export type RefundAdminTaskX402PaymentErrors = {
         };
     };
     /**
-     * Conflict - payment is not refundable
+     * Conflict - payment is not refundable. Branch on `kind`: already_refunded (idempotent) or not_refundable (PENDING must use resolve; other statuses are already compensated or not goodwill-refundable).
      */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    409: AdminTaskX402RefundConflictResponse;
     /**
      * Unprocessable Entity - validation failed
      */

@@ -33,6 +33,17 @@ const STATUSES: AdminTaskX402PaymentStatus[] = [
   "REFUNDED",
 ];
 
+const FAILURE_REASONS = [
+  "node_refused_payload",
+  "node_refused_operational",
+] as const;
+
+function isFailureReason(
+  value: string,
+): value is (typeof FAILURE_REASONS)[number] {
+  return FAILURE_REASONS.some((reason) => reason === value);
+}
+
 interface AdminX402PaymentsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
@@ -148,6 +159,10 @@ export default async function AdminX402PaymentsPage({
                 <TableRow>
                   <TableHead>{t("Columns.agent")}</TableHead>
                   <TableHead>{t("Rollup.total")}</TableHead>
+                  <TableHead>{t("Rollup.pending")}</TableHead>
+                  <TableHead>{t("Rollup.verified")}</TableHead>
+                  <TableHead>{t("Rollup.failed")}</TableHead>
+                  <TableHead>{t("Rollup.refunded")}</TableHead>
                   <TableHead>{t("Rollup.goodwill")}</TableHead>
                   <TableHead>{t("Rollup.failures")}</TableHead>
                   <TableHead>{t("Rollup.resolves")}</TableHead>
@@ -156,7 +171,7 @@ export default async function AdminX402PaymentsPage({
               <TableBody>
                 {rollups.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5}>{t("Rollup.empty")}</TableCell>
+                    <TableCell colSpan={9}>{t("Rollup.empty")}</TableCell>
                   </TableRow>
                 ) : (
                   rollups.map((rollup) => (
@@ -170,6 +185,10 @@ export default async function AdminX402PaymentsPage({
                         </Link>
                       </TableCell>
                       <TableCell>{rollup.total}</TableCell>
+                      <TableCell>{rollup.pending}</TableCell>
+                      <TableCell>{rollup.verified}</TableCell>
+                      <TableCell>{rollup.failed}</TableCell>
+                      <TableCell>{rollup.refunded}</TableCell>
                       <TableCell>{rollup.goodwillRefundCount}</TableCell>
                       <TableCell>{rollup.failureCount}</TableCell>
                       <TableCell>{rollup.operatorResolveCount}</TableCell>
@@ -221,6 +240,13 @@ export default async function AdminX402PaymentsPage({
                         {payment.refundKind ? (
                           <div className="text-muted-foreground mt-1">
                             {t(`RefundKinds.${payment.refundKind}`)}
+                          </div>
+                        ) : null}
+                        {payment.failureReason ? (
+                          <div className="text-muted-foreground mt-1">
+                            {isFailureReason(payment.failureReason)
+                              ? t(`FailureReasons.${payment.failureReason}`)
+                              : payment.failureReason}
                           </div>
                         ) : null}
                       </TableCell>
@@ -283,6 +309,11 @@ export default async function AdminX402PaymentsPage({
                               asset={payment.asset}
                               payTo={payment.payTo}
                               action="resolve"
+                              disabledUntil={
+                                payment.signRiskExpiresAt
+                                  ? new Date(payment.signRiskExpiresAt)
+                                  : null
+                              }
                             />
                           ) : null}
                         </div>

@@ -761,6 +761,9 @@ describe("admin task x402 payment routes", () => {
     });
 
     expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      kind: "already_refunded",
+    });
   });
 
   it("maps a pending (non-refundable) payment to 409", async () => {
@@ -776,6 +779,10 @@ describe("admin task x402 payment routes", () => {
     });
 
     expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      kind: "not_refundable",
+      message: "Payment is pending; ...",
+    });
   });
 
   it("maps a missing payment to 404", async () => {

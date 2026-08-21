@@ -52,6 +52,7 @@ interface X402PaymentActionProps {
   asset: string;
   payTo: string;
   action: "refund" | "resolve";
+  disabledUntil?: Date | null;
 }
 
 export function X402PaymentAction({
@@ -59,10 +60,16 @@ export function X402PaymentAction({
   asset,
   payTo,
   action,
+  disabledUntil,
 }: X402PaymentActionProps) {
   const t = useTranslations("App.Admin.X402Payments");
   const router = useRouter();
   const reasons = action === "refund" ? REFUND_REASONS : RESOLVE_REASONS;
+  const isResolveBlocked =
+    action === "resolve" &&
+    disabledUntil instanceof Date &&
+    !Number.isNaN(disabledUntil.getTime()) &&
+    disabledUntil.getTime() > Date.now();
   const [refundReason, setRefundReason] = useState<AdminTaskX402RefundReason>(
     "agent_output_quality",
   );
@@ -105,6 +112,7 @@ export function X402PaymentAction({
         <Button
           size="sm"
           variant={action === "refund" ? "outline" : "destructive"}
+          disabled={isResolveBlocked}
         >
           {t(`Actions.${action}`)}
         </Button>

@@ -10,7 +10,7 @@ import {
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
-import { CoreApiRequestError } from "@/lib/clients/core.request";
+import { toCoreApiActionError } from "@/lib/clients/core.request";
 import {
   type AdminTaskX402RefundReason,
   type AdminTaskX402ResolveReason,
@@ -25,24 +25,7 @@ function mapError(error: unknown): ActionError {
   if (isAdminAccessRequiredError(error)) {
     return { code: CommonErrorCode.UNAUTHORIZED, message: error.message };
   }
-  if (error instanceof CoreApiRequestError) {
-    return {
-      code:
-        error.status === 404
-          ? CommonErrorCode.NOT_FOUND
-          : error.status === 409 || error.status === 422
-            ? CommonErrorCode.BAD_INPUT
-            : CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: error.message,
-    };
-  }
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    message:
-      error instanceof Error
-        ? error.message
-        : "Failed to update task x402 payment",
-  };
+  return toCoreApiActionError(error);
 }
 
 interface RefundTaskX402PaymentParameters extends AuthenticatedRequest {

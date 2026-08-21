@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAdminTaskX402PaymentConflictSchema } from "./admin-task-x402-payment.schema";
+import {
+  refundAdminTaskX402PaymentConflictSchema,
+  resolveAdminTaskX402PaymentConflictSchema,
+} from "./admin-task-x402-payment.schema";
 
 const envelopeMeta = {
   timestamp: "2026-08-12T10:00:05.000Z",
@@ -35,5 +38,21 @@ describe("resolveAdminTaskX402PaymentConflictSchema", () => {
 
     expect(parsed.retryAfter).toBeUndefined();
     expect(parsed.retryAfterSeconds).toBeUndefined();
+  });
+});
+
+describe("refundAdminTaskX402PaymentConflictSchema", () => {
+  it("keeps kind on an already-refunded 409", () => {
+    const parsed = refundAdminTaskX402PaymentConflictSchema.parse({
+      error: "Conflict",
+      message: "Task x402 payment has already been refunded",
+      kind: "already_refunded",
+      meta: {
+        ...envelopeMeta,
+        path: "/v1/admin/task-x402-payments/pay-1/refund",
+      },
+    });
+
+    expect(parsed.kind).toBe("already_refunded");
   });
 });

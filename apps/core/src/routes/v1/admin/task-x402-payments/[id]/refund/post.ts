@@ -1,13 +1,18 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { conflict, notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonContent,
+  jsonErrorResponse,
+  jsonSuccessResponse,
+} from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireInteractiveAdminAuthContext } from "@/middleware/auth";
 import {
   adminTaskX402PaymentIdParamSchema,
   refundAdminTaskX402PaymentBodySchema,
+  refundAdminTaskX402PaymentConflictSchema,
   refundAdminTaskX402PaymentResultSchema,
 } from "@/schemas/admin-task-x402-payment.schema";
 import { refundVerifiedTaskX402Payment } from "@/services/task-x402-payment.refund";
@@ -41,7 +46,11 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found - payment does not exist"),
-    409: jsonErrorResponse("Conflict - payment is not refundable"),
+    409: {
+      description:
+        "Conflict - payment is not refundable. Branch on `kind`: already_refunded (idempotent) or not_refundable (PENDING must use resolve; other statuses are already compensated or not goodwill-refundable).",
+      content: jsonContent(refundAdminTaskX402PaymentConflictSchema),
+    },
     422: jsonErrorResponse("Unprocessable Entity - validation failed"),
   },
 });
@@ -60,10 +69,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Task x402 payment not found");
     }
     if (result.status === "already_refunded") {
-      throw conflict("Task x402 payment has already been refunded");
+      throw conflict("Task x402 payment has already been refunded", {
+        kind: "already_refunded",
+      });
     }
     if (result.status === "not_refundable") {
-      throw conflict(result.reason);
+      throw conflict(result.reason, { kind: "not_refundable" });
     }
     return ok(c, refundAdminTaskX402PaymentResultSchema.parse(result));
   });

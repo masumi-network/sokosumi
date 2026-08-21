@@ -132,6 +132,41 @@ describe("admin task x402 payment actions", () => {
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
+  it("maps a Core 401 to UNAUTHORIZED without revalidating", async () => {
+    resolvePaymentMock.mockRejectedValue(
+      new CoreApiRequestError("Authentication required", { status: 401 }),
+    );
+
+    const result = await resolveTaskX402PaymentAction({
+      paymentId: "payment_2",
+      reason: "node_unreachable",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
+      expect(result.error.message).toBe("Authentication required");
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a Core 403 to UNAUTHORIZED without revalidating", async () => {
+    refundPaymentMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+
+    const result = await refundTaskX402PaymentAction({
+      paymentId: "payment_1",
+      reason: "support_adjustment",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
   it("maps a Core 404 to NOT_FOUND without revalidating", async () => {
     refundPaymentMock.mockRejectedValue(
       new CoreApiRequestError("Task x402 payment not found", {

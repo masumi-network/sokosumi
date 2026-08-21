@@ -3202,10 +3202,18 @@
         "Rollup": {
           "title": "Endpunktstatus",
           "total": "Gesamt",
+          "pending": "Ausstehend",
+          "verified": "Verifiziert",
+          "failed": "Fehlgeschlagen",
+          "refunded": "Erstattet",
           "goodwill": "Kulanz-Erstattungen",
           "failures": "Node-Fehler",
           "resolves": "Manuelle Lösungen",
           "empty": "Keine Endpunktaktivität entspricht diesen Filtern."
+        },
+        "FailureReasons": {
+          "node_refused_payload": "Node lehnte Payload ab",
+          "node_refused_operational": "Node-Ablehnung (betrieblich)"
         },
         "Payments": {
           "title": "{count, plural, one {# Zahlung} other {# Zahlungen}}",

@@ -90,4 +90,41 @@ describe("X402PaymentAction", () => {
     });
     expect(refreshMock).toHaveBeenCalled();
   });
+
+  it("does not open resolve while the authorization-risk window is open", () => {
+    render(
+      <X402PaymentAction
+        paymentId="payment_1"
+        asset="0x1111111111111111111111111111111111111111"
+        payTo="0x2222222222222222222222222222222222222222"
+        action="resolve"
+        disabledUntil={new Date(Date.now() + 60_000)}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Actions.resolve" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Actions.resolve" }));
+    expect(
+      screen.queryByText("Actions.resolveConfirmTitle"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens resolve after the authorization-risk window", async () => {
+    render(
+      <X402PaymentAction
+        paymentId="payment_1"
+        asset="0x1111111111111111111111111111111111111111"
+        payTo="0x2222222222222222222222222222222222222222"
+        action="resolve"
+        disabledUntil={new Date(Date.now() - 60_000)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions.resolve" }));
+    expect(
+      await screen.findByText("Actions.resolveConfirmTitle"),
+    ).toBeInTheDocument();
+  });
 });

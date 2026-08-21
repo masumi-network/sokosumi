@@ -3611,6 +3611,61 @@ export const RefundAdminTaskX402PaymentResultSchema = {
     ]
 } as const;
 
+export const AdminTaskX402RefundConflictResponseSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'already_refunded',
+                'not_refundable'
+            ],
+            description: 'already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
 export const RefundAdminTaskX402PaymentBodySchema = {
     type: 'object',
     properties: {

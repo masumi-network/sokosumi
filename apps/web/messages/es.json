@@ -3202,10 +3202,18 @@
         "Rollup": {
           "title": "Estado de endpoints",
           "total": "Total",
+          "pending": "Pendiente",
+          "verified": "Verificado",
+          "failed": "Fallido",
+          "refunded": "Reembolsado",
           "goodwill": "Reembolsos de cortesía",
           "failures": "Fallos del nodo",
           "resolves": "Resoluciones del operador",
           "empty": "No hay actividad de endpoints para estos filtros."
+        },
+        "FailureReasons": {
+          "node_refused_payload": "El nodo rechazó el payload",
+          "node_refused_operational": "El nodo rechazó (operacional)"
         },
         "Payments": {
           "title": "{count, plural, one {# pago} other {# pagos}}",

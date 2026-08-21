@@ -188,6 +188,17 @@ export const refundAdminTaskX402PaymentResultSchema = z
   })
   .openapi("RefundAdminTaskX402PaymentResult");
 
+export const refundAdminTaskX402PaymentConflictSchema =
+  errorResponseWithExtensionsSchema(
+    {
+      kind: z.enum(["already_refunded", "not_refundable"]).optional().openapi({
+        description:
+          "already_refunded is the idempotent guard. not_refundable covers PENDING (use resolve) and any other non-VERIFIED row.",
+      }),
+    },
+    "AdminTaskX402RefundConflictResponse",
+  );
+
 export const resolveAdminTaskX402PaymentResultSchema = z
   .object({
     status: z.literal("resolved"),

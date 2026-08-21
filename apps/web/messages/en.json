@@ -3380,10 +3380,18 @@
         "Rollup": {
           "title": "Endpoint health",
           "total": "Total",
+          "pending": "Pending",
+          "verified": "Verified",
+          "failed": "Failed",
+          "refunded": "Refunded",
           "goodwill": "Goodwill refunds",
           "failures": "Node failures",
           "resolves": "Operator resolves",
           "empty": "No endpoint activity matches these filters."
+        },
+        "FailureReasons": {
+          "node_refused_payload": "Node refused payload",
+          "node_refused_operational": "Node refused (operational)"
         },
         "Payments": {
           "title": "{count, plural, one {# payment} other {# payments}}",
