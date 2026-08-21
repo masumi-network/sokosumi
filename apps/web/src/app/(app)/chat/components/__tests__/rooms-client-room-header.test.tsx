@@ -312,8 +312,13 @@ describe("RoomsClient room header chrome", () => {
     renderRoom(channelRoom());
 
     const trigger = await screen.findByTestId("room-roster-trigger");
+    expect(trigger).toHaveAttribute("aria-controls", "room-roster-panel");
+    expect(trigger).toHaveAttribute("title", "RoomRoster.open");
     await user.click(trigger);
-    expect(screen.getByTestId("room-roster-panel")).toBeTruthy();
+    expect(screen.getByTestId("room-roster-panel")).toHaveAttribute(
+      "id",
+      "room-roster-panel",
+    );
 
     await user.click(screen.getByTestId("unread-threads-trigger"));
     expect(screen.queryByTestId("room-roster-panel")).toBeNull();

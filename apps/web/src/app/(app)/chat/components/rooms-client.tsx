@@ -142,7 +142,7 @@ import {
   type RoomMessagePage,
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
-import { RoomRosterPanel } from "./room-roster-panel";
+import { ROOM_ROSTER_PANEL_ID, RoomRosterPanel } from "./room-roster-panel";
 import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
@@ -263,7 +263,9 @@ function RoomParticipantStack({
       type="button"
       className="flex -space-x-2 cursor-pointer rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t("RoomRoster.open")}
+      title={t("RoomRoster.open")}
       aria-expanded={rosterOpen}
+      aria-controls={ROOM_ROSTER_PANEL_ID}
       data-testid="room-roster-trigger"
       onClick={onToggleRoster}
     >

@@ -13,6 +13,8 @@ import {
 } from "./open-direct-with-participant";
 import type { ChatParticipantHoverProfile } from "./room-helpers";
 
+export const ROOM_ROSTER_PANEL_ID = "room-roster-panel";
+
 export interface RoomRosterPanelLabels {
   title: string;
   close: string;
@@ -202,6 +204,7 @@ export function RoomRosterPanel({
   return (
     <aside
       className="bg-background absolute inset-0 z-30 flex min-h-0 w-full shrink-0 flex-col lg:static lg:z-auto lg:w-80 lg:border-l"
+      id={ROOM_ROSTER_PANEL_ID}
       data-testid="room-roster-panel"
     >
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
