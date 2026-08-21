@@ -12,6 +12,19 @@ export function participantDirectKey(
   return `${profile.kind}:${profile.id}`;
 }
 
+/** Hover Message on humans: External roster always; other rooms need org seat. */
+export function canOpenHumanDirectFromSelectedRoom(options: {
+  kind: string | undefined;
+  discoverability: string | null | undefined;
+  myAccess: string | undefined;
+  hasActiveOrganization: boolean;
+}): boolean {
+  const isGuest = options.myAccess === "guest";
+  const isExternalChannel =
+    options.kind === "channel" && options.discoverability === "external";
+  return isExternalChannel || (options.hasActiveOrganization && !isGuest);
+}
+
 export function canShowOpenDirect(options: {
   profile: ChatParticipantHoverProfile;
   currentUserId: string | undefined;
