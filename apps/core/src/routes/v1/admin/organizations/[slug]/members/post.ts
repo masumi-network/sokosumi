@@ -3,6 +3,7 @@ import { MemberRole } from "@sokosumi/database";
 import {
   memberRepository,
   userRepository,
+  workspaceRepository,
 } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
@@ -78,6 +79,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const role = body.role as MemberRole;
 
     const member = await prisma.$transaction(async (tx) => {
+      await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
+        userId: body.userId,
+        tx,
+      });
       const created = await memberRepository.createMember(
         body.userId,
         organization.id,

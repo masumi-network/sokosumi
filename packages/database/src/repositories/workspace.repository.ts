@@ -90,6 +90,46 @@ export const workspaceRepository = {
   },
 
   /**
+   * Create the user's personal workspace if missing. Does not change
+   * preferredOrganizationId — org-first membership must keep the org active.
+   * Unique races are treated as success (the other writer won).
+   */
+  async ensurePersonalWorkspaceKeepingPreferred({
+    userId,
+    tx,
+  }: {
+    userId: string;
+    tx: Prisma.TransactionClient;
+  }): Promise<{ workspace: Workspace; created: boolean }> {
+    const existing = await this.findPersonalWorkspace({ userId, tx });
+    if (existing) {
+      await ensureServiceplanGrantForWorkspace(existing, userId, tx);
+      return { workspace: existing, created: false };
+    }
+
+    try {
+      const workspace = await tx.workspace.create({
+        data: { userId },
+      });
+      await ensureServiceplanGrantForWorkspace(workspace, userId, tx);
+      return { workspace, created: true };
+    } catch (error) {
+      if (isPrismaUniqueConstraintError(error)) {
+        const racedWorkspace = await this.findPersonalWorkspace({
+          userId,
+          tx,
+        });
+        if (racedWorkspace) {
+          await ensureServiceplanGrantForWorkspace(racedWorkspace, userId, tx);
+          return { workspace: racedWorkspace, created: false };
+        }
+      }
+
+      throw error;
+    }
+  },
+
+  /**
    * Resolve the workspace for a user/org context.
    * Organization: find or create. Personal: find or throw
    * {@link PersonalWorkspaceMissingError} — never create.

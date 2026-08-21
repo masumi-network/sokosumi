@@ -3,6 +3,7 @@ import { MemberRole } from "@sokosumi/database";
 import {
   memberRepository,
   organizationInviteLinkRepository,
+  workspaceRepository,
 } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
@@ -131,6 +132,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             tx,
           );
         if (!consumed) return "depleted";
+
+        await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
+          userId: userContext.userId,
+          tx,
+        });
 
         await memberRepository.createMember(
           userContext.userId,

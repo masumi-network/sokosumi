@@ -170,6 +170,22 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
   }
 }
 
+/**
+ * Temporary overlay (ADR 0010): org-first membership also gets a personal
+ * workspace. Does not clear preferredOrganizationId. Failure fails the
+ * membership so we never commit org-only for new joins/creates.
+ */
+async function ensurePersonalWorkspaceForOrganizationMembership(
+  userId: string,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
+      userId,
+      tx,
+    });
+  });
+}
+
 async function ensureStripeCustomerForCreatedOrganization(organization: {
   id: string;
   name: string;
@@ -641,7 +657,8 @@ export const auth = betterAuth({
     jwt({ disableSettingJwtHeader: true }),
     organization({
       organizationHooks: {
-        beforeCreateOrganization: async ({ organization }) => {
+        beforeCreateOrganization: async ({ organization, user }) => {
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
           return {
             data: applyDesignMdMetadataGuardToOrganizationCreate(
               organization as Record<string, unknown>,
@@ -674,8 +691,12 @@ export const auth = betterAuth({
             ),
           };
         },
-        beforeAcceptInvitation: async ({ organization }) => {
+        beforeAcceptInvitation: async ({ organization, user }) => {
           await ensureCanAcceptOrganizationInvitation(organization.id);
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
+        },
+        beforeAddMember: async ({ user }) => {
+          await ensurePersonalWorkspaceForOrganizationMembership(user.id);
         },
         afterAcceptInvitation: async ({ organization, user }) => {
           await upgradeGuestChatRoomMembershipsToMember(

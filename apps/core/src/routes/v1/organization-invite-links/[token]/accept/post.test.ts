@@ -11,6 +11,7 @@ const {
   tryConsumeInviteLinkMock,
   getMemberMock,
   createMemberMock,
+  ensurePersonalWorkspaceKeepingPreferredMock,
   ensureGateMock,
   syncSeatsMock,
   orgFindUniqueMock,
@@ -40,6 +41,7 @@ const {
   tryConsumeInviteLinkMock: vi.fn(),
   getMemberMock: vi.fn(),
   createMemberMock: vi.fn(),
+  ensurePersonalWorkspaceKeepingPreferredMock: vi.fn(),
   ensureGateMock: vi.fn(),
   syncSeatsMock: vi.fn(),
   orgFindUniqueMock: vi.fn(),
@@ -78,6 +80,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberMock(...args),
     createMember: (...args: unknown[]) => createMemberMock(...args),
+  },
+  workspaceRepository: {
+    ensurePersonalWorkspaceKeepingPreferred: (...args: unknown[]) =>
+      ensurePersonalWorkspaceKeepingPreferredMock(...args),
   },
 }));
 
@@ -159,6 +165,10 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     getMemberMock.mockResolvedValue(null);
     tryConsumeInviteLinkMock.mockResolvedValue(true);
     createMemberMock.mockResolvedValue(undefined);
+    ensurePersonalWorkspaceKeepingPreferredMock.mockResolvedValue({
+      created: true,
+      workspace: { id: "ws_personal" },
+    });
     upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
     cancelPendingOrganizationInvitationsForUserMock.mockResolvedValue(0);
   });
@@ -213,6 +223,10 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(body.data.organizationId).toBe("org_1");
     // Billing gate runs before any membership write.
     expect(ensureGateMock).toHaveBeenCalledWith("org_1");
+    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      tx: expect.anything(),
+    });
     expect(createMemberMock).toHaveBeenCalledWith(
       "user_123",
       "org_1",
@@ -229,6 +243,18 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(
       cancelPendingOrganizationInvitationsForUserMock,
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
+  });
+
+  it("fails the join when personal workspace ensure fails", async () => {
+    getInviteLinkByTokenMock.mockResolvedValue(liveLink());
+    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValue(
+      new Error("personal workspace failed"),
+    );
+
+    const response = await post();
+
+    expect(response.status).toBe(500);
+    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
   it("does not consume a use or sync seats when already a member", async () => {

@@ -84,6 +84,7 @@
     "ai-provider:format": "pnpm --filter @sokosumi/ai-provider format",
     "masumi:format": "pnpm --filter @sokosumi/masumi format",
     "data-migration:better-auth-1-7-harvest": "pnpm --filter @sokosumi/database data-migration:better-auth-1-7-harvest",
+    "data-migration:org-only-personal-workspaces": "pnpm --filter @sokosumi/database data-migration:org-only-personal-workspaces",
     "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",

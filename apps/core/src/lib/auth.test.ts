@@ -65,6 +65,7 @@ const {
   waitUntilCapturedPromises,
   waitUntilMock,
   workspaceUpsertMock,
+  ensurePersonalWorkspaceKeepingPreferredMock,
   isLastWorkspaceMock,
 } = vi.hoisted(() => {
   const waitUntilCapturedPromises: Promise<unknown>[] = [];
@@ -173,6 +174,7 @@ const {
     waitUntilCapturedPromises,
     waitUntilMock,
     workspaceUpsertMock: vi.fn(),
+    ensurePersonalWorkspaceKeepingPreferredMock: vi.fn(),
     isLastWorkspaceMock: vi.fn(),
   };
 });
@@ -290,6 +292,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
       workspaceUpsertMock(...args),
+    ensurePersonalWorkspaceKeepingPreferred: (...args: unknown[]) =>
+      ensurePersonalWorkspaceKeepingPreferredMock(...args),
   },
 }));
 
@@ -443,6 +447,10 @@ describe("core auth config", () => {
     webhookCallUserUpdatedMock.mockResolvedValue(undefined);
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
+    ensurePersonalWorkspaceKeepingPreferredMock.mockResolvedValue({
+      created: true,
+      workspace: { id: "personal_ws_123" },
+    });
     isLastWorkspaceMock.mockResolvedValue(false);
     prismaMock.user.findUnique.mockResolvedValue({ stripeCustomerId: null });
     prismaMock.organization.findUnique.mockResolvedValue({
@@ -1947,6 +1955,114 @@ describe("core auth config", () => {
     );
   });
 
+  it("creates a personal workspace before creating an organization and keeps preferred org", async () => {
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeCreateOrganization: (input: {
+              organization: { name: string; slug: string };
+              user: { id: string };
+            }) => Promise<{ data: Record<string, unknown> } | void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.beforeCreateOrganization({
+      organization: { name: "Org One", slug: "org-one" },
+      user: { id: "user-1" },
+    });
+
+    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      tx: expect.anything(),
+    });
+  });
+
+  it("fails organization creation when personal workspace ensure fails", async () => {
+    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValueOnce(
+      new Error("personal workspace failed"),
+    );
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeCreateOrganization: (input: {
+              organization: { name: string; slug: string };
+              user: { id: string };
+            }) => Promise<unknown>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeCreateOrganization({
+        organization: { name: "Org One", slug: "org-one" },
+        user: { id: "user-1" },
+      }),
+    ).rejects.toThrow("personal workspace failed");
+  });
+
+  it("creates a personal workspace before adding a member", async () => {
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeAddMember: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.beforeAddMember({
+      organization: { id: "org-1" },
+      user: { id: "user-2" },
+    });
+
+    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
+      userId: "user-2",
+      tx: expect.anything(),
+    });
+  });
+
+  it("fails adding a member when personal workspace ensure fails", async () => {
+    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValueOnce(
+      new Error("personal workspace failed"),
+    );
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeAddMember: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeAddMember({
+        organization: { id: "org-1" },
+        user: { id: "user-2" },
+      }),
+    ).rejects.toThrow("personal workspace failed");
+  });
+
   it("reports free subscription seeding failures to Sentry without failing creation", async () => {
     ensureInitialLocalFreeSubscriptionPeriodMock.mockRejectedValueOnce(
       new Error("seed failed"),
@@ -2246,6 +2362,7 @@ describe("core auth config", () => {
           organizationHooks: {
             beforeAcceptInvitation: (input: {
               organization: { id: string };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2254,8 +2371,43 @@ describe("core auth config", () => {
 
     await config.organizationHooks.beforeAcceptInvitation({
       organization: { id: "org-1" },
+      user: { id: "user-1" },
     });
 
+    expect(ensureCanAcceptOrganizationInvitationMock).toHaveBeenCalledWith(
+      "org-1",
+    );
+    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      tx: expect.anything(),
+    });
+  });
+
+  it("does not accept an invitation when personal workspace ensure fails", async () => {
+    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValueOnce(
+      new Error("personal workspace failed"),
+    );
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeAcceptInvitation: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeAcceptInvitation({
+        organization: { id: "org-1" },
+        user: { id: "user-1" },
+      }),
+    ).rejects.toThrow("personal workspace failed");
     expect(ensureCanAcceptOrganizationInvitationMock).toHaveBeenCalledWith(
       "org-1",
     );
