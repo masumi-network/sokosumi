@@ -558,7 +558,7 @@ export async function markChatRoomThreadRead(
  * Cheap count path: no parent hydrate, no row list. Same eligibility as
  * `unreadOnly` / Mark all (ADR-0013).
  */
-export async function countChatRoomAttentionThreads(
+export async function countChatRoomUnreadThreads(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,

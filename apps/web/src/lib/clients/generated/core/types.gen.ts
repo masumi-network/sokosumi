@@ -1890,7 +1890,7 @@ export type ChatRoomMessageUnfurl = {
     siteName: string | null;
 };
 
-export type ChatRoomThreadsAttentionCount = {
+export type ChatRoomThreadsUnreadCount = {
     /**
      * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.
      */
@@ -13335,7 +13335,7 @@ export type GetChatsRoomsByIdThreadsResponses = {
 
 export type GetChatsRoomsByIdThreadsResponse = GetChatsRoomsByIdThreadsResponses[keyof GetChatsRoomsByIdThreadsResponses];
 
-export type GetChatsRoomsByIdThreadsAttentionCountData = {
+export type GetChatsRoomsByIdThreadsUnreadCountData = {
     body?: never;
     headers?: {
         /**
@@ -13347,10 +13347,10 @@ export type GetChatsRoomsByIdThreadsAttentionCountData = {
         id: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/threads/attention-count';
+    url: '/chats/rooms/{id}/threads/unread-count';
 };
 
-export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
+export type GetChatsRoomsByIdThreadsUnreadCountErrors = {
     /**
      * Unauthorized
      */
@@ -13423,14 +13423,14 @@ export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
     };
 };
 
-export type GetChatsRoomsByIdThreadsAttentionCountError = GetChatsRoomsByIdThreadsAttentionCountErrors[keyof GetChatsRoomsByIdThreadsAttentionCountErrors];
+export type GetChatsRoomsByIdThreadsUnreadCountError = GetChatsRoomsByIdThreadsUnreadCountErrors[keyof GetChatsRoomsByIdThreadsUnreadCountErrors];
 
-export type GetChatsRoomsByIdThreadsAttentionCountResponses = {
+export type GetChatsRoomsByIdThreadsUnreadCountResponses = {
     /**
-     * Attention thread count
+     * Unread thread count
      */
     200: {
-        data: ChatRoomThreadsAttentionCount;
+        data: ChatRoomThreadsUnreadCount;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13439,7 +13439,7 @@ export type GetChatsRoomsByIdThreadsAttentionCountResponses = {
     };
 };
 
-export type GetChatsRoomsByIdThreadsAttentionCountResponse = GetChatsRoomsByIdThreadsAttentionCountResponses[keyof GetChatsRoomsByIdThreadsAttentionCountResponses];
+export type GetChatsRoomsByIdThreadsUnreadCountResponse = GetChatsRoomsByIdThreadsUnreadCountResponses[keyof GetChatsRoomsByIdThreadsUnreadCountResponses];
 
 export type PostChatsRoomsByIdThreadsReadData = {
     body?: never;

@@ -559,7 +559,7 @@ export const chatRoomThreadsMarkAllSchema = z
   .openapi("ChatRoomThreadsMarkAll");
 
 /** Cheap unread-thread count. Same Participant-gated set as `unread=true`. */
-export const chatRoomThreadsAttentionCountSchema = z
+export const chatRoomThreadsUnreadCountSchema = z
   .object({
     count: z.number().int().min(0).openapi({
       description:
@@ -567,7 +567,7 @@ export const chatRoomThreadsAttentionCountSchema = z
       example: 4,
     }),
   })
-  .openapi("ChatRoomThreadsAttentionCount");
+  .openapi("ChatRoomThreadsUnreadCount");
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
@@ -584,6 +584,6 @@ export type ChatRoomThreadReadState = z.infer<
 export type ChatRoomThreadsMarkAll = z.infer<
   typeof chatRoomThreadsMarkAllSchema
 >;
-export type ChatRoomThreadsAttentionCount = z.infer<
-  typeof chatRoomThreadsAttentionCountSchema
+export type ChatRoomThreadsUnreadCount = z.infer<
+  typeof chatRoomThreadsUnreadCountSchema
 >;

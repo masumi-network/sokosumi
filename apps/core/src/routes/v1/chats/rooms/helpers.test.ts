@@ -19,7 +19,7 @@ import {
   chatRoomInclude,
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
-  countChatRoomAttentionThreads,
+  countChatRoomUnreadThreads,
   findLiveDirectByParticipantKey,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
@@ -941,12 +941,12 @@ describe("getChatRoomThreadAggregates", () => {
   });
 });
 
-describe("countChatRoomAttentionThreads", () => {
+describe("countChatRoomUnreadThreads", () => {
   it("counts participant unread parents without hydrating rows", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([{ count: 4 }]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
-    const count = await countChatRoomAttentionThreads(
+    const count = await countChatRoomUnreadThreads(
       "550e8400-e29b-41d4-a716-446655440000",
       "user_123",
       tx,

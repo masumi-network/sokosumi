@@ -336,7 +336,7 @@ describe("ThreadListPanel", () => {
     renderPanel();
 
     const item = await screen.findByTestId("thread-list-item");
-    expect(item).toHaveAttribute("data-needs-attention", "true");
+    expect(item).toHaveAttribute("data-unread", "true");
     expect(item).toHaveTextContent("37 unread replies");
     expect(
       within(item).getByTestId("thread-list-unread-dot"),
@@ -366,7 +366,7 @@ describe("ThreadListPanel", () => {
     renderPanel();
 
     const item = await screen.findByTestId("thread-list-item");
-    expect(item).toHaveAttribute("data-needs-attention", "false");
+    expect(item).toHaveAttribute("data-unread", "false");
     expect(item).toHaveTextContent("4 replies");
     expect(item).not.toHaveTextContent("unread");
     expect(

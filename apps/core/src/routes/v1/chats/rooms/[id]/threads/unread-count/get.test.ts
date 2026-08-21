@@ -8,7 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountGetChatRoomThreadsAttentionCount from "./get";
+import mountGetChatRoomThreadsUnreadCount from "./get";
 
 const {
   roomFindFirstMock,
@@ -55,14 +55,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_get_chat_room_threads_attention_count");
+    c.set("requestId", "req_get_chat_room_threads_unread_count");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountGetChatRoomThreadsAttentionCount(app as unknown as OpenAPIHonoWithAuth);
+  mountGetChatRoomThreadsUnreadCount(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -116,10 +116,10 @@ beforeEach(() => {
   queryRawUnsafeMock.mockResolvedValue([{ count: 4 }]);
 });
 
-describe("GET /chats/rooms/{id}/threads/attention-count", () => {
-  it("returns the attention thread count without hydrating parents", async () => {
+describe("GET /chats/rooms/{id}/threads/unread-count", () => {
+  it("returns the unread thread count without hydrating parents", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/threads/attention-count`,
+      `/${ROOM_ID}/threads/unread-count`,
     );
 
     expect(response.status).toBe(200);
@@ -136,7 +136,7 @@ describe("GET /chats/rooms/{id}/threads/attention-count", () => {
 
   it("rejects a malformed room id with 422", async () => {
     const response = await createApp(userAuthContext).request(
-      "/not-a-uuid/threads/attention-count",
+      "/not-a-uuid/threads/unread-count",
     );
 
     expect(response.status).toBe(422);
@@ -149,7 +149,7 @@ describe("GET /chats/rooms/{id}/threads/attention-count", () => {
 
   it("rejects coworker auth with 403", async () => {
     const response = await createApp(coworkerAuthContext).request(
-      `/${ROOM_ID}/threads/attention-count`,
+      `/${ROOM_ID}/threads/unread-count`,
     );
 
     expect(response.status).toBe(403);

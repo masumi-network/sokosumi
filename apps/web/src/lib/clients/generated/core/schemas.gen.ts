@@ -6708,7 +6708,7 @@ export const ChatRoomMessageUnfurlSchema = {
     ]
 } as const;
 
-export const ChatRoomThreadsAttentionCountSchema = {
+export const ChatRoomThreadsUnreadCountSchema = {
     type: 'object',
     properties: {
         count: {

@@ -147,9 +147,9 @@ import {
   getChatsRoomsByIdInviteLinks as coreGetChatsRoomsByIdInviteLinks,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
-  getChatsRoomsByIdThreadsAttentionCount as coreGetChatsRoomsByIdThreadsAttentionCount,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
   getChatsRoomsByIdThreadsByParentMessageIdMessages as coreGetChatsRoomsByIdThreadsByParentMessageIdMessages,
+  getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -862,16 +862,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getChatRoomThreadsAttentionCount(id: string) {
+  async function getChatRoomThreadsUnreadCount(id: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetChatsRoomsByIdThreadsAttentionCount({
+        coreGetChatsRoomsByIdThreadsUnreadCount({
           client,
           path: { id },
           cache: "no-store",
         }),
-      "Failed to fetch thread attention count",
+      "Failed to fetch unread thread count",
     );
   }
 
@@ -4338,7 +4338,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThread,
     getChatRoomThreadMessages,
     getChatRoomThreads,
-    getChatRoomThreadsAttentionCount,
+    getChatRoomThreadsUnreadCount,
     getChatRooms,
     getDiscoverableChatRooms,
     markChatRoomRead,
