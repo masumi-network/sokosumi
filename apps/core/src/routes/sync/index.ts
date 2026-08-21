@@ -11,6 +11,7 @@ import mountGetSourceImportSync from "./source-import/get.js";
 import mountGetStripeCustomersSync from "./stripe-customers/get.js";
 import mountGetTaskPaymentClaimsSync from "./task-payment-claims/get.js";
 import mountGetTaskSchedulesSync from "./task-schedules/get.js";
+import mountGetTaskX402PaymentHeadersPurgeSync from "./task-x402-payment-headers-purge/get.js";
 
 const app = new Hono();
 
@@ -25,5 +26,6 @@ mountGetSourceImportSync(app);
 mountGetStripeCustomersSync(app);
 mountGetTaskPaymentClaimsSync(app);
 mountGetTaskSchedulesSync(app);
+mountGetTaskX402PaymentHeadersPurgeSync(app);
 
 export default app;

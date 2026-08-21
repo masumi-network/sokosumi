@@ -1813,6 +1813,34 @@ enum TaskX402PaymentStatus {
   REFUNDED
 }
 
+/// WHICH lever restored a payment's debit. `status` cannot answer this and the
+/// admin rollup's headline quality signal depends on the answer: the operator
+/// goodwill refund (VERIFIED → REFUNDED, "we charged for a bad result") and the
+/// operator resolve of a wedged PENDING charge (PENDING → REFUNDED, an
+/// integration or node-timeout problem) both land REFUNDED, and counting the
+/// second as the first ranks a healthy agent as the worst quality-bleeding
+/// endpoint — a false ranking a hostile coworker could drive on purpose by
+/// wedging rows against a competitor.
+///
+/// Written by `attachCompensatingRefund` in the same UPDATE that mints the
+/// refund transaction, so the label cannot drift from the money it describes.
+/// Deliberately an explicit column rather than the implicit discriminator that
+/// already exists (a goodwill refund's row always came from VERIFIED so always
+/// carries `attemptId`; a resolve's never does): that invariant is a fact about
+/// where finalize happens to write `attemptId` today, and a reader of the
+/// rollup would have no way to know the metric silently depended on it.
+enum TaskX402PaymentRefundKind {
+  /// The automated refusal refund (`refundRefusedTaskX402Payment`): the node
+  /// refused, the row is FAILED. Node-budget-only, user-safe, NOT a quality
+  /// signal — the `failureCount` metric already counts these.
+  NODE_REFUSAL
+  /// The operator goodwill refund of a VERIFIED payment. The §5 quality signal.
+  OPERATOR_GOODWILL
+  /// The operator resolve of a wedged PENDING payment. Says nothing about the
+  /// agent's output quality; counted separately so an operator still sees it.
+  OPERATOR_RESOLVE
+}
+
 model TaskEvent {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1939,8 +1967,57 @@ model TaskX402Payment {
   asset         String  @db.VarChar(128)
   amount        String // base units, chain-native
   payTo         String
+  /// SHA-256 of the canonical narrowed paymentRequired plus exact source
+  /// requirement. Pins protocol and every signed/accepted term so a reused
+  /// idempotency key cannot replay a header for a changed 402.
+  demandFingerprint String? @db.VarChar(64)
   attemptId     String? // node attempt id, present once signed
-  failureReason String?
+  /// The signed X-PAYMENT header value, stored at VERIFIED so an idempotent
+  /// replay of the same (taskId, idempotencyKey) can return the stored result
+  /// verbatim (PR1-SPEC §3.2) — re-signing would reserve a new node attempt
+  /// and burn budget (ticket 011 Q2). Secret to everyone except the coworker
+  /// who receives it once; a bearer authorization until validBefore, so admin
+  /// list/detail responses must exclude it.
+  ///
+  /// NULLed once validBefore passes by the `/sync/task-x402-payment-headers-purge`
+  /// cron (`purgeExpiredTaskX402PaymentHeaders`). That sweep is deliberately
+  /// NOT part of the phased-settlement reconciler: expiry is knowable from the
+  /// validBefore column alone, so a dead credential must not wait on an
+  /// unbuilt component to observe whether it was consumed. The row and every
+  /// money fact survive the purge; only this column is cleared.
+  xPaymentHeader String?
+  failureReason  String?
+
+  /// Count of node /x402/pay calls for this record (fresh sign = 1, each
+  /// PENDING replay re-sign +1). Bounds node-budget burn under node skew: a
+  /// node stuck returning incomplete-200s leaves the record PENDING, and an
+  /// uncapped coworker retry loop would re-sign — decrementing node budget —
+  /// without limit (user funds are always safe; the held charge is
+  /// refund-safe). Past TASK_X402_MAX_SIGN_ATTEMPTS a replay refuses and
+  /// directs to support, leaving the record PENDING for the reconciler.
+  signAttemptCount Int @default(0)
+
+  /// When the current holder started its node `/x402/pay` round-trip, i.e. an
+  /// advisory lease over the sign. Two same-key requests could otherwise both
+  /// reach the node: the first refuses (the second consumed the budget),
+  /// refunds and closes the row, and then the second returns a REAL signed
+  /// authorization against an already-refunded record — credits back, row
+  /// terminal, and a live EIP-3009 authorization Soko signed and discarded.
+  /// A request that finds a fresh lease is turned away with a retryable 409
+  /// instead of racing.
+  ///
+  /// Self-expiring, never a lock: it is only honoured for
+  /// TASK_X402_SIGN_LEASE_MS (longer than the node request timeout), so a
+  /// crashed holder cannot wedge the key. It is a hint about who is working,
+  /// not a claim on the money — `status` remains the sole authority for that,
+  /// which is why nothing clears this column on the way out.
+  processingAt DateTime?
+
+  /// Conservative upper bound for any authorization a started sign attempt may
+  /// have produced. Set before contacting the node and retained on ambiguous or
+  /// discarded outcomes so support cannot refund a PENDING charge while an
+  /// unseen authorization may still be live.
+  signRiskExpiresAt DateTime?
 
   // Phased settlement observation (ticket 011 Q3): stored now, consumed by a
   // later reconciler that checks EIP-3009 authorizationState after expiry —
@@ -1963,8 +2040,13 @@ model TaskX402Payment {
   // the credit debit, and its compensating refund.
 
   /// Restrict, not Cascade: a money record must never vanish with its task.
-  /// Account deletion resolves payments first (prepareTasksForUserDeletion) —
-  /// same reasoning as the claim's Restrict on its transactions.
+  /// SELF-SERVICE account deletion resolves payments first
+  /// (prepareTasksForUserDeletion, via Better Auth's beforeDelete hook) —
+  /// same reasoning as the claim's Restrict on its transactions. The hook
+  /// only fires on that path: better-auth's admin-plugin remove-user calls
+  /// the adapter delete directly, where this Restrict makes the request fail
+  /// instead of cascading — acceptable (nothing product-side calls it), and
+  /// the same failure the claim tables already produce there.
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Restrict)
 
@@ -1984,6 +2066,12 @@ model TaskX402Payment {
   refundTransactionId String?      @unique
   refundTransaction   Transaction? @relation("RefundedTransactionTaskX402Payment", fields: [refundTransactionId], references: [id], onDelete: Restrict)
 
+  /// Which lever minted `refundTransaction` — see TaskX402PaymentRefundKind.
+  /// Nullable and NOT defaulted: absent means "no refund", and a REFUNDED row
+  /// with a NULL kind is an anomaly the rollup counts as neither goodwill nor
+  /// resolve rather than guessing it into the ranking signal.
+  refundKind TaskX402PaymentRefundKind?
+
   @@unique([taskId, idempotencyKey]) // the dedupe unique (ticket 003)
   /// EIP-3009 replay protection, mirrored into the database. The chain
   /// guarantees a given (payer, nonce) authorization can be consumed exactly
@@ -2000,19 +2088,55 @@ model TaskX402Payment {
   /// fields together or neither.
   @@unique([caip2Network, asset, payerAddress, payloadNonce], map: "task_x402_payment_nonce_replay_uidx", where: { payloadNonce: { not: null } })
   @@index([agentId, status]) // per-endpoint refund aggregation (PR1-SPEC §5)
-  @@index([status, validBefore]) // phased-settlement reconciler expiry scan
+  /// Provisioned for the phased-settlement reconciler's expiry scan (ticket
+  /// 011 Q3); nothing shipped reads it yet. NOTE for that consumer: it must
+  /// NOT key the scan on `status = VERIFIED` alone — an operator goodwill
+  /// refund moves a row to REFUNDED while its authorization stays settleable
+  /// until `validBefore`, so a VERIFIED-only scan would skip live money.
+  /// Scan each header-bearing status, or key on expiry the way the header
+  /// purge below does.
+  @@index([status, validBefore])
+  /// The header purge's index. The sweep filters by EXPIRY and deliberately
+  /// NOT by status (an operator goodwill refund can move a header-bearing row
+  /// to REFUNDED, which a status-scoped sweep would strand), so the
+  /// status-leading index above could not serve it at all.
+  ///
+  /// PARTIAL, and that is the whole point. `validBefore <= now()` is not
+  /// selective — it matches essentially every historical row forever — so a
+  /// plain btree on it is not worth reading, and measured on 200k rows the
+  /// planner declined it and seq-scanned (1709 buffers). The selective
+  /// condition is `xPaymentHeader IS NOT NULL`: only rows that still hold a
+  /// credential, which is a small bounded working set because this sweep is
+  /// what empties it. As a partial predicate it also keeps the index itself
+  /// that small. Same query, same data, with the partial index: 202 buffers.
+  ///
+  /// validBefore leads among the columns because it is the arm that seeks.
+  /// The backstop arm is `updatedAt <= cutoff` with NO validBefore predicate —
+  /// absolute on purpose, so it subsumes null, drifted and far-future
+  /// expiries without trusting the column — which means it cannot seek on the
+  /// leading column and reads the partial index in full instead. That is
+  /// bounded and cheap for the same reason the partial predicate is worth
+  /// having at all: the index only ever contains rows still holding a
+  /// credential, and this sweep is what empties it. Reordering the columns
+  /// would just move the full read to the other arm.
+  @@index([validBefore, updatedAt], where: { xPaymentHeader: { not: null } })
   @@map("task_x402_payment")
 }
 
-/// Append-only audit trail for operator decisions on a task x402 payment.
-/// These actions move money (goodwill refund) or resolve a record, so
-/// attribution must live in rows that are never updated or deleted.
+/// Append-only outcome trail for task x402 payments. Operator actions move
+/// money or resolve a record; automated refusal failures preserve the quality
+/// signal. Both must outlive account-driven deletion of terminal payments.
 ///
 /// Deliberately FK-free: account deletion hard-deletes terminal payments and
 /// can remove the operator's User row, so a cascade would erase the financial
 /// audit trail while a restrict would block account deletion. Storing plain
 /// ids lets the record outlive both, which is the normal shape for an audit
 /// log.
+///
+/// Sibling of TaskPaymentClaimAction (the Cardano claim trail), and a
+/// separate table on purpose rather than a shared one: different snapshot
+/// columns, action vocabulary, and writers. Structural changes to one should
+/// prompt a look at the other.
 ///
 /// Because `paymentId` can point at a hard-deleted row, the denormalized
 /// facts below are NOT NULL. Without them the surviving action row is an
@@ -2033,10 +2157,11 @@ model TaskX402PaymentAction {
   /// TaskX402Payment.id — intentionally not a relation (see above).
   paymentId String
 
-  /// "refund" | "resolve"
+  /// "failure" | "refund" | "resolve"
   action String
 
-  /// User.id of the acting administrator — intentionally not a relation.
+  /// User.id of the administrator, or "system:x402" for automated refusal.
+  /// Intentionally not a relation.
   operatorId String
 
   /// Short coded rationale for the action ("duplicate_charge",
@@ -2076,8 +2201,21 @@ model TaskX402PaymentAction {
   /// Transaction.userId is non-nullable.
   chargedUserId String
 
+  /// Organization.id charged by the payment, when the debit belonged to an
+  /// organization. Plain snapshot, not a relation. Null is valid for personal
+  /// charges and for legacy action rows written before this column existed.
+  chargedOrganizationId String?
+
+  /// Charge and compensating-refund Transaction ids at action time. Plain
+  /// snapshots, never relations: deleting either account/payment source must
+  /// not delete or block this operator evidence. Nullable only for legacy rows
+  /// that predate these columns; every current operator writer fills both.
+  chargeTransactionId String?
+  refundTransactionId String?
+
   @@index([paymentId, createdAt])
   @@index([operatorId, createdAt])
+  @@unique([paymentId], map: "task_x402_payment_action_failure_payment_uidx", where: { action: "failure" })
   @@map("task_x402_payment_action")
 }
 

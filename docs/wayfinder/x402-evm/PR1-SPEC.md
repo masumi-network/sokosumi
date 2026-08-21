@@ -25,7 +25,7 @@ anyone   → GET  /v1/agents?kind=x402                (list; pick base URL)
 coworker → call the Bazaar agent directly           (outside Soko) → 402
 coworker → POST /v1/tasks/{taskId}/x402-payments     (forward the 402)
    soko  → charge task org in credits, POST node /x402/pay, persist record
-coworker ← { xPaymentHeader, attemptId, paymentId }
+coworker ← { paymentHeader, attemptId, paymentId }
 coworker → replay the agent call with X-PAYMENT      (outside Soko) → result
 ```
 
@@ -122,7 +122,9 @@ Modeled on the node's own request so translation is minimal:
    must match `agentId`'s registered payment source, the network must be in
    the per-env allowlist, and the scheme must be `exact`. Native-amount
    checks (still chain-native base units, **before** credit conversion):
-   - **Fixed** — demanded amount must equal the advertised amount.
+   - **Fixed** — demanded amount must be **≤ advertised** (`amountRow.amount`).
+     Cheaper per-resource prices charge fewer credits (safe). Above the
+     advertised ceiling is a manipulated 402 and is rejected.
    - **Free** — reject a positive demand.
    - **Dynamic** — no advertised amount to match; the runtime 402 supplies
      asset + amount. Asset must be buy-side ready.
@@ -170,10 +172,18 @@ Pass-through of the node's 200 plus Soko's record id:
 {
   "paymentId": "soko payment-record id (support / admin refund / status)",
   "attemptId": "node attempt id",
-  "xPaymentHeader": "base64 value to replay with",
+  "paymentHeader": {
+    "x402Version": 2,
+    "name": "PAYMENT-SIGNATURE", // or "X-PAYMENT" for v1
+    "value": "base64 value to replay under `name`"
+  },
   "caip2Network": "...", "asset": "...", "amount": "...", "payTo": "..."
 }
 ```
+
+The column that stores the bearer is `TaskX402Payment.xPaymentHeader`. The
+coworker JSON field is `paymentHeader` (descriptor: version, header name,
+value). The node's `POST /x402/pay` body still uses `xPaymentHeader`.
 
 ## 4. Data model — `TaskX402Payment`
 

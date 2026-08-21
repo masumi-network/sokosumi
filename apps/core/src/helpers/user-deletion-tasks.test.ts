@@ -12,30 +12,36 @@ const {
   taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
+  taskPaymentClaimFindFirstMock,
   taskPaymentClaimDeleteManyMock,
   taskX402PaymentFindFirstMock,
   taskX402PaymentDeleteManyMock,
   chatRoomFindManyMock,
   chatRoomUpdateMock,
   chatRoomDeleteMock,
+  userDeleteManyMock,
+  queryRawMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
   captureMessageMock,
 } = vi.hoisted(() => ({
+  captureMessageMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
+  taskPaymentClaimFindFirstMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
   taskX402PaymentFindFirstMock: vi.fn(),
   taskX402PaymentDeleteManyMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
   chatRoomDeleteMock: vi.fn(),
+  userDeleteManyMock: vi.fn(),
+  queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
-  captureMessageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/blob", () => ({
@@ -50,15 +56,19 @@ describe("prepareTasksForUserDeletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFileFindManyMock.mockResolvedValue([]);
+    taskPaymentClaimFindFirstMock.mockResolvedValue(null);
     taskPaymentClaimDeleteManyMock.mockResolvedValue({ count: 0 });
     taskX402PaymentFindFirstMock.mockResolvedValue(null);
     taskX402PaymentDeleteManyMock.mockResolvedValue({ count: 0 });
     chatRoomFindManyMock.mockResolvedValue([]);
     chatRoomUpdateMock.mockResolvedValue({});
     chatRoomDeleteMock.mockResolvedValue({});
+    userDeleteManyMock.mockResolvedValue({ count: 1 });
+    queryRawMock.mockResolvedValue([]);
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
       callback({
+        $queryRaw: queryRawMock,
         coworkerAssignment: {
           findMany: coworkerAssignmentFindManyMock,
         },
@@ -71,6 +81,7 @@ describe("prepareTasksForUserDeletion", () => {
           findMany: taskFileFindManyMock,
         },
         taskPaymentClaim: {
+          findFirst: taskPaymentClaimFindFirstMock,
           deleteMany: taskPaymentClaimDeleteManyMock,
         },
         taskX402Payment: {
@@ -82,8 +93,108 @@ describe("prepareTasksForUserDeletion", () => {
           update: chatRoomUpdateMock,
           delete: chatRoomDeleteMock,
         },
+        user: {
+          deleteMany: userDeleteManyMock,
+        },
       }),
     );
+  });
+
+  it("locks owned tasks and reachable x402 payments before checking payment state", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(queryRawMock).toHaveBeenCalledTimes(3);
+    const [userLockStrings, ...userLockValues] = queryRawMock.mock.calls[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    const [taskLockStrings, ...taskLockValues] = queryRawMock.mock.calls[1] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    const [paymentLockStrings, ...paymentLockValues] = queryRawMock.mock
+      .calls[2] as [TemplateStringsArray, ...unknown[]];
+    expect(userLockStrings.join("?")).toMatch(
+      /FROM "user"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
+    );
+    expect(userLockValues).toEqual(["user_delete"]);
+    expect(taskLockStrings.join("?")).toMatch(
+      /FROM "task"[\s\S]*WHERE "ownerId" = \?[\s\S]*FOR UPDATE/,
+    );
+    expect(taskLockValues).toEqual(["user_delete"]);
+    expect(paymentLockStrings.join("?")).toMatch(
+      /FROM "task_x402_payment" AS payment[\s\S]*FOR UPDATE OF payment/,
+    );
+    expect(paymentLockValues).toEqual([
+      "user_delete",
+      "user_delete",
+      "user_delete",
+    ]);
+    expect(queryRawMock.mock.invocationCallOrder[2]).toBeLessThan(
+      taskPaymentClaimFindFirstMock.mock.invocationCallOrder[0] ?? Infinity,
+    );
+    expect(queryRawMock.mock.invocationCallOrder[2]).toBeLessThan(
+      taskX402PaymentDeleteManyMock.mock.invocationCallOrder[0] ?? Infinity,
+    );
+    // Explicit timeout: the default 5 s budget predates the x402 locks and
+    // sweeps in this callback, and lock waits behind an in-flight charge
+    // count against it. Without headroom a heavy account times out with
+    // P2028, which the conflict mapping deliberately does not match.
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      maxWait: 5_000,
+      timeout: 30_000,
+    });
+    expect(userDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: "user_delete" },
+    });
+    expect(taskDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      userDeleteManyMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("treats a concurrent delete that already removed the user as a no-op", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    userDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).resolves.toBeUndefined();
+
+    expect(userDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: "user_delete" },
+    });
+  });
+
+  it("returns a retryable deletion error on a transaction write conflict", async () => {
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        // Deliberately not an x402-specific code: the conflict can come from
+        // the claim sweep, the creator-repoint loop, or the user-row lock
+        // contending with an unrelated FK insert — not only from a payment.
+        code: "ACCOUNT_DELETION_CONCURRENT_CHANGE",
+        message: expect.stringContaining("Retry account deletion"),
+      }),
+    });
+    expect(deleteTaskFileIfOwnedMock).not.toHaveBeenCalled();
   });
 
   it("reassigns foreign-owned user creators then deletes owned tasks", async () => {
@@ -123,6 +234,125 @@ describe("prepareTasksForUserDeletion", () => {
     });
   });
 
+  function mockPendingClaimLookups(options: {
+    reviewRequired?: { id: string; reviewRequiredAt: Date } | null;
+    pending?: { id: string } | null;
+  }) {
+    taskPaymentClaimFindFirstMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (
+          where.reviewRequiredAt &&
+          typeof where.reviewRequiredAt === "object" &&
+          where.reviewRequiredAt !== null &&
+          "not" in where.reviewRequiredAt
+        ) {
+          return options.reviewRequired ?? null;
+        }
+        return options.pending ?? null;
+      },
+    );
+  }
+
+  it("blocks deletion while a task payment claim is pending", async () => {
+    mockPendingClaimLookups({
+      reviewRequired: null,
+      pending: { id: "claim_pending" },
+    });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({ code: "TASK_PAYMENT_CLAIM_PENDING" }),
+    });
+    expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("directs reviewed claims to administrator recovery before deletion", async () => {
+    mockPendingClaimLookups({
+      reviewRequired: {
+        id: "claim_review",
+        reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+      },
+    });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+      }),
+    });
+    expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+    // Unlike a plain PENDING claim, this one clears only when an operator
+    // acts, so the user's deletion is blocked for an unbounded time by an
+    // internal queue. It has to be visible to someone who can clear it.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by a task payment claim awaiting review",
+      expect.objectContaining({
+        level: "error",
+        extra: expect.objectContaining({
+          userId: "user_delete",
+          taskPaymentClaimId: "claim_review",
+        }),
+      }),
+    );
+  });
+
+  it("prefers a review-required claim when the user also has plain pending ones", async () => {
+    mockPendingClaimLookups({
+      reviewRequired: {
+        id: "claim_review",
+        reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+      },
+      // Would be the wrong branch if findFirst were unordered over both types.
+      pending: { id: "claim_pending" },
+    });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+      }),
+    });
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by a task payment claim awaiting review",
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          taskPaymentClaimId: "claim_review",
+        }),
+      }),
+    );
+    // Review path must short-circuit before the plain-PENDING lookup.
+    expect(taskPaymentClaimFindFirstMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not page for a pending claim that will settle on its own", async () => {
+    mockPendingClaimLookups({
+      reviewRequired: null,
+      pending: { id: "claim_pending" },
+    });
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({ status: "BAD_REQUEST" });
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
   it("removes terminal claims before transaction cascade", async () => {
     coworkerAssignmentFindManyMock.mockResolvedValue([]);
     taskFindManyMock.mockResolvedValue([]);
@@ -150,7 +380,10 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("blocks deletion while a task x402 payment is pending", async () => {
-    taskX402PaymentFindFirstMock.mockResolvedValue({ id: "x402_pending" });
+    taskX402PaymentFindFirstMock.mockResolvedValue({
+      id: "x402_pending",
+      status: TaskX402PaymentStatus.PENDING,
+    });
 
     const promise = prepareTasksForUserDeletion("user_delete", {
       $transaction: transactionMock,
@@ -158,11 +391,26 @@ describe("prepareTasksForUserDeletion", () => {
 
     await expect(promise).rejects.toMatchObject({
       status: "BAD_REQUEST",
-      body: expect.objectContaining({ code: "TASK_X402_PAYMENT_PENDING" }),
+      body: expect.objectContaining({
+        code: "TASK_X402_PAYMENT_PENDING",
+        // The message must describe a remedy that EXISTS. Support now has the
+        // admin resolve lever, so "contact support" is a real instruction
+        // rather than a dead end the operator cannot act on.
+        message: expect.stringContaining("contact support to have it resolved"),
+      }),
     });
     expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
       where: {
-        status: TaskX402PaymentStatus.PENDING,
+        // The guard matches everything OUTSIDE the sweepable set, so a future
+        // enum member blocks deletion instead of matching neither the guard
+        // nor the sweep.
+        status: {
+          notIn: [
+            TaskX402PaymentStatus.VERIFIED,
+            TaskX402PaymentStatus.FAILED,
+            TaskX402PaymentStatus.REFUNDED,
+          ],
+        },
         // All three RESTRICT branches, including refundTransaction — a
         // PENDING row carrying one should be impossible, but the FK would
         // 500 the user cascade if it existed, so the guard checks it.
@@ -172,13 +420,28 @@ describe("prepareTasksForUserDeletion", () => {
           { task: { ownerId: "user_delete" } },
         ],
       },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
     expect(taskDeleteManyMock).not.toHaveBeenCalled();
-    // A pending x402 payment clears itself (coworker retry or reconciler
-    // auto-refund), so unlike a review-required claim it must not page.
-    expect(captureMessageMock).not.toHaveBeenCalled();
+    // No reconciler auto-refunds the held debit and the user cannot unblock
+    // themselves, so the block is unbounded — it must page ops (like a
+    // review-required claim) so support has a signal to act on. The page has
+    // to name the lever: an operator woken by this must not have to go find
+    // out which endpoint clears it.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by a pending x402 task payment",
+      expect.objectContaining({
+        level: "error",
+        tags: { error_type: "user_deletion_blocked_by_x402_pending" },
+        extra: expect.objectContaining({
+          userId: "user_delete",
+          taskX402PaymentId: "x402_pending",
+          resolveEndpoint:
+            "POST /v1/admin/task-x402-payments/x402_pending/resolve",
+        }),
+      }),
+    );
   });
 
   it("removes terminal x402 payments before the task and transaction cascades", async () => {
@@ -192,9 +455,24 @@ describe("prepareTasksForUserDeletion", () => {
 
     // Every RESTRICT branch (charge, refund, task owner) must be swept, or
     // the owned-task delete / user cascade fails on the FK.
+    //
+    // The sweep ENUMERATES the sweepable statuses and the unresolved guard
+    // above it holds the same list inverted (`notIn`). A future enum member
+    // (e.g. EXPIRED_UNUSED) therefore matches the guard, not this sweep —
+    // deletion blocks with a page until the code learns whether the new
+    // status is sweepable, rather than hard-deleting a row that may still
+    // represent money in flight. The un-swept-row RESTRICT-FK 500 the old
+    // `not: PENDING` shape defended against cannot occur: nothing reaches
+    // this sweep in a non-sweepable status past that guard.
     expect(taskX402PaymentDeleteManyMock).toHaveBeenCalledWith({
       where: {
-        status: { not: TaskX402PaymentStatus.PENDING },
+        status: {
+          in: [
+            TaskX402PaymentStatus.VERIFIED,
+            TaskX402PaymentStatus.FAILED,
+            TaskX402PaymentStatus.REFUNDED,
+          ],
+        },
         OR: [
           { transaction: { userId: "user_delete" } },
           { refundTransaction: { userId: "user_delete" } },
@@ -211,39 +489,50 @@ describe("prepareTasksForUserDeletion", () => {
     expect(x402SweepCallOrder).toBeLessThan(taskDeleteCallOrder);
   });
 
-  it("sweeps every non-pending x402 status instead of enumerating them", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
-    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+  it("blocks deletion when a payment is in a status this code does not know", async () => {
+    taskX402PaymentFindFirstMock.mockResolvedValue({
+      id: "x402_future",
+      status: "EXPIRED_UNUSED",
+    });
 
-    await prepareTasksForUserDeletion("user_delete", {
+    const promise = prepareTasksForUserDeletion("user_delete", {
       $transaction: transactionMock,
     } as never);
 
-    // Asserting the predicate shape, not a fixture row: the enum has no
-    // fifth member today, so a future status (e.g. EXPIRED_UNUSED) cannot be
-    // exercised here. An enumerated `in: [...]` would match neither this
-    // sweep nor the PENDING guard above it, leaving the row behind — and
-    // taskId is RESTRICT, so the task.deleteMany below would then fail with
-    // a raw FK error and 500 the account deletion. Negating PENDING keeps
-    // the sweep exhaustive by construction as the enum grows.
-    const [sweepArgs] = taskX402PaymentDeleteManyMock.mock.calls[0] as [
-      { where: { status: unknown } },
-    ];
-    expect(sweepArgs.where.status).toEqual({
-      not: TaskX402PaymentStatus.PENDING,
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_X402_PAYMENT_UNRESOLVED",
+      }),
     });
-    expect(sweepArgs.where.status).not.toHaveProperty("in");
+    // The resolve lever is PENDING-specific and may not apply here, so the
+    // page carries the unexpected status instead of an endpoint.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by an x402 task payment in an unhandled status",
+      expect.objectContaining({
+        level: "error",
+        tags: { error_type: "user_deletion_blocked_by_x402_unhandled" },
+        extra: expect.objectContaining({
+          userId: "user_delete",
+          taskX402PaymentId: "x402_future",
+          status: "EXPIRED_UNUSED",
+        }),
+      }),
+    );
+    expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
   });
 
   /**
-   * The x402 `findFirst` is called twice with different predicates: the
-   * PENDING blocker guard, then the foreign-charge detector that runs over the
-   * rows the sweep is about to delete. Discriminate on `status` the way the
-   * real query would.
+   * The x402 `findFirst` is called three times with different predicates: the
+   * unresolved-status blocker (`notIn` the sweepable set), the
+   * live-authorization blocker (deliberately status-UNSCOPED — it keys on
+   * xPaymentHeader alone), then the foreign-charge detector over rows the
+   * sweep is about to delete. Discriminate the way the real query would.
    */
   function mockX402Lookups(options: {
-    pending?: { id: string } | null;
+    unresolved?: { id: string; status: string } | null;
+    liveAuthorization?: { id: string; validBefore: Date | null } | null;
     foreignCharge?: {
       id: string;
       taskId: string;
@@ -252,15 +541,69 @@ describe("prepareTasksForUserDeletion", () => {
   }) {
     taskX402PaymentFindFirstMock.mockImplementation(
       async ({ where }: { where: Record<string, unknown> }) => {
-        if (where.status === TaskX402PaymentStatus.PENDING) {
-          return options.pending ?? null;
+        if (
+          typeof where.status === "object" &&
+          where.status !== null &&
+          "notIn" in where.status
+        ) {
+          return options.unresolved ?? null;
+        }
+        if ("xPaymentHeader" in where) {
+          return options.liveAuthorization ?? null;
         }
         return options.foreignCharge ?? null;
       },
     );
   }
 
-  it("pages when the sweep would remove a payment charged to another user", async () => {
+  it("blocks deletion while a bearer authorization can still settle", async () => {
+    const validBefore = new Date(Date.now() + 60_000);
+    mockX402Lookups({
+      liveAuthorization: { id: "x402_live", validBefore },
+    });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
+      }),
+    });
+    // Exact-match on purpose: the predicate must carry NO status filter.
+    // Same principle as the header purge — a credential-retention control
+    // must not depend on writer discipline. Only VERIFIED writes a header
+    // today, but a status-scoped guard would let a header-bearing row in any
+    // other sweepable status (a buggy or future FAILED writer, say) slip
+    // past and be hard-deleted with its authorization still live.
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        xPaymentHeader: { not: null },
+        AND: [
+          {
+            OR: [
+              { validBefore: null },
+              { validBefore: { gt: expect.any(Date) } },
+            ],
+          },
+          {
+            OR: [
+              { transaction: { userId: "user_delete" } },
+              { refundTransaction: { userId: "user_delete" } },
+              { task: { ownerId: "user_delete" } },
+            ],
+          },
+        ],
+      },
+      select: { id: true, validBefore: true },
+    });
+    expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks and pages when the sweep would remove another user's payment", async () => {
     coworkerAssignmentFindManyMock.mockResolvedValue([]);
     taskFindManyMock.mockResolvedValue([]);
     taskDeleteManyMock.mockResolvedValue({ count: 0 });
@@ -272,16 +615,29 @@ describe("prepareTasksForUserDeletion", () => {
       },
     });
 
-    await prepareTasksForUserDeletion("user_delete", {
+    const promise = prepareTasksForUserDeletion("user_delete", {
       $transaction: transactionMock,
     } as never);
 
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH",
+      }),
+    });
+
     // The detector must look at exactly the rows the sweep deletes whose
-    // charge is someone else's: reachable only through the refund or
-    // task-owner branch, never the charge branch.
+    // charge is someone else's: the sweep's own status set, reachable only
+    // through the refund or task-owner branch, never the charge branch.
     expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
       where: {
-        status: { not: TaskX402PaymentStatus.PENDING },
+        status: {
+          in: [
+            TaskX402PaymentStatus.VERIFIED,
+            TaskX402PaymentStatus.FAILED,
+            TaskX402PaymentStatus.REFUNDED,
+          ],
+        },
         transaction: { userId: { not: "user_delete" } },
         OR: [
           { refundTransaction: { userId: "user_delete" } },
@@ -295,10 +651,13 @@ describe("prepareTasksForUserDeletion", () => {
       },
     });
     // Task.ownerId is documented as always the billing owner, so this should
-    // be unreachable. If it ever fires, a live third party's payment record is
-    // being destroyed by someone else's account deletion — silent today.
+    // be unreachable. If it ever fires, deletion must stop before a live third
+    // party's payment record is destroyed by someone else's account deletion.
+    // The page must also say the repair is MANUAL: the admin refund/resolve
+    // levers only move status, and every terminal status stays inside the
+    // detector's predicate, so pulling them cannot clear this block.
     expect(captureMessageMock).toHaveBeenCalledWith(
-      "Account deletion is removing a task x402 payment charged to another user",
+      "Account deletion would remove a task x402 payment charged to another user",
       expect.objectContaining({
         level: "error",
         tags: expect.objectContaining({
@@ -309,51 +668,13 @@ describe("prepareTasksForUserDeletion", () => {
           taskX402PaymentId: "x402_foreign",
           taskId: "tsk_owned",
           chargedUserId: "user_charged",
+          repair: expect.stringContaining("No admin endpoint clears this"),
         }),
       }),
     );
-  });
-
-  it("still sweeps the foreign-charge row it paged about", async () => {
-    coworkerAssignmentFindManyMock.mockResolvedValue([]);
-    taskFindManyMock.mockResolvedValue([]);
-    taskDeleteManyMock.mockResolvedValue({ count: 0 });
-    mockX402Lookups({
-      foreignCharge: {
-        id: "x402_foreign",
-        taskId: "tsk_owned",
-        transaction: { userId: "user_charged" },
-      },
-    });
-
-    await prepareTasksForUserDeletion("user_delete", {
-      $transaction: transactionMock,
-    } as never);
-
-    // Narrowing the OR to hide the row is not the fix: the task-owner branch
-    // is load-bearing for the RESTRICT on taskId, so dropping it would fail
-    // the owned-task delete with a raw FK 500. Make it visible, not silent.
-    expect(taskX402PaymentDeleteManyMock).toHaveBeenCalledWith({
-      where: {
-        status: { not: TaskX402PaymentStatus.PENDING },
-        OR: [
-          { transaction: { userId: "user_delete" } },
-          { refundTransaction: { userId: "user_delete" } },
-          { task: { ownerId: "user_delete" } },
-        ],
-      },
-    });
-    expect(taskDeleteManyMock).toHaveBeenCalled();
-
-    // Two lookups: the PENDING blocker guard, then the foreign-charge
-    // detector. The detector reads rows the sweep deletes, so it is only
-    // meaningful before it.
-    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledTimes(2);
-    const detectCallOrder =
-      taskX402PaymentFindFirstMock.mock.invocationCallOrder[1];
-    const sweepCallOrder =
-      taskX402PaymentDeleteManyMock.mock.invocationCallOrder[0];
-    expect(detectCallOrder).toBeLessThan(sweepCallOrder);
+    expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledTimes(3);
   });
 
   it("does not page when every swept payment is charged to the deleted user", async () => {
@@ -368,9 +689,26 @@ describe("prepareTasksForUserDeletion", () => {
 
     // The detector still has to run — silence must come from finding nothing,
     // not from skipping the check.
-    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledTimes(2);
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledTimes(3);
     expect(taskX402PaymentDeleteManyMock).toHaveBeenCalled();
     expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("checks pending claims before pending x402 payments", async () => {
+    mockPendingClaimLookups({
+      reviewRequired: null,
+      pending: { id: "claim_pending" },
+    });
+    taskX402PaymentFindFirstMock.mockResolvedValue({ id: "x402_pending" });
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({
+      body: expect.objectContaining({ code: "TASK_PAYMENT_CLAIM_PENDING" }),
+    });
+    expect(taskX402PaymentFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {
