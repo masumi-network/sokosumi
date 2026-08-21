@@ -49,7 +49,7 @@ describe("OrganizationChatList section visibility", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows External when a personal human Direct is not an org teammate", () => {
+  it("lists a personal human Direct under Direct Messages, not External", () => {
     const personal = makeRoom({
       id: "personal-dm",
       kind: "direct",
@@ -66,8 +66,11 @@ describe("OrganizationChatList section visibility", () => {
       rooms: [personal],
     });
 
-    expect(screen.getByText("App.Channels.External.title")).toBeInTheDocument();
+    expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
     expect(screen.getByText("room")).toBeInTheDocument();
+    expect(
+      screen.queryByText("App.Channels.External.title"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows External when the user has joined an external room", async () => {

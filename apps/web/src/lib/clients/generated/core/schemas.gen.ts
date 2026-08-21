@@ -5472,7 +5472,7 @@ export const ChatRoomSchema = {
         peerInActiveOrganization: {
             type: 'boolean',
             default: false,
-            description: 'True when every other human on a Direct is a Member of the caller\'s active organization. Used to put Personal Directs under Direct Messages vs External. False with no active organization.',
+            description: 'True when every other human on a Direct is a Member of the caller\'s active organization. False with no active organization.',
             example: false
         },
         userMembers: {

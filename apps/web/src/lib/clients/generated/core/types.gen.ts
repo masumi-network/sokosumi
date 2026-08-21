@@ -1542,7 +1542,7 @@ export type ChatRoom = {
     markedUnread: boolean;
     myAccess: ChatRoomAccess;
     /**
-     * True when every other human on a Direct is a Member of the caller's active organization. Used to put Personal Directs under Direct Messages vs External. False with no active organization.
+     * True when every other human on a Direct is a Member of the caller's active organization. False with no active organization.
      */
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;

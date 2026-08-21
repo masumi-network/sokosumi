@@ -658,15 +658,9 @@ export function OrganizationChatList({
                     key={room.id}
                     room={room}
                     href={`/chat/rooms/${room.id}`}
-                    label={
-                      room.kind === "direct"
-                        ? getRoomDisplayName(room, currentUserId)
-                        : room.name
-                    }
+                    label={room.name}
                     subtitle={
-                      room.kind !== "direct" &&
-                      room.myAccess === "guest" &&
-                      room.organizationName
+                      room.myAccess === "guest" && room.organizationName
                         ? tExternal("hostOrganization", {
                             organization: room.organizationName,
                           })
@@ -674,16 +668,7 @@ export function OrganizationChatList({
                     }
                     isActive={activeRoomId === room.id}
                     leading={
-                      room.kind === "direct" ? (
-                        <DirectRoomAvatarStack
-                          room={room}
-                          currentUserId={currentUserId}
-                          canOpenHumanDirect
-                          selectedRoomId={activeRoomId}
-                        />
-                      ) : (
-                        <ChannelDiscoverabilityIcon discoverability="external" />
-                      )
+                      <ChannelDiscoverabilityIcon discoverability="external" />
                     }
                     onRoomUpdated={handleRoomUpdated}
                     dismissSheetOnNavigate={dismissSheetOnNavigate}

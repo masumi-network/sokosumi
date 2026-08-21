@@ -113,7 +113,7 @@ A Direct not owned by an Organization. Survives Organization exit. Human 1:1 fro
 _Avoid_: Account DM, global DM
 
 **External** (sidebar):
-The chat sidebar section for External channels and for Directs whose other human is not a Member of the active Organization (or there is no active Organization). Distinct from Channels and Direct Messages. Shown when that set is non-empty; those Directs and Guest rooms appear in every workspace.
+The chat sidebar section for External channels. Distinct from Channels and Direct Messages. Shown when that set is non-empty. Guest rooms appear in every workspace. Human Directs list under Direct Messages, including Personal Directs with a Guest.
 _Avoid_: External channel (that is the room), guest sidebar
 
 ### Chat membership

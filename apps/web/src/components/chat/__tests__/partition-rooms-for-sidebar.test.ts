@@ -81,7 +81,7 @@ describe("partitionRoomsForSidebar", () => {
     expect(result.namedChannels.map((r) => r.id)).toEqual(["public-1"]);
   });
 
-  it("puts personal human Directs under External when the peer is not an org teammate", () => {
+  it("puts personal human Directs under Direct Messages even when the peer is not an org teammate", () => {
     const personal = makeRoom({
       id: "personal-dm",
       kind: "direct",
@@ -94,8 +94,8 @@ describe("partitionRoomsForSidebar", () => {
 
     const result = partitionRoomsForSidebar([personal]);
 
-    expect(result.externalJoined.map((r) => r.id)).toEqual(["personal-dm"]);
-    expect(result.directMessages).toEqual([]);
+    expect(result.directMessages.map((r) => r.id)).toEqual(["personal-dm"]);
+    expect(result.externalJoined).toEqual([]);
   });
 
   it("puts personal human Directs under Direct Messages when the peer is an org teammate", () => {
