@@ -1,4 +1,4 @@
-# ADR 0010: Coworker may originate an org-scoped coworker 1:1
+# ADR 0011: Coworker may originate an org-scoped coworker 1:1
 
 - Status: Accepted
 - Date: 2026-08-21
