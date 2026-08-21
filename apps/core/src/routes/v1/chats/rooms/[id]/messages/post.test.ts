@@ -16,6 +16,7 @@ const {
   messageCreateMock,
   membershipFindManyMock,
   readStateUpsertMock,
+  threadReadUpsertMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
@@ -33,6 +34,7 @@ const {
   messageCreateMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
+  threadReadUpsertMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -139,6 +141,9 @@ const tx = {
   },
   chatRoomReadState: {
     upsert: readStateUpsertMock,
+  },
+  chatRoomThreadReadState: {
+    upsert: threadReadUpsertMock,
   },
   organization: {
     findUnique: organizationFindUniqueMock,
@@ -328,6 +333,10 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
+  threadReadUpsertMock.mockResolvedValue({
+    parentMessageId: PARENT_MESSAGE_ID,
+    lastReadAt: new Date("2026-07-02T12:00:00.000Z"),
+  });
   messageFindUniqueMock.mockResolvedValue(null);
   emitChatMentionNotificationsMock.mockResolvedValue(undefined);
   scheduleUnfurlsMock.mockResolvedValue({
@@ -541,6 +550,22 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
+      expect(threadReadUpsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_parentMessageId: {
+              userId: USER_ID,
+              parentMessageId: PARENT_MESSAGE_ID,
+            },
+          },
+          update: { lastReadAt: new Date("2025-01-02T00:00:00.000Z") },
+          create: {
+            userId: USER_ID,
+            parentMessageId: PARENT_MESSAGE_ID,
+            lastReadAt: new Date("2025-01-02T00:00:00.000Z"),
+          },
+        }),
+      );
 
       // The thread coworker became a mention target without an @mention;
       // the non-member coworker id from the thread was filtered out.
@@ -627,6 +652,9 @@ describe("POST /chats/rooms/{id}/messages", () => {
           data: expect.objectContaining({
             mentionsAsSource: {
               create: [{ coworkerId: COWORKER_ID }],
+            },
+            userMentionsAsSource: {
+              create: [{ userId: ALICE_ID }],
             },
           }),
         }),
@@ -1094,7 +1122,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
           id: PARENT_MESSAGE_ID,
           parentMessageId: null,
         })
-        .mockResolvedValueOnce(quotedSourceMessage());
+        .mockResolvedValueOnce(quotedSourceMessage())
+        .mockResolvedValueOnce({
+          id: PARENT_MESSAGE_ID,
+          parentMessageId: null,
+        });
       messageFindManyMock.mockResolvedValue([
         { senderCoworkerId: COWORKER_ID, mentionsAsSource: [] },
       ]);

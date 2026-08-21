@@ -141,7 +141,6 @@ function aggregateRow() {
     unreadReplyCount: 1,
     lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
     hasLooked: true,
-    attentionReplyCount: 1,
   };
 }
 
@@ -185,7 +184,6 @@ describe("GET /chats/rooms/{id}/threads", () => {
         unreadReplyCount: 1,
         lastUnreadReplyAt: "2026-07-02T12:00:00.000Z",
         hasLooked: true,
-        attentionReplyCount: 1,
       }),
     ]);
   });
@@ -202,7 +200,6 @@ describe("GET /chats/rooms/{id}/threads", () => {
           unreadReplyCount: 0,
           lastUnreadReplyAt: null,
           hasLooked: true,
-          attentionReplyCount: 0,
         },
       ])
       .mockResolvedValueOnce([{ count: 2 }]);
@@ -250,7 +247,6 @@ describe("GET /chats/rooms/{id}/threads", () => {
           unreadReplyCount: 0,
           lastUnreadReplyAt: null,
           hasLooked: true,
-          attentionReplyCount: 0,
         },
         {
           parentMessageId: extraId,
@@ -259,7 +255,6 @@ describe("GET /chats/rooms/{id}/threads", () => {
           unreadReplyCount: 0,
           lastUnreadReplyAt: null,
           hasLooked: true,
-          attentionReplyCount: 0,
         },
       ])
       .mockResolvedValueOnce([{ count: 4 }]);
@@ -299,7 +294,6 @@ describe("GET /chats/rooms/{id}/threads", () => {
           unreadReplyCount: 0,
           lastUnreadReplyAt: null,
           hasLooked: true,
-          attentionReplyCount: 0,
         },
       ])
       .mockResolvedValueOnce([{ count: 3 }]);
