@@ -11,6 +11,7 @@ const {
   roomFindFirstMock,
   roomFindManyMock,
   roomCreateMock,
+  roomUpdateMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   memberFindManyMock,
@@ -24,6 +25,7 @@ const {
   roomFindFirstMock: vi.fn(),
   roomFindManyMock: vi.fn(),
   roomCreateMock: vi.fn(),
+  roomUpdateMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     chatRoom: {
       findFirst: roomFindFirstMock,
+      update: roomUpdateMock,
     },
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
@@ -65,6 +68,7 @@ const tx = {
     findFirst: roomFindFirstMock,
     findMany: roomFindManyMock,
     create: roomCreateMock,
+    update: roomUpdateMock,
   },
   organization: {
     findUnique: organizationFindUniqueMock,
@@ -99,11 +103,21 @@ function createApp(authContext: AuthVariables["authContext"]) {
   return app;
 }
 
+const COWORKER_ID = "cow_123";
+const COWORKER_DIRECT_KEY = `coworker:${OTHER_USER_ID}:${COWORKER_ID}`;
+
 const userAuthContext: AuthVariables["authContext"] = {
   actor: "user",
   userId: USER_ID,
   organizationId: ORG_ID,
   role: "user",
+};
+
+const coworkerAuthContext: AuthVariables["authContext"] = {
+  actor: "coworker",
+  coworkerId: COWORKER_ID,
+  vendorId: "01960001-0001-7001-8001-000000000001",
+  context: { userId: USER_ID, organizationId: ORG_ID },
 };
 
 const DIRECT_KEY = `${USER_ID}:${OTHER_USER_ID}`;
@@ -162,6 +176,38 @@ function directRoom(overrides: Record<string, unknown> = {}) {
           email: "bob@example.com",
           image: null,
           sessions: [],
+        },
+      },
+    ],
+    ...overrides,
+  });
+}
+
+function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
+  return directRoom({
+    name: "Elena",
+    slug: "elena",
+    directKey: COWORKER_DIRECT_KEY,
+    createdByUserId: OTHER_USER_ID,
+    userMembers: [
+      {
+        user: {
+          id: OTHER_USER_ID,
+          name: "Bob",
+          email: "bob@example.com",
+          image: null,
+          sessions: [],
+        },
+      },
+    ],
+    coworkerMembers: [
+      {
+        coworker: {
+          id: COWORKER_ID,
+          name: "Elena",
+          slug: "elena",
+          caption: null,
+          image: null,
         },
       },
     ],
@@ -730,7 +776,6 @@ describe("POST /chats/rooms", () => {
         where: expect.objectContaining({
           organizationId: ORG_ID,
           directKey: GROUP_DIRECT_KEY,
-          archivedAt: null,
         }),
       }),
     );
@@ -901,7 +946,6 @@ describe("POST /chats/rooms", () => {
         where: expect.objectContaining({
           organizationId: ORG_ID,
           directKey: DIRECT_KEY,
-          archivedAt: null,
         }),
       }),
     );
@@ -953,5 +997,307 @@ describe("POST /chats/rooms", () => {
     expect(response.status).toBe(409);
     expect(await response.text()).toBe("Room already exists");
     expect(roomCreateMock).toHaveBeenCalledTimes(3);
+  });
+
+  describe("coworker actor", () => {
+    it("creates an org-scoped coworker 1:1 with the target as createdByUserId when context user differs", async () => {
+      const created = coworkerDirectRoom();
+      roomFindFirstMock.mockResolvedValueOnce(null);
+      roomCreateMock.mockResolvedValueOnce(created);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+      userFindManyMock.mockResolvedValue([
+        { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.kind).toBe("direct");
+      expect(body.data.directKey).toBe(COWORKER_DIRECT_KEY);
+      expect(body.data.createdByUserId).toBe(OTHER_USER_ID);
+      expect(roomCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationId: ORG_ID,
+            createdByUserId: OTHER_USER_ID,
+            kind: "direct",
+            directKey: COWORKER_DIRECT_KEY,
+            userMembers: {
+              create: [{ userId: OTHER_USER_ID }],
+            },
+            coworkerMembers: {
+              create: [{ coworkerId: COWORKER_ID }],
+            },
+          }),
+        }),
+      );
+    });
+
+    it("does not return the target human's sidebar flags", async () => {
+      const created = coworkerDirectRoom();
+      roomFindFirstMock.mockResolvedValueOnce(null);
+      roomCreateMock.mockResolvedValueOnce(created);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+      membershipFindManyMock.mockResolvedValue([
+        {
+          roomId: ROOM_ID,
+          pinnedAt: new Date("2025-01-01T00:00:00.000Z"),
+          mutedAt: new Date("2025-01-02T00:00:00.000Z"),
+        },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.pinnedAt).toBeNull();
+      expect(body.data.mutedAt).toBeNull();
+      expect(body.data.markedUnread).toBe(false);
+    });
+
+    it("returns the existing coworker 1:1 for the same pair", async () => {
+      const existing = coworkerDirectRoom();
+      roomFindFirstMock.mockResolvedValueOnce(existing);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data.id).toBe(ROOM_ID);
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("unarchives a stale coworker 1:1 with the same directKey", async () => {
+      const archived = coworkerDirectRoom({
+        archivedAt: new Date("2025-06-01T00:00:00.000Z"),
+      });
+      const restored = coworkerDirectRoom({ archivedAt: null });
+      roomFindFirstMock.mockResolvedValueOnce(archived);
+      roomUpdateMock.mockResolvedValueOnce(restored);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(roomUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ROOM_ID },
+          data: { archivedAt: null },
+        }),
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects channel create with 403", async () => {
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "channel",
+          name: "Launch Room",
+        }),
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe(
+        "Coworker API keys cannot create channels",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects personal originate when no organization context with 400", async () => {
+      const app = createApp({
+        ...coworkerAuthContext,
+        context: { userId: USER_ID, organizationId: null },
+      });
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe(
+        "Switch to an organization to message a teammate.",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects coworkerIds in the body with 400", async () => {
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+          coworkerIds: [COWORKER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe(
+        "Coworker API keys cannot include coworkerIds",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects omitted memberUserIds with 400", async () => {
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe("Choose a direct message target");
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects more than one memberUserId with 400", async () => {
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe("Choose a direct message target");
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("unarchives on directKey unique-retry when the winner is archived", async () => {
+      const archived = coworkerDirectRoom({
+        archivedAt: new Date("2025-06-01T00:00:00.000Z"),
+      });
+      const restored = coworkerDirectRoom({ archivedAt: null });
+      roomFindFirstMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(archived);
+      roomCreateMock.mockRejectedValue({
+        code: "P2002",
+        meta: { target: ["organizationId", "directKey"] },
+      });
+      roomUpdateMock.mockResolvedValueOnce(restored);
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(roomUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ROOM_ID },
+          data: { archivedAt: null },
+        }),
+      );
+      expect(roomCreateMock).toHaveBeenCalled();
+    });
+
+    it("rejects a coworker that is not usable in the workspace with 400", async () => {
+      coworkerFindManyMock.mockResolvedValue([]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe(
+        "Room AI coworkers must be active chat coworkers",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects a target who is not an organization member with 400", async () => {
+      coworkerFindManyMock.mockResolvedValue([
+        { id: COWORKER_ID, baseURL: "https://chat.example.com" },
+      ]);
+      memberFindUniqueMock.mockResolvedValue(null);
+      memberFindManyMock.mockResolvedValue([]);
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "direct",
+          memberUserIds: [OTHER_USER_ID],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toBe(
+        "Room human members must belong to the organization",
+      );
+      expect(roomCreateMock).not.toHaveBeenCalled();
+    });
   });
 });

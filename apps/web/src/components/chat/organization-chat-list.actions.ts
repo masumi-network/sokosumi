@@ -66,42 +66,6 @@ export async function listOrganizationArchivedChatRoomsAction(): Promise<
   }
 }
 
-export async function loadMoreOrganizationChatRoomsAction(
-  cursor: string,
-): Promise<OrganizationChatListActionResult<ChatRoomsPage>> {
-  const cleanCursor = cursor.trim();
-  if (!cleanCursor) {
-    return listFail("Cursor is required.");
-  }
-
-  try {
-    const page = await chatRoomService.listRooms(undefined, "active", {
-      cursor: cleanCursor,
-    });
-    return listOk(page);
-  } catch {
-    return listCatch("Could not load more chat rooms.");
-  }
-}
-
-export async function loadMoreOrganizationArchivedChatRoomsAction(
-  cursor: string,
-): Promise<OrganizationChatListActionResult<ChatRoomsPage>> {
-  const cleanCursor = cursor.trim();
-  if (!cleanCursor) {
-    return listFail("Cursor is required.");
-  }
-
-  try {
-    const page = await chatRoomService.listArchivedRooms({
-      cursor: cleanCursor,
-    });
-    return listOk(page);
-  } catch {
-    return listCatch("Could not load more archived chat rooms.");
-  }
-}
-
 export async function markOrganizationChatRoomReadAction(
   roomId: string,
 ): Promise<OrganizationChatListActionResult<ChatRoom>> {

@@ -7,9 +7,8 @@ export interface OrganizationChatRoomsChangedDetail {
   /** Upsert this membership room into the sidebar (join/create/edit). */
   room?: ChatRoom | null;
   /**
-   * Drop this room from the sidebar (leave). Required so a subsequent first-
-   * page refetch cannot re-surface it via upsertFirstPageRooms' "keep older
-   * rows" merge.
+   * Drop this room from the sidebar (leave) immediately, without waiting
+   * for the next membership-visible rooms refetch.
    */
   removedRoomId?: string;
 }
@@ -23,7 +22,7 @@ function isChatRoom(
 
 /**
  * Soft-update the sidebar room list without `router.refresh()` (which re-ran
- * full layout RSC including paginated `listRooms`).
+ * full layout RSC including `listRooms`).
  *
  * - Pass a `ChatRoom` to upsert (join/create).
  * - Pass `{ removedRoomId }` after leave so the row drops immediately.
