@@ -3812,308 +3812,40 @@ export const PatchVendorRequestSchema = {
 } as const;
 
 export const AgentListItemSchema = {
-    anyOf: [
+    oneOf: [
         {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/Agent'
-                },
-                {
-                    type: 'object',
-                    properties: {
-                        kind: {
-                            type: 'string',
-                            enum: [
-                                'cardano'
-                            ]
-                        }
-                    },
-                    required: [
-                        'kind'
-                    ]
-                }
-            ]
+            $ref: '#/components/schemas/CardanoAgentListItem'
+        },
+        {
+            $ref: '#/components/schemas/X402Agent'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            cardano: '#/components/schemas/CardanoAgentListItem',
+            x402: '#/components/schemas/X402Agent'
+        }
+    }
+} as const;
+
+export const CardanoAgentListItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Agent'
         },
         {
             type: 'object',
             properties: {
-                id: {
-                    type: 'string',
-                    example: 'cmaeygqwa000e8i0s9s7wif8i'
-                },
-                specification: {
-                    type: 'string',
-                    enum: [
-                        'bazaar',
-                        'openapi'
-                    ],
-                    example: 'bazaar',
-                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Bazaar Research Agent'
-                },
-                description: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'A research agent payable via x402'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/image.png'
-                },
-                x402ResourcesUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'uri',
-                    example: 'https://agent.example.com/.well-known/x402',
-                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
-                },
-                openApiSpecUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'uri',
-                    example: 'https://agent.example.com/openapi.json',
-                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
-                },
                 kind: {
                     type: 'string',
                     enum: [
-                        'x402'
+                        'cardano'
                     ]
-                },
-                pricingType: {
-                    type: 'string',
-                    enum: [
-                        'fixed'
-                    ]
-                },
-                isPayable: {
-                    type: 'boolean',
-                    enum: [
-                        true
-                    ]
-                },
-                paymentSources: {
-                    type: 'array',
-                    items: {
-                        $ref: '#/components/schemas/X402FixedAgentPaymentSource'
-                    },
-                    minItems: 1,
-                    description: 'Payment sources Sokosumi can pay right now (fail-closed filtered)'
                 }
             },
             required: [
-                'id',
-                'specification',
-                'name',
-                'description',
-                'image',
-                'x402ResourcesUrl',
-                'openApiSpecUrl',
-                'kind',
-                'pricingType',
-                'isPayable',
-                'paymentSources'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'cmaeygqwa000e8i0s9s7wif8i'
-                },
-                specification: {
-                    type: 'string',
-                    enum: [
-                        'bazaar',
-                        'openapi'
-                    ],
-                    example: 'bazaar',
-                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Bazaar Research Agent'
-                },
-                description: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'A research agent payable via x402'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/image.png'
-                },
-                x402ResourcesUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'uri',
-                    example: 'https://agent.example.com/.well-known/x402',
-                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
-                },
-                openApiSpecUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'uri',
-                    example: 'https://agent.example.com/openapi.json',
-                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
-                },
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'x402'
-                    ]
-                },
-                pricingType: {
-                    type: 'string',
-                    enum: [
-                        'dynamic'
-                    ]
-                },
-                isPayable: {
-                    type: 'boolean',
-                    description: 'Whether this deployment currently has a priced buy-side-ready asset on every advertised dynamic network. Runtime payment still requires maxCredits and verifies the 402\'s actual asset.'
-                },
-                paymentSources: {
-                    type: 'array',
-                    items: {
-                        $ref: '#/components/schemas/X402DynamicAgentPaymentSource'
-                    },
-                    minItems: 1,
-                    description: 'Dynamic sources whose runtime 402 quote can use the coworker payment endpoint with a mandatory maxCredits ceiling.'
-                }
-            },
-            required: [
-                'id',
-                'specification',
-                'name',
-                'description',
-                'image',
-                'x402ResourcesUrl',
-                'openApiSpecUrl',
-                'kind',
-                'pricingType',
-                'isPayable',
-                'paymentSources'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'cmaeygqwa000e8i0s9s7wif8i'
-                },
-                specification: {
-                    type: 'string',
-                    enum: [
-                        'bazaar',
-                        'openapi'
-                    ],
-                    example: 'bazaar',
-                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Bazaar Research Agent'
-                },
-                description: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'A research agent payable via x402'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/image.png'
-                },
-                x402ResourcesUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'uri',
-                    example: 'https://agent.example.com/.well-known/x402',
-                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
-                },
-                openApiSpecUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'uri',
-                    example: 'https://agent.example.com/openapi.json',
-                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
-                },
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'x402'
-                    ]
-                },
-                pricingType: {
-                    type: 'string',
-                    enum: [
-                        'mixed'
-                    ]
-                },
-                isPayable: {
-                    type: 'boolean',
-                    description: 'Whether every fixed and dynamic payment source is currently payable on this deployment. Mixed agents remain visible as previews when a dynamic source is not buy-side ready.'
-                },
-                paymentSources: {
-                    type: 'array',
-                    items: {
-                        anyOf: [
-                            {
-                                $ref: '#/components/schemas/X402FixedAgentPaymentSource'
-                            },
-                            {
-                                $ref: '#/components/schemas/X402DynamicAgentPaymentSource'
-                            }
-                        ]
-                    },
-                    minItems: 2,
-                    description: 'Fixed and dynamic payment sources advertised by one agent. Runtime verification preserves fixed ceilings when registrations overlap.'
-                }
-            },
-            required: [
-                'id',
-                'specification',
-                'name',
-                'description',
-                'image',
-                'x402ResourcesUrl',
-                'openApiSpecUrl',
-                'kind',
-                'pricingType',
-                'isPayable',
-                'paymentSources'
+                'kind'
             ]
         }
     ]
@@ -4581,6 +4313,293 @@ export const AgentSchema = {
         'author',
         'legal',
         'categories'
+    ]
+} as const;
+
+export const X402AgentSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cmaeygqwa000e8i0s9s7wif8i'
+                },
+                specification: {
+                    type: 'string',
+                    enum: [
+                        'bazaar',
+                        'openapi'
+                    ],
+                    example: 'bazaar',
+                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Bazaar Research Agent'
+                },
+                description: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'A research agent payable via x402'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                x402ResourcesUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/.well-known/x402',
+                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
+                },
+                openApiSpecUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/openapi.json',
+                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'x402'
+                    ]
+                },
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'fixed'
+                    ]
+                },
+                isPayable: {
+                    type: 'boolean',
+                    enum: [
+                        true
+                    ]
+                },
+                paymentSources: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/X402FixedAgentPaymentSource'
+                    },
+                    minItems: 1,
+                    description: 'Payment sources Sokosumi can pay right now (fail-closed filtered)'
+                }
+            },
+            required: [
+                'id',
+                'specification',
+                'name',
+                'description',
+                'image',
+                'x402ResourcesUrl',
+                'openApiSpecUrl',
+                'kind',
+                'pricingType',
+                'isPayable',
+                'paymentSources'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cmaeygqwa000e8i0s9s7wif8i'
+                },
+                specification: {
+                    type: 'string',
+                    enum: [
+                        'bazaar',
+                        'openapi'
+                    ],
+                    example: 'bazaar',
+                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Bazaar Research Agent'
+                },
+                description: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'A research agent payable via x402'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                x402ResourcesUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/.well-known/x402',
+                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
+                },
+                openApiSpecUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/openapi.json',
+                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'x402'
+                    ]
+                },
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'dynamic'
+                    ]
+                },
+                isPayable: {
+                    type: 'boolean',
+                    description: 'Whether this deployment currently has a priced buy-side-ready asset on every advertised dynamic network. Runtime payment still requires maxCredits and verifies the 402\'s actual asset.'
+                },
+                paymentSources: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/X402DynamicAgentPaymentSource'
+                    },
+                    minItems: 1,
+                    description: 'Dynamic sources whose runtime 402 quote can use the coworker payment endpoint with a mandatory maxCredits ceiling.'
+                }
+            },
+            required: [
+                'id',
+                'specification',
+                'name',
+                'description',
+                'image',
+                'x402ResourcesUrl',
+                'openApiSpecUrl',
+                'kind',
+                'pricingType',
+                'isPayable',
+                'paymentSources'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cmaeygqwa000e8i0s9s7wif8i'
+                },
+                specification: {
+                    type: 'string',
+                    enum: [
+                        'bazaar',
+                        'openapi'
+                    ],
+                    example: 'bazaar',
+                    description: 'Registry entry specification: an x402/Bazaar manifest or an OpenAPI agent advertising x402 payment sources'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Bazaar Research Agent'
+                },
+                description: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'A research agent payable via x402'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                x402ResourcesUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/.well-known/x402',
+                    description: 'The agent\'s advertised x402 resources index, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `bazaar`; null for OpenAPI entries.'
+                },
+                openApiSpecUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri',
+                    example: 'https://agent.example.com/openapi.json',
+                    description: 'The agent\'s advertised OpenAPI document, always an absolute HTTP(S) URL. Non-null exactly when `specification` is `openapi`; null for Bazaar entries.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'x402'
+                    ]
+                },
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'mixed'
+                    ]
+                },
+                isPayable: {
+                    type: 'boolean',
+                    description: 'Whether every fixed and dynamic payment source is currently payable on this deployment. Mixed agents remain visible as previews when a dynamic source is not buy-side ready.'
+                },
+                paymentSources: {
+                    type: 'array',
+                    items: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/X402FixedAgentPaymentSource'
+                            },
+                            {
+                                $ref: '#/components/schemas/X402DynamicAgentPaymentSource'
+                            }
+                        ]
+                    },
+                    minItems: 2,
+                    description: 'Fixed and dynamic payment sources advertised by one agent. Runtime verification preserves fixed ceilings when registrations overlap.'
+                }
+            },
+            required: [
+                'id',
+                'specification',
+                'name',
+                'description',
+                'image',
+                'x402ResourcesUrl',
+                'openApiSpecUrl',
+                'kind',
+                'pricingType',
+                'isPayable',
+                'paymentSources'
+            ]
+        }
     ]
 } as const;
 
