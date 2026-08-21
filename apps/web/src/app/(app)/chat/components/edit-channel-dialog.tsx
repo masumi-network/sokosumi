@@ -4,7 +4,7 @@ import {
   Archive as ArchiveIcon,
   Loader2,
   LogOut,
-  Settings2,
+  Settings,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -206,7 +206,7 @@ export function EditChannelDialog({
             aria-label={t("editChannel")}
             title={t("editChannel")}
           >
-            <Settings2 className="size-4" aria-hidden />
+            <Settings className="size-4" aria-hidden />
           </Button>
         </DialogTrigger>
         {/* The fixed-height participant list makes this dialog ~755px tall, which
