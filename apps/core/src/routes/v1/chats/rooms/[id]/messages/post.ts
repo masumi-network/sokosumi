@@ -30,6 +30,7 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
   requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
@@ -300,6 +301,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 coworkerId,
               })),
             },
+            userMentionsAsSource: {
+              create: mentionedUserIds.map((mentionedUserId) => ({
+                userId: mentionedUserId,
+              })),
+            },
           },
           include: chatRoomMessageInclude,
         });
@@ -322,6 +328,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             lastReadAt: message.createdAt,
           },
         });
+        if (parentMessageId) {
+          await markChatRoomThreadRead(
+            room.id,
+            userContext.userId,
+            parentMessageId,
+            tx,
+            message.createdAt,
+          );
+        }
 
         return {
           message,
