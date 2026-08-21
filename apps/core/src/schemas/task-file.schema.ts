@@ -37,6 +37,7 @@ export const taskFileSchema = z
     fileUrl: z
       .string()
       .url()
+      .nullable()
       .openapi({ example: "https://blob.vercel.app/tasks/tsk_123/report.pdf" }),
     mimeType: z.string().nullable().openapi({ example: "application/pdf" }),
     size: z

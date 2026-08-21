@@ -846,7 +846,7 @@ export type TaskFile = {
     createdAt: Date;
     updatedAt: Date;
     name: string;
-    fileUrl: string;
+    fileUrl: string | null;
     mimeType: string | null;
     size: number | null;
     uploader: TaskFileUploader;

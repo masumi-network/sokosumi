@@ -3082,7 +3082,10 @@ export const TaskFileSchema = {
             example: 'report.pdf'
         },
         fileUrl: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             format: 'uri',
             example: 'https://blob.vercel.app/tasks/tsk_123/report.pdf'
         },

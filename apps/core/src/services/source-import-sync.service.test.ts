@@ -7,12 +7,16 @@ const {
   blobHeadMock,
   blobPutMock,
   blobUpdateMock,
+  taskFileFindManyMock,
+  taskFileUpdateMock,
 } = vi.hoisted(() => ({
   blobFindManyMock: vi.fn(),
   blobFindUniqueMock: vi.fn(),
   blobHeadMock: vi.fn(),
   blobPutMock: vi.fn(),
   blobUpdateMock: vi.fn(),
+  taskFileFindManyMock: vi.fn(),
+  taskFileUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -27,6 +31,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: blobFindManyMock,
       findUnique: blobFindUniqueMock,
       update: blobUpdateMock,
+    },
+    taskFile: {
+      findMany: taskFileFindManyMock,
+      update: taskFileUpdateMock,
     },
   },
 }));
@@ -126,6 +134,8 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       size: 5,
     });
     blobUpdateMock.mockResolvedValue(undefined);
+    taskFileFindManyMock.mockResolvedValue([]);
+    taskFileUpdateMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {

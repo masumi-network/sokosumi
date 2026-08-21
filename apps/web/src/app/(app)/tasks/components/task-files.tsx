@@ -29,15 +29,20 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
         {title}
       </h2>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
-        {files.map((file) => (
-          <FileChip
-            key={file.id}
-            url={file.fileUrl}
-            fileName={file.name}
-            mediaType={file.mimeType}
-            size={file.size}
-          />
-        ))}
+        {files
+          .filter(
+            (file): file is TaskFileListItem & { fileUrl: string } =>
+              file.fileUrl !== null,
+          )
+          .map((file) => (
+            <FileChip
+              key={file.id}
+              url={file.fileUrl}
+              fileName={file.name}
+              mediaType={file.mimeType}
+              size={file.size}
+            />
+          ))}
       </div>
     </section>
   );

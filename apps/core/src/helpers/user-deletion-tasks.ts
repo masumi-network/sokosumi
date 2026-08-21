@@ -61,7 +61,7 @@ export async function prepareTasksForUserDeletion(
   userId: string,
   prisma: PrismaClient,
 ): Promise<void> {
-  let ownedTaskFiles: Array<{ fileUrl: string; taskId: string }>;
+  let ownedTaskFiles: Array<{ fileUrl: string | null; taskId: string }>;
   try {
     ownedTaskFiles = await prisma.$transaction(
       async (tx) => {
@@ -506,8 +506,11 @@ export async function prepareTasksForUserDeletion(
   }
 
   await Promise.all(
-    ownedTaskFiles.map((file) =>
-      deleteTaskFileIfOwned(file.fileUrl, file.taskId),
-    ),
+    ownedTaskFiles
+      .filter(
+        (file): file is { fileUrl: string; taskId: string } =>
+          file.fileUrl !== null,
+      )
+      .map((file) => deleteTaskFileIfOwned(file.fileUrl, file.taskId)),
   );
 }
