@@ -90,8 +90,6 @@ vi.mock("../organization-chat-list.actions", () => ({
     ok: true,
     value: { rooms: [], nextCursor: null },
   })),
-  loadMoreOrganizationArchivedChatRoomsAction: vi.fn(),
-  loadMoreOrganizationChatRoomsAction: vi.fn(),
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -237,9 +235,7 @@ export function createOrganizationChatList({
   return (
     <OrganizationChatList
       rooms={rooms}
-      roomsNextCursor={null}
       archivedRooms={emptyRooms}
-      archivedRoomsNextCursor={null}
       {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
       currentUserId="user-1"
       organizationId={organizationId}

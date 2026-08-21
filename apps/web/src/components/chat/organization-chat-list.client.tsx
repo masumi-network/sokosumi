@@ -15,7 +15,6 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
@@ -78,8 +77,6 @@ import {
 import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
-  loadMoreOrganizationArchivedChatRoomsAction,
-  loadMoreOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
 import {
@@ -93,34 +90,13 @@ const ORGANIZATION_CHAT_POLL_MS = 15_000;
  *  infinite-loops the render-time pendingInvitations sync (React #301). */
 const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 
-/** Upsert first-page rooms; keep older rows previously appended via load-more. */
-function upsertFirstPageRooms(
-  firstPage: ChatRoom[],
-  existing: ChatRoom[],
-): ChatRoom[] {
-  const firstPageIds = new Set(firstPage.map((room) => room.id));
-  const older = existing.filter((room) => !firstPageIds.has(room.id));
-  return [...firstPage, ...older];
-}
-
-function appendUniqueRooms(
-  existing: ChatRoom[],
-  incoming: ChatRoom[],
-): ChatRoom[] {
-  const existingIds = new Set(existing.map((room) => room.id));
-  const unique = incoming.filter((room) => !existingIds.has(room.id));
-  return [...existing, ...unique];
-}
-
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
   "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center md:size-7";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
-  roomsNextCursor: string | null;
   archivedRooms: ChatRoom[];
-  archivedRoomsNextCursor: string | null;
   pendingInvitations?: ChatRoomInvitation[];
   currentUserId: string;
   organizationId: string | null;
@@ -232,9 +208,7 @@ function ChatMembershipRevokedListBridge({
 
 export function OrganizationChatList({
   rooms,
-  roomsNextCursor,
   archivedRooms,
-  archivedRoomsNextCursor,
   pendingInvitations = EMPTY_PENDING_INVITATIONS,
   currentUserId,
   organizationId,
@@ -250,16 +224,8 @@ export function OrganizationChatList({
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [pendingRows, setPendingRows] = useState(pendingInvitations);
-  const [activeNextCursor, setActiveNextCursor] = useState(roomsNextCursor);
-  const [archivedNextCursor, setArchivedNextCursor] = useState(
-    archivedRoomsNextCursor,
-  );
   const [prevRooms, setPrevRooms] = useState(rooms);
-  const [prevRoomsNextCursor, setPrevRoomsNextCursor] =
-    useState(roomsNextCursor);
   const [prevArchivedRooms, setPrevArchivedRooms] = useState(archivedRooms);
-  const [prevArchivedRoomsNextCursor, setPrevArchivedRoomsNextCursor] =
-    useState(archivedRoomsNextCursor);
   const [prevPendingInvitations, setPrevPendingInvitations] =
     useState(pendingInvitations);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
@@ -278,11 +244,6 @@ export function OrganizationChatList({
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
-  const [isLoadingMoreActive, startLoadMoreActiveTransition] = useTransition();
-  const [isLoadingMoreArchived, startLoadMoreArchivedTransition] =
-    useTransition();
-  const hasAppendedActiveRef = useRef(false);
-  const hasAppendedArchivedRef = useRef(false);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
     activeRoomId,
@@ -296,25 +257,14 @@ export function OrganizationChatList({
       </LazyAblyProvider>
     ) : null;
 
-  // Adjust local list when RSC props change (no Effect — keep load-more history).
-  if (rooms !== prevRooms || roomsNextCursor !== prevRoomsNextCursor) {
+  // Replace local list when RSC props change (full membership-visible set).
+  if (rooms !== prevRooms) {
     setPrevRooms(rooms);
-    setPrevRoomsNextCursor(roomsNextCursor);
-    setRoomRows(applyRoomReadOverlays(upsertFirstPageRooms(rooms, roomRows)));
-    if (!hasAppendedActiveRef.current) {
-      setActiveNextCursor(roomsNextCursor);
-    }
+    setRoomRows(applyRoomReadOverlays(rooms));
   }
-  if (
-    archivedRooms !== prevArchivedRooms ||
-    archivedRoomsNextCursor !== prevArchivedRoomsNextCursor
-  ) {
+  if (archivedRooms !== prevArchivedRooms) {
     setPrevArchivedRooms(archivedRooms);
-    setPrevArchivedRoomsNextCursor(archivedRoomsNextCursor);
-    setArchivedRows(upsertFirstPageRooms(archivedRooms, archivedRows));
-    if (!hasAppendedArchivedRef.current) {
-      setArchivedNextCursor(archivedRoomsNextCursor);
-    }
+    setArchivedRows(archivedRooms);
   }
   if (pendingInvitations !== prevPendingInvitations) {
     setPrevPendingInvitations(pendingInvitations);
@@ -342,28 +292,10 @@ export function OrganizationChatList({
         return;
       }
       if (activeResult.ok) {
-        setRoomRows((current) =>
-          applyRoomReadOverlays(
-            hasAppendedActiveRef.current
-              ? upsertFirstPageRooms(activeResult.value.rooms, current)
-              : activeResult.value.rooms,
-          ),
-        );
-        setActiveNextCursor((prev) =>
-          hasAppendedActiveRef.current ? prev : activeResult.value.nextCursor,
-        );
+        setRoomRows(applyRoomReadOverlays(activeResult.value.rooms));
       }
       if (archivedResult.ok) {
-        setArchivedRows((current) =>
-          hasAppendedArchivedRef.current
-            ? upsertFirstPageRooms(archivedResult.value.rooms, current)
-            : archivedResult.value.rooms,
-        );
-        setArchivedNextCursor((prev) =>
-          hasAppendedArchivedRef.current
-            ? prev
-            : archivedResult.value.nextCursor,
-        );
+        setArchivedRows(archivedResult.value.rooms);
       }
       if (pendingResult.ok) {
         setPendingRows(pendingResult.value);
@@ -472,30 +404,10 @@ export function OrganizationChatList({
           return;
         }
         if (activeResult.ok) {
-          // No load-more history: replace. After load-more: keep older pages
-          // but still refresh first-page memberships.
-          setRoomRows((current) =>
-            applyRoomReadOverlays(
-              hasAppendedActiveRef.current
-                ? upsertFirstPageRooms(activeResult.value.rooms, current)
-                : activeResult.value.rooms,
-            ),
-          );
-          setActiveNextCursor((prev) =>
-            hasAppendedActiveRef.current ? prev : activeResult.value.nextCursor,
-          );
+          setRoomRows(applyRoomReadOverlays(activeResult.value.rooms));
         }
         if (archivedResult.ok) {
-          setArchivedRows((current) =>
-            hasAppendedArchivedRef.current
-              ? upsertFirstPageRooms(archivedResult.value.rooms, current)
-              : archivedResult.value.rooms,
-          );
-          setArchivedNextCursor((prev) =>
-            hasAppendedArchivedRef.current
-              ? prev
-              : archivedResult.value.nextCursor,
-          );
+          setArchivedRows(archivedResult.value.rooms);
         }
         if (pendingResult.ok) {
           setPendingRows(pendingResult.value);
@@ -568,44 +480,6 @@ export function OrganizationChatList({
     );
   }
 
-  function handleLoadMoreActiveRooms() {
-    if (!activeNextCursor || isLoadingMoreActive) {
-      return;
-    }
-    const cursor = activeNextCursor;
-    startLoadMoreActiveTransition(async () => {
-      const result = await loadMoreOrganizationChatRoomsAction(cursor);
-      if (!result.ok) {
-        toast.error(t("loadMoreError"));
-        return;
-      }
-      hasAppendedActiveRef.current = true;
-      setRoomRows((current) =>
-        applyRoomReadOverlays(appendUniqueRooms(current, result.value.rooms)),
-      );
-      setActiveNextCursor(result.value.nextCursor);
-    });
-  }
-
-  function handleLoadMoreArchivedRooms() {
-    if (!archivedNextCursor || isLoadingMoreArchived) {
-      return;
-    }
-    const cursor = archivedNextCursor;
-    startLoadMoreArchivedTransition(async () => {
-      const result = await loadMoreOrganizationArchivedChatRoomsAction(cursor);
-      if (!result.ok) {
-        toast.error(t("loadMoreError"));
-        return;
-      }
-      hasAppendedArchivedRef.current = true;
-      setArchivedRows((current) =>
-        appendUniqueRooms(current, result.value.rooms),
-      );
-      setArchivedNextCursor(result.value.nextCursor);
-    });
-  }
-
   function handleAcceptInvitation(invitation: ChatRoomInvitation) {
     if (respondingInvitation) {
       return;
@@ -627,11 +501,7 @@ export function OrganizationChatList({
         current.filter((row) => row.id !== invitation.id),
       );
       if (roomsResult.ok) {
-        setRoomRows((current) =>
-          applyRoomReadOverlays(
-            upsertFirstPageRooms(roomsResult.value.rooms, current),
-          ),
-        );
+        setRoomRows(applyRoomReadOverlays(roomsResult.value.rooms));
       }
       router.push(`/chat/rooms/${invitation.roomId}`);
       router.refresh();
@@ -918,22 +788,6 @@ export function OrganizationChatList({
                     </SidebarMenuItem>
                   );
                 })}
-                {archivedNextCursor ? (
-                  <SidebarMenuItem>
-                    <div className="group-data-[collapsible=icon]:hidden px-3 py-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-muted-foreground hover:text-foreground w-full text-xs"
-                        disabled={isLoadingMoreArchived}
-                        onClick={handleLoadMoreArchivedRooms}
-                      >
-                        {isLoadingMoreArchived ? t("loading") : t("loadMore")}
-                      </Button>
-                    </div>
-                  </SidebarMenuItem>
-                ) : null}
               </SidebarMenu>
             </CollapsibleContent>
           </Collapsible>
@@ -1027,21 +881,6 @@ export function OrganizationChatList({
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>
-
-        {activeNextCursor ? (
-          <div className="group-data-[collapsible=icon]:hidden px-3 py-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground w-full text-xs"
-              disabled={isLoadingMoreActive}
-              onClick={handleLoadMoreActiveRooms}
-            >
-              {isLoadingMoreActive ? t("loading") : t("loadMore")}
-            </Button>
-          </div>
-        ) : null}
       </SidebarGroupContent>
     </SidebarGroup>
   );

@@ -59,7 +59,7 @@ function emptyPage(
     meta: {
       pagination: {
         cursor: null,
-        limit: 20,
+        limit: 100,
         total: data.length,
         nextCursor,
       },
@@ -73,49 +73,72 @@ describe("chatRoomService.listRooms", () => {
     vi.resetModules();
   });
 
-  it("returns a single page and does not walk nextCursor", async () => {
-    getChatRoomsMock.mockResolvedValueOnce(
-      emptyPage([room("room-1"), room("room-2")], "room-2"),
-    );
+  it("walks nextCursor until exhausted and returns the full set", async () => {
+    getChatRoomsMock
+      .mockResolvedValueOnce(
+        emptyPage([room("room-1"), room("room-2")], "room-2"),
+      )
+      .mockResolvedValueOnce(emptyPage([room("room-3")]));
 
     const { chatRoomService } = await import("../chat-room.service");
     const page = await chatRoomService.listRooms();
 
-    expect(page.rooms.map((item) => item.id)).toEqual(["room-1", "room-2"]);
-    expect(page.nextCursor).toBe("room-2");
-    expect(getChatRoomsMock).toHaveBeenCalledTimes(1);
-    expect(getChatRoomsMock).toHaveBeenCalledWith({
-      limit: 20,
+    expect(page.rooms.map((item) => item.id)).toEqual([
+      "room-1",
+      "room-2",
+      "room-3",
+    ]);
+    expect(page.nextCursor).toBeNull();
+    expect(getChatRoomsMock).toHaveBeenCalledTimes(2);
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(1, {
+      limit: 100,
       status: "active",
     });
-  });
-
-  it("passes cursor for load-more", async () => {
-    getChatRoomsMock.mockResolvedValueOnce(emptyPage([room("room-3")]));
-
-    const { chatRoomService } = await import("../chat-room.service");
-    const page = await chatRoomService.listRooms(undefined, "active", {
-      cursor: "room-2",
-    });
-
-    expect(page.rooms.map((item) => item.id)).toEqual(["room-3"]);
-    expect(getChatRoomsMock).toHaveBeenCalledWith({
-      limit: 20,
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(2, {
+      limit: 100,
       status: "active",
       cursor: "room-2",
     });
   });
 
-  it("passes kind filter", async () => {
-    getChatRoomsMock.mockResolvedValue(emptyPage([room("dm-1")]));
+  it("passes kind filter on every page", async () => {
+    getChatRoomsMock
+      .mockResolvedValueOnce(emptyPage([room("dm-1")], "dm-1"))
+      .mockResolvedValueOnce(emptyPage([room("dm-2")]));
 
     const { chatRoomService } = await import("../chat-room.service");
     await chatRoomService.listRooms("direct");
 
-    expect(getChatRoomsMock).toHaveBeenCalledWith({
-      limit: 20,
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(1, {
+      limit: 100,
       status: "active",
       kind: "direct",
+    });
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(2, {
+      limit: 100,
+      status: "active",
+      kind: "direct",
+      cursor: "dm-1",
+    });
+  });
+
+  it("stops when nextCursor does not advance", async () => {
+    getChatRoomsMock.mockResolvedValue(emptyPage([room("room-1")], "room-1"));
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const page = await chatRoomService.listRooms();
+
+    expect(page.rooms.map((item) => item.id)).toEqual(["room-1"]);
+    expect(page.nextCursor).toBeNull();
+    expect(getChatRoomsMock).toHaveBeenCalledTimes(2);
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(1, {
+      limit: 100,
+      status: "active",
+    });
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(2, {
+      limit: 100,
+      status: "active",
+      cursor: "room-1",
     });
   });
 
@@ -126,8 +149,9 @@ describe("chatRoomService.listRooms", () => {
     const page = await chatRoomService.listRooms("channel", "archived");
 
     expect(page.rooms.map((item) => item.id)).toEqual(["archived-1"]);
+    expect(page.nextCursor).toBeNull();
     expect(getChatRoomsMock).toHaveBeenCalledWith({
-      limit: 20,
+      limit: 100,
       status: "archived",
       kind: "channel",
     });
@@ -266,21 +290,30 @@ describe("chatRoomService.listArchivedRooms", () => {
     vi.resetModules();
   });
 
-  it("requests archived organization channels as a single page", async () => {
-    getChatRoomsMock.mockResolvedValue(
-      emptyPage([room("archived-1")], "archived-1"),
-    );
+  it("walks archived organization channels until exhausted", async () => {
+    getChatRoomsMock
+      .mockResolvedValueOnce(emptyPage([room("archived-1")], "archived-1"))
+      .mockResolvedValueOnce(emptyPage([room("archived-2")]));
 
     const { chatRoomService } = await import("../chat-room.service");
     const page = await chatRoomService.listArchivedRooms();
 
-    expect(page.rooms.map((item) => item.id)).toEqual(["archived-1"]);
-    expect(page.nextCursor).toBe("archived-1");
-    expect(getChatRoomsMock).toHaveBeenCalledTimes(1);
-    expect(getChatRoomsMock).toHaveBeenCalledWith({
-      limit: 20,
+    expect(page.rooms.map((item) => item.id)).toEqual([
+      "archived-1",
+      "archived-2",
+    ]);
+    expect(page.nextCursor).toBeNull();
+    expect(getChatRoomsMock).toHaveBeenCalledTimes(2);
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(1, {
+      limit: 100,
       status: "archived",
       kind: "channel",
+    });
+    expect(getChatRoomsMock).toHaveBeenNthCalledWith(2, {
+      limit: 100,
+      status: "archived",
+      kind: "channel",
+      cursor: "archived-1",
     });
   });
 });
