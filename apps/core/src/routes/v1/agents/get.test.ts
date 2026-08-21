@@ -458,6 +458,30 @@ describe("GET /agents", () => {
     expect(body.data[0]?.kind).toBe("cardano");
   });
 
+  it("does not load payment sources for a cardano-only catalog page", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?kind=cardano");
+
+    expect(response.status).toBe(200);
+    const findManyArg = agentFindManyMock.mock.calls[0]?.[0] as {
+      include?: Record<string, unknown>;
+    };
+    expect(findManyArg.include).not.toHaveProperty("paymentSources");
+  });
+
+  it("loads payment sources when the unfiltered catalog includes x402", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    const findManyArg = agentFindManyMock.mock.calls[0]?.[0] as {
+      include?: Record<string, unknown>;
+    };
+    expect(findManyArg.include?.paymentSources).toMatchObject({
+      where: { scheme: { not: null } },
+    });
+  });
+
   it("accepts an anonymous request for kind=x402", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?kind=x402");

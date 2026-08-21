@@ -208,9 +208,11 @@ describe("GET /agents?kind=x402 catalog query", () => {
       };
     };
     expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_0"]);
+    expect(body.data).toHaveLength(1);
     expect(body.meta.pagination).toEqual({
       cursor: null,
       limit: 2,
+      // Candidate count, not listed count — one payable item, nine rows.
       total: 9,
       // Second raw row of the page, even though it was dropped.
       nextCursor: "agent_x402_1",

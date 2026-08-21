@@ -33,6 +33,7 @@ import {
 import { ok } from "@/helpers/response";
 import {
   buildX402AgentPricingListing,
+  type X402AgentPaymentSourceRow,
   type X402ListingDropReason,
 } from "@/helpers/x402-agent-listing";
 import {
@@ -42,12 +43,41 @@ import {
 } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
 import { agentListSchema } from "@/schemas/agent.schema";
-import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import {
+  cursorPaginationMetaSchema,
+  cursorPaginationQuerySchema,
+} from "@/schemas/pagination.schema";
 import type { X402Agent } from "@/schemas/x402-agent.schema";
 import { agentCategoriesInclude } from "@/types/agent";
 
 const UNCATEGORIZED_CATEGORY_FILTER = "uncategorized";
 const AGENT_LIST_KINDS = ["cardano", "x402"] as const;
+
+/** Loaded only when the x402 rail is on the page — hire-only queries skip it. */
+const X402_PAYMENT_SOURCES_INCLUDE = {
+  paymentSources: {
+    where: { scheme: { not: null } },
+    select: {
+      network: true,
+      payTo: true,
+      pricingType: true,
+      scheme: true,
+      amounts: {
+        select: { unit: true, amount: true, decimals: true },
+        orderBy: [{ unit: "asc" as const }, { id: "asc" as const }],
+      },
+    },
+    orderBy: { sourceIndex: "asc" as const },
+  },
+};
+
+const agentsListPaginationMetaSchema = cursorPaginationMetaSchema.extend({
+  total: z.number().int().min(0).openapi({
+    example: 100,
+    description:
+      "Candidate-row count matching the query filters, before x402 fail-closed drops. Can exceed `data.length` and `limit`.",
+  }),
+});
 
 type AgentListKind = (typeof AGENT_LIST_KINDS)[number];
 
@@ -111,6 +141,12 @@ function logX402ListingDrops(
     return;
   }
   console.debug(`[agents] non-payable x402 agents by reason: ${summary}`);
+}
+
+function listedPaymentSources(agent: {
+  paymentSources?: readonly X402AgentPaymentSourceRow[];
+}): readonly X402AgentPaymentSourceRow[] {
+  return agent.paymentSources ?? [];
 }
 
 function toX402ListItem(
@@ -226,26 +262,31 @@ const route = createRoute({
   method: "get",
   path: "/",
   description:
-    "List available agents (paginated). Items are discriminated by `kind`: `cardano` (MIP-003 hire) or `x402` (EVM pay). Omit `kind` to return both rails. Public. x402 filtering runs after candidate pagination, so a page can contain fewer items than `limit` while `nextCursor` still points at more.",
+    "List available agents (paginated). Items are discriminated by `kind`: `cardano` (MIP-003 hire) or `x402` (EVM pay). Omit `kind` to return both rails. Public. x402 filtering runs after candidate pagination, so a page can contain fewer items than `limit` while `nextCursor` still points at more. `meta.pagination.total` is that candidate-row count, not `data.length`.",
   tags: ["Agents"],
   security: [],
   request: {
     query: agentsListQuerySchema,
   },
   responses: {
-    200: jsonPaginatedSuccessResponse(agentListSchema, "Retrieve all agents", {
-      data: [],
-      meta: {
-        timestamp: "2025-01-15T12:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-        pagination: {
-          cursor: null,
-          limit: 20,
-          total: 100,
-          nextCursor: "cmaeygqwa000e8i0s9s7wif8i",
+    200: jsonPaginatedSuccessResponse(
+      agentListSchema,
+      "Retrieve all agents",
+      {
+        data: [],
+        meta: {
+          timestamp: "2025-01-15T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 100,
+            nextCursor: "cmaeygqwa000e8i0s9s7wif8i",
+          },
         },
       },
-    }),
+      agentsListPaginationMetaSchema,
+    ),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -297,20 +338,7 @@ export default function mount(app: OpenAPIHono) {
             ...agentPricingInclude,
             ...agentCategoriesInclude,
             ...agentMetadataOverrideScalarsInclude,
-            paymentSources: {
-              where: { scheme: { not: null } },
-              select: {
-                network: true,
-                payTo: true,
-                pricingType: true,
-                scheme: true,
-                amounts: {
-                  select: { unit: true, amount: true, decimals: true },
-                  orderBy: [{ unit: "asc" }, { id: "asc" }],
-                },
-              },
-              orderBy: { sourceIndex: "asc" },
-            },
+            ...(includeX402 ? X402_PAYMENT_SOURCES_INCLUDE : {}),
           },
         }),
         prisma.agent.count({ where }),
@@ -353,7 +381,7 @@ export default function mount(app: OpenAPIHono) {
         );
         continue;
       }
-      const result = buildX402AgentPricingListing(agent.paymentSources, {
+      const result = buildX402AgentPricingListing(listedPaymentSources(agent), {
         creditCosts,
         readySources,
         network,
