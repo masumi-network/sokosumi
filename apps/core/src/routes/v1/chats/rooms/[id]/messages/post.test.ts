@@ -558,6 +558,12 @@ describe("POST /chats/rooms/{id}/messages", () => {
               parentMessageId: PARENT_MESSAGE_ID,
             },
           },
+          update: { lastReadAt: new Date("2025-01-02T00:00:00.000Z") },
+          create: {
+            userId: USER_ID,
+            parentMessageId: PARENT_MESSAGE_ID,
+            lastReadAt: new Date("2025-01-02T00:00:00.000Z"),
+          },
         }),
       );
 
