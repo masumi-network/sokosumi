@@ -76,7 +76,7 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
-
+import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
@@ -109,7 +109,6 @@ import type {
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
-import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -145,6 +144,7 @@ import {
   type RoomMessagePage,
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
+import { ROOM_ROSTER_PANEL_ID, RoomRosterPanel } from "./room-roster-panel";
 import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
@@ -244,16 +244,12 @@ function RoomMessageRealtimeBridge({
 
 function RoomParticipantStack({
   room,
-  currentUserId,
-  canOpenHumanDirect,
-  onOpenDirect,
-  openingDirectKey,
+  rosterOpen,
+  onToggleRoster,
 }: {
   room: ChatRoom;
-  currentUserId: string;
-  canOpenHumanDirect: boolean;
-  onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
-  openingDirectKey: string | null;
+  rosterOpen: boolean;
+  onToggleRoster: () => void;
 }) {
   const t = useTranslations("App.Channels");
   const participants = getRoomParticipantPreviews(room);
@@ -265,61 +261,53 @@ function RoomParticipantStack({
   }
 
   return (
-    <div
-      className="flex -space-x-2"
-      aria-label={participants
-        .map((participant) => participant.name)
-        .join(", ")}
+    <button
+      type="button"
+      className="flex -space-x-2 cursor-pointer rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={t("RoomRoster.open")}
+      title={t("RoomRoster.open")}
+      aria-expanded={rosterOpen}
+      aria-controls={ROOM_ROSTER_PANEL_ID}
+      data-testid="room-roster-trigger"
+      onClick={onToggleRoster}
     >
       {visibleParticipants.map((participant, index) => (
-        <ChatParticipantHoverCard
+        <span
           key={`${participant.kind}-${participant.id}`}
-          profile={participant}
-          side="bottom"
-          align="center"
-          className="relative size-6 shrink-0 md:size-7"
+          className="relative inline-flex size-6 shrink-0 md:size-7"
           style={{ zIndex: visibleParticipants.length - index }}
-          currentUserId={currentUserId}
-          canOpenHumanDirect={canOpenHumanDirect}
-          onOpenDirect={onOpenDirect}
-          isOpeningDirect={
-            openingDirectKey === participantDirectKey(participant)
-          }
-          isDirectActionBusy={openingDirectKey != null}
         >
-          <span className="relative inline-flex size-full">
-            <Avatar className="border-background ring-border/60 size-full border-2 shadow-xs ring-1">
-              <AvatarImage src={participant.image ?? undefined} alt="" />
-              <AvatarFallback
-                className={cn(
-                  "text-[0.625rem]",
-                  participant.kind === "coworker"
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {getInitials(participant.name)}
-              </AvatarFallback>
-            </Avatar>
-            <LiveMemberPresenceDot
-              className="absolute -right-0.5 -bottom-0.5"
-              fallback={participant.presence}
-              isCoworker={participant.kind === "coworker"}
-              userId={participant.id}
-            />
-          </span>
-        </ChatParticipantHoverCard>
+          <Avatar className="border-background ring-border/60 size-full border-2 shadow-xs ring-1">
+            <AvatarImage src={participant.image ?? undefined} alt="" />
+            <AvatarFallback
+              className={cn(
+                "text-[0.625rem]",
+                participant.kind === "coworker"
+                  ? "bg-primary/10 text-primary"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {getInitials(participant.name)}
+            </AvatarFallback>
+          </Avatar>
+          <LiveMemberPresenceDot
+            className="absolute -right-0.5 -bottom-0.5"
+            fallback={participant.presence}
+            isCoworker={participant.kind === "coworker"}
+            userId={participant.id}
+          />
+        </span>
       ))}
       {remainingCount > 0 ? (
         <span
           className="border-background bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
           style={{ zIndex: 0 }}
-          aria-label={t("participantOverflowCount", { count: remainingCount })}
+          aria-hidden
         >
           +{remainingCount}
         </span>
       ) : null}
-    </div>
+    </button>
   );
 }
 
@@ -327,14 +315,12 @@ interface RoomHeaderChromeProps {
   room: ChatRoom;
   displayName: string;
   isDirectRoom: boolean;
-  currentUserId: string;
-  canOpenHumanDirect: boolean;
-  onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
-  openingDirectKey: string | null;
   topLevelRoomMessages: ChatRoomMessage[];
   onOpenThread: (message: ChatRoomMessage) => boolean | Promise<boolean>;
   threadListOpen: boolean;
   onToggleThreadList: () => void;
+  rosterOpen: boolean;
+  onToggleRoster: () => void;
   organizationMembers: Member[];
   coworkers: Coworker[];
   canEditMembers: boolean;
@@ -351,14 +337,12 @@ function RoomHeaderChrome({
   room,
   displayName,
   isDirectRoom,
-  currentUserId,
-  canOpenHumanDirect,
-  onOpenDirect,
-  openingDirectKey,
   topLevelRoomMessages,
   onOpenThread,
   threadListOpen,
   onToggleThreadList,
+  rosterOpen,
+  onToggleRoster,
   organizationMembers,
   coworkers,
   canEditMembers,
@@ -383,28 +367,30 @@ function RoomHeaderChrome({
           />
         )}
         <p
-          className="text-muted-foreground truncate text-sm"
+          className="text-foreground min-w-0 truncate text-sm"
           data-testid="room-open-title"
         >
           {displayName}
         </p>
+        <div className="shrink-0">
+          <RoomSearchPanel
+            key={room.id}
+            roomId={room.id}
+            loadedMessages={topLevelRoomMessages}
+            onOpenThread={onOpenThread}
+            labels={{
+              open: t("RoomSearch.open"),
+              placeholder: t("RoomSearch.placeholder"),
+              idle: t("RoomSearch.idle"),
+              empty: t("RoomSearch.empty"),
+              loading: t("RoomSearch.loading"),
+              error: t("RoomSearch.error"),
+              replyBadge: t("RoomSearch.replyBadge"),
+            }}
+          />
+        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-        <RoomSearchPanel
-          key={room.id}
-          roomId={room.id}
-          loadedMessages={topLevelRoomMessages}
-          onOpenThread={onOpenThread}
-          labels={{
-            open: t("RoomSearch.open"),
-            placeholder: t("RoomSearch.placeholder"),
-            idle: t("RoomSearch.idle"),
-            empty: t("RoomSearch.empty"),
-            loading: t("RoomSearch.loading"),
-            error: t("RoomSearch.error"),
-            replyBadge: t("RoomSearch.replyBadge"),
-          }}
-        />
         <UnreadThreadsPanel
           key={`unread-threads-${room.id}`}
           isOpen={threadListOpen}
@@ -413,13 +399,11 @@ function RoomHeaderChrome({
             open: t("UnreadThreads.open"),
           }}
         />
-        {showParticipants ? (
+        {showParticipants && shouldShowRoomRosterControl(room) ? (
           <RoomParticipantStack
             room={room}
-            currentUserId={currentUserId}
-            canOpenHumanDirect={canOpenHumanDirect}
-            onOpenDirect={onOpenDirect}
-            openingDirectKey={openingDirectKey}
+            rosterOpen={rosterOpen}
+            onToggleRoster={onToggleRoster}
           />
         ) : null}
         {isDirectRoom ? null : (
@@ -565,6 +549,7 @@ export function RoomsClient({
   );
 
   const [threadListOpen, setThreadListOpen] = useState(false);
+  const [rosterOpen, setRosterOpen] = useState(false);
   const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
@@ -596,6 +581,7 @@ export function RoomsClient({
     setThreadMessages([]);
     setPendingThreadQuote(null);
     setThreadListOpen(false);
+    setRosterOpen(false);
     setThreadOpenedFromList(false);
     setEditSession(null);
     threadLoadGenerationRef.current += 1;
@@ -780,6 +766,11 @@ export function RoomsClient({
     : "";
 
   const isDirectRoom = selectedRoom?.kind === "direct";
+  const showRoomRosterControl =
+    selectedRoom != null && shouldShowRoomRosterControl(selectedRoom);
+  if (rosterOpen && !showRoomRosterControl) {
+    setRosterOpen(false);
+  }
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
@@ -1635,6 +1626,7 @@ export function RoomsClient({
   ): Promise<boolean> {
     setThreadOpenedFromList(false);
     setThreadListOpen(false);
+    setRosterOpen(false);
     return loadThreadMessages(parentMessage);
   }
 
@@ -1659,6 +1651,18 @@ export function RoomsClient({
   function backToThreadList() {
     closeThreadSidePanel();
     setThreadListOpen(true);
+  }
+
+  function handleToggleRoster() {
+    if (rosterOpen) {
+      setRosterOpen(false);
+      return;
+    }
+    if (threadParentMessage) {
+      closeThreadSidePanel();
+    }
+    setThreadListOpen(false);
+    setRosterOpen(true);
   }
 
   async function loadThreadMessages(
@@ -2252,14 +2256,11 @@ export function RoomsClient({
         room={selectedRoom}
         displayName={selectedRoomDisplayName}
         isDirectRoom={isDirectRoom}
-        currentUserId={currentUserId}
-        canOpenHumanDirect={canOpenHumanDirect}
-        onOpenDirect={handleOpenDirectMessage}
-        openingDirectKey={openingDirectKey}
         topLevelRoomMessages={topLevelRoomMessages}
         onOpenThread={handleOpenThreadFromMessage}
         threadListOpen={threadListOpen}
         onToggleThreadList={() => {
+          setRosterOpen(false);
           if (threadParentMessage) {
             threadLoadGenerationRef.current += 1;
             setIsThreadLoading(false);
@@ -2274,6 +2275,8 @@ export function RoomsClient({
           }
           setThreadListOpen((open) => !open);
         }}
+        rosterOpen={rosterOpen}
+        onToggleRoster={handleToggleRoster}
         organizationMembers={organizationMembers}
         coworkers={coworkers}
         canEditMembers={canEditSelectedRoomMembers}
@@ -2583,6 +2586,27 @@ export function RoomsClient({
                     t("UnreadThreads.unreadReplies", { count }),
                   replies: (count) => t("Thread.replyCount", { count }),
                   close: t("UnreadThreads.close"),
+                }}
+              />
+            ) : showRoomRosterControl && rosterOpen ? (
+              <RoomRosterPanel
+                participants={getRoomParticipantPreviews(selectedRoom)}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirect={handleOpenDirectMessage}
+                openingDirectKey={openingDirectKey}
+                onClose={() => {
+                  setRosterOpen(false);
+                }}
+                labels={{
+                  title: t("RoomRoster.title"),
+                  close: t("RoomRoster.close"),
+                  empty: t("RoomRoster.empty"),
+                  coworkerBadge: t("coworkerBadge"),
+                  message: (name) => t("RoomRoster.message", { name }),
+                  copy: (value) => t("RoomRoster.copy", { value }),
+                  copySuccess: t("RoomRoster.copySuccess"),
+                  copyError: t("RoomRoster.copyError"),
                 }}
               />
             ) : null
