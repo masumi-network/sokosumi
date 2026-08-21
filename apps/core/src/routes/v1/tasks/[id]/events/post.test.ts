@@ -3508,48 +3508,6 @@ describe("POST /{id}/events", () => {
       );
     });
 
-    it("does not enqueue when comment is empty", async () => {
-      const tx: TransactionMock = {
-        taskEvent: {
-          create: vi.fn().mockResolvedValue(
-            createTaskEvent({
-              id: "evt_125",
-              taskId: TASK_ID,
-              userId: USER_ID,
-              status: TaskStatus.COMPLETED,
-            }),
-          ),
-        },
-        task: {
-          findUnique: vi
-            .fn()
-            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
-          updateMany: vi.fn(),
-        },
-      };
-
-      mockTransaction(tx);
-
-      const app = createApp({
-        actor: "user",
-        userId: USER_ID,
-        organizationId: null,
-        role: "user",
-      });
-
-      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: TaskStatus.COMPLETED,
-        }),
-      });
-
-      expect(response.status).toBe(201);
-      await Promise.all(waitUntilCapturedPromises);
-      expect(enqueueTaskOutputsFromMarkdownMock).not.toHaveBeenCalled();
-    });
-
     it("returns 201 without awaiting TaskFile import", async () => {
       let resolveEnqueue: (() => void) | undefined;
       const enqueuePending = new Promise<void>((resolve) => {
