@@ -27,6 +27,7 @@ const {
   getCreditCostsOrThrowMock,
   getX402ReadySourcesMock,
   outerPaymentFindUniqueMock,
+  outerPaymentUpdateMock,
   outerPaymentUpdateManyMock,
   payX402Mock,
   preflightPaymentFindUniqueMock,
@@ -43,6 +44,7 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   getX402ReadySourcesMock: vi.fn(),
   outerPaymentFindUniqueMock: vi.fn(),
+  outerPaymentUpdateMock: vi.fn(),
   outerPaymentUpdateManyMock: vi.fn(),
   payX402Mock: vi.fn(),
   preflightPaymentFindUniqueMock: vi.fn(),
@@ -124,6 +126,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
     taskX402Payment: {
+      update: outerPaymentUpdateMock,
       updateMany: outerPaymentUpdateManyMock,
       // Two non-tx readers share this delegate: the charge-phase preflight
       // (keyed on the idempotency pair) and finalize's post-claim re-read
@@ -557,6 +560,7 @@ describe("POST /{id}/x402-payments", () => {
       },
     ]);
     payX402Mock.mockResolvedValue(ok(signedNodePayment()));
+    outerPaymentUpdateMock.mockResolvedValue({ id: PAYMENT_ID });
     outerPaymentUpdateManyMock.mockResolvedValue({ count: 1 });
     outerPaymentFindUniqueMock.mockResolvedValue(null);
     preflightPaymentFindUniqueMock.mockResolvedValue(null);
@@ -1923,15 +1927,19 @@ describe("POST /{id}/x402-payments", () => {
           demandFingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
           taskEventId: "evt_charge_1",
           transactionId: "txn_1",
-          // The first node sign call is counted at creation (L3 cap)...
-          signAttemptCount: 1,
-          // ...and holds the sign lease, so a same-key request arriving while
+          // Sign attempts are counted only when payX402 is invoked.
+          signAttemptCount: 0,
+          // Lease is held from create so a same-key request arriving while
           // this one is at the node is refused instead of racing it.
           processingAt: expect.any(Date),
           // Conservative authorization lifetime persists before the node call.
           signRiskExpiresAt: expect.any(Date),
         },
         select: { id: true },
+      });
+      expect(outerPaymentUpdateMock).toHaveBeenCalledWith({
+        where: { id: PAYMENT_ID },
+        data: { signAttemptCount: { increment: 1 } },
       });
       // Sign restricted to the verified pair with Soko's wallet.
       expect(payX402Mock).toHaveBeenCalledWith(
@@ -2030,6 +2038,8 @@ describe("POST /{id}/x402-payments", () => {
         expect(body.kind).toBe("x402_pay_outcome_unknown");
         // The whole point: no node call, so no header can exist anywhere.
         expect(payX402Mock).not.toHaveBeenCalled();
+        // Withheld dispatch must not spend the first-attempt auto-refund slot.
+        expect(outerPaymentUpdateMock).not.toHaveBeenCalled();
         // The record stays PENDING for the same-key replay to re-fence.
         expect(outerPaymentUpdateManyMock).not.toHaveBeenCalled();
       } finally {

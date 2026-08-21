@@ -382,10 +382,11 @@ async function runX402ChargePhase(
           demandFingerprint,
           taskEventId: chargeEvent.id,
           transactionId: charge.transactionId,
-          // This request will make the first node sign call (L3 cap); count it
-          // now so a lost fresh call still bounds subsequent PENDING replays.
-          signAttemptCount: 1,
-          // ...and hold the sign lease from the moment the record exists, so a
+          // Count the sign attempt only when payX402 is actually invoked.
+          // A withheld dispatch (stall) must not spend the first-attempt
+          // auto-refund slot.
+          signAttemptCount: 0,
+          // Hold the sign lease from the moment the record exists, so a
           // same-key request arriving while this one is at the node is refused
           // rather than racing it there.
           processingAt: signStartedAt,
@@ -544,6 +545,16 @@ export async function payTaskX402(
       },
     );
     heldPendingSignOutcome();
+  }
+
+  // Fresh path only: replay already incremented inside its charge-phase txn.
+  // Spend the L3 cap only now so a withheld dispatch never burns the
+  // first-attempt auto-refund slot.
+  if (outcome.chargedNow) {
+    await prisma.taskX402Payment.update({
+      where: { id: outcome.paymentId },
+      data: { signAttemptCount: { increment: 1 } },
+    });
   }
 
   // Task identity is stamped into the node call ONLY when the 402 advertises
