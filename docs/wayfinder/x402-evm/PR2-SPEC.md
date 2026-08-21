@@ -31,9 +31,10 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
   **node-published** ready-pair config, not the agent row — same as
   PR1-SPEC §4. Also `jobId @unique`, `caip2Network`, `asset`,
   `payTo`, `paymentIdentifier?`, `status`
-  (`PENDING | VERIFIED | FAILED | REFUNDED` — terminal at `VERIFIED`,
-  confirmed), `failureReason?`. The string amount matches the node contract
-  and avoids database integer limits. **Signed-once fields are nullable** —
+  (`PENDING | VERIFIED | FAILED | REFUNDED` — successful sign is
+  `VERIFIED`, not a terminal record; goodwill refund is
+  `VERIFIED → REFUNDED`), `failureReason?`. The string amount matches the
+  node contract and avoids database integer limits. **Signed-once fields are nullable** —
   `attemptId?`, `xPaymentHeader?`, sign-lease columns (`signAttemptCount`,
   `processingAt?`, `signRiskExpiresAt?`), and the phased-settlement group
   (`payerAddress?`,

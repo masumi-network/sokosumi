@@ -217,8 +217,9 @@ value). The node's `POST /x402/pay` body still uses `xPaymentHeader`.
 Sibling of `TaskPaymentClaim`, not a reuse — the escrow claim's Cardano
 retry ladder and `blockchainIdentifier` are meaningless here. This row
 **does** carry a **sign lease** (`processingAt`, `signAttemptCount`,
-`signRiskExpiresAt`) because the node has no idempotency. Terminal at
-successful sign.
+`signRiskExpiresAt`) because the node has no idempotency. Successful sign
+ends the automatic signing flow (`PENDING → VERIFIED`); the record is not
+terminal — an admin goodwill refund may still move `VERIFIED → REFUNDED`.
 
 The block below is a conceptual relationship sketch, not the migration source
 of truth. Canonical fields, partial indexes, CHECK constraints, refund kind,
