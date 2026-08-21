@@ -880,6 +880,7 @@ export async function resolvePeerInActiveOrganization(
   if (
     !activeOrganizationId ||
     room.kind !== "direct" ||
+    room.organizationId !== null ||
     room.coworkerMembers.length > 0
   ) {
     return false;

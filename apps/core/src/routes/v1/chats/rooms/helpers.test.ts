@@ -37,6 +37,7 @@ import {
   requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
+  resolvePeerInActiveOrganization,
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
   validateChatCoworkerIds,
@@ -1296,6 +1297,48 @@ describe("usersShareExternalChannel", () => {
       },
       select: { id: true },
     });
+  });
+
+  it("is false when no shared unarchived external channel exists", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const tx = {
+      chatRoom: { findFirst },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
+    ).resolves.toBe(false);
+  });
+});
+
+describe("resolvePeerInActiveOrganization", () => {
+  it("is false for Org Directs without a member lookup", async () => {
+    const orgDirect = createExternalRoom(
+      [
+        createRoomMembership(MEMBER_ID, "member"),
+        createRoomMembership(GUEST_ID, "member"),
+      ],
+      {
+        id: "org-dm",
+        kind: "direct",
+        discoverability: null,
+        organizationId: ORG_ID,
+      },
+    );
+    const findMany = vi.fn();
+    const tx = {
+      member: { findMany },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      resolvePeerInActiveOrganization(
+        orgDirect as never,
+        MEMBER_ID,
+        ORG_ID,
+        tx,
+      ),
+    ).resolves.toBe(false);
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
 
