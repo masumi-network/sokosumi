@@ -94,7 +94,7 @@ export const chatRoomSchema = z
     }),
     organizationId: z.string().nullable().openapi({
       description:
-        "Active organization at create time for channels and directs. Null only for coworker 1:1 DMs created with no active organization.",
+        "Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).",
       example: "org_123",
     }),
     organizationName: z.string().nullable().openapi({
@@ -152,6 +152,11 @@ export const chatRoomSchema = z
       description:
         "Caller's membership on this room. Guests are not host-org members.",
       example: "member",
+    }),
+    peerInActiveOrganization: z.boolean().default(false).openapi({
+      description:
+        "True when every other human on a Direct is a Member of the caller's active organization. False with no active organization.",
+      example: false,
     }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
@@ -212,7 +217,7 @@ export const createChatRoomRequestSchema = z
       .object({
         kind: z.literal("direct").openapi({
           description:
-            "Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. User-started coworker DMs may be personal with no active org; human DMs require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
+            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
