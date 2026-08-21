@@ -19,6 +19,10 @@ const {
   prismaTaskCountMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
+  prismaBlobFindManyMock,
+  prismaBlobFindFirstMock,
+  prismaBlobFindUniqueMock,
+  prismaBlobCountMock,
   requireTaskReadForRouteVarsMock,
   requireUserDriveFileUploadAccessMock,
   requireOrganizationDriveFileUploadAccessMock,
@@ -38,6 +42,10 @@ const {
   prismaTaskCountMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
+  prismaBlobFindManyMock: vi.fn(),
+  prismaBlobFindFirstMock: vi.fn(),
+  prismaBlobFindUniqueMock: vi.fn(),
+  prismaBlobCountMock: vi.fn(),
   requireTaskReadForRouteVarsMock: vi.fn(),
   requireUserDriveFileUploadAccessMock: vi.fn(),
   requireOrganizationDriveFileUploadAccessMock: vi.fn(),
@@ -68,6 +76,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: prismaMemberFindUniqueMock,
+    },
+    blob: {
+      findMany: prismaBlobFindManyMock,
+      findFirst: prismaBlobFindFirstMock,
+      findUnique: prismaBlobFindUniqueMock,
+      count: prismaBlobCountMock,
     },
   },
 }));
@@ -186,7 +200,9 @@ describe("Drive Tasks Routes", () => {
         ];
 
         prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaBlobFindManyMock.mockResolvedValue([]);
         prismaTaskFileCountMock.mockResolvedValue(1);
+        prismaBlobCountMock.mockResolvedValue(0);
 
         const app = createDriveTasksApp();
         const res = await app.request(
@@ -195,6 +211,112 @@ describe("Drive Tasks Routes", () => {
 
         expect(res.status).toBe(200);
         expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+      });
+
+      it("lists job output blobs (status READY) sorted by updatedAt desc", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        const blobs = [
+          {
+            id: "blb_1",
+            name: "output.pdf",
+            fileUrl: "https://coworker.example/output.pdf",
+            sourceUrl: "https://coworker.example/output.pdf",
+            size: BigInt(2048),
+            mimeType: "application/pdf",
+            status: "READY",
+            updatedAt: new Date("2026-03-25T14:00:00.000Z"),
+          },
+        ];
+
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaBlobFindManyMock.mockResolvedValue(blobs);
+        prismaTaskFileCountMock.mockResolvedValue(0);
+        prismaBlobCountMock.mockResolvedValue(1);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0].type).toBe("job-output");
+        expect(json.data[0].id).toBe("blb_1");
+      });
+
+      it("combines and sorts TaskFiles and job blobs by updatedAt desc", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        const files = [
+          {
+            id: "tf_1",
+            name: "file1.txt",
+            fileUrl: "https://example.com/file1.txt",
+            size: BigInt(1024),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+        ];
+
+        const blobs = [
+          {
+            id: "blb_1",
+            name: "output.pdf",
+            fileUrl: "https://coworker.example/output.pdf",
+            sourceUrl: "https://coworker.example/output.pdf",
+            size: BigInt(2048),
+            mimeType: "application/pdf",
+            status: "READY",
+            updatedAt: new Date("2026-03-25T14:00:00.000Z"),
+          },
+        ];
+
+        prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaBlobFindManyMock.mockResolvedValue(blobs);
+        prismaTaskFileCountMock.mockResolvedValue(1);
+        prismaBlobCountMock.mockResolvedValue(1);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(2);
+        // Blob is newer, should be first
+        expect(json.data[0].type).toBe("job-output");
+        expect(json.data[1].type).toBe("task-file");
+      });
+
+      it("omits PENDING and FAILED blobs from results", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        // Return empty for READY blobs
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaBlobFindManyMock.mockResolvedValue([]);
+        prismaTaskFileCountMock.mockResolvedValue(0);
+        prismaBlobCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(0);
+
+        // Verify that the blob query filtered by status: READY
+        expect(prismaBlobFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              status: "READY",
+            }),
+          }),
+        );
       });
     });
 
@@ -464,6 +586,7 @@ describe("Drive Tasks Routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          kind: "task-file",
           taskFileId: "tf_123",
           scope: "me",
         }),
@@ -471,6 +594,114 @@ describe("Drive Tasks Routes", () => {
 
       expect(res.status).toBe(201);
       expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+    });
+
+    it("copies job output Blob to Drive root", async () => {
+      const blob = {
+        id: "blb_123",
+        name: "result.pdf",
+        fileUrl: "https://coworker.example/output.pdf",
+        sourceUrl: "https://coworker.example/source.pdf",
+        size: BigInt(2048),
+        mimeType: "application/pdf",
+        status: "READY",
+        event: {
+          job: {
+            task: { id: "tsk_1" },
+          },
+        },
+      };
+
+      prismaBlobFindUniqueMock.mockResolvedValue(blob);
+      requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+      requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+      const BlobNotFoundError = (await import("@vercel/blob"))
+        .BlobNotFoundError;
+      headMock.mockRejectedValue(new BlobNotFoundError());
+      listMock.mockResolvedValue({
+        blobs: [],
+        hasMore: false,
+        cursor: undefined,
+      });
+
+      const arrayBuffer = new ArrayBuffer(2048);
+      ssrfSafeFetchMock.mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(arrayBuffer),
+      });
+
+      putMock.mockResolvedValue({
+        url: "https://blob.example/drive/users/user_123/result.pdf",
+        pathname: "drive/users/user_123/result.pdf",
+        downloadUrl: "https://blob.example/drive/users/user_123/result.pdf",
+        contentType: "application/pdf",
+        contentDisposition: "inline",
+        etag: "etag456",
+      });
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "job-output",
+          blobId: "blb_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(201);
+      expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+    });
+
+    it("returns 404 when blobId sent with wrong kind (task-file)", async () => {
+      prismaTaskFileFindUniqueMock.mockResolvedValue(null);
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "task-file",
+          taskFileId: "blb_123", // Blob ID passed as taskFileId
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 400 when job output Blob is not READY", async () => {
+      const blob = {
+        id: "blb_123",
+        name: "result.pdf",
+        fileUrl: "https://coworker.example/output.pdf",
+        sourceUrl: "https://coworker.example/source.pdf",
+        size: BigInt(2048),
+        mimeType: "application/pdf",
+        status: "PENDING",
+        event: {
+          job: {
+            task: { id: "tsk_1" },
+          },
+        },
+      };
+
+      prismaBlobFindUniqueMock.mockResolvedValue(blob);
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "job-output",
+          blobId: "blb_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(400);
     });
 
     it("returns 409 when dest file exists", async () => {
@@ -501,6 +732,7 @@ describe("Drive Tasks Routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          kind: "task-file",
           taskFileId: "tf_123",
           scope: "me",
         }),
