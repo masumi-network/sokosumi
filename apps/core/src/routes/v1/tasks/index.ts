@@ -19,6 +19,7 @@ import mountDeleteTaskShareById from "./[id]/share/delete.js";
 import mountPutTaskShareById from "./[id]/share/put.js";
 import mountGetTaskWorkspace from "./[id]/workspace/get.js";
 import mountPutTaskWorkspace from "./[id]/workspace/put.js";
+import mountPostTaskX402Payment from "./[id]/x402-payments/post.js";
 import mountGetTasks from "./get.js";
 import mountPostTask from "./post.js";
 import mountGetTaskSummary from "./summary/get.js";
@@ -50,5 +51,6 @@ mountGetTaskFiles(app);
 mountPostTaskFile(app);
 mountGetTaskJobs(app);
 mountPostTaskJob(app);
+mountPostTaskX402Payment(app);
 
 export default app;

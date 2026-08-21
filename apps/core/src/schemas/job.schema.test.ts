@@ -52,6 +52,16 @@ describe("job request schemas", () => {
     expect(() => patchJobRequestSchema.parse({ name })).toThrow();
   });
 
+  it("rejects a non-finite maxCredits", () => {
+    expect(
+      createJobRequestSchema.safeParse({
+        inputSchema: validInputSchema,
+        inputData: { prompt: "hello" },
+        maxCredits: Number.POSITIVE_INFINITY,
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects inputData values that mix strings and numbers in one array", () => {
     expect(() =>
       createJobRequestSchema.parse({
