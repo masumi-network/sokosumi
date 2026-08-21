@@ -9,8 +9,6 @@ export interface ExtractedLink {
   text?: string;
 }
 
-const AUTO_LINKS = /<((?:https?:)\/\/[^>\s]+)>/gi;
-
 const TRAILING_PUNCTUATION_CHARS = new Set([
   ".",
   ",",
@@ -24,6 +22,12 @@ const TRAILING_PUNCTUATION_CHARS = new Set([
 ]);
 
 interface CharRange {
+  start: number;
+  end: number;
+}
+
+interface AutolinkMatch {
+  url: string;
   start: number;
   end: number;
 }
@@ -42,6 +46,59 @@ function isBareUrlStopChar(ch: string): boolean {
     ch === "'" ||
     ch === '"'
   );
+}
+
+/**
+ * Linear scan for GFM autolinks `<http://…>` / `<https://…>` (no regex — CodeQL ReDoS).
+ * Visits each character a constant number of times.
+ */
+function findAutolinks(markdown: string): AutolinkMatch[] {
+  const matches: AutolinkMatch[] = [];
+  let i = 0;
+
+  while (i < markdown.length) {
+    const open = markdown.indexOf("<", i);
+    if (open === -1) {
+      break;
+    }
+
+    const rest = markdown.slice(open + 1);
+    const isHttp = rest.startsWith("http://") || rest.startsWith("https://");
+    if (!isHttp) {
+      i = open + 1;
+      continue;
+    }
+
+    // Scan until `>` or whitespace
+    let j = open + 1;
+    while (j < markdown.length) {
+      const ch = markdown[j];
+      if (ch === ">") {
+        // Found closing bracket
+        const url = markdown.slice(open + 1, j);
+        matches.push({
+          url,
+          start: open,
+          end: j + 1,
+        });
+        i = j + 1;
+        break;
+      }
+      if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
+        // Whitespace before closing bracket — not a valid autolink
+        i = open + 1;
+        break;
+      }
+      j += 1;
+    }
+
+    // EOF without closing bracket
+    if (j >= markdown.length) {
+      i = open + 1;
+    }
+  }
+
+  return matches;
 }
 
 /** Strip trailing punctuation glued onto bare URLs in text (no regex). */
@@ -82,12 +139,8 @@ function collectExcludedRanges(markdown: string): CharRange[] {
   }
 
   // Autolinks: exclude the entire <url> match
-  for (const match of markdown.matchAll(AUTO_LINKS)) {
-    const start = match.index!;
-    ranges.push({
-      start,
-      end: start + match[0].length,
-    });
+  for (const { start, end } of findAutolinks(markdown)) {
+    ranges.push({ start, end });
   }
 
   return ranges;
@@ -160,8 +213,7 @@ export function extractLinks(markdown: string): ExtractedLink[] {
   for (const { text, rawUrl } of findMarkdownLinks(markdown)) {
     results.push({ url: unescapeMarkdownLinkUrl(rawUrl), text });
   }
-  for (const match of markdown.matchAll(AUTO_LINKS)) {
-    const [, url] = match;
+  for (const { url } of findAutolinks(markdown)) {
     results.push({ url });
   }
 

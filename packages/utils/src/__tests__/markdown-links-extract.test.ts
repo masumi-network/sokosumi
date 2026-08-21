@@ -187,4 +187,23 @@ https://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-0000000
       expect(links).toHaveLength(2);
     });
   });
+
+  describe("ReDoS regression", () => {
+    it("does not hang on unclosed autolink with many repeats", () => {
+      // CodeQL polynomial regex alert: <http:// + many chars without closing >
+      const attack = "<http://" + "a".repeat(10000);
+      const links = extractFileLikeLinks(attack);
+      expect(links).toEqual([]);
+    });
+
+    it("extracts valid autolinks even after unclosed ones", () => {
+      const markdown = [
+        "<http://" + "x".repeat(100),
+        "<https://example.com/file.pdf>",
+      ].join("\n");
+
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual(["https://example.com/file.pdf"]);
+    });
+  });
 });
