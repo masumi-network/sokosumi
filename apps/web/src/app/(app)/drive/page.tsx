@@ -79,7 +79,6 @@ import type {
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
-  getDriveTasks,
   getProjects,
   getTasksById,
   getUsersByIdOrganizations,
@@ -96,6 +95,7 @@ import {
   isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { listDriveTasks } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
@@ -167,6 +167,73 @@ function FileNameWithPreview({
           onOpenChange={setIsDocumentViewerOpen}
           url={item.fileUrl}
           fileName={item.name}
+          kind={documentKind}
+        />
+      )}
+    </>
+  );
+}
+
+interface TaskFileNameWithPreviewProps {
+  name: string;
+  fileUrl: string;
+  isPreviewable: boolean;
+  isImage: boolean;
+  documentKind: "office" | "pdf" | "text" | null;
+}
+
+function TaskFileNameWithPreview({
+  name,
+  fileUrl,
+  isPreviewable,
+  isImage,
+  documentKind,
+}: TaskFileNameWithPreviewProps) {
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
+
+  if (!isPreviewable) {
+    return (
+      <span
+        className="text-foreground line-clamp-1 text-sm font-medium"
+        title={name}
+      >
+        {name}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (isImage) {
+            setIsImageViewerOpen(true);
+          } else if (documentKind) {
+            setIsDocumentViewerOpen(true);
+          }
+        }}
+        className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+        title={name}
+      >
+        {name}
+      </button>
+      {isImage && (
+        <ImageViewer
+          open={isImageViewerOpen}
+          onOpenChange={setIsImageViewerOpen}
+          src={fileUrl}
+          alt={name}
+          downloadFilename={name}
+        />
+      )}
+      {documentKind && (
+        <DocumentViewer
+          open={isDocumentViewerOpen}
+          onOpenChange={setIsDocumentViewerOpen}
+          url={fileUrl}
+          fileName={name}
           kind={documentKind}
         />
       )}
@@ -310,35 +377,65 @@ export default function DrivePage(): ReactElement {
     const controller = new AbortController();
     loadTasksAbortRef.current = controller;
 
-    setLoading(true);
     try {
       if (scope === "org" && !activeOrganizationId) {
         if (!controller.signal.aborted) {
           setTasksItems([]);
+          setLoading(false);
         }
         return;
       }
 
-      const response = await getDriveTasks({
-        client: getBrowserCoreClient(),
-        query: {
-          scope,
-          ...(scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-          ...(projectIdParam ? { projectId: projectIdParam } : {}),
-          ...(taskIdParam ? { taskId: taskIdParam } : {}),
-          ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
-        },
+      setLoading(true);
+
+      const exploreItems = await listDriveTasks({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(projectIdParam ? { projectId: projectIdParam } : {}),
+        ...(taskIdParam ? { taskId: taskIdParam } : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
         signal: controller.signal,
-        throwOnError: true,
       });
 
       if (!controller.signal.aborted) {
-        const items = response.data?.data ?? [];
+        const items: DriveTasksListItem[] = exploreItems.map((item) => {
+          if (item.type === "task-project") {
+            return {
+              type: "project" as const,
+              id: item.id,
+              name: item.name,
+              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+            };
+          }
+          if (item.type === "task-no-project") {
+            return {
+              type: "no-project" as const,
+              id: item.id,
+              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+            };
+          }
+          if (item.type === "task") {
+            return {
+              type: "task" as const,
+              id: item.id,
+              name: item.name,
+              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+            };
+          }
+          return {
+            type: "task-file" as const,
+            id: item.id,
+            name: item.name,
+            fileUrl: item.fileUrl,
+            size: item.size,
+            mimeType: item.mimeType,
+            updatedAt: new Date(item.updatedAt),
+          };
+        });
         setTasksItems(items);
 
-        // Update name maps from response
         setProjectNames((prev) => {
           let updated = false;
           const next = new Map(prev);
@@ -1520,31 +1617,13 @@ export default function DrivePage(): ReactElement {
                             <FileTypeIcon extension={extension || "file"} />
                           </div>
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            {isPreviewable ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (isImage) {
-                                      // Open image viewer
-                                    } else if (documentKind) {
-                                      // Open document viewer
-                                    }
-                                  }}
-                                  className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
-                                  title={item.name}
-                                >
-                                  {item.name}
-                                </button>
-                              </>
-                            ) : (
-                              <span
-                                className="text-foreground line-clamp-1 text-sm font-medium"
-                                title={item.name}
-                              >
-                                {item.name}
-                              </span>
-                            )}
+                            <TaskFileNameWithPreview
+                              name={item.name}
+                              fileUrl={item.fileUrl}
+                              isPreviewable={isPreviewable}
+                              isImage={isImage}
+                              documentKind={documentKind}
+                            />
                             <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
                               <span>
                                 {item.size ? formatBytes(item.size) : "—"}
