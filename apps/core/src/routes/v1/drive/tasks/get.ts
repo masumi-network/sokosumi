@@ -346,34 +346,47 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Level 1: Project rows + no-project row, sorted by latest TaskFile.updatedAt desc
-    // Projects with at least one task with files
-    const projectsWhere: Prisma.ProjectWhereInput = {
-      workspaceId,
-      tasks: {
-        some: baseTaskWhere,
-      },
-    };
+    // Key project rows by tasks in the Drive workspace, not by Project.workspaceId
+    // (transferred tasks may have Task.workspaceId !== Project.workspaceId)
 
-    // Fetch all projects (up to reasonable limit for sorting + no-project row)
+    // Find distinct non-null projectIds from tasks matching baseTaskWhere
+    const tasksWithProjects = await prisma.task.findMany({
+      where: {
+        ...baseTaskWhere,
+        projectId: { not: null },
+      },
+      select: { projectId: true },
+      distinct: ["projectId"],
+    });
+
+    const projectIds = tasksWithProjects
+      .map((t) => t.projectId)
+      .filter((id): id is string => id !== null);
+
+    // Fetch all projects by id + no-project count
     const MAX_PROJECTS_FOR_SORT = 10000;
     const [allProjects, noProjectTasksCount] = await Promise.all([
-      prisma.project.findMany({
-        where: projectsWhere,
-        take: MAX_PROJECTS_FOR_SORT,
-        include: {
-          tasks: {
-            where: baseTaskWhere,
+      projectIds.length > 0
+        ? prisma.project.findMany({
+            where: {
+              id: { in: projectIds },
+            },
+            take: MAX_PROJECTS_FOR_SORT,
             include: {
-              files: {
-                orderBy: { updatedAt: "desc" },
+              tasks: {
+                where: baseTaskWhere,
+                include: {
+                  files: {
+                    orderBy: { updatedAt: "desc" },
+                    take: 1,
+                  },
+                },
+                orderBy: [{ updatedAt: "desc" }],
                 take: 1,
               },
             },
-            orderBy: [{ updatedAt: "desc" }],
-            take: 1,
-          },
-        },
-      }),
+          })
+        : Promise.resolve([]),
       prisma.task.count({
         where: {
           ...baseTaskWhere,
@@ -381,6 +394,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       }),
     ]);
+
+    // Build map of found projects
+    const projectMap = new Map(allProjects.map((p) => [p.id, p]));
+
+    // Emit project rows for all projectIds, using fallback for missing projects
+    const projectsToEmit = projectIds.map((id) => {
+      const project = projectMap.get(id);
+      return {
+        id,
+        name: project?.name ?? `[Project ${id.slice(0, 8)}]`,
+        tasks: project?.tasks ?? [],
+      };
+    });
 
     // Build combined list: projects + no-project row
     interface SortableItem {
@@ -391,7 +417,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       latestFileTime: number;
     }
 
-    const sortableItems: SortableItem[] = allProjects.map((project) => {
+    const sortableItems: SortableItem[] = projectsToEmit.map((project) => {
       const latestFileUpdatedAt =
         project.tasks[0]?.files[0]?.updatedAt.toISOString() ??
         new Date().toISOString();

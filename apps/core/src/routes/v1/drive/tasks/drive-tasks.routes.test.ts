@@ -256,6 +256,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
+        prismaTaskFindManyMock.mockResolvedValue([{ projectId: "prj_1" }]);
         prismaProjectFindManyMock.mockResolvedValue(projects);
         prismaTaskCountMock.mockResolvedValue(1);
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -283,6 +284,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
+        prismaTaskFindManyMock.mockResolvedValue([{ projectId: "prj_1" }]);
         prismaProjectFindManyMock.mockResolvedValue(projects);
         prismaTaskCountMock.mockResolvedValue(1);
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -295,6 +297,95 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json.data).toHaveLength(1);
+      });
+
+      it("shows transferred task project (Task.workspaceId matches, Project.workspaceId does not)", async () => {
+        // Simulate transferred task: Task.workspaceId = ws_org, Project.workspaceId = ws_personal
+        workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
+          id: "ws_org",
+        });
+        prismaMemberFindUniqueMock.mockResolvedValue({
+          userId: "user_123",
+          organizationId: "org_123",
+        });
+
+        // Task with projectId pointing to a project whose workspaceId is different
+        prismaTaskFindManyMock.mockResolvedValue([
+          { projectId: "prj_transferred" },
+        ]);
+
+        const projectFromDifferentWorkspace = {
+          id: "prj_transferred",
+          name: "Transferred Project",
+          workspaceId: "ws_personal", // Different from Drive workspace
+          tasks: [
+            {
+              files: [{ updatedAt: new Date("2026-03-25T15:00:00.000Z") }],
+            },
+          ],
+        };
+
+        prismaProjectFindManyMock.mockResolvedValue([
+          projectFromDifferentWorkspace,
+        ]);
+        prismaTaskCountMock.mockResolvedValue(0); // No no-project tasks
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=org&organizationId=org_123",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "project",
+          id: "prj_transferred",
+          name: "Transferred Project",
+        });
+      });
+
+      it("shows fallback name when project row is missing but tasks exist", async () => {
+        // Task references a projectId but the Project row was deleted
+        prismaTaskFindManyMock.mockResolvedValue([
+          { projectId: "prj_deleted" },
+        ]);
+
+        // Project row not found
+        prismaProjectFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "project",
+          id: "prj_deleted",
+          name: expect.stringContaining("[Project"),
+        });
+      });
+
+      it("includes no-project row when tasks with projectId: null have files", async () => {
+        prismaTaskFindManyMock.mockResolvedValue([]); // No project tasks
+        prismaProjectFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(1); // One no-project task
+        prismaTaskFileFindFirstMock.mockResolvedValue({
+          updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+        });
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "no-project",
+          id: "null",
+        });
       });
     });
 
