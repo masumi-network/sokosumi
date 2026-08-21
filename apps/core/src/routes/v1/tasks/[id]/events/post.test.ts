@@ -3560,6 +3560,56 @@ describe("POST /{id}/events", () => {
       expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalled();
     });
 
+    it("preserves query parameters including signed tokens in comment URLs", async () => {
+      const urlWithToken =
+        "https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/begin-token2049-booth.pptx?token=test-token&expires=1234567890";
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_query_1",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment: `Check this file: ${urlWithToken}`,
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: `Check this file: ${urlWithToken}`,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        TASK_ID,
+        `Check this file: ${urlWithToken}`,
+        tx,
+      );
+    });
+
     it("forwards a multiline comment containing several bare URLs", async () => {
       const tx: TransactionMock = {
         taskEvent: {

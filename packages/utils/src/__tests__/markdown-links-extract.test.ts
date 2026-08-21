@@ -219,4 +219,68 @@ https://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-0000000
       expect(links).toEqual(["https://example.com/file.pdf"]);
     });
   });
+
+  describe("query string preservation", () => {
+    it("preserves query parameters in markdown links", () => {
+      const markdown =
+        "[report](https://example.com/file.pdf?token=abc123&expires=1234567890)";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual([
+        "https://example.com/file.pdf?token=abc123&expires=1234567890",
+      ]);
+    });
+
+    it("preserves query parameters in autolinks", () => {
+      const markdown =
+        "<https://example.com/file.pdf?token=test-token&expires=123>";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual([
+        "https://example.com/file.pdf?token=test-token&expires=123",
+      ]);
+    });
+
+    it("preserves query parameters in bare URLs", () => {
+      const markdown =
+        "Check out https://example.com/file.pdf?token=xyz789&download=true for details.";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual([
+        "https://example.com/file.pdf?token=xyz789&download=true",
+      ]);
+    });
+
+    it("preserves query parameters in /deliverables/ URLs", () => {
+      const markdown =
+        "https://elena.serviceplan-agents.com/files/tasks/uuid/deliverables/report.pptx?token=abc123";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual([
+        "https://elena.serviceplan-agents.com/files/tasks/uuid/deliverables/report.pptx?token=abc123",
+      ]);
+    });
+
+    it("preserves query parameters in extensionless /deliverables/ URLs", () => {
+      const markdown =
+        "https://example.com/deliverables/abc-def-123?token=secret-token&v=2";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual([
+        "https://example.com/deliverables/abc-def-123?token=secret-token&v=2",
+      ]);
+    });
+
+    it("preserves complex query strings with encoded characters", () => {
+      const markdown =
+        "https://example.com/file.pdf?token=abc%20def&redirect=https%3A%2F%2Fother.com";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual([
+        "https://example.com/file.pdf?token=abc%20def&redirect=https%3A%2F%2Fother.com",
+      ]);
+    });
+
+    it("preserves fragment-less URLs with query params", () => {
+      // Hash should still be rejected even if query is present
+      const markdown =
+        "https://example.com/file.pdf?token=abc#section and https://example.com/file.pdf?token=xyz";
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual(["https://example.com/file.pdf?token=xyz"]);
+    });
+  });
 });
