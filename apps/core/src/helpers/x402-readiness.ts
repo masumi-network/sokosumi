@@ -1,8 +1,9 @@
-import type { Prisma } from "@sokosumi/database";
+import { AgentEntryType, AgentStatus, type Prisma } from "@sokosumi/database";
 import {
   CAIP2_EVM_NETWORK_PATTERN,
   EVM_ADDRESS_PATTERN,
 } from "@sokosumi/masumi";
+import { isValidHttpUrl } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
@@ -25,9 +26,10 @@ export const X402_BUY_SIDE_READINESS_FAILURE_KEY =
 /**
  * One (network, asset) pair the payment node can pay on right now: the chain
  * is enabled for x402, the node publishes a usable scale for the asset, and a
- * budget in it has remaining spend. Network and asset are canonical
- * lowercase; `evmWalletId` is the node's opaque wallet id, case-sensitive
- * and trimmed of surrounding whitespace (blank ids cannot be signed with).
+ * funded Purchasing wallet has native gas plus the matching token. Network,
+ * asset, and wallet address are canonical lowercase; `evmWalletId` is the
+ * node's opaque wallet id, case-sensitive and trimmed of surrounding
+ * whitespace (blank ids cannot be signed with).
  */
 export interface X402ReadySource {
   /** CAIP-2 EVM network id, e.g. `eip155:84532`. */
@@ -41,6 +43,8 @@ export interface X402ReadySource {
    * recorded the one with the most remaining spend.
    */
   evmWalletId: string;
+  /** Expected EVM payer address for this managed wallet, canonical lowercase. */
+  evmWalletAddress: string;
   /**
    * Base units per whole token for `asset`, as the NODE publishes it
    * (`defaultAssetDecimals` on `GET /x402/networks/available`) — never as the
@@ -55,6 +59,40 @@ export interface X402ReadySource {
    * the node reports nothing usable — see {@link isUsableAssetDecimals}.
    */
   decimals: number;
+}
+
+export interface X402TrustedExactEvmDomain {
+  name: string;
+  version: string;
+}
+
+/**
+ * Trusted EIP-712 domains for every exact-EVM asset this deployment supports.
+ * Resource-server `extra` is attacker-authored and must never define the
+ * domain Soko uses to bless a managed-wallet signature.
+ */
+const X402_TRUSTED_EXACT_EVM_DOMAINS: Readonly<
+  Record<string, X402TrustedExactEvmDomain>
+> = {
+  "eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e": {
+    name: "USDC",
+    version: "2",
+  },
+  "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": {
+    name: "USD Coin",
+    version: "2",
+  },
+};
+
+export function getTrustedX402ExactEvmDomain(
+  caip2Network: string,
+  asset: string,
+): X402TrustedExactEvmDomain | null {
+  return (
+    X402_TRUSTED_EXACT_EVM_DOMAINS[
+      `${caip2Network.trim().toLowerCase()}:${asset.trim().toLowerCase()}`
+    ] ?? null
+  );
 }
 
 /**
@@ -72,6 +110,57 @@ const X402_MAINNET_ALLOWED_CAIP2_NETWORKS: readonly string[] = [
   // Base mainnet
   "eip155:8453",
 ];
+
+/** Production curates x402 catalog entries; Preprod exposes all online ones. */
+export function requiresX402AgentCuration(
+  network: "Preprod" | "Mainnet",
+): boolean {
+  return network === "Mainnet";
+}
+
+/**
+ * Database-visible catalog gates shared by listing and pay lookup. URL syntax
+ * cannot be expressed safely through Prisma's string filters, so callers must
+ * also apply {@link hasValidX402DiscoveryUrl} to every returned row.
+ */
+export function getX402AgentCatalogWhere(
+  network: "Preprod" | "Mainnet",
+): Prisma.AgentWhereInput {
+  return {
+    OR: [
+      {
+        type: AgentEntryType.X402,
+        x402ResourcesUrl: { not: null },
+      },
+      {
+        type: AgentEntryType.OPEN_API,
+        openApiSpecUrl: { not: null },
+        paymentSources: { some: { scheme: { not: null } } },
+      },
+    ],
+    status: AgentStatus.ONLINE,
+    ...(requiresX402AgentCuration(network) ? { isShown: true } : {}),
+  };
+}
+
+/** Fail-closed validation for registry-controlled discovery endpoints. */
+export function hasValidX402DiscoveryUrl(agent: {
+  type: string;
+  x402ResourcesUrl: string | null;
+  openApiSpecUrl: string | null;
+}): boolean {
+  if (agent.type === AgentEntryType.X402) {
+    return (
+      agent.x402ResourcesUrl !== null && isValidHttpUrl(agent.x402ResourcesUrl)
+    );
+  }
+  if (agent.type === AgentEntryType.OPEN_API) {
+    return (
+      agent.openApiSpecUrl !== null && isValidHttpUrl(agent.openApiSpecUrl)
+    );
+  }
+  return false;
+}
 
 export function getAllowedX402Caip2Networks(
   network: "Preprod" | "Mainnet",
@@ -120,15 +209,6 @@ export function findX402ReadySource(
   );
 }
 
-/** Whether an advertised (network, asset) pair is buy-side ready. */
-export function isX402SourceReady(
-  caip2Network: string,
-  asset: string,
-  readySources: readonly X402ReadySource[],
-): boolean {
-  return findX402ReadySource(caip2Network, asset, readySources) !== undefined;
-}
-
 /**
  * Exact (network, asset) pairs the payment node last reported buy-side ready.
  * Empty means never recorded, the payload is unusable, OR a successful check
@@ -168,53 +248,91 @@ export const getX402ReadySources = async (
     if (!Array.isArray(payload)) {
       return [];
     }
-    return (
-      payload
-        .filter(
-          (source): source is X402ReadySource =>
-            typeof source === "object" &&
-            source !== null &&
-            "caip2Network" in source &&
-            typeof source.caip2Network === "string" &&
-            CAIP2_EVM_NETWORK_PATTERN.test(source.caip2Network) &&
-            isX402NetworkAllowed(source.caip2Network, environment) &&
-            "asset" in source &&
-            typeof source.asset === "string" &&
-            EVM_ADDRESS_PATTERN.test(source.asset) &&
-            // A pair without its backing wallet cannot be signed with — a row
-            // cached before the evmWalletId field existed is unusable and drops
-            // until the next sync rewrites the cache.
-            "evmWalletId" in source &&
-            typeof source.evmWalletId === "string" &&
-            trimEvmWalletId(source.evmWalletId) !== undefined &&
-            // Same treatment for the node-published decimals, and for the same
-            // reason the other fields are re-validated here: the cache is not a
-            // trusted input. A row written before this field existed — or one
-            // carrying a non-integer or out-of-range value — has no usable
-            // scale, and pricing off a wrong scale is a 10^n mischarge. Drop
-            // the pair until the next sync rewrites the cache; NEVER fall back
-            // to the agent-registered decimals.
-            "decimals" in source &&
-            isUsableAssetDecimals(source.decimals),
-        )
-        // Emit the canonical pair rather than the row as stored.
-        // EVM_ADDRESS_PATTERN accepts mixed case, so a legacy or hand-edited
-        // row would be VALIDATED in one spelling and RETURNED in another —
-        // the same validate-one / forward-another split the 402 normalizer
-        // closed. Everything downstream compares canonical lowercase
-        // (`findX402ReadySource`, `buildCaip19AssetKey`, and the pay call's
-        // `preferredAsset`, where a mismatch would miss the node lookup AFTER
-        // the credits are charged). `composeX402ReadySources` writes lowercase
-        // today, so this only bites a legacy row — which is exactly why the
-        // read must not trust the cache. Extra cached properties are dropped
-        // for the same reason: only the fields `X402ReadySource` declares are
-        // served.
-        .map((source) => ({
-          caip2Network: source.caip2Network.trim().toLowerCase(),
-          asset: source.asset.trim().toLowerCase(),
-          evmWalletId: source.evmWalletId.trim(),
-          decimals: source.decimals,
-        }))
+    const canonicalSources = payload
+      .filter(
+        (source): source is X402ReadySource =>
+          typeof source === "object" &&
+          source !== null &&
+          "caip2Network" in source &&
+          typeof source.caip2Network === "string" &&
+          CAIP2_EVM_NETWORK_PATTERN.test(source.caip2Network) &&
+          isX402NetworkAllowed(source.caip2Network, environment) &&
+          "asset" in source &&
+          typeof source.asset === "string" &&
+          EVM_ADDRESS_PATTERN.test(source.asset) &&
+          // Old builds could cache any node-default ERC-20. Pay now accepts
+          // only pairs with locally trusted EIP-712 domain metadata, so the
+          // read path must apply the same filter or listing would advertise
+          // an agent whose payment route always fails closed.
+          getTrustedX402ExactEvmDomain(source.caip2Network, source.asset) !==
+            null &&
+          // A pair without its backing wallet cannot be signed with — a row
+          // cached before the evmWalletId field existed is unusable and drops
+          // until the next sync rewrites the cache.
+          "evmWalletId" in source &&
+          typeof source.evmWalletId === "string" &&
+          trimEvmWalletId(source.evmWalletId) !== undefined &&
+          // The signed payer must later match the exact wallet whose budget
+          // and balances made this pair ready. Old cache rows without the
+          // expected address cannot establish that binding and fail closed.
+          "evmWalletAddress" in source &&
+          typeof source.evmWalletAddress === "string" &&
+          EVM_ADDRESS_PATTERN.test(source.evmWalletAddress) &&
+          // Same treatment for the node-published decimals, and for the same
+          // reason the other fields are re-validated here: the cache is not a
+          // trusted input. A row written before this field existed — or one
+          // carrying a non-integer or out-of-range value — has no usable
+          // scale, and pricing off a wrong scale is a 10^n mischarge. Drop
+          // the pair until the next sync rewrites the cache; NEVER fall back
+          // to the agent-registered decimals.
+          "decimals" in source &&
+          isUsableAssetDecimals(source.decimals),
+      )
+      // Emit the canonical pair rather than the row as stored.
+      // EVM_ADDRESS_PATTERN accepts mixed case, so a legacy or hand-edited
+      // row would be VALIDATED in one spelling and RETURNED in another —
+      // the same validate-one / forward-another split the 402 normalizer
+      // closed. Everything downstream compares canonical lowercase
+      // (`findX402ReadySource`, `buildCaip19AssetKey`, and the pay call's
+      // `preferredAsset`, where a mismatch would miss the node lookup AFTER
+      // the credits are charged). `composeX402ReadySources` writes lowercase
+      // today, so this only bites a legacy row — which is exactly why the
+      // read must not trust the cache. Extra cached properties are dropped
+      // for the same reason: only the fields `X402ReadySource` declares are
+      // served.
+      .map((source) => ({
+        caip2Network: source.caip2Network.trim().toLowerCase(),
+        asset: source.asset.trim().toLowerCase(),
+        evmWalletId: source.evmWalletId.trim(),
+        evmWalletAddress: source.evmWalletAddress.trim().toLowerCase(),
+        decimals: source.decimals,
+      }));
+    // `composeX402ReadySources` keys its output on the canonical
+    // (network, asset), so a healthy cache can never repeat a pair — but the
+    // cache is not a trusted input (see above), and `findX402ReadySource`
+    // returns the FIRST match, so a hand-edited or legacy row that duplicates
+    // a pair would let array order pick the signer wallet and the charge
+    // scale. Mirror the compose-side rule: an exact repeat collapses to one
+    // row; a disagreeing repeat poisons the pair (neither spelling is served).
+    const sourcesByPair = new Map<string, X402ReadySource | null>();
+    for (const source of canonicalSources) {
+      const key = `${source.caip2Network}:${source.asset}`;
+      const recorded = sourcesByPair.get(key);
+      if (recorded === undefined) {
+        sourcesByPair.set(key, source);
+        continue;
+      }
+      if (
+        recorded === null ||
+        recorded.evmWalletId !== source.evmWalletId ||
+        recorded.evmWalletAddress !== source.evmWalletAddress ||
+        recorded.decimals !== source.decimals
+      ) {
+        sourcesByPair.set(key, null);
+      }
+    }
+    return [...sourcesByPair.values()].filter(
+      (source): source is X402ReadySource => source !== null,
     );
   } catch {
     return [];

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuthenticationContext } from "@/middleware/auth";
+
 const {
   authContextState,
   agentCountMock,
@@ -13,16 +15,19 @@ const {
   getAgentIconMock,
   getAgentImageMock,
   getAgentNameMock,
+  creditCostFindManyMock,
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
+  syncMetadataFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
-    current: null as {
-      actor: "user";
-      userId: string;
-      organizationId: string | null;
-      role: string;
-    } | null,
+    // Typed as the real union, not a hand-written shape: the previous local
+    // literal declared an `agentId` field that exists nowhere in
+    // middleware/auth.ts, so drift from the real context could not be a
+    // compile error. Harmless while isCoworkerAgentContext reads only `actor`
+    // and `context`, but a later gate reading `coworkerId` would silently see
+    // undefined and the test would still pass.
+    current: null as AuthenticationContext | null,
   },
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
@@ -35,8 +40,10 @@ const {
   getAgentIconMock: vi.fn(),
   getAgentImageMock: vi.fn(),
   getAgentNameMock: vi.fn(),
+  creditCostFindManyMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  syncMetadataFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -87,6 +94,14 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: agentFindManyMock,
       count: agentCountMock,
     },
+    creditCost: {
+      findMany: creditCostFindManyMock,
+    },
+    // The x402 mount-order pin below routes GET /x402 through the REAL
+    // composed router; the listing's readiness read must resolve.
+    syncMetadata: {
+      findUnique: syncMetadataFindUniqueMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -105,6 +120,7 @@ describe("agents routes auth gate", () => {
 
     buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
     getCreditCostsOrThrowMock.mockResolvedValue([]);
+    creditCostFindManyMock.mockResolvedValue([]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     getAgentAuthorImageMock.mockReturnValue(null);
     getAgentNameMock.mockImplementation((agent) => agent.name);
@@ -140,5 +156,23 @@ describe("agents routes auth gate", () => {
 
     expect(response.status).toBe(401);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("treats GET /x402 as an agent id, not a listing", async () => {
+    const response = await agentsRouter.request("http://localhost/x402");
+
+    expect(response.status).toBe(401);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("lists x402 agents on the public GET /?kind=x402", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+
+    const response = await agentsRouter.request("http://localhost/?kind=x402");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ data: [] });
+    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(agentFindManyMock).toHaveBeenCalled();
   });
 });

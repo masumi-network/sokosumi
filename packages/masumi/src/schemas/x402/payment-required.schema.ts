@@ -146,7 +146,7 @@ export const x402PaymentRequirementsSchema = z
 
 /** The node's v2 `paymentRequired` shape (`POST /x402/pay` request field). */
 export const x402PaymentRequiredSchema = z.object({
-  x402Version: z.number().int().positive(),
+  x402Version: z.union([z.literal(1), z.literal(2)]),
   error: z.string().max(X402_MAX_ERROR_LENGTH).optional(),
   resource: z
     .object({ url: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional() })
@@ -167,6 +167,25 @@ export type X402PaymentRequirements = z.infer<
   typeof x402PaymentRequirementsSchema
 >;
 export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
+
+/**
+ * One normalized requirement paired with the validated source spelling that
+ * the resource server originally advertised.
+ *
+ * Core verifies and charges against `normalized`, while a v2 replay must echo
+ * `source` in `PaymentPayload.accepted`. Keeping both prevents canonical
+ * lowercase EVM addresses from breaking resource servers that compare their
+ * original checksummed requirement structurally.
+ */
+export interface X402NormalizedRequirementSource {
+  normalized: X402PaymentRequirements;
+  source: Readonly<Record<string, unknown>>;
+}
+
+export interface X402NormalizedPaymentRequired {
+  paymentRequired: X402PaymentRequired;
+  requirementSources: X402NormalizedRequirementSource[];
+}
 
 /**
  * The upstream x402 extension key a server advertises when it supports (or
@@ -256,9 +275,9 @@ function poolResourceUrl(
  * shape. Accepts a parsed JSON body (v1 or v2) or the base64 string of the
  * v2 `PAYMENT-REQUIRED` header transport. Fails loud on anything else.
  */
-export function normalizeX402PaymentRequired(
+export function normalizeX402PaymentRequiredWithSources(
   input: unknown,
-): Result<X402PaymentRequired, string> {
+): Result<X402NormalizedPaymentRequired, string> {
   let candidate: unknown = input;
   if (typeof candidate === "string") {
     const decoded = decodeBase64PaymentRequired(candidate);
@@ -304,6 +323,7 @@ export function normalizeX402PaymentRequired(
   // `x402PaymentRequiredSchema` below, and `narrowToChosenRequirement`
   // forwards exactly one of them to the node.
   const accepts: Record<string, unknown>[] = [];
+  const requirementSources: Readonly<Record<string, unknown>>[] = [];
   const refusals: string[] = [];
   for (const [index, entry] of wild.data.accepts.entries()) {
     const selected = selectPayableRequirement(entry);
@@ -312,6 +332,7 @@ export function normalizeX402PaymentRequired(
       continue;
     }
     accepts.push(selected.value);
+    requirementSources.push({ ...entry });
   }
   if (accepts.length === 0) {
     // Every reason, truncated as a whole: one refusal per entry at up to 20
@@ -340,7 +361,25 @@ export function normalizeX402PaymentRequired(
       `Normalized x402 payload failed validation: ${truncateDetail(z.prettifyError(validated.error))}`,
     );
   }
-  return ok(validated.data);
+  return ok({
+    paymentRequired: validated.data,
+    requirementSources: validated.data.accepts.map((normalized, index) => ({
+      normalized,
+      source: requirementSources[index] ?? {},
+    })),
+  });
+}
+
+/**
+ * Compatibility wrapper for consumers that only need the canonical node
+ * payload. Core's replay path uses the source-preserving variant above.
+ */
+export function normalizeX402PaymentRequired(
+  input: unknown,
+): Result<X402PaymentRequired, string> {
+  return normalizeX402PaymentRequiredWithSources(input).map(
+    ({ paymentRequired }) => paymentRequired,
+  );
 }
 
 /**

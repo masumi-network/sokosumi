@@ -622,6 +622,7 @@ model AgentPricing {
 enum PricingType {
   FIXED
   FREE
+  DYNAMIC
   UNKNOWN
 }
 

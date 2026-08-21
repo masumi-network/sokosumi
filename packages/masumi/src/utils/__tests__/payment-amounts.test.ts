@@ -14,6 +14,7 @@ describe("normalizeMasumiPaymentUnit", () => {
     expect(normalizeMasumiPaymentUnit("")).toBe("lovelace");
     expect(normalizeMasumiPaymentUnit("lovelace")).toBe("lovelace");
     expect(normalizeMasumiPaymentUnit("Lovelace")).toBe("lovelace");
+    expect(normalizeMasumiPaymentUnit("\t Lovelace\r\n")).toBe("lovelace");
   });
 
   it("lowercases hex asset units", () => {
@@ -21,6 +22,14 @@ describe("normalizeMasumiPaymentUnit", () => {
     expect(normalizeMasumiPaymentUnit(TOKEN_UNIT.toUpperCase())).toBe(
       TOKEN_UNIT,
     );
+    expect(normalizeMasumiPaymentUnit(`\n${TOKEN_UNIT.toUpperCase()}\t`)).toBe(
+      TOKEN_UNIT,
+    );
+  });
+
+  it("trims long ASCII padding in linear time", () => {
+    const padded = `${"\t".repeat(10_000)}lovelace${"\t".repeat(10_000)}`;
+    expect(normalizeMasumiPaymentUnit(padded)).toBe("lovelace");
   });
 });
 
