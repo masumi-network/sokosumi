@@ -3,13 +3,13 @@ import { MemberRole } from "@sokosumi/database";
 import {
   memberRepository,
   userRepository,
-  workspaceRepository,
 } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { created } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription.js";
 import prisma from "@/lib/db/prisma";
@@ -79,10 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const role = body.role as MemberRole;
 
     const member = await prisma.$transaction(async (tx) => {
-      await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
-        userId: body.userId,
-        tx,
-      });
+      await ensurePersonalWorkspaceForOrganizationMembership(body.userId, tx);
       const created = await memberRepository.createMember(
         body.userId,
         organization.id,

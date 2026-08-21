@@ -74,6 +74,7 @@ import {
   applyDesignMdMetadataGuardToUserCreate,
   applyDesignMdMetadataGuardToUserUpdate,
 } from "@/helpers/design-md-metadata-auth";
+import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { uploadProfileImage } from "@/lib/blob";
@@ -168,22 +169,6 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
       },
     });
   }
-}
-
-/**
- * Temporary overlay (ADR 0010): org-first membership also gets a personal
- * workspace. Does not clear preferredOrganizationId. Failure fails the
- * membership so we never commit org-only for new joins/creates.
- */
-async function ensurePersonalWorkspaceForOrganizationMembership(
-  userId: string,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
-      userId,
-      tx,
-    });
-  });
 }
 
 async function ensureStripeCustomerForCreatedOrganization(organization: {

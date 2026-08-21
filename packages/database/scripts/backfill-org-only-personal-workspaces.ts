@@ -3,6 +3,7 @@
  * who has an organization membership and no personal workspace.
  *
  * Does not change preferredOrganizationId. Skips zero-workspace users.
+ * No-op unless REQUIRE_PERSONAL_WORKSPACE=true.
  *
  *   pnpm data-migration:org-only-personal-workspaces
  */
@@ -13,6 +14,15 @@ import { createPrismaClient } from "../src/client.js";
 import { backfillPersonalWorkspacesForOrgOnlyUsers } from "../src/helpers/org-only-personal-workspace-backfill.js";
 
 async function main(): Promise<void> {
+  const required =
+    process.env.REQUIRE_PERSONAL_WORKSPACE?.trim().toLowerCase() === "true";
+  if (!required) {
+    console.log(
+      "Skipped org-only personal workspace backfill (REQUIRE_PERSONAL_WORKSPACE is not true).",
+    );
+    return;
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required");

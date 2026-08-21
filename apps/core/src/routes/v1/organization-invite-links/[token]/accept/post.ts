@@ -3,7 +3,6 @@ import { MemberRole } from "@sokosumi/database";
 import {
   memberRepository,
   organizationInviteLinkRepository,
-  workspaceRepository,
 } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
@@ -12,6 +11,7 @@ import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-gue
 import { badRequest, notFound } from "@/helpers/error";
 import { cancelPendingOrganizationInvitationsForUser } from "@/helpers/invitation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -133,10 +133,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         if (!consumed) return "depleted";
 
-        await workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
-          userId: userContext.userId,
+        await ensurePersonalWorkspaceForOrganizationMembership(
+          userContext.userId,
           tx,
-        });
+        );
 
         await memberRepository.createMember(
           userContext.userId,
