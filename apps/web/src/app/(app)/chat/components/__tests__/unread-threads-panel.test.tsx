@@ -6,14 +6,11 @@ const labels = {
   open: "Threads",
 };
 
-const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
-
 function renderTrigger(
   options: { isOpen?: boolean; onToggle?: () => void } = {},
 ) {
   return render(
     <UnreadThreadsPanel
-      roomId={ROOM_ID}
       labels={labels}
       isOpen={options.isOpen ?? false}
       onToggle={options.onToggle ?? vi.fn()}

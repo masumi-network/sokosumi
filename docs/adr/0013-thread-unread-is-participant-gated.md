@@ -13,3 +13,5 @@
 **Rejected:** lurker Looks create unread; mention is one-shot bold without becoming a Participant; mark room as read Looks Threads; mute blocks becoming a Participant; keep `attentionReplyCount` as a separate badge.
 
 **Out of scope:** posting a Thread reply advancing **room** last-read (clears the main transcript). Reply **does** Look that Thread.
+
+**Known limitation:** mute skipped CHAT mention notifications historically, so muted users who were only @mentioned before this ship are not backfilled as Participants. Going forward, mute still writes the durable mention row. Do not re-parse message bodies to recover those old pings.
