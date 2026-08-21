@@ -17,7 +17,6 @@ export interface RoomRosterPanelLabels {
   title: string;
   close: string;
   empty: string;
-  error: string;
   coworkerBadge: string;
   message: (name: string) => string;
   copy: (value: string) => string;
@@ -137,7 +136,7 @@ function RosterMemberRow({
         {canMessage ? (
           <button
             type="button"
-            className="min-w-0 cursor-pointer truncate text-left"
+            className="min-w-0 cursor-pointer truncate text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={messageLabel}
             title={messageLabel}
             disabled={isOpening || isDirectActionBusy}
@@ -151,7 +150,7 @@ function RosterMemberRow({
         {caption && copyLabel ? (
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground max-w-full cursor-pointer self-start truncate text-left text-xs leading-tight hover:underline"
+            className="text-muted-foreground hover:text-foreground max-w-full cursor-pointer self-start truncate text-left text-xs leading-tight outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={copyLabel}
             title={copyLabel}
             onClick={() => {
@@ -187,7 +186,6 @@ interface RoomRosterPanelProps {
   canOpenHumanDirect: boolean;
   onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
   openingDirectKey: string | null;
-  membersLoadFailed: boolean;
   onClose: () => void;
   labels: RoomRosterPanelLabels;
 }
@@ -198,7 +196,6 @@ export function RoomRosterPanel({
   canOpenHumanDirect,
   onOpenDirect,
   openingDirectKey,
-  membersLoadFailed,
   onClose,
   labels,
 }: RoomRosterPanelProps) {
@@ -222,14 +219,7 @@ export function RoomRosterPanel({
         </Button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-1">
-        {membersLoadFailed ? (
-          <p
-            className="text-muted-foreground px-2 py-6 text-center text-sm"
-            data-testid="room-roster-error"
-          >
-            {labels.error}
-          </p>
-        ) : participants.length === 0 ? (
+        {participants.length === 0 ? (
           <p className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.empty}
           </p>

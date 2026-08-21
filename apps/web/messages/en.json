@@ -5267,7 +5267,6 @@
         "title": "Members",
         "close": "Close members",
         "empty": "No members to show.",
-        "error": "Could not load members.",
         "message": "Message {name}",
         "copy": "Copy {value}",
         "copySuccess": "Copied to clipboard",

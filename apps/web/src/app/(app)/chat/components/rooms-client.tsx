@@ -2592,7 +2592,6 @@ export function RoomsClient({
                   canOpenHumanDirect={canOpenHumanDirect}
                   onOpenDirect={handleOpenDirectMessage}
                   openingDirectKey={openingDirectKey}
-                  membersLoadFailed={membersLoadFailed}
                   onClose={() => {
                     setRosterOpen(false);
                   }}
@@ -2600,7 +2599,6 @@ export function RoomsClient({
                     title: t("RoomRoster.title"),
                     close: t("RoomRoster.close"),
                     empty: t("RoomRoster.empty"),
-                    error: t("RoomRoster.error"),
                     coworkerBadge: t("coworkerBadge"),
                     message: (name) => t("RoomRoster.message", { name }),
                     copy: (value) => t("RoomRoster.copy", { value }),

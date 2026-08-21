@@ -5267,7 +5267,6 @@
         "title": "Mitglieder",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
-        "error": "Mitglieder konnten nicht geladen werden.",
         "message": "Nachricht an {name}",
         "copy": "{value} kopieren",
         "copySuccess": "In die Zwischenablage kopiert",

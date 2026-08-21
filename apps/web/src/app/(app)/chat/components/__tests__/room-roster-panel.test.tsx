@@ -18,13 +18,14 @@ const labels = {
   title: "Members",
   close: "Close members",
   empty: "No members to show.",
-  error: "Could not load members.",
   coworkerBadge: "AI coworker",
   message: (name: string) => `Message ${name}`,
   copy: (value: string) => `Copy ${value}`,
   copySuccess: "Copied to clipboard",
   copyError: "Could not copy.",
 };
+
+const FOCUS_RING = "focus-visible:ring-2";
 
 const humanAda: ChatParticipantHoverProfile = {
   kind: "human",
@@ -70,7 +71,6 @@ describe("RoomRosterPanel", () => {
         canOpenHumanDirect
         onOpenDirect={vi.fn()}
         openingDirectKey={null}
-        membersLoadFailed={false}
         onClose={onClose}
         labels={labels}
       />,
@@ -101,7 +101,6 @@ describe("RoomRosterPanel", () => {
         canOpenHumanDirect
         onOpenDirect={onOpenDirect}
         openingDirectKey={null}
-        membersLoadFailed={false}
         onClose={vi.fn()}
         labels={labels}
       />,
@@ -120,6 +119,7 @@ describe("RoomRosterPanel", () => {
       name: "Message Ada",
     });
     expect(adaMessage).toHaveAttribute("title", "Message Ada");
+    expect(adaMessage.className).toContain(FOCUS_RING);
     expect(
       within(adaRow as HTMLElement).queryByRole("button", {
         name: "Copy ada@example.com",
@@ -150,7 +150,7 @@ describe("RoomRosterPanel", () => {
     expect(screen.getByText("Me")).toBeTruthy();
   });
 
-  it("shows the load-failed copy instead of members", () => {
+  it("lists room members even when the org roster failed to load", () => {
     render(
       <RoomRosterPanel
         participants={[humanAda]}
@@ -158,16 +158,29 @@ describe("RoomRosterPanel", () => {
         canOpenHumanDirect
         onOpenDirect={vi.fn()}
         openingDirectKey={null}
-        membersLoadFailed
         onClose={vi.fn()}
         labels={labels}
       />,
     );
 
-    expect(screen.getByTestId("room-roster-error")).toHaveTextContent(
-      "Could not load members.",
+    expect(screen.getByText("Ada")).toBeTruthy();
+    expect(screen.queryByTestId("room-roster-error")).toBeNull();
+  });
+
+  it("shows empty copy when there are no participants", () => {
+    render(
+      <RoomRosterPanel
+        participants={[]}
+        currentUserId="user-self"
+        canOpenHumanDirect
+        onOpenDirect={vi.fn()}
+        openingDirectKey={null}
+        onClose={vi.fn()}
+        labels={labels}
+      />,
     );
-    expect(screen.queryByText("Ada")).toBeNull();
+
+    expect(screen.getByText("No members to show.")).toBeTruthy();
   });
 
   it("copies email or @slug from the caption without opening a Direct", async () => {
@@ -180,7 +193,6 @@ describe("RoomRosterPanel", () => {
         canOpenHumanDirect
         onOpenDirect={onOpenDirect}
         openingDirectKey={null}
-        membersLoadFailed={false}
         onClose={vi.fn()}
         labels={labels}
       />,
@@ -195,6 +207,7 @@ describe("RoomRosterPanel", () => {
       name: "Copy ada@example.com",
     });
     expect(adaCopy).toHaveClass("self-start");
+    expect(adaCopy.className).toContain(FOCUS_RING);
     await user.click(adaCopy);
     expect(copyTextWithToastMock).toHaveBeenCalledWith(
       "ada@example.com",
