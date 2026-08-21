@@ -161,6 +161,29 @@ describe("emitChatDirectMessageNotifications", () => {
     );
   });
 
+  it("notifies all humans when the author is a coworker", async () => {
+    await emitChatDirectMessageNotifications({
+      roomId: ROOM_ID,
+      roomName: "Hannah",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      authorUserId: null,
+      authorName: "Hannah",
+      recipientUserIds: [PEER_ID],
+    });
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: PEER_ID,
+        messageParams: {
+          authorName: "Hannah",
+          roomName: "Hannah",
+        },
+      }),
+    );
+  });
+
   it("filters the author and no-ops when nobody remains", async () => {
     await emitChatDirectMessageNotifications({
       roomId: ROOM_ID,

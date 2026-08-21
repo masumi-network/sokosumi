@@ -13,7 +13,10 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import {
   type ChatRoom,
   chatRoomSchema,
@@ -26,6 +29,7 @@ import {
   buildUniqueRoomSlug,
   chatRoomInclude,
   isOrganizationOwnerOrAdmin,
+  mapChatRoom,
   mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
   requireActiveOrganizationId,
@@ -45,7 +49,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/",
     description:
-      'Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.',
+      'Create a chat room. `kind: "channel"` requires an active organization and a user session. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: "direct", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.',
     tags: ["Chat Rooms"],
     request: {
       body: {
@@ -77,8 +81,22 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    const authContext = c.var.authContext;
     const body = c.req.valid("json");
+
+    if (isCoworkerAuthContext(authContext)) {
+      const direct = await createOrGetCoworkerOriginatedDirect({
+        coworkerId: authContext.coworkerId,
+        organizationId: authContext.context?.organizationId ?? null,
+        memberUserIds: body.kind === "direct" ? (body.memberUserIds ?? []) : [],
+        coworkerIds: body.kind === "direct" ? (body.coworkerIds ?? []) : [],
+        kind: body.kind,
+      });
+
+      return direct.created ? created(c, direct.room) : ok(c, direct.room);
+    }
+
+    const userContext = requireUserAuthContext(authContext);
 
     if (body.kind === "direct") {
       const direct = await createOrGetDirectRoom({
@@ -176,6 +194,83 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 }
 
 /**
+ * Coworker API keys may create-or-get an org-scoped coworker 1:1 with exactly
+ * one organization member. The coworker id is the auth actor, not the body.
+ * Channels, human Directs, groups, and personal coworker 1:1s stay user-only.
+ */
+async function createOrGetCoworkerOriginatedDirect(params: {
+  coworkerId: string;
+  organizationId: string | null;
+  memberUserIds: readonly string[];
+  coworkerIds: readonly string[];
+  kind: "channel" | "direct";
+}): Promise<{ room: ChatRoom; created: boolean }> {
+  if (params.kind !== "direct") {
+    throw forbidden("Coworker API keys cannot create channels");
+  }
+
+  if (!params.organizationId) {
+    throw badRequest("Switch to an organization to message a teammate.");
+  }
+
+  if (params.coworkerIds.length > 0) {
+    throw badRequest("Coworker API keys cannot include coworkerIds");
+  }
+
+  if (params.memberUserIds.length !== 1) {
+    throw badRequest("Choose a direct message target");
+  }
+
+  return await createOrGetDirectRoom({
+    organizationId: params.organizationId,
+    currentUserId: params.memberUserIds[0]!,
+    memberUserIds: [],
+    coworkerIds: [params.coworkerId],
+    viewerUserId: null,
+  });
+}
+
+async function findOrRestoreDirectByKey(
+  tx: {
+    chatRoom: Pick<typeof prisma.chatRoom, "findFirst" | "update">;
+  },
+  params: { organizationId: string | null; directKey: string },
+) {
+  const existing = await tx.chatRoom.findFirst({
+    where: {
+      organizationId: params.organizationId,
+      directKey: params.directKey,
+    },
+    include: chatRoomInclude,
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  if (!existing.archivedAt) {
+    return existing;
+  }
+
+  return await tx.chatRoom.update({
+    where: { id: existing.id },
+    data: { archivedAt: null },
+    include: chatRoomInclude,
+  });
+}
+
+async function serializeDirectRoomForViewer(
+  room: Parameters<typeof mapChatRoom>[0],
+  viewerUserId: string | null,
+): Promise<ChatRoom> {
+  return chatRoomSchema.parse(
+    viewerUserId
+      ? await mapChatRoomWithSidebarFlags(room, viewerUserId, prisma)
+      : mapChatRoom(room),
+  );
+}
+
+/**
  * Valid direct create targets: human-direct (≥1 humans, no coworkers) or
  * coworker-1to1 (exactly one coworker, no humans). Mix / multi-coworker /
  * empty are invalid.
@@ -249,8 +344,12 @@ async function createOrGetDirectRoom(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
+  /** Sidebar viewer. Null skips pin/mute/unread (coworker actor has none). */
+  viewerUserId?: string | null;
 }): Promise<{ room: ChatRoom; created: boolean }> {
   const { currentUserId } = params;
+  const viewerUserId =
+    params.viewerUserId === undefined ? currentUserId : params.viewerUserId;
   const shape = parseDirectCreateShape({
     currentUserId,
     memberUserIds: params.memberUserIds,
@@ -275,11 +374,22 @@ async function createOrGetDirectRoom(params: {
     try {
       const result = await prisma.$transaction(async (tx) => {
         if (roomOrganizationId) {
-          await resolveMemberOrganizationById({
-            id: roomOrganizationId,
-            userId: currentUserId,
-            tx,
-          });
+          if (shape.kind === "human-direct") {
+            await resolveMemberOrganizationById({
+              id: roomOrganizationId,
+              userId: currentUserId,
+              tx,
+            });
+          } else {
+            // Coworker 1:1 owner is the human on the room (user actor or
+            // originated target). A missing owner is a bad target, not
+            // "you are not a member".
+            await validateOrganizationUserIds(
+              roomOrganizationId,
+              [currentUserId],
+              tx,
+            );
+          }
         }
 
         const memberUserIds = roomOrganizationId
@@ -306,15 +416,11 @@ async function createOrGetDirectRoom(params: {
         });
         directKeyRef.current = directKey;
 
-        // Future archive must unarchive-or-clear-directKey on create-or-get:
-        // archived rows still hold the unique directKey slot.
-        const existing = await tx.chatRoom.findFirst({
-          where: {
-            organizationId: roomOrganizationId,
-            directKey,
-            archivedAt: null,
-          },
-          include: chatRoomInclude,
+        // Archived Directs still hold the unique directKey slot. Create-or-get
+        // unarchives that row instead of inserting a second room.
+        const existing = await findOrRestoreDirectByKey(tx, {
+          organizationId: roomOrganizationId,
+          directKey,
         });
 
         if (existing) {
@@ -386,32 +492,20 @@ async function createOrGetDirectRoom(params: {
       });
 
       return {
-        room: chatRoomSchema.parse(
-          await mapChatRoomWithSidebarFlags(result.room, currentUserId, prisma),
-        ),
+        room: await serializeDirectRoomForViewer(result.room, viewerUserId),
         created: result.created,
       };
     } catch (error) {
       // directKey race: another request won the create — return that room.
       if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
-        const existing = await prisma.chatRoom.findFirst({
-          where: {
-            organizationId: roomOrganizationId,
-            directKey: directKeyRef.current,
-            archivedAt: null,
-          },
-          include: chatRoomInclude,
+        const existing = await findOrRestoreDirectByKey(prisma, {
+          organizationId: roomOrganizationId,
+          directKey: directKeyRef.current,
         });
 
         if (existing) {
           return {
-            room: chatRoomSchema.parse(
-              await mapChatRoomWithSidebarFlags(
-                existing,
-                currentUserId,
-                prisma,
-              ),
-            ),
+            room: await serializeDirectRoomForViewer(existing, viewerUserId),
             created: false,
           };
         }

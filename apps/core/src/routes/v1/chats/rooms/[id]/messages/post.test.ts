@@ -14,6 +14,7 @@ const {
   messageFindUniqueMock,
   messageFindManyMock,
   messageCreateMock,
+  membershipFindManyMock,
   readStateUpsertMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
@@ -30,6 +31,7 @@ const {
   messageFindUniqueMock: vi.fn(),
   messageFindManyMock: vi.fn(),
   messageCreateMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -49,6 +51,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       findUnique: messageFindUniqueMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
     },
   },
 }));
@@ -336,7 +341,13 @@ beforeEach(() => {
 describe("POST /chats/rooms/{id}/messages", () => {
   describe("coworker actor", () => {
     it("lets a member coworker post as itself without mention rows", async () => {
-      roomFindFirstMock.mockResolvedValue({ id: ROOM_ID });
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+        userMembers: [],
+      });
       messageCreateMock.mockResolvedValue(
         createdMessage({ senderCoworkerId: COWORKER_ID }),
       );
@@ -376,8 +387,72 @@ describe("POST /chats/rooms/{id}/messages", () => {
           where: expect.objectContaining({
             coworkerMembers: { some: { coworkerId: COWORKER_ID } },
           }),
+          select: expect.not.objectContaining({
+            userMembers: expect.anything(),
+          }),
         }),
       );
+      expect(membershipFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it("emits a CHAT Direct notification to the human in a coworker 1:1", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "Hannah",
+        kind: "direct",
+        organizationId: "org_1",
+      });
+      membershipFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderCoworkerId: COWORKER_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "you were assigned a task" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(membershipFindManyMock).toHaveBeenCalledWith({
+        where: { roomId: ROOM_ID },
+        select: { userId: true },
+      });
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        roomName: "Hannah",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: null,
+        authorName: "Hannah",
+        recipientUserIds: [ALICE_ID],
+      });
+      expect(waitUntilMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not emit a Direct notification for coworker posts in a channel", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderCoworkerId: COWORKER_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello channel" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(membershipFindManyMock).not.toHaveBeenCalled();
+      expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+      expect(waitUntilMock).toHaveBeenCalledTimes(1);
     });
 
     it("rejects a coworker that is not a room member", async () => {
@@ -1066,7 +1141,13 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
 
     it("lets a coworker post with a quote snapshot", async () => {
-      roomFindFirstMock.mockResolvedValue({ id: ROOM_ID });
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+        userMembers: [],
+      });
       messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
       messageCreateMock.mockResolvedValue(
         createdMessage({

@@ -514,7 +514,7 @@ export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.
+ * Create a chat room. `kind: "channel"` requires an active organization and a user session. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: "direct", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.
  */
 export const postChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<PostChatsRoomsData, ThrowOnError>): RequestResult<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).post<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsResponseTransformer,
@@ -809,7 +809,7 @@ export const getChatsRoomsByIdMessages = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Post a room message. Mentioned AI coworkers — and, for thread replies, every coworker already part of the thread — are called asynchronously and reply into the room. Coworker API keys may post as the coworker itself into rooms it is a member of.
+ * Post a room message. Mentioned AI coworkers — and, for thread replies, every coworker already part of the thread — are called asynchronously and reply into the room. Coworker API keys may post as the coworker itself into rooms it is a member of. Coworker posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender (mute honored; the coworker has no user id to skip).
  */
 export const postChatsRoomsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMessagesData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMessagesResponses, PostChatsRoomsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMessagesResponses, PostChatsRoomsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMessagesResponseTransformer,
