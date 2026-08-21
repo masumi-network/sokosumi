@@ -31,6 +31,7 @@ vi.mock("@/lib/services/admin-task-x402-payment.service", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 import {
   refundTaskX402PaymentAction,
@@ -106,6 +107,47 @@ describe("admin task x402 payment actions", () => {
     if (!result.ok) {
       expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
       expect(result.error.message).toBe("lease still active");
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a Core 409 lease conflict to BAD_INPUT with the retry message", async () => {
+    resolvePaymentMock.mockRejectedValue(
+      new CoreApiRequestError(
+        "Another request is signing this x402 payment; its sign lease expires at 2026-08-12T10:00:30.000Z. Retry the resolve after that (about 25s).",
+        { status: 409, kind: "sign_in_flight" },
+      ),
+    );
+
+    const result = await resolveTaskX402PaymentAction({
+      paymentId: "payment_2",
+      reason: "sign_attempts_exhausted",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+      expect(result.error.message).toContain("2026-08-12T10:00:30.000Z");
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a Core 404 to NOT_FOUND without revalidating", async () => {
+    refundPaymentMock.mockRejectedValue(
+      new CoreApiRequestError("Task x402 payment not found", {
+        status: 404,
+      }),
+    );
+
+    const result = await refundTaskX402PaymentAction({
+      paymentId: "payment_missing",
+      reason: "support_adjustment",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(CommonErrorCode.NOT_FOUND);
+      expect(result.error.message).toBe("Task x402 payment not found");
     }
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });

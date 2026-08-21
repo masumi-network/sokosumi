@@ -3657,6 +3657,75 @@ export const ResolveAdminTaskX402PaymentResultSchema = {
     ]
 } as const;
 
+export const AdminTaskX402ResolveConflictResponseSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'already_resolved',
+                'sign_in_flight',
+                'sign_outcome_unresolved',
+                'not_resolvable'
+            ],
+            description: 'sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds'
+        },
+        retryAfter: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-12T10:00:30.000Z',
+            description: 'ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Whole seconds until retryAfter. Present with retryAfter.',
+            example: 25
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
 export const ResolveAdminTaskX402PaymentBodySchema = {
     type: 'object',
     properties: {

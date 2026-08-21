@@ -995,6 +995,29 @@ export type ResolveAdminTaskX402PaymentResult = {
     compensated: boolean;
 };
 
+export type AdminTaskX402ResolveConflictResponse = {
+    error: string;
+    message: string;
+    /**
+     * sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds
+     */
+    kind?: 'already_resolved' | 'sign_in_flight' | 'sign_outcome_unresolved' | 'not_resolvable';
+    /**
+     * ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.
+     */
+    retryAfter?: Date;
+    /**
+     * Whole seconds until retryAfter. Present with retryAfter.
+     */
+    retryAfterSeconds?: number;
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
 export type ResolveAdminTaskX402PaymentBody = {
     /**
      * Coded resolution rationale. Narrative text and personal data are not accepted because the audit row survives account deletion.
@@ -7299,19 +7322,9 @@ export type ResolveAdminTaskX402PaymentErrors = {
         };
     };
     /**
-     * Conflict - payment is not resolvable
+     * Conflict - payment is not resolvable. Branch on `kind`: already_resolved, not_resolvable (no retry fields), sign_in_flight, or sign_outcome_unresolved (`retryAfter` / `retryAfterSeconds` say when to retry).
      */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    409: AdminTaskX402ResolveConflictResponse;
     /**
      * Unprocessable Entity - validation failed
      */

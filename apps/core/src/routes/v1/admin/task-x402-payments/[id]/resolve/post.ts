@@ -1,13 +1,18 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { conflict, notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonContent,
+  jsonErrorResponse,
+  jsonSuccessResponse,
+} from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireInteractiveAdminAuthContext } from "@/middleware/auth";
 import {
   adminTaskX402PaymentIdParamSchema,
   resolveAdminTaskX402PaymentBodySchema,
+  resolveAdminTaskX402PaymentConflictSchema,
   resolveAdminTaskX402PaymentResultSchema,
 } from "@/schemas/admin-task-x402-payment.schema";
 import { resolvePendingTaskX402Payment } from "@/services/task-x402-payment.refund";
@@ -41,7 +46,11 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found - payment does not exist"),
-    409: jsonErrorResponse("Conflict - payment is not resolvable"),
+    409: {
+      description:
+        "Conflict - payment is not resolvable. Branch on `kind`: already_resolved, not_resolvable (no retry fields), sign_in_flight, or sign_outcome_unresolved (`retryAfter` / `retryAfterSeconds` say when to retry).",
+      content: jsonContent(resolveAdminTaskX402PaymentConflictSchema),
+    },
     422: jsonErrorResponse("Unprocessable Entity - validation failed"),
   },
 });

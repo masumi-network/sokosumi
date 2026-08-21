@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 /**
@@ -195,6 +196,39 @@ export const resolveAdminTaskX402PaymentResultSchema = z
     compensated: z.boolean(),
   })
   .openapi("ResolveAdminTaskX402PaymentResult");
+
+/**
+ * Resolve 409 envelope. `retryAfter` / `retryAfterSeconds` are present when
+ * `kind` is `sign_in_flight` or `sign_outcome_unresolved`; omitted for
+ * `already_resolved` / `not_resolvable`.
+ */
+export const resolveAdminTaskX402PaymentConflictSchema =
+  errorResponseWithExtensionsSchema(
+    {
+      kind: z
+        .enum([
+          "already_resolved",
+          "sign_in_flight",
+          "sign_outcome_unresolved",
+          "not_resolvable",
+        ])
+        .optional()
+        .openapi({
+          description:
+            "sign_in_flight and sign_outcome_unresolved include retryAfter and retryAfterSeconds",
+        }),
+      retryAfter: dateTimeSchema.optional().openapi({
+        description:
+          "ISO instant after which the operator can retry resolve. Present with sign_in_flight and sign_outcome_unresolved.",
+        example: "2026-08-12T10:00:30.000Z",
+      }),
+      retryAfterSeconds: z.number().int().nonnegative().optional().openapi({
+        description: "Whole seconds until retryAfter. Present with retryAfter.",
+        example: 25,
+      }),
+    },
+    "AdminTaskX402ResolveConflictResponse",
+  );
 
 export const adminTaskX402PaymentAggregateQuerySchema = z.object({
   status: z
