@@ -145,6 +145,7 @@ function pendingMention(
     id: MENTION_ID,
     status: "pending",
     providerConversationId: null,
+    responseMessageId: null,
     coworkerId: "cow_1",
     coworker: {
       id: "cow_1",
@@ -601,9 +602,11 @@ describe("dispatchChatRoomMention claim", () => {
   });
 
   it("reuses an existing streaming placeholder for the same mention", async () => {
-    findUniqueMock.mockResolvedValue(pendingMention());
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      responseMessageId: "reply_existing",
+    });
     updateManyMock.mockResolvedValue({ count: 1 });
-    messageFindFirstMock.mockResolvedValue({ id: "reply_existing" });
     updateMessageMock.mockResolvedValue({ id: "reply_existing" });
     streamTextMock.mockReturnValue({
       text: Promise.resolve("Hello back"),
@@ -621,6 +624,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
+    expect(messageFindFirstMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -675,6 +679,10 @@ describe("dispatchChatRoomMention claim", () => {
       }),
     );
     expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "create");
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID },
+      data: { responseMessageId: "reply_1" },
+    });
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "reply_1" },

@@ -159,6 +159,20 @@ describe("resolveCoworkerThoughtViewModel", () => {
     });
   });
 
+  it("does not treat persisted streaming without mention_id as a live shell", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "",
+      isStreamOverlay: false,
+      metadata: {
+        streaming: true,
+        reasoning: [{ type: "reasoning", text: "Leaked flag." }],
+      },
+    });
+    expect(vm.liveBeat).toBeNull();
+    expect(vm.showThinkingFallback).toBe(false);
+    expect(vm.disclosure?.text).toBe("Leaked flag.");
+  });
+
   it("falls back to Thinking on a persisted streaming coworker shell with no Thought yet", () => {
     const vm = resolveCoworkerThoughtViewModel({
       content: "   ",

@@ -1,5 +1,7 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+import { isPersistedMentionThoughtShell } from "./coworker-thought";
+
 import {
   confirmOutboundMessage,
   filterResolvedOutbound,
@@ -134,11 +136,7 @@ function isStreamingCoworkerPlaceholder(message: ChatRoomMessage): boolean {
   if (message.sender.type !== "coworker") {
     return false;
   }
-  const metadata = message.metadata;
-  if (!metadata || typeof metadata !== "object") {
-    return false;
-  }
-  return (metadata as Record<string, unknown>).streaming === true;
+  return isPersistedMentionThoughtShell(message.metadata);
 }
 
 function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {

@@ -166,6 +166,10 @@ async function publishMentionThoughtPlaceholder(params: {
       metadata,
     },
   });
+  await prisma.chatRoomMention.update({
+    where: { id: params.mentionId },
+    data: { responseMessageId: created.id },
+  });
   await publishChatRoomMessageRealtimeById(created.id, "create");
   return created.id;
 }
@@ -544,16 +548,17 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
   });
 
-  const existingPlaceholder = await prisma.chatRoomMessage.findFirst({
-    where: {
-      roomId: mention.message.roomId,
-      senderCoworkerId: coworker.id,
-      deletedAt: null,
-      metadata: { path: ["mention_id"], equals: mentionId },
-    },
-    select: { id: true },
-  });
-  let placeholderId: string | null = existingPlaceholder?.id ?? null;
+  const linkedPlaceholderId = mention.responseMessageId;
+  let placeholderId: string | null = null;
+  if (linkedPlaceholderId) {
+    const linked = await prisma.chatRoomMessage.findUnique({
+      where: { id: linkedPlaceholderId },
+      select: { id: true, deletedAt: true },
+    });
+    if (linked != null && linked.deletedAt == null) {
+      placeholderId = linkedPlaceholderId;
+    }
+  }
   let lastThoughtPublishAt = 0;
   let thoughtPublishQueue = Promise.resolve();
   let mentionPublished = false;

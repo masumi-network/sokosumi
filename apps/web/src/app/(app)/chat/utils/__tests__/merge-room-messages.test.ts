@@ -436,6 +436,18 @@ describe("mergeMessagesWithStreamOverlay", () => {
     );
   });
 
+  it("drops an empty persisted streaming coworker row that has no mention_id", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const leaked = {
+      ...coworkerMessage("reply_leak", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { streaming: true },
+    };
+
+    const merged = mergeMessagesWithStreamOverlay([chat, leaked], []);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1"]);
+  });
+
   it("keeps membership status in history while stream overlay is active", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "earlier");
     const joined = {

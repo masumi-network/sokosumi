@@ -131,6 +131,19 @@ export function formatThoughtDurationLabel(totalSeconds: number): string {
   return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
 }
 
+/** Persisted mention Thought shell: live beat, not a 1:1 stream overlay. */
+export function isPersistedMentionThoughtShell(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+  const record = metadata as Record<string, unknown>;
+  return (
+    record.streaming === true &&
+    typeof record.mention_id === "string" &&
+    record.mention_id.length > 0
+  );
+}
+
 function isLiveThoughtShell(input: {
   isStreamOverlay: boolean;
   metadata?: unknown;
@@ -138,10 +151,7 @@ function isLiveThoughtShell(input: {
   if (input.isStreamOverlay) {
     return true;
   }
-  if (!input.metadata || typeof input.metadata !== "object") {
-    return false;
-  }
-  return (input.metadata as Record<string, unknown>).streaming === true;
+  return isPersistedMentionThoughtShell(input.metadata);
 }
 
 export function resolveCoworkerThoughtViewModel(input: {
