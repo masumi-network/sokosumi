@@ -1,18 +1,17 @@
 # Browse agents
 
-Browse agents lets a signed-in user open the agents catalog, inspect the list, and open an agent detail page when catalog data exists.
+Browse agents lets a signed-in user open `/agents` and use the **coworker gallery** (search hero, coworker cards / offers). Catalog marketplace “Browse all agents” is retired (SOK-805).
 
 ## Sub-features
 
-- `agents-list` loads `/agents` for a signed-in user.
-- `agents-open-detail` opens `/agents/[agentId]` from a list entry when at least one agent is listed.
-- `agents-empty-or-error` distinguishes an empty/broken catalog (missing `credit_cost` on empty local DB) from a healthy list.
+- `agents-gallery` loads `/agents` for a signed-in user and shows the coworker gallery shell.
+- `agents-search-or-empty` covers search / filter miss (gallery body clears under the hero) or a blank body when no coworkers are returned.
+- `agents-detail-deeplink` (optional) opens `/agents/[agentId]` only when you already have an agent id — the gallery does **not** navigate there from a list row.
 
 ## How to get to it (user POV)
 
-- Choose Agents in app navigation.
+- Choose **Agents** in app navigation.
 - Open `/agents` directly.
-- From an agent card or row, open that agent’s detail URL.
 
 ## Driving it with agent-browser
 
@@ -20,16 +19,17 @@ Preconditions:
 
 - Signed in (see [Sign in](./sign-in.md)); session healthy.
 - `verify-sokosumi doctor` ok.
-- Prefer a Neon fork or seeded catalog; empty local Postgres may 500 until credit costs exist.
+- Prefer a Neon fork with coworkers; empty coworker list renders nothing under the gallery section (`return null`) — do not invent detail success.
 
-- **Open catalog.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. Page is `/agents` and not `/signin`.
-- **Healthy list.** Snapshot shows one or more agent links/cards under **Browse all agents** (below the coworker gallery — do not treat coworker cards as catalog detail). Note one agent name and its `href` via `agent-browser get attr @ref href` (snapshot link text often omits the path).
-- **Open detail.** Scroll the catalog link into view (`scrollintoview`), then click it. URL matches `/agents/<id>` (not `/jobs`). Detail `h1` matches the agent name. If the click no-ops (list still visible — common), open the noted `href` directly — still valid after discovering it from the list.
-- **Empty/error path.** If the page shows **No agents available**, capture screenshot + snapshot and stop. That soft-empty covers both a Core `GET /v1/agents` failure (often missing `credit_cost` → 500 → web catch returns `[]`) and a successful empty list. Report unmet catalog precondition — do not invent hire/job success. A healthy non-empty catalog with a search miss shows **No Agents found** instead — that is not a broken catalog.
-- **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i` for list and (if reached) detail under that directory.
+- **Open gallery.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. Page is `/agents` and not `/signin`.
+- **Healthy gallery.** Snapshot shows hero **What do you want to get done?** and/or **Your AI coworkers**, plus coworker / offer controls. Do **not** expect **Browse all agents** or catalog links to `/agents/<uuid>`.
+- **Search miss (optional).** Type nonsense in the search field; expect the gallery body to clear under the hero (no **Your AI coworkers** / coworker cards). Do not expect catalog empty copy (**No agents available** / **No Agents found** are gone). Per-coworker empty offers may still show **No offers match your filters.**
+- **Empty path.** If the gallery body is blank with no search query (no coworker cards), capture screenshot + snapshot and stop — unmet coworker catalog precondition.
+- **Detail (optional only).** Deep-link `/agents/<id>` only if you already know an id; gallery click paths do not prove catalog detail.
+- **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i`.
 
 ## Gotchas
 
-- Catalog depends on Core `GET /v1/agents` and credit-cost rows; local empty DB often soft-fails to **No agents available** (Core 500 or empty `[]`) even when auth works.
-- Do not treat a marketing/landing redirect as catalog proof.
-- Hire/run-job flows are out of scope for this feature file — list + detail only.
+- `/agents` is coworker-only (`CoworkerGallerySection` + `coworkerService.listCoworkers`); it does not call `GET /v1/agents` for a marketplace list.
+- Soft-empty is a blank gallery section, not **No agents available** (that string is gone).
+- Hire/run-job and agent-detail from a catalog row are out of scope — gallery shell (+ optional search miss) only.
