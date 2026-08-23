@@ -13,6 +13,10 @@ import {
 
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
+import {
+  CHAT_ROOM_MESSAGE_EVENT_NAME,
+  fitChatRoomMessageFullEvent,
+} from "./ably-message-size";
 import { getRestClient } from "./client";
 
 interface JobStatusData {
@@ -157,7 +161,7 @@ export async function publishChatRoomMessageEvent(
   const channel = client.channels.get(makeChatRoomChannelName(roomId));
 
   if (isPatchEventInput(input)) {
-    await channel.publish("chat_room_message", {
+    await channel.publish(CHAT_ROOM_MESSAGE_EVENT_NAME, {
       eventType: input.eventType,
       messageId: input.messageId,
       roomId: input.roomId,
@@ -167,10 +171,12 @@ export async function publishChatRoomMessageEvent(
     return;
   }
 
-  await channel.publish("chat_room_message", {
+  // Full DTOs can exceed Ably maxMessageSize (65536); slim for the wire only.
+  const body = fitChatRoomMessageFullEvent({
     eventType: input.eventType,
     message: input.message,
   });
+  await channel.publish(CHAT_ROOM_MESSAGE_EVENT_NAME, body);
 }
 
 interface PublishChatMembershipRevokedInput {

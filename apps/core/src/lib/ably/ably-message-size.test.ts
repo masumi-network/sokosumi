@@ -25,7 +25,10 @@ function baseMessage(
       coworker: {
         id: "cow_123",
         name: "Hermes",
+        slug: "hermes",
+        caption: null,
         image: null,
+        presence: "online",
       },
     },
     mentions: [],
