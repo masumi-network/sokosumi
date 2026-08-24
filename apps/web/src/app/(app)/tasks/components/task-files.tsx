@@ -42,7 +42,9 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
               url={file.fileUrl}
               fileName={file.name}
               mediaType={file.mimeType}
+              size={file.size}
               sizeClass="size-4"
+              variant="single-line"
             />
           ) : (
             <div

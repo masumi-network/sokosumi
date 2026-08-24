@@ -30,6 +30,11 @@ export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
    * Used for next/image `sizes` attribute. Defaults to 40.
    */
   iconPx?: number;
+  /**
+   * Layout variant. Defaults to two-line (name over size).
+   * "single-line": icon | name (left) | size (right) on one row.
+   */
+  variant?: "two-line" | "single-line";
 }
 
 /** Matches Tailwind `max-h-80` (20rem). Used to derive width from aspect ratio. */
@@ -99,6 +104,7 @@ export function FileChip(props: FileChipProps) {
     className,
     sizeClass = "size-10",
     iconPx = 40,
+    variant = "two-line",
     title,
     ...anchorProps
   } = props;
@@ -167,14 +173,25 @@ export function FileChip(props: FileChipProps) {
           </div>
         )}
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{fileName}</div>
-        {prettySize && (
-          <div className="text-muted-foreground truncate text-xs">
-            {prettySize}
-          </div>
-        )}
-      </div>
+      {variant === "single-line" ? (
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+          <div className="truncate text-sm font-medium">{fileName}</div>
+          {prettySize && (
+            <div className="text-muted-foreground shrink-0 text-xs">
+              {prettySize}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{fileName}</div>
+          {prettySize && (
+            <div className="text-muted-foreground truncate text-xs">
+              {prettySize}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 
