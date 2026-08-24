@@ -5,6 +5,8 @@ import {
   filterNormalizedMentions,
   getActiveEmojiTrigger,
   getActiveTrigger,
+  getCaretOffset,
+  getCaretRect,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
   getSuggestionPopupFixedStyle,
@@ -17,6 +19,43 @@ import {
   setEditorFromRaw,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+
+/** Firefox WebIDL: Node.contains throws when the arg is not a Node. */
+function installFirefoxContainsGuard(): () => void {
+  const original = Node.prototype.contains;
+  Node.prototype.contains = function contains(other: Node | null): boolean {
+    if (other != null && !(other instanceof Node)) {
+      throw new TypeError(
+        "Node.contains: Argument 1 does not implement interface Node.",
+      );
+    }
+    return original.call(this, other);
+  };
+  return () => {
+    Node.prototype.contains = original;
+  };
+}
+
+function stubSelectionRange(endContainer: unknown, endOffset = 0): () => void {
+  const range = {
+    endContainer,
+    endOffset,
+    getBoundingClientRect: () => new DOMRect(0, 0, 0, 0),
+    cloneRange: () => range,
+    collapse: () => undefined,
+    insertNode: () => undefined,
+  };
+  const selection = {
+    rangeCount: 1,
+    getRangeAt: () => range,
+    removeAllRanges: () => undefined,
+    addRange: () => undefined,
+  } as unknown as Selection;
+  const spy = vi.spyOn(window, "getSelection").mockReturnValue(selection);
+  return () => {
+    spy.mockRestore();
+  };
+}
 
 function stubViewport(height: number) {
   vi.stubGlobal("visualViewport", undefined);
@@ -46,11 +85,46 @@ function rectNearBottom(options: {
 }
 
 describe("mention-textarea utils", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
   it("sizes scroll margin to preferred picker height plus composer gap", () => {
     expect(MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX).toBe(
       POPUP_HEIGHT_PX + MENTION_COMPOSER_GAP_PX + VIEWPORT_PADDING_PX,
     );
   });
+
+  it("getCaretOffset returns null when selection endContainer is not a Node (Firefox)", () => {
+    const restoreContains = installFirefoxContainsGuard();
+    const restoreSelection = stubSelectionRange({});
+    const root = document.createElement("div");
+    root.textContent = "hello";
+    document.body.append(root);
+
+    try {
+      expect(getCaretOffset(root)).toBeNull();
+    } finally {
+      restoreSelection();
+      restoreContains();
+    }
+  });
+
+  it("getCaretRect returns null when selection endContainer is not a Node (Firefox)", () => {
+    const restoreContains = installFirefoxContainsGuard();
+    const restoreSelection = stubSelectionRange({});
+    const root = document.createElement("div");
+    root.textContent = "hello";
+    document.body.append(root);
+
+    try {
+      expect(getCaretRect(root)).toBeNull();
+    } finally {
+      restoreSelection();
+      restoreContains();
+    }
+  });
+
   it("round-trips mention markup with friendly labels", () => {
     const root = document.createElement("div");
     const raw = "Hello @agent1:stock-photos-agent world";

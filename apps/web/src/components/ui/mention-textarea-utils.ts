@@ -304,12 +304,20 @@ export function getSerializedOffset(
   return offset;
 }
 
+function isDomNode(value: unknown): value is Node {
+  return value instanceof Node;
+}
+
 export function getCaretOffset(root: HTMLElement): number | null {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
   const range = selection.getRangeAt(0);
-  if (!root.contains(range.endContainer)) return null;
-  return getSerializedOffset(root, range.endContainer, range.endOffset);
+  // Firefox selection can yield an endContainer that fails the WebIDL Node
+  // check; Node.contains then throws instead of returning false.
+  const endContainer: unknown = range.endContainer;
+  if (!isDomNode(endContainer)) return null;
+  if (!root.contains(endContainer)) return null;
+  return getSerializedOffset(root, endContainer, range.endOffset);
 }
 
 export function serializeEditor(
@@ -580,7 +588,9 @@ export function getCaretRect(root: HTMLElement): DOMRect | null {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
   const range = selection.getRangeAt(0);
-  if (!root.contains(range.endContainer)) return null;
+  const endContainer: unknown = range.endContainer;
+  if (!isDomNode(endContainer)) return null;
+  if (!root.contains(endContainer)) return null;
 
   const rect = range.getBoundingClientRect();
   if (rect.width !== 0 || rect.height !== 0) return rect;

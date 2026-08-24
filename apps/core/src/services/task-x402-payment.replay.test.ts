@@ -182,21 +182,15 @@ describe("resolveExistingPayment", () => {
     // The floor mirrors finalize's insufficient_remaining_lifetime gate:
     // a header with seconds of life cannot survive delivery, so handing it
     // out burns the coworker's request before landing on this same 409.
-    const tx = createTx();
+    const shortlyExpiring = storedRecord({
+      status: "VERIFIED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: STORED_PAYMENT_HEADER,
+      validBefore: new Date(Date.now() + X402_MIN_REMAINING_VALIDITY_MS / 2),
+    });
+    const tx = createTx(null, { lockedPayment: shortlyExpiring });
     const err = await captureThrow(
-      resolveExistingPayment(
-        storedRecord({
-          status: "VERIFIED",
-          attemptId: "attempt_stored",
-          xPaymentHeader: STORED_PAYMENT_HEADER,
-          validBefore: new Date(
-            Date.now() + X402_MIN_REMAINING_VALIDITY_MS / 2,
-          ),
-        }),
-        replayInput(),
-        TASK_OWNER_ID,
-        tx,
-      ),
+      resolveExistingPayment(shortlyExpiring, replayInput(), TASK_OWNER_ID, tx),
     );
 
     expect(err.status).toBe(409);
@@ -205,13 +199,14 @@ describe("resolveExistingPayment", () => {
   });
 
   it("returns the stored result for a matching VERIFIED replay without re-signing", async () => {
-    const tx = createTx();
+    const verified = storedRecord({
+      status: "VERIFIED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: STORED_PAYMENT_HEADER,
+    });
+    const tx = createTx(null, { lockedPayment: verified });
     const outcome = await resolveExistingPayment(
-      storedRecord({
-        status: "VERIFIED",
-        attemptId: "attempt_stored",
-        xPaymentHeader: STORED_PAYMENT_HEADER,
-      }),
+      verified,
       replayInput(),
       TASK_OWNER_ID,
       tx,
@@ -222,6 +217,36 @@ describe("resolveExistingPayment", () => {
     });
     expect(tx.taskX402Payment.update).not.toHaveBeenCalled();
     expect(tx.agent.findFirst).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.taskX402Payment.findUnique).toHaveBeenCalledWith({
+      where: { id: PAYMENT_ID },
+      select: expect.objectContaining({ status: true, xPaymentHeader: true }),
+    });
+  });
+
+  it("refuses to re-issue a header when a concurrent goodwill refund flipped VERIFIED to REFUNDED", async () => {
+    // Stale unlocked preflight still says VERIFIED; the FOR UPDATE reload
+    // sees the admin refund that restored credits and left the header stored.
+    const staleVerified = storedRecord({
+      status: "VERIFIED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: STORED_PAYMENT_HEADER,
+    });
+    const refundedUnderLock = storedRecord({
+      status: "REFUNDED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: STORED_PAYMENT_HEADER,
+      failureReason: null,
+    });
+    const tx = createTx(null, { lockedPayment: refundedUnderLock });
+    const err = await captureThrow(
+      resolveExistingPayment(staleVerified, replayInput(), TASK_OWNER_ID, tx),
+    );
+
+    expect(err.status).toBe(409);
+    expect(err.cause?.kind).toBe("x402_payment_key_consumed");
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.taskX402Payment.findUnique).toHaveBeenCalled();
   });
 
   it("returns a VERIFIED replay when a same-pair sibling changes only selection terms", async () => {
@@ -388,18 +413,14 @@ describe("resolveExistingPayment", () => {
     // header and threw a bare 500. Money-safe, but the wrong answer — the
     // coworker cannot tell "your authorization expired, mint a new key" from
     // "Soko is broken, retry".
-    const tx = createTx();
+    const purged = storedRecord({
+      status: "VERIFIED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: null,
+    });
+    const tx = createTx(null, { lockedPayment: purged });
     const err = await captureThrow(
-      resolveExistingPayment(
-        storedRecord({
-          status: "VERIFIED",
-          attemptId: "attempt_stored",
-          xPaymentHeader: null,
-        }),
-        replayInput(),
-        TASK_OWNER_ID,
-        tx,
-      ),
+      resolveExistingPayment(purged, replayInput(), TASK_OWNER_ID, tx),
     );
 
     expect(err.status).toBe(409);
@@ -409,19 +430,15 @@ describe("resolveExistingPayment", () => {
   });
 
   it("rejects an expired VERIFIED header before the purge clears it", async () => {
-    const tx = createTx();
+    const expired = storedRecord({
+      status: "VERIFIED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: STORED_PAYMENT_HEADER,
+      validBefore: new Date(Date.now() - 1),
+    });
+    const tx = createTx(null, { lockedPayment: expired });
     const err = await captureThrow(
-      resolveExistingPayment(
-        storedRecord({
-          status: "VERIFIED",
-          attemptId: "attempt_stored",
-          xPaymentHeader: STORED_PAYMENT_HEADER,
-          validBefore: new Date(Date.now() - 1),
-        }),
-        replayInput(),
-        TASK_OWNER_ID,
-        tx,
-      ),
+      resolveExistingPayment(expired, replayInput(), TASK_OWNER_ID, tx),
     );
 
     expect(err.status).toBe(409);
@@ -432,19 +449,15 @@ describe("resolveExistingPayment", () => {
   it("reports a reused key before it reports an expired header", async () => {
     // The demand re-verification runs first, so a caller replaying a purged
     // key with a DIFFERENT 402 learns nothing about what the stored row holds.
-    const tx = createTx();
+    const mismatched = storedRecord({
+      status: "VERIFIED",
+      attemptId: "attempt_stored",
+      xPaymentHeader: null,
+      caip2Network: "eip155:8453",
+    });
+    const tx = createTx(null, { lockedPayment: mismatched });
     const err = await captureThrow(
-      resolveExistingPayment(
-        storedRecord({
-          status: "VERIFIED",
-          attemptId: "attempt_stored",
-          xPaymentHeader: null,
-          caip2Network: "eip155:8453",
-        }),
-        replayInput(),
-        TASK_OWNER_ID,
-        tx,
-      ),
+      resolveExistingPayment(mismatched, replayInput(), TASK_OWNER_ID, tx),
     );
 
     expect(err.cause?.kind).toBe("x402_payment_key_reused");
