@@ -2,7 +2,7 @@ import type { DriveItem } from "@/lib/clients/generated/core";
 
 /**
  * Union of all Drive exploration items: blob files/folders + virtual Tasks tree.
- * Tasks rows are not blob folders — they are views over Core task files and job outputs.
+ * Tasks rows are not blob folders — they are views over Core task files.
  */
 export type DriveExploreItem =
   | BlobFolderItem
@@ -11,8 +11,7 @@ export type DriveExploreItem =
   | TaskProjectItem
   | TaskNoProjectItem
   | TaskItem
-  | TaskFileItem
-  | JobOutputItem;
+  | TaskFileItem;
 
 /**
  * Regular Drive folder (blob prefix)
@@ -76,19 +75,6 @@ export interface TaskItem {
  */
 export interface TaskFileItem {
   type: "task-file";
-  id: string;
-  name: string;
-  fileUrl: string;
-  size: number | null;
-  mimeType: string | null;
-  updatedAt: string;
-}
-
-/**
- * Job output blob row in Tasks view
- */
-export interface JobOutputItem {
-  type: "job-output";
   id: string;
   name: string;
   fileUrl: string;
