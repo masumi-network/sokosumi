@@ -97,6 +97,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("TaskFile not found");
       }
 
+      if (taskFile.status !== "READY") {
+        throw badRequest(
+          `Cannot copy ${taskFile.status} TaskFile. Only READY files can be copied.`,
+        );
+      }
+
+      if (!taskFile.fileUrl) {
+        throw badRequest("Cannot copy TaskFile without a file URL");
+      }
+
       taskId = taskFile.task.id;
       sourceUrl = taskFile.fileUrl;
       fileName = taskFile.name;

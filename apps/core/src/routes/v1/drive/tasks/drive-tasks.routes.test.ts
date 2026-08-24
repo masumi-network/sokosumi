@@ -318,6 +318,62 @@ describe("Drive Tasks Routes", () => {
           }),
         );
       });
+
+      it("omits PENDING and FAILED TaskFiles from results", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        // Return empty for READY TaskFiles
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaBlobFindManyMock.mockResolvedValue([]);
+        prismaTaskFileCountMock.mockResolvedValue(0);
+        prismaBlobCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(0);
+
+        // Verify that the TaskFile query filtered by status: READY and non-null fileUrl
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              status: "READY",
+              fileUrl: { not: null },
+            }),
+          }),
+        );
+      });
+
+      it("omits TaskFiles with null fileUrl from results", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaBlobFindManyMock.mockResolvedValue([]);
+        prismaTaskFileCountMock.mockResolvedValue(0);
+        prismaBlobCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(0);
+
+        // Verify fileUrl null check
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              fileUrl: { not: null },
+            }),
+          }),
+        );
+      });
     });
 
     describe("Level 2: Task rows", () => {
@@ -359,6 +415,36 @@ describe("Drive Tasks Routes", () => {
           expect.objectContaining({
             where: expect.objectContaining({
               assigneeId: "cow_456",
+            }),
+          }),
+        );
+      });
+
+      it("excludes tasks with only PENDING/FAILED TaskFiles", async () => {
+        // Mock task query to check the where clause includes READY file filter
+        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&projectId=550e8400-e29b-41d4-a716-446655440000",
+        );
+
+        expect(res.status).toBe(200);
+        // Verify that the base task where clause includes READY file filter
+        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: expect.arrayContaining([
+                expect.objectContaining({
+                  files: {
+                    some: {
+                      status: "READY",
+                      fileUrl: { not: null },
+                    },
+                  },
+                }),
+              ]),
             }),
           }),
         );
@@ -557,6 +643,7 @@ describe("Drive Tasks Routes", () => {
         fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
         size: BigInt(1024),
         mimeType: "application/pdf",
+        status: "READY",
         task: { id: "tsk_1" },
       };
 
@@ -711,6 +798,93 @@ describe("Drive Tasks Routes", () => {
       expect(res.status).toBe(400);
     });
 
+    it("returns 400 when TaskFile is PENDING", async () => {
+      const taskFile = {
+        id: "tf_123",
+        name: "document.pdf",
+        fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+        size: BigInt(1024),
+        mimeType: "application/pdf",
+        status: "PENDING",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "task-file",
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error?.message ?? json.message).toContain("PENDING");
+    });
+
+    it("returns 400 when TaskFile is FAILED", async () => {
+      const taskFile = {
+        id: "tf_123",
+        name: "document.pdf",
+        fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+        size: BigInt(1024),
+        mimeType: "application/pdf",
+        status: "FAILED",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "task-file",
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error?.message ?? json.message).toContain("FAILED");
+    });
+
+    it("returns 400 when TaskFile has null fileUrl", async () => {
+      const taskFile = {
+        id: "tf_123",
+        name: "document.pdf",
+        fileUrl: null,
+        size: BigInt(1024),
+        mimeType: "application/pdf",
+        status: "READY",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "task-file",
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error?.message ?? json.message).toContain("file URL");
+    });
+
     it("returns 409 when dest file exists", async () => {
       const taskFile = {
         id: "tf_123",
@@ -718,6 +892,7 @@ describe("Drive Tasks Routes", () => {
         fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
         size: BigInt(1024),
         mimeType: "application/pdf",
+        status: "READY",
         task: { id: "tsk_1" },
       };
 

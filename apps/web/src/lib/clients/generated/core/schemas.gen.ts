@@ -7836,6 +7836,374 @@ export const RenameDriveFolderRequestSchema = {
     ]
 } as const;
 
+export const DriveTasksListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DriveTasksListItem'
+    }
+} as const;
+
+export const DriveTasksListItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveTasksProjectItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksNoProjectItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksTaskItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksTaskFileItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksJobOutputItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            project: '#/components/schemas/DriveTasksProjectItem',
+            'no-project': '#/components/schemas/DriveTasksNoProjectItem',
+            task: '#/components/schemas/DriveTasksTaskItem',
+            'task-file': '#/components/schemas/DriveTasksTaskFileItem',
+            'job-output': '#/components/schemas/DriveTasksJobOutputItem'
+        }
+    }
+} as const;
+
+export const DriveTasksProjectItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'project'
+            ],
+            example: 'project',
+            description: 'Project row with at least one task file'
+        },
+        id: {
+            type: 'string',
+            example: 'prj_abc123',
+            description: 'Project ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Q4 Campaign',
+            description: 'Project name'
+        },
+        latestFileUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest TaskFile updatedAt within this project'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'latestFileUpdatedAt'
+    ]
+} as const;
+
+export const DriveTasksNoProjectItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'no-project'
+            ],
+            example: 'no-project',
+            description: 'No-project row for unscoped tasks with files'
+        },
+        id: {
+            type: 'string',
+            enum: [
+                'null'
+            ],
+            example: 'null',
+            description: 'Sentinel id for no-project tasks (same as query literal "null")'
+        },
+        latestFileUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest TaskFile updatedAt for tasks without a project'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'latestFileUpdatedAt'
+    ]
+} as const;
+
+export const DriveTasksTaskItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'task'
+            ],
+            example: 'task',
+            description: 'Task row with at least one file'
+        },
+        id: {
+            type: 'string',
+            example: 'tsk_xyz789',
+            description: 'Task ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Design mockups',
+            description: 'Task name'
+        },
+        latestFileUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest TaskFile updatedAt for this task'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'latestFileUpdatedAt'
+    ]
+} as const;
+
+export const DriveTasksTaskFileItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'task-file'
+            ],
+            example: 'task-file',
+            description: 'TaskFile row'
+        },
+        id: {
+            type: 'string',
+            example: 'tf_123',
+            description: 'TaskFile ID'
+        },
+        name: {
+            type: 'string',
+            example: 'mockup-v2.pdf',
+            description: 'TaskFile name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/tasks/...',
+            description: 'TaskFile blob URL'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 1024000,
+            description: 'File size in bytes (null if unknown)'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf',
+            description: 'MIME type (null if unknown)'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'TaskFile updatedAt'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'fileUrl',
+        'size',
+        'mimeType',
+        'updatedAt'
+    ]
+} as const;
+
+export const DriveTasksJobOutputItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'job-output'
+            ],
+            example: 'job-output',
+            description: 'Job output blob row'
+        },
+        id: {
+            type: 'string',
+            example: 'blb_123',
+            description: 'Blob ID'
+        },
+        name: {
+            type: 'string',
+            example: 'agent-result.pdf',
+            description: 'Blob name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://coworker.example/output/file.pdf',
+            description: 'Blob file URL (fileUrl or sourceUrl)'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 2048000,
+            description: 'File size in bytes (null if unknown)'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf',
+            description: 'MIME type (null if unknown)'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Blob updatedAt'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'fileUrl',
+        'size',
+        'mimeType',
+        'updatedAt'
+    ]
+} as const;
+
+export const CopyTaskFileToDriveResponseSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'mockup-v2.pdf',
+            description: 'Copied file name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/...',
+            description: 'Copied Drive file URL'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/mockup-v2.pdf',
+            description: 'Drive file pathname'
+        }
+    },
+    required: [
+        'name',
+        'fileUrl',
+        'pathname'
+    ]
+} as const;
+
+export const CopyTaskFileToDriveRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'task-file'
+                    ],
+                    description: 'Source kind: task-file for TaskFile'
+                },
+                taskFileId: {
+                    type: 'string',
+                    example: 'tf_123',
+                    description: 'TaskFile ID to copy'
+                },
+                scope: {
+                    type: 'string',
+                    enum: [
+                        'me',
+                        'org'
+                    ],
+                    example: 'me',
+                    description: 'Destination Drive scope: \'me\' for personal, \'org\' for organization'
+                },
+                organizationId: {
+                    type: 'string',
+                    example: 'org_123',
+                    description: 'Organization ID (required when scope=org)'
+                }
+            },
+            required: [
+                'kind',
+                'taskFileId',
+                'scope'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'job-output'
+                    ],
+                    description: 'Source kind: job-output for Blob'
+                },
+                blobId: {
+                    type: 'string',
+                    example: 'blb_123',
+                    description: 'Blob ID to copy'
+                },
+                scope: {
+                    type: 'string',
+                    enum: [
+                        'me',
+                        'org'
+                    ],
+                    example: 'me',
+                    description: 'Destination Drive scope: \'me\' for personal, \'org\' for organization'
+                },
+                organizationId: {
+                    type: 'string',
+                    example: 'org_123',
+                    description: 'Organization ID (required when scope=org)'
+                }
+            },
+            required: [
+                'kind',
+                'blobId',
+                'scope'
+            ]
+        }
+    ]
+} as const;
+
 export const EnterpriseContractSchema = {
     type: 'object',
     properties: {

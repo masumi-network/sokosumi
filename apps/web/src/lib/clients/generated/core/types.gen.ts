@@ -2333,6 +2333,186 @@ export type RenameDriveFolderRequest = {
     organizationId?: string;
 };
 
+export type DriveTasksList = Array<DriveTasksListItem>;
+
+export type DriveTasksListItem = ({
+    type: 'project';
+} & DriveTasksProjectItem) | ({
+    type: 'no-project';
+} & DriveTasksNoProjectItem) | ({
+    type: 'task';
+} & DriveTasksTaskItem) | ({
+    type: 'task-file';
+} & DriveTasksTaskFileItem) | ({
+    type: 'job-output';
+} & DriveTasksJobOutputItem);
+
+export type DriveTasksProjectItem = {
+    /**
+     * Project row with at least one task file
+     */
+    type: 'project';
+    /**
+     * Project ID
+     */
+    id: string;
+    /**
+     * Project name
+     */
+    name: string;
+    /**
+     * Latest TaskFile updatedAt within this project
+     */
+    latestFileUpdatedAt: Date;
+};
+
+export type DriveTasksNoProjectItem = {
+    /**
+     * No-project row for unscoped tasks with files
+     */
+    type: 'no-project';
+    /**
+     * Sentinel id for no-project tasks (same as query literal "null")
+     */
+    id: 'null';
+    /**
+     * Latest TaskFile updatedAt for tasks without a project
+     */
+    latestFileUpdatedAt: Date;
+};
+
+export type DriveTasksTaskItem = {
+    /**
+     * Task row with at least one file
+     */
+    type: 'task';
+    /**
+     * Task ID
+     */
+    id: string;
+    /**
+     * Task name
+     */
+    name: string;
+    /**
+     * Latest TaskFile updatedAt for this task
+     */
+    latestFileUpdatedAt: Date;
+};
+
+export type DriveTasksTaskFileItem = {
+    /**
+     * TaskFile row
+     */
+    type: 'task-file';
+    /**
+     * TaskFile ID
+     */
+    id: string;
+    /**
+     * TaskFile name
+     */
+    name: string;
+    /**
+     * TaskFile blob URL
+     */
+    fileUrl: string;
+    /**
+     * File size in bytes (null if unknown)
+     */
+    size: number | null;
+    /**
+     * MIME type (null if unknown)
+     */
+    mimeType: string | null;
+    /**
+     * TaskFile updatedAt
+     */
+    updatedAt: Date;
+};
+
+export type DriveTasksJobOutputItem = {
+    /**
+     * Job output blob row
+     */
+    type: 'job-output';
+    /**
+     * Blob ID
+     */
+    id: string;
+    /**
+     * Blob name
+     */
+    name: string;
+    /**
+     * Blob file URL (fileUrl or sourceUrl)
+     */
+    fileUrl: string;
+    /**
+     * File size in bytes (null if unknown)
+     */
+    size: number | null;
+    /**
+     * MIME type (null if unknown)
+     */
+    mimeType: string | null;
+    /**
+     * Blob updatedAt
+     */
+    updatedAt: Date;
+};
+
+export type CopyTaskFileToDriveResponse = {
+    /**
+     * Copied file name
+     */
+    name: string;
+    /**
+     * Copied Drive file URL
+     */
+    fileUrl: string;
+    /**
+     * Drive file pathname
+     */
+    pathname: string;
+};
+
+export type CopyTaskFileToDriveRequest = {
+    /**
+     * Source kind: task-file for TaskFile
+     */
+    kind: 'task-file';
+    /**
+     * TaskFile ID to copy
+     */
+    taskFileId: string;
+    /**
+     * Destination Drive scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+} | {
+    /**
+     * Source kind: job-output for Blob
+     */
+    kind: 'job-output';
+    /**
+     * Blob ID to copy
+     */
+    blobId: string;
+    /**
+     * Destination Drive scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+};
+
 export type EnterpriseContract = {
     id: string;
     createdAt: Date;
@@ -16876,6 +17056,217 @@ export type PatchDriveFoldersRenameResponses = {
 };
 
 export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
+
+export type GetDriveTasksData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive scope: 'me' for personal workspace, 'org' for organization workspace
+         */
+        scope: 'me' | 'org';
+        /**
+         * Organization ID (required when scope=org)
+         */
+        organizationId?: string;
+        /**
+         * Project ID to list tasks within. Use literal "null" for no-project tasks. Omit for project-level list.
+         */
+        projectId?: string | 'null';
+        /**
+         * Task ID to list files within. Omit for task-level or project-level list.
+         */
+        taskId?: string;
+        /**
+         * Filter tasks by assignee coworker ID
+         */
+        assigneeId?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/drive/tasks';
+};
+
+export type GetDriveTasksErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTasksError = GetDriveTasksErrors[keyof GetDriveTasksErrors];
+
+export type GetDriveTasksResponses = {
+    /**
+     * Drive Tasks list retrieved
+     */
+    200: {
+        data: DriveTasksList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTasksResponse = GetDriveTasksResponses[keyof GetDriveTasksResponses];
+
+export type PostDriveTasksCopyData = {
+    body: CopyTaskFileToDriveRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/tasks/copy';
+};
+
+export type PostDriveTasksCopyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - file with that name already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTasksCopyError = PostDriveTasksCopyErrors[keyof PostDriveTasksCopyErrors];
+
+export type PostDriveTasksCopyResponses = {
+    /**
+     * TaskFile copied to Drive
+     */
+    201: {
+        data: CopyTaskFileToDriveResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTasksCopyResponse = PostDriveTasksCopyResponses[keyof PostDriveTasksCopyResponses];
 
 export type GetEnterpriseContractsData = {
     body?: never;
