@@ -2021,7 +2021,38 @@ describe("ChatMessageRow coworker Thought", () => {
     const body = screen.getByTestId("coworker-thought-body");
     expect(body).toHaveTextContent("Counting registrations in last 30 days");
     expect(body.className).toMatch(/line-clamp-3/);
-    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+    expect(
+      within(trace).getByTestId("live-stream-elapsed"),
+    ).toBeInTheDocument();
+  });
+
+  it("stacks blank-line Thought beats and keeps elapsed on the header", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-beats",
+        content: "",
+        metadata: {
+          streaming: true,
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "Analyzing the request...\n\nProcessing load skill results......",
+            },
+          ],
+        },
+      }),
+    });
+
+    const body = screen.getByTestId("coworker-thought-body");
+    const steps = body.querySelectorAll("p");
+    expect(steps).toHaveLength(2);
+    expect(steps[0]).toHaveTextContent("Analyzing the request...");
+    expect(steps[1]).toHaveTextContent("Processing load skill results......");
+    expect(
+      within(screen.getByTestId("coworker-thought-trace")).getByTestId(
+        "live-stream-elapsed",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows tenths elapsed on the live Loading row", () => {
