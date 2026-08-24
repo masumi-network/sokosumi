@@ -182,6 +182,7 @@ function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
   const seen = new Set<string>();
   let i = 0;
   const cursor = { index: 0 }; // Cursor for excluded ranges
+  const lowerText = text.toLowerCase(); // Lowercase once for case-insensitive search
 
   while (i < text.length) {
     // Skip if current position is inside an excluded range
@@ -195,30 +196,9 @@ function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
       continue;
     }
 
-    // Case-insensitive search for http:// or https://
-    const remaining = text.slice(i);
-    const lowerRemaining = remaining.slice(0, 8).toLowerCase();
-    let httpsIndex = -1;
-    let httpIndex = -1;
-
-    if (lowerRemaining.startsWith("https://")) {
-      httpsIndex = i;
-    } else {
-      const httpsPos = remaining.toLowerCase().indexOf("https://");
-      if (httpsPos !== -1) {
-        httpsIndex = i + httpsPos;
-      }
-    }
-
-    if (lowerRemaining.startsWith("http://")) {
-      httpIndex = i;
-    } else {
-      const httpPos = remaining.toLowerCase().indexOf("http://");
-      if (httpPos !== -1) {
-        httpIndex = i + httpPos;
-      }
-    }
-
+    // Case-insensitive search for http:// or https:// (search on lowercase, extract from original)
+    const httpsIndex = lowerText.indexOf("https://", i);
+    const httpIndex = lowerText.indexOf("http://", i);
     let start = -1;
     if (httpsIndex === -1) {
       start = httpIndex;

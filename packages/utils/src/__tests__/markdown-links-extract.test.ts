@@ -325,5 +325,13 @@ https://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-0000000
       );
       expect(links).toEqual(["HTTPS://WWW.EXAMPLE.COM/FILE.PDF"]);
     });
+
+    it("handles large input efficiently without quadratic blowup", () => {
+      // Regression test: bare URL scan must not be O(n²) via repeated .slice() + .toLowerCase()
+      const noise = "x".repeat(10000);
+      const markdown = noise + " HTTPS://example.com/file.pdf " + noise;
+      const links = extractFileLikeLinks(markdown);
+      expect(links).toEqual(["HTTPS://example.com/file.pdf"]);
+    });
   });
 });
