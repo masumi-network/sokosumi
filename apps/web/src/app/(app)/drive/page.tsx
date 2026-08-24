@@ -79,8 +79,6 @@ import type {
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
-  getProjects,
-  getTasksById,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
@@ -245,12 +243,7 @@ type ExploreItem =
   | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
   | { kind: "tasks-root" }
   | ({
-      kind:
-        | "task-project"
-        | "task-no-project"
-        | "task"
-        | "task-file"
-        | "job-output";
+      kind: "task-project" | "task-no-project" | "task" | "task-file";
     } & DriveTasksListItem);
 
 export default function DrivePage(): ReactElement {
@@ -440,30 +433,6 @@ export default function DrivePage(): ReactElement {
           };
         });
         setTasksItems(items);
-
-        setProjectNames((prev) => {
-          let updated = false;
-          const next = new Map(prev);
-          for (const item of items) {
-            if (item.type === "project" && !prev.has(item.id)) {
-              next.set(item.id, item.name);
-              updated = true;
-            }
-          }
-          return updated ? next : prev;
-        });
-
-        setTaskNames((prev) => {
-          let updated = false;
-          const next = new Map(prev);
-          for (const item of items) {
-            if (item.type === "task" && !prev.has(item.id)) {
-              next.set(item.id, item.name);
-              updated = true;
-            }
-          }
-          return updated ? next : prev;
-        });
       }
     } catch (err) {
       if (!controller.signal.aborted) {
@@ -492,58 +461,6 @@ export default function DrivePage(): ReactElement {
       void loadItems();
     }
   }, [isTasksView, loadItems, loadTasksItems]);
-
-  // Resolve missing project/task names from URL on refresh
-  useEffect(() => {
-    if (!isTasksView) {
-      return;
-    }
-
-    async function resolveNames() {
-      try {
-        if (projectIdParam && projectIdParam !== "null") {
-          const response = await getProjects({
-            client: getBrowserCoreClient(),
-            query: { limit: 100 },
-          });
-          const projects = response.data?.data ?? [];
-          const project = projects.find((p) => p.id === projectIdParam);
-          if (project) {
-            setProjectNames((prev) => {
-              if (prev.has(project.id)) {
-                return prev;
-              }
-              const next = new Map(prev);
-              next.set(project.id, project.name);
-              return next;
-            });
-          }
-        }
-
-        if (taskIdParam) {
-          const response = await getTasksById({
-            client: getBrowserCoreClient(),
-            path: { id: taskIdParam },
-          });
-          const task = response.data?.data;
-          if (task) {
-            setTaskNames((prev) => {
-              if (prev.has(task.id)) {
-                return prev;
-              }
-              const next = new Map(prev);
-              next.set(task.id, task.name);
-              return next;
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to resolve names", err);
-      }
-    }
-
-    void resolveNames();
-  }, [isTasksView, projectIdParam, taskIdParam]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -791,19 +708,6 @@ export default function DrivePage(): ReactElement {
   }
 
   function navigateToProject(projectId: string, projectName?: string) {
-    if (projectName) {
-      setProjectNames((prev) => {
-        if (projectId !== "null" && prev.has(projectId)) {
-          return prev;
-        }
-        if (projectId === "null") {
-          return prev;
-        }
-        const next = new Map(prev);
-        next.set(projectId, projectName);
-        return next;
-      });
-    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", "tasks");
     params.set("projectId", projectId);
@@ -813,16 +717,6 @@ export default function DrivePage(): ReactElement {
   }
 
   function navigateToTask(taskId: string, taskName?: string) {
-    if (taskName) {
-      setTaskNames((prev) => {
-        if (prev.has(taskId)) {
-          return prev;
-        }
-        const next = new Map(prev);
-        next.set(taskId, taskName);
-        return next;
-      });
-    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", "tasks");
     params.set("taskId", taskId);
@@ -961,7 +855,7 @@ export default function DrivePage(): ReactElement {
   }
 
   function openCopyDialog(item: DriveTasksListItem) {
-    if (item.type !== "task-file" && item.type !== "job-output") {
+    if (item.type !== "task-file") {
       return;
     }
     setTaskFileToCopy(item);
@@ -972,8 +866,7 @@ export default function DrivePage(): ReactElement {
   async function handleCopyConfirm() {
     if (
       !taskFileToCopy ||
-      (taskFileToCopy.type !== "task-file" &&
-        taskFileToCopy.type !== "job-output") ||
+      taskFileToCopy.type !== "task-file" ||
       !copyDestinationScope
     ) {
       return;
@@ -983,24 +876,13 @@ export default function DrivePage(): ReactElement {
     try {
       await postDriveTasksCopy({
         client: getBrowserCoreClient(),
-        body:
-          taskFileToCopy.type === "task-file"
-            ? {
-                kind: "task-file",
-                taskFileId: taskFileToCopy.id,
-                scope: copyDestinationScope,
-                ...(copyDestinationScope === "org" && activeOrganizationId
-                  ? { organizationId: activeOrganizationId }
-                  : {}),
-              }
-            : {
-                kind: "job-output",
-                blobId: taskFileToCopy.id,
-                scope: copyDestinationScope,
-                ...(copyDestinationScope === "org" && activeOrganizationId
-                  ? { organizationId: activeOrganizationId }
-                  : {}),
-              },
+        body: {
+          taskFileId: taskFileToCopy.id,
+          scope: copyDestinationScope,
+          ...(copyDestinationScope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+        },
         throwOnError: true,
       });
 
@@ -1091,9 +973,6 @@ export default function DrivePage(): ReactElement {
         }
         if (item.type === "task") {
           return { kind: "task", ...item };
-        }
-        if (item.type === "job-output") {
-          return { kind: "job-output", ...item };
         }
         return { kind: "task-file", ...item };
       });
@@ -1627,108 +1506,6 @@ export default function DrivePage(): ReactElement {
                     return (
                       <article
                         key={`task-file-${item.id}`}
-                        className={cn(
-                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                        )}
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                          <div className="flex size-8 shrink-0 items-center justify-center">
-                            <FileTypeIcon extension={extension || "file"} />
-                          </div>
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <TaskFileNameWithPreview
-                              name={item.name}
-                              fileUrl={item.fileUrl}
-                              isPreviewable={isPreviewable}
-                              isImage={isImage}
-                              documentKind={documentKind}
-                            />
-                            <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                              <span>
-                                {item.size ? formatBytes(item.size) : "—"}
-                              </span>
-                              <span>
-                                {formatter.dateTime(new Date(item.updatedAt), {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                            <span>
-                              {item.size ? formatBytes(item.size) : "—"}
-                            </span>
-                            <span>
-                              {formatter.dateTime(new Date(item.updatedAt), {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="shrink-0 pl-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8"
-                                aria-label={t("moreActions")}
-                              >
-                                <MoreHorizontal
-                                  className="size-4"
-                                  aria-hidden
-                                />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  handleDownload(item.fileUrl, item.name);
-                                }}
-                              >
-                                <Download className="size-4" aria-hidden />
-                                {t("downloadAction")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  openCopyDialog(item);
-                                }}
-                              >
-                                <Copy className="size-4" aria-hidden />
-                                {t("copyToDriveAction")}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </article>
-                    );
-                  }
-
-                  if (item.kind === "job-output") {
-                    if (!("type" in item) || item.type !== "job-output") {
-                      return null;
-                    }
-                    const extension = getExtensionFromUrl(item.name);
-                    const { isImage, documentKind } = classifyFilePreview(
-                      item.fileUrl,
-                      item.name,
-                    );
-                    const isPreviewable = isImage || documentKind !== null;
-
-                    return (
-                      <article
-                        key={`job-output-${item.id}`}
                         className={cn(
                           "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
                           PROJECTS_LIST_ROW_LAYOUT_CLASS,

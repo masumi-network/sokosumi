@@ -4,7 +4,6 @@ import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveTasksListItem } from "@/lib/clients/generated/core";
 import { getDriveTasks } from "@/lib/clients/generated/core";
 import type {
-  JobOutputItem,
   TaskFileItem,
   TaskItem,
   TaskNoProjectItem,
@@ -28,13 +27,7 @@ interface ListDriveTasksOptions {
 export async function listDriveTasks(
   options: ListDriveTasksOptions,
 ): Promise<
-  Array<
-    | TaskProjectItem
-    | TaskNoProjectItem
-    | TaskItem
-    | TaskFileItem
-    | JobOutputItem
-  >
+  Array<TaskProjectItem | TaskNoProjectItem | TaskItem | TaskFileItem>
 > {
   const items: DriveTasksListItem[] = [];
   let cursor: string | undefined;
@@ -74,12 +67,7 @@ export async function listDriveTasks(
 
 function mapTasksListItemToExploreItem(
   item: DriveTasksListItem,
-):
-  | TaskProjectItem
-  | TaskNoProjectItem
-  | TaskItem
-  | TaskFileItem
-  | JobOutputItem {
+): TaskProjectItem | TaskNoProjectItem | TaskItem | TaskFileItem {
   switch (item.type) {
     case "project":
       return {
@@ -104,16 +92,6 @@ function mapTasksListItemToExploreItem(
     case "task-file":
       return {
         type: "task-file",
-        id: item.id,
-        name: item.name,
-        fileUrl: item.fileUrl,
-        size: item.size,
-        mimeType: item.mimeType,
-        updatedAt: new Date(item.updatedAt).toISOString(),
-      };
-    case "job-output":
-      return {
-        type: "job-output",
         id: item.id,
         name: item.name,
         fileUrl: item.fileUrl,
