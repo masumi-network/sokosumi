@@ -13,9 +13,10 @@ interface AuthSessionHydratorProps {
  * pass (`useSession` still pending). Layout effect runs before paint, so
  * subscribers see data on first paint without a Drive org-tab mismatch.
  *
- * `Session` is the Core `/auth/get-session` JSON web already uses. The
- * client infers extra plugin fields (for example `banned`) that the JSON
- * still carries.
+ * Pass the full Core `/auth/get-session` JSON, including `session.token`.
+ * A partial object would disagree with the background refetch. The client
+ * infers extra plugin fields (for example `banned`) that the JSON still
+ * carries.
  */
 export function AuthSessionHydrator({ session }: AuthSessionHydratorProps) {
   useLayoutEffect(() => {
