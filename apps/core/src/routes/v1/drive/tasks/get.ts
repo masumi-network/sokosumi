@@ -6,11 +6,12 @@ import {
   requireCoworkerCapability,
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
-import { badRequest, forbidden } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
   createPaginationMeta,
   parseCursorPagination,
@@ -29,6 +30,44 @@ import {
   driveTasksListSchema,
 } from "@/schemas/drive-tasks.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+
+async function requireUserTaskReadByWorkspaceMembership(
+  userId: string,
+  taskId: string,
+) {
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      archivedAt: null,
+    },
+    include: {
+      workspace: {
+        select: {
+          userId: true,
+          organizationId: true,
+        },
+      },
+    },
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  const organizationId = task.workspace.organizationId;
+  if (organizationId) {
+    await resolveMemberOrganizationById({
+      id: organizationId,
+      userId,
+      tx: prisma,
+    });
+    return;
+  }
+
+  if (task.workspace.userId !== userId) {
+    throw notFound("Task not found");
+  }
+}
 
 const query = z
   .object({
@@ -106,6 +145,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
   },
 });
 
@@ -232,8 +272,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Determine level
     if (taskId) {
-      // Level 3: TaskFile rows (READY + non-null fileUrl) only
-      await requireTaskReadForRouteVars(c.var, taskId);
+      if (isCoworkerAuthContext(authContext)) {
+        await requireTaskReadForRouteVars(c.var, taskId);
+      } else {
+        const userContext = requireUserContext(authContext);
+        await requireUserTaskReadByWorkspaceMembership(
+          userContext.userId,
+          taskId,
+        );
+      }
 
       // After access check, query TaskFiles directly (same filter as Level 2's files.some)
       const [taskFiles, taskFileCount] = await Promise.all([

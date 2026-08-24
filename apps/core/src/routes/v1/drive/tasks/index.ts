@@ -3,7 +3,9 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountCopy from "./copy.js";
 import mountGet from "./get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+});
 
 mountGet(app);
 mountCopy(app);

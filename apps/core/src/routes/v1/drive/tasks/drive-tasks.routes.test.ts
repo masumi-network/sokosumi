@@ -190,6 +190,11 @@ describe("Drive Tasks Routes", () => {
     workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
       id: "ws_personal",
     });
+    prismaTaskFindFirstMock.mockResolvedValue({
+      id: "tsk_123",
+      archivedAt: null,
+      workspace: { userId: "user_123", organizationId: null },
+    });
   });
 
   describe("GET /v1/drive/tasks - List", () => {
@@ -217,7 +222,12 @@ describe("Drive Tasks Routes", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+        expect(prismaTaskFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: "tsk_123", archivedAt: null },
+          }),
+        );
+        expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
       });
 
       it("omits PENDING and FAILED TaskFiles from results", async () => {
@@ -365,6 +375,30 @@ describe("Drive Tasks Routes", () => {
           name: "booth.pptx",
           fileUrl: "https://example.com/booth.pptx",
         });
+        expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+      });
+
+      it("returns 403 when the user is not a member of the task workspace org", async () => {
+        requireTaskReadForRouteVarsMock.mockRejectedValue(
+          forbidden("Workspace is missing"),
+        );
+        prismaTaskFindFirstMock.mockResolvedValue({
+          id: "tsk_foreign",
+          archivedAt: null,
+          workspace: { userId: null, organizationId: "org_other" },
+        });
+        prismaOrganizationFindUniqueMock.mockResolvedValue({
+          id: "org_other",
+        });
+        prismaMemberFindUniqueMock.mockResolvedValue(null);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_foreign",
+        );
+
+        expect(res.status).toBe(403);
+        expect(prismaTaskFileFindManyMock).not.toHaveBeenCalled();
       });
     });
 
