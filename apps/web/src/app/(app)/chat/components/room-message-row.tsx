@@ -1585,6 +1585,7 @@ export function ChatMessageRow({
   onStartEdit,
   onDelete,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   showOutboundSentTick = false,
   isEditing = false,
@@ -1614,6 +1615,7 @@ export function ChatMessageRow({
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
@@ -1857,11 +1859,26 @@ export function ChatMessageRow({
                   isSaving={isSavingEdit}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
-                <CoworkerMentionTerminalStatus
-                  label={tChannels("MentionStatus.failed", {
-                    name: sender.name,
-                  })}
-                />
+                <div
+                  className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1"
+                  data-testid="coworker-mention-failed"
+                >
+                  <CoworkerMentionTerminalStatus
+                    label={tChannels("MentionStatus.failed", {
+                      name: sender.name,
+                    })}
+                  />
+                  {onRetryMention ? (
+                    <button
+                      type="button"
+                      className="text-primary hover:text-primary/80 font-medium"
+                      data-testid="coworker-mention-retry"
+                      onClick={() => onRetryMention(message)}
+                    >
+                      {tChannels("MentionStatus.retry")}
+                    </button>
+                  ) : null}
+                </div>
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought

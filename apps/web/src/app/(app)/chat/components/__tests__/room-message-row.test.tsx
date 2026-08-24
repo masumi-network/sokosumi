@@ -151,6 +151,7 @@ function renderRow({
   onStartEdit,
   onDelete,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   showOutboundSentTick = false,
   isEditing = false,
@@ -171,6 +172,7 @@ function renderRow({
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -192,6 +194,7 @@ function renderRow({
       onStartEdit={onStartEdit}
       onDelete={onDelete}
       onRetryOutbound={onRetryOutbound}
+      onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
@@ -1918,6 +1921,30 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(
       screen.queryByTestId("coworker-thought-trace"),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-retry"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Retry on a failed mention shell for the mentioner", async () => {
+    const user = userEvent.setup();
+    const onRetryMention = vi.fn();
+    const message = coworkerMessage({
+      content: "",
+      metadata: {
+        mention_id: "mention_1",
+        mention_failed: true,
+        in_reply_to_message_id: "source-1",
+      },
+    });
+
+    renderRow({ message, onRetryMention });
+
+    await user.click(screen.getByTestId("coworker-mention-retry"));
+    expect(onRetryMention).toHaveBeenCalledWith(message);
+    expect(screen.getByTestId("coworker-mention-retry")).toHaveTextContent(
+      "MentionStatus.retry",
+    );
   });
 
   it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {

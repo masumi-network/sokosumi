@@ -5080,7 +5080,8 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "{name} no pudo responder"
+        "failed": "{name} no pudo responder",
+        "retry": "Reintentar"
       },
       "Outbound": {
         "sending": "Enviando",

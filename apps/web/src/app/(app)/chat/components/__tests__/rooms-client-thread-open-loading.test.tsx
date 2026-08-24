@@ -106,6 +106,7 @@ vi.mock("@/app/chat/actions", () => ({
   listRoomMessagesAction: vi.fn(),
   listThreadMessagesAction: actions.listThreadMessagesAction,
   markThreadReadAction: actions.markThreadReadAction,
+  retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
   toggleMessageReactionAction: vi.fn(),
 }));
