@@ -1093,6 +1093,24 @@ describe("PATCH /chats/rooms/{id}", () => {
       (row: { userId: string }) => row.userId,
     );
     expect(createdIds).not.toContain(guestId);
+    // Ignore, do not promote: echoed guests must not enter the host upgrade.
+    expect(userMemberUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: { in: [USER_ID] },
+        access: "guest",
+      },
+      data: { access: "member" },
+    });
+    expect(
+      userMemberUpdateManyMock.mock.calls[0][0].where.userId.in,
+    ).not.toContain(guestId);
+    expect(readStateDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: { notIn: expect.arrayContaining([USER_ID, guestId]) },
+      },
+    });
   });
 
   it("still 400s when memberUserIds includes a non-guest who is not an organization member", async () => {
