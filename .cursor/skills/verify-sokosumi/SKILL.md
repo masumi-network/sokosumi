@@ -81,7 +81,7 @@ Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
 1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
 2. If the fixture works: UI Enter-submit, then Core cookie bootstrap.
-3. If the fixture fails: coworker vault `agent-browser auth login sokosumi` with `[data-testid="auth-field-email"]` / `[data-testid="auth-field-currentPassword"]`. Persist check is `/agents` — do not wait `networkidle` on `/chat` (Ably hangs that wait).
+3. If the fixture fails: coworker vault `agent-browser auth login sokosumi` with `[data-testid="auth-field-email"]` / `[data-testid="auth-field-currentPassword"]`. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
@@ -109,7 +109,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
 
-**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus. After login, open `/agents` to prove the session. Do not `wait --load networkidle` on `/chat`.
+**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus. After login, expect Welcome `/` (or `returnUrl`); open `/agents` to prove the session. Do not `wait --load networkidle` on Welcome `/` or `/chat`.
 
 If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then `verify-sokosumi sign-in --method cookie` when fixtures work, or `--method vault` on a coworker machine (see [sign-in.md](./features/sign-in.md)). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
 
@@ -167,6 +167,8 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 
 Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
 
+`sign-in` / doctor UI paths auto-export `AGENT_BROWSER_ARGS=--ignore-certificate-errors` for HTTPS named URLs when unset (Chromium on Linux often rejects the portless CA). Override with your own `AGENT_BROWSER_ARGS` if needed — the helper appends the flag when missing.
+
 ## Isolate
 
 Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on the main checkout, `https://<branch>.web.sokosumi.localhost` in a linked worktree). Concurrent stacks on one machine are supported. The helper refuses only if **this** worktree's named URLs already answer. Cloud agents still get an isolated Neon branch per conversation.
@@ -177,13 +179,16 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - One-time on a machine: `pnpm exec portless trust` (CA) if `portless doctor` says the CA is untrusted. Then `pnpm portless:proxy`.
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
 - Drive `$WEB_URL` from doctor, not `localhost:3000`. Cookie inject uses `--secure` on https named hosts.
+- **Portless TLS + agent-browser:** if navigation fails with `ERR_CERT_AUTHORITY_INVALID`, ensure `pnpm exec portless trust`, then rely on harness `AGENT_BROWSER_ARGS=--ignore-certificate-errors` (auto for `verify-sokosumi sign-in`) or export it yourself for manual drives.
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
 - Optional URL env vars (`AGENT_HIRED_WEBHOOK`, Sentry DSN) set to non-URL dummies → Web crashes after Ready (`z.url()`); omit or use a real URL
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
-- Empty local catalog: `/agents` soft-empty (“No agents available”) or Core 500 until `credit_cost` rows exist
+- `/agents` is the coworker gallery (SOK-805) — not a marketplace “Browse all agents” list. Empty coworker data blanks the gallery section.
+- Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop `/chat` may redirect to `/`.
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
-- After login, prove the session on `/agents`. `wait --load networkidle` on `/chat` hangs (Ably)
+- After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)
 - Node **24.x** required
 - `/signin` shows Google / Microsoft / Passkey / Magic Link **above** the password form — automation must target `[data-testid="auth-field-*"]` only
+- New signup users may land on `/setup` (workspace onboarding) before `/agents` works — still authenticated if not bounced to `/signin`
