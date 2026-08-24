@@ -1,16 +1,7 @@
 import type { Session } from "@sokosumi/utils";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const hydrateSessionMock = vi.fn();
-
-vi.mock("@/lib/auth/auth.client", () => ({
-  authClient: {
-    hydrateSession: (...args: unknown[]) => hydrateSessionMock(...args),
-  },
-}));
-
-import { AuthSessionHydrator } from "@/app/components/auth-session-hydrator.client";
 
 const session: Session = {
   user: {
@@ -35,15 +26,80 @@ const session: Session = {
   },
 };
 
+const sessionStore = vi.hoisted(() => {
+  const emptySnapshot = {
+    data: null as Session | null,
+    isPending: true,
+  };
+  let snapshot = emptySnapshot;
+  const listeners = new Set<() => void>();
+
+  return {
+    emptySnapshot,
+    reset() {
+      snapshot = emptySnapshot;
+      listeners.clear();
+    },
+    hydrateSession(next: Session) {
+      snapshot = { data: next, isPending: false };
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+    subscribe(onStoreChange: () => void) {
+      listeners.add(onStoreChange);
+      return () => {
+        listeners.delete(onStoreChange);
+      };
+    },
+    getSnapshot() {
+      return snapshot;
+    },
+    getServerSnapshot() {
+      return emptySnapshot;
+    },
+  };
+});
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    hydrateSession: (next: Session) => sessionStore.hydrateSession(next),
+  },
+}));
+
+import { AuthSessionHydrator } from "@/app/components/auth-session-hydrator.client";
+
+function SessionProbe() {
+  const { data, isPending } = useSyncExternalStore(
+    sessionStore.subscribe,
+    sessionStore.getSnapshot,
+    sessionStore.getServerSnapshot,
+  );
+
+  return (
+    <div>
+      <span data-testid="pending">{String(isPending)}</span>
+      <span data-testid="org">
+        {data?.session.activeOrganizationId ?? "none"}
+      </span>
+    </div>
+  );
+}
+
 describe("AuthSessionHydrator", () => {
   beforeEach(() => {
-    hydrateSessionMock.mockReset();
+    sessionStore.reset();
   });
 
-  it("seeds the Better Auth client with the server session during render", () => {
-    render(<AuthSessionHydrator session={session} />);
+  it("seeds useSession before paint so a sibling sees the RSC session", () => {
+    render(
+      <>
+        <AuthSessionHydrator session={session} />
+        <SessionProbe />
+      </>,
+    );
 
-    expect(hydrateSessionMock).toHaveBeenCalledTimes(1);
-    expect(hydrateSessionMock).toHaveBeenCalledWith(session);
+    expect(screen.getByTestId("pending")).toHaveTextContent("false");
+    expect(screen.getByTestId("org")).toHaveTextContent("org-a");
   });
 });
