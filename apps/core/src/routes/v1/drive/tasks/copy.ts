@@ -78,74 +78,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    // Determine source file details based on kind
-    let sourceUrl: string;
-    let fileName: string;
-    let mimeType: string | null;
-    let taskId: string;
+    // Find TaskFile
+    const taskFile = await prisma.taskFile.findUnique({
+      where: { id: body.taskFileId },
+      include: {
+        task: true,
+      },
+    });
 
-    if (body.kind === "task-file") {
-      // Find TaskFile
-      const taskFile = await prisma.taskFile.findUnique({
-        where: { id: body.taskFileId },
-        include: {
-          task: true,
-        },
-      });
-
-      if (!taskFile) {
-        throw notFound("TaskFile not found");
-      }
-
-      if (taskFile.status !== "READY") {
-        throw badRequest(
-          `Cannot copy ${taskFile.status} TaskFile. Only READY files can be copied.`,
-        );
-      }
-
-      if (!taskFile.fileUrl) {
-        throw badRequest("Cannot copy TaskFile without a file URL");
-      }
-
-      taskId = taskFile.task.id;
-      sourceUrl = taskFile.fileUrl;
-      fileName = taskFile.name;
-      mimeType = taskFile.mimeType;
-    } else {
-      // kind === "job-output"
-      // Find Blob
-      const blob = await prisma.blob.findUnique({
-        where: { id: body.blobId },
-        include: {
-          event: {
-            include: {
-              job: {
-                include: {
-                  task: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!blob) {
-        throw notFound("Blob not found");
-      }
-
-      if (blob.status !== "READY") {
-        throw badRequest("Blob is not ready for copy");
-      }
-
-      if (!blob.event.job.task) {
-        throw notFound("Blob is not associated with a task");
-      }
-
-      taskId = blob.event.job.task.id;
-      sourceUrl = blob.fileUrl ?? blob.sourceUrl;
-      fileName = blob.name ?? "output";
-      mimeType = blob.mimeType;
+    if (!taskFile) {
+      throw notFound("TaskFile not found");
     }
+
+    if (taskFile.status !== "READY") {
+      throw badRequest(
+        `Cannot copy ${taskFile.status} TaskFile. Only READY files can be copied.`,
+      );
+    }
+
+    if (!taskFile.fileUrl) {
+      throw badRequest("Cannot copy TaskFile without a file URL");
+    }
+
+    const taskId = taskFile.task.id;
+    const sourceUrl = taskFile.fileUrl;
+    const fileName = taskFile.name;
+    const mimeType = taskFile.mimeType;
 
     // Check read access to task
     await requireTaskReadForRouteVars(c.var, taskId);

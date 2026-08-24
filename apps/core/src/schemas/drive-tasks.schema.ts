@@ -99,46 +99,12 @@ export const driveTasksTaskFileItemSchema = z
   })
   .openapi("DriveTasksTaskFileItem");
 
-export const driveTasksJobOutputItemSchema = z
-  .object({
-    type: z.literal("job-output").openapi({
-      example: "job-output",
-      description: "Job output blob row",
-    }),
-    id: z.string().openapi({
-      example: "blb_123",
-      description: "Blob ID",
-    }),
-    name: z.string().openapi({
-      example: "agent-result.pdf",
-      description: "Blob name",
-    }),
-    fileUrl: z.string().url().openapi({
-      example: "https://coworker.example/output/file.pdf",
-      description: "Blob file URL (fileUrl or sourceUrl)",
-    }),
-    size: z.number().int().nullable().openapi({
-      example: 2048000,
-      description: "File size in bytes (null if unknown)",
-    }),
-    mimeType: z.string().nullable().openapi({
-      example: "application/pdf",
-      description: "MIME type (null if unknown)",
-    }),
-    updatedAt: dateTimeSchema.openapi({
-      example: "2026-08-18T10:00:00.000Z",
-      description: "Blob updatedAt",
-    }),
-  })
-  .openapi("DriveTasksJobOutputItem");
-
 export const driveTasksListItemSchema = z
   .discriminatedUnion("type", [
     driveTasksProjectItemSchema,
     driveTasksNoProjectItemSchema,
     driveTasksTaskItemSchema,
     driveTasksTaskFileItemSchema,
-    driveTasksJobOutputItemSchema,
   ])
   .openapi("DriveTasksListItem");
 
@@ -151,47 +117,21 @@ export const driveTasksListSchema = z
 /**
  * Copy TaskFile to Drive request.
  */
-const copyTaskFileRequestSchema = z.object({
-  kind: z.literal("task-file").openapi({
-    description: "Source kind: task-file for TaskFile",
-  }),
-  taskFileId: z.string().openapi({
-    example: "tf_123",
-    description: "TaskFile ID to copy",
-  }),
-  scope: driveFileScopeSchema.openapi({
-    description:
-      "Destination Drive scope: 'me' for personal, 'org' for organization",
-  }),
-  organizationId: z.string().optional().openapi({
-    example: "org_123",
-    description: "Organization ID (required when scope=org)",
-  }),
-});
-
-const copyJobOutputRequestSchema = z.object({
-  kind: z.literal("job-output").openapi({
-    description: "Source kind: job-output for Blob",
-  }),
-  blobId: z.string().openapi({
-    example: "blb_123",
-    description: "Blob ID to copy",
-  }),
-  scope: driveFileScopeSchema.openapi({
-    description:
-      "Destination Drive scope: 'me' for personal, 'org' for organization",
-  }),
-  organizationId: z.string().optional().openapi({
-    example: "org_123",
-    description: "Organization ID (required when scope=org)",
-  }),
-});
-
 export const copyTaskFileToDriveRequestSchema = z
-  .discriminatedUnion("kind", [
-    copyTaskFileRequestSchema,
-    copyJobOutputRequestSchema,
-  ])
+  .object({
+    taskFileId: z.string().openapi({
+      example: "tf_123",
+      description: "TaskFile ID to copy",
+    }),
+    scope: driveFileScopeSchema.openapi({
+      description:
+        "Destination Drive scope: 'me' for personal, 'org' for organization",
+    }),
+    organizationId: z.string().optional().openapi({
+      example: "org_123",
+      description: "Organization ID (required when scope=org)",
+    }),
+  })
   .openapi("CopyTaskFileToDriveRequest");
 
 /**

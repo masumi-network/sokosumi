@@ -201,36 +201,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Build base where clause (workspace-wide, like Tasks scope=workspace)
-    // Include tasks with READY TaskFiles (non-null fileUrl) OR jobs with READY blobs
+    // Include only tasks with READY TaskFiles (non-null fileUrl)
     const baseTaskWhere: Prisma.TaskWhereInput = {
       archivedAt: null,
       workspaceId,
       ...(assigneeId ? { assigneeId } : {}),
-      OR: [
-        {
-          files: {
-            some: {
-              status: "READY",
-              fileUrl: { not: null },
-            },
-          },
+      files: {
+        some: {
+          status: "READY",
+          fileUrl: { not: null },
         },
-        {
-          jobs: {
-            some: {
-              events: {
-                some: {
-                  blobs: {
-                    some: {
-                      status: "READY",
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      ],
+      },
     };
 
     // Apply coworker access filter if needed
@@ -251,145 +232,80 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Determine level
     if (taskId) {
-      // Level 3: TaskFile rows (READY + non-null fileUrl) + job output Blob rows (status === READY)
+      // Level 3: TaskFile rows (READY + non-null fileUrl) only
       await requireTaskReadForRouteVars(c.var, taskId);
 
-      // Fetch TaskFiles (READY only, non-null fileUrl) and job output Blobs in parallel
-      const [taskFiles, jobBlobs, taskFileCount, jobBlobCount] =
-        await Promise.all([
-          prisma.taskFile.findMany({
-            where: {
-              task: {
-                id: taskId,
-                workspaceId,
-                archivedAt: null,
-              },
-              status: "READY",
-              fileUrl: { not: null },
+      // Fetch TaskFiles (READY only, non-null fileUrl)
+      const [taskFiles, taskFileCount] = await Promise.all([
+        prisma.taskFile.findMany({
+          where: {
+            task: {
+              id: taskId,
+              workspaceId,
+              archivedAt: null,
             },
-            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-          }),
-          prisma.blob.findMany({
-            where: {
-              status: "READY",
-              event: {
-                job: {
-                  taskId,
-                  workspaceId,
-                },
-              },
+            status: "READY",
+            fileUrl: { not: null },
+          },
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        }),
+        prisma.taskFile.count({
+          where: {
+            task: {
+              id: taskId,
+              workspaceId,
+              archivedAt: null,
             },
-            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-          }),
-          prisma.taskFile.count({
-            where: {
-              task: {
-                id: taskId,
-                workspaceId,
-                archivedAt: null,
-              },
-              status: "READY",
-              fileUrl: { not: null },
-            },
-          }),
-          prisma.blob.count({
-            where: {
-              status: "READY",
-              event: {
-                job: {
-                  taskId,
-                  workspaceId,
-                },
-              },
-            },
-          }),
-        ]);
+            status: "READY",
+            fileUrl: { not: null },
+          },
+        }),
+      ]);
 
-      // Combine and sort by updatedAt desc
-      type FileItem =
-        | { type: "task-file"; data: (typeof taskFiles)[0] }
-        | { type: "job-output"; data: (typeof jobBlobs)[0] };
-
-      const allFiles: FileItem[] = [
-        ...taskFiles.map((f) => ({ type: "task-file" as const, data: f })),
-        ...jobBlobs.map((b) => ({ type: "job-output" as const, data: b })),
-      ];
-
-      allFiles.sort((a, b) => {
-        const aTime = a.data.updatedAt.getTime();
-        const bTime = b.data.updatedAt.getTime();
-        if (bTime !== aTime) return bTime - aTime;
-        return b.data.id.localeCompare(a.data.id); // Stable sort by id desc
-      });
-
-      // Apply cursor pagination on sorted combined list
+      // Apply cursor pagination
       let startIndex = 0;
       if (cursor) {
-        const cursorIndex = allFiles.findIndex((f) => f.data.id === cursor);
+        const cursorIndex = taskFiles.findIndex((f) => f.id === cursor);
         if (cursorIndex >= 0) {
           startIndex = cursorIndex + 1; // Skip cursor item
         }
       }
       startIndex += skip ?? 0;
 
-      const pagedFiles = allFiles.slice(startIndex, startIndex + take);
-      const hasMore = startIndex + take < allFiles.length;
+      const pagedFiles = taskFiles.slice(startIndex, startIndex + take);
+      const hasMore = startIndex + take < taskFiles.length;
 
       const items: DriveTasksListItem[] = pagedFiles
         .map((file) => {
-          if (file.type === "task-file") {
-            // fileUrl is non-null (filtered in query)
-            if (!file.data.fileUrl) return null;
-            return {
-              type: "task-file" as const,
-              id: file.data.id,
-              name: file.data.name,
-              fileUrl: file.data.fileUrl,
-              size: file.data.size ? Number(file.data.size) : null,
-              mimeType: file.data.mimeType,
-              updatedAt: file.data.updatedAt.toISOString(),
-            };
-          } else {
-            // job-output
-            return {
-              type: "job-output" as const,
-              id: file.data.id,
-              name: file.data.name ?? "output",
-              fileUrl: file.data.fileUrl ?? file.data.sourceUrl,
-              size: file.data.size ? Number(file.data.size) : null,
-              mimeType: file.data.mimeType,
-              updatedAt: file.data.updatedAt.toISOString(),
-            };
-          }
+          // fileUrl is non-null (filtered in query)
+          if (!file.fileUrl) return null;
+          return {
+            type: "task-file" as const,
+            id: file.id,
+            name: file.name,
+            fileUrl: file.fileUrl,
+            size: file.size ? Number(file.size) : null,
+            mimeType: file.mimeType,
+            updatedAt: file.updatedAt.toISOString(),
+          };
         })
         .filter(
           (
             item,
-          ): item is
-            | {
-                type: "task-file";
-                id: string;
-                name: string;
-                fileUrl: string;
-                size: number | null;
-                mimeType: string | null;
-                updatedAt: string;
-              }
-            | {
-                type: "job-output";
-                id: string;
-                name: string;
-                fileUrl: string;
-                size: number | null;
-                mimeType: string | null;
-                updatedAt: string;
-              } => item !== null,
+          ): item is {
+            type: "task-file";
+            id: string;
+            name: string;
+            fileUrl: string;
+            size: number | null;
+            mimeType: string | null;
+            updatedAt: string;
+          } => item !== null,
         );
 
-      const totalCount = taskFileCount + jobBlobCount;
       const paginationMeta = createPaginationMeta(
-        pagedFiles.map((f) => f.data),
-        totalCount,
+        pagedFiles,
+        taskFileCount,
         take,
         hasMore,
         cursor,
@@ -398,7 +314,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (projectId !== undefined) {
-      // Level 2: Task rows with files/blobs, sorted by latest file/blob updatedAt desc
+      // Level 2: Task rows with files, sorted by latest file updatedAt desc
       const projectFilter =
         projectId === "null" ? { projectId: null } : { projectId };
 
@@ -423,50 +339,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               orderBy: { updatedAt: "desc" },
               take: 1,
             },
-            jobs: {
-              include: {
-                events: {
-                  include: {
-                    blobs: {
-                      where: { status: "READY" },
-                      orderBy: { updatedAt: "desc" },
-                      take: 1,
-                    },
-                  },
-                },
-              },
-            },
           },
         }),
         prisma.task.count({ where: tasksWhere }),
       ]);
 
-      // Sort by latest file/blob updatedAt desc (spec requirement)
+      // Sort by latest file updatedAt desc (spec requirement)
       const sortedTasks = allTasks.sort((a, b) => {
         const aFileTime = a.files[0]?.updatedAt.getTime() ?? 0;
-        // Find latest blob across all job events
-        const aBlobTime = Math.max(
-          0,
-          ...a.jobs.flatMap((job) =>
-            job.events.flatMap((event) =>
-              event.blobs.map((blob) => blob.updatedAt.getTime()),
-            ),
-          ),
-        );
-        const aTime = Math.max(aFileTime, aBlobTime);
-
         const bFileTime = b.files[0]?.updatedAt.getTime() ?? 0;
-        const bBlobTime = Math.max(
-          0,
-          ...b.jobs.flatMap((job) =>
-            job.events.flatMap((event) =>
-              event.blobs.map((blob) => blob.updatedAt.getTime()),
-            ),
-          ),
-        );
-        const bTime = Math.max(bFileTime, bBlobTime);
 
-        if (bTime !== aTime) return bTime - aTime;
+        if (bFileTime !== aFileTime) return bFileTime - aFileTime;
         return b.id.localeCompare(a.id); // Stable sort by id desc
       });
 
@@ -485,21 +368,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const items: DriveTasksListItem[] = pagedTasks.map((task) => {
         const fileTime = task.files[0]?.updatedAt.getTime() ?? 0;
-        const blobTime = Math.max(
-          0,
-          ...task.jobs.flatMap((job) =>
-            job.events.flatMap((event) =>
-              event.blobs.map((blob) => blob.updatedAt.getTime()),
-            ),
-          ),
-        );
-        const latestTime = Math.max(fileTime, blobTime);
 
         return {
           type: "task",
           id: task.id,
           name: task.name,
-          latestFileUpdatedAt: new Date(latestTime).toISOString(),
+          latestFileUpdatedAt: new Date(fileTime).toISOString(),
         };
       });
 
@@ -513,7 +387,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
-    // Level 1: Project rows + no-project row, sorted by latest file/blob updatedAt desc
+    // Level 1: Project rows + no-project row, sorted by latest file updatedAt desc
     // Key project rows by tasks in the Drive workspace, not by Project.workspaceId
     // (transferred tasks may have Task.workspaceId !== Project.workspaceId)
 
@@ -556,19 +430,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     orderBy: { updatedAt: "desc" },
                     take: 1,
                   },
-                  jobs: {
-                    include: {
-                      events: {
-                        include: {
-                          blobs: {
-                            where: { status: "READY" },
-                            orderBy: { updatedAt: "desc" },
-                            take: 1,
-                          },
-                        },
-                      },
-                    },
-                  },
                 },
                 orderBy: [{ updatedAt: "desc" }],
                 take: 1,
@@ -607,19 +468,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const sortableItems: SortableItem[] = projectsToEmit.map((project) => {
-      // Find latest file/blob time across all tasks in project
+      // Find latest file time across all tasks in project
       let latestTime = 0;
       for (const task of project.tasks) {
         const fileTime = task.files[0]?.updatedAt.getTime() ?? 0;
-        const blobTime = Math.max(
-          0,
-          ...task.jobs.flatMap((job) =>
-            job.events.flatMap((event) =>
-              event.blobs.map((blob) => blob.updatedAt.getTime()),
-            ),
-          ),
-        );
-        latestTime = Math.max(latestTime, fileTime, blobTime);
+        latestTime = Math.max(latestTime, fileTime);
       }
 
       const latestFileUpdatedAt =
@@ -636,53 +489,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     });
 
-    // Add no-project row if it has tasks with files/blobs
+    // Add no-project row if it has tasks with files
     if (noProjectTasksCount > 0) {
-      // Find latest file/blob time for no-project tasks
-      const [latestNoProjectFile, latestNoProjectBlob] = await Promise.all([
-        prisma.taskFile.findFirst({
-          where: {
-            task: {
-              ...baseTaskWhere,
-              projectId: null,
-            },
-            status: "READY",
-            fileUrl: { not: null },
+      // Find latest file time for no-project tasks
+      const latestNoProjectFile = await prisma.taskFile.findFirst({
+        where: {
+          task: {
+            ...baseTaskWhere,
+            projectId: null,
           },
-          orderBy: { updatedAt: "desc" },
-          select: { updatedAt: true },
-        }),
-        prisma.blob.findFirst({
-          where: {
-            status: "READY",
-            event: {
-              job: {
-                task: {
-                  ...baseTaskWhere,
-                  projectId: null,
-                },
-              },
-            },
-          },
-          orderBy: { updatedAt: "desc" },
-          select: { updatedAt: true },
-        }),
-      ]);
+          status: "READY",
+          fileUrl: { not: null },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { updatedAt: true },
+      });
 
       const fileTime = latestNoProjectFile?.updatedAt.getTime() ?? 0;
-      const blobTime = latestNoProjectBlob?.updatedAt.getTime() ?? 0;
-      const latestTime = Math.max(fileTime, blobTime);
 
       const latestFileUpdatedAt =
-        latestTime > 0
-          ? new Date(latestTime).toISOString()
+        fileTime > 0
+          ? new Date(fileTime).toISOString()
           : new Date().toISOString();
 
       sortableItems.push({
         type: "no-project",
         id: "null",
         latestFileUpdatedAt,
-        latestFileTime: latestTime,
+        latestFileTime: fileTime,
       });
     }
 
