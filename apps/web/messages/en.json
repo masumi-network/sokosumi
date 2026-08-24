@@ -5080,10 +5080,7 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Calling {name}",
-        "sent": "{name} is thinking",
-        "failed": "{name} couldn't reply",
-        "nameFallback": "Coworker"
+        "failed": "{name} couldn't reply"
       },
       "Outbound": {
         "sending": "Sending",

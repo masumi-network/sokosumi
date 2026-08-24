@@ -452,8 +452,9 @@ export function shouldShowChatRoomThreadButton(options: {
     coworkerMembers: { id?: string; coworkerId?: string }[];
   };
   isStreamOverlay: boolean;
+  isThinkingShell?: boolean;
 }): boolean {
-  if (options.isStreamOverlay) return false;
+  if (options.isStreamOverlay || options.isThinkingShell) return false;
   return true;
 }
 

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractThoughtDurationSeconds,
+  extractThoughtStartedAtMs,
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
   formatThoughtDurationLabel,
+  isFailedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "../coworker-thought";
 
@@ -110,6 +112,18 @@ describe("extractThoughtDurationSeconds", () => {
     ).toBe(63);
   });
 
+  it("reads thought start for the live elapsed clock", () => {
+    expect(
+      extractThoughtStartedAtMs({
+        thought_timing_ms: { start: 1_700_000_000_000 },
+      }),
+    ).toBe(1_700_000_000_000);
+    expect(extractThoughtStartedAtMs({ thought_timing_ms: { start: 0 } })).toBe(
+      null,
+    );
+    expect(extractThoughtStartedAtMs(null)).toBeNull();
+  });
+
   it("returns null when timing missing or invalid", () => {
     expect(extractThoughtDurationSeconds(null)).toBeNull();
     expect(
@@ -142,7 +156,51 @@ describe("resolveCoworkerThoughtViewModel", () => {
     });
   });
 
-  it("uses only the latest Thought step for the live beat", () => {
+  it("shows live beat on a persisted streaming coworker shell with no answer", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "",
+      isStreamOverlay: false,
+      metadata: {
+        streaming: true,
+        mention_id: "mention_1",
+        reasoning: [{ type: "reasoning", text: "Looked up the room context." }],
+      },
+    });
+    expect(vm).toEqual({
+      liveBeat: "Looked up the room context.",
+      disclosure: null,
+      showThinkingFallback: false,
+    });
+  });
+
+  it("does not treat persisted streaming without mention_id as a live shell", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "",
+      isStreamOverlay: false,
+      metadata: {
+        streaming: true,
+        reasoning: [{ type: "reasoning", text: "Leaked flag." }],
+      },
+    });
+    expect(vm.liveBeat).toBeNull();
+    expect(vm.showThinkingFallback).toBe(false);
+    expect(vm.disclosure?.text).toBe("Leaked flag.");
+  });
+
+  it("falls back to Thinking on a persisted streaming coworker shell with no Thought yet", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "   ",
+      isStreamOverlay: false,
+      metadata: { streaming: true, mention_id: "mention_1" },
+    });
+    expect(vm).toEqual({
+      liveBeat: null,
+      disclosure: null,
+      showThinkingFallback: true,
+    });
+  });
+
+  it("keeps every Thought step on the live shell so the first beat is not dropped", () => {
     const vm = resolveCoworkerThoughtViewModel({
       content: "",
       isStreamOverlay: true,
@@ -154,7 +212,7 @@ describe("resolveCoworkerThoughtViewModel", () => {
         ],
       },
     });
-    expect(vm.liveBeat).toBe("Latest beat.");
+    expect(vm.liveBeat).toBe("First beat.\n\nLatest beat.");
     expect(vm.disclosure).toBeNull();
   });
 
@@ -251,5 +309,40 @@ describe("resolveCoworkerThoughtViewModel", () => {
     expect(vm.liveBeat).toBeNull();
     expect(vm.disclosure?.text).toBe("Still thinking notes");
     expect(vm.showThinkingFallback).toBe(false);
+  });
+
+  it("does not treat a failed mention shell as live Thought", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "",
+      isStreamOverlay: false,
+      metadata: {
+        mention_id: "mention_1",
+        mention_failed: true,
+        streaming: true,
+        reasoning: [{ type: "reasoning", text: "Stale beat." }],
+      },
+    });
+    expect(vm.liveBeat).toBeNull();
+    expect(vm.showThinkingFallback).toBe(false);
+    expect(vm.disclosure).toBeNull();
+  });
+});
+
+describe("isFailedMentionThoughtShell", () => {
+  it("requires mention_failed and a mention_id", () => {
+    expect(isFailedMentionThoughtShell(null)).toBe(false);
+    expect(isFailedMentionThoughtShell({ mention_failed: true })).toBe(false);
+    expect(
+      isFailedMentionThoughtShell({
+        mention_id: "m1",
+        mention_failed: false,
+      }),
+    ).toBe(false);
+    expect(
+      isFailedMentionThoughtShell({
+        mention_id: "m1",
+        mention_failed: true,
+      }),
+    ).toBe(true);
   });
 });

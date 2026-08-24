@@ -44,6 +44,12 @@ describe("parseDeployComment", () => {
       kind: "usage",
     });
     assert.deepEqual(parseDeployComment("/deploy staging"), { kind: "usage" });
+    assert.deepEqual(parseDeployComment("/deploy all mainnet"), {
+      kind: "usage",
+    });
+    assert.deepEqual(parseDeployComment("/deploy all preprod"), {
+      kind: "usage",
+    });
   });
 
   it("parses one or both networks from the first line", () => {
@@ -71,6 +77,14 @@ describe("parseDeployComment", () => {
       kind: "deploy",
       networks: ["mainnet"],
     });
+    assert.deepEqual(parseDeployComment("/deploy all"), {
+      kind: "deploy",
+      networks: ["mainnet", "preprod"],
+    });
+    assert.deepEqual(parseDeployComment("/deploy ALL"), {
+      kind: "deploy",
+      networks: ["mainnet", "preprod"],
+    });
   });
 });
 
@@ -90,12 +104,17 @@ describe("isWritePermission", () => {
 });
 
 describe("usageMessage", () => {
-  it("lists the three commands and does not deploy on its own", () => {
+  it("lists the four commands and does not deploy on its own", () => {
     const message = usageMessage();
-    assert.match(message, /\/deploy <mainnet\|preprod>/);
+    assert.match(
+      message,
+      /Usage: `\/deploy <mainnet\|preprod> \[mainnet\|preprod\]` or `\/deploy all`/,
+    );
+    assert.doesNotMatch(message, /<mainnet\|preprod\|all>/);
     assert.match(message, /\/deploy mainnet/);
     assert.match(message, /\/deploy preprod/);
     assert.match(message, /\/deploy mainnet preprod/);
+    assert.match(message, /\/deploy all/);
     assert.doesNotMatch(message, /@vercel/);
   });
 });

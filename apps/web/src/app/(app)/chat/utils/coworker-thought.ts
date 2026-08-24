@@ -108,6 +108,24 @@ export function extractThoughtDurationSeconds(
   return Math.max(0, Math.round((end - start) / 1000));
 }
 
+/** Epoch ms to start the live elapsed clock. Null when missing or start ≤ 0. */
+export function extractThoughtStartedAtMs(metadata: unknown): number | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+  const timing = (metadata as Record<string, unknown>).thought_timing_ms;
+  if (!timing || typeof timing !== "object") {
+    return null;
+  }
+  const start = parseThoughtTimingNumber(
+    (timing as Record<string, unknown>).start,
+  );
+  if (start == null || start <= 0) {
+    return null;
+  }
+  return start;
+}
+
 /** Accept number or numeric string (align with Core metadata parsers). */
 function parseThoughtTimingNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -131,6 +149,46 @@ export function formatThoughtDurationLabel(totalSeconds: number): string {
   return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
 }
 
+/** Persisted mention Thought shell: live beat, not a 1:1 stream overlay. */
+export function isPersistedMentionThoughtShell(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+  const record = metadata as Record<string, unknown>;
+  return (
+    record.streaming === true &&
+    typeof record.mention_id === "string" &&
+    record.mention_id.length > 0 &&
+    record.mention_failed !== true
+  );
+}
+
+/** Empty coworker bubble left after mention dispatch failed. */
+export function isFailedMentionThoughtShell(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+  const record = metadata as Record<string, unknown>;
+  return (
+    record.mention_failed === true &&
+    typeof record.mention_id === "string" &&
+    record.mention_id.length > 0
+  );
+}
+
+function isLiveThoughtShell(input: {
+  isStreamOverlay: boolean;
+  metadata?: unknown;
+}): boolean {
+  if (isFailedMentionThoughtShell(input.metadata)) {
+    return false;
+  }
+  if (input.isStreamOverlay) {
+    return true;
+  }
+  return isPersistedMentionThoughtShell(input.metadata);
+}
+
 export function resolveCoworkerThoughtViewModel(input: {
   content: string;
   isStreamOverlay: boolean;
@@ -138,6 +196,13 @@ export function resolveCoworkerThoughtViewModel(input: {
   /** Optional live UIMessage parts when metadata not yet filled. */
   parts?: unknown;
 }): CoworkerThoughtViewModel {
+  if (isFailedMentionThoughtShell(input.metadata)) {
+    return {
+      liveBeat: null,
+      disclosure: null,
+      showThinkingFallback: false,
+    };
+  }
   const answer = input.content.trim();
   const thoughtTextFull =
     extractThoughtTextFromMetadata(input.metadata) ||
@@ -147,10 +212,11 @@ export function resolveCoworkerThoughtViewModel(input: {
     extractLatestThoughtBeatFromMessageParts(input.parts ?? null);
   const durationSeconds = extractThoughtDurationSeconds(input.metadata);
 
-  if (input.isStreamOverlay && answer.length === 0) {
-    if (liveBeatText.length > 0) {
+  if (isLiveThoughtShell(input) && answer.length === 0) {
+    const liveText = thoughtTextFull || liveBeatText;
+    if (liveText.length > 0) {
       return {
-        liveBeat: liveBeatText,
+        liveBeat: liveText,
         disclosure: null,
         showThinkingFallback: false,
       };

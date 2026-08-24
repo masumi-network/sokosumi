@@ -7,61 +7,29 @@
  */
 
 import { CircleAlert } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
-/** Beautiful UI loading timer: tenths under 60s, then `m s.s`. */
+/** Live timer: tenths under 10s, then whole seconds (`10s`, `1m 15s`). */
 export function formatBeautifulElapsed(elapsedMs: number): string {
   const total = Math.max(0, elapsedMs) / 1000;
-  if (total < 60) {
+  if (total < 10) {
     return `${total.toFixed(1)}s`;
   }
-  const minutes = Math.floor(total / 60);
-  const rem = total % 60;
-  return `${minutes}m ${rem.toFixed(1)}s`;
-}
-
-/**
- * Beautiful UI Drive (chevron wavefront left → right).
- * Demo uses 90ms step / 650ms cycle; we use slower timings for chat.
- */
-const DRIVE_CYCLE_MS = 1000;
-const DRIVE_DELAY_STEP_MS = 140;
-const DRIVE_PIXEL_DELAYS_MS = Array.from({ length: 9 }, (_, i) => {
-  const row = Math.floor(i / 3);
-  const col = i % 3;
-  return (col + Math.abs(row - 1)) * DRIVE_DELAY_STEP_MS;
-});
-
-/**
- * Sample Beautiful UI `pixel-on` opacity curve at phase [0, 1).
- * 0–18% rise, 18–42% hold bright, 42–62% fall, 62–100% dim.
- */
-export function drivePixelOpacityAtPhase(phase01: number): number {
-  const p = ((phase01 % 1) + 1) % 1;
-  const dim = 0.15;
-  const bright = 1;
-  if (p < 0.18) {
-    return dim + (bright - dim) * (p / 0.18);
+  const secs = Math.floor(total);
+  if (secs < 60) {
+    return `${secs}s`;
   }
-  if (p < 0.42) {
-    return bright;
-  }
-  if (p < 0.62) {
-    return bright + (dim - bright) * ((p - 0.42) / 0.2);
-  }
-  return dim;
-}
-
-/** Opacity for one Drive cell given elapsed animation time and cell delay. */
-export function drivePixelOpacity(
-  elapsedMs: number,
-  delayMs: number,
-  cycleMs = DRIVE_CYCLE_MS,
-): number {
-  const t = (((elapsedMs - delayMs) % cycleMs) + cycleMs) % cycleMs;
-  return drivePixelOpacityAtPhase(t / cycleMs);
+  const minutes = Math.floor(secs / 60);
+  const rem = secs % 60;
+  return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
 }
 
 /**
@@ -76,122 +44,6 @@ function useLiveElapsedMs(startedAtMs: number): number {
     return () => clearInterval(id);
   }, [startedAtMs]);
   return Math.max(0, now - startedAtMs);
-}
-
-/**
- * 3×3 Drive wave — rAF updates pixel opacity via refs (no React setState per frame).
- */
-function DrivePixelGrid() {
-  const cellRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  useEffect(() => {
-    const media =
-      typeof window !== "undefined"
-        ? window.matchMedia("(prefers-reduced-motion: reduce)")
-        : null;
-    let frame = 0;
-    let start = performance.now();
-
-    const stop = () => {
-      if (frame !== 0) {
-        cancelAnimationFrame(frame);
-        frame = 0;
-      }
-      for (const el of cellRefs.current) {
-        if (el) {
-          el.style.opacity = "0.15";
-        }
-      }
-    };
-
-    const startWave = () => {
-      stop();
-      start = performance.now();
-      const tick = (now: number) => {
-        const elapsedMs = now - start;
-        const cells = cellRefs.current;
-        for (let i = 0; i < DRIVE_PIXEL_DELAYS_MS.length; i += 1) {
-          const el = cells[i];
-          if (el) {
-            el.style.opacity = String(
-              drivePixelOpacity(elapsedMs, DRIVE_PIXEL_DELAYS_MS[i]!),
-            );
-          }
-        }
-        frame = requestAnimationFrame(tick);
-      };
-      frame = requestAnimationFrame(tick);
-    };
-
-    const onMotionPreferenceChange = () => {
-      if (media?.matches) {
-        stop();
-      } else {
-        startWave();
-      }
-    };
-
-    onMotionPreferenceChange();
-    media?.addEventListener("change", onMotionPreferenceChange);
-    return () => {
-      media?.removeEventListener("change", onMotionPreferenceChange);
-      stop();
-    };
-  }, []);
-
-  return (
-    <span aria-hidden className="bui-pixel-grid" data-testid="bui-drive-grid">
-      {DRIVE_PIXEL_DELAYS_MS.map((delayMs, i) => (
-        <span
-          key={i}
-          ref={(el) => {
-            cellRefs.current[i] = el;
-          }}
-          className="bui-pixel-cell"
-          style={{ opacity: drivePixelOpacity(0, delayMs) }}
-          data-testid="bui-drive-pixel"
-        />
-      ))}
-    </span>
-  );
-}
-
-/**
- * Pixel-grid loader + shimmer label + live elapsed (Beautiful UI Loading State).
- * Used for mention thinking + stream overlay waiting states.
- */
-export function CoworkerLoadingState({
-  label,
-  startedAtMs,
-  className,
-}: {
-  label: string;
-  startedAtMs: number;
-  className?: string;
-}) {
-  const elapsedMs = useLiveElapsedMs(startedAtMs);
-  return (
-    <div
-      className={cn("flex w-fit max-w-full items-center gap-1.5", className)}
-      role="status"
-      aria-live="polite"
-      data-testid="coworker-loading-state"
-    >
-      <DrivePixelGrid />
-      <span
-        className="bui-shimmer-text truncate text-xs font-medium"
-        data-testid="coworker-loading-label"
-      >
-        {label}
-      </span>
-      <span
-        aria-hidden
-        className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums"
-        data-testid="live-stream-elapsed"
-      >
-        {formatBeautifulElapsed(elapsedMs)}
-      </span>
-    </div>
-  );
 }
 
 interface CoworkerMentionFailedStatusProps {
@@ -232,16 +84,25 @@ export function CoworkerMentionTerminalStatus({
  * - Live: working shimmer "Thinking" + optional live beat in expanded body
  * - Done: "Thought for Ns" settled label + full Thought text
  */
+function thoughtBeatSteps(bodyText: string): string[] {
+  return bodyText
+    .split(/\n\n+/)
+    .map((step) => step.trim())
+    .filter((step) => step.length > 0);
+}
+
 export function CoworkerThoughtTrace({
   working,
   headerLabel,
   bodyText,
+  elapsed = null,
   defaultExpanded = false,
   className,
 }: {
   working: boolean;
   headerLabel: string;
   bodyText?: string | null;
+  elapsed?: ReactNode;
   defaultExpanded?: boolean;
   className?: string;
 }) {
@@ -249,6 +110,7 @@ export function CoworkerThoughtTrace({
   const traceRef = useRef<HTMLDivElement>(null);
   const [lineHeight, setLineHeight] = useState(0);
   const hasBody = Boolean(bodyText?.trim());
+  const beatSteps = hasBody ? thoughtBeatSteps(bodyText ?? "") : [];
 
   useLayoutEffect(() => {
     if (traceRef.current) {
@@ -301,6 +163,7 @@ export function CoworkerThoughtTrace({
             {headerLabel}
           </span>
         )}
+        {elapsed}
         {hasBody ? (
           <svg
             viewBox="0 0 24 24"
@@ -311,7 +174,9 @@ export function CoworkerThoughtTrace({
             strokeLinejoin="round"
             aria-hidden
             className="text-muted-foreground size-3 shrink-0 transition-transform duration-300"
-            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            style={{
+              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            }}
           >
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -334,24 +199,30 @@ export function CoworkerThoughtTrace({
             <div className="relative mt-0.5 ml-1 pl-3">
               <span
                 aria-hidden
-                className="bg-border absolute -top-1.5 left-px w-px"
+                className="bg-border absolute -top-1 left-px w-px"
                 style={{
                   // Dynamic body height from layout; 2px short so rail ends in the text block.
                   height: lineHeight ? Math.max(0, lineHeight - 2) : 0,
                   transition: "height 500ms cubic-bezier(0.23,1,0.32,1)",
                 }}
               />
-              <div ref={traceRef} className="flex flex-col gap-0.5 py-0.5">
-                <p
-                  className={cn(
-                    "text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap",
-                    // Spec: clamp live beat so multi-reader rooms do not flood.
-                    working && "line-clamp-3",
-                  )}
-                  data-testid="coworker-thought-body"
-                >
-                  {bodyText}
-                </p>
+              <div
+                ref={traceRef}
+                className={cn(
+                  "flex flex-col gap-1 py-0",
+                  // Spec: clamp live beat so multi-reader rooms do not flood.
+                  working && "line-clamp-3",
+                )}
+                data-testid="coworker-thought-body"
+              >
+                {beatSteps.map((step, index) => (
+                  <p
+                    key={`${index}:${step.slice(0, 24)}`}
+                    className="text-muted-foreground text-xs leading-snug"
+                  >
+                    {step}
+                  </p>
+                ))}
               </div>
             </div>
           </div>
@@ -362,8 +233,8 @@ export function CoworkerThoughtTrace({
 }
 
 /**
- * Live stream: loading grid when no beat yet; otherwise working Thought
- * header with live beat as expandable body (default open).
+ * Live Thought: sparkle header from silent think through beats so the icon
+ * does not swap when the first step arrives.
  */
 export function CoworkerLiveThought({
   label,
@@ -374,28 +245,23 @@ export function CoworkerLiveThought({
   liveBeat: string | null;
   startedAtMs: number;
 }) {
-  if (!liveBeat) {
-    return <CoworkerLoadingState label={label} startedAtMs={startedAtMs} />;
-  }
   return (
-    <div
-      className="flex min-w-0 flex-col gap-1"
-      role="status"
-      aria-live="polite"
-    >
+    <div className="min-w-0" role="status" aria-live="polite">
       <CoworkerThoughtTrace
         working
         headerLabel={label}
         bodyText={liveBeat}
         defaultExpanded
+        elapsed={
+          <span
+            aria-hidden
+            className="text-muted-foreground font-mono text-xs tabular-nums"
+            data-testid="live-stream-elapsed"
+          >
+            <LiveElapsed startedAtMs={startedAtMs} />
+          </span>
+        }
       />
-      <span
-        aria-hidden
-        className="text-muted-foreground ml-5 font-mono text-xs tabular-nums"
-        data-testid="live-stream-elapsed"
-      >
-        <LiveElapsed startedAtMs={startedAtMs} />
-      </span>
     </div>
   );
 }
