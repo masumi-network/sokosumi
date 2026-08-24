@@ -541,6 +541,7 @@ describe("git preview policy", () => {
     assert.match(workflow, /types:\s*\[created\]/);
     assert.doesNotMatch(workflow, /pull_request:/);
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
+    assert.match(workflow, /persist-credentials:\s*false/);
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
@@ -561,6 +562,7 @@ describe("git preview policy", () => {
     assert.match(workflow, /branches:\s*\[main\]/);
     assert.doesNotMatch(workflow, /pull_request:/);
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs production/);
+    assert.match(workflow, /persist-credentials:\s*false/);
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /cancel-in-progress:\s*false/);
