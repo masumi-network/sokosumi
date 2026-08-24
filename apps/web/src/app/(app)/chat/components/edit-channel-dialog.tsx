@@ -58,6 +58,13 @@ function isDiscoverability(value: string): value is Discoverability {
   return value === "public" || value === "private" || value === "external";
 }
 
+/** Host-org roster only. Guests are room-scoped and must not be sent as memberUserIds. */
+function hostRosterUserIds(channel: ChatRoom): string[] {
+  return channel.userMembers
+    .filter((member) => member.access !== "guest")
+    .map((member) => member.id);
+}
+
 export function EditChannelDialog({
   channel,
   members,
@@ -107,8 +114,8 @@ export function EditChannelDialog({
   const [discoverability, setDiscoverability] = useState<Discoverability>(
     channelDiscoverability(channel.discoverability),
   );
-  const [memberIds, setMemberIds] = useState<string[]>(
-    channel.userMembers.map((member) => member.id),
+  const [memberIds, setMemberIds] = useState<string[]>(() =>
+    hostRosterUserIds(channel),
   );
   const [coworkerIds, setCoworkerIds] = useState<string[]>(
     channel.coworkerMembers.map((coworker) => coworker.id),
@@ -122,7 +129,7 @@ export function EditChannelDialog({
     setName(channel.name);
     setTopic(channel.topic ?? "");
     setDiscoverability(channelDiscoverability(channel.discoverability));
-    setMemberIds(channel.userMembers.map((member) => member.id));
+    setMemberIds(hostRosterUserIds(channel));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
     setGuestMembers(
       channel.userMembers.filter((member) => member.access === "guest"),
