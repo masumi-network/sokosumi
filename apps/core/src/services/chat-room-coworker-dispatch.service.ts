@@ -245,19 +245,32 @@ async function failMentionWithCoworkerShell(params: {
   roomId: string;
   parentMessageId: string | null;
   coworkerId: string;
+  existingPlaceholderId: string | null;
   error: unknown;
 }): Promise<void> {
-  try {
-    const placeholderId = await publishMentionThoughtPlaceholder({
-      placeholderId: null,
-      roomId: params.roomId,
-      parentMessageId: params.parentMessageId,
-      sourceMessageId: params.sourceMessageId,
-      mentionId: params.mentionId,
-      coworkerId: params.coworkerId,
-      reasoningSteps: [],
-      thoughtStartedAtMs: 0,
+  let placeholderId = params.existingPlaceholderId;
+  if (placeholderId) {
+    const linked = await prisma.chatRoomMessage.findUnique({
+      where: { id: placeholderId },
+      select: { id: true, deletedAt: true },
     });
+    if (linked == null || linked.deletedAt != null) {
+      placeholderId = null;
+    }
+  }
+  try {
+    if (!placeholderId) {
+      placeholderId = await publishMentionThoughtPlaceholder({
+        placeholderId: null,
+        roomId: params.roomId,
+        parentMessageId: params.parentMessageId,
+        sourceMessageId: params.sourceMessageId,
+        mentionId: params.mentionId,
+        coworkerId: params.coworkerId,
+        reasoningSteps: [],
+        thoughtStartedAtMs: 0,
+      });
+    }
     await failMentionThoughtPlaceholder({
       placeholderId,
       sourceMessageId: params.sourceMessageId,
@@ -467,6 +480,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       roomId: mention.message.roomId,
       parentMessageId: mention.message.parentMessageId,
       coworkerId: mention.coworker.id,
+      existingPlaceholderId: mention.responseMessageId,
       error,
     });
 

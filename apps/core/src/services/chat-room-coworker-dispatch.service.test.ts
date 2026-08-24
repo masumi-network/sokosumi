@@ -486,6 +486,35 @@ describe("dispatchChatRoomMention claim", () => {
     });
   });
 
+  it("reuses the linked placeholder when pre-claim fail already has a shell", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      status: "sent",
+      responseMessageId: "reply_existing",
+    });
+    coworkerMemberFindUniqueMock.mockResolvedValue(null);
+    messageFindUniqueMock.mockResolvedValue({
+      id: "reply_existing",
+      deletedAt: null,
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: { id: "reply_existing" },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
   it("fails closed when membership disappears during streamText", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
@@ -693,6 +722,28 @@ describe("dispatchChatRoomMention claim", () => {
         status: "responded",
         responseMessageId: "reply_existing",
       }),
+    });
+  });
+
+  it("creates a new Thought shell when the linked placeholder is soft-deleted", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      responseMessageId: "reply_existing",
+    });
+    updateManyMock.mockResolvedValue({ count: 1 });
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        id: "reply_existing",
+        deletedAt: new Date("2026-08-02T00:00:00.000Z"),
+      })
+      .mockResolvedValue({ deletedAt: null });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID },
+      data: { responseMessageId: "reply_1" },
     });
   });
 
