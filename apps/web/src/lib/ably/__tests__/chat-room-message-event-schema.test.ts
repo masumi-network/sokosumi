@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   chatRoomMessageEventDataSchema,
+  isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
 } from "../schema";
 
@@ -38,12 +39,42 @@ describe("chatRoomMessageEventDataSchema", () => {
       if (parsed.success) {
         expect(parsed.data.eventType).toBe(eventType);
         expect(isChatRoomMessagePatchEvent(parsed.data)).toBe(false);
-        if (!isChatRoomMessagePatchEvent(parsed.data)) {
+        expect(isChatRoomMessageIdEnvelope(parsed.data)).toBe(false);
+        if ("message" in parsed.data) {
           expect(parsed.data.message.id).toBe("msg-1");
         }
       }
     },
   );
+
+  it.each([...fullEventTypes])(
+    "accepts eventType %s as an id envelope without a message DTO",
+    (eventType) => {
+      const parsed = chatRoomMessageEventDataSchema.safeParse({
+        eventType,
+        messageId: "msg-1",
+        roomId: "room-1",
+        parentMessageId: null,
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(isChatRoomMessagePatchEvent(parsed.data)).toBe(false);
+        expect(isChatRoomMessageIdEnvelope(parsed.data)).toBe(true);
+        if (isChatRoomMessageIdEnvelope(parsed.data)) {
+          expect(parsed.data.messageId).toBe("msg-1");
+          expect(parsed.data.roomId).toBe("room-1");
+        }
+      }
+    },
+  );
+
+  it("rejects an id envelope missing routing keys", () => {
+    const parsed = chatRoomMessageEventDataSchema.safeParse({
+      eventType: "create",
+      messageId: "msg-1",
+    });
+    expect(parsed.success).toBe(false);
+  });
 
   it("accepts a reaction patch envelope", () => {
     const parsed = chatRoomMessageEventDataSchema.safeParse({
