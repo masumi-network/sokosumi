@@ -59,6 +59,7 @@ import {
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
+import { sourceImportService } from "@/services/source-import.service";
 import {
   createTaskPaymentClaim,
   processTaskPaymentClaim,
@@ -541,6 +542,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         chargedMasumiPayment && masumiPayment !== undefined
           ? masumiPayment
           : null;
+
+      // Enqueue PENDING task-output files from comment (in-transaction for durability)
+      if (comment) {
+        await sourceImportService.enqueueTaskOutputsFromMarkdown(
+          taskId,
+          comment,
+          tx,
+        );
+      }
 
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),

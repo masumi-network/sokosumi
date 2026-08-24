@@ -43,7 +43,10 @@ import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
 import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
-import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
+import type {
+  TaskEvent,
+  TaskFile,
+} from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,
@@ -82,6 +85,7 @@ interface TaskActivityProps {
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
   events: TaskEvent[];
+  taskFiles: TaskFile[];
   agentNameById?: Map<string, string>;
   userById?: Record<string, TaskActivityActorInfo>;
   coworkerById?: Record<string, TaskActivityActorInfo>;
@@ -135,6 +139,43 @@ function AnimatedNewRow({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Match a comment file URL to a TaskFile. Prefers exact sourceUrl (keeps ?token=),
+ * then fileUrl, then pathname basename === name (only when exactly one file matches).
+ */
+function matchTaskFile(
+  url: string,
+  taskFiles: TaskFile[],
+): TaskFile | undefined {
+  // Try exact sourceUrl match first
+  for (const file of taskFiles) {
+    if (file.sourceUrl === url) {
+      return file;
+    }
+  }
+  // Try fileUrl match
+  for (const file of taskFiles) {
+    if (file.fileUrl === url) {
+      return file;
+    }
+  }
+  // Try pathname basename match (only if unique)
+  const urlBasename = url.split("/").pop()?.split("?")[0];
+  if (urlBasename) {
+    const basenameMatches: TaskFile[] = [];
+    for (const file of taskFiles) {
+      if (file.name === urlBasename) {
+        basenameMatches.push(file);
+      }
+    }
+    // Return basename match only when exactly one file matches
+    if (basenameMatches.length === 1) {
+      return basenameMatches[0];
+    }
+  }
+  return undefined;
+}
+
 export function TaskActivitySection({
   taskId,
   title,
@@ -148,6 +189,7 @@ export function TaskActivitySection({
   actionCommentedLabel,
   actionUpdatedStatusLabel,
   events,
+  taskFiles,
   agentNameById,
   userById,
   coworkerById,
@@ -467,15 +509,29 @@ export function TaskActivitySection({
                 )
               : null;
             const sourceFiles = formattedComment
-              ? extractFileLikeLinks(formattedComment).map(
-                  (url, fileIndex) => ({
+              ? extractFileLikeLinks(formattedComment).map((url, fileIndex) => {
+                  const matchedFile = matchTaskFile(url, taskFiles);
+                  if (matchedFile) {
+                    return {
+                      id: `${event.id}-file-${fileIndex}`,
+                      sourceUrl: url,
+                      fileUrl: matchedFile.fileUrl,
+                      name: matchedFile.name,
+                      status: matchedFile.status,
+                      size: matchedFile.size,
+                      mimeType: matchedFile.mimeType,
+                    };
+                  }
+                  return {
                     id: `${event.id}-file-${fileIndex}`,
                     sourceUrl: url,
                     fileUrl: url,
                     name: getFileNameFromUrl(url),
                     status: BlobStatus.READY,
-                  }),
-                )
+                    size: null,
+                    mimeType: null,
+                  };
+                })
               : [];
             const sourceLinks = formattedComment
               ? extractHttpLinks(formattedComment).map((url, linkIndex) => ({
