@@ -75,7 +75,7 @@ export function isWritePermission(permission) {
 
 export function usageMessage() {
   return [
-    "Usage: `/deploy <mainnet|preprod|all> [mainnet|preprod]`",
+    "Usage: `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
     "",
     "`/deploy mainnet`",
     "`/deploy preprod`",

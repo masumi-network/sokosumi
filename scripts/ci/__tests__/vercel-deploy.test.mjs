@@ -106,7 +106,11 @@ describe("isWritePermission", () => {
 describe("usageMessage", () => {
   it("lists the four commands and does not deploy on its own", () => {
     const message = usageMessage();
-    assert.match(message, /\/deploy <mainnet\|preprod\|all>/);
+    assert.match(
+      message,
+      /Usage: `\/deploy <mainnet\|preprod> \[mainnet\|preprod\]` or `\/deploy all`/,
+    );
+    assert.doesNotMatch(message, /<mainnet\|preprod\|all>/);
     assert.match(message, /\/deploy mainnet/);
     assert.match(message, /\/deploy preprod/);
     assert.match(message, /\/deploy mainnet preprod/);
