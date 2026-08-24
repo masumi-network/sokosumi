@@ -32,6 +32,7 @@ vi.mock("@/app/chat/actions", () => ({
 const HOST_USER_ID = "user-host";
 const GUEST_USER_ID = "user-guest";
 const COWORKER_ID = "cow-soupie";
+const CHANNEL_ID = "019ff075-f49c-76cf-8104-39905b4fc081";
 
 function hostMember(): Member {
   return {
@@ -53,18 +54,33 @@ function hostMember(): Member {
 function soupie(): Coworker {
   return {
     id: COWORKER_ID,
-    name: "Soupie",
-    slug: "soupie",
-    caption: null,
-    image: null,
     createdAt: new Date("2026-07-01T12:00:00.000Z"),
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
-  } as Coworker;
+    archivedAt: null,
+    isWhitelisted: true,
+    priority: 0,
+    slug: "soupie",
+    name: "Soupie",
+    caption: null,
+    vendor: {
+      id: "vendor-1",
+      createdAt: new Date("2026-07-01T12:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+      name: "Acme",
+      slug: "acme",
+      logos: { light: null, dark: null },
+    },
+    url: null,
+    baseURL: "https://chat.example.com",
+    description: null,
+    capabilities: ["chat"],
+    image: null,
+  };
 }
 
 function externalChannel(): ChatRoom {
   return {
-    id: "019ff075-f49c-76cf-8104-39905b4fc081",
+    id: CHANNEL_ID,
     organizationId: "org-1",
     organizationName: "Acme",
     name: "general",
@@ -100,21 +116,12 @@ function externalChannel(): ChatRoom {
         access: "guest",
       },
     ],
-    coworkerMembers: [
-      {
-        id: COWORKER_ID,
-        name: "Soupie",
-        slug: "soupie",
-        caption: null,
-        image: null,
-        presence: "offline",
-      },
-    ],
+    coworkerMembers: [],
   };
 }
 
 describe("EditChannelDialog host roster payload", () => {
-  it("omits guest user ids from memberUserIds when saving a coworker onto an external channel", async () => {
+  it("omits guest user ids from memberUserIds when adding a coworker on an external channel", async () => {
     updateRoomActionMock.mockResolvedValue({
       ok: true,
       value: externalChannel(),
@@ -135,18 +142,17 @@ describe("EditChannelDialog host roster payload", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));
+    await user.click(screen.getByText("Soupie"));
     await user.click(screen.getByRole("button", { name: "Dialog.save" }));
 
     await waitFor(() => {
-      expect(updateRoomActionMock).toHaveBeenCalled();
+      expect(updateRoomActionMock).toHaveBeenCalledWith(
+        CHANNEL_ID,
+        expect.objectContaining({
+          memberUserIds: [HOST_USER_ID],
+          coworkerIds: [COWORKER_ID],
+        }),
+      );
     });
-
-    const [, body] = updateRoomActionMock.mock.calls[0] as [
-      string,
-      { memberUserIds: string[]; coworkerIds: string[] },
-    ];
-    expect(body.memberUserIds).toEqual([HOST_USER_ID]);
-    expect(body.memberUserIds).not.toContain(GUEST_USER_ID);
-    expect(body.coworkerIds).toEqual([COWORKER_ID]);
   });
 });
