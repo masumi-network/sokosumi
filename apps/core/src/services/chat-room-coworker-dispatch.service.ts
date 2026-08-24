@@ -209,6 +209,31 @@ async function discardMentionThoughtPlaceholder(
   }
 }
 
+/** Keep the assistant bubble so fail + Retry can live on it. */
+async function failMentionThoughtPlaceholder(params: {
+  placeholderId: string | null;
+  sourceMessageId: string;
+  mentionId: string;
+}): Promise<void> {
+  if (!params.placeholderId) {
+    return;
+  }
+  await prisma.chatRoomMessage
+    .update({
+      where: { id: params.placeholderId },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: params.sourceMessageId,
+          mention_id: params.mentionId,
+          mention_failed: true,
+        },
+      },
+    })
+    .catch(() => undefined);
+  await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
+}
+
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
 /** Per-message cap inside the context block so one wall of text cannot eat the prompt. */
@@ -581,6 +606,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   let lastThoughtPublishAt = 0;
   let thoughtPublishQueue = Promise.resolve();
   let mentionPublished = false;
+  let keepFailedPlaceholder = false;
   const parentMessageId = mention.message.parentMessageId;
 
   try {
@@ -630,6 +656,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         mentionId,
         responseText || "Coworker returned an empty response",
       );
+      keepFailedPlaceholder = true;
       return;
     }
 
@@ -670,7 +697,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
             error: "Coworker is no longer a member of this room",
           },
         });
-        return null;
+        return { kind: "failed" as const };
       }
 
       // Soft-delete during streamText cancels the mention to `failed` and
@@ -690,7 +717,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
             error: "Source message was deleted",
           },
         });
-        return null;
+        return { kind: "failed" as const };
       }
 
       // Persist the reply first, then claim the mention transition. If another
@@ -731,7 +758,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
             where: { id: responseMessage.id },
           });
         }
-        return null;
+        return { kind: "lost_claim" as const };
       }
 
       await tx.chatRoom.update({
@@ -740,12 +767,20 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       });
 
       return {
+        kind: "published" as const,
         responseMessageId: responseMessage.id,
         sourceMessageId: mention.message.id,
       };
     });
 
     if (!publishedMessageIds) {
+      return;
+    }
+    if (publishedMessageIds.kind === "failed") {
+      keepFailedPlaceholder = true;
+      return;
+    }
+    if (publishedMessageIds.kind === "lost_claim") {
       return;
     }
 
@@ -758,6 +793,9 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       publishedMessageIds.sourceMessageId,
       "mention_status",
     );
+  } catch (error) {
+    keepFailedPlaceholder = true;
+    throw error;
   } finally {
     if (!mentionPublished) {
       await thoughtPublishQueue.catch(() => undefined);
@@ -768,7 +806,15 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       const winnerKeptRow =
         latest?.status === "responded" &&
         latest.responseMessageId === placeholderId;
-      if (!winnerKeptRow) {
+      if (winnerKeptRow) {
+        // Winning worker already finalized this row.
+      } else if (keepFailedPlaceholder || latest?.status === "failed") {
+        await failMentionThoughtPlaceholder({
+          placeholderId,
+          sourceMessageId: mention.message.id,
+          mentionId,
+        });
+      } else {
         await discardMentionThoughtPlaceholder(placeholderId, parentMessageId);
       }
     }

@@ -720,7 +720,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(publishRealtimeMock).toHaveBeenCalledWith("msg_1", "mention_status");
   });
 
-  it("deletes the Thought placeholder when mention dispatch fails after stream", async () => {
+  it("keeps a failed Thought shell when mention dispatch fails after stream", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberFindUniqueMock
@@ -743,8 +743,20 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(createMock).toHaveBeenCalled();
-    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
-    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: { id: "reply_1" },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
+    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "update");
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: MENTION_ID,
@@ -757,7 +769,7 @@ describe("dispatchChatRoomMention claim", () => {
     });
   });
 
-  it("discards the Thought placeholder when the provider stream throws", async () => {
+  it("keeps a failed Thought shell when the provider stream throws", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     streamTextMock.mockReturnValue({
@@ -779,8 +791,20 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(createMock).toHaveBeenCalled();
-    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
-    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: { id: "reply_1" },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
+    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "update");
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: MENTION_ID, status: { not: "responded" } },
       data: expect.objectContaining({
@@ -810,8 +834,20 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(createMock).toHaveBeenCalled();
-    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
-    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: { id: "reply_1" },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
+    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "update");
     expect(transactionUpdateManyMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "responded" }),
