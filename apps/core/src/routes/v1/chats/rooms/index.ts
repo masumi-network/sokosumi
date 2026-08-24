@@ -14,6 +14,7 @@ import mountDeleteChatRoomMember from "./[id]/members/[userId]/delete.js";
 import mountDeleteChatRoomSelfMembership from "./[id]/members/me/delete.js";
 import mountPostChatRoomSelfMembership from "./[id]/members/me/post.js";
 import mountDeleteChatRoomMessage from "./[id]/messages/[messageId]/delete.js";
+import mountRetryChatRoomMention from "./[id]/messages/[messageId]/mentions/[mentionId]/retry/post.js";
 import mountPatchChatRoomMessage from "./[id]/messages/[messageId]/patch.js";
 import mountPostChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/post.js";
 import mountGetChatRoomMessages from "./[id]/messages/get.js";
@@ -81,6 +82,7 @@ mountPostChatRoomMessage(app);
 mountDeleteChatRoomMessage(app);
 mountPatchChatRoomMessage(app);
 mountPostChatRoomMessageReaction(app);
+mountRetryChatRoomMention(app);
 mountPostChatRoomFile(app);
 
 export default app;
