@@ -4,7 +4,10 @@ import { streamText } from "ai";
 
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
-import { thoughtMetadataFields } from "@/helpers/persist-assistant-to-chat-room";
+import {
+  reasoningPartsToMetadata,
+  thoughtMetadataFields,
+} from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
@@ -29,6 +32,258 @@ export const ROOM_COWORKER_STREAM_TIMEOUT = {
 /** Must exceed `ROOM_COWORKER_TOTAL_MS` so reclaim cannot steal an in-flight run. */
 export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TOTAL_MS + 30_000;
 const STALE_SENT_RECLAIM_LIMIT = 10;
+/** Cap Ably thought updates; first beat always publishes. */
+const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
+
+interface MentionStreamPart {
+  type: string;
+  text?: string;
+  error?: unknown;
+}
+
+interface MentionStreamConsumption {
+  text: string;
+  reasoningSteps: Array<{ type: string; text: string }>;
+}
+
+function mentionStreamIterable(result: {
+  fullStream?: AsyncIterable<MentionStreamPart>;
+  stream?: AsyncIterable<MentionStreamPart>;
+}): AsyncIterable<MentionStreamPart> | null {
+  if (
+    result.fullStream &&
+    typeof result.fullStream[Symbol.asyncIterator] === "function"
+  ) {
+    return result.fullStream;
+  }
+  if (
+    result.stream &&
+    typeof result.stream[Symbol.asyncIterator] === "function"
+  ) {
+    return result.stream;
+  }
+  return null;
+}
+
+function previewReasoningSteps(
+  completed: Array<{ type: string; text: string }>,
+  currentDelta: string,
+): Array<{ type: string; text: string }> {
+  const trimmed = currentDelta.trim();
+  if (!trimmed) {
+    return completed;
+  }
+  return [...completed, { type: "reasoning", text: trimmed }];
+}
+
+async function consumeMentionProviderStream(
+  result: {
+    fullStream?: AsyncIterable<MentionStreamPart>;
+    stream?: AsyncIterable<MentionStreamPart>;
+    text?: PromiseLike<string>;
+    reasoning?: PromiseLike<unknown>;
+  },
+  onThought: (steps: Array<{ type: string; text: string }>) => void,
+): Promise<MentionStreamConsumption> {
+  const iterable = mentionStreamIterable(result);
+  if (!iterable) {
+    const responseText = ((await result.text) ?? "").trim();
+    const reasoningSteps =
+      reasoningPartsToMetadata(await result.reasoning) ?? [];
+    return { text: responseText, reasoningSteps };
+  }
+
+  const reasoningSteps: Array<{ type: string; text: string }> = [];
+  let currentReasoning = "";
+  let text = "";
+
+  for await (const part of iterable) {
+    if (part.type === "reasoning-delta" && typeof part.text === "string") {
+      currentReasoning += part.text;
+      const preview = previewReasoningSteps(reasoningSteps, currentReasoning);
+      if (preview.length > 0) {
+        onThought(preview);
+      }
+    } else if (
+      part.type === "reasoning" ||
+      part.type === "reasoning-end" ||
+      part.type === "reasoning-part-finish"
+    ) {
+      const stepText =
+        typeof part.text === "string" && part.text.trim().length > 0
+          ? part.text.trim()
+          : currentReasoning.trim();
+      if (stepText) {
+        reasoningSteps.push({ type: "reasoning", text: stepText });
+      }
+      currentReasoning = "";
+      if (reasoningSteps.length > 0) {
+        onThought(reasoningSteps);
+      }
+    } else if (part.type === "text-delta" && typeof part.text === "string") {
+      text += part.text;
+    } else if (part.type === "error") {
+      const message =
+        typeof part.error === "string"
+          ? part.error
+          : part.error instanceof Error
+            ? part.error.message
+            : "Coworker stream error";
+      throw new Error(message);
+    }
+  }
+
+  if (currentReasoning.trim()) {
+    reasoningSteps.push({
+      type: "reasoning",
+      text: currentReasoning.trim(),
+    });
+  }
+
+  return { text: text.trim(), reasoningSteps };
+}
+
+async function publishMentionThoughtPlaceholder(params: {
+  placeholderId: string | null;
+  roomId: string;
+  parentMessageId: string | null;
+  sourceMessageId: string;
+  mentionId: string;
+  coworkerId: string;
+  reasoningSteps: Array<{ type: string; text: string }>;
+  thoughtStartedAtMs: number;
+}): Promise<string> {
+  const metadata: Record<string, unknown> = {
+    in_reply_to_message_id: params.sourceMessageId,
+    mention_id: params.mentionId,
+    streaming: true,
+    reasoning: params.reasoningSteps,
+  };
+  if (params.thoughtStartedAtMs > 0) {
+    metadata.thought_timing_ms = { start: params.thoughtStartedAtMs };
+  }
+  if (params.placeholderId) {
+    await prisma.chatRoomMessage.update({
+      where: { id: params.placeholderId },
+      data: { metadata },
+    });
+    await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
+    return params.placeholderId;
+  }
+  const created = await prisma.$transaction(async (tx) => {
+    const row = await tx.chatRoomMessage.create({
+      data: {
+        roomId: params.roomId,
+        parentMessageId: params.parentMessageId,
+        senderCoworkerId: params.coworkerId,
+        content: "",
+        metadata,
+      },
+    });
+    await tx.chatRoomMention.update({
+      where: { id: params.mentionId },
+      data: { responseMessageId: row.id },
+    });
+    return row;
+  });
+  try {
+    await publishChatRoomMessageRealtimeById(created.id, "create");
+  } catch (publishError) {
+    console.error("Mention Thought placeholder Ably create failed:", {
+      mentionId: params.mentionId,
+      error: publishError,
+    });
+  }
+  return created.id;
+}
+
+async function discardMentionThoughtPlaceholder(
+  placeholderId: string | null,
+  parentMessageId: string | null,
+): Promise<void> {
+  if (!placeholderId) {
+    return;
+  }
+  await publishChatRoomMessageRealtimeById(placeholderId, "delete");
+  await prisma.chatRoomMessage
+    .delete({ where: { id: placeholderId } })
+    .catch(() => undefined);
+  if (parentMessageId) {
+    await publishChatRoomMessageRealtimeById(parentMessageId, "update");
+  }
+}
+
+/** Keep the assistant bubble so fail + Retry can live on it. */
+async function failMentionThoughtPlaceholder(params: {
+  placeholderId: string | null;
+  sourceMessageId: string;
+  mentionId: string;
+}): Promise<void> {
+  if (!params.placeholderId) {
+    return;
+  }
+  await prisma.chatRoomMessage
+    .update({
+      where: { id: params.placeholderId },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: params.sourceMessageId,
+          mention_id: params.mentionId,
+          mention_failed: true,
+        },
+      },
+    })
+    .catch(() => undefined);
+  await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
+}
+
+/** Pre-claim fail still needs a coworker bubble; parent has no mention footer. */
+async function failMentionWithCoworkerShell(params: {
+  mentionId: string;
+  sourceMessageId: string;
+  roomId: string;
+  parentMessageId: string | null;
+  coworkerId: string;
+  existingPlaceholderId: string | null;
+  error: unknown;
+}): Promise<void> {
+  let placeholderId = params.existingPlaceholderId;
+  if (placeholderId) {
+    const linked = await prisma.chatRoomMessage.findUnique({
+      where: { id: placeholderId },
+      select: { id: true, deletedAt: true },
+    });
+    if (linked == null || linked.deletedAt != null) {
+      placeholderId = null;
+    }
+  }
+  try {
+    if (!placeholderId) {
+      placeholderId = await publishMentionThoughtPlaceholder({
+        placeholderId: null,
+        roomId: params.roomId,
+        parentMessageId: params.parentMessageId,
+        sourceMessageId: params.sourceMessageId,
+        mentionId: params.mentionId,
+        coworkerId: params.coworkerId,
+        reasoningSteps: [],
+        thoughtStartedAtMs: 0,
+      });
+    }
+    await failMentionThoughtPlaceholder({
+      placeholderId,
+      sourceMessageId: params.sourceMessageId,
+      mentionId: params.mentionId,
+    });
+  } catch (publishError) {
+    console.error("Mention failed-shell create failed:", {
+      mentionId: params.mentionId,
+      error: publishError,
+    });
+  }
+  await markMentionFailed(params.mentionId, params.error);
+}
 
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
@@ -218,9 +473,20 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
   // Fail closed when the human sender row was deleted (SetNull): billing /
   // provider auth as the room creator would attribute cost to the wrong user.
+  const failWithShell = (error: unknown) =>
+    failMentionWithCoworkerShell({
+      mentionId,
+      sourceMessageId: mention.message.id,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      coworkerId: mention.coworker.id,
+      existingPlaceholderId: mention.responseMessageId,
+      error,
+    });
+
   const userId = mention.message.senderUserId;
   if (!userId) {
-    await markMentionFailed(mentionId, "Mention sender is no longer available");
+    await failWithShell("Mention sender is no longer available");
     return;
   }
 
@@ -232,7 +498,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       personalUserId: userId,
     });
   } catch {
-    await markMentionFailed(mentionId, "Coworker chat is not available");
+    await failWithShell("Coworker chat is not available");
     return;
   }
 
@@ -244,7 +510,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     { requireBaseUrl: true },
   );
   if (!usableCoworker?.baseURL?.trim()) {
-    await markMentionFailed(mentionId, "Coworker chat is not available");
+    await failWithShell("Coworker chat is not available");
     return;
   }
 
@@ -265,10 +531,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     select: { id: true },
   });
   if (!membership) {
-    await markMentionFailed(
-      mentionId,
-      "Coworker is no longer a member of this room",
-    );
+    await failWithShell("Coworker is no longer a member of this room");
     return;
   }
 
@@ -278,6 +541,39 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   const claimed = await claimMentionForDispatch(mentionId);
   if (!claimed) {
     return;
+  }
+
+  // Open the coworker bubble before conversation create so the room never
+  // flashes Calling on the parent then jumps to Thinking.
+  const generationStartedAtMs = Date.now();
+  const parentMessageId = mention.message.parentMessageId;
+  const linkedPlaceholderId = mention.responseMessageId;
+  let placeholderId: string | null = null;
+  if (linkedPlaceholderId) {
+    const linked = await prisma.chatRoomMessage.findUnique({
+      where: { id: linkedPlaceholderId },
+      select: { id: true, deletedAt: true },
+    });
+    if (linked != null && linked.deletedAt == null) {
+      placeholderId = linkedPlaceholderId;
+    }
+  }
+  try {
+    placeholderId = await publishMentionThoughtPlaceholder({
+      placeholderId,
+      roomId: mention.message.roomId,
+      parentMessageId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+      coworkerId: coworker.id,
+      reasoningSteps: [],
+      thoughtStartedAtMs: generationStartedAtMs,
+    });
+  } catch (publishError) {
+    console.error("Mention Thought placeholder create failed:", {
+      mentionId,
+      error: publishError,
+    });
   }
 
   const senderName = mention.message.senderUser?.name ?? "A teammate";
@@ -305,15 +601,25 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       priorThreadMention?.providerConversationId ?? null;
   }
 
-  const providerConversation = existingProviderConversationId
-    ? { id: existingProviderConversationId }
-    : await createCoworkerConversation({
-        responsesApiBaseUrl: baseURL,
-        sokosumiUserId: userId,
-        sokosumiOrganizationId: mention.message.room.organizationId,
-        coworkerSlug: coworker.slug,
-        sokosumiConversationId: mention.message.id,
-      });
+  let providerConversation: { id: string };
+  try {
+    providerConversation = existingProviderConversationId
+      ? { id: existingProviderConversationId }
+      : await createCoworkerConversation({
+          responsesApiBaseUrl: baseURL,
+          sokosumiUserId: userId,
+          sokosumiOrganizationId: mention.message.room.organizationId,
+          coworkerSlug: coworker.slug,
+          sokosumiConversationId: mention.message.id,
+        });
+  } catch (error) {
+    await failMentionThoughtPlaceholder({
+      placeholderId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+    });
+    throw error;
+  }
 
   await prisma.chatRoomMention.update({
     where: { id: mentionId },
@@ -374,10 +680,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     contextMessages,
   });
 
-  // Idle chunk timeouts abort stalls; totalMs is the hard ceiling.
-  // Wall-clock generation time (not reasoning-token phase only) — product
-  // "Thought for …" matches the live "is thinking" timer the user saw.
-  const generationStartedAtMs = Date.now();
   const result = streamText({
     model: getSokosumiProvider()(null),
     messages: [{ role: "user", content: prompt }],
@@ -387,124 +689,222 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       sokosumi: providerOptions,
     } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
   });
-  const responseText = (await result.text).trim();
-  const generationEndedAtMs = Date.now();
-  if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
-    await markMentionFailed(
-      mentionId,
-      responseText || "Coworker returned an empty response",
-    );
-    return;
-  }
+  let lastThoughtPublishAt = 0;
+  let thoughtPublishQueue = Promise.resolve();
+  let mentionPublished = false;
+  let keepFailedPlaceholder = false;
+  let lostFinalizeClaim = false;
 
-  const reasoningParts = await result.reasoning;
-  const hasReasoning =
-    Array.isArray(reasoningParts) && reasoningParts.length > 0;
-  const thoughtTiming = hasReasoning
-    ? {
-        startedAtMs: generationStartedAtMs,
-        endedAtMs: generationEndedAtMs,
-      }
-    : undefined;
-  const thoughtMeta = thoughtMetadataFields(reasoningParts, thoughtTiming);
-
-  const publishedMessageIds = await prisma.$transaction(async (tx) => {
-    // Re-check membership after the provider call: eviction during streamText
-    // must not land a reply in a room the coworker left.
-    const stillMember = await tx.chatRoomCoworkerMember.findUnique({
-      where: {
-        roomId_coworkerId: {
-          roomId: mention.message.roomId,
-          coworkerId: coworker.id,
-        },
-      },
-      select: { id: true },
-    });
-    if (!stillMember) {
-      await tx.chatRoomMention.updateMany({
-        where: {
-          id: mention.id,
-          status: { in: ["pending", "sent"] },
-        },
-        data: {
-          status: "failed",
-          error: "Coworker is no longer a member of this room",
-        },
+  try {
+    const { text: streamedText, reasoningSteps: streamedReasoning } =
+      await consumeMentionProviderStream(result, (steps) => {
+        thoughtPublishQueue = thoughtPublishQueue
+          .then(async () => {
+            const now = Date.now();
+            if (
+              placeholderId != null &&
+              now - lastThoughtPublishAt <
+                MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS
+            ) {
+              return;
+            }
+            lastThoughtPublishAt = now;
+            placeholderId = await publishMentionThoughtPlaceholder({
+              placeholderId,
+              roomId: mention.message.roomId,
+              parentMessageId,
+              sourceMessageId: mention.message.id,
+              mentionId,
+              coworkerId: coworker.id,
+              reasoningSteps: steps,
+              thoughtStartedAtMs: generationStartedAtMs,
+            });
+          })
+          .catch((publishError) => {
+            console.error("Mention Thought placeholder publish failed:", {
+              mentionId,
+              error: publishError,
+            });
+          });
       });
-      return null;
+    await thoughtPublishQueue;
+
+    let responseText = streamedText;
+    if (!responseText) {
+      responseText = ((await result.text) ?? "").trim();
+    }
+    let reasoningSteps = streamedReasoning;
+    if (reasoningSteps.length === 0) {
+      reasoningSteps = reasoningPartsToMetadata(await result.reasoning) ?? [];
+    }
+    const generationEndedAtMs = Date.now();
+    if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
+      await markMentionFailed(
+        mentionId,
+        responseText || "Coworker returned an empty response",
+      );
+      keepFailedPlaceholder = true;
+      return;
     }
 
-    // Soft-delete during streamText cancels the mention to `failed` and
-    // wipes content; do not post a reply under a tombstone.
-    const sourceMessage = await tx.chatRoomMessage.findUnique({
-      where: { id: mention.message.id },
-      select: { deletedAt: true },
-    });
-    if (!sourceMessage || sourceMessage.deletedAt != null) {
-      await tx.chatRoomMention.updateMany({
-        where: {
-          id: mention.id,
-          status: { in: ["pending", "sent"] },
-        },
-        data: {
-          status: "failed",
-          error: "Source message was deleted",
-        },
-      });
-      return null;
-    }
-
-    // Persist the reply first, then claim the mention transition. If another
-    // worker already finalized (or reclaim stole the claim), discard this
-    // duplicate reply so the room does not double-post.
-    const responseMessage = await tx.chatRoomMessage.create({
-      data: {
-        roomId: mention.message.roomId,
-        parentMessageId: mention.message.parentMessageId,
-        senderCoworkerId: coworker.id,
-        content: responseText,
-        metadata: {
-          in_reply_to_message_id: mention.message.id,
-          mention_id: mention.id,
-          ...thoughtMeta,
-        },
-      },
-    });
-
-    const finalized = await tx.chatRoomMention.updateMany({
-      where: { id: mention.id, status: "sent" },
-      data: {
-        status: "responded",
-        error: null,
-        providerResponseId,
-        responseMessageId: responseMessage.id,
-      },
-    });
-
-    if (finalized.count !== 1) {
-      await tx.chatRoomMessage.delete({ where: { id: responseMessage.id } });
-      return null;
-    }
-
-    await tx.chatRoom.update({
-      where: { id: mention.message.roomId },
-      data: { updatedAt: new Date() },
-    });
-
-    return {
-      responseMessageId: responseMessage.id,
-      sourceMessageId: mention.message.id,
+    const hasReasoning = reasoningSteps.length > 0;
+    const thoughtTiming = hasReasoning
+      ? {
+          startedAtMs: generationStartedAtMs,
+          endedAtMs: generationEndedAtMs,
+        }
+      : undefined;
+    const thoughtMeta = thoughtMetadataFields(reasoningSteps, thoughtTiming);
+    const replyMetadata = {
+      in_reply_to_message_id: mention.message.id,
+      mention_id: mention.id,
+      ...thoughtMeta,
     };
-  });
 
-  if (publishedMessageIds) {
+    const publishedMessageIds = await prisma.$transaction(async (tx) => {
+      // Re-check membership after the provider call: eviction during streamText
+      // must not land a reply in a room the coworker left.
+      const stillMember = await tx.chatRoomCoworkerMember.findUnique({
+        where: {
+          roomId_coworkerId: {
+            roomId: mention.message.roomId,
+            coworkerId: coworker.id,
+          },
+        },
+        select: { id: true },
+      });
+      if (!stillMember) {
+        await tx.chatRoomMention.updateMany({
+          where: {
+            id: mention.id,
+            status: { in: ["pending", "sent"] },
+          },
+          data: {
+            status: "failed",
+            error: "Coworker is no longer a member of this room",
+          },
+        });
+        return { kind: "failed" as const };
+      }
+
+      // Soft-delete during streamText cancels the mention to `failed` and
+      // wipes content; do not post a reply under a tombstone.
+      const sourceMessage = await tx.chatRoomMessage.findUnique({
+        where: { id: mention.message.id },
+        select: { deletedAt: true },
+      });
+      if (!sourceMessage || sourceMessage.deletedAt != null) {
+        await tx.chatRoomMention.updateMany({
+          where: {
+            id: mention.id,
+            status: { in: ["pending", "sent"] },
+          },
+          data: {
+            status: "failed",
+            error: "Source message was deleted",
+          },
+        });
+        return { kind: "failed" as const };
+      }
+
+      // Claim before writing the reply so a losing worker cannot overwrite a
+      // shared Thought placeholder. Lost claim returns without a message write.
+      const finalized = await tx.chatRoomMention.updateMany({
+        where: { id: mention.id, status: "sent" },
+        data: {
+          status: "responded",
+          error: null,
+          providerResponseId,
+          ...(placeholderId ? { responseMessageId: placeholderId } : {}),
+        },
+      });
+
+      if (finalized.count !== 1) {
+        return { kind: "lost_claim" as const };
+      }
+
+      const responseMessage = placeholderId
+        ? await tx.chatRoomMessage.update({
+            where: { id: placeholderId },
+            data: {
+              content: responseText,
+              metadata: replyMetadata,
+            },
+          })
+        : await tx.chatRoomMessage.create({
+            data: {
+              roomId: mention.message.roomId,
+              parentMessageId: mention.message.parentMessageId,
+              senderCoworkerId: coworker.id,
+              content: responseText,
+              metadata: replyMetadata,
+            },
+          });
+
+      if (!placeholderId) {
+        await tx.chatRoomMention.update({
+          where: { id: mention.id },
+          data: { responseMessageId: responseMessage.id },
+        });
+      }
+
+      await tx.chatRoom.update({
+        where: { id: mention.message.roomId },
+        data: { updatedAt: new Date() },
+      });
+
+      return {
+        kind: "published" as const,
+        responseMessageId: responseMessage.id,
+        sourceMessageId: mention.message.id,
+      };
+    });
+
+    if (!publishedMessageIds) {
+      return;
+    }
+    if (publishedMessageIds.kind === "failed") {
+      keepFailedPlaceholder = true;
+      return;
+    }
+    if (publishedMessageIds.kind === "lost_claim") {
+      lostFinalizeClaim = true;
+      return;
+    }
+
+    mentionPublished = true;
     await publishChatRoomMessageRealtimeById(
       publishedMessageIds.responseMessageId,
-      "create",
+      placeholderId ? "update" : "create",
     );
     await publishChatRoomMessageRealtimeById(
       publishedMessageIds.sourceMessageId,
       "mention_status",
     );
+  } catch (error) {
+    keepFailedPlaceholder = true;
+    throw error;
+  } finally {
+    if (!mentionPublished) {
+      await thoughtPublishQueue.catch(() => undefined);
+      const latest = await prisma.chatRoomMention.findUnique({
+        where: { id: mentionId },
+        select: { status: true, responseMessageId: true },
+      });
+      const winnerKeptRow =
+        latest?.status === "responded" &&
+        latest.responseMessageId === placeholderId;
+      if (winnerKeptRow || lostFinalizeClaim) {
+        // Winning worker owns this shell; a lost claim must not discard it.
+      } else if (keepFailedPlaceholder || latest?.status === "failed") {
+        await failMentionThoughtPlaceholder({
+          placeholderId,
+          sourceMessageId: mention.message.id,
+          mentionId,
+        });
+      } else {
+        await discardMentionThoughtPlaceholder(placeholderId, parentMessageId);
+      }
+    }
   }
 }

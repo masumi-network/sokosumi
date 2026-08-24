@@ -25,13 +25,14 @@ import {
 } from "react";
 import {
   CoworkerLiveThought,
-  CoworkerLoadingState,
   CoworkerMentionTerminalStatus,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
+  extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
+  isFailedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -1503,14 +1504,12 @@ function OutboundFailedActions({
 
 function MessageMetaFooter({
   message,
-  coworkersById,
   onToggleReaction,
   onOpenThread,
   showThreadButton,
   isDeleted,
 }: {
   message: ChatRoomMessage;
-  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1518,9 +1517,6 @@ function MessageMetaFooter({
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
-  // Wall clock from the ask (persisted message createdAt) — remount/reopen must
-  // continue elapsed time, not restart from client mount.
-  const mentionThinkingStartedAtMs = new Date(message.createdAt).getTime();
 
   return (
     <>
@@ -1568,34 +1564,6 @@ function MessageMetaFooter({
         >
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
-      ) : null}
-      {!isDeleted && message.mentions.some((m) => m.status !== "responded") ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
-          {message.mentions.map((mention) => {
-            // Success = coworker reply in the transcript; no "replied" chrome.
-            if (mention.status === "responded") {
-              return null;
-            }
-            const name =
-              coworkersById.get(mention.coworkerId)?.name ??
-              t("MentionStatus.nameFallback");
-            const label = t(`MentionStatus.${mention.status}`, { name });
-            // Channel @mentions have no client stream overlay — show Beautiful UI
-            // loading here (pending/sent) so "Noodles is thinking" is not a dead badge.
-            if (mention.status === "pending" || mention.status === "sent") {
-              return (
-                <CoworkerLoadingState
-                  key={mention.id}
-                  label={label}
-                  startedAtMs={mentionThinkingStartedAtMs}
-                />
-              );
-            }
-            return (
-              <CoworkerMentionTerminalStatus key={mention.id} label={label} />
-            );
-          })}
-        </div>
       ) : null}
     </>
   );
@@ -1888,12 +1856,21 @@ export function ChatMessageRow({
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
                 />
+              ) : isFailedMentionThoughtShell(message.metadata) ? (
+                <CoworkerMentionTerminalStatus
+                  label={tChannels("MentionStatus.failed", {
+                    name: sender.name,
+                  })}
+                />
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought
                   label={tChat("reasoning.thinking")}
                   liveBeat={thoughtView.liveBeat}
-                  startedAtMs={new Date(message.createdAt).getTime()}
+                  startedAtMs={
+                    extractThoughtStartedAtMs(message.metadata) ??
+                    new Date(message.createdAt).getTime()
+                  }
                 />
               ) : (
                 <>
@@ -1944,7 +1921,6 @@ export function ChatMessageRow({
         {!isEditing ? (
           <MessageMetaFooter
             message={message}
-            coworkersById={coworkersById}
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton && !isOutboundLocal}
