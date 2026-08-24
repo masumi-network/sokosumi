@@ -1003,4 +1003,208 @@ describe("PATCH /chats/rooms/{id}", () => {
       expect.arrayContaining([expect.stringMatching(/Guest left/i)]),
     );
   });
+
+  it("adds a coworker when memberUserIds echoes existing guests (not org members)", async () => {
+    const guestId = "user_guest";
+    const addedCoworkerId = "cow_soupie";
+    const existing = channelRoom({
+      discoverability: "external",
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: guestId,
+          access: "guest",
+          user: {
+            id: guestId,
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({
+      discoverability: "external",
+      userMembers: existing.userMembers,
+      coworkerMembers: [
+        {
+          coworker: {
+            id: addedCoworkerId,
+            name: "Soupie",
+            slug: "soupie",
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindManyMock.mockImplementation(
+      async ({ where }: { where: { userId: { in: string[] } } }) =>
+        where.userId.in
+          .filter((userId) => userId !== guestId)
+          .map((userId) => ({ userId })),
+    );
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: addedCoworkerId,
+        name: "Soupie",
+        baseURL: "https://chat.example.com",
+      },
+    ]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: guestId }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, guestId],
+        coworkerIds: [addedCoworkerId],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, coworkerId: addedCoworkerId }],
+    });
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, access: "member" },
+    });
+    const createdIds = userMemberCreateManyMock.mock.calls[0][0].data.map(
+      (row: { userId: string }) => row.userId,
+    );
+    expect(createdIds).not.toContain(guestId);
+  });
+
+  it("still 400s when memberUserIds includes a non-guest who is not an organization member", async () => {
+    const outsiderId = "user_outsider";
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindManyMock.mockImplementation(
+      async ({ where }: { where: { userId: { in: string[] } } }) =>
+        where.userId.in
+          .filter((userId) => userId !== outsiderId)
+          .map((userId) => ({ userId })),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, outsiderId],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain(
+      "Room human members must belong to the organization",
+    );
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("adds a coworker on an external channel when memberUserIds omits guests", async () => {
+    const guestId = "user_guest";
+    const addedCoworkerId = "cow_soupie";
+    const existing = channelRoom({
+      discoverability: "external",
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: guestId,
+          access: "guest",
+          user: {
+            id: guestId,
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({
+      discoverability: "external",
+      userMembers: existing.userMembers,
+      coworkerMembers: [
+        {
+          coworker: {
+            id: addedCoworkerId,
+            name: "Soupie",
+            slug: "soupie",
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindManyMock.mockImplementation(
+      async ({ where }: { where: { userId: { in: string[] } } }) =>
+        where.userId.in
+          .filter((userId) => userId !== guestId)
+          .map((userId) => ({ userId })),
+    );
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: addedCoworkerId,
+        name: "Soupie",
+        baseURL: "https://chat.example.com",
+      },
+    ]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: guestId }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID],
+        coworkerIds: [addedCoworkerId],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, coworkerId: addedCoworkerId }],
+    });
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, access: "member" },
+    });
+  });
 });
