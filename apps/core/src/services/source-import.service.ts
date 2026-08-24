@@ -15,6 +15,45 @@ import prisma from "@/lib/db/prisma";
 
 type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
 
+/**
+ * Narrow client type for TaskFile operations.
+ * Represents only the subset of PrismaClient/TransactionClient used by enqueueTaskOutputsFromMarkdown.
+ */
+export interface TaskFileClient {
+  taskFile: {
+    findFirst(args: {
+      where: {
+        taskId: string;
+        OR: Array<{ fileUrl: string } | { sourceUrl: string }>;
+      };
+    }): Promise<{
+      id: string;
+      taskId: string;
+      fileUrl: string | null;
+      sourceUrl: string | null;
+      origin: string;
+      status?: string;
+    } | null>;
+    upsert(args: {
+      where: { taskId_sourceUrl: { taskId: string; sourceUrl: string } };
+      update: Record<string, never>;
+      create: {
+        taskId: string;
+        name: string;
+        sourceUrl: string;
+        fileUrl: null;
+        status: string;
+        origin: string;
+      };
+    }): Promise<unknown>;
+  };
+}
+
+/**
+ * Type that accepts either a full Prisma client or the narrow TaskFileClient interface.
+ */
+export type TaskFileClientLike = PrismaClientOrTx | TaskFileClient;
+
 export const sourceImportService = {
   async enqueueFromMarkdown(
     jobEventId: string,
@@ -70,12 +109,12 @@ export const sourceImportService = {
    * Enqueue PENDING task-output TaskFiles from markdown comment links.
    * @param taskId - The task ID
    * @param markdown - Markdown comment text
-   * @param client - Prisma client or transaction (only uses client.taskFile)
+   * @param client - Prisma client, transaction, or narrow TaskFileClient (uses client.taskFile.findFirst and client.taskFile.upsert)
    */
   async enqueueTaskOutputsFromMarkdown(
     taskId: string,
     markdown: string,
-    client: PrismaClientOrTx,
+    client: TaskFileClientLike,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
 

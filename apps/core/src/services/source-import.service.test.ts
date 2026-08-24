@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { TaskFileClient } from "./source-import.service";
 import { sourceImportService } from "./source-import.service";
 
 const {
@@ -16,7 +17,7 @@ const {
       findFirst: vi.fn(),
       upsert: vi.fn(),
     },
-  },
+  } satisfies TaskFileClient,
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -109,7 +110,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       "[file](https://example.com/result.pdf)",
-      mockTaskFileClient as any,
+      mockTaskFileClient,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledWith({
@@ -155,7 +156,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       `[uploaded file](${blobUrl})`,
-      mockTaskFileClient as any,
+      mockTaskFileClient,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledWith({
@@ -182,7 +183,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       `[same file](${externalUrl})`,
-      mockTaskFileClient as any,
+      mockTaskFileClient,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledWith({
@@ -217,7 +218,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
         `[new1](${newUrl1})`,
         `[new2](${newUrl2})`,
       ].join("\n"),
-      mockTaskFileClient as any,
+      mockTaskFileClient,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledTimes(3);
@@ -245,7 +246,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       [`[error](${errorUrl})`, `[valid](${validUrl})`].join("\n"),
-      mockTaskFileClient as any,
+      mockTaskFileClient,
     );
 
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
@@ -261,7 +262,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       "Just a comment with no files",
-      mockTaskFileClient as any,
+      mockTaskFileClient,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).not.toHaveBeenCalled();
