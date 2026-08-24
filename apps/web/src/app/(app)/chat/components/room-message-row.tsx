@@ -31,6 +31,7 @@ import {
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
+  extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
   mentionParentChrome,
@@ -1907,7 +1908,10 @@ export function ChatMessageRow({
                 <CoworkerLiveThought
                   label={tChat("reasoning.thinking")}
                   liveBeat={thoughtView.liveBeat}
-                  startedAtMs={new Date(message.createdAt).getTime()}
+                  startedAtMs={
+                    extractThoughtStartedAtMs(message.metadata) ??
+                    new Date(message.createdAt).getTime()
+                  }
                 />
               ) : (
                 <>

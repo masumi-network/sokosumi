@@ -352,6 +352,21 @@ describe("dispatchChatRoomMention claim", () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          content: "",
+          metadata: expect.objectContaining({
+            mention_id: MENTION_ID,
+            streaming: true,
+            thought_timing_ms: expect.objectContaining({
+              start: expect.any(Number),
+            }),
+          }),
+        }),
+      }),
+    );
+    expect(updateMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "reply_1" },
+        data: expect.objectContaining({
           content: "Hello back",
           metadata: expect.objectContaining({
             mention_id: MENTION_ID,
@@ -366,10 +381,13 @@ describe("dispatchChatRoomMention claim", () => {
         }),
       }),
     );
-    const createArg = createMock.mock.calls[0]?.[0] as {
+    const finalizeArg = updateMessageMock.mock.calls.find((call) => {
+      const data = (call[0] as { data?: { content?: string } })?.data;
+      return data?.content === "Hello back";
+    })?.[0] as {
       data: { metadata: { thought_timing_ms: { start: number; end: number } } };
     };
-    const timing = createArg.data.metadata.thought_timing_ms;
+    const timing = finalizeArg.data.metadata.thought_timing_ms;
     expect(timing.end).toBeGreaterThanOrEqual(timing.start);
   });
 
@@ -458,7 +476,7 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(streamTextMock).toHaveBeenCalled();
-    expect(createMock).not.toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalled();
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: MENTION_ID,
@@ -504,7 +522,7 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(streamTextMock).toHaveBeenCalled();
-    expect(createMock).not.toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalled();
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: MENTION_ID,
@@ -674,9 +692,26 @@ describe("dispatchChatRoomMention claim", () => {
           metadata: expect.objectContaining({
             mention_id: MENTION_ID,
             streaming: true,
+            reasoning: [],
+            thought_timing_ms: expect.objectContaining({
+              start: expect.any(Number),
+            }),
+          }),
+        }),
+      }),
+    );
+    expect(updateMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "reply_1" },
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            streaming: true,
             reasoning: [
               { type: "reasoning", text: "Looked up the room context." },
             ],
+            thought_timing_ms: expect.objectContaining({
+              start: expect.any(Number),
+            }),
           }),
         }),
       }),

@@ -151,13 +151,17 @@ async function publishMentionThoughtPlaceholder(params: {
   mentionId: string;
   coworkerId: string;
   reasoningSteps: Array<{ type: string; text: string }>;
+  thoughtStartedAtMs: number;
 }): Promise<string> {
-  const metadata = {
+  const metadata: Record<string, unknown> = {
     in_reply_to_message_id: params.sourceMessageId,
     mention_id: params.mentionId,
     streaming: true,
     reasoning: params.reasoningSteps,
   };
+  if (params.thoughtStartedAtMs > 0) {
+    metadata.thought_timing_ms = { start: params.thoughtStartedAtMs };
+  }
   if (params.placeholderId) {
     await prisma.chatRoomMessage.update({
       where: { id: params.placeholderId },
@@ -582,16 +586,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   // Wall-clock generation time (not reasoning-token phase only) — product
   // "Thought for …" matches the live "is thinking" timer the user saw.
   const generationStartedAtMs = Date.now();
-  const result = streamText({
-    model: getSokosumiProvider()(null),
-    messages: [{ role: "user", content: prompt }],
-    maxRetries: 0,
-    timeout: ROOM_COWORKER_STREAM_TIMEOUT,
-    providerOptions: {
-      sokosumi: providerOptions,
-    } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
-  });
-
   const linkedPlaceholderId = mention.responseMessageId;
   let placeholderId: string | null = null;
   if (linkedPlaceholderId) {
@@ -603,11 +597,38 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       placeholderId = linkedPlaceholderId;
     }
   }
+  const parentMessageId = mention.message.parentMessageId;
+  try {
+    placeholderId = await publishMentionThoughtPlaceholder({
+      placeholderId,
+      roomId: mention.message.roomId,
+      parentMessageId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+      coworkerId: coworker.id,
+      reasoningSteps: [],
+      thoughtStartedAtMs: generationStartedAtMs,
+    });
+  } catch (publishError) {
+    console.error("Mention Thought placeholder create failed:", {
+      mentionId,
+      error: publishError,
+    });
+  }
+
+  const result = streamText({
+    model: getSokosumiProvider()(null),
+    messages: [{ role: "user", content: prompt }],
+    maxRetries: 0,
+    timeout: ROOM_COWORKER_STREAM_TIMEOUT,
+    providerOptions: {
+      sokosumi: providerOptions,
+    } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
+  });
   let lastThoughtPublishAt = 0;
   let thoughtPublishQueue = Promise.resolve();
   let mentionPublished = false;
   let keepFailedPlaceholder = false;
-  const parentMessageId = mention.message.parentMessageId;
 
   try {
     const { text: streamedText, reasoningSteps: streamedReasoning } =
@@ -631,6 +652,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               mentionId,
               coworkerId: coworker.id,
               reasoningSteps: steps,
+              thoughtStartedAtMs: generationStartedAtMs,
             });
           })
           .catch((publishError) => {

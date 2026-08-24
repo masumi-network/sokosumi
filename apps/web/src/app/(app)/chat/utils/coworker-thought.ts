@@ -108,6 +108,24 @@ export function extractThoughtDurationSeconds(
   return Math.max(0, Math.round((end - start) / 1000));
 }
 
+/** Epoch ms to start the live elapsed clock. Null when missing or start ≤ 0. */
+export function extractThoughtStartedAtMs(metadata: unknown): number | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+  const timing = (metadata as Record<string, unknown>).thought_timing_ms;
+  if (!timing || typeof timing !== "object") {
+    return null;
+  }
+  const start = parseThoughtTimingNumber(
+    (timing as Record<string, unknown>).start,
+  );
+  if (start == null || start <= 0) {
+    return null;
+  }
+  return start;
+}
+
 /** Accept number or numeric string (align with Core metadata parsers). */
 function parseThoughtTimingNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -217,9 +235,10 @@ export function resolveCoworkerThoughtViewModel(input: {
   const durationSeconds = extractThoughtDurationSeconds(input.metadata);
 
   if (isLiveThoughtShell(input) && answer.length === 0) {
-    if (liveBeatText.length > 0) {
+    const liveText = thoughtTextFull || liveBeatText;
+    if (liveText.length > 0) {
       return {
-        liveBeat: liveBeatText,
+        liveBeat: liveText,
         disclosure: null,
         showThinkingFallback: false,
       };

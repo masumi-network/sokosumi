@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractThoughtDurationSeconds,
+  extractThoughtStartedAtMs,
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
   formatThoughtDurationLabel,
@@ -112,6 +113,18 @@ describe("extractThoughtDurationSeconds", () => {
     ).toBe(63);
   });
 
+  it("reads thought start for the live elapsed clock", () => {
+    expect(
+      extractThoughtStartedAtMs({
+        thought_timing_ms: { start: 1_700_000_000_000 },
+      }),
+    ).toBe(1_700_000_000_000);
+    expect(extractThoughtStartedAtMs({ thought_timing_ms: { start: 0 } })).toBe(
+      null,
+    );
+    expect(extractThoughtStartedAtMs(null)).toBeNull();
+  });
+
   it("returns null when timing missing or invalid", () => {
     expect(extractThoughtDurationSeconds(null)).toBeNull();
     expect(
@@ -188,7 +201,7 @@ describe("resolveCoworkerThoughtViewModel", () => {
     });
   });
 
-  it("uses only the latest Thought step for the live beat", () => {
+  it("keeps every Thought step on the live shell so the first beat is not dropped", () => {
     const vm = resolveCoworkerThoughtViewModel({
       content: "",
       isStreamOverlay: true,
@@ -200,7 +213,7 @@ describe("resolveCoworkerThoughtViewModel", () => {
         ],
       },
     });
-    expect(vm.liveBeat).toBe("Latest beat.");
+    expect(vm.liveBeat).toBe("First beat.\n\nLatest beat.");
     expect(vm.disclosure).toBeNull();
   });
 
