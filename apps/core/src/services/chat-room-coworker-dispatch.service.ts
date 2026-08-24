@@ -488,6 +488,39 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
+  // Open the coworker bubble before conversation create so the room never
+  // flashes Calling on the parent then jumps to Thinking.
+  const generationStartedAtMs = Date.now();
+  const parentMessageId = mention.message.parentMessageId;
+  const linkedPlaceholderId = mention.responseMessageId;
+  let placeholderId: string | null = null;
+  if (linkedPlaceholderId) {
+    const linked = await prisma.chatRoomMessage.findUnique({
+      where: { id: linkedPlaceholderId },
+      select: { id: true, deletedAt: true },
+    });
+    if (linked != null && linked.deletedAt == null) {
+      placeholderId = linkedPlaceholderId;
+    }
+  }
+  try {
+    placeholderId = await publishMentionThoughtPlaceholder({
+      placeholderId,
+      roomId: mention.message.roomId,
+      parentMessageId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+      coworkerId: coworker.id,
+      reasoningSteps: [],
+      thoughtStartedAtMs: generationStartedAtMs,
+    });
+  } catch (publishError) {
+    console.error("Mention Thought placeholder create failed:", {
+      mentionId,
+      error: publishError,
+    });
+  }
+
   const senderName = mention.message.senderUser?.name ?? "A teammate";
   const baseURL = coworker.baseURL.trim();
   const threadRootId = mention.message.parentMessageId;
@@ -513,15 +546,25 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       priorThreadMention?.providerConversationId ?? null;
   }
 
-  const providerConversation = existingProviderConversationId
-    ? { id: existingProviderConversationId }
-    : await createCoworkerConversation({
-        responsesApiBaseUrl: baseURL,
-        sokosumiUserId: userId,
-        sokosumiOrganizationId: mention.message.room.organizationId,
-        coworkerSlug: coworker.slug,
-        sokosumiConversationId: mention.message.id,
-      });
+  let providerConversation: { id: string };
+  try {
+    providerConversation = existingProviderConversationId
+      ? { id: existingProviderConversationId }
+      : await createCoworkerConversation({
+          responsesApiBaseUrl: baseURL,
+          sokosumiUserId: userId,
+          sokosumiOrganizationId: mention.message.room.organizationId,
+          coworkerSlug: coworker.slug,
+          sokosumiConversationId: mention.message.id,
+        });
+  } catch (error) {
+    await failMentionThoughtPlaceholder({
+      placeholderId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+    });
+    throw error;
+  }
 
   await prisma.chatRoomMention.update({
     where: { id: mentionId },
@@ -581,40 +624,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     isThreadReply: threadRootId != null,
     contextMessages,
   });
-
-  // Idle chunk timeouts abort stalls; totalMs is the hard ceiling.
-  // Wall-clock generation time (not reasoning-token phase only) — product
-  // "Thought for …" matches the live "is thinking" timer the user saw.
-  const generationStartedAtMs = Date.now();
-  const linkedPlaceholderId = mention.responseMessageId;
-  let placeholderId: string | null = null;
-  if (linkedPlaceholderId) {
-    const linked = await prisma.chatRoomMessage.findUnique({
-      where: { id: linkedPlaceholderId },
-      select: { id: true, deletedAt: true },
-    });
-    if (linked != null && linked.deletedAt == null) {
-      placeholderId = linkedPlaceholderId;
-    }
-  }
-  const parentMessageId = mention.message.parentMessageId;
-  try {
-    placeholderId = await publishMentionThoughtPlaceholder({
-      placeholderId,
-      roomId: mention.message.roomId,
-      parentMessageId,
-      sourceMessageId: mention.message.id,
-      mentionId,
-      coworkerId: coworker.id,
-      reasoningSteps: [],
-      thoughtStartedAtMs: generationStartedAtMs,
-    });
-  } catch (publishError) {
-    console.error("Mention Thought placeholder create failed:", {
-      mentionId,
-      error: publishError,
-    });
-  }
 
   const result = streamText({
     model: getSokosumiProvider()(null),

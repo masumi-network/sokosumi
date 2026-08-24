@@ -327,6 +327,9 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock.mock.calls[0]?.[0]).not.toHaveProperty("abortSignal");
     expect(createCoworkerConversationMock).toHaveBeenCalled();
     expect(createMock).toHaveBeenCalled();
+    expect(createMock.mock.invocationCallOrder[0]).toBeLessThan(
+      createCoworkerConversationMock.mock.invocationCallOrder[0],
+    );
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
       where: { id: MENTION_ID, status: "sent" },
       data: expect.objectContaining({

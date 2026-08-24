@@ -1798,7 +1798,7 @@ describe("ChatMessageRow", () => {
 });
 
 describe("ChatMessageRow coworker Thought", () => {
-  it("shows Calling on the parent until a Thought shell exists, with no elapsed", () => {
+  it("does not show Calling on the parent while waiting for a Thought shell", () => {
     renderRow({
       message: userMessage({
         content: "@Noodles which org has the most members?",
@@ -1827,9 +1827,12 @@ describe("ChatMessageRow coworker Thought", () => {
       ]),
     });
 
-    const loading = screen.getByTestId("coworker-loading-state");
-    expect(loading).toHaveTextContent("MentionStatus.pending");
-    expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-terminal"),
+    ).not.toBeInTheDocument();
   });
 
   it("hides parent mention chrome once a Thought shell exists", () => {

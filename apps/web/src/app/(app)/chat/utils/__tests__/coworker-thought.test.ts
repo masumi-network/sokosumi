@@ -330,13 +330,13 @@ describe("resolveCoworkerThoughtViewModel", () => {
 });
 
 describe("mentionParentChrome", () => {
-  it("shows Calling until a response shell exists", () => {
+  it("hides parent chrome while waiting so Calling does not jump into Thinking", () => {
     expect(
       mentionParentChrome({ status: "pending", responseMessageId: null }),
-    ).toBe("calling");
+    ).toBe("hidden");
     expect(
       mentionParentChrome({ status: "sent", responseMessageId: null }),
-    ).toBe("calling");
+    ).toBe("hidden");
   });
 
   it("hides parent chrome once a shell exists, including failed", () => {

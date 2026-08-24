@@ -25,7 +25,6 @@ import {
 } from "react";
 import {
   CoworkerLiveThought,
-  CoworkerLoadingState,
   CoworkerMentionTerminalStatus,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
@@ -1521,9 +1520,6 @@ function MessageMetaFooter({
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
-  // Wall clock from the ask (persisted message createdAt) — remount/reopen must
-  // continue elapsed time, not restart from client mount.
-  const mentionThinkingStartedAtMs = new Date(message.createdAt).getTime();
 
   return (
     <>
@@ -1584,18 +1580,8 @@ function MessageMetaFooter({
               coworkersById.get(mention.coworkerId)?.name ??
               t("MentionStatus.nameFallback");
             const chrome = mentionParentChrome(mention);
-            if (chrome === "hidden") {
+            if (chrome !== "failed") {
               return null;
-            }
-            if (chrome === "calling") {
-              return (
-                <CoworkerLoadingState
-                  key={mention.id}
-                  label={t("MentionStatus.pending", { name })}
-                  startedAtMs={mentionThinkingStartedAtMs}
-                  showElapsed={false}
-                />
-              );
             }
             return (
               <CoworkerMentionTerminalStatus

@@ -176,24 +176,15 @@ export function isFailedMentionThoughtShell(metadata: unknown): boolean {
   );
 }
 
-export type MentionParentChrome = "calling" | "failed" | "hidden";
+export type MentionParentChrome = "failed" | "hidden";
 
-/** Parent-message mention chip: Calling until a shell exists, else hide. */
+/** Parent chip only when fail landed with no coworker shell. */
 export function mentionParentChrome(mention: {
   status: string;
   responseMessageId: string | null;
 }): MentionParentChrome {
-  if (mention.status === "responded") {
-    return "hidden";
-  }
-  if (mention.responseMessageId) {
-    return "hidden";
-  }
-  if (mention.status === "failed") {
+  if (mention.status === "failed" && mention.responseMessageId == null) {
     return "failed";
-  }
-  if (mention.status === "pending" || mention.status === "sent") {
-    return "calling";
   }
   return "hidden";
 }

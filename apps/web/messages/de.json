@@ -5080,8 +5080,6 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "pending": "Rufe {name}",
-        "sent": "{name} denkt nach",
         "failed": "{name} konnte nicht antworten",
         "nameFallback": "Coworker"
       },
