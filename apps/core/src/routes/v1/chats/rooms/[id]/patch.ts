@@ -27,13 +27,14 @@ import {
   assertChatRoomPatchAuth,
   buildUniqueRoomSlug,
   chatRoomInclude,
+  filterOrganizationUserIds,
   mapChatRoomWithSidebarFlags,
   membershipAccessForUser,
+  normalizeUniqueStrings,
   requireChatRoomUserAccess,
   resolveWorkspaceIdForChatRoom,
   slugifyRoomName,
   validateChatCoworkerIds,
-  validateOrganizationUserIds,
 } from "../helpers";
 import {
   diffChannelMembershipRoster,
@@ -233,11 +234,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let nextCoworkers = priorCoworkers;
 
           if (body.memberUserIds !== undefined) {
-            const memberUserIds = await validateOrganizationUserIds(
+            // Host roster only. Guest ids echoed in memberUserIds are ignored
+            // (they are not org members); they must not 400 the rewrite.
+            const requestedUserIds = normalizeUniqueStrings([
+              userContext.userId,
+              ...body.memberUserIds,
+            ]);
+            const foundHostIds = await filterOrganizationUserIds(
               organizationId,
-              [userContext.userId, ...body.memberUserIds],
+              requestedUserIds,
               tx,
             );
+            const guestIdsOnRoom = new Set(
+              existing.userMembers
+                .filter((member) => member.access === "guest")
+                .map((member) => member.userId),
+            );
+            const unexpected = requestedUserIds.filter(
+              (userId) =>
+                !foundHostIds.includes(userId) && !guestIdsOnRoom.has(userId),
+            );
+            if (unexpected.length > 0) {
+              throw badRequest(
+                "Room human members must belong to the organization",
+              );
+            }
+            const memberUserIds = foundHostIds;
             const users = await tx.user.findMany({
               where: { id: { in: memberUserIds } },
               select: { id: true, name: true },
