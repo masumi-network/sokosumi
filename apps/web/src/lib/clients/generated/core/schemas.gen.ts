@@ -7856,9 +7856,6 @@ export const DriveTasksListItemSchema = {
         },
         {
             $ref: '#/components/schemas/DriveTasksTaskFileItem'
-        },
-        {
-            $ref: '#/components/schemas/DriveTasksJobOutputItem'
         }
     ],
     discriminator: {
@@ -7867,8 +7864,7 @@ export const DriveTasksListItemSchema = {
             project: '#/components/schemas/DriveTasksProjectItem',
             'no-project': '#/components/schemas/DriveTasksNoProjectItem',
             task: '#/components/schemas/DriveTasksTaskItem',
-            'task-file': '#/components/schemas/DriveTasksTaskFileItem',
-            'job-output': '#/components/schemas/DriveTasksJobOutputItem'
+            'task-file': '#/components/schemas/DriveTasksTaskFileItem'
         }
     }
 } as const;
@@ -8039,67 +8035,6 @@ export const DriveTasksTaskFileItemSchema = {
     ]
 } as const;
 
-export const DriveTasksJobOutputItemSchema = {
-    type: 'object',
-    properties: {
-        type: {
-            type: 'string',
-            enum: [
-                'job-output'
-            ],
-            example: 'job-output',
-            description: 'Job output blob row'
-        },
-        id: {
-            type: 'string',
-            example: 'blb_123',
-            description: 'Blob ID'
-        },
-        name: {
-            type: 'string',
-            example: 'agent-result.pdf',
-            description: 'Blob name'
-        },
-        fileUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://coworker.example/output/file.pdf',
-            description: 'Blob file URL (fileUrl or sourceUrl)'
-        },
-        size: {
-            type: [
-                'integer',
-                'null'
-            ],
-            example: 2048000,
-            description: 'File size in bytes (null if unknown)'
-        },
-        mimeType: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'application/pdf',
-            description: 'MIME type (null if unknown)'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'Blob updatedAt'
-        }
-    },
-    required: [
-        'type',
-        'id',
-        'name',
-        'fileUrl',
-        'size',
-        'mimeType',
-        'updatedAt'
-    ]
-} as const;
-
 export const CopyTaskFileToDriveResponseSchema = {
     type: 'object',
     properties: {
@@ -8128,79 +8063,31 @@ export const CopyTaskFileToDriveResponseSchema = {
 } as const;
 
 export const CopyTaskFileToDriveRequestSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'task-file'
-                    ],
-                    description: 'Source kind: task-file for TaskFile'
-                },
-                taskFileId: {
-                    type: 'string',
-                    example: 'tf_123',
-                    description: 'TaskFile ID to copy'
-                },
-                scope: {
-                    type: 'string',
-                    enum: [
-                        'me',
-                        'org'
-                    ],
-                    example: 'me',
-                    description: 'Destination Drive scope: \'me\' for personal, \'org\' for organization'
-                },
-                organizationId: {
-                    type: 'string',
-                    example: 'org_123',
-                    description: 'Organization ID (required when scope=org)'
-                }
-            },
-            required: [
-                'kind',
-                'taskFileId',
-                'scope'
-            ]
+    type: 'object',
+    properties: {
+        taskFileId: {
+            type: 'string',
+            example: 'tf_123',
+            description: 'TaskFile ID to copy'
         },
-        {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'job-output'
-                    ],
-                    description: 'Source kind: job-output for Blob'
-                },
-                blobId: {
-                    type: 'string',
-                    example: 'blb_123',
-                    description: 'Blob ID to copy'
-                },
-                scope: {
-                    type: 'string',
-                    enum: [
-                        'me',
-                        'org'
-                    ],
-                    example: 'me',
-                    description: 'Destination Drive scope: \'me\' for personal, \'org\' for organization'
-                },
-                organizationId: {
-                    type: 'string',
-                    example: 'org_123',
-                    description: 'Organization ID (required when scope=org)'
-                }
-            },
-            required: [
-                'kind',
-                'blobId',
-                'scope'
-            ]
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Destination Drive scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
         }
+    },
+    required: [
+        'taskFileId',
+        'scope'
     ]
 } as const;
 

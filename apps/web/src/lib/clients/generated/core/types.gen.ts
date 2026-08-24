@@ -2343,9 +2343,7 @@ export type DriveTasksListItem = ({
     type: 'task';
 } & DriveTasksTaskItem) | ({
     type: 'task-file';
-} & DriveTasksTaskFileItem) | ({
-    type: 'job-output';
-} & DriveTasksJobOutputItem);
+} & DriveTasksTaskFileItem);
 
 export type DriveTasksProjectItem = {
     /**
@@ -2431,37 +2429,6 @@ export type DriveTasksTaskFileItem = {
     updatedAt: Date;
 };
 
-export type DriveTasksJobOutputItem = {
-    /**
-     * Job output blob row
-     */
-    type: 'job-output';
-    /**
-     * Blob ID
-     */
-    id: string;
-    /**
-     * Blob name
-     */
-    name: string;
-    /**
-     * Blob file URL (fileUrl or sourceUrl)
-     */
-    fileUrl: string;
-    /**
-     * File size in bytes (null if unknown)
-     */
-    size: number | null;
-    /**
-     * MIME type (null if unknown)
-     */
-    mimeType: string | null;
-    /**
-     * Blob updatedAt
-     */
-    updatedAt: Date;
-};
-
 export type CopyTaskFileToDriveResponse = {
     /**
      * Copied file name
@@ -2479,30 +2446,9 @@ export type CopyTaskFileToDriveResponse = {
 
 export type CopyTaskFileToDriveRequest = {
     /**
-     * Source kind: task-file for TaskFile
-     */
-    kind: 'task-file';
-    /**
      * TaskFile ID to copy
      */
     taskFileId: string;
-    /**
-     * Destination Drive scope: 'me' for personal, 'org' for organization
-     */
-    scope: 'me' | 'org';
-    /**
-     * Organization ID (required when scope=org)
-     */
-    organizationId?: string;
-} | {
-    /**
-     * Source kind: job-output for Blob
-     */
-    kind: 'job-output';
-    /**
-     * Blob ID to copy
-     */
-    blobId: string;
     /**
      * Destination Drive scope: 'me' for personal, 'org' for organization
      */
