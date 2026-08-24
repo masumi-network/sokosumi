@@ -90,6 +90,7 @@ function FileItemChip({ blob }: { blob: BlobLike }) {
       fileName={blob.name}
       mediaType={blob.mimeType}
       sizeClass="size-4"
+      variant="single-line"
     />
   );
 }

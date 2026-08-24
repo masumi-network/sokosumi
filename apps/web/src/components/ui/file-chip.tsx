@@ -175,7 +175,7 @@ export function FileChip(props: FileChipProps) {
       </div>
       {variant === "single-line" ? (
         <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-          <div className="truncate text-sm font-medium">{fileName}</div>
+          <div className="truncate text-left text-sm font-medium">{fileName}</div>
           {prettySize && (
             <div className="text-muted-foreground shrink-0 text-xs">
               {prettySize}
