@@ -201,13 +201,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Build base where clause (workspace-wide, like Tasks scope=workspace)
-    // Include tasks with files OR jobs with READY blobs
+    // Include tasks with READY TaskFiles (non-null fileUrl) OR jobs with READY blobs
     const baseTaskWhere: Prisma.TaskWhereInput = {
       archivedAt: null,
       workspaceId,
       ...(assigneeId ? { assigneeId } : {}),
       OR: [
-        { files: { some: {} } },
+        {
+          files: {
+            some: {
+              status: "READY",
+              fileUrl: { not: null },
+            },
+          },
+        },
         {
           jobs: {
             some: {
@@ -244,10 +251,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Determine level
     if (taskId) {
-      // Level 3: TaskFile rows + job output Blob rows (status === READY)
+      // Level 3: TaskFile rows (READY + non-null fileUrl) + job output Blob rows (status === READY)
       await requireTaskReadForRouteVars(c.var, taskId);
 
-      // Fetch TaskFiles and job output Blobs in parallel
+      // Fetch TaskFiles (READY only, non-null fileUrl) and job output Blobs in parallel
       const [taskFiles, jobBlobs, taskFileCount, jobBlobCount] =
         await Promise.all([
           prisma.taskFile.findMany({
@@ -257,6 +264,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 workspaceId,
                 archivedAt: null,
               },
+              status: "READY",
+              fileUrl: { not: null },
             },
             orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
           }),
@@ -279,6 +288,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 workspaceId,
                 archivedAt: null,
               },
+              status: "READY",
+              fileUrl: { not: null },
             },
           }),
           prisma.blob.count({
@@ -324,30 +335,56 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const pagedFiles = allFiles.slice(startIndex, startIndex + take);
       const hasMore = startIndex + take < allFiles.length;
 
-      const items: DriveTasksListItem[] = pagedFiles.map((file) => {
-        if (file.type === "task-file") {
-          return {
-            type: "task-file",
-            id: file.data.id,
-            name: file.data.name,
-            fileUrl: file.data.fileUrl,
-            size: file.data.size ? Number(file.data.size) : null,
-            mimeType: file.data.mimeType,
-            updatedAt: file.data.updatedAt.toISOString(),
-          };
-        } else {
-          // job-output
-          return {
-            type: "job-output",
-            id: file.data.id,
-            name: file.data.name ?? "output",
-            fileUrl: file.data.fileUrl ?? file.data.sourceUrl,
-            size: file.data.size ? Number(file.data.size) : null,
-            mimeType: file.data.mimeType,
-            updatedAt: file.data.updatedAt.toISOString(),
-          };
-        }
-      });
+      const items: DriveTasksListItem[] = pagedFiles
+        .map((file) => {
+          if (file.type === "task-file") {
+            // fileUrl is non-null (filtered in query)
+            if (!file.data.fileUrl) return null;
+            return {
+              type: "task-file" as const,
+              id: file.data.id,
+              name: file.data.name,
+              fileUrl: file.data.fileUrl,
+              size: file.data.size ? Number(file.data.size) : null,
+              mimeType: file.data.mimeType,
+              updatedAt: file.data.updatedAt.toISOString(),
+            };
+          } else {
+            // job-output
+            return {
+              type: "job-output" as const,
+              id: file.data.id,
+              name: file.data.name ?? "output",
+              fileUrl: file.data.fileUrl ?? file.data.sourceUrl,
+              size: file.data.size ? Number(file.data.size) : null,
+              mimeType: file.data.mimeType,
+              updatedAt: file.data.updatedAt.toISOString(),
+            };
+          }
+        })
+        .filter(
+          (
+            item,
+          ): item is
+            | {
+                type: "task-file";
+                id: string;
+                name: string;
+                fileUrl: string;
+                size: number | null;
+                mimeType: string | null;
+                updatedAt: string;
+              }
+            | {
+                type: "job-output";
+                id: string;
+                name: string;
+                fileUrl: string;
+                size: number | null;
+                mimeType: string | null;
+                updatedAt: string;
+              } => item !== null,
+        );
 
       const totalCount = taskFileCount + jobBlobCount;
       const paginationMeta = createPaginationMeta(
@@ -379,6 +416,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           take: MAX_TASKS_FOR_SORT,
           include: {
             files: {
+              where: {
+                status: "READY",
+                fileUrl: { not: null },
+              },
               orderBy: { updatedAt: "desc" },
               take: 1,
             },
@@ -508,6 +549,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 where: baseTaskWhere,
                 include: {
                   files: {
+                    where: {
+                      status: "READY",
+                      fileUrl: { not: null },
+                    },
                     orderBy: { updatedAt: "desc" },
                     take: 1,
                   },
@@ -601,6 +646,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               ...baseTaskWhere,
               projectId: null,
             },
+            status: "READY",
+            fileUrl: { not: null },
           },
           orderBy: { updatedAt: "desc" },
           select: { updatedAt: true },
