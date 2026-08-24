@@ -109,7 +109,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       "[file](https://example.com/result.pdf)",
-      mockTaskFileClient as never,
+      mockTaskFileClient as any,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledWith({
@@ -155,7 +155,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       `[uploaded file](${blobUrl})`,
-      mockTaskFileClient as never,
+      mockTaskFileClient as any,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledWith({
@@ -182,7 +182,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       `[same file](${externalUrl})`,
-      mockTaskFileClient as never,
+      mockTaskFileClient as any,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledWith({
@@ -217,7 +217,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
         `[new1](${newUrl1})`,
         `[new2](${newUrl2})`,
       ].join("\n"),
-      mockTaskFileClient as never,
+      mockTaskFileClient as any,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).toHaveBeenCalledTimes(3);
@@ -245,7 +245,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       [`[error](${errorUrl})`, `[valid](${validUrl})`].join("\n"),
-      mockTaskFileClient as never,
+      mockTaskFileClient as any,
     );
 
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
@@ -261,7 +261,7 @@ describe("sourceImportService.enqueueTaskOutputsFromMarkdown", () => {
     await sourceImportService.enqueueTaskOutputsFromMarkdown(
       "task_1",
       "Just a comment with no files",
-      mockTaskFileClient as never,
+      mockTaskFileClient as any,
     );
 
     expect(mockTaskFileClient.taskFile.findFirst).not.toHaveBeenCalled();

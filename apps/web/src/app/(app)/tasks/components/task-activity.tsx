@@ -141,7 +141,7 @@ function AnimatedNewRow({ children }: { children: ReactNode }) {
 
 /**
  * Match a comment file URL to a TaskFile. Prefers exact sourceUrl (keeps ?token=),
- * then fileUrl, then pathname basename === name.
+ * then fileUrl, then pathname basename === name (only when exactly one file matches).
  */
 function matchTaskFile(
   url: string,
@@ -159,13 +159,18 @@ function matchTaskFile(
       return file;
     }
   }
-  // Try pathname basename match
+  // Try pathname basename match (only if unique)
   const urlBasename = url.split("/").pop()?.split("?")[0];
   if (urlBasename) {
+    const basenameMatches: TaskFile[] = [];
     for (const file of taskFiles) {
       if (file.name === urlBasename) {
-        return file;
+        basenameMatches.push(file);
       }
+    }
+    // Return basename match only when exactly one file matches
+    if (basenameMatches.length === 1) {
+      return basenameMatches[0];
     }
   }
   return undefined;
@@ -510,7 +515,7 @@ export function TaskActivitySection({
                     return {
                       id: `${event.id}-file-${fileIndex}`,
                       sourceUrl: url,
-                      fileUrl: matchedFile.fileUrl ?? url,
+                      fileUrl: matchedFile.fileUrl,
                       name: matchedFile.name,
                       status: matchedFile.status,
                       size: matchedFile.size,

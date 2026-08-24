@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   blobRepository,
   linkRepository,
@@ -66,6 +66,12 @@ export const sourceImportService = {
     }
   },
 
+  /**
+   * Enqueue PENDING task-output TaskFiles from markdown comment links.
+   * @param taskId - The task ID
+   * @param markdown - Markdown comment text
+   * @param client - Prisma client or transaction (only uses client.taskFile)
+   */
   async enqueueTaskOutputsFromMarkdown(
     taskId: string,
     markdown: string,
