@@ -509,6 +509,12 @@
         "loadMoreError": "No se pudieron cargar más jobs"
       }
     },
+    "Tasks": {
+      "TaskFileStatusBadge": {
+        "pending": "Pendiente",
+        "failed": "Falló"
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Propietario",

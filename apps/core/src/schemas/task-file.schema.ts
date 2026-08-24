@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import { TaskFileOrigin, TaskFileStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
@@ -28,6 +27,14 @@ export const taskFileUploaderSchema = z
   ])
   .openapi("TaskFileUploader");
 
+export const taskFileStatusSchema = z
+  .enum(["PENDING", "READY", "FAILED"])
+  .openapi("TaskFileStatus");
+
+export const taskFileOriginSchema = z
+  .enum(["USER_UPLOAD", "TASK_OUTPUT"])
+  .openapi("TaskFileOrigin");
+
 export const taskFileSchema = z
   .object({
     id: z.string().openapi({ example: "tfile_123" }),
@@ -40,21 +47,6 @@ export const taskFileSchema = z
       .url()
       .nullable()
       .openapi({ example: "https://blob.vercel.app/tasks/tsk_123/report.pdf" }),
-    sourceUrl: z.string().url().nullable().openapi({
-      example: "https://example.com/deliverables/file.pdf",
-      description:
-        "Original URL the file was imported from. Null for direct uploads.",
-    }),
-    status: z.enum(TaskFileStatus).openapi({
-      example: TaskFileStatus.READY,
-      description:
-        "Import status: PENDING (queued), READY (available), FAILED (import error)",
-    }),
-    origin: z.enum(TaskFileOrigin).openapi({
-      example: TaskFileOrigin.USER_UPLOAD,
-      description:
-        "How the file was created: USER_UPLOAD (manual), TASK_OUTPUT (extracted from comment)",
-    }),
     mimeType: z.string().nullable().openapi({ example: "application/pdf" }),
     size: z
       .number()
@@ -62,6 +54,16 @@ export const taskFileSchema = z
       .nonnegative()
       .nullable()
       .openapi({ example: 2048000 }),
+    status: taskFileStatusSchema.openapi({
+      description: "Sync status of the file",
+    }),
+    origin: taskFileOriginSchema.openapi({
+      description: "Origin of the file",
+    }),
+    sourceUrl: z.string().url().nullable().openapi({
+      example: "https://example.com/source.pdf",
+      description: "Original source URL for output files",
+    }),
     uploader: taskFileUploaderSchema.nullable().openapi({
       description:
         "Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).",

@@ -83,6 +83,20 @@ export const sourceImportService = {
       }
 
       try {
+        // Skip if a TaskFile already exists with matching fileUrl or sourceUrl.
+        // This prevents duplicate rows when user uploads a file (fileUrl=blob, sourceUrl=null)
+        // then posts a comment with that blob URL (sourceUrl=blob, fileUrl=null).
+        const existing = await client.taskFile.findFirst({
+          where: {
+            taskId,
+            OR: [{ fileUrl: url }, { sourceUrl: url }],
+          },
+        });
+
+        if (existing) {
+          continue;
+        }
+
         const basename = getUrlBasename(url) ?? "file";
         // Upsert PENDING task-output TaskFile. Unique on (taskId, sourceUrl).
         // Do NOT set fileUrl yet — source-import cron will fetch and upload.
