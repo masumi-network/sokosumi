@@ -17,15 +17,19 @@ import {
 
 import { cn } from "@/lib/utils";
 
-/** Beautiful UI loading timer: tenths under 60s, then `m s.s`. */
+/** Live timer: tenths under 10s, then whole seconds (`10s`, `1m 15s`). */
 export function formatBeautifulElapsed(elapsedMs: number): string {
   const total = Math.max(0, elapsedMs) / 1000;
-  if (total < 60) {
+  if (total < 10) {
     return `${total.toFixed(1)}s`;
   }
-  const minutes = Math.floor(total / 60);
-  const rem = total % 60;
-  return `${minutes}m ${rem.toFixed(1)}s`;
+  const secs = Math.floor(total);
+  if (secs < 60) {
+    return `${secs}s`;
+  }
+  const minutes = Math.floor(secs / 60);
+  const rem = secs % 60;
+  return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
 }
 
 /**

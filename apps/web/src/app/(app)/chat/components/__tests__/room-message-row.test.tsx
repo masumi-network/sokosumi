@@ -2055,7 +2055,7 @@ describe("ChatMessageRow coworker Thought", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows tenths elapsed on the live Loading row", () => {
+  it("shows whole-second elapsed on the live Loading row from 10s", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-10T12:00:10.000Z"));
     try {
@@ -2068,7 +2068,7 @@ describe("ChatMessageRow coworker Thought", () => {
         }),
       });
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "10.0s",
+        "10s",
       );
     } finally {
       vi.useRealTimers();
@@ -2095,7 +2095,7 @@ describe("ChatMessageRow coworker Thought", () => {
         />,
       );
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "45.0s",
+        "45s",
       );
       unmount();
       vi.setSystemTime(new Date("2026-08-10T12:01:05.000Z"));
@@ -2108,7 +2108,7 @@ describe("ChatMessageRow coworker Thought", () => {
         />,
       );
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "1m 5.0s",
+        "1m 5s",
       );
     } finally {
       vi.useRealTimers();
