@@ -75,6 +75,14 @@ const chatRoomMessageFullEventSchema = z.object({
   message: chatRoomMessageFullEventMessageSchema,
 });
 
+/** Over-limit create/update/delete: identity only (ADR 0014). */
+const chatRoomMessageIdEnvelopeSchema = z.object({
+  eventType: z.enum(["create", "update", "delete"]),
+  messageId: z.string().min(1),
+  roomId: z.string().min(1),
+  parentMessageId: z.string().nullable(),
+});
+
 const chatRoomMessageReactionEventSchema = z.object({
   eventType: z.literal("reaction"),
   messageId: z.string().min(1),
@@ -106,11 +114,13 @@ const chatRoomMessageMentionStatusEventSchema = z.object({
 });
 
 /**
- * Ably `chat_room_message` body (SOK-736 + SOK-737).
- * Full DTO for create/update/delete; field patch for reaction/unfurl/mention_status.
+ * Ably `chat_room_message` body (SOK-736 + SOK-737 + ADR 0014).
+ * Full DTO or id envelope for create/update/delete; field patch for
+ * reaction/unfurl/mention_status.
  */
 export const chatRoomMessageEventDataSchema = z.union([
   chatRoomMessageFullEventSchema,
+  chatRoomMessageIdEnvelopeSchema,
   chatRoomMessageReactionEventSchema,
   chatRoomMessageUnfurlEventDataSchema,
   chatRoomMessageMentionStatusEventSchema,
@@ -124,9 +134,13 @@ export type ChatRoomMessageFullEventData = z.infer<
   typeof chatRoomMessageFullEventSchema
 >;
 
-export type ChatRoomMessagePatchEventData = Exclude<
+export type ChatRoomMessageIdEnvelopeData = z.infer<
+  typeof chatRoomMessageIdEnvelopeSchema
+>;
+
+export type ChatRoomMessagePatchEventData = Extract<
   ChatRoomMessageEventData,
-  ChatRoomMessageFullEventData
+  { eventType: "reaction" | "unfurl" | "mention_status" }
 >;
 
 export function isChatRoomMessagePatchEvent(
@@ -136,5 +150,16 @@ export function isChatRoomMessagePatchEvent(
     event.eventType === "reaction" ||
     event.eventType === "unfurl" ||
     event.eventType === "mention_status"
+  );
+}
+
+export function isChatRoomMessageIdEnvelope(
+  event: ChatRoomMessageEventData,
+): event is ChatRoomMessageIdEnvelopeData {
+  return (
+    (event.eventType === "create" ||
+      event.eventType === "update" ||
+      event.eventType === "delete") &&
+    !("message" in event)
   );
 }
