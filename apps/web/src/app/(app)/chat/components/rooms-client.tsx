@@ -93,7 +93,10 @@ import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
   type ChatRoomMessageEventData,
+  chatRoomMessageIdEnvelopeAction,
+  isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
+  tombstoneChatRoomMessage,
 } from "@/lib/ably";
 import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
@@ -885,6 +888,7 @@ export function RoomsClient({
   skipRealtimeWhileStreamingRef.current = isCoworkerStreamRoom;
   const threadParentMessageIdRef = useRef<string | null>(null);
   threadParentMessageIdRef.current = threadParentMessage?.id ?? null;
+  const refreshLatestRef = useRef<() => Promise<void>>(async () => {});
 
   const handleChatRoomRealtimeMessage = useCallback(
     (event: ChatRoomMessageEventData) => {
@@ -892,6 +896,65 @@ export function RoomsClient({
         skipRealtimeWhileStreamingRef.current &&
         isCoworkerStreamingRef.current
       ) {
+        return;
+      }
+
+      if (isChatRoomMessageIdEnvelope(event)) {
+        const action = chatRoomMessageIdEnvelopeAction(
+          event,
+          selectedRoomIdRef.current,
+        );
+        if (action.kind === "ignore") {
+          return;
+        }
+        if (action.kind === "refresh") {
+          void refreshLatestRef.current();
+          return;
+        }
+
+        const route = routeRealtimeChatRoomMessage(
+          {
+            id: action.messageId,
+            parentMessageId: action.parentMessageId,
+          },
+          threadParentMessageIdRef.current,
+          "delete",
+        );
+
+        if (route.mergeIntoRoomTimeline) {
+          setMessagesState((current) => {
+            const existing = current.find(
+              (message) => message.id === action.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            return filterTopLevelChatRoomMessages(
+              mergeRoomMessages(current, [tombstoneChatRoomMessage(existing)]),
+            );
+          });
+        }
+
+        setThreadParentMessage((current) => {
+          if (current?.id !== action.messageId) {
+            return current;
+          }
+          return tombstoneChatRoomMessage(current);
+        });
+
+        if (route.mergeIntoOpenThread) {
+          setThreadMessages((current) => {
+            const existing = current.find(
+              (message) => message.id === action.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            return mergeRoomMessages(current, [
+              tombstoneChatRoomMessage(existing),
+            ]);
+          });
+        }
         return;
       }
 
@@ -1407,6 +1470,48 @@ export function RoomsClient({
     };
   }, [selectedRoom?.id, hasPendingRoomCoworkerMention]);
 
+  const refreshFocusedRoomMessages = useCallback(async () => {
+    const roomId = selectedRoomIdRef.current;
+    if (!roomId) {
+      return;
+    }
+    if (
+      skipRealtimeWhileStreamingRef.current &&
+      isCoworkerStreamingRef.current
+    ) {
+      return;
+    }
+    const threadParentId = threadParentMessageIdRef.current;
+    const [result, threadResult] = await Promise.all([
+      listRoomMessagesAction(roomId),
+      threadParentId
+        ? listThreadMessagesAction(roomId, threadParentId)
+        : Promise.resolve(null),
+    ]);
+    if (selectedRoomIdRef.current !== roomId || !result.ok) {
+      return;
+    }
+    setMessagesState((current) =>
+      mergeRoomMessages(current, result.value.messages),
+    );
+    setThreadParentMessage((current) =>
+      current
+        ? (result.value.messages.find((message) => message.id === current.id) ??
+          current)
+        : current,
+    );
+    if (
+      threadResult?.ok &&
+      threadParentId != null &&
+      threadParentMessageIdRef.current === threadParentId
+    ) {
+      setThreadMessages((current) =>
+        mergeRoomMessages(current, threadResult.value.messages),
+      );
+    }
+  }, []);
+  refreshLatestRef.current = refreshFocusedRoomMessages;
+
   // Ably Pub/Sub is primary (RoomMessageRealtimeBridge). Keep a short poll +
   // focus/visibility refresh so human peer rows still land when Ably drops or
   // lags while the room stays open.
@@ -1415,42 +1520,16 @@ export function RoomsClient({
       return;
     }
 
-    const roomId = selectedRoom.id;
-    const skipWhileStreaming = shouldUseCoworkerRoomStream(selectedRoom);
     let cancelled = false;
 
     const refreshLatest = async () => {
       if (document.visibilityState !== "visible") {
         return;
       }
-      if (skipWhileStreaming && isCoworkerStreaming) {
+      if (cancelled) {
         return;
       }
-      const threadParentId = threadParentMessageRef.current?.id;
-      const [result, threadResult] = await Promise.all([
-        listRoomMessagesAction(roomId),
-        threadParentId
-          ? listThreadMessagesAction(roomId, threadParentId)
-          : Promise.resolve(null),
-      ]);
-      if (cancelled || !result.ok) {
-        return;
-      }
-      setMessagesState((current) =>
-        mergeRoomMessages(current, result.value.messages),
-      );
-      setThreadParentMessage((current) =>
-        current
-          ? (result.value.messages.find(
-              (message) => message.id === current.id,
-            ) ?? current)
-          : current,
-      );
-      if (threadResult?.ok) {
-        setThreadMessages((current) =>
-          mergeRoomMessages(current, threadResult.value.messages),
-        );
-      }
+      await refreshFocusedRoomMessages();
     };
 
     const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
@@ -1468,7 +1547,7 @@ export function RoomsClient({
       window.removeEventListener("focus", refreshLatest);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [selectedRoom?.id, isCoworkerStreaming]);
+  }, [selectedRoom?.id, refreshFocusedRoomMessages]);
 
   useEffect(() => {
     if (

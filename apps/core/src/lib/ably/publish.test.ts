@@ -137,6 +137,53 @@ describe("publishChatRoomMessageEvent", () => {
     });
   });
 
+  it("publishes an id envelope when the full create exceeds Ably maxMessageSize", async () => {
+    publishMock.mockClear();
+    const message = {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null as string | null,
+      content: "x".repeat(70_000),
+      createdAt: "2026-08-03T12:00:00.000Z",
+      deletedAt: null,
+      editedAt: null,
+      sender: {
+        type: "coworker" as const,
+        coworker: {
+          id: "cow_123",
+          name: "Hermes",
+          slug: "hermes",
+          caption: null,
+          image: null,
+          presence: "online" as const,
+        },
+      },
+      mentions: [],
+      reactions: [],
+      threadReplyCount: 0,
+      threadLastReplyAt: null,
+      metadata: {
+        reasoning: [{ type: "reasoning", text: "y".repeat(400) }],
+      },
+      quote: null,
+      membership: null,
+      unfurls: null,
+    };
+
+    await publishChatRoomMessageEvent({
+      eventType: "create",
+      message,
+    });
+
+    expect(publishMock).toHaveBeenCalledTimes(1);
+    expect(publishMock).toHaveBeenCalledWith("chat_room_message", {
+      eventType: "create",
+      messageId: message.id,
+      roomId: message.roomId,
+      parentMessageId: null,
+    });
+  });
+
   it("publishes a patch envelope for reaction events on the room channel", async () => {
     const patch = {
       reactions: [

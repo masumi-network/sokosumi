@@ -59,7 +59,7 @@
     "@vercel/oidc": "3.8.5",
     "@vercel/related-projects": "1.1.1",
     "ably": "2.27.0",
-    "ai": "7.0.73",
+    "ai": "7.0.77",
     "better-auth": "1.7.1",
     "cron-parser": "5.10.0",
     "dotenv": "17.4.2",
@@ -68,12 +68,12 @@
     "neverthrow": "8.2.0",
     "p-limit": "7.3.1",
     "p-timeout": "7.0.1",
-    "resend": "6.21.0",
+    "resend": "6.22.0",
     "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
     "stripe": "22.5.0",
     "uuid": "14.0.2",
-    "viem": "2.55.10"
+    "viem": "2.55.19"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

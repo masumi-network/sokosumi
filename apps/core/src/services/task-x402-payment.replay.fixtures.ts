@@ -149,9 +149,21 @@ export function createTx(
     suppliedAgent?: { blockchainIdentifier: string } | null;
     /** What the by-identifier `agent.findFirst` resolves to. */
     canonicalAgent?: { id: string } | null;
+    /**
+     * Row returned after the VERIFIED replay FOR UPDATE lock. Defaults to a
+     * live VERIFIED record so happy-path tests need no extra wiring; pass an
+     * override to simulate expiry or a concurrent goodwill refund.
+     */
+    lockedPayment?: StoredTaskX402Payment | null;
   } = {},
 ) {
+  const defaultLockedPayment = storedRecord({
+    status: "VERIFIED",
+    attemptId: "attempt_stored",
+    xPaymentHeader: STORED_PAYMENT_HEADER,
+  });
   return {
+    $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
     agent: {
       findUnique: vi.fn().mockResolvedValue(options.suppliedAgent ?? null),
       // Two callers share this mock: the catalog lookup (findListedX402Agent,
@@ -165,6 +177,15 @@ export function createTx(
         return Promise.resolve(agent);
       }),
     },
-    taskX402Payment: { update: vi.fn().mockResolvedValue({}) },
+    taskX402Payment: {
+      update: vi.fn().mockResolvedValue({}),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          options.lockedPayment === undefined
+            ? defaultLockedPayment
+            : options.lockedPayment,
+        ),
+    },
   } as unknown as Prisma.TransactionClient;
 }
