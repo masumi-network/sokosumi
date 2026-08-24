@@ -349,4 +349,83 @@ describe("FileChip", () => {
       "video/mp4",
     );
   });
+
+  it("renders video as a compact chip when variant is single-line", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/clip.mp4"
+        fileName="clip.mp4"
+        variant="single-line"
+      />,
+    );
+
+    expect(container.querySelector("video")).toBeNull();
+    expect(screen.queryByTestId("file-chip-video")).not.toBeInTheDocument();
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute(
+      "href",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(screen.getByText("clip.mp4")).toBeInTheDocument();
+  });
+
+  it("renders audio as a compact chip when variant is single-line", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/track.mp3"
+        fileName="track.mp3"
+        mediaType="audio/mpeg"
+        variant="single-line"
+      />,
+    );
+
+    expect(container.querySelector("audio")).toBeNull();
+    expect(screen.queryByTestId("file-chip-audio")).not.toBeInTheDocument();
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute(
+      "href",
+      "https://blob.example.com/uploads/track.mp3",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(screen.getByText("track.mp3")).toBeInTheDocument();
+  });
+
+  it("still shows inline video player when variant is not single-line", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/clip.mp4"
+        fileName="clip.mp4"
+        variant="two-line"
+      />,
+    );
+
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    expect(video).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+    expect(screen.getByTestId("file-chip-video")).toBeInTheDocument();
+  });
+
+  it("still shows inline audio player when variant is not single-line", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/track.mp3"
+        fileName="track.mp3"
+        mediaType="audio/mpeg"
+        variant="two-line"
+      />,
+    );
+
+    const audio = container.querySelector("audio");
+    expect(audio).not.toBeNull();
+    expect(audio).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/track.mp3",
+    );
+  });
 });

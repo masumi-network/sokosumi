@@ -241,6 +241,21 @@ export function FileChip(props: FileChipProps) {
   }
 
   if (isVideo || isAudio) {
+    if (variant === "single-line") {
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={title}
+          {...anchorProps}
+          className={chipClassName}
+        >
+          {content}
+        </a>
+      );
+    }
+
     const mediaSrc = stripForcedDownloadParam(url);
     return (
       <div
