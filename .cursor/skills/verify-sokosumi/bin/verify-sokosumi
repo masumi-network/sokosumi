@@ -53,6 +53,7 @@ Env overrides:
   VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  fixture credentials for sign-in
   VERIFY_SOKOSUMI_VAULT_PROFILE  default sokosumi (agent-browser auth profile)
   AGENT_BROWSER_SESSION_NAME  preferred: sokosumi (session cookie reuse)
+  AGENT_BROWSER_ARGS  Chrome flags; HTTPS named URLs auto-add --ignore-certificate-errors
 EOF
 }
 
@@ -293,6 +294,30 @@ function fixture_probe() {
   return 1
 }
 
+function ensure_agent_browser_tls_args() {
+  # Chromium on Linux cloud VMs often ignores the portless system CA, so
+  # https://*.sokosumi.localhost fails with ERR_CERT_AUTHORITY_INVALID.
+  # Default AGENT_BROWSER_ARGS for HTTPS drives (portless named URLs).
+  local url="${WEB_URL:-${VERIFY_SOKOSUMI_WEB_URL:-}}"
+  if [[ -z "$url" && -f "$PID_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$PID_FILE"
+    url="${web_url:-}"
+  fi
+  if [[ "$url" == https://* ]] || [[ -z "$url" ]]; then
+    case " ${AGENT_BROWSER_ARGS:-} " in
+      *" --ignore-certificate-errors "*) ;;
+      *)
+        if [[ -n "${AGENT_BROWSER_ARGS:-}" ]]; then
+          export AGENT_BROWSER_ARGS="${AGENT_BROWSER_ARGS} --ignore-certificate-errors"
+        else
+          export AGENT_BROWSER_ARGS="--ignore-certificate-errors"
+        fi
+        ;;
+    esac
+  fi
+}
+
 function require_agent_browser() {
   if ! command -v agent-browser >/dev/null 2>&1; then
     echo "error: agent-browser not on PATH." >&2
@@ -300,6 +325,7 @@ function require_agent_browser() {
     echo "Cloud Agent fallback: computer-use with the same auth rules (see SKILL.md)." >&2
     return 1
   fi
+  ensure_agent_browser_tls_args
   return 0
 }
 
@@ -326,8 +352,8 @@ function vault_profile_email() {
 }
 
 function wait_authed_agents() {
-  # Persist check. Do not wait --load networkidle on /chat — Ably keeps the
-  # network busy and that wait hangs. Prove the session on /agents instead.
+  # Persist check. Do not wait --load networkidle on Welcome / or /chat — Ably
+  # can keep the network busy and hang that wait. Prove the session on /agents instead.
   # Prefer a short sleep over `wait --url` here — that wait has a long default
   # timeout and can sit for minutes after a successful navigation.
   agent-browser open "$WEB_URL/agents" >/dev/null
@@ -504,7 +530,8 @@ function sign_in_ui() {
   # react-hook-form: wait for controlled state, then Enter (not click auth-submit).
   agent-browser wait 400 >/dev/null || sleep 0.4
   agent-browser press Enter
-  # Do not wait --load networkidle here: post-login often lands on /chat and Ably hangs that wait.
+  # Do not wait --load networkidle here: post-login lands on Welcome / (or
+  # returnUrl); Ably can hang that wait on chat-adjacent shells.
   agent-browser wait 1000 >/dev/null || sleep 1
 
   url="$(agent-browser get url 2>/dev/null || true)"
