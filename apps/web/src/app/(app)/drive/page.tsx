@@ -849,7 +849,7 @@ export default function DrivePage(): ReactElement {
     setCreatingFolder(true);
     try {
       const targetFolder = snapshotFolder ?? currentFolder;
-      await postDriveFolders({
+      const result = await postDriveFolders({
         client: getBrowserCoreClient(),
         body: {
           folderPath: targetFolder
@@ -860,8 +860,23 @@ export default function DrivePage(): ReactElement {
             ? { organizationId: activeOrganizationId }
             : {}),
         },
-        throwOnError: true,
+        throwOnError: false,
       });
+
+      // Check for error response
+      if (result.error || !result.response?.ok) {
+        const status = result.response?.status;
+        // HTTP 409 = conflict (duplicate or reserved folder name)
+        if (status === 409) {
+          setCreateFolderDialogOpen(false);
+          setNewFolderName("");
+          setSnapshotFolder(null);
+          toast.error(t("createFolderDuplicateError"));
+        } else {
+          toast.error(t("createFolderError"));
+        }
+        return;
+      }
 
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
@@ -869,22 +884,7 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       console.error("Failed to create folder", err);
-      console.error("Error structure:", {
-        hasStatus: "status" in (err as object),
-        status: (err as any)?.status,
-        hasResponse: "response" in (err as object),
-        responseStatus: (err as any)?.response?.status,
-        isDuplicate: isDuplicateResourceError(err),
-      });
-
-      if (isDuplicateResourceError(err)) {
-        setCreateFolderDialogOpen(false);
-        setNewFolderName("");
-        setSnapshotFolder(null);
-        toast.error(t("createFolderDuplicateError"));
-      } else {
-        toast.error(t("createFolderError"));
-      }
+      toast.error(t("createFolderError"));
     } finally {
       setCreatingFolder(false);
     }
