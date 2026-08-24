@@ -679,6 +679,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   let thoughtPublishQueue = Promise.resolve();
   let mentionPublished = false;
   let keepFailedPlaceholder = false;
+  let lostFinalizeClaim = false;
 
   try {
     const { text: streamedText, reasoningSteps: streamedReasoning } =
@@ -792,9 +793,22 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         return { kind: "failed" as const };
       }
 
-      // Persist the reply first, then claim the mention transition. If another
-      // worker already finalized (or reclaim stole the claim), discard this
-      // duplicate reply so the room does not double-post.
+      // Claim before writing the reply so a losing worker cannot overwrite a
+      // shared Thought placeholder. Lost claim returns without a message write.
+      const finalized = await tx.chatRoomMention.updateMany({
+        where: { id: mention.id, status: "sent" },
+        data: {
+          status: "responded",
+          error: null,
+          providerResponseId,
+          ...(placeholderId ? { responseMessageId: placeholderId } : {}),
+        },
+      });
+
+      if (finalized.count !== 1) {
+        return { kind: "lost_claim" as const };
+      }
+
       const responseMessage = placeholderId
         ? await tx.chatRoomMessage.update({
             where: { id: placeholderId },
@@ -813,24 +827,11 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
             },
           });
 
-      const finalized = await tx.chatRoomMention.updateMany({
-        where: { id: mention.id, status: "sent" },
-        data: {
-          status: "responded",
-          error: null,
-          providerResponseId,
-          responseMessageId: responseMessage.id,
-        },
-      });
-
-      if (finalized.count !== 1) {
-        // Leave a streaming placeholder for discard so Ably can still load it.
-        if (!placeholderId) {
-          await tx.chatRoomMessage.delete({
-            where: { id: responseMessage.id },
-          });
-        }
-        return { kind: "lost_claim" as const };
+      if (!placeholderId) {
+        await tx.chatRoomMention.update({
+          where: { id: mention.id },
+          data: { responseMessageId: responseMessage.id },
+        });
       }
 
       await tx.chatRoom.update({
@@ -853,6 +854,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       return;
     }
     if (publishedMessageIds.kind === "lost_claim") {
+      lostFinalizeClaim = true;
       return;
     }
 
@@ -878,8 +880,8 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       const winnerKeptRow =
         latest?.status === "responded" &&
         latest.responseMessageId === placeholderId;
-      if (winnerKeptRow) {
-        // Winning worker already finalized this row.
+      if (winnerKeptRow || lostFinalizeClaim) {
+        // Winning worker owns this shell; a lost claim must not discard it.
       } else if (keepFailedPlaceholder || latest?.status === "failed") {
         await failMentionThoughtPlaceholder({
           placeholderId,

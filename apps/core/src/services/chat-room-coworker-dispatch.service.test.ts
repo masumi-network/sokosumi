@@ -394,7 +394,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(timing.end).toBeGreaterThanOrEqual(timing.start);
   });
 
-  it("discards the reply when finalize loses the claim race", async () => {
+  it("does not overwrite the shared placeholder when finalize loses the claim", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     transactionUpdateManyMock.mockResolvedValue({ count: 0 });
@@ -406,7 +406,13 @@ describe("dispatchChatRoomMention claim", () => {
       where: { id: MENTION_ID, status: "sent" },
       data: expect.objectContaining({ status: "responded" }),
     });
-    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
+    expect(updateMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ content: "Hello back" }),
+      }),
+    );
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
   });
 
   it("reclaims a stale sent mention and runs provider work", async () => {
@@ -953,7 +959,7 @@ describe("dispatchChatRoomMention claim", () => {
     );
   });
 
-  it("publishes delete for a streaming placeholder when finalize loses the claim", async () => {
+  it("does not discard a streaming placeholder when finalize loses the claim", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     transactionUpdateManyMock.mockResolvedValue({ count: 0 });
@@ -974,8 +980,13 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(createMock).toHaveBeenCalled();
-    expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "delete");
-    expect(deleteMock).toHaveBeenCalledWith({ where: { id: "reply_1" } });
+    expect(updateMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ content: "Hello back" }),
+      }),
+    );
+    expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
+    expect(deleteMock).not.toHaveBeenCalled();
   });
 });
 
