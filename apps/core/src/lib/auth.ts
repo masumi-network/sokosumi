@@ -307,8 +307,6 @@ export const auth = betterAuth({
     accountLinking: {
       enabled: true,
       trustedProviders: ["google", "microsoft"],
-      // 1.6 implicit-link: unverified password users can still attach Google/Microsoft.
-      requireLocalEmailVerified: false,
     },
   },
   databaseHooks: {

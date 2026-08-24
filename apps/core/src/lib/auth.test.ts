@@ -526,7 +526,6 @@ describe("core auth config", () => {
             accountLinking: {
               enabled: boolean;
               trustedProviders: string[];
-              requireLocalEmailVerified: boolean;
             };
           };
         },
@@ -551,7 +550,6 @@ describe("core auth config", () => {
     expect(config.account.accountLinking).toEqual({
       enabled: true,
       trustedProviders: ["google", "microsoft"],
-      requireLocalEmailVerified: false,
     });
   });
 
