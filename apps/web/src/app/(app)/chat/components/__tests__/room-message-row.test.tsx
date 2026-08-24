@@ -1870,73 +1870,7 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides mention status when coworker replied; shows failed terminal only", () => {
-    const coworkersById = new Map([
-      [
-        "cow-1",
-        {
-          id: "cow-1",
-          name: "Noodles",
-          slug: "noodles",
-          caption: null,
-          image: null,
-          presence: "online" as const,
-        },
-      ],
-    ]);
-    const { rerender } = render(
-      <ChatMessageRow
-        message={userMessage({
-          mentions: [
-            {
-              id: "m1",
-              coworkerId: "cow-1",
-              status: "responded",
-              responseMessageId: "r1",
-            },
-          ],
-        })}
-        coworkersById={coworkersById}
-        coworkersBySlug={new Map()}
-        onToggleReaction={vi.fn()}
-      />,
-    );
-    expect(
-      screen.queryByTestId("coworker-mention-terminal"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("coworker-loading-state"),
-    ).not.toBeInTheDocument();
-
-    rerender(
-      <ChatMessageRow
-        message={userMessage({
-          mentions: [
-            {
-              id: "m1",
-              coworkerId: "cow-1",
-              status: "failed",
-              responseMessageId: null,
-            },
-          ],
-        })}
-        coworkersById={coworkersById}
-        coworkersBySlug={new Map()}
-        onToggleReaction={vi.fn()}
-      />,
-    );
-    const terminal = screen.getByTestId("coworker-mention-terminal");
-    expect(terminal).toHaveAttribute("role", "status");
-    expect(terminal).toHaveTextContent("MentionStatus.failed");
-    expect(terminal).toHaveClass("bg-destructive/10", "border-destructive/20");
-    expect(
-      screen.getByTestId("coworker-mention-failed-icon"),
-    ).toBeInTheDocument();
-    // Soft chip replaces the frozen pixel-grid loader.
-    expect(screen.queryByTestId("bui-static-grid")).not.toBeInTheDocument();
-  });
-
-  it("hides parent fail chrome when the failed shell exists", () => {
+  it("never shows mention fail chrome on the parent message", () => {
     renderRow({
       message: userMessage({
         mentions: [
@@ -1944,7 +1878,7 @@ describe("ChatMessageRow coworker Thought", () => {
             id: "m1",
             coworkerId: "cow-1",
             status: "failed",
-            responseMessageId: "shell_1",
+            responseMessageId: null,
           },
         ],
       }),

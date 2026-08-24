@@ -466,7 +466,18 @@ describe("dispatchChatRoomMention claim", () => {
       },
     });
     expect(streamTextMock).not.toHaveBeenCalled();
-    expect(createMock).not.toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalled();
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: { id: "reply_1" },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
   });
 
   it("fails closed when membership disappears during streamText", async () => {
@@ -591,7 +602,18 @@ describe("dispatchChatRoomMention claim", () => {
       },
     });
     expect(streamTextMock).not.toHaveBeenCalled();
-    expect(createMock).not.toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalled();
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: { id: "reply_1" },
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
   });
 
   it("resolves personal workspace for personal rooms via message sender", async () => {

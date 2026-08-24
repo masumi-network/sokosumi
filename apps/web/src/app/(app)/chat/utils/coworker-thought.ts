@@ -176,19 +176,6 @@ export function isFailedMentionThoughtShell(metadata: unknown): boolean {
   );
 }
 
-export type MentionParentChrome = "failed" | "hidden";
-
-/** Parent chip only when fail landed with no coworker shell. */
-export function mentionParentChrome(mention: {
-  status: string;
-  responseMessageId: string | null;
-}): MentionParentChrome {
-  if (mention.status === "failed" && mention.responseMessageId == null) {
-    return "failed";
-  }
-  return "hidden";
-}
-
 function isLiveThoughtShell(input: {
   isStreamOverlay: boolean;
   metadata?: unknown;

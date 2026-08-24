@@ -5080,8 +5080,7 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "{name} konnte nicht antworten",
-        "nameFallback": "Coworker"
+        "failed": "{name} konnte nicht antworten"
       },
       "Outbound": {
         "sending": "Wird gesendet",

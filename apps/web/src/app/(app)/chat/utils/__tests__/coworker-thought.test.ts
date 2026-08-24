@@ -7,7 +7,6 @@ import {
   extractThoughtTextFromMetadata,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
-  mentionParentChrome,
   resolveCoworkerThoughtViewModel,
 } from "../coworker-thought";
 
@@ -326,44 +325,6 @@ describe("resolveCoworkerThoughtViewModel", () => {
     expect(vm.liveBeat).toBeNull();
     expect(vm.showThinkingFallback).toBe(false);
     expect(vm.disclosure).toBeNull();
-  });
-});
-
-describe("mentionParentChrome", () => {
-  it("hides parent chrome while waiting so Calling does not jump into Thinking", () => {
-    expect(
-      mentionParentChrome({ status: "pending", responseMessageId: null }),
-    ).toBe("hidden");
-    expect(
-      mentionParentChrome({ status: "sent", responseMessageId: null }),
-    ).toBe("hidden");
-  });
-
-  it("hides parent chrome once a shell exists, including failed", () => {
-    expect(
-      mentionParentChrome({
-        status: "sent",
-        responseMessageId: "shell_1",
-      }),
-    ).toBe("hidden");
-    expect(
-      mentionParentChrome({
-        status: "failed",
-        responseMessageId: "shell_1",
-      }),
-    ).toBe("hidden");
-    expect(
-      mentionParentChrome({
-        status: "responded",
-        responseMessageId: "reply_1",
-      }),
-    ).toBe("hidden");
-  });
-
-  it("shows failed on the parent only when no shell was created", () => {
-    expect(
-      mentionParentChrome({ status: "failed", responseMessageId: null }),
-    ).toBe("failed");
   });
 });
 

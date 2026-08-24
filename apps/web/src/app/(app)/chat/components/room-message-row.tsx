@@ -33,7 +33,6 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
-  mentionParentChrome,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -1505,14 +1504,12 @@ function OutboundFailedActions({
 
 function MessageMetaFooter({
   message,
-  coworkersById,
   onToggleReaction,
   onOpenThread,
   showThreadButton,
   isDeleted,
 }: {
   message: ChatRoomMessage;
-  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1567,30 +1564,6 @@ function MessageMetaFooter({
         >
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
-      ) : null}
-      {!isDeleted &&
-      message.mentions.some((m) => mentionParentChrome(m) !== "hidden") ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
-          {message.mentions.map((mention) => {
-            // Success = coworker reply in the transcript; no "replied" chrome.
-            if (mention.status === "responded") {
-              return null;
-            }
-            const name =
-              coworkersById.get(mention.coworkerId)?.name ??
-              t("MentionStatus.nameFallback");
-            const chrome = mentionParentChrome(mention);
-            if (chrome !== "failed") {
-              return null;
-            }
-            return (
-              <CoworkerMentionTerminalStatus
-                key={mention.id}
-                label={t("MentionStatus.failed", { name })}
-              />
-            );
-          })}
-        </div>
       ) : null}
     </>
   );
@@ -1948,7 +1921,6 @@ export function ChatMessageRow({
         {!isEditing ? (
           <MessageMetaFooter
             message={message}
-            coworkersById={coworkersById}
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton && !isOutboundLocal}

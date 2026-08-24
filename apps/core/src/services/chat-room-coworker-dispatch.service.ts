@@ -238,6 +238,40 @@ async function failMentionThoughtPlaceholder(params: {
   await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
 }
 
+/** Pre-claim fail still needs a coworker bubble; parent has no mention footer. */
+async function failMentionWithCoworkerShell(params: {
+  mentionId: string;
+  sourceMessageId: string;
+  roomId: string;
+  parentMessageId: string | null;
+  coworkerId: string;
+  error: unknown;
+}): Promise<void> {
+  try {
+    const placeholderId = await publishMentionThoughtPlaceholder({
+      placeholderId: null,
+      roomId: params.roomId,
+      parentMessageId: params.parentMessageId,
+      sourceMessageId: params.sourceMessageId,
+      mentionId: params.mentionId,
+      coworkerId: params.coworkerId,
+      reasoningSteps: [],
+      thoughtStartedAtMs: 0,
+    });
+    await failMentionThoughtPlaceholder({
+      placeholderId,
+      sourceMessageId: params.sourceMessageId,
+      mentionId: params.mentionId,
+    });
+  } catch (publishError) {
+    console.error("Mention failed-shell create failed:", {
+      mentionId: params.mentionId,
+      error: publishError,
+    });
+  }
+  await markMentionFailed(params.mentionId, params.error);
+}
+
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
 /** Per-message cap inside the context block so one wall of text cannot eat the prompt. */
@@ -426,9 +460,19 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
   // Fail closed when the human sender row was deleted (SetNull): billing /
   // provider auth as the room creator would attribute cost to the wrong user.
+  const failWithShell = (error: unknown) =>
+    failMentionWithCoworkerShell({
+      mentionId,
+      sourceMessageId: mention.message.id,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      coworkerId: mention.coworker.id,
+      error,
+    });
+
   const userId = mention.message.senderUserId;
   if (!userId) {
-    await markMentionFailed(mentionId, "Mention sender is no longer available");
+    await failWithShell("Mention sender is no longer available");
     return;
   }
 
@@ -440,7 +484,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       personalUserId: userId,
     });
   } catch {
-    await markMentionFailed(mentionId, "Coworker chat is not available");
+    await failWithShell("Coworker chat is not available");
     return;
   }
 
@@ -452,7 +496,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     { requireBaseUrl: true },
   );
   if (!usableCoworker?.baseURL?.trim()) {
-    await markMentionFailed(mentionId, "Coworker chat is not available");
+    await failWithShell("Coworker chat is not available");
     return;
   }
 
@@ -473,10 +517,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     select: { id: true },
   });
   if (!membership) {
-    await markMentionFailed(
-      mentionId,
-      "Coworker is no longer a member of this room",
-    );
+    await failWithShell("Coworker is no longer a member of this room");
     return;
   }
 
