@@ -22,6 +22,7 @@ import {
   APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
 } from "./app-shell-safe-area";
+import { AuthSessionHydrator } from "./auth-session-hydrator.client";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./notice-dialog-context";
@@ -63,6 +64,7 @@ export default async function AuthenticatedAppFrame({
 
   return (
     <NotificationProvider userId={session.user.id}>
+      <AuthSessionHydrator session={session} />
       <OrgPresenceProvider organizationId={activeOrganizationId}>
         <AccountNoticeProvider notice={null} sessionId={session.session.id}>
           <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
