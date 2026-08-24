@@ -6,7 +6,7 @@ Sign in lets a user authenticate with email and password, reach the authenticate
 
 - `signin-form` shows email and password fields on `/signin`.
 - `signin-submit` creates a session via Enter submit.
-- `signin-landing` lands on the authenticated default (`/chat` or redirect chain into the app).
+- `signin-landing` lands on the authenticated default (**Welcome `/`**, or a `returnUrl` when present).
 - `signin-persist` keeps the session after reload of a protected URL.
 
 ## How to get to it (user POV)
@@ -42,8 +42,8 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 - **Open form.** Run `agent-browser open $WEB_URL/signin` then `agent-browser snapshot -i`. The page exposes `[data-testid="auth-field-email"]` and `[data-testid="auth-field-currentPassword"]` (locale may label fields `E-Mail` / `Passwort`). Google / Microsoft / Passkey / Magic Link sit **above** the password form — ignore them.
 - **Fill credentials.** Either `agent-browser auth login sokosumi --username-selector '[data-testid="auth-field-email"]' --password-selector '[data-testid="auth-field-currentPassword"]'` (vault) or `agent-browser fill` those same testids. Prefer CSS testids over snapshot refs so OAuth buttons are not selected by accident.
-- **Submit.** Wait briefly after fill (~400ms), then `agent-browser press Enter` if still on `/signin`. Do **not** `wait --load networkidle` here — post-login often lands on `/chat` and Ably hangs that wait.
-- **Persist.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --url "**/agents"`. URL stays on `/agents` (not bounced to `/signin`). Snapshot authenticated chrome there.
+- **Submit.** Wait briefly after fill (~400ms), then `agent-browser press Enter` if still on `/signin`. Do **not** `wait --load networkidle` here — post-login lands on Welcome `/` (or `returnUrl`); Ably can hang that wait on chat-adjacent shells.
+- **Persist.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --url "**/agents"`. URL stays on `/agents` (not bounced to `/signin`). Snapshot authenticated chrome there. Fixture users with a workspace should land on the coworker gallery; brand-new users may hit `/setup` instead — that still proves auth if not `/signin`.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-in`, save `snapshot -i` to `after-login.snapshot.txt`, run `agent-browser screenshot`, copy newest `~/.agent-browser/tmp/screenshots/*.png` to `after-login.png`. Artifacts show authenticated UI, not the sign-in form.
 
 ### Cookie bootstrap when UI login fails
@@ -76,7 +76,7 @@ is host-scoped on `localhost`.
 
 Computer-use notes (live-proved with `alice@sokosumi.test`):
 
-- Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under **“OR SIGN IN WITH PASSWORD”** only.
+- Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
 - **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting`).
 - Submit with **Enter** (or the purple **Login** button under the password form).
 - After success, Chrome may show a **“Save password?”** bubble over the app — dismiss **Never** / **No thanks** before clicking app chrome, or clicks miss.
