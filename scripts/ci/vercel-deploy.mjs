@@ -55,6 +55,10 @@ export function parseDeployComment(body) {
   }
 
   const unique = [...new Set(rest)];
+  if (unique.length === 1 && unique[0] === "all") {
+    return { kind: "deploy", networks: [...NETWORKS] };
+  }
+
   if (unique.some((token) => !NETWORKS.includes(token))) {
     return { kind: "usage" };
   }
@@ -71,11 +75,12 @@ export function isWritePermission(permission) {
 
 export function usageMessage() {
   return [
-    "Usage: `/deploy <mainnet|preprod> [mainnet|preprod]`",
+    "Usage: `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
     "",
     "`/deploy mainnet`",
     "`/deploy preprod`",
     "`/deploy mainnet preprod`",
+    "`/deploy all`",
     "",
     "Deploys web + core for the named network(s) at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
   ].join("\n");
