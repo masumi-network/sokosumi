@@ -1798,7 +1798,7 @@ describe("ChatMessageRow", () => {
 });
 
 describe("ChatMessageRow coworker Thought", () => {
-  it("shows Beautiful UI loading on mention status while coworker is thinking", () => {
+  it("does not show Calling on the parent while waiting for a Thought shell", () => {
     renderRow({
       message: userMessage({
         content: "@Noodles which org has the most members?",
@@ -1827,179 +1827,100 @@ describe("ChatMessageRow coworker Thought", () => {
       ]),
     });
 
-    const loading = screen.getByTestId("coworker-loading-state");
-    expect(loading).toHaveTextContent("MentionStatus.sent");
-    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
-  });
-
-  it("anchors mention thinking elapsed to message createdAt (wall clock)", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-10T12:02:00.000Z"));
-    try {
-      renderRow({
-        message: userMessage({
-          content: "@Maya draft the deck",
-          createdAt: new Date("2026-08-10T12:00:00.000Z"),
-          mentions: [
-            {
-              id: "mention-wall",
-              coworkerId: "cow-1",
-              status: "sent",
-              responseMessageId: null,
-            },
-          ],
-        }),
-        coworkersById: new Map([
-          [
-            "cow-1",
-            {
-              id: "cow-1",
-              name: "Maya",
-              slug: "maya",
-              caption: null,
-              image: null,
-              presence: "online",
-            },
-          ],
-        ]),
-      });
-      // ~2 minutes since the ask — not ~0 from client mount.
-      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "2m 0.0s",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("keeps mention thinking elapsed across remount / reopen", () => {
-    vi.useFakeTimers();
-    const createdAt = new Date("2026-08-10T12:00:00.000Z");
-    const coworkersById = new Map([
-      [
-        "cow-1",
-        {
-          id: "cow-1",
-          name: "Maya",
-          slug: "maya",
-          caption: null,
-          image: null,
-          presence: "online" as const,
-        },
-      ],
-    ]);
-    const message = userMessage({
-      content: "@Maya draft the deck",
-      createdAt,
-      mentions: [
-        {
-          id: "mention-remount",
-          coworkerId: "cow-1",
-          status: "sent",
-          responseMessageId: null,
-        },
-      ],
-    });
-    try {
-      vi.setSystemTime(new Date("2026-08-10T12:01:30.000Z"));
-      const { unmount } = render(
-        <ChatMessageRow
-          message={message}
-          coworkersById={coworkersById}
-          coworkersBySlug={new Map()}
-          onToggleReaction={vi.fn()}
-        />,
-      );
-      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "1m 30.0s",
-      );
-      unmount();
-
-      // Leave and reopen ~10s later: elapsed continues from createdAt, not remount.
-      vi.setSystemTime(new Date("2026-08-10T12:01:40.000Z"));
-      render(
-        <ChatMessageRow
-          message={message}
-          coworkersById={coworkersById}
-          coworkersBySlug={new Map()}
-          onToggleReaction={vi.fn()}
-        />,
-      );
-      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "1m 40.0s",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("hides mention status when coworker replied; shows failed terminal only", () => {
-    const coworkersById = new Map([
-      [
-        "cow-1",
-        {
-          id: "cow-1",
-          name: "Noodles",
-          slug: "noodles",
-          caption: null,
-          image: null,
-          presence: "online" as const,
-        },
-      ],
-    ]);
-    const { rerender } = render(
-      <ChatMessageRow
-        message={userMessage({
-          mentions: [
-            {
-              id: "m1",
-              coworkerId: "cow-1",
-              status: "responded",
-              responseMessageId: "r1",
-            },
-          ],
-        })}
-        coworkersById={coworkersById}
-        coworkersBySlug={new Map()}
-        onToggleReaction={vi.fn()}
-      />,
-    );
-    expect(
-      screen.queryByTestId("coworker-mention-terminal"),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-loading-state"),
     ).not.toBeInTheDocument();
-
-    rerender(
-      <ChatMessageRow
-        message={userMessage({
-          mentions: [
-            {
-              id: "m1",
-              coworkerId: "cow-1",
-              status: "failed",
-              responseMessageId: null,
-            },
-          ],
-        })}
-        coworkersById={coworkersById}
-        coworkersBySlug={new Map()}
-        onToggleReaction={vi.fn()}
-      />,
-    );
-    const terminal = screen.getByTestId("coworker-mention-terminal");
-    expect(terminal).toHaveAttribute("role", "status");
-    expect(terminal).toHaveTextContent("MentionStatus.failed");
-    expect(terminal).toHaveClass("bg-destructive/10", "border-destructive/20");
     expect(
-      screen.getByTestId("coworker-mention-failed-icon"),
-    ).toBeInTheDocument();
-    // Soft chip replaces the frozen pixel-grid loader.
-    expect(screen.queryByTestId("bui-static-grid")).not.toBeInTheDocument();
+      screen.queryByTestId("coworker-mention-terminal"),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows Beautiful UI loading state on empty stream overlay", () => {
+  it("hides parent mention chrome once a Thought shell exists", () => {
+    renderRow({
+      message: userMessage({
+        mentions: [
+          {
+            id: "mention-1",
+            coworkerId: "cow-1",
+            status: "sent",
+            responseMessageId: "shell_1",
+          },
+        ],
+      }),
+      coworkersById: new Map([
+        [
+          "cow-1",
+          {
+            id: "cow-1",
+            name: "Noodles",
+            slug: "noodles",
+            caption: null,
+            image: null,
+            presence: "online",
+          },
+        ],
+      ]),
+    });
+
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-terminal"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("never shows mention fail chrome on the parent message", () => {
+    renderRow({
+      message: userMessage({
+        mentions: [
+          {
+            id: "m1",
+            coworkerId: "cow-1",
+            status: "failed",
+            responseMessageId: null,
+          },
+        ],
+      }),
+      coworkersById: new Map([
+        [
+          "cow-1",
+          {
+            id: "cow-1",
+            name: "Noodles",
+            slug: "noodles",
+            caption: null,
+            image: null,
+            presence: "online",
+          },
+        ],
+      ]),
+    });
+    expect(
+      screen.queryByTestId("coworker-mention-terminal"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows failed caption on the coworker shell with no elapsed clock", () => {
+    renderRow({
+      message: coworkerMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+        },
+      }),
+    });
+
+    const terminal = screen.getByTestId("coworker-mention-terminal");
+    expect(terminal).toHaveTextContent("MentionStatus.failed");
+    expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-thought-trace"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
@@ -2008,10 +1929,13 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-loading-state")).toHaveTextContent(
-      "reasoning.thinking",
-    );
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows working Thought trace with live beat on stream overlay", () => {
@@ -2037,10 +1961,41 @@ describe("ChatMessageRow coworker Thought", () => {
     const body = screen.getByTestId("coworker-thought-body");
     expect(body).toHaveTextContent("Counting registrations in last 30 days");
     expect(body.className).toMatch(/line-clamp-3/);
-    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+    expect(
+      within(trace).getByTestId("live-stream-elapsed"),
+    ).toBeInTheDocument();
   });
 
-  it("shows tenths elapsed on the live Loading row", () => {
+  it("stacks blank-line Thought beats and keeps elapsed on the header", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-beats",
+        content: "",
+        metadata: {
+          streaming: true,
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "Analyzing the request...\n\nProcessing load skill results......",
+            },
+          ],
+        },
+      }),
+    });
+
+    const body = screen.getByTestId("coworker-thought-body");
+    const steps = body.querySelectorAll("p");
+    expect(steps).toHaveLength(2);
+    expect(steps[0]).toHaveTextContent("Analyzing the request...");
+    expect(steps[1]).toHaveTextContent("Processing load skill results......");
+    expect(
+      within(screen.getByTestId("coworker-thought-trace")).getByTestId(
+        "live-stream-elapsed",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows whole-second elapsed on the live Loading row from 10s", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-10T12:00:10.000Z"));
     try {
@@ -2053,7 +2008,7 @@ describe("ChatMessageRow coworker Thought", () => {
         }),
       });
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "10.0s",
+        "10s",
       );
     } finally {
       vi.useRealTimers();
@@ -2080,7 +2035,7 @@ describe("ChatMessageRow coworker Thought", () => {
         />,
       );
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "45.0s",
+        "45s",
       );
       unmount();
       vi.setSystemTime(new Date("2026-08-10T12:01:05.000Z"));
@@ -2093,7 +2048,7 @@ describe("ChatMessageRow coworker Thought", () => {
         />,
       );
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "1m 5.0s",
+        "1m 5s",
       );
     } finally {
       vi.useRealTimers();

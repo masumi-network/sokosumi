@@ -1,5 +1,7 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+import { isPersistedMentionThoughtShell } from "./coworker-thought";
+
 import {
   confirmOutboundMessage,
   filterResolvedOutbound,
@@ -7,6 +9,24 @@ import {
   partitionOutboundForMerge,
   readClientTurnId,
 } from "./outbound-room-message";
+
+/**
+ * Apply a full Ably chat_room_message event.
+ * Hard-delete (`delete` with `deletedAt == null`) removes the row — user
+ * tombstones (`deletedAt` set) still merge so the deleted chrome stays.
+ */
+export function applyFullChatRoomMessageEvent(
+  existing: readonly ChatRoomMessage[],
+  event: {
+    eventType: "create" | "update" | "delete";
+    message: ChatRoomMessage;
+  },
+): ChatRoomMessage[] {
+  if (event.eventType === "delete" && event.message.deletedAt == null) {
+    return existing.filter((row) => row.id !== event.message.id);
+  }
+  return mergeRoomMessages(existing, [event.message]);
+}
 
 /**
  * Merge room message pages by id. Incoming rows win (fresh reactions /
@@ -112,8 +132,19 @@ function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
   return message.membership != null;
 }
 
+function isStreamingCoworkerPlaceholder(message: ChatRoomMessage): boolean {
+  if (message.sender.type !== "coworker") {
+    return false;
+  }
+  return isPersistedMentionThoughtShell(message.metadata);
+}
+
 function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
-  return isMembershipStatusMessage(message) || hasVisibleMessageBody(message);
+  return (
+    isMembershipStatusMessage(message) ||
+    hasVisibleMessageBody(message) ||
+    isStreamingCoworkerPlaceholder(message)
+  );
 }
 
 /** Empty stream coworker shells stay visible (avatar/name + waiting state). */
