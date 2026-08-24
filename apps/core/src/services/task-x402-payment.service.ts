@@ -146,14 +146,14 @@ async function runX402ChargePhase(
   const normalization = normalizeWithSourcesOrThrow(input.paymentRequired);
   const normalized = normalization.paymentRequired;
 
-  // Terminal idempotent results are self-contained AND immutable: FAILED and
-  // REFUNDED rows never change, and VERIFIED moves only to REFUNDED through
-  // the operator goodwill lever. Resolve them WITHOUT the serializable
-  // transaction: their resolution is read-only (stored-tuple asserts plus the
-  // stored response — never a write), and a pure read inside SERIALIZABLE
-  // still joins the SSI conflict graph, where concurrent same-task payment
-  // and event traffic could 409 a replay that only wanted to re-fetch its
-  // stored result. Resolving before the config reads also keeps a VERIFIED
+  // Terminal idempotent results are self-contained: FAILED and REFUNDED rows
+  // never change. VERIFIED moves only to REFUNDED through the operator
+  // goodwill lever, so its resolver takes a FOR UPDATE lock before returning
+  // the stored header (see resolveExistingPayment). Resolve them WITHOUT the
+  // serializable transaction: their resolution never writes money state, and
+  // a pure SSI read still joins the conflict graph where concurrent same-task
+  // payment and event traffic could 409 a replay that only wanted to re-fetch
+  // its stored result. Resolving before the config reads also keeps a VERIFIED
   // replay working after an agent is hidden, readiness changes, or pricing
   // is emptied.
   const task = await requireTaskCollaboration(authContext, taskId);
@@ -164,13 +164,23 @@ async function runX402ChargePhase(
     preflightPayment !== null &&
     preflightPayment.status !== TaskX402PaymentStatus.PENDING
   ) {
+    const replayArgs = {
+      agentId,
+      normalized,
+      requirementSources: normalization.requirementSources,
+    } as const;
+    // VERIFIED can still flip to REFUNDED (goodwill). resolveExistingPayment
+    // takes FOR UPDATE before returning the header — that lock only holds
+    // inside a real transaction, so wrap VERIFIED here. FAILED/REFUNDED are
+    // immutable and stay on the unlocked client.
+    if (preflightPayment.status === TaskX402PaymentStatus.VERIFIED) {
+      return await prisma.$transaction(async (tx) =>
+        resolveExistingPayment(preflightPayment, replayArgs, task.ownerId, tx),
+      );
+    }
     return await resolveExistingPayment(
       preflightPayment,
-      {
-        agentId,
-        normalized,
-        requirementSources: normalization.requirementSources,
-      },
+      replayArgs,
       task.ownerId,
       prisma,
     );

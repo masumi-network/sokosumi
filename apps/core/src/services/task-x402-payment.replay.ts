@@ -286,6 +286,70 @@ export function buildStoredSignedResponse(
  *   re-run the sign against the STORED verified tuple, again only after the
  *   supplied 402 re-verifies to it (see assertReplayMatchesStoredDemand).
  */
+
+const STORED_TASK_X402_PAYMENT_SELECT = {
+  id: true,
+  status: true,
+  agentId: true,
+  caip2Network: true,
+  asset: true,
+  amount: true,
+  payTo: true,
+  demandFingerprint: true,
+  attemptId: true,
+  xPaymentHeader: true,
+  validBefore: true,
+  failureReason: true,
+  signAttemptCount: true,
+  processingAt: true,
+} as const satisfies Record<keyof StoredTaskX402Payment, true>;
+
+function throwConsumedIdempotencyKey(
+  status: "FAILED" | "REFUNDED" | string,
+  failureReason: string | null,
+): never {
+  throw conflict(
+    `This idempotencyKey was consumed by a ${status.toLowerCase()} x402 payment` +
+      `${failureReason ? `: ${failureReason}` : ""}. ` +
+      "Its charge was refunded; use a new idempotencyKey for a new payment intent.",
+    { kind: "x402_payment_key_consumed" },
+  );
+}
+
+/**
+ * Lock the payment row and return it only while still VERIFIED.
+ * Concurrent goodwill refund wins the lock and flips status first → consumed.
+ */
+async function lockVerifiedTaskX402PaymentForReplay(
+  tx: Prisma.TransactionClient,
+  snapshot: StoredTaskX402Payment,
+): Promise<StoredTaskX402Payment> {
+  await tx.$queryRaw`
+    SELECT 1 FROM "task_x402_payment" WHERE "id" = ${snapshot.id} FOR UPDATE
+  `;
+  const locked = await tx.taskX402Payment.findUnique({
+    where: { id: snapshot.id },
+    select: STORED_TASK_X402_PAYMENT_SELECT,
+  });
+  if (locked === null) {
+    throw internalServerError(
+      `Verified x402 payment ${snapshot.id} disappeared under replay lock`,
+    );
+  }
+  if (
+    locked.status === TaskX402PaymentStatus.FAILED ||
+    locked.status === TaskX402PaymentStatus.REFUNDED
+  ) {
+    throwConsumedIdempotencyKey(locked.status, locked.failureReason);
+  }
+  if (locked.status !== TaskX402PaymentStatus.VERIFIED) {
+    throw internalServerError(
+      `Verified x402 payment ${snapshot.id} left VERIFIED for unexpected status ${locked.status}`,
+    );
+  }
+  return locked;
+}
+
 export async function resolveExistingPayment(
   existing: StoredTaskX402Payment,
   input: X402ReplayInput,
@@ -296,12 +360,7 @@ export async function resolveExistingPayment(
     existing.status === TaskX402PaymentStatus.FAILED ||
     existing.status === TaskX402PaymentStatus.REFUNDED
   ) {
-    throw conflict(
-      `This idempotencyKey was consumed by a ${existing.status.toLowerCase()} x402 payment` +
-        `${existing.failureReason ? `: ${existing.failureReason}` : ""}. ` +
-        "Its charge was refunded; use a new idempotencyKey for a new payment intent.",
-      { kind: "x402_payment_key_consumed" },
-    );
+    throwConsumedIdempotencyKey(existing.status, existing.failureReason);
   }
 
   // Rows written before the fingerprint migration cannot be proven to match
@@ -314,11 +373,21 @@ export async function resolveExistingPayment(
   await assertReplayAgentIdentity(existing, input.agentId, tx);
 
   if (existing.status === TaskX402PaymentStatus.VERIFIED) {
-    assertVerifiedReplayReferencesStoredDemand(existing, input);
+    // VERIFIED is not immutable: admin goodwill refund flips it to REFUNDED
+    // while intentionally leaving `xPaymentHeader` stored (the coworker may
+    // already hold a copy). Status is therefore the only gate against
+    // re-issuing a settleable header after credits were restored.
+    //
+    // payTaskX402 resolves terminal rows from an unlocked preflight read so
+    // pure replays stay out of the SERIALIZABLE conflict graph. That snapshot
+    // can go stale across `assertReplayAgentIdentity`'s DB round-trip. Lock
+    // and reload before returning the bearer instrument.
+    const verified = await lockVerifiedTaskX402PaymentForReplay(tx, existing);
+    assertVerifiedReplayReferencesStoredDemand(verified, input);
     if (
-      existing.xPaymentHeader === null ||
-      existing.validBefore === null ||
-      existing.validBefore.getTime() <=
+      verified.xPaymentHeader === null ||
+      verified.validBefore === null ||
+      verified.validBefore.getTime() <=
         Date.now() + X402_MIN_REMAINING_VALIDITY_MS
     ) {
       // Reject once the authorization expires — or once less than the
@@ -348,7 +417,7 @@ export async function resolveExistingPayment(
     }
     return {
       kind: "replay_verified",
-      payment: buildStoredSignedResponse(existing),
+      payment: buildStoredSignedResponse(verified),
     };
   }
 
