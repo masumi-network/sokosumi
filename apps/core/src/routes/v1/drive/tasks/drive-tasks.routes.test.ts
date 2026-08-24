@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -16,9 +17,11 @@ const {
   prismaTaskFileFindUniqueMock,
   prismaTaskFileCountMock,
   prismaTaskFindManyMock,
+  prismaTaskFindFirstMock,
   prismaTaskCountMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
+  prismaOrganizationFindUniqueMock,
   prismaBlobFindManyMock,
   prismaBlobFindFirstMock,
   prismaBlobFindUniqueMock,
@@ -39,9 +42,11 @@ const {
   prismaTaskFileFindUniqueMock: vi.fn(),
   prismaTaskFileCountMock: vi.fn(),
   prismaTaskFindManyMock: vi.fn(),
+  prismaTaskFindFirstMock: vi.fn(),
   prismaTaskCountMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
+  prismaOrganizationFindUniqueMock: vi.fn(),
   prismaBlobFindManyMock: vi.fn(),
   prismaBlobFindFirstMock: vi.fn(),
   prismaBlobFindUniqueMock: vi.fn(),
@@ -69,6 +74,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     task: {
       findMany: prismaTaskFindManyMock,
+      findFirst: prismaTaskFindFirstMock,
       count: prismaTaskCountMock,
     },
     project: {
@@ -76,6 +82,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: prismaMemberFindUniqueMock,
+    },
+    organization: {
+      findUnique: prismaOrganizationFindUniqueMock,
     },
     blob: {
       findMany: prismaBlobFindManyMock,
@@ -308,6 +317,54 @@ describe("Drive Tasks Routes", () => {
             },
           }),
         );
+      });
+
+      it("lists READY files for an org task when Drive scope is me and session workspace is missing", async () => {
+        const taskId = "01a019d9-cda2-76f8-902a-d8ce5250ea6f";
+        requireTaskReadForRouteVarsMock.mockRejectedValue(
+          forbidden("Workspace is missing"),
+        );
+        prismaTaskFindFirstMock.mockResolvedValue({
+          id: taskId,
+          archivedAt: null,
+          workspace: { userId: null, organizationId: "org_123" },
+        });
+        prismaOrganizationFindUniqueMock.mockResolvedValue({
+          id: "org_123",
+        });
+        prismaMemberFindUniqueMock.mockResolvedValue({
+          userId: "user_123",
+          organizationId: "org_123",
+          role: "member",
+        });
+        prismaTaskFileFindManyMock.mockResolvedValue([
+          {
+            id: "tf_ready",
+            name: "booth.pptx",
+            fileUrl: "https://example.com/booth.pptx",
+            size: BigInt(4096),
+            mimeType:
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            status: "READY",
+            updatedAt: new Date("2026-08-24T12:00:00.000Z"),
+          },
+        ]);
+        prismaTaskFileCountMock.mockResolvedValue(1);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          `http://localhost/?scope=me&taskId=${taskId}`,
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "task-file",
+          id: "tf_ready",
+          name: "booth.pptx",
+          fileUrl: "https://example.com/booth.pptx",
+        });
       });
     });
 
