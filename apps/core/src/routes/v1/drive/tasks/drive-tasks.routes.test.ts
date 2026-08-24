@@ -262,6 +262,53 @@ describe("Drive Tasks Routes", () => {
           }),
         );
       });
+
+      it("returns task-file item for READY TaskFile with fileUrl that Level 2 showed", async () => {
+        // Regression test: Level 2 must show task if it has READY files with fileUrl
+        // Then Level 3 must return those same task-file items
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        const taskId = "01a019d9-cda2-76f8-902a-d8ce5250ea6f";
+        const readyFile = {
+          id: "tf_ready",
+          name: "booth.pdf",
+          fileUrl: "https://example.com/booth.pdf",
+          size: BigInt(2048),
+          mimeType: "application/pdf",
+          status: "READY",
+          updatedAt: new Date("2026-08-24T12:00:00.000Z"),
+        };
+
+        // Level 3: returns the READY file
+        prismaTaskFileFindManyMock.mockResolvedValue([readyFile]);
+        prismaTaskFileCountMock.mockResolvedValue(1);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          `http://localhost/?scope=me&taskId=${taskId}`,
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "task-file",
+          id: "tf_ready",
+          name: "booth.pdf",
+          fileUrl: "https://example.com/booth.pdf",
+        });
+
+        // Verify Level 3 query uses direct taskId filter (not nested task join)
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              taskId,
+              status: "READY",
+              fileUrl: { not: null },
+            },
+          }),
+        );
+      });
     });
 
     describe("Level 2: Task rows", () => {
