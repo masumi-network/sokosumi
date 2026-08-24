@@ -5,6 +5,8 @@ import {
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
   formatThoughtDurationLabel,
+  isFailedMentionThoughtShell,
+  mentionParentChrome,
   resolveCoworkerThoughtViewModel,
 } from "../coworker-thought";
 
@@ -295,5 +297,78 @@ describe("resolveCoworkerThoughtViewModel", () => {
     expect(vm.liveBeat).toBeNull();
     expect(vm.disclosure?.text).toBe("Still thinking notes");
     expect(vm.showThinkingFallback).toBe(false);
+  });
+
+  it("does not treat a failed mention shell as live Thought", () => {
+    const vm = resolveCoworkerThoughtViewModel({
+      content: "",
+      isStreamOverlay: false,
+      metadata: {
+        mention_id: "mention_1",
+        mention_failed: true,
+        streaming: true,
+        reasoning: [{ type: "reasoning", text: "Stale beat." }],
+      },
+    });
+    expect(vm.liveBeat).toBeNull();
+    expect(vm.showThinkingFallback).toBe(false);
+    expect(vm.disclosure).toBeNull();
+  });
+});
+
+describe("mentionParentChrome", () => {
+  it("shows Calling until a response shell exists", () => {
+    expect(
+      mentionParentChrome({ status: "pending", responseMessageId: null }),
+    ).toBe("calling");
+    expect(
+      mentionParentChrome({ status: "sent", responseMessageId: null }),
+    ).toBe("calling");
+  });
+
+  it("hides parent chrome once a shell exists, including failed", () => {
+    expect(
+      mentionParentChrome({
+        status: "sent",
+        responseMessageId: "shell_1",
+      }),
+    ).toBe("hidden");
+    expect(
+      mentionParentChrome({
+        status: "failed",
+        responseMessageId: "shell_1",
+      }),
+    ).toBe("hidden");
+    expect(
+      mentionParentChrome({
+        status: "responded",
+        responseMessageId: "reply_1",
+      }),
+    ).toBe("hidden");
+  });
+
+  it("shows failed on the parent only when no shell was created", () => {
+    expect(
+      mentionParentChrome({ status: "failed", responseMessageId: null }),
+    ).toBe("failed");
+  });
+});
+
+describe("isFailedMentionThoughtShell", () => {
+  it("requires mention_failed and a mention_id", () => {
+    expect(isFailedMentionThoughtShell(null)).toBe(false);
+    expect(isFailedMentionThoughtShell({ mention_failed: true })).toBe(false);
+    expect(
+      isFailedMentionThoughtShell({
+        mention_id: "m1",
+        mention_failed: false,
+      }),
+    ).toBe(false);
+    expect(
+      isFailedMentionThoughtShell({
+        mention_id: "m1",
+        mention_failed: true,
+      }),
+    ).toBe(true);
   });
 });

@@ -52,7 +52,10 @@ import {
   enqueueClassicOutboundJob,
 } from "@/app/chat/utils/classic-outbound-queue";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
-import { isPersistedMentionThoughtShell } from "@/app/chat/utils/coworker-thought";
+import {
+  isFailedMentionThoughtShell,
+  isPersistedMentionThoughtShell,
+} from "@/app/chat/utils/coworker-thought";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
@@ -2431,9 +2434,9 @@ export function RoomsClient({
                   messageDayKey(previousMessage.createdAt) !==
                     messageDayKey(message.createdAt));
               const isStreamOverlay = message.id.startsWith("stream:");
-              const isThinkingShell = isPersistedMentionThoughtShell(
-                message.metadata,
-              );
+              const isThinkingShell =
+                isPersistedMentionThoughtShell(message.metadata) ||
+                isFailedMentionThoughtShell(message.metadata);
               const isOutboundLocal = isOutboundLocalMessage(message);
               return (
                 <div

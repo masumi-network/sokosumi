@@ -140,14 +140,53 @@ export function isPersistedMentionThoughtShell(metadata: unknown): boolean {
   return (
     record.streaming === true &&
     typeof record.mention_id === "string" &&
+    record.mention_id.length > 0 &&
+    record.mention_failed !== true
+  );
+}
+
+/** Empty coworker bubble left after mention dispatch failed. */
+export function isFailedMentionThoughtShell(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+  const record = metadata as Record<string, unknown>;
+  return (
+    record.mention_failed === true &&
+    typeof record.mention_id === "string" &&
     record.mention_id.length > 0
   );
+}
+
+export type MentionParentChrome = "calling" | "failed" | "hidden";
+
+/** Parent-message mention chip: Calling until a shell exists, else hide. */
+export function mentionParentChrome(mention: {
+  status: string;
+  responseMessageId: string | null;
+}): MentionParentChrome {
+  if (mention.status === "responded") {
+    return "hidden";
+  }
+  if (mention.responseMessageId) {
+    return "hidden";
+  }
+  if (mention.status === "failed") {
+    return "failed";
+  }
+  if (mention.status === "pending" || mention.status === "sent") {
+    return "calling";
+  }
+  return "hidden";
 }
 
 function isLiveThoughtShell(input: {
   isStreamOverlay: boolean;
   metadata?: unknown;
 }): boolean {
+  if (isFailedMentionThoughtShell(input.metadata)) {
+    return false;
+  }
   if (input.isStreamOverlay) {
     return true;
   }
@@ -161,6 +200,13 @@ export function resolveCoworkerThoughtViewModel(input: {
   /** Optional live UIMessage parts when metadata not yet filled. */
   parts?: unknown;
 }): CoworkerThoughtViewModel {
+  if (isFailedMentionThoughtShell(input.metadata)) {
+    return {
+      liveBeat: null,
+      disclosure: null,
+      showThinkingFallback: false,
+    };
+  }
   const answer = input.content.trim();
   const thoughtTextFull =
     extractThoughtTextFromMetadata(input.metadata) ||

@@ -162,10 +162,12 @@ function DrivePixelGrid() {
 export function CoworkerLoadingState({
   label,
   startedAtMs,
+  showElapsed = true,
   className,
 }: {
   label: string;
   startedAtMs: number;
+  showElapsed?: boolean;
   className?: string;
 }) {
   const elapsedMs = useLiveElapsedMs(startedAtMs);
@@ -183,13 +185,15 @@ export function CoworkerLoadingState({
       >
         {label}
       </span>
-      <span
-        aria-hidden
-        className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums"
-        data-testid="live-stream-elapsed"
-      >
-        {formatBeautifulElapsed(elapsedMs)}
-      </span>
+      {showElapsed ? (
+        <span
+          aria-hidden
+          className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums"
+          data-testid="live-stream-elapsed"
+        >
+          {formatBeautifulElapsed(elapsedMs)}
+        </span>
+      ) : null}
     </div>
   );
 }

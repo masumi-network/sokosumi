@@ -32,6 +32,8 @@ import {
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   formatThoughtDurationLabel,
+  isFailedMentionThoughtShell,
+  mentionParentChrome,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -1569,7 +1571,8 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {!isDeleted && message.mentions.some((m) => m.status !== "responded") ? (
+      {!isDeleted &&
+      message.mentions.some((m) => mentionParentChrome(m) !== "hidden") ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             // Success = coworker reply in the transcript; no "replied" chrome.
@@ -1579,20 +1582,25 @@ function MessageMetaFooter({
             const name =
               coworkersById.get(mention.coworkerId)?.name ??
               t("MentionStatus.nameFallback");
-            const label = t(`MentionStatus.${mention.status}`, { name });
-            // Channel @mentions have no client stream overlay — show Beautiful UI
-            // loading here (pending/sent) so "Noodles is thinking" is not a dead badge.
-            if (mention.status === "pending" || mention.status === "sent") {
+            const chrome = mentionParentChrome(mention);
+            if (chrome === "hidden") {
+              return null;
+            }
+            if (chrome === "calling") {
               return (
                 <CoworkerLoadingState
                   key={mention.id}
-                  label={label}
+                  label={t("MentionStatus.pending", { name })}
                   startedAtMs={mentionThinkingStartedAtMs}
+                  showElapsed={false}
                 />
               );
             }
             return (
-              <CoworkerMentionTerminalStatus key={mention.id} label={label} />
+              <CoworkerMentionTerminalStatus
+                key={mention.id}
+                label={t("MentionStatus.failed", { name })}
+              />
             );
           })}
         </div>
@@ -1887,6 +1895,12 @@ export function ChatMessageRow({
                   onSave={onSaveEdit}
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
+                />
+              ) : isFailedMentionThoughtShell(message.metadata) ? (
+                <CoworkerMentionTerminalStatus
+                  label={tChannels("MentionStatus.failed", {
+                    name: sender.name,
+                  })}
                 />
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
