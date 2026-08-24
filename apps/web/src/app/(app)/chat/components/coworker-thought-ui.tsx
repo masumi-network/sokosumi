@@ -297,54 +297,52 @@ export function CoworkerThoughtTrace({
         }}
         className={cn(
           // min-h-6 keeps ~24px touch target at default root while type stays text-xs.
-          "-mx-1 flex min-h-6 w-full max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left",
+          "-mx-1 flex min-h-6 w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left",
           "transition-colors duration-100",
           hasBody &&
             "hover:bg-muted/60 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
           !hasBody && "cursor-default",
         )}
       >
-        <span className="flex min-w-0 items-center gap-1.5">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="size-3 shrink-0"
+          fill={
+            working
+              ? "var(--muted-foreground)"
+              : "color-mix(in oklab, var(--muted-foreground) 70%, transparent)"
+          }
+        >
+          <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+        </svg>
+        {working ? (
+          <span className="bui-shimmer-text truncate text-xs font-medium whitespace-nowrap">
+            {headerLabel}
+          </span>
+        ) : (
+          <span className="text-muted-foreground truncate text-xs font-medium whitespace-nowrap">
+            {headerLabel}
+          </span>
+        )}
+        {elapsed}
+        {hasBody ? (
           <svg
             viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden
-            className="size-3 shrink-0"
-            fill={
-              working
-                ? "var(--muted-foreground)"
-                : "color-mix(in oklab, var(--muted-foreground) 70%, transparent)"
-            }
+            className="text-muted-foreground size-3 shrink-0 transition-transform duration-300"
+            style={{
+              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            }}
           >
-            <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+            <path d="M6 9l6 6 6-6" />
           </svg>
-          {working ? (
-            <span className="bui-shimmer-text truncate text-xs font-medium whitespace-nowrap">
-              {headerLabel}
-            </span>
-          ) : (
-            <span className="text-muted-foreground truncate text-xs font-medium whitespace-nowrap">
-              {headerLabel}
-            </span>
-          )}
-          {hasBody ? (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-              className="text-muted-foreground size-3 shrink-0 transition-transform duration-300"
-              style={{
-                transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-              }}
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          ) : null}
-        </span>
-        {elapsed ? <span className="ml-auto shrink-0">{elapsed}</span> : null}
+        ) : null}
       </button>
 
       {hasBody ? (
