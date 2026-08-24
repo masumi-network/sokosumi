@@ -222,7 +222,17 @@ export async function syncX402BuySideReadiness(
       // The latch is deliberately bypassed while readiness has never been
       // recorded: silence would otherwise be indistinguishable from a
       // healthy deployment that simply has no x402 agents.
-      if (marker.count > 0 || hasNeverBeenRecorded) {
+      //
+      // Preview deploys (VERCEL_ENV === "preview") still warn and write the
+      // failure marker so fail-closed listing/pay behavior is unchanged, but
+      // they must not page Sentry — preview mainnet crons with a non-admin
+      // PAYMENT_API_KEY were flooding CORE-37 while live mainnet was fine.
+      // Use VERCEL_ENV, not SENTRY_ENVIRONMENT (mainnet project sets the
+      // latter to "production" on preview hosts too).
+      if (
+        getEnv().VERCEL_ENV !== "preview" &&
+        (marker.count > 0 || hasNeverBeenRecorded)
+      ) {
         Sentry.captureException(
           new Error(
             hasNeverBeenRecorded

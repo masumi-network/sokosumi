@@ -56,7 +56,7 @@ function parseArgs(): BackfillOptions {
     if (arg.startsWith("--batch-size=")) {
       options.batchSize = Number.parseInt(arg.split("=")[1] ?? "1000", 10);
     } else if (arg.startsWith("--concurrency=")) {
-      options.concurrency = Number.parseInt(arg.split("=")[1] ?? "16", 10);
+      options.concurrency = Number(arg.split("=")[1] ?? "16");
     } else if (arg.startsWith("--limit=")) {
       options.limit = Number.parseInt(arg.split("=")[1] ?? "0", 10);
     } else if (arg.startsWith("--after-id=")) {
@@ -101,6 +101,18 @@ Examples:
   ) {
     console.error(
       `Error: --batch-size must be a positive integer, got: ${options.batchSize}`,
+    );
+    process.exit(1);
+  }
+
+  // Validate concurrency
+  if (
+    !Number.isInteger(options.concurrency) ||
+    options.concurrency <= 0 ||
+    !Number.isFinite(options.concurrency)
+  ) {
+    console.error(
+      `Error: --concurrency must be a positive integer, got: ${options.concurrency}`,
     );
     process.exit(1);
   }

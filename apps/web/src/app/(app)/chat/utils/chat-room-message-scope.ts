@@ -11,8 +11,9 @@
  *
  * ## Realtime routing table (SOK-736)
  *
- * Ably `chat_room_message` carries `eventType` plus either a full message DTO
- * (create/update/delete) or a field patch (reaction/unfurl/mention_status,
+ * Ably `chat_room_message` carries `eventType` plus a full message DTO
+ * (create/update/delete), an id envelope when that DTO exceeds Ably
+ * maxMessageSize (ADR 0014), or a field patch (reaction/unfurl/mention_status,
  * SOK-737). Landing (where the apply goes) is decided by parent vs reply +
  * open thread id; `eventType` documents mutation intent so clients do not
  * guess from payload shape alone.
