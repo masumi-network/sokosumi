@@ -114,11 +114,11 @@ function buildInput() {
   };
 }
 
-function project(id: string, description = "Project summary") {
+function project(id: string, briefing = "Project summary") {
   return {
     id,
     name: `Project ${id}`,
-    description,
+    briefing,
     updatedAt: NOW,
     _count: { tasks: 0, jobs: 0 },
   };

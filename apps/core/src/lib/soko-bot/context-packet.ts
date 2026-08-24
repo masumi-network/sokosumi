@@ -498,7 +498,7 @@ export class ContextPacketBuilder {
         select: {
           id: true,
           name: true,
-          description: true,
+          briefing: true,
           updatedAt: true,
           _count: {
             select: {
@@ -772,7 +772,7 @@ export class ContextPacketBuilder {
       projects: projects.map((project) => ({
         id: boundedIdentifier(project.id),
         name: sanitizeText(project.name, TEXT_LIMITS.name),
-        summary: sanitizeText(project.description, TEXT_LIMITS.summary),
+        summary: sanitizeText(project.briefing, TEXT_LIMITS.summary),
         status: projectStatus(
           project.id,
           project._count.tasks,
