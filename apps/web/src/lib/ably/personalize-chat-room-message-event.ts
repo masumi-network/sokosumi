@@ -1,5 +1,8 @@
 import type { ChatRoomMessageEventData } from "./schema";
-import { isChatRoomMessagePatchEvent } from "./schema";
+import {
+  isChatRoomMessageIdEnvelope,
+  isChatRoomMessagePatchEvent,
+} from "./schema";
 
 interface ReactionLike {
   reactedByCurrentUser: boolean;
@@ -78,6 +81,10 @@ export function personalizeChatRoomMessageEvent(
         ),
       },
     };
+  }
+
+  if (isChatRoomMessageIdEnvelope(event)) {
+    return event;
   }
 
   return {

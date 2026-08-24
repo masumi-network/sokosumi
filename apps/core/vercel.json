@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --filter @sokosumi/core...",
   "buildCommand": "pnpm vercel-build",
+  "git": {
+    "deploymentEnabled": false
+  },
   "functions": {
     "dist/index.js": {
       "maxDuration": 300
