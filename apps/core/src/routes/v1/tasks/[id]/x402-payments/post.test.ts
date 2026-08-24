@@ -172,6 +172,7 @@ const COWORKER_AGENT_CONTEXT: AuthenticationContext = {
 } as AuthenticationContext;
 
 interface TxMock {
+  $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
     findUnique: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -460,8 +461,19 @@ function signedNodePayment(overrides: Partial<Record<string, unknown>> = {}) {
 
 function createTxMock(): TxMock {
   return {
+    // VERIFIED replay takes FOR UPDATE before returning the stored header.
+    $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
     taskX402Payment: {
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi
+        .fn()
+        .mockImplementation((args: { where?: Record<string, unknown> }) => {
+          if (args.where && "id" in args.where) {
+            // Lock reload after unlocked preflight. Echo that snapshot
+            // unless a test overrides this mock (concurrent refund, etc.).
+            return preflightPaymentFindUniqueMock(args);
+          }
+          return Promise.resolve(null);
+        }),
       create: vi.fn().mockResolvedValue({ id: PAYMENT_ID }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       update: vi
@@ -832,8 +844,9 @@ describe("POST /{id}/x402-payments", () => {
 
   describe("idempotent replay", () => {
     it("returns a VERIFIED record's stored result verbatim without charging or signing", async () => {
-      // Terminal rows are immutable, so the preflight read resolves them
-      // BEFORE the serializable transaction — the tx never opens.
+      // FAILED/REFUNDED resolve from unlocked preflight with no transaction.
+      // VERIFIED opens a lock transaction (not the SERIALIZABLE charge tx)
+      // so a concurrent goodwill refund cannot re-issue the stored header.
       preflightPaymentFindUniqueMock.mockResolvedValue(
         createPaymentRecord({
           status: "VERIFIED",

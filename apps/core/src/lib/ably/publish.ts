@@ -13,6 +13,13 @@ import {
 
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
+import {
+  ablyPublishSize,
+  CHAT_ROOM_MESSAGE_EVENT_NAME,
+  type ChatRoomMessageFullEventType,
+  chatRoomMessagePublishBody,
+  isChatRoomMessageIdEnvelope,
+} from "./ably-message-size";
 import { getRestClient } from "./client";
 
 interface JobStatusData {
@@ -93,12 +100,6 @@ export async function publishNotificationEvent({
   await channel.publish("notification_created", notification);
 }
 
-/** Full DTO body for create / update / delete. */
-export type ChatRoomMessageFullEventType = Extract<
-  ChatRoomMessageEventType,
-  "create" | "update" | "delete"
->;
-
 /** Patch body for high-chatter slices (SOK-737). */
 export type ChatRoomMessagePatchEventType = Extract<
   ChatRoomMessageEventType,
@@ -157,7 +158,7 @@ export async function publishChatRoomMessageEvent(
   const channel = client.channels.get(makeChatRoomChannelName(roomId));
 
   if (isPatchEventInput(input)) {
-    await channel.publish("chat_room_message", {
+    await channel.publish(CHAT_ROOM_MESSAGE_EVENT_NAME, {
       eventType: input.eventType,
       messageId: input.messageId,
       roomId: input.roomId,
@@ -167,10 +168,19 @@ export async function publishChatRoomMessageEvent(
     return;
   }
 
-  await channel.publish("chat_room_message", {
-    eventType: input.eventType,
-    message: input.message,
-  });
+  const body = chatRoomMessagePublishBody(input.eventType, input.message);
+  if (isChatRoomMessageIdEnvelope(body)) {
+    const full = {
+      eventType: input.eventType,
+      message: input.message,
+    };
+    console.info("Published chat_room_message id envelope", {
+      messageId: body.messageId,
+      roomId: body.roomId,
+      bytes: ablyPublishSize(CHAT_ROOM_MESSAGE_EVENT_NAME, full),
+    });
+  }
+  await channel.publish(CHAT_ROOM_MESSAGE_EVENT_NAME, body);
 }
 
 interface PublishChatMembershipRevokedInput {

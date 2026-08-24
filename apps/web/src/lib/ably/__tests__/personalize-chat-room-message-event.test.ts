@@ -67,13 +67,24 @@ describe("personalizeChatRoomMessageEvent", () => {
 
     const personalized = personalizeChatRoomMessageEvent(event, "me");
     expect(personalized.eventType).toBe("create");
-    if (personalized.eventType !== "create") {
+    if (!("message" in personalized)) {
       return;
     }
     const first = personalized.message.reactions[0] as {
       reactedByCurrentUser?: boolean;
     };
     expect(first.reactedByCurrentUser).toBe(true);
+  });
+
+  it("leaves create id envelopes unchanged", () => {
+    const event = {
+      eventType: "create" as const,
+      messageId: "msg-1",
+      roomId: "room-1",
+      parentMessageId: null,
+    } satisfies ChatRoomMessageEventData;
+
+    expect(personalizeChatRoomMessageEvent(event, "me")).toEqual(event);
   });
 
   it("personalizes reaction patches only", () => {

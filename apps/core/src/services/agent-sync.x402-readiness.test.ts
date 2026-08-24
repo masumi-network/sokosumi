@@ -9,6 +9,7 @@ import {
 const {
   captureExceptionMock,
   captureMessageMock,
+  envState,
   getX402AvailableNetworksMock,
   getX402AdminPurchasingWalletsMock,
   getX402BudgetsMock,
@@ -20,6 +21,15 @@ const {
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   captureMessageMock: vi.fn(),
+  envState: {
+    NETWORK: "Preprod" as const,
+    DATABASE_URL: "https://example.com/database",
+    VERCEL_ENV: undefined as
+      | "production"
+      | "preview"
+      | "development"
+      | undefined,
+  },
   getX402AvailableNetworksMock: vi.fn(),
   getX402AdminPurchasingWalletsMock: vi.fn(),
   getX402BudgetsMock: vi.fn(),
@@ -36,10 +46,7 @@ vi.mock("@sentry/node", () => ({
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    NETWORK: "Preprod",
-    DATABASE_URL: "https://example.com/database",
-  }),
+  getEnv: () => ({ ...envState }),
 }));
 
 vi.mock("@/clients/masumi-payment.client", () => ({
@@ -81,6 +88,7 @@ import {
 describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    envState.VERCEL_ENV = undefined;
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -444,7 +452,9 @@ describe("syncX402BuySideReadiness", () => {
     // Cold: no readiness row has ever been written, so getX402ReadySources
     // returns [] and the ENTIRE x402 listing is hidden. The one-shot latch
     // would spend its single page minutes after deploy and then go quiet —
-    // never-recorded must bypass it.
+    // never-recorded must bypass it. Production (and unset VERCEL_ENV) must
+    // still page — including the latch bypass.
+    envState.VERCEL_ENV = "production";
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     getX402BudgetsMock.mockResolvedValue(err("node unavailable"));
 
@@ -464,6 +474,43 @@ describe("syncX402BuySideReadiness", () => {
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await syncX402BuySideReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not page Sentry for readiness check failures on Vercel preview", async () => {
+    // Preview mainnet Core crons hit the same never-recorded path with a
+    // non-admin PAYMENT_API_KEY and were paging CORE-37 as a fake prod
+    // outage. Gate only captureException — warn + failure marker +
+    // fail-closed (no readiness row) stay.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    envState.VERCEL_ENV = "preview";
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+    getX402BudgetsMock.mockResolvedValue(
+      err("x402 budgets 401: Unauthorized, admin access required"),
+    );
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        {
+          key: X402_BUY_SIDE_READINESS_FAILURE_KEY,
+          cursorId: "failed",
+          lastSyncedAt: expect.any(Date),
+        },
+      ],
+      skipDuplicates: true,
+    });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[sync/agents] x402 buy-side readiness check failed:",
+      expect.stringContaining("admin access required"),
+    );
 
     consoleWarnSpy.mockRestore();
   });

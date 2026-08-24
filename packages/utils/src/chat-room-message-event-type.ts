@@ -1,6 +1,7 @@
 /**
  * Stable intent for Ably `chat_room_message` publishes (SOK-736).
- * create/update/delete carry a full message DTO; reaction/unfurl/
+ * create/update/delete carry a full message DTO when it fits Ably
+ * maxMessageSize, otherwise an id envelope (ADR 0014). reaction/unfurl/
  * mention_status carry a field patch (SOK-737).
  */
 export const CHAT_ROOM_MESSAGE_EVENT_TYPES = [

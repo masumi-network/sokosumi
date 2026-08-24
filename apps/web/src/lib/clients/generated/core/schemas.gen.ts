@@ -6035,6 +6035,7 @@ export const UpdateChatRoomRequestSchema = {
                 minLength: 1
             },
             maxItems: 500,
+            description: 'Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.',
             example: [
                 'user_123',
                 'user_456'

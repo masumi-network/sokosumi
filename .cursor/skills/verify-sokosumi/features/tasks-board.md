@@ -29,6 +29,6 @@ Preconditions:
 
 - Empty columns / empty-state onboarding are valid — do not require existing tasks.
 - i18n strings are Title Case; CSS `uppercase` often makes the a11y tree show ALL CAPS — either form is success.
-- Prefer board mode (`tasks_view_mode=board` or clear the cookie). List mode with tasks still shows column headers; an **empty** list drops them for a placeholder. Tasks/Jobs tabs alone still count as shell.
+- Prefer **explicit** board mode: set cookie `tasks_view_mode=board` then reload. Absent cookie → **list** on mobile/tablet UA, board on desktop. **List mode does not render kanban column headers** (flat rows or “No tasks”); only board mode shows BACKLOG…DONE. Tasks/Jobs tabs alone still count as shell.
 - Creating or editing a task is out of scope; this feature proves landing + board shell only.
 - Jobs tab on the same page is adjacent UI — proving Tasks tab shell is enough for this entry.

@@ -6,7 +6,7 @@ Sign up creates a disposable email/password account when cloud-agent fixtures ar
 
 - `signup-form` shows registration fields on `/signup`.
 - `signup-submit` creates the user and signs them in (no email verification).
-- `signup-landing` lands inside the authenticated app after submit.
+- `signup-landing` lands on Welcome `/` after submit (then may continue into `/setup` when the user has no workspace yet).
 
 ## How to get to it (user POV)
 
@@ -22,11 +22,12 @@ Preconditions:
 - Choose a unique email, e.g. `verify-$(date +%s)@sokosumi.test`, and a password meeting app rules (fixture-style `Password123!` is fine).
 
 - **Open form.** Run `agent-browser open $WEB_URL/signup`, wait until the snapshot shows Name / Email / Password textboxes (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
+- **Cookie banner.** If **Accept all** / consent UI covers the form, dismiss it first — it can block the terms checkbox click.
 - **Fill required fields.** Prefer refs from that **fresh** snapshot (`textbox "Name"` / `"Email"` / `"Password"`). CSS `[data-testid="auth-field-name|email|password"]` works once the form is interactive; they fail if you fill before the fields appear. Optional marketing checkbox can stay unchecked.
-- **Accept terms.** Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen, or `#termsAccepted`). Submit stays **disabled** until terms are accepted.
-- **Submit.** When `Register` / `Registrieren` is enabled, **click** the snapshot ref (`@eN`, not bare `@N` — agent-browser needs the `e` prefix). Prefer click over Enter — Enter can leave the form unchanged. Wait for navigation away from `/signup` (often `/` then `/chat`). Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
-- **Confirm session.** Open `/agents` and `wait --url "**/agents"`; must not bounce to `/signin`. Do not wait `networkidle` on `/chat`.
-- **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view. Record the email in `account.txt` (no password).
+- **Accept terms.** Prefer `agent-browser check` on the snapshot checkbox ref (accessible name about Terms / Nutzungsbedingungen). `#termsAccepted` often fails when an overlay covers the input. Submit stays **disabled** until terms are accepted.
+- **Submit.** When `Register` / `Registrieren` is enabled, **click** the snapshot ref (`@eN`, not bare `@N` — agent-browser needs the `e` prefix). Prefer click over Enter — Enter can leave the form unchanged. Wait for navigation away from `/signup` to **Welcome `/`**. Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
+- **Confirm session.** Open `/agents`. Expect either `/agents` (workspace ready) or `/setup` (identity / temporary workspace onboarding). Must **not** bounce to `/signin`. Do not wait `networkidle` on Welcome/chat.
+- **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view (`/` or `/setup` or `/agents`). Record the email in `account.txt` (no password).
 
 ### Bootstrap when UI checkbox will not toggle
 
@@ -43,7 +44,8 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 
 ## Gotchas
 
-- Already-authenticated sessions redirect `/signup` into the app (`/chat`). Clear cookies or sign out before driving the form.
+- Already-authenticated sessions redirect `/signup` into the app (Welcome `/`). Clear cookies or sign out before driving the form.
+- New signups without a personal workspace often hit `/setup` after leaving `/` — that is auth success, not a failed landing.
 - Email verification is off in local/core config — do not wait for a verification email. A “confirm email” banner after login is OK.
 - OAuth and magic-link signup paths are invalid with placeholder credentials.
 - Do not reuse an email that already exists; pick a fresh address per run.
