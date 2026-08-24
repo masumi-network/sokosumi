@@ -307,6 +307,7 @@ export const auth = betterAuth({
     accountLinking: {
       enabled: true,
       trustedProviders: ["google", "microsoft"],
+      // requireLocalEmailVerified omitted so the 1.7 default (true) applies.
     },
   },
   databaseHooks: {

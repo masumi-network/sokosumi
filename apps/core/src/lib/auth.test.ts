@@ -502,7 +502,7 @@ describe("core auth config", () => {
     waitUntilMock.mockClear();
   });
 
-  it("configures Google and Microsoft social providers for auth parity", async () => {
+  it("configures Google and Microsoft social providers without requireLocalEmailVerified", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
