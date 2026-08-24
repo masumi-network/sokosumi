@@ -1738,6 +1738,7 @@ model TaskFile {
   @@unique([taskId, sourceUrl])
   @@index([taskId, createdAt])
   @@index([taskId, status])
+  @@index([status, origin, createdAt])
   @@index([uploadedByUserId])
   @@index([uploadedByCoworkerId])
   @@map("task_file")

@@ -63,7 +63,9 @@ function findAutolinks(markdown: string): AutolinkMatch[] {
     }
 
     const rest = markdown.slice(open + 1);
-    const isHttp = rest.startsWith("http://") || rest.startsWith("https://");
+    const lowerRest = rest.slice(0, 8).toLowerCase();
+    const isHttp =
+      lowerRest.startsWith("http://") || lowerRest.startsWith("https://");
     if (!isHttp) {
       i = open + 1;
       continue;
@@ -117,12 +119,27 @@ function normalizeBareUrl(raw: string): string {
   return end === raw.length ? raw : raw.slice(0, end);
 }
 
-/** Check if a position falls within any of the excluded ranges. */
+/**
+ * Check if a position falls within any of the excluded ranges.
+ * Ranges must be sorted by start position (ascending).
+ * Uses a cursor to maintain linear complexity O(n + ranges).
+ */
 function isPositionExcluded(
   position: number,
   excludedRanges: CharRange[],
+  cursor: { index: number },
 ): boolean {
-  for (const range of excludedRanges) {
+  // Advance cursor to the first range that might contain position
+  while (
+    cursor.index < excludedRanges.length &&
+    excludedRanges[cursor.index]!.end <= position
+  ) {
+    cursor.index += 1;
+  }
+
+  // Check if position is within the current range
+  if (cursor.index < excludedRanges.length) {
+    const range = excludedRanges[cursor.index]!;
     if (position >= range.start && position < range.end) {
       return true;
     }
@@ -132,7 +149,7 @@ function isPositionExcluded(
 
 /**
  * Collect character ranges for markdown link destinations and autolinks
- * so bare URL scanner can skip them.
+ * so bare URL scanner can skip them. Returns ranges sorted by start position.
  */
 function collectExcludedRanges(markdown: string): CharRange[] {
   const ranges: CharRange[] = [];
@@ -150,6 +167,9 @@ function collectExcludedRanges(markdown: string): CharRange[] {
     ranges.push({ start, end });
   }
 
+  // Sort ranges by start position for efficient cursor-based lookup
+  ranges.sort((a, b) => a.start - b.start);
+
   return ranges;
 }
 
@@ -161,11 +181,17 @@ function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
   const results: string[] = [];
   const seen = new Set<string>();
   let i = 0;
+  const cursor = { index: 0 }; // Cursor for excluded ranges
 
   while (i < text.length) {
     // Skip if current position is inside an excluded range
-    if (isPositionExcluded(i, excludedRanges)) {
-      i += 1;
+    if (isPositionExcluded(i, excludedRanges, cursor)) {
+      // Jump to end of current excluded range for efficiency
+      if (cursor.index < excludedRanges.length) {
+        i = excludedRanges[cursor.index]!.end;
+      } else {
+        i += 1;
+      }
       continue;
     }
 
@@ -184,8 +210,13 @@ function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
     }
 
     // Skip if this URL start is inside an excluded range
-    if (isPositionExcluded(start, excludedRanges)) {
-      i = start + 1;
+    if (isPositionExcluded(start, excludedRanges, cursor)) {
+      // Jump to end of current excluded range
+      if (cursor.index < excludedRanges.length) {
+        i = excludedRanges[cursor.index]!.end;
+      } else {
+        i = start + 1;
+      }
       continue;
     }
 
