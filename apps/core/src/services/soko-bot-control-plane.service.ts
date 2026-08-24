@@ -1456,7 +1456,7 @@ export class SokoBotControlPlane {
     });
     if (!workspace) throw new SokoBotNotFoundError("Workspace not found");
 
-    await requireSokoBotTurnFunding(input.userId);
+    await requireSokoBotTurnFunding(input.userId, bot.id);
 
     const classifierContext = await this.classificationContext(
       input.userId,

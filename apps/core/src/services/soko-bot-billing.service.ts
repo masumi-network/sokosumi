@@ -9,6 +9,9 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
+const SOKO_BOT_TURN_COST_HISTORY_SIZE = 3;
+const SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND = "insufficient_credits";
+
 export class SokoBotBillingAccessError extends Error {}
 
 export interface SokoBotUsageChargeResult {
@@ -22,6 +25,10 @@ function hasAdminRole(role: string | null | undefined): boolean {
     role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
     false
   );
+}
+
+function sokoBotTurnUsageIdempotencyKey(turnId: string): string {
+  return `soko-bot-turn:${turnId}`;
 }
 
 export function sokoBotUsageCents(costUsdMicros: bigint): bigint {
@@ -72,17 +79,86 @@ export async function userHasSokoBotPaidCoverage(
   return false;
 }
 
-export async function requireSokoBotTurnFunding(userId: string): Promise<void> {
+export async function requireSokoBotTurnFunding(
+  userId: string,
+  sokoBotId: string,
+): Promise<void> {
   if (!(await userHasSokoBotPaidCoverage(userId))) {
     throw new SokoBotBillingAccessError(
       "A paid subscription is required to use Soko Bot.",
     );
   }
+
+  const [completedTurns, shortfallTurn] = await Promise.all([
+    prisma.sokoBotTurn.findMany({
+      where: {
+        sokoBotId,
+        userId,
+        status: "COMPLETED",
+      },
+      select: { id: true },
+      orderBy: { completedAt: "desc" },
+      take: SOKO_BOT_TURN_COST_HISTORY_SIZE,
+    }),
+    prisma.sokoBotTurn.findFirst({
+      where: {
+        sokoBotId,
+        userId,
+        errorKind: SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND,
+        completedAt: { not: null },
+      },
+      select: { id: true, costUsdMicros: true },
+      orderBy: { completedAt: "desc" },
+    }),
+  ]);
+  const [recentUsage, shortfallUsage] = await Promise.all([
+    completedTurns.length > 0
+      ? prisma.orchestratorUsage.findMany({
+          where: {
+            orchestratorId: sokoBotId,
+            userId,
+            idempotencyKey: {
+              in: completedTurns.map(({ id }) =>
+                sokoBotTurnUsageIdempotencyKey(id),
+              ),
+            },
+          },
+          select: { cents: true },
+        })
+      : [],
+    shortfallTurn
+      ? prisma.orchestratorUsage.findUnique({
+          where: {
+            orchestratorId_idempotencyKey: {
+              orchestratorId: sokoBotId,
+              idempotencyKey: sokoBotTurnUsageIdempotencyKey(shortfallTurn.id),
+            },
+          },
+          select: { cents: true },
+        })
+      : null,
+  ]);
   const minimumCents = convertCreditsToCents(
     getEnv().SOKO_BOT_MIN_TURN_CREDITS,
   );
+  const recentTurnCents = recentUsage.reduce(
+    (maximum, usage) => (usage.cents > maximum ? usage.cents : maximum),
+    0n,
+  );
+  const shortfallExpectedCents = shortfallTurn
+    ? sokoBotUsageCents(shortfallTurn.costUsdMicros ?? 0n)
+    : 0n;
+  const shortfallCents =
+    shortfallExpectedCents > (shortfallUsage?.cents ?? 0n)
+      ? shortfallExpectedCents - (shortfallUsage?.cents ?? 0n)
+      : 0n;
   const balance = await creditBucketRepository.getBalance(userId, null, prisma);
-  if (balance < minimumCents) {
+  if (balance < shortfallCents) {
+    throw new SokoBotBillingAccessError(
+      "Insufficient personal credits to cover the unpaid remainder from a prior Soko Bot turn.",
+    );
+  }
+  if (balance < minimumCents || balance < recentTurnCents) {
     throw new SokoBotBillingAccessError(
       "Insufficient personal credits to start a Soko Bot turn.",
     );
@@ -103,7 +179,7 @@ export async function recordSokoBotTurnUsage(
     return { chargedCents: 0n, expectedCents, shortfall: false };
   }
 
-  const idempotencyKey = `soko-bot-turn:${input.turnId}`;
+  const idempotencyKey = sokoBotTurnUsageIdempotencyKey(input.turnId);
   const existing = await tx.orchestratorUsage.findUnique({
     where: {
       orchestratorId_idempotencyKey: {

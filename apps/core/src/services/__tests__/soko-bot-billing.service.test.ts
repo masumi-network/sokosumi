@@ -8,7 +8,10 @@ const {
   prepareConsumptionMock,
   subscriptionMock,
   usageCreateMock,
+  usageFindManyMock,
   usageFindUniqueMock,
+  turnFindFirstMock,
+  turnFindManyMock,
   userFindUniqueMock,
   transactionCreateMock,
 } = vi.hoisted(() => ({
@@ -19,7 +22,10 @@ const {
   prepareConsumptionMock: vi.fn(),
   subscriptionMock: vi.fn(),
   usageCreateMock: vi.fn(),
+  usageFindManyMock: vi.fn(),
   usageFindUniqueMock: vi.fn(),
+  turnFindFirstMock: vi.fn(),
+  turnFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   transactionCreateMock: vi.fn(),
 }));
@@ -29,6 +35,14 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: userFindUniqueMock },
     member: { findMany: memberFindManyMock },
+    orchestratorUsage: {
+      findMany: usageFindManyMock,
+      findUnique: usageFindUniqueMock,
+    },
+    sokoBotTurn: {
+      findFirst: turnFindFirstMock,
+      findMany: turnFindManyMock,
+    },
   },
 }));
 vi.mock("@sokosumi/database/helpers", () => ({
@@ -54,6 +68,8 @@ import {
   userHasSokoBotPaidCoverage,
 } from "@/services/soko-bot-billing.service";
 
+const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000001";
+
 function transactionClient() {
   return {
     orchestratorUsage: {
@@ -74,6 +90,9 @@ describe("Soko Bot billing", () => {
     userFindUniqueMock.mockResolvedValue({ role: "user" });
     memberFindManyMock.mockResolvedValue([]);
     subscriptionMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnFindManyMock.mockResolvedValue([]);
+    usageFindManyMock.mockResolvedValue([]);
   });
 
   it("maps runtime USD usage to configured credits with a minimum", () => {
@@ -103,15 +122,63 @@ describe("Soko Bot billing", () => {
   });
 
   it("fails closed without paid coverage or minimum personal credits", async () => {
-    await expect(requireSokoBotTurnFunding("user_1")).rejects.toBeInstanceOf(
-      SokoBotBillingAccessError,
-    );
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).rejects.toBeInstanceOf(SokoBotBillingAccessError);
 
     subscriptionMock.mockResolvedValue({ plan: "starter" });
     balanceMock.mockResolvedValue(0n);
-    await expect(requireSokoBotTurnFunding("user_1")).rejects.toThrow(
-      "Insufficient personal credits",
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).rejects.toThrow("Insufficient personal credits");
+  });
+
+  it("requires enough balance for the most expensive of the last three completed turns", async () => {
+    subscriptionMock.mockResolvedValue({ plan: "starter" });
+    balanceMock.mockResolvedValue(convertCreditsToCents(50));
+    turnFindManyMock.mockResolvedValue([
+      { id: "turn_3" },
+      { id: "turn_2" },
+      { id: "turn_1" },
+    ]);
+    usageFindManyMock.mockResolvedValue([
+      { referenceId: "turn_3", cents: convertCreditsToCents(75) },
+      { referenceId: "turn_2", cents: convertCreditsToCents(20) },
+      { referenceId: "turn_1", cents: convertCreditsToCents(10) },
+    ]);
+
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).rejects.toThrow("Insufficient personal credits");
+    expect(turnFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 3 }),
     );
+
+    balanceMock.mockResolvedValue(convertCreditsToCents(75));
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).resolves.toBeUndefined();
+  });
+
+  it("blocks another turn until balance covers the prior unpaid remainder", async () => {
+    subscriptionMock.mockResolvedValue({ plan: "starter" });
+    balanceMock.mockResolvedValue(convertCreditsToCents(94));
+    turnFindFirstMock.mockResolvedValue({
+      id: "turn_shortfall",
+      costUsdMicros: 1_000_000n,
+    });
+    usageFindUniqueMock.mockResolvedValue({
+      cents: convertCreditsToCents(5),
+    });
+
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).rejects.toBeInstanceOf(SokoBotBillingAccessError);
+
+    balanceMock.mockResolvedValue(convertCreditsToCents(95));
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).resolves.toBeUndefined();
   });
 
   it("records one idempotent personal credit charge per turn", async () => {

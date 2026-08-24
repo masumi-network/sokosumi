@@ -5194,8 +5194,8 @@
         "description": "The Personal Assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
-        "title": "Create your Soko Bot",
-        "description": "Your Soko Bot is a personal project manager. It answers directly when it can, and otherwise delegates Tasks to Coworkers or hires Agents to run Jobs.",
+        "title": "Meet your Soko Bot",
+        "description": "A personal project manager inside Sokosumi. It answers directly when it can, delegates Tasks to your Coworkers, and hires marketplace Agents to run Jobs. Give it a name and decide how much it may do on its own.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
         "submit": "Create Soko Bot",
@@ -5214,60 +5214,6 @@
         "saving": "Saving…",
         "saved": "Autonomy updated.",
         "error": "Could not update autonomy."
-      },
-      "Header": {
-        "defaultName": "Soko Bot",
-        "tagline": "Personal project manager — delegates Tasks, hires Agents, keeps you informed.",
-        "lastActivity": "Last activity",
-        "failures": "Consecutive failures"
-      },
-      "Composer": {
-        "label": "Message",
-        "placeholder": "Ask for a status, delegate work, or hire an Agent…",
-        "pausedPlaceholder": "Your Soko Bot is paused.",
-        "hint": "⌘/Ctrl + Enter to send",
-        "pausedHint": "An operator paused this bot. New turns are disabled until it is resumed.",
-        "send": "Send",
-        "sending": "Sending…",
-        "busy": "Your Soko Bot is still working on the previous turn. Cancel it or wait for it to finish.",
-        "error": "Could not send the message.",
-        "runningPlaceholder": "Your Soko Bot is working on a turn…",
-        "runningHint": "Wait for the current turn to finish or cancel it before sending another message."
-      },
-      "Turns": {
-        "emptyTitle": "No conversations yet",
-        "emptyDescription": "Send a first message below. Your Soko Bot will answer directly or propose how to delegate the work.",
-        "you": "You",
-        "assistant": "Soko Bot",
-        "working": "Working…",
-        "failed": "This turn failed.",
-        "cancelled": "This turn was cancelled.",
-        "activity": "{count, plural, =0 {Activity} one {Activity (# item)} other {Activity (# items)}}",
-        "pendingDecisions": "{count, plural, one {# approval pending} other {# approvals pending}}",
-        "source": {
-          "CHAT": "Chat",
-          "SCHEDULE": "Scheduled",
-          "ADMIN_RETRY": "Operator retry"
-        },
-        "cancel": "Cancel",
-        "cancelling": "Cancelling…",
-        "cancelRequested": "Cancellation requested.",
-        "cancelError": "Could not cancel the turn.",
-        "conversationHeading": "Conversation"
-      },
-      "Decisions": {
-        "title": "Approvals",
-        "description": "Actions your Soko Bot proposed and is waiting on you for.",
-        "expires": "Expires",
-        "accept": "Accept",
-        "accepting": "Accepting…",
-        "reject": "Reject",
-        "rejecting": "Rejecting…",
-        "accepted": "Approved. Your Soko Bot will carry it out.",
-        "rejected": "Rejected.",
-        "error": "Could not resolve the approval.",
-        "botReason": "Bot's reason:",
-        "acceptUnavailable": "Accept is unavailable for an incomplete proposal."
       },
       "Memory": {
         "title": "Memory",
@@ -5331,11 +5277,118 @@
         "archived": "Soko Bot archived.",
         "archiveError": "Could not archive the Soko Bot."
       },
-      "Legacy": {
-        "title": "Earlier conversations",
-        "description": "Imported from your previous assistant. Read-only and separate from your Soko Bot's current turns.",
-        "toggle": "{count, plural, one {Show # earlier message} other {Show # earlier messages}}",
-        "hide": "Hide earlier messages"
+      "Chat": {
+        "defaultName": "Soko Bot",
+        "avatarAlt": "Soko Bot",
+        "legacyDivider": "{count, plural, one {# earlier message imported from your previous assistant} other {# earlier messages imported from your previous assistant}}",
+        "toolSteps": "{count, plural, one {# step} other {# steps}}",
+        "answeredIn": "{seconds}s",
+        "copy": "Copy",
+        "copied": "Copied",
+        "failed": "This turn failed. Try again or rephrase.",
+        "cancelled": "Cancelled.",
+        "noAnswer": "No answer was recorded for this turn.",
+        "stillWorking": "Still working on it",
+        "stillWorkingLong": "Taking longer than usual. Coordinating work can take a minute.",
+        "cancelling": "Stopping…",
+        "kind": {
+          "scheduled": "Scheduled"
+        },
+        "thinkingMessages": {
+          "0": "Thinking",
+          "1": "Pulling up your context",
+          "2": "Checking open Tasks",
+          "3": "Looking at who's available",
+          "4": "Reading between the lines",
+          "5": "Weighing the options",
+          "6": "Picking the right Coworker",
+          "7": "Drafting carefully",
+          "8": "Double-checking before I act",
+          "9": "Cross-referencing memory",
+          "10": "Choosing my words",
+          "11": "Almost there"
+        },
+        "tools": {
+          "default": "Working",
+          "refresh_context": "Refreshing context",
+          "find_coworkers": "Finding Coworkers",
+          "create_task": "Creating a Task",
+          "update_task": "Updating a Task",
+          "assign_task": "Assigning a Task",
+          "get_task_status": "Checking Task status",
+          "find_agents": "Searching Agents",
+          "get_agent_input_schema": "Reading Agent inputs",
+          "hire_agent": "Hiring an Agent",
+          "get_job_status": "Checking Job status",
+          "provide_job_input": "Answering a Job",
+          "request_user_decision": "Asking for your approval",
+          "read_memory": "Reading memory",
+          "update_memory": "Updating memory",
+          "scratch_read": "Reading notes",
+          "scratch_write": "Writing notes",
+          "scratch_list": "Listing notes"
+        },
+        "composer": {
+          "label": "Message",
+          "placeholder": "Message {bot}…",
+          "workingPlaceholder": "Your Soko Bot is working…",
+          "pausedPlaceholder": "Your Soko Bot is paused by an operator.",
+          "hint": "Enter to send, Shift+Enter for a new line",
+          "workingHint": "Wait for this turn or stop it before sending more",
+          "send": "Send",
+          "stop": "Stop",
+          "jumpToLatest": "Jump to latest",
+          "hints": {
+            "0": "Try: what's the status of my open Tasks?",
+            "1": "Try: delegate a research brief to a Coworker",
+            "2": "Try: find an Agent that can summarise this week's Jobs",
+            "3": "Try: every weekday at 9am, brief me on overdue work"
+          }
+        },
+        "welcome": {
+          "title": "Ready when you are",
+          "titleNamed": "Ready when you are, {name}",
+          "hint": "{bot} manages work for you: it answers directly when it can, delegates Tasks to Coworkers, and hires Agents for Jobs. It asks before anything that costs credits.",
+          "suggestions": {
+            "0": "What's the status of my open Tasks?",
+            "1": "Delegate a research brief to a Coworker",
+            "2": "Find an Agent that can draft a weekly report"
+          }
+        },
+        "chips": {
+          "autonomy": "Autonomy",
+          "autonomyTooltip": "Autonomy: {level}",
+          "autonomyDescription": "How much your Soko Bot may do without asking first.",
+          "schedules": "Schedules",
+          "schedulesTooltip": "Prompts it runs on a schedule",
+          "memory": "Memory",
+          "memoryTooltip": "What it currently remembers",
+          "settings": "Settings",
+          "settingsTooltip": "Settings",
+          "settingsDescription": "Identity and danger zone for your Soko Bot."
+        },
+        "decision": {
+          "heading": "Needs your okay",
+          "headingResolved": "Approval",
+          "accept": "Approve",
+          "accepting": "Approving…",
+          "reject": "Reject",
+          "rejecting": "Rejecting…",
+          "accepted": "Approved. Your Soko Bot will carry it out.",
+          "rejected": "Rejected. Nothing was created.",
+          "error": "Could not resolve the approval.",
+          "expires": "Expires {time}"
+        },
+        "delegation": {
+          "task": "Task",
+          "job": "Job",
+          "failed": "failed"
+        },
+        "errors": {
+          "send": "Could not send the message.",
+          "busy": "Your Soko Bot is still working on the previous turn. Stop it or wait for it to finish.",
+          "cancel": "Could not stop the turn."
+        }
       }
     }
   },

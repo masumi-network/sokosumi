@@ -1,7 +1,25 @@
 # Soko Bot deployment
 
 Deploy `apps/soko-bot` as own Vercel project with that directory as project
-root. Eve build emits Vercel Build Output, including web runtime, Workflow, and
+root.
+
+Provisioned (2026-08-24, team `masumi`):
+
+- Project `sokosumi-soko-bot-preprod` (`prj_GKX9jtdK4b4WX2RMnPXKa6GyDwAF`),
+  root directory `apps/soko-bot`, Node 24. Runtime URL
+  `https://soko-bot-preprod.preview.sokosumi.com` (custom domain, so Vercel
+  SSO deployment protection does not apply to Core → Eve calls).
+- Runtime env set for Production + Preview: `SOKO_BOT_CORE_BASE_URL` and
+  `SOKO_BOT_TOKEN_ISSUER` = `https://preprod.api.sokosumi.com` (Core preprod
+  `BETTER_AUTH_URL`), `SOKO_BOT_SIGNING_PUBLIC_KEYS` = key ring with
+  `soko-bot-preprod-v1`.
+- Deploy from the repo root with the root linked to that project
+  (`vercel link --project sokosumi-soko-bot-preprod`, then `vercel --prod`);
+  deploying from inside `apps/soko-bot` fails the root-directory check.
+- Core preprod (`sokosumi-core-preprod`) needs the matching
+  `SOKO_BOT_*` variables (see below); keep `SOKO_BOT_ENABLED=false` on
+  Production until the branch is deployed and a canary turn has passed on
+  Preview. Eve build emits Vercel Build Output, including web runtime, Workflow, and
 Vercel Sandbox template configuration.
 
 Required runtime environment:

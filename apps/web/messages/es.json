@@ -5194,8 +5194,8 @@
         "description": "El Asistente personal no está habilitado en este entorno. Vuelve a intentarlo más tarde."
       },
       "Create": {
-        "title": "Crea tu Soko Bot",
-        "description": "Tu Soko Bot es un gestor de proyectos personal. Responde directamente cuando puede y, si no, delega Tasks a Coworkers o contrata Agents para ejecutar Jobs.",
+        "title": "Conoce a tu Soko Bot",
+        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tasks a tus Coworkers y contrata Agents del marketplace para ejecutar Jobs. Ponle un nombre y decide cuánto puede hacer por su cuenta.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
@@ -5214,60 +5214,6 @@
         "saving": "Guardando…",
         "saved": "Autonomía actualizada.",
         "error": "No se pudo actualizar la autonomía."
-      },
-      "Header": {
-        "defaultName": "Soko Bot",
-        "tagline": "Gestor de proyectos personal: delega Tasks, contrata Agents y te mantiene informado.",
-        "lastActivity": "Última actividad",
-        "failures": "Fallos consecutivos"
-      },
-      "Composer": {
-        "label": "Mensaje",
-        "placeholder": "Pide un estado, delega trabajo o contrata un Agent…",
-        "pausedPlaceholder": "Tu Soko Bot está pausado.",
-        "hint": "⌘/Ctrl + Intro para enviar",
-        "pausedHint": "Un operador pausó este bot. Los nuevos turnos están deshabilitados hasta que se reanude.",
-        "send": "Enviar",
-        "sending": "Enviando…",
-        "busy": "Tu Soko Bot sigue trabajando en el turno anterior. Cancélalo o espera a que termine.",
-        "error": "No se pudo enviar el mensaje.",
-        "runningPlaceholder": "Tu Soko Bot está trabajando en un turno…",
-        "runningHint": "Espera a que termine el turno actual o cancélalo antes de enviar otro mensaje."
-      },
-      "Turns": {
-        "emptyTitle": "Aún no hay conversaciones",
-        "emptyDescription": "Envía un primer mensaje abajo. Tu Soko Bot responderá directamente o propondrá cómo delegar el trabajo.",
-        "you": "Tú",
-        "assistant": "Soko Bot",
-        "working": "Trabajando…",
-        "failed": "Este turno falló.",
-        "cancelled": "Este turno se canceló.",
-        "activity": "{count, plural, =0 {Actividad} one {Actividad (# elemento)} other {Actividad (# elementos)}}",
-        "pendingDecisions": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
-        "source": {
-          "CHAT": "Chat",
-          "SCHEDULE": "Programado",
-          "ADMIN_RETRY": "Reintento de operador"
-        },
-        "cancel": "Cancelar",
-        "cancelling": "Cancelando…",
-        "cancelRequested": "Cancelación solicitada.",
-        "cancelError": "No se pudo cancelar el turno.",
-        "conversationHeading": "Conversación"
-      },
-      "Decisions": {
-        "title": "Aprobaciones",
-        "description": "Acciones que tu Soko Bot propuso y para las que espera tu decisión.",
-        "expires": "Caduca",
-        "accept": "Aceptar",
-        "accepting": "Aceptando…",
-        "reject": "Rechazar",
-        "rejecting": "Rechazando…",
-        "accepted": "Aprobado. Tu Soko Bot lo llevará a cabo.",
-        "rejected": "Rechazado.",
-        "error": "No se pudo resolver la aprobación.",
-        "botReason": "Motivo del bot:",
-        "acceptUnavailable": "Aceptar no está disponible para una propuesta incompleta."
       },
       "Memory": {
         "title": "Memoria",
@@ -5331,11 +5277,118 @@
         "archived": "Soko Bot archivado.",
         "archiveError": "No se pudo archivar el Soko Bot."
       },
-      "Legacy": {
-        "title": "Conversaciones anteriores",
-        "description": "Importadas de tu asistente anterior. Solo lectura y separadas de los turnos actuales de tu Soko Bot.",
-        "toggle": "{count, plural, one {Mostrar # mensaje anterior} other {Mostrar # mensajes anteriores}}",
-        "hide": "Ocultar mensajes anteriores"
+      "Chat": {
+        "defaultName": "Soko Bot",
+        "avatarAlt": "Soko Bot",
+        "legacyDivider": "{count, plural, one {# mensaje anterior importado de tu asistente previo} other {# mensajes anteriores importados de tu asistente previo}}",
+        "toolSteps": "{count, plural, one {# paso} other {# pasos}}",
+        "answeredIn": "{seconds}s",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "failed": "Este turno falló. Inténtalo de nuevo o reformula.",
+        "cancelled": "Cancelado.",
+        "noAnswer": "No se registró ninguna respuesta para este turno.",
+        "stillWorking": "Sigue trabajando",
+        "stillWorkingLong": "Tarda más de lo habitual. Coordinar trabajo puede llevar un minuto.",
+        "cancelling": "Deteniendo…",
+        "kind": {
+          "scheduled": "Programado"
+        },
+        "thinkingMessages": {
+          "0": "Pensando",
+          "1": "Cargando tu contexto",
+          "2": "Revisando Tasks abiertas",
+          "3": "Viendo quién está disponible",
+          "4": "Leyendo entre líneas",
+          "5": "Sopesando opciones",
+          "6": "Eligiendo el Coworker adecuado",
+          "7": "Redactando con cuidado",
+          "8": "Comprobando antes de actuar",
+          "9": "Contrastando con la memoria",
+          "10": "Eligiendo las palabras",
+          "11": "Casi listo"
+        },
+        "tools": {
+          "default": "Trabajando",
+          "refresh_context": "Actualizando contexto",
+          "find_coworkers": "Buscando Coworkers",
+          "create_task": "Creando una Task",
+          "update_task": "Actualizando una Task",
+          "assign_task": "Asignando una Task",
+          "get_task_status": "Consultando estado de la Task",
+          "find_agents": "Buscando Agents",
+          "get_agent_input_schema": "Leyendo entradas del Agent",
+          "hire_agent": "Contratando un Agent",
+          "get_job_status": "Consultando estado del Job",
+          "provide_job_input": "Respondiendo a un Job",
+          "request_user_decision": "Pidiendo tu aprobación",
+          "read_memory": "Leyendo la memoria",
+          "update_memory": "Actualizando la memoria",
+          "scratch_read": "Leyendo notas",
+          "scratch_write": "Escribiendo notas",
+          "scratch_list": "Listando notas"
+        },
+        "composer": {
+          "label": "Mensaje",
+          "placeholder": "Escribe a {bot}…",
+          "workingPlaceholder": "Tu Soko Bot está trabajando…",
+          "pausedPlaceholder": "Un operador ha pausado tu Soko Bot.",
+          "hint": "Enter para enviar, Shift+Enter para nueva línea",
+          "workingHint": "Espera a este turno o detenlo antes de enviar más",
+          "send": "Enviar",
+          "stop": "Detener",
+          "jumpToLatest": "Ir al último",
+          "hints": {
+            "0": "Prueba: ¿cuál es el estado de mis Tasks abiertas?",
+            "1": "Prueba: delega un informe de investigación a un Coworker",
+            "2": "Prueba: busca un Agent que resuma los Jobs de esta semana",
+            "3": "Prueba: cada día laborable a las 9, infórmame del trabajo atrasado"
+          }
+        },
+        "welcome": {
+          "title": "Listo cuando tú lo estés",
+          "titleNamed": "Listo cuando tú lo estés, {name}",
+          "hint": "{bot} gestiona el trabajo por ti: responde directamente cuando puede, delega Tasks a Coworkers y contrata Agents para Jobs. Pregunta antes de cualquier cosa que cueste créditos.",
+          "suggestions": {
+            "0": "¿Cuál es el estado de mis Tasks abiertas?",
+            "1": "Delega un informe de investigación a un Coworker",
+            "2": "Busca un Agent que redacte un informe semanal"
+          }
+        },
+        "chips": {
+          "autonomy": "Autonomía",
+          "autonomyTooltip": "Autonomía: {level}",
+          "autonomyDescription": "Cuánto puede hacer tu Soko Bot sin preguntar antes.",
+          "schedules": "Programaciones",
+          "schedulesTooltip": "Prompts que ejecuta según una programación",
+          "memory": "Memoria",
+          "memoryTooltip": "Lo que recuerda ahora mismo",
+          "settings": "Ajustes",
+          "settingsTooltip": "Ajustes",
+          "settingsDescription": "Identidad y zona de peligro de tu Soko Bot."
+        },
+        "decision": {
+          "heading": "Necesita tu visto bueno",
+          "headingResolved": "Aprobación",
+          "accept": "Aprobar",
+          "accepting": "Aprobando…",
+          "reject": "Rechazar",
+          "rejecting": "Rechazando…",
+          "accepted": "Aprobado. Tu Soko Bot lo llevará a cabo.",
+          "rejected": "Rechazado. No se creó nada.",
+          "error": "No se pudo resolver la aprobación.",
+          "expires": "Caduca {time}"
+        },
+        "delegation": {
+          "task": "Task",
+          "job": "Job",
+          "failed": "falló"
+        },
+        "errors": {
+          "send": "No se pudo enviar el mensaje.",
+          "busy": "Tu Soko Bot sigue trabajando en el turno anterior. Detenlo o espera a que termine.",
+          "cancel": "No se pudo detener el turno."
+        }
       }
     }
   },
