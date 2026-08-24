@@ -79,7 +79,7 @@ import type {
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
-  getProjects,
+  getProjectsById,
   getTasksById,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
@@ -500,12 +500,11 @@ export default function DrivePage(): ReactElement {
             (item) => item.type === "project" && item.id === projectIdParam,
           )
         ) {
-          const response = await getProjects({
+          const response = await getProjectsById({
             client: getBrowserCoreClient(),
-            query: { limit: 100 },
+            path: { id: projectIdParam },
           });
-          const projects = response.data?.data ?? [];
-          const project = projects.find((p) => p.id === projectIdParam);
+          const project = response.data?.data;
           if (project) {
             setProjectNameCache((prev) => {
               const next = new Map(prev);
@@ -797,6 +796,14 @@ export default function DrivePage(): ReactElement {
   }
 
   function navigateToProject(projectId: string, projectName?: string) {
+    // Cache project name if provided
+    if (projectName) {
+      setProjectNameCache((prev) => {
+        const next = new Map(prev);
+        next.set(projectId, projectName);
+        return next;
+      });
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", "tasks");
     params.set("projectId", projectId);
@@ -806,6 +813,14 @@ export default function DrivePage(): ReactElement {
   }
 
   function navigateToTask(taskId: string, taskName?: string) {
+    // Cache task name if provided
+    if (taskName) {
+      setTaskNameCache((prev) => {
+        const next = new Map(prev);
+        next.set(taskId, taskName);
+        return next;
+      });
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", "tasks");
     params.set("taskId", taskId);
@@ -1428,7 +1443,9 @@ export default function DrivePage(): ReactElement {
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <button
                               type="button"
-                              onClick={() => navigateToProject(item.id)}
+                              onClick={() =>
+                                navigateToProject(item.id, item.name)
+                              }
                               className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
                               title={item.name}
                             >
@@ -1546,7 +1563,7 @@ export default function DrivePage(): ReactElement {
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <button
                               type="button"
-                              onClick={() => navigateToTask(item.id)}
+                              onClick={() => navigateToTask(item.id, item.name)}
                               className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
                               title={item.name}
                             >
