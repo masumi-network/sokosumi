@@ -283,4 +283,47 @@ https://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-0000000
       expect(links).toEqual(["https://example.com/file.pdf?token=xyz"]);
     });
   });
+
+  describe("case-insensitive URL extraction", () => {
+    it("extracts autolinks with uppercase scheme", () => {
+      const links = extractLinks("<HTTP://example.com/file.pdf>");
+      expect(links).toEqual([{ url: "HTTP://example.com/file.pdf" }]);
+    });
+
+    it("extracts autolinks with mixed-case scheme", () => {
+      const links = extractLinks("<HtTpS://example.com/file.pdf>");
+      expect(links).toEqual([{ url: "HtTpS://example.com/file.pdf" }]);
+    });
+
+    it("extracts bare URLs with uppercase HTTP", () => {
+      const links = extractFileLikeLinks(
+        "Check out HTTP://example.com/report.pdf for details.",
+      );
+      expect(links).toEqual(["HTTP://example.com/report.pdf"]);
+    });
+
+    it("extracts bare URLs with uppercase HTTPS", () => {
+      const links = extractFileLikeLinks(
+        "Check out HTTPS://example.com/report.pdf for details.",
+      );
+      expect(links).toEqual(["HTTPS://example.com/report.pdf"]);
+    });
+
+    it("extracts bare URLs with mixed-case scheme", () => {
+      const links = extractFileLikeLinks(
+        "Files: HtTp://example.com/a.pdf and hTtPs://example.com/b.docx",
+      );
+      expect(links).toEqual([
+        "HtTp://example.com/a.pdf",
+        "hTtPs://example.com/b.docx",
+      ]);
+    });
+
+    it("extracts bare URLs with all-caps scheme in prose", () => {
+      const links = extractFileLikeLinks(
+        "Download from HTTPS://WWW.EXAMPLE.COM/FILE.PDF immediately.",
+      );
+      expect(links).toEqual(["HTTPS://WWW.EXAMPLE.COM/FILE.PDF"]);
+    });
+  });
 });

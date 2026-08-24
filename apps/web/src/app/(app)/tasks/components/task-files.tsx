@@ -21,6 +21,14 @@ function hasStatus(file: TaskFileListItem): file is TaskFile {
   return "status" in file;
 }
 
+function isFileReady(file: TaskFileListItem): boolean {
+  if (hasStatus(file)) {
+    return file.status === "READY";
+  }
+  // PublicSharedTaskFile has no status; treat as ready when fileUrl exists
+  return !!file.fileUrl;
+}
+
 /**
  * Read-only list of task files. Shows PENDING/FAILED with status badges, READY with clickable chips. Hidden when empty.
  */
@@ -36,7 +44,7 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
       </h2>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
         {files.map((file) =>
-          file.fileUrl && hasStatus(file) && file.status === "READY" ? (
+          file.fileUrl && isFileReady(file) ? (
             <FileChipWithMetadata
               key={file.id}
               url={file.fileUrl}

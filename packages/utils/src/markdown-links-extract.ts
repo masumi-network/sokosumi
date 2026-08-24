@@ -175,7 +175,7 @@ function collectExcludedRanges(markdown: string): CharRange[] {
 
 /**
  * Linear scan for bare `http://` / `https://` URLs in text (no regex — CodeQL ReDoS).
- * Skips ranges already covered by markdown links and autolinks.
+ * Case-insensitive scheme matching. Skips ranges already covered by markdown links and autolinks.
  */
 function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
   const results: string[] = [];
@@ -195,8 +195,30 @@ function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
       continue;
     }
 
-    const httpsIndex = text.indexOf("https://", i);
-    const httpIndex = text.indexOf("http://", i);
+    // Case-insensitive search for http:// or https://
+    const remaining = text.slice(i);
+    const lowerRemaining = remaining.slice(0, 8).toLowerCase();
+    let httpsIndex = -1;
+    let httpIndex = -1;
+
+    if (lowerRemaining.startsWith("https://")) {
+      httpsIndex = i;
+    } else {
+      const httpsPos = remaining.toLowerCase().indexOf("https://");
+      if (httpsPos !== -1) {
+        httpsIndex = i + httpsPos;
+      }
+    }
+
+    if (lowerRemaining.startsWith("http://")) {
+      httpIndex = i;
+    } else {
+      const httpPos = remaining.toLowerCase().indexOf("http://");
+      if (httpPos !== -1) {
+        httpIndex = i + httpPos;
+      }
+    }
+
     let start = -1;
     if (httpsIndex === -1) {
       start = httpIndex;
@@ -205,6 +227,7 @@ function findBareHttpUrls(text: string, excludedRanges: CharRange[]): string[] {
     } else {
       start = Math.min(httpsIndex, httpIndex);
     }
+
     if (start === -1) {
       break;
     }
