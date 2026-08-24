@@ -5080,7 +5080,7 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "{name} konnte nicht antworten",
+        "failed": "Konnte nicht antworten",
         "retry": "Erneut versuchen"
       },
       "Outbound": {

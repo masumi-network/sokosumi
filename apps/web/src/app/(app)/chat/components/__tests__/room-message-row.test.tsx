@@ -1915,8 +1915,10 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    const terminal = screen.getByTestId("coworker-mention-terminal");
-    expect(terminal).toHaveTextContent("MentionStatus.failed");
+    expect(screen.getByTestId("coworker-thought-sparkle")).toBeInTheDocument();
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
+      "MentionStatus.failed",
+    );
     expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-thought-trace"),
@@ -1940,6 +1942,7 @@ describe("ChatMessageRow coworker Thought", () => {
 
     renderRow({ message, onRetryMention });
 
+    expect(screen.getByTestId("coworker-thought-sparkle")).toBeInTheDocument();
     await user.click(screen.getByTestId("coworker-mention-retry"));
     expect(onRetryMention).toHaveBeenCalledWith(message);
     expect(screen.getByTestId("coworker-mention-retry")).toHaveTextContent(

@@ -24,8 +24,8 @@ import {
   useState,
 } from "react";
 import {
+  CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
-  CoworkerMentionTerminalStatus,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
@@ -1462,6 +1462,33 @@ function MessageTimeOrOutboundStatus({
   return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
+function FailedMentionActions({
+  onRetryMention,
+}: {
+  onRetryMention?: () => void;
+}) {
+  const t = useTranslations("App.Channels");
+  return (
+    <div
+      className="text-muted-foreground flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      data-testid="coworker-mention-failed"
+      role="status"
+    >
+      <span className="text-destructive">{t("MentionStatus.failed")}</span>
+      {onRetryMention ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 font-medium"
+          data-testid="coworker-mention-retry"
+          onClick={onRetryMention}
+        >
+          {t("MentionStatus.retry")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function OutboundFailedActions({
   message,
   onRetryOutbound,
@@ -1859,26 +1886,14 @@ export function ChatMessageRow({
                   isSaving={isSavingEdit}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
-                <div
-                  className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1"
-                  data-testid="coworker-mention-failed"
-                >
-                  <CoworkerMentionTerminalStatus
-                    label={tChannels("MentionStatus.failed", {
-                      name: sender.name,
-                    })}
+                <>
+                  <CoworkerFailedThoughtSparkle />
+                  <FailedMentionActions
+                    onRetryMention={
+                      onRetryMention ? () => onRetryMention(message) : undefined
+                    }
                   />
-                  {onRetryMention ? (
-                    <button
-                      type="button"
-                      className="text-primary hover:text-primary/80 font-medium"
-                      data-testid="coworker-mention-retry"
-                      onClick={() => onRetryMention(message)}
-                    >
-                      {tChannels("MentionStatus.retry")}
-                    </button>
-                  ) : null}
-                </div>
+                </>
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought
