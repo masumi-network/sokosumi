@@ -392,6 +392,10 @@ export default function DrivePage(): ReactElement {
         return;
       }
 
+      // Clear items immediately when navigating to show loading state
+      if (!controller.signal.aborted) {
+        setTasksItems([]);
+      }
       setLoading(true);
 
       const exploreItems = await listDriveTasks({
@@ -503,9 +507,11 @@ export default function DrivePage(): ReactElement {
           const response = await getProjectsById({
             client: getBrowserCoreClient(),
             path: { id: projectIdParam },
+            throwOnError: true,
           });
+          // Response shape: { data: { data: Project, meta: {...} } }
           const project = response.data?.data;
-          if (project) {
+          if (project?.id && project?.name) {
             setProjectNameCache((prev) => {
               const next = new Map(prev);
               next.set(project.id, project.name);
@@ -525,9 +531,11 @@ export default function DrivePage(): ReactElement {
           const response = await getTasksById({
             client: getBrowserCoreClient(),
             path: { id: taskIdParam },
+            throwOnError: true,
           });
+          // Response shape: { data: { data: Task, meta: {...} } }
           const task = response.data?.data;
-          if (task) {
+          if (task?.id && task?.name) {
             setTaskNameCache((prev) => {
               const next = new Map(prev);
               next.set(task.id, task.name);
@@ -541,14 +549,7 @@ export default function DrivePage(): ReactElement {
     }
 
     void fetchMissingNames();
-  }, [
-    isTasksView,
-    projectIdParam,
-    taskIdParam,
-    tasksItems,
-    projectNameCache,
-    taskNameCache,
-  ]);
+  }, [isTasksView, projectIdParam, taskIdParam, tasksItems]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -868,6 +869,13 @@ export default function DrivePage(): ReactElement {
       await loadItems();
     } catch (err) {
       console.error("Failed to create folder", err);
+      console.error("Error structure:", {
+        hasStatus: "status" in (err as object),
+        status: (err as any)?.status,
+        hasResponse: "response" in (err as object),
+        responseStatus: (err as any)?.response?.status,
+        isDuplicate: isDuplicateResourceError(err),
+      });
 
       if (isDuplicateResourceError(err)) {
         setCreateFolderDialogOpen(false);
