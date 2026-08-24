@@ -235,15 +235,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Level 3: TaskFile rows (READY + non-null fileUrl) only
       await requireTaskReadForRouteVars(c.var, taskId);
 
-      // Fetch TaskFiles (READY only, non-null fileUrl)
+      // After access check, query TaskFiles directly (same filter as Level 2's files.some)
       const [taskFiles, taskFileCount] = await Promise.all([
         prisma.taskFile.findMany({
           where: {
-            task: {
-              id: taskId,
-              workspaceId,
-              archivedAt: null,
-            },
+            taskId,
             status: "READY",
             fileUrl: { not: null },
           },
@@ -251,11 +247,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
         prisma.taskFile.count({
           where: {
-            task: {
-              id: taskId,
-              workspaceId,
-              archivedAt: null,
-            },
+            taskId,
             status: "READY",
             fileUrl: { not: null },
           },
