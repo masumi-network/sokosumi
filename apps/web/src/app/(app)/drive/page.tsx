@@ -79,6 +79,8 @@ import type {
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
+  getProjects,
+  getTasksById,
   getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
@@ -285,6 +287,12 @@ export default function DrivePage(): ReactElement {
     "me" | "org" | null
   >(null);
   const [copying, setCopying] = useState(false);
+  const [projectNameCache, setProjectNameCache] = useState<Map<string, string>>(
+    new Map(),
+  );
+  const [taskNameCache, setTaskNameCache] = useState<Map<string, string>>(
+    new Map(),
+  );
 
   const loadItemsAbortRef = useRef<AbortController | null>(null);
   const loadTasksAbortRef = useRef<AbortController | null>(null);
@@ -433,6 +441,19 @@ export default function DrivePage(): ReactElement {
           };
         });
         setTasksItems(items);
+
+        // Populate name cache from loaded items
+        const newProjectNames = new Map(projectNameCache);
+        const newTaskNames = new Map(taskNameCache);
+        for (const item of items) {
+          if (item.type === "project") {
+            newProjectNames.set(item.id, item.name);
+          } else if (item.type === "task") {
+            newTaskNames.set(item.id, item.name);
+          }
+        }
+        setProjectNameCache(newProjectNames);
+        setTaskNameCache(newTaskNames);
       }
     } catch (err) {
       if (!controller.signal.aborted) {
@@ -461,6 +482,74 @@ export default function DrivePage(): ReactElement {
       void loadItems();
     }
   }, [isTasksView, loadItems, loadTasksItems]);
+
+  // Fetch missing project/task names for breadcrumbs
+  useEffect(() => {
+    if (!isTasksView) {
+      return;
+    }
+
+    async function fetchMissingNames() {
+      try {
+        // Fetch project name if needed
+        if (
+          projectIdParam &&
+          projectIdParam !== "null" &&
+          !projectNameCache.has(projectIdParam) &&
+          !tasksItems.some(
+            (item) => item.type === "project" && item.id === projectIdParam,
+          )
+        ) {
+          const response = await getProjects({
+            client: getBrowserCoreClient(),
+            query: { limit: 100 },
+          });
+          const projects = response.data?.data ?? [];
+          const project = projects.find((p) => p.id === projectIdParam);
+          if (project) {
+            setProjectNameCache((prev) => {
+              const next = new Map(prev);
+              next.set(project.id, project.name);
+              return next;
+            });
+          }
+        }
+
+        // Fetch task name if needed
+        if (
+          taskIdParam &&
+          !taskNameCache.has(taskIdParam) &&
+          !tasksItems.some(
+            (item) => item.type === "task" && item.id === taskIdParam,
+          )
+        ) {
+          const response = await getTasksById({
+            client: getBrowserCoreClient(),
+            path: { id: taskIdParam },
+          });
+          const task = response.data?.data;
+          if (task) {
+            setTaskNameCache((prev) => {
+              const next = new Map(prev);
+              next.set(task.id, task.name);
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch missing names", err);
+      }
+    }
+
+    void fetchMissingNames();
+  }, [
+    isTasksView,
+    projectIdParam,
+    taskIdParam,
+    tasksItems,
+    projectNameCache,
+    taskNameCache,
+  ]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -721,6 +810,7 @@ export default function DrivePage(): ReactElement {
     params.set("view", "tasks");
     params.set("taskId", taskId);
     params.delete("folder");
+    params.delete("projectId"); // Clear projectId when drilling into task files
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -1007,25 +1097,29 @@ export default function DrivePage(): ReactElement {
       { label: t("tasksBreadcrumbLabel"), onClick: navigateToTasksRoot },
     ];
     if (projectIdParam) {
+      // Try to find project name in tasksItems first, then cache
       const project = tasksItems.find(
         (item) => item.type === "project" && item.id === projectIdParam,
       );
+      const cachedName = projectNameCache.get(projectIdParam);
       const projectName =
         project && project.type === "project"
           ? project.name
-          : projectIdParam === "null"
-            ? t("noProject")
-            : projectIdParam;
+          : cachedName ||
+            (projectIdParam === "null" ? t("noProject") : projectIdParam);
       crumbs.push({
         label: projectName,
         onClick: () => navigateToProject(projectIdParam),
       });
     }
     if (taskIdParam) {
+      // Try to find task name in tasksItems first, then cache
       const task = tasksItems.find(
         (item) => item.type === "task" && item.id === taskIdParam,
       );
-      const taskName = task && task.type === "task" ? task.name : taskIdParam;
+      const cachedName = taskNameCache.get(taskIdParam);
+      const taskName =
+        task && task.type === "task" ? task.name : cachedName || taskIdParam;
       crumbs.push({
         label: taskName,
         onClick: () => navigateToTask(taskIdParam),
