@@ -1920,7 +1920,7 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Beautiful UI loading state on empty stream overlay", () => {
+  it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
@@ -1929,10 +1929,13 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-loading-state")).toHaveTextContent(
-      "reasoning.thinking",
-    );
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows working Thought trace with live beat on stream overlay", () => {

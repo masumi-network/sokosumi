@@ -33,48 +33,6 @@ export function formatBeautifulElapsed(elapsedMs: number): string {
 }
 
 /**
- * Beautiful UI Drive (chevron wavefront left → right).
- * Demo uses 90ms step / 650ms cycle; we use slower timings for chat.
- */
-const DRIVE_CYCLE_MS = 1000;
-const DRIVE_DELAY_STEP_MS = 140;
-const DRIVE_PIXEL_DELAYS_MS = Array.from({ length: 9 }, (_, i) => {
-  const row = Math.floor(i / 3);
-  const col = i % 3;
-  return (col + Math.abs(row - 1)) * DRIVE_DELAY_STEP_MS;
-});
-
-/**
- * Sample Beautiful UI `pixel-on` opacity curve at phase [0, 1).
- * 0–18% rise, 18–42% hold bright, 42–62% fall, 62–100% dim.
- */
-export function drivePixelOpacityAtPhase(phase01: number): number {
-  const p = ((phase01 % 1) + 1) % 1;
-  const dim = 0.15;
-  const bright = 1;
-  if (p < 0.18) {
-    return dim + (bright - dim) * (p / 0.18);
-  }
-  if (p < 0.42) {
-    return bright;
-  }
-  if (p < 0.62) {
-    return bright + (dim - bright) * ((p - 0.42) / 0.2);
-  }
-  return dim;
-}
-
-/** Opacity for one Drive cell given elapsed animation time and cell delay. */
-export function drivePixelOpacity(
-  elapsedMs: number,
-  delayMs: number,
-  cycleMs = DRIVE_CYCLE_MS,
-): number {
-  const t = (((elapsedMs - delayMs) % cycleMs) + cycleMs) % cycleMs;
-  return drivePixelOpacityAtPhase(t / cycleMs);
-}
-
-/**
  * Deterministic first paint (SSR/client match), then live clock after mount.
  * Seeding with `startedAtMs` yields 0.0s until the effect runs.
  */
@@ -86,126 +44,6 @@ function useLiveElapsedMs(startedAtMs: number): number {
     return () => clearInterval(id);
   }, [startedAtMs]);
   return Math.max(0, now - startedAtMs);
-}
-
-/**
- * 3×3 Drive wave — rAF updates pixel opacity via refs (no React setState per frame).
- */
-function DrivePixelGrid() {
-  const cellRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  useEffect(() => {
-    const media =
-      typeof window !== "undefined"
-        ? window.matchMedia("(prefers-reduced-motion: reduce)")
-        : null;
-    let frame = 0;
-    let start = performance.now();
-
-    const stop = () => {
-      if (frame !== 0) {
-        cancelAnimationFrame(frame);
-        frame = 0;
-      }
-      for (const el of cellRefs.current) {
-        if (el) {
-          el.style.opacity = "0.15";
-        }
-      }
-    };
-
-    const startWave = () => {
-      stop();
-      start = performance.now();
-      const tick = (now: number) => {
-        const elapsedMs = now - start;
-        const cells = cellRefs.current;
-        for (let i = 0; i < DRIVE_PIXEL_DELAYS_MS.length; i += 1) {
-          const el = cells[i];
-          if (el) {
-            el.style.opacity = String(
-              drivePixelOpacity(elapsedMs, DRIVE_PIXEL_DELAYS_MS[i]!),
-            );
-          }
-        }
-        frame = requestAnimationFrame(tick);
-      };
-      frame = requestAnimationFrame(tick);
-    };
-
-    const onMotionPreferenceChange = () => {
-      if (media?.matches) {
-        stop();
-      } else {
-        startWave();
-      }
-    };
-
-    onMotionPreferenceChange();
-    media?.addEventListener("change", onMotionPreferenceChange);
-    return () => {
-      media?.removeEventListener("change", onMotionPreferenceChange);
-      stop();
-    };
-  }, []);
-
-  return (
-    <span aria-hidden className="bui-pixel-grid" data-testid="bui-drive-grid">
-      {DRIVE_PIXEL_DELAYS_MS.map((delayMs, i) => (
-        <span
-          key={i}
-          ref={(el) => {
-            cellRefs.current[i] = el;
-          }}
-          className="bui-pixel-cell"
-          style={{ opacity: drivePixelOpacity(0, delayMs) }}
-          data-testid="bui-drive-pixel"
-        />
-      ))}
-    </span>
-  );
-}
-
-/**
- * Pixel-grid loader + shimmer label + live elapsed (Beautiful UI Loading State).
- * Used for mention thinking + stream overlay waiting states.
- */
-export function CoworkerLoadingState({
-  label,
-  startedAtMs,
-  showElapsed = true,
-  className,
-}: {
-  label: string;
-  startedAtMs: number;
-  showElapsed?: boolean;
-  className?: string;
-}) {
-  const elapsedMs = useLiveElapsedMs(startedAtMs);
-  return (
-    <div
-      className={cn("flex w-fit max-w-full items-center gap-1.5", className)}
-      role="status"
-      aria-live="polite"
-      data-testid="coworker-loading-state"
-    >
-      <DrivePixelGrid />
-      <span
-        className="bui-shimmer-text truncate text-xs font-medium"
-        data-testid="coworker-loading-label"
-      >
-        {label}
-      </span>
-      {showElapsed ? (
-        <span
-          aria-hidden
-          className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums"
-          data-testid="live-stream-elapsed"
-        >
-          {formatBeautifulElapsed(elapsedMs)}
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 interface CoworkerMentionFailedStatusProps {
@@ -395,8 +233,8 @@ export function CoworkerThoughtTrace({
 }
 
 /**
- * Live stream: loading grid when no beat yet; otherwise working Thought
- * header with live beat as expandable body (default open).
+ * Live Thought: sparkle header from silent think through beats so the icon
+ * does not swap when the first step arrives.
  */
 export function CoworkerLiveThought({
   label,
@@ -407,9 +245,6 @@ export function CoworkerLiveThought({
   liveBeat: string | null;
   startedAtMs: number;
 }) {
-  if (!liveBeat) {
-    return <CoworkerLoadingState label={label} startedAtMs={startedAtMs} />;
-  }
   return (
     <div className="min-w-0" role="status" aria-live="polite">
       <CoworkerThoughtTrace
