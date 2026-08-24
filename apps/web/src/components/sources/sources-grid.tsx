@@ -1,13 +1,13 @@
 import { FileIcon } from "lucide-react";
 
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Favicon } from "@/components/ui/favicon";
 import { BlobStatus } from "@/lib/clients/generated/core";
+import type { TaskFileStatus as TaskFileStatusType } from "@/lib/clients/generated/core/types.gen";
 import { getBlobUrl } from "@/lib/helpers/blob";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
-
-import { BlobStatusBadge } from "./blob-status-badge";
 
 export interface BlobLike {
   id: string;
@@ -16,6 +16,7 @@ export interface BlobLike {
   name?: string | null;
   fileUrl?: string | null;
   mimeType?: string | null;
+  size?: number | bigint | null;
 }
 
 export interface LinkLike {
@@ -69,6 +70,7 @@ export function SourcesGrid(props: SourcesGridProps) {
 
 function FileItemChip({ blob }: { blob: BlobLike }) {
   if (blob.status !== BlobStatus.READY) {
+    const taskFileStatus = blob.status as TaskFileStatusType;
     return (
       <div className="inline-flex items-center gap-2 rounded-md border p-2">
         <div className="inline-flex items-center justify-center">
@@ -78,7 +80,7 @@ function FileItemChip({ blob }: { blob: BlobLike }) {
           {blob.name ?? getBlobUrl(blob)}
         </span>
         <div className="inline-flex justify-end">
-          <BlobStatusBadge status={blob.status} />
+          <TaskFileStatusBadge status={taskFileStatus} />
         </div>
       </div>
     );
@@ -89,6 +91,7 @@ function FileItemChip({ blob }: { blob: BlobLike }) {
       url={getBlobUrl(blob)}
       fileName={blob.name}
       mediaType={blob.mimeType}
+      size={blob.size}
       sizeClass="size-4"
       variant="single-line"
     />
