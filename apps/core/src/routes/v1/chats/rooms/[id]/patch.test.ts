@@ -220,6 +220,51 @@ function directRoom() {
   });
 }
 
+const GUEST_ID = "user_guest";
+const SOUPIE_ID = "cow_soupie";
+
+function hostUserMember(userId: string, name: string, email: string) {
+  return {
+    userId,
+    access: "member" as const,
+    user: {
+      id: userId,
+      name,
+      email,
+      image: null,
+      sessions: [],
+    },
+  };
+}
+
+function guestUserMember(userId: string) {
+  return {
+    userId,
+    access: "guest" as const,
+    user: {
+      id: userId,
+      name: "Guest",
+      email: "guest@example.com",
+      image: null,
+      sessions: [],
+    },
+  };
+}
+
+function externalChannelWithGuest(
+  guestId: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return channelRoom({
+    discoverability: "external",
+    userMembers: [
+      hostUserMember(USER_ID, "Ada", "ada@example.com"),
+      guestUserMember(guestId),
+    ],
+    ...overrides,
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (callback) => callback(tx));
@@ -875,77 +920,19 @@ describe("PATCH /chats/rooms/{id}", () => {
   });
 
   it("preserves guest rows when PATCH rewrites memberUserIds without the guest", async () => {
-    const guestId = "user_guest";
-    const existing = channelRoom({
-      discoverability: "external",
+    const existing = externalChannelWithGuest(GUEST_ID);
+    const updated = externalChannelWithGuest(GUEST_ID, {
       userMembers: [
-        {
-          userId: USER_ID,
-          access: "member",
-          user: {
-            id: USER_ID,
-            name: "Ada",
-            email: "ada@example.com",
-            image: null,
-            sessions: [],
-          },
-        },
-        {
-          userId: guestId,
-          access: "guest",
-          user: {
-            id: guestId,
-            name: "Guest",
-            email: "guest@example.com",
-            image: null,
-            sessions: [],
-          },
-        },
-      ],
-    });
-    const updated = channelRoom({
-      discoverability: "external",
-      userMembers: [
-        {
-          userId: USER_ID,
-          access: "member",
-          user: {
-            id: USER_ID,
-            name: "Ada",
-            email: "ada@example.com",
-            image: null,
-            sessions: [],
-          },
-        },
-        {
-          userId: OTHER_USER_ID,
-          access: "member",
-          user: {
-            id: OTHER_USER_ID,
-            name: "Bob",
-            email: "bob@example.com",
-            image: null,
-            sessions: [],
-          },
-        },
-        {
-          userId: guestId,
-          access: "guest",
-          user: {
-            id: guestId,
-            name: "Guest",
-            email: "guest@example.com",
-            image: null,
-            sessions: [],
-          },
-        },
+        hostUserMember(USER_ID, "Ada", "ada@example.com"),
+        hostUserMember(OTHER_USER_ID, "Bob", "bob@example.com"),
+        guestUserMember(GUEST_ID),
       ],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomUpdateMock.mockResolvedValueOnce(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
-    userMemberFindManyMock.mockResolvedValue([{ userId: guestId }]);
+    userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
     userMemberCreateManyMock.mockResolvedValue({ count: 2 });
     readStateDeleteManyMock.mockResolvedValue({ count: 0 });
     readStateCreateManyMock.mockResolvedValue({ count: 0 });
@@ -986,13 +973,13 @@ describe("PATCH /chats/rooms/{id}", () => {
     const createdIds = userMemberCreateManyMock.mock.calls[0][0].data.map(
       (row: { userId: string }) => row.userId,
     );
-    expect(createdIds).not.toContain(guestId);
+    expect(createdIds).not.toContain(GUEST_ID);
     // Guest read state must not be swept when not in memberUserIds.
     expect(readStateDeleteManyMock).toHaveBeenCalledWith({
       where: {
         roomId: ROOM_ID,
         userId: {
-          notIn: expect.arrayContaining([USER_ID, OTHER_USER_ID, guestId]),
+          notIn: expect.arrayContaining([USER_ID, OTHER_USER_ID, GUEST_ID]),
         },
       },
     });
@@ -1002,5 +989,207 @@ describe("PATCH /chats/rooms/{id}", () => {
     ).not.toEqual(
       expect.arrayContaining([expect.stringMatching(/Guest left/i)]),
     );
+  });
+
+  it("adds a coworker when memberUserIds echoes existing guests (not org members)", async () => {
+    const existing = externalChannelWithGuest(GUEST_ID);
+    const updated = externalChannelWithGuest(GUEST_ID, {
+      coworkerMembers: [
+        {
+          coworker: {
+            id: SOUPIE_ID,
+            name: "Soupie",
+            slug: "soupie",
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindManyMock.mockImplementation(
+      async ({ where }: { where: { userId: { in: string[] } } }) =>
+        where.userId.in
+          .filter((userId) => userId !== GUEST_ID)
+          .map((userId) => ({ userId })),
+    );
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: SOUPIE_ID,
+        name: "Soupie",
+        baseURL: "https://chat.example.com",
+      },
+    ]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, GUEST_ID],
+        coworkerIds: [SOUPIE_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, coworkerId: SOUPIE_ID }],
+    });
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, access: "member" },
+    });
+    const createdIds = userMemberCreateManyMock.mock.calls[0][0].data.map(
+      (row: { userId: string }) => row.userId,
+    );
+    expect(createdIds).not.toContain(GUEST_ID);
+    // Ignore, do not promote: echoed guests must not enter the host upgrade.
+    expect(userMemberUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: { in: [USER_ID] },
+        access: "guest",
+      },
+      data: { access: "member" },
+    });
+    expect(
+      userMemberUpdateManyMock.mock.calls[0][0].where.userId.in,
+    ).not.toContain(GUEST_ID);
+    expect(readStateDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: { notIn: expect.arrayContaining([USER_ID, GUEST_ID]) },
+      },
+    });
+  });
+
+  it("still 400s when memberUserIds includes a non-guest who is not an organization member", async () => {
+    const outsiderId = "user_outsider";
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindManyMock.mockImplementation(
+      async ({ where }: { where: { userId: { in: string[] } } }) =>
+        where.userId.in
+          .filter((userId) => userId !== outsiderId)
+          .map((userId) => ({ userId })),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, outsiderId],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain(
+      "Room human members must belong to the organization",
+    );
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("adds a coworker on an external channel when memberUserIds omits guests", async () => {
+    const existing = externalChannelWithGuest(GUEST_ID);
+    const updated = externalChannelWithGuest(GUEST_ID, {
+      coworkerMembers: [
+        {
+          coworker: {
+            id: SOUPIE_ID,
+            name: "Soupie",
+            slug: "soupie",
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindManyMock.mockImplementation(
+      async ({ where }: { where: { userId: { in: string[] } } }) =>
+        where.userId.in
+          .filter((userId) => userId !== GUEST_ID)
+          .map((userId) => ({ userId })),
+    );
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: SOUPIE_ID,
+        name: "Soupie",
+        baseURL: "https://chat.example.com",
+      },
+    ]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID],
+        coworkerIds: [SOUPIE_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, coworkerId: SOUPIE_ID }],
+    });
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, access: "member" },
+    });
+  });
+
+  it("upgrades a guest who is now an organization member when they appear in memberUserIds", async () => {
+    const existing = externalChannelWithGuest(GUEST_ID);
+    const updated = externalChannelWithGuest(GUEST_ID, {
+      userMembers: [
+        hostUserMember(USER_ID, "Ada", "ada@example.com"),
+        {
+          ...guestUserMember(GUEST_ID),
+          access: "member",
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberUpdateManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, GUEST_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(userMemberUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: { in: expect.arrayContaining([GUEST_ID]) },
+        access: "guest",
+      },
+      data: { access: "member" },
+    });
   });
 });
