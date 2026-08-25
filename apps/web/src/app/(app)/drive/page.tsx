@@ -461,6 +461,13 @@ function DrivePageWorkspace({
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
+  const previousIsTasksViewRef = useRef(isTasksView);
+  if (previousIsTasksViewRef.current !== isTasksView) {
+    previousIsTasksViewRef.current = isTasksView;
+    debouncedSetSearchQuery.cancel();
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+  }
   const isTasksSearchActive =
     isTasksView && debouncedSearchQuery.trim().length > 0;
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {

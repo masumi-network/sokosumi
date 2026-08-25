@@ -39,6 +39,9 @@ const DRIVE_TASK_FILE_WHERE = {
 /** Stable sort key when a row has no READY task-output files yet. */
 const NO_DRIVE_TASK_FILE_SORT_EPOCH = new Date(0).toISOString();
 
+/** Cap in-memory sort/paginate fetches for large workspaces. */
+const MAX_TASKS_FOR_SORT = 10000;
+
 const query = z
   .object({
     scope: driveFileScopeSchema.openapi({
@@ -210,6 +213,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma.taskFile.findMany({
           where: taskFileWhere,
           orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: MAX_TASKS_FOR_SORT,
           include: {
             task: {
               select: {
@@ -379,7 +383,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // Fetch all tasks (up to a reasonable limit for sorting)
       // Cursor pagination requires knowing position in sorted order
-      const MAX_TASKS_FOR_SORT = 10000;
       const [allTasks, count] = await Promise.all([
         prisma.task.findMany({
           where: tasksWhere,
