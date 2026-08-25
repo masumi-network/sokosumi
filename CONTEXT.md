@@ -176,11 +176,11 @@ _Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct
 
 **Unfurl**:
 A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.
-_Avoid_: Metadata preview, embed (when meaning this card), treating the body link as the unfurl
+_Avoid_: Metadata preview, embed when meaning this card, treating the body link as the unfurl
 
 **Removed unfurl**:
-An unfurl the message’s human author took off the message. Gone for everyone; the body URL stays. It stays gone while that URL remains in the body. Not a message edit, not a personal hide, not a composer opt-out.
-_Avoid_: Hidden unfurl, dismissed (Quote), edited message
+An unfurl the message's human author took off the message. Gone for everyone. The body URL stays. It stays gone while that URL remains in the body. Not a body edit. Not a personal hide.
+_Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
 
 ### Chat outbound delivery
 
