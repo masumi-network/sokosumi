@@ -5249,7 +5249,7 @@
       "CreateWizard": {
         "title": "Crear un canal",
         "nameLabel": "Nombre",
-        "namePlaceholder": "p. ej. #welcome",
+        "namePlaceholder": "p. ej. welcome",
         "nameHelp": "Los canales son lugares para conversar sobre un tema. Usa un nombre claro que todos reconozcan.",
         "nameRequired": "El nombre del canal es obligatorio.",
         "next": "Siguiente",
