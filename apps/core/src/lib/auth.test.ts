@@ -502,7 +502,7 @@ describe("core auth config", () => {
     waitUntilMock.mockClear();
   });
 
-  it("configures Google and Microsoft social providers for auth parity", async () => {
+  it("configures Google and Microsoft social providers without requireLocalEmailVerified", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -526,7 +526,6 @@ describe("core auth config", () => {
             accountLinking: {
               enabled: boolean;
               trustedProviders: string[];
-              requireLocalEmailVerified: boolean;
             };
           };
         },
@@ -551,7 +550,6 @@ describe("core auth config", () => {
     expect(config.account.accountLinking).toEqual({
       enabled: true,
       trustedProviders: ["google", "microsoft"],
-      requireLocalEmailVerified: false,
     });
   });
 
