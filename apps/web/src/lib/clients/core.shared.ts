@@ -226,6 +226,7 @@ import {
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
+  listMySokoBotLabRuns as coreListMySokoBotLabRuns,
   listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
   listSokoBotAvatars as coreListSokoBotAvatars,
@@ -3625,6 +3626,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listMySokoBotLabRuns(query?: {
+    versionId?: string;
+    limit?: number;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListMySokoBotLabRuns({ client, query, cache: "no-store" }),
+      "Failed to list Soko Bot lab runs",
+    );
+  }
+
   async function judgeMySokoBotLabTurn(body: JudgeSokoBotLabTurnRequest) {
     return executeCoreOperation(
       getClient,
@@ -4416,6 +4429,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     simulateMySokoBotTaskEvent,
     listSokoBotVersions,
     judgeMySokoBotLabTurn,
+    listMySokoBotLabRuns,
     updateMySokoBotVersion,
     listMySokoBotTurns,
     getMySokoBotTurn,

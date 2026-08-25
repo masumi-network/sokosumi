@@ -14710,6 +14710,145 @@ export const SimulateSokoBotTaskEventRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SokoBotLabRunSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        turnId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        scenarioId: {
+            type: 'string'
+        },
+        versionId: {
+            type: 'string'
+        },
+        passed: {
+            type: 'integer'
+        },
+        total: {
+            type: 'integer'
+        },
+        checks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string'
+                    },
+                    pass: {
+                        type: 'boolean'
+                    },
+                    actual: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'label',
+                    'pass',
+                    'actual'
+                ]
+            }
+        },
+        judge: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                scores: {
+                    type: 'object',
+                    properties: {
+                        delegation: {
+                            type: 'integer'
+                        },
+                        followThrough: {
+                            type: 'integer'
+                        },
+                        judgment: {
+                            type: 'integer'
+                        },
+                        honesty: {
+                            type: 'integer'
+                        }
+                    },
+                    required: [
+                        'delegation',
+                        'followThrough',
+                        'judgment',
+                        'honesty'
+                    ]
+                },
+                verdict: {
+                    type: 'string',
+                    enum: [
+                        'pass',
+                        'weak',
+                        'fail'
+                    ]
+                },
+                rationale: {
+                    type: 'string'
+                },
+                issues: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
+                }
+            },
+            required: [
+                'scores',
+                'verdict',
+                'rationale',
+                'issues'
+            ]
+        },
+        judgeModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        costUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'turnId',
+        'scenarioId',
+        'versionId',
+        'passed',
+        'total',
+        'checks',
+        'judge',
+        'judgeModel',
+        'durationMs',
+        'costUsd',
+        'createdAt'
+    ]
+} as const;
+
 export const SokoBotLabVerdictSchema = {
     type: 'object',
     properties: {

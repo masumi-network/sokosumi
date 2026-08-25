@@ -562,6 +562,30 @@ export const sokoBotLabVerdictSchema = z
   })
   .openapi("SokoBotLabVerdict");
 
+export const sokoBotLabRunSchema = z
+  .object({
+    id: z.string().uuid(),
+    turnId: z.string().uuid(),
+    scenarioId: z.string(),
+    versionId: z.string(),
+    passed: z.number().int(),
+    total: z.number().int(),
+    checks: z.array(
+      z.object({ label: z.string(), pass: z.boolean(), actual: z.string() }),
+    ),
+    judge: sokoBotLabVerdictSchema.omit({ model: true }).nullable(),
+    judgeModel: z.string().nullable(),
+    durationMs: z.number().int().nullable(),
+    costUsd: z.number().nullable(),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("SokoBotLabRun");
+
+export const listSokoBotLabRunsQuerySchema = z.object({
+  versionId: z.string().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+});
+
 export const adminSokoBotQualitySchema = z
   .object({
     overall: z.object({

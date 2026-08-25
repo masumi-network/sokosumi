@@ -9,6 +9,7 @@ import type {
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
+  SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
   SokoBotTurn,
@@ -66,6 +67,11 @@ export const sokoBotService = {
 
   async setVersion(versionId: string): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotVersion({ versionId });
+    return response.data;
+  },
+
+  async listLabRuns(versionId?: string): Promise<SokoBotLabRun[]> {
+    const response = await coreClient.listMySokoBotLabRuns({ versionId });
     return response.data;
   },
 

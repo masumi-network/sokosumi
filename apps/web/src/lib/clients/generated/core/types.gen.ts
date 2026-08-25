@@ -4243,6 +4243,35 @@ export type SimulateSokoBotTaskEventRequest = {
     comment: string;
 };
 
+export type SokoBotLabRun = {
+    id: string;
+    turnId: string;
+    scenarioId: string;
+    versionId: string;
+    passed: number;
+    total: number;
+    checks: Array<{
+        label: string;
+        pass: boolean;
+        actual: string;
+    }>;
+    judge: {
+        scores: {
+            delegation: number;
+            followThrough: number;
+            judgment: number;
+            honesty: number;
+        };
+        verdict: 'pass' | 'weak' | 'fail';
+        rationale: string;
+        issues: Array<string>;
+    } | null;
+    judgeModel: string | null;
+    durationMs: number | null;
+    costUsd: number | null;
+    createdAt: Date;
+};
+
 export type SokoBotLabVerdict = {
     model: string;
     scores: {
@@ -28671,6 +28700,51 @@ export type SimulateMySokoBotTaskEventResponses = {
 };
 
 export type SimulateMySokoBotTaskEventResponse = SimulateMySokoBotTaskEventResponses[keyof SimulateMySokoBotTaskEventResponses];
+
+export type ListMySokoBotLabRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        versionId?: string;
+        limit?: number;
+    };
+    url: '/soko-bots/me/lab/runs';
+};
+
+export type ListMySokoBotLabRunsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListMySokoBotLabRunsError = ListMySokoBotLabRunsErrors[keyof ListMySokoBotLabRunsErrors];
+
+export type ListMySokoBotLabRunsResponses = {
+    /**
+     * Recorded lab runs
+     */
+    200: {
+        data: Array<SokoBotLabRun>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListMySokoBotLabRunsResponse = ListMySokoBotLabRunsResponses[keyof ListMySokoBotLabRunsResponses];
 
 export type JudgeMySokoBotLabTurnData = {
     body?: JudgeSokoBotLabTurnRequest;

@@ -9,17 +9,19 @@ import {
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import {
   judgeSokoBotLabTurnAction,
+  listSokoBotLabRunsAction,
   listSokoBotVersionsAction,
   setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
 import type {
+  SokoBotLabRun,
   SokoBotLabVerdict,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
@@ -29,16 +31,14 @@ import type {
 } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "soko-bot-lab:v1";
 const POLL_MS = 3_000;
 const TIMEOUT_MS = 5 * 60_000;
-const HISTORY_PER_SCENARIO = 5;
+const HISTORY_PER_SCENARIO = 8;
 
 interface RunRecord {
   turnId: string;
   at: string;
   versionId: string | null;
-  route: string | null;
   passed: number;
   total: number;
   durationMs: number | null;
@@ -49,21 +49,27 @@ interface RunRecord {
 
 type History = Record<string, RunRecord[]>;
 
-function readHistory(): History {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as History) : {};
-  } catch {
-    return {};
+/** Server-recorded runs, newest first, grouped by scenario. */
+function toHistory(runs: SokoBotLabRun[]): History {
+  const history: History = {};
+  for (const run of runs) {
+    const record: RunRecord = {
+      turnId: run.turnId,
+      at: new Date(run.createdAt).toISOString(),
+      versionId: run.versionId,
+      passed: run.passed,
+      total: run.total,
+      durationMs: run.durationMs,
+      costUsd: run.costUsd,
+      checks: run.checks,
+      judge: run.judge ? { model: run.judgeModel ?? "", ...run.judge } : null,
+    };
+    history[run.scenarioId] = [
+      ...(history[run.scenarioId] ?? []),
+      record,
+    ].slice(0, HISTORY_PER_SCENARIO);
   }
-}
-
-function writeHistory(history: History) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-  } catch {
-    // Storage unavailable: results still show for this session.
-  }
+  return history;
 }
 
 async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
@@ -160,23 +166,14 @@ export function ScenarioLab({
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [failures, setFailures] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    setHistory(readHistory());
+  const loadHistory = useCallback(async () => {
+    const result = await listSokoBotLabRunsAction({});
+    if (result.ok) setHistory(toHistory(result.value));
   }, []);
 
-  function record(scenarioId: string, run: RunRecord) {
-    setHistory((current) => {
-      const next = {
-        ...current,
-        [scenarioId]: [run, ...(current[scenarioId] ?? [])].slice(
-          0,
-          HISTORY_PER_SCENARIO,
-        ),
-      };
-      writeHistory(next);
-      return next;
-    });
-  }
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   async function run(scenario: SokoBotScenario) {
     setRunning((current) => new Set(current).add(scenario.id));
@@ -224,7 +221,7 @@ export function ScenarioLab({
         return;
       }
       const result = evaluateScenario(scenario, turn);
-      const judged = await judgeSokoBotLabTurnAction({
+      await judgeSokoBotLabTurnAction({
         input: {
           turnId: turn.id,
           scenarioId: scenario.id,
@@ -235,18 +232,7 @@ export function ScenarioLab({
           },
         },
       });
-      record(scenario.id, {
-        turnId: turn.id,
-        at: new Date().toISOString(),
-        versionId: activeVersionRef.current,
-        route: turn.route,
-        passed: result.passed,
-        total: result.total,
-        durationMs: turn.durationMs,
-        costUsd: turn.usage?.costUsd ?? null,
-        checks: result.checks,
-        judge: judged.ok ? judged.value : null,
-      });
+      await loadHistory();
       onTurnFinished?.();
     } finally {
       setRunning((current) => {

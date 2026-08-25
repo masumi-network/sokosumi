@@ -16,6 +16,7 @@ import {
 import {
   type SokoBot,
   SokoBotAvatar,
+  type SokoBotLabRun,
   type SokoBotLabTaskEvent,
   type SokoBotLabVerdict,
   type SokoBotMemory,
@@ -300,6 +301,23 @@ export const setSokoBotVersionAction = withSession<
     const bot = await sokoBotService.setVersion(parsed.data);
     revalidate();
     return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface ListLabRunsParams extends AuthenticatedRequest {
+  versionId?: unknown;
+}
+
+export const listSokoBotLabRunsAction = withSession<
+  ListLabRunsParams,
+  ActionResultDto<SokoBotLabRun[], ActionError>
+>(async ({ versionId }) => {
+  const parsed = z.string().min(1).max(64).optional().safeParse(versionId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(ok(await sokoBotService.listLabRuns(parsed.data)));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
