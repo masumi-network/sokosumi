@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
 
-const CLASSIFIER_MODEL = "anthropic/claude-haiku-4.5";
+const CLASSIFIER_MODEL = "mistral/mistral-small";
 const CLASSIFIER_VERSION = "soko-bot-classifier-v1";
 const CLASSIFIER_TIMEOUT_MS = 5_000;
 
