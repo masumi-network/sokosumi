@@ -5,7 +5,7 @@ import {
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 500;
 const WATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_CHANGES_PER_TURN = 8;
 
@@ -102,7 +102,9 @@ export class SokoBotEventsSyncService {
         OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
         turn: { sokoBot: { archivedAt: null, adminPausedAt: null } },
       },
-      orderBy: { createdAt: "asc" },
+      // Newest first: the delegations most likely to change are recent ones,
+      // and a large backlog must not starve them.
+      orderBy: { createdAt: "desc" },
       take: BATCH_SIZE,
       select: {
         id: true,
