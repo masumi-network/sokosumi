@@ -118,6 +118,29 @@ export function isMentionSpan(node: Node): node is HTMLSpanElement {
   return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug);
 }
 
+export function getChannelLinkToken(label: string): string {
+  return `#${label}`;
+}
+
+export function isChannelLinkSpan(node: Node): node is HTMLSpanElement {
+  if (!(node instanceof HTMLSpanElement)) return false;
+  return Boolean(node.dataset.channelLabel);
+}
+
+export function createChannelLinkSpan(
+  label: string,
+  options?: { className?: string },
+): HTMLSpanElement {
+  const span = document.createElement("span");
+  span.dataset.channelLabel = label;
+  span.textContent = getChannelLinkToken(label);
+  span.contentEditable = "false";
+  if (options?.className) {
+    span.className = options.className;
+  }
+  return span;
+}
+
 export function isLineBreak(node: Node): node is HTMLBRElement {
   return node.nodeType === Node.ELEMENT_NODE && node.nodeName === "BR";
 }
@@ -132,6 +155,10 @@ function serializeNode(node: Node): string {
       node.dataset.mentionKey ?? "",
       node.dataset.mentionSlug ?? "",
     );
+  }
+
+  if (isChannelLinkSpan(node)) {
+    return getChannelLinkToken(node.dataset.channelLabel ?? "");
   }
 
   if (isLineBreak(node)) {

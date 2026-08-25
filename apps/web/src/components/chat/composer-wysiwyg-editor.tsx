@@ -23,6 +23,7 @@ import {
   ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
 } from "@/components/chat/room-message-composer";
 import {
+  createChannelLinkSpan,
   createMentionSpan,
   deslugifyMentionSlug,
   filterNormalizedMentions,
@@ -134,6 +135,7 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_blockquote]:border-muted-foreground/40 [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
   "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
   "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
+  "[&_span[data-channel-label]]:text-primary [&_span[data-channel-label]]:cursor-pointer [&_span[data-channel-label]]:font-semibold [&_span[data-channel-label]]:hover:underline",
 );
 
 function isComposerEditorDomEmpty(editor: HTMLElement): boolean {
@@ -432,7 +434,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
 
     const currentHtml = editor.innerHTML;
-    const newHtml = markdownToHtml(value, resolveMentionDisplay);
+    const newHtml = markdownToHtml(value, resolveMentionDisplay, {
+      channelLinks: channels.map((channel) => ({
+        name: channel.name,
+        slug: channel.slug,
+        href: channel.id,
+      })),
+    });
     const isFocused = editor.contains(document.activeElement);
     const editorLooksEmpty = isComposerEditorDomEmpty(editor);
 
@@ -445,7 +453,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       editor.innerHTML = newHtml || "";
     }
     isInternalChange.current = false;
-  }, [value, resolveMentionDisplay]);
+  }, [channels, resolveMentionDisplay, value]);
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
@@ -690,11 +698,19 @@ export function ComposerWysiwygEditor<TData = unknown>({
       range.deleteContents();
 
       const nextChar = text[caret];
-      const label = channelLinkInsertText(channel, channels);
-      const insert = shouldAppendTrailingSpace(nextChar) ? `${label} ` : label;
-      const textNode = document.createTextNode(insert);
-      range.insertNode(textNode);
-      setCaretAfterNode(editorRef.current, textNode);
+      const token = channelLinkInsertText(channel, channels);
+      const label = token.startsWith("#") ? token.slice(1) : token;
+      const channelSpan = createChannelLinkSpan(label, {
+        className: MENTION_CLASSNAME,
+      });
+      range.insertNode(channelSpan);
+      let caretNode: Node = channelSpan;
+      if (shouldAppendTrailingSpace(nextChar)) {
+        const spaceNode = document.createTextNode(" ");
+        channelSpan.after(spaceNode);
+        caretNode = spaceNode;
+      }
+      setCaretAfterNode(editorRef.current, caretNode);
       isInternalChange.current = true;
       syncFromEditor();
       closeSuggestions();

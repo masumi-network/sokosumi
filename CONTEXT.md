@@ -167,7 +167,7 @@ In a room message body, a plain hostname with optional path, query, or fragment 
 _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer does not convert bare domains while typing)
 
 **Channel link**:
-In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts this plain text; it is not a mention chip.
+In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
 _Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
 
 ### Chat outbound delivery

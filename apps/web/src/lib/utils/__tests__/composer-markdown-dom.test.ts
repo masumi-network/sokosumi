@@ -27,6 +27,17 @@ describe("markdownToHtml", () => {
       "<blockquote>quoted</blockquote>",
     );
   });
+
+  it("wraps membership-visible channel links as chips", () => {
+    const html = markdownToHtml("see #general please", undefined, {
+      channelLinks: [
+        { name: "general", slug: "general", href: "/chat/rooms/g" },
+      ],
+    });
+    expect(html).toContain('data-channel-label="general"');
+    expect(html).toContain("#general");
+    expect(html).not.toContain("[#general]");
+  });
 });
 
 describe("htmlToMarkdown", () => {
@@ -53,6 +64,14 @@ describe("htmlToMarkdown", () => {
 
   it("serializes blockquote with > prefix", () => {
     expect(fromHtml("<blockquote>quoted</blockquote>").trim()).toBe("> quoted");
+  });
+
+  it("serializes channel chips back to #name", () => {
+    expect(
+      fromHtml(
+        '<span data-channel-label="Marketing" contenteditable="false">#Marketing</span>',
+      ),
+    ).toBe("#Marketing");
   });
 
   it("round-trips markdown → html → markdown for common wraps", () => {

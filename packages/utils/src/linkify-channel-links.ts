@@ -6,6 +6,14 @@ export interface ChannelLinkTarget {
   href: string;
 }
 
+export interface ChannelLinkMatch {
+  start: number;
+  end: number;
+  /** Matched source including `#`. */
+  label: string;
+  href: string;
+}
+
 interface IndexRange {
   start: number;
   end: number;
@@ -178,26 +186,23 @@ function findChannelMatch(
 }
 
 /**
- * Display-time helper: rewrite `#name` / `#slug` in markdown prose into
- * `[#typed](href)` links for membership-visible Channels. Skips code, existing
- * links, hash runs, headings (`# `), and mid-token `#`. Does not mutate stored
- * bodies — callers apply this only on render.
+ * Find Channel link ranges in markdown prose. Same skip rules as
+ * `linkifyChannelLinksInMarkdown` (code, existing links, hash runs, headings).
  */
-export function linkifyChannelLinksInMarkdown(
+export function collectChannelLinksInMarkdown(
   markdown: string,
   channels: readonly ChannelLinkTarget[],
-): string {
-  if (!markdown || channels.length === 0) return markdown;
+): ChannelLinkMatch[] {
+  if (!markdown || channels.length === 0) return [];
 
   const mdLinkRanges = collectMarkdownLinkRanges(markdown);
-  let result = "";
+  const matches: ChannelLinkMatch[] = [];
   let i = 0;
   const len = markdown.length;
 
   while (i < len) {
     const insideLink = rangeContaining(mdLinkRanges, i);
     if (insideLink) {
-      result += markdown.slice(i, insideLink.end);
       i = insideLink.end;
       continue;
     }
@@ -212,28 +217,18 @@ export function linkifyChannelLinksInMarkdown(
         j += 1;
       }
       if (fenceLen >= 3) {
-        const end = skipFencedCode(markdown, i, ch);
-        result += markdown.slice(i, end);
-        i = end;
+        i = skipFencedCode(markdown, i, ch);
         continue;
       }
       if (ch === "`") {
-        const end = skipInlineCode(markdown, i);
-        result += markdown.slice(i, end);
-        i = end;
+        i = skipInlineCode(markdown, i);
         continue;
       }
     }
 
     if (ch === "<") {
       const close = markdown.indexOf(">", i + 1);
-      if (close !== -1) {
-        result += markdown.slice(i, close + 1);
-        i = close + 1;
-        continue;
-      }
-      result += ch;
-      i += 1;
+      i = close !== -1 ? close + 1 : i + 1;
       continue;
     }
 
@@ -243,7 +238,6 @@ export function linkifyChannelLinksInMarkdown(
         hashEnd += 1;
       }
       if (hashEnd - i !== 1) {
-        result += markdown.slice(i, hashEnd);
         i = hashEnd;
         continue;
       }
@@ -253,18 +247,45 @@ export function linkifyChannelLinksInMarkdown(
       if (atBoundary && next !== undefined && !isWhitespaceChar(next)) {
         const hit = findChannelMatch(markdown, i + 1, channels);
         if (hit) {
-          const label = markdown.slice(i, hit.end);
-          result += `[${escapeMarkdownLinkLabel(label)}](${escapeMarkdownLinkUrl(hit.href)})`;
+          matches.push({
+            start: i,
+            end: hit.end,
+            label: markdown.slice(i, hit.end),
+            href: hit.href,
+          });
           i = hit.end;
           continue;
         }
       }
     }
 
-    result += ch;
     i += 1;
   }
 
+  return matches;
+}
+
+/**
+ * Display-time helper: rewrite `#name` / `#slug` in markdown prose into
+ * `[#typed](href)` links for membership-visible Channels. Skips code, existing
+ * links, hash runs, headings (`# `), and mid-token `#`. Does not mutate stored
+ * bodies — callers apply this only on render.
+ */
+export function linkifyChannelLinksInMarkdown(
+  markdown: string,
+  channels: readonly ChannelLinkTarget[],
+): string {
+  const matches = collectChannelLinksInMarkdown(markdown, channels);
+  if (matches.length === 0) return markdown;
+
+  let result = "";
+  let last = 0;
+  for (const match of matches) {
+    result += markdown.slice(last, match.start);
+    result += `[${escapeMarkdownLinkLabel(match.label)}](${escapeMarkdownLinkUrl(match.href)})`;
+    last = match.end;
+  }
+  result += markdown.slice(last);
   return result;
 }
 

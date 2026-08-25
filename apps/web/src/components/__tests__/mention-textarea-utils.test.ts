@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildMentionToken,
+  createChannelLinkSpan,
   filterNormalizedMentions,
   getActiveChannelTrigger,
   getActiveEmojiTrigger,
@@ -153,6 +154,12 @@ describe("mention-textarea utils", () => {
 
     expect(serializeEditorText(root)).toBe(raw);
     expect(root.querySelectorAll("br")).toHaveLength(2);
+  });
+
+  it("serializes channel chips as #label", () => {
+    const root = document.createElement("div");
+    root.append("see ", createChannelLinkSpan("Marketing"), " please");
+    expect(serializeEditorText(root)).toBe("see #Marketing please");
   });
 
   it("adds a trailing space only when needed", () => {
