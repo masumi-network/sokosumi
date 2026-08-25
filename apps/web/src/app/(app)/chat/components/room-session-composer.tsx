@@ -1,6 +1,9 @@
 "use client";
 
-import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
+import {
+  type ChannelLinkTarget,
+  formatTaskAttachmentMarkdown,
+} from "@sokosumi/utils";
 import {
   type FormEvent,
   type Ref,
@@ -14,6 +17,7 @@ import {
   type ComposeDraft,
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 
 import {
@@ -51,6 +55,8 @@ interface RoomSessionComposerProps {
   roomId: string;
   draftKey: string;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channels?: readonly ComposerChannelOption[];
+  channelLinks?: readonly ChannelLinkTarget[];
   placeholder: string;
   pendingQuote: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
@@ -75,6 +81,8 @@ export function RoomSessionComposer({
   roomId,
   draftKey,
   mentions,
+  channels,
+  channelLinks,
   placeholder,
   pendingQuote,
   onClearPendingQuote,
@@ -187,6 +195,8 @@ export function RoomSessionComposer({
       value={composerValue}
       onValueChange={setComposerValue}
       mentions={mentions}
+      channels={channels}
+      channelLinks={channelLinks}
       onSelectedKeysChange={setMentionedIds}
       placeholder={placeholder}
       attachments={composerAttachments}

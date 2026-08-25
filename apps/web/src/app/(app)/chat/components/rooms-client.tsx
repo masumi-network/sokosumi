@@ -12,6 +12,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import { createPortal } from "react-dom";
@@ -88,6 +89,10 @@ import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-s
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import {
+  getMembershipVisibleRooms,
+  subscribeMembershipVisibleRooms,
+} from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
@@ -138,6 +143,9 @@ import {
   getRoomParticipantPreviews,
   hasPendingCoworkerMention,
   isMessageContinuation,
+  membershipVisibleChannelLinks,
+  membershipVisibleChannelOptions,
+  mergeMembershipVisibleRooms,
   messageDayKey,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
@@ -452,6 +460,23 @@ export function RoomsClient({
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const sidebarRooms = useSyncExternalStore(
+    subscribeMembershipVisibleRooms,
+    getMembershipVisibleRooms,
+    getMembershipVisibleRooms,
+  );
+  const channelCatalogRooms = useMemo(
+    () => mergeMembershipVisibleRooms(rooms, sidebarRooms),
+    [rooms, sidebarRooms],
+  );
+  const channelOptions = useMemo(
+    () => membershipVisibleChannelOptions(channelCatalogRooms),
+    [channelCatalogRooms],
+  );
+  const channelLinks = useMemo(
+    () => membershipVisibleChannelLinks(channelCatalogRooms),
+    [channelCatalogRooms],
+  );
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -2512,6 +2537,7 @@ export function RoomsClient({
                       coworkersBySlug={coworkersBySlug}
                       usersById={usersById}
                       usersBySlug={usersBySlug}
+                      channelLinks={channelLinks}
                       currentUserId={currentUserId}
                       canOpenHumanDirect={canOpenHumanDirect}
                       onOpenDirectMessage={handleOpenDirectMessage}
@@ -2633,6 +2659,8 @@ export function RoomsClient({
               roomId={selectedRoom.id}
               draftKey={composeDraftKey.room(selectedRoom.id)}
               mentions={mentionRecords}
+              channels={channelOptions}
+              channelLinks={channelLinks}
               placeholder={
                 isDirectRoom
                   ? t("directComposerPlaceholder", {
@@ -2670,6 +2698,8 @@ export function RoomsClient({
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 mentionRecords={mentionRecords}
+                channelOptions={channelOptions}
+                channelLinks={channelLinks}
                 draftKey={composeDraftKey.thread(
                   selectedRoom.id,
                   threadParentMessage.id,

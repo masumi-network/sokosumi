@@ -425,6 +425,32 @@ export function getActiveTrigger(
   return { query, triggerStart: tokenStart };
 }
 
+/**
+ * Detect in-progress Channel link at caret. Token is start/whitespace-delimited,
+ * single leading `#` (not `##`), query is the rest of the token.
+ */
+export function getActiveChannelTrigger(
+  text: string,
+  caret: number,
+): { query: string; triggerStart: number } | null {
+  const clampedCaret = Math.max(0, Math.min(caret, text.length));
+  if (clampedCaret === 0) return null;
+
+  let tokenStart = clampedCaret;
+  while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
+    tokenStart -= 1;
+  }
+
+  if (tokenStart === clampedCaret) return null;
+  if (text[tokenStart] !== "#") return null;
+  if (text[tokenStart + 1] === "#") return null;
+
+  const query = text.slice(tokenStart + 1, clampedCaret);
+  if (query.includes("#")) return null;
+
+  return { query, triggerStart: tokenStart };
+}
+
 const EMOJI_SHORTCODE_QUERY_PATTERN = /^[a-z0-9_+-]*$/i;
 
 export const EMOJI_SHORTCODE_MIN_QUERY_LENGTH = 2;

@@ -7,7 +7,11 @@ import type {
 } from "@/lib/clients/generated/core";
 import {
   buildRoomAllMentionRecord,
+  formatRoomMarkdownContent,
   formatRoomMarkdownMentions,
+  membershipVisibleChannelLinks,
+  membershipVisibleChannelOptions,
+  mergeMembershipVisibleRooms,
   partitionRoomMentionSuggestions,
   ROOM_MENTION_ALL_ID,
   ROOM_MENTION_ALL_SLUG,
@@ -128,6 +132,116 @@ describe("formatRoomMarkdownMentions", () => {
     });
 
     expect(formatted).toContain(">@all</span>");
+  });
+});
+
+describe("formatRoomMarkdownContent", () => {
+  it("linkifies membership-visible channels after mention chips", () => {
+    const formatted = formatRoomMarkdownContent({
+      content: `@${coworker.id}:${coworker.slug} see #general`,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+      channelLinks: [
+        {
+          name: "general",
+          slug: "general",
+          href: "/chat/rooms/room-general",
+        },
+      ],
+    });
+
+    expect(formatted).toContain(
+      '<span class="text-primary font-medium">@Elena</span>',
+    );
+    expect(formatted).toContain("[#general](/chat/rooms/room-general)");
+  });
+});
+
+describe("membershipVisibleChannelLinks", () => {
+  it("keeps Channels and drops Directs", () => {
+    expect(
+      membershipVisibleChannelLinks([
+        {
+          id: "c1",
+          name: "general",
+          slug: "general",
+          kind: "channel",
+        },
+        {
+          id: "d1",
+          name: "Alice",
+          slug: "alice-bob",
+          kind: "direct",
+        },
+      ]),
+    ).toEqual([
+      {
+        name: "general",
+        slug: "general",
+        href: "/chat/rooms/c1",
+      },
+    ]);
+  });
+});
+
+describe("membershipVisibleChannelOptions", () => {
+  it("omits org name for ordinary host Channels", () => {
+    expect(
+      membershipVisibleChannelOptions([
+        {
+          id: "c1",
+          name: "Launch Room",
+          slug: "launch-room",
+          kind: "channel",
+          organizationName: "Acme",
+          discoverability: "public",
+          myAccess: "member",
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "c1",
+        name: "Launch Room",
+        slug: "launch-room",
+        organizationName: null,
+      },
+    ]);
+  });
+
+  it("shows org name for External and guest Channels", () => {
+    expect(
+      membershipVisibleChannelOptions([
+        {
+          id: "c2",
+          name: "Client",
+          slug: "client",
+          kind: "channel",
+          organizationName: "Acme",
+          discoverability: "external",
+          myAccess: "member",
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "c2",
+        name: "Client",
+        slug: "client",
+        organizationName: "Acme",
+      },
+    ]);
+  });
+});
+
+describe("mergeMembershipVisibleRooms", () => {
+  it("keeps sidebar rooms and adds a page room the sidebar does not have yet", () => {
+    expect(
+      mergeMembershipVisibleRooms(
+        [{ id: "new" }, { id: "c1" }],
+        [{ id: "c1" }, { id: "c2" }],
+      ),
+    ).toEqual([{ id: "c1" }, { id: "c2" }, { id: "new" }]);
   });
 });
 

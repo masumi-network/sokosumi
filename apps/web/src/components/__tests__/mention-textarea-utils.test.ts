@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildMentionToken,
   filterNormalizedMentions,
+  getActiveChannelTrigger,
   getActiveEmojiTrigger,
   getActiveTrigger,
   getCaretOffset,
@@ -175,6 +176,23 @@ describe("mention-textarea utils", () => {
       query: "wr",
       triggerStart: 6,
     });
+  });
+
+  it("activates channel trigger for in-progress # queries including empty", () => {
+    expect(getActiveChannelTrigger("Hello #lau", 10)).toEqual({
+      query: "lau",
+      triggerStart: 6,
+    });
+    expect(getActiveChannelTrigger("#", 1)).toEqual({
+      query: "",
+      triggerStart: 0,
+    });
+  });
+
+  it("does not activate channel trigger for headings, hash runs, or mid-token", () => {
+    expect(getActiveChannelTrigger("# general", 9)).toBeNull();
+    expect(getActiveChannelTrigger("##gen", 5)).toBeNull();
+    expect(getActiveChannelTrigger("issue#gen", 9)).toBeNull();
   });
 
   it("activates emoji trigger for in-progress shortcode queries", () => {
