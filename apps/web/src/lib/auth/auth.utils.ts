@@ -2,6 +2,7 @@ import type { AuthMethodId } from "@/lib/schemas/auth";
 
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
+const AUTH_SESSION_GET_TIMEOUT_MS = 5_000;
 const OAUTH_CONSENT_PATH = "/oauth/consent";
 const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
@@ -24,6 +25,7 @@ interface WaitForAuthSessionOptions {
   logWarning: (message: string) => void;
   initialDelayMs?: number;
   retryDelayMs?: number;
+  sessionTimeoutMs?: number;
   waitForMs?: (ms: number) => Promise<void>;
 }
 
@@ -35,6 +37,27 @@ interface AuthSessionResponse<TSession = unknown> {
 
 function waitForMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getSessionOrNull(
+  getSession: () => Promise<unknown>,
+  timeoutMs: number,
+): Promise<unknown> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve()
+        .then(() => getSession())
+        .catch(() => null),
+      new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 export function createAuthSessionGetter<TSession>(
@@ -52,13 +75,14 @@ export async function waitForAuthSession({
   logWarning,
   initialDelayMs = AUTH_SESSION_INITIAL_WAIT_MS,
   retryDelayMs = AUTH_SESSION_RETRY_WAIT_MS,
+  sessionTimeoutMs = AUTH_SESSION_GET_TIMEOUT_MS,
   waitForMs: waitForMsFn = waitForMs,
-}: WaitForAuthSessionOptions): Promise<void> {
+}: WaitForAuthSessionOptions): Promise<unknown> {
   await waitForMsFn(initialDelayMs);
 
-  const session = await getSession();
+  const session = await getSessionOrNull(getSession, sessionTimeoutMs);
   if (session) {
-    return;
+    return session;
   }
 
   logWarning(
@@ -66,12 +90,13 @@ export async function waitForAuthSession({
   );
   await waitForMsFn(retryDelayMs);
 
-  const retrySession = await getSession();
+  const retrySession = await getSessionOrNull(getSession, sessionTimeoutMs);
   if (!retrySession) {
     logWarning(
       `Session not established after ${context}, proceeding with redirect anyway`,
     );
   }
+  return retrySession ?? null;
 }
 
 interface BuildSignUpUrlParams {

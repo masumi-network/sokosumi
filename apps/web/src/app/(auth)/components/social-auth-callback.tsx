@@ -1,11 +1,13 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   createAuthSessionGetter,
   normalizeAuthReturnUrl,
+  waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { authMethodIdSchema } from "@/lib/schemas/auth";
@@ -31,12 +33,17 @@ export default function SocialAuthCallback({
     // mount is the only place it reliably survives — see apps/web/TRACKING.md.
     // The query string alone proves nothing: only count it when a session
     // actually exists, so a direct hit on this URL is not a fake login.
+    // The first getSession() can be null (cookie still settling); reuse the
+    // same retry/timeout helper as the other auth surfaces.
     void (async () => {
       if (validationResult.success) {
-        const getSession = createAuthSessionGetter(() =>
-          authClient.getSession(),
-        );
-        const session = await getSession().catch(() => null);
+        const session = await waitForAuthSession({
+          context: eventType === "signUp" ? "signup" : "login",
+          getSession: createAuthSessionGetter(() => authClient.getSession()),
+          logWarning: (message) => {
+            Sentry.captureMessage(message, { level: "warning" });
+          },
+        }).catch(() => null);
         if (session) {
           switch (eventType) {
             case "signUp":

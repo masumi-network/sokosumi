@@ -24,9 +24,14 @@ vi.mock("@/lib/gtm-events", () => ({
   },
 }));
 
+vi.mock("@sentry/nextjs", () => ({
+  captureMessage: vi.fn(),
+}));
+
 describe("SocialAuthCallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetSession.mockReset();
     mockGetSession.mockResolvedValue({
       data: { session: { id: "session-1" } },
       error: null,
@@ -67,15 +72,39 @@ describe("SocialAuthCallback", () => {
     expect(mockSignUp).toHaveBeenCalledWith("microsoft");
   });
 
+  it("fires login when the session appears on retry", async () => {
+    mockGetSession
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({
+        data: { session: { id: "session-1" } },
+        error: null,
+      });
+    setSearch("?provider=credential&returnUrl=%2Fchat");
+
+    render(<SocialAuthCallback eventType="signIn" />);
+
+    await waitFor(
+      () => {
+        expect(mockSignIn).toHaveBeenCalledWith("credential");
+      },
+      { timeout: 2000 },
+    );
+    expect(mockReplace).toHaveBeenCalledWith("/chat");
+    expect(mockGetSession).toHaveBeenCalledTimes(2);
+  });
+
   it("fires nothing without a session but still forwards", async () => {
     mockGetSession.mockResolvedValue({ data: null, error: null });
     setSearch("?provider=credential&returnUrl=%2Fchat");
 
     render(<SocialAuthCallback eventType="signIn" />);
 
-    await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith("/chat");
-    });
+    await waitFor(
+      () => {
+        expect(mockReplace).toHaveBeenCalledWith("/chat");
+      },
+      { timeout: 2000 },
+    );
     expect(mockSignIn).not.toHaveBeenCalled();
   });
 
