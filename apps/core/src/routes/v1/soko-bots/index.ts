@@ -44,6 +44,7 @@ import {
   listAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
+import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
 import {
   SokoBotBusyError,
   SokoBotIdempotencyConflictError,
@@ -580,6 +581,7 @@ app.openapi(claimAvatarRoute, async (c) => {
   const bot = await sokoBotControlPlane.getForUser(auth.userId);
   if (!bot) throw notFound("Create a Soko Bot first");
   await claimAvatar(bot.id, c.req.valid("json").avatarId);
+  await ensureSokoBotCoworker(bot.id);
   const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
   return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
 });
