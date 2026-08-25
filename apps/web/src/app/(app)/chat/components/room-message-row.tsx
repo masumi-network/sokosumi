@@ -367,7 +367,7 @@ function MessageUnfurlCard({
   const siteLabel = unfurl.siteName?.trim() || null;
 
   return (
-    <div className="group relative mt-1.5 inline-block w-fit max-w-full">
+    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
       <a
         href={unfurl.url}
         target="_blank"
@@ -398,7 +398,7 @@ function MessageUnfurlCard({
           type="button"
           variant="secondary"
           size="icon"
-          className="border-border absolute top-1 right-1 z-10 size-6 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:pointer-events-auto [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:opacity-100"
+          className="border-border absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
           aria-label={t("remove", { title: unfurl.title })}
           onClick={(event) => {
             event.preventDefault();
@@ -427,7 +427,10 @@ function MessageUnfurlList({
   }
 
   return (
-    <div className="space-y-1" data-testid="room-message-unfurls">
+    <div
+      className={cn("space-y-1", canRemove && "pr-3")}
+      data-testid="room-message-unfurls"
+    >
       {unfurls.map((unfurl) => (
         <MessageUnfurlCard
           key={unfurl.url}

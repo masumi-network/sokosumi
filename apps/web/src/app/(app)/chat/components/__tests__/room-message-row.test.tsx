@@ -1859,6 +1859,36 @@ describe("ChatMessageRow", () => {
     ).toBeInTheDocument();
   });
 
+  it("places the unfurl remove control on the card corner and only on that card's hover", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: userMessage({
+        content: "Check https://ably.com",
+        unfurls: [
+          {
+            url: "https://ably.com",
+            title: "Ably",
+            description: null,
+            imageUrl: null,
+            siteName: "Ably",
+          },
+        ],
+      }),
+    });
+
+    const button = screen.getByRole("button", {
+      name: "Remove link preview: Ably",
+    });
+    expect(button.parentElement?.className).toContain("group/unfurl");
+    expect(button.className).toContain("group-hover/unfurl:");
+    expect(button.className).not.toMatch(
+      /(^|\s)\[@media\(hover:hover\)\]:group-hover:/,
+    );
+    expect(button.className).toContain("translate-x-1/2");
+    expect(button.className).toContain("-translate-y-1/2");
+  });
+
   it("does not show unfurl remove for another member", () => {
     renderRow({
       currentUserId: "user-2",
