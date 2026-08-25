@@ -13,6 +13,7 @@ const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
 const joinChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
+const retryChatRoomMentionMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
@@ -38,6 +39,8 @@ vi.mock("@/lib/clients/core.client", () => ({
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
     joinChatRoom: (...args: unknown[]) => joinChatRoomMock(...args),
     restoreChatRoom: (...args: unknown[]) => restoreChatRoomMock(...args),
+    retryChatRoomMention: (...args: unknown[]) =>
+      retryChatRoomMentionMock(...args),
   },
 }));
 
@@ -385,6 +388,25 @@ describe("chatRoomService lifecycle wrappers", () => {
     await chatRoomService.deleteRoom("room-1");
 
     expect(deleteChatRoomMock).toHaveBeenCalledWith("room-1");
+  });
+
+  it("retryMention returns the source message from Core", async () => {
+    const message = { id: "msg-1", mentions: [] };
+    retryChatRoomMentionMock.mockResolvedValue({ data: message });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.retryMention(
+      "room-1",
+      "msg-1",
+      "mention-1",
+    );
+
+    expect(retryChatRoomMentionMock).toHaveBeenCalledWith(
+      "room-1",
+      "msg-1",
+      "mention-1",
+    );
+    expect(result).toEqual(message);
   });
 });
 

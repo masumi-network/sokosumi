@@ -333,6 +333,7 @@ describe("runPreviewDeployComment", () => {
 
   it("creates web and core previews for the named network", async () => {
     const posted = [];
+    const reactions = [];
     const created = [];
     const result = await runPreviewDeployComment({
       commentBody: "/deploy mainnet",
@@ -358,6 +359,9 @@ describe("runPreviewDeployComment", () => {
       postComment: async (body) => {
         posted.push(body);
       },
+      addReaction: async (content) => {
+        reactions.push(content);
+      },
     });
     assert.equal(result.kind, "deploy");
     assert.equal(created.length, 2);
@@ -368,19 +372,60 @@ describe("runPreviewDeployComment", () => {
     assert.equal(created[0].sha, "deadbeef");
     assert.equal(created[0].ref, "feat/x");
     assert.equal(created[0].repoId, 99);
-    assert.equal(
-      posted[0],
-      [
-        "Preview deploy for **mainnet** at `deadbee`:",
-        "",
-        "- sokosumi-app-mainnet (READY): https://sokosumi-app-mainnet-git-feat-x.preview.sokosumi.com",
-        "- sokosumi-core-mainnet (READY): https://sokosumi-core-mainnet-git-feat-x.preview.sokosumi.com",
-      ].join("\n"),
+    assert.deepEqual(posted, []);
+    assert.deepEqual(reactions, ["eyes", "rocket"]);
+  });
+
+  it("reacts eyes then rocket on the triggering comment via the GitHub API", async () => {
+    const calls = [];
+    const result = await runPreviewDeployComment({
+      commentBody: "/deploy mainnet",
+      isPullRequest: true,
+      commentAuthor: "alice",
+      commentId: 4242,
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      githubToken: "tok",
+      repoId: 99,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
+        base: { repo: { id: 99 } },
+      }),
+      createDeployment: async (input) => ({
+        id: `dpl_${input.target.app}`,
+        readyState: "READY",
+      }),
+      pollDeployment: async (deployment) => deployment,
+      fetchImpl: async (url, init) => {
+        calls.push({
+          url: String(url),
+          method: init?.method,
+          body: init?.body,
+        });
+        return {
+          ok: true,
+          json: async () => ({ id: 1, content: "rocket" }),
+        };
+      },
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((call) => call.method === "POST"));
+    assert.ok(
+      calls.every(
+        (call) =>
+          call.url ===
+          "https://api.github.com/repos/acme/sokosumi/issues/comments/4242/reactions",
+      ),
     );
+    assert.deepEqual(JSON.parse(calls[0].body), { content: "eyes" });
+    assert.deepEqual(JSON.parse(calls[1].body), { content: "rocket" });
   });
 
   it("comments when creating a deployment fails", async () => {
     const posted = [];
+    const reactions = [];
     await assert.rejects(
       () =>
         runPreviewDeployComment({
@@ -399,10 +444,50 @@ describe("runPreviewDeployComment", () => {
           postComment: async (body) => {
             posted.push(body);
           },
+          addReaction: async (content) => {
+            reactions.push(content);
+          },
         }),
       /nope/,
     );
     assert.match(posted[0], /Preview deploy failed: nope/);
+    assert.deepEqual(reactions, ["eyes"]);
+  });
+
+  it("comments when a preview deployment is not READY", async () => {
+    const posted = [];
+    const reactions = [];
+    await assert.rejects(
+      () =>
+        runPreviewDeployComment({
+          commentBody: "/deploy mainnet",
+          isPullRequest: true,
+          commentAuthor: "alice",
+          repoId: 99,
+          readPermission: async () => "write",
+          readPullRequest: async () => ({
+            head: { sha: "abc", ref: "feat", repo: { id: 99 } },
+            base: { repo: { id: 99 } },
+          }),
+          createDeployment: async (input) => ({
+            id: `dpl_${input.target.app}`,
+            readyState: input.target.app === "core" ? "ERROR" : "READY",
+          }),
+          pollDeployment: async (deployment) => deployment,
+          postComment: async (body) => {
+            posted.push(body);
+          },
+          addReaction: async (content) => {
+            reactions.push(content);
+          },
+        }),
+      /sokosumi-core-mainnet \(ERROR\)/,
+    );
+    assert.match(
+      posted[0],
+      /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
+    );
+    assert.deepEqual(reactions, ["eyes"]);
   });
 });
 
@@ -564,6 +649,7 @@ describe("git preview policy", () => {
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
+    assert.match(workflow, /issues:\s*write/);
     assert.match(
       workflow,
       /contains\(github\.event\.comment\.body, '\/deploy'\)/,

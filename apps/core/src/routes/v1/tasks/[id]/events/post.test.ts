@@ -16,6 +16,7 @@ const {
   processTaskPaymentClaimMock,
   createTaskPaymentClaimMock,
   createTaskEventTransactionMock,
+  enqueueTaskOutputsFromMarkdownMock,
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
   orchestratorFindFirstMock,
@@ -33,6 +34,7 @@ const {
   processTaskPaymentClaimMock: vi.fn(),
   createTaskPaymentClaimMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
+  enqueueTaskOutputsFromMarkdownMock: vi.fn().mockResolvedValue(undefined),
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   orchestratorFindFirstMock: vi.fn(),
@@ -125,6 +127,12 @@ vi.mock("@/services/project-memory.service", () => ({
   },
 }));
 
+vi.mock("@/services/source-import.service", () => ({
+  sourceImportService: {
+    enqueueTaskOutputsFromMarkdown: enqueueTaskOutputsFromMarkdownMock,
+  },
+}));
+
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
 const BOB_USER_ID = "user_bob";
@@ -187,6 +195,10 @@ interface TransactionMock {
   };
   task: {
     updateMany: ReturnType<typeof vi.fn>;
+    findUnique?: ReturnType<typeof vi.fn>;
+  };
+  taskFile?: {
+    upsert?: ReturnType<typeof vi.fn>;
   };
   taskLink?: {
     findMany: ReturnType<typeof vi.fn>;
@@ -3399,6 +3411,254 @@ describe("POST /{id}/events", () => {
       userId: USER_ID,
       taskId: "tsk_child",
       eventType: "task_event",
+    });
+  });
+
+  describe("enqueuing task-output files from comments", () => {
+    it("enqueues file-like URLs from comment as PENDING TASK_OUTPUT TaskFile", async () => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_123",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment:
+                "Check out this report: https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment:
+            "Check out this report: https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(tx.taskEvent.create).toHaveBeenCalled();
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        TASK_ID,
+        "Check out this report: https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+        tx,
+      );
+    });
+
+    it("forwards a comment containing an extensionless deliverables URL", async () => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_124",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment:
+                "File at https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment:
+            "File at https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        TASK_ID,
+        "File at https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/01a019d9",
+        tx,
+      );
+    });
+
+    it("returns 201 without awaiting TaskFile import", async () => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_126",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment: "https://example.com/file.pdf",
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: "https://example.com/file.pdf",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalled();
+    });
+
+    it("preserves query parameters including signed tokens in comment URLs", async () => {
+      const urlWithToken =
+        "https://elena.serviceplan-agents.com/files/tasks/abc/deliverables/begin-token2049-booth.pptx?token=test-token&expires=1234567890";
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_query_1",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment: `Check this file: ${urlWithToken}`,
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: `Check this file: ${urlWithToken}`,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        TASK_ID,
+        `Check this file: ${urlWithToken}`,
+        tx,
+      );
+    });
+
+    it("forwards a multiline comment containing several bare URLs", async () => {
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_127",
+              taskId: TASK_ID,
+              userId: USER_ID,
+              comment:
+                "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+            }),
+          ),
+        },
+        task: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(createTask({ status: TaskStatus.READY })),
+          updateMany: vi.fn(),
+        },
+        taskFile: {
+          upsert: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      mockTransaction(tx);
+
+      const app = createApp({
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+        role: "user",
+      });
+
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment:
+            "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(tx.taskEvent.create).toHaveBeenCalled();
+      expect(enqueueTaskOutputsFromMarkdownMock).toHaveBeenCalledWith(
+        TASK_ID,
+        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
+        tx,
+      );
     });
   });
 });

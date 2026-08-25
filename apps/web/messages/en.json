@@ -525,6 +525,12 @@
         "loadMoreError": "Failed to load more jobs"
       }
     },
+    "Tasks": {
+      "TaskFileStatusBadge": {
+        "pending": "Pending",
+        "failed": "Failed"
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Owner",
@@ -5080,7 +5086,8 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "{name} couldn't reply"
+        "failed": "Failed to reply",
+        "retry": "Retry"
       },
       "Outbound": {
         "sending": "Sending",

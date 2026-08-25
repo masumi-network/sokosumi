@@ -6,8 +6,11 @@ import {
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
   formatThoughtDurationLabel,
+  isCurrentUserMentionerOfFailedShell,
   isFailedMentionThoughtShell,
+  readFailedMentionShellTarget,
   resolveCoworkerThoughtViewModel,
+  withMentionShellRetrying,
 } from "../coworker-thought";
 
 describe("formatThoughtDurationLabel", () => {
@@ -344,5 +347,90 @@ describe("isFailedMentionThoughtShell", () => {
         mention_failed: true,
       }),
     ).toBe(true);
+  });
+});
+
+describe("readFailedMentionShellTarget", () => {
+  it("returns mention and source ids from a failed shell", () => {
+    expect(
+      readFailedMentionShellTarget({
+        mention_id: "mention-1",
+        mention_failed: true,
+        in_reply_to_message_id: "source-1",
+      }),
+    ).toEqual({
+      mentionId: "mention-1",
+      sourceMessageId: "source-1",
+    });
+  });
+
+  it("returns null without a source message id", () => {
+    expect(
+      readFailedMentionShellTarget({
+        mention_id: "mention-1",
+        mention_failed: true,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("withMentionShellRetrying", () => {
+  it("clears mention_failed and starts a live Thought clock", () => {
+    expect(
+      withMentionShellRetrying(
+        {
+          mention_id: "mention-1",
+          mention_failed: true,
+          in_reply_to_message_id: "source-1",
+        },
+        1_700_000_000_000,
+      ),
+    ).toEqual({
+      mention_id: "mention-1",
+      in_reply_to_message_id: "source-1",
+      streaming: true,
+      thought_timing_ms: { start: 1_700_000_000_000 },
+    });
+  });
+});
+
+describe("isCurrentUserMentionerOfFailedShell", () => {
+  const shell = {
+    metadata: {
+      mention_id: "mention-1",
+      mention_failed: true,
+      in_reply_to_message_id: "source-1",
+    },
+  };
+
+  const source = {
+    id: "source-1",
+    sender: {
+      type: "user" as const,
+      user: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline" as const,
+      },
+    },
+  };
+
+  it("is true only for the human who authored the source mention", () => {
+    expect(
+      isCurrentUserMentionerOfFailedShell({
+        shell,
+        currentUserId: "user-1",
+        sourceMessages: [source],
+      }),
+    ).toBe(true);
+    expect(
+      isCurrentUserMentionerOfFailedShell({
+        shell,
+        currentUserId: "user-2",
+        sourceMessages: [source],
+      }),
+    ).toBe(false);
   });
 });

@@ -628,6 +628,7 @@ async function TaskActivitySectionContent({
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
       events={task.events}
+      taskFiles={task.files}
       agentNameById={agentNameById}
       userById={userById}
       coworkerById={coworkerById}

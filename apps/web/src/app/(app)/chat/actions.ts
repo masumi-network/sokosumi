@@ -736,6 +736,30 @@ export async function markAllUnreadThreadsReadAction(
   }
 }
 
+export async function retryRoomMentionAction(
+  roomId: string,
+  messageId: string,
+  mentionId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  const cleanMentionId = cleanString(mentionId);
+  if (!cleanRoomId || !cleanMessageId || !cleanMentionId) {
+    return roomFail("Mention retry is required.");
+  }
+
+  try {
+    const message = await chatRoomService.retryMention(
+      cleanRoomId,
+      cleanMessageId,
+      cleanMentionId,
+    );
+    return roomOk(message);
+  } catch (error) {
+    return roomCatch(error, "Could not retry mention.");
+  }
+}
+
 export async function toggleMessageReactionAction(
   roomId: string,
   messageId: string,
