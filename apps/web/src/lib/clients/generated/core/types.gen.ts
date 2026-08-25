@@ -4222,6 +4222,7 @@ export type SokoBotVersion = {
     skills: Array<{
         id: string;
         name: string;
+        description: string;
     }>;
     capabilities: Array<string> | null;
     systemPrompt: string;

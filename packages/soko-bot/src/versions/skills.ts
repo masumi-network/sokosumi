@@ -6,6 +6,8 @@
 export interface SokoBotSkill {
   id: string;
   name: string;
+  /** One line for the owner's console. */
+  description: string;
   content: string;
 }
 
@@ -13,6 +15,8 @@ export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
     id: "coworker-coordination",
     name: "Coworker coordination",
+    description:
+      "Keeps delegated Tasks moving: answers Coworker questions on the Taskboard, restarts failures with guidance, turns results into linked follow-up Tasks.",
     content: `# Coworker coordination
 
 Coworker Tasks are the main way work gets done; you are their project manager on the Taskboard.

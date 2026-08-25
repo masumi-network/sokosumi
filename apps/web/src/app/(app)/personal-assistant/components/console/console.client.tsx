@@ -1,17 +1,20 @@
 "use client";
 
+import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
-import type { SokoBotAvatar } from "@/lib/clients/generated/core";
+import type {
+  SokoBotAvatar,
+  SokoBotVersion,
+} from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +68,8 @@ export interface SokoBotConsoleProps {
   userImageUrl: string | null;
   /** Turn to scroll to / highlight (from a chat "review approval" link). */
   focusTurnId: string | null;
+  /** The agent version this bot runs: skills and tool allowlist. */
+  version: SokoBotVersion | null;
 }
 
 /**
@@ -77,6 +82,7 @@ export function SokoBotConsole({
   userName,
   userImageUrl,
   focusTurnId,
+  version,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
@@ -242,6 +248,59 @@ export function SokoBotConsole({
                   )}
                   <ScheduleForm />
                 </div>
+              </Section>
+
+              <Section
+                title={t("Console.skillsTitle")}
+                description={t("Console.skillsDescription")}
+                aside={
+                  version ? (
+                    <span className="text-muted-foreground text-xs">
+                      {version.name}
+                    </span>
+                  ) : null
+                }
+              >
+                {version ? (
+                  <div className="space-y-4">
+                    <ul className="space-y-2">
+                      {version.skills.map((skill) => (
+                        <li key={skill.id} className="text-sm">
+                          <p className="font-medium">{skill.name}</p>
+                          <p className="text-muted-foreground text-xs">
+                            {skill.description}
+                          </p>
+                        </li>
+                      ))}
+                      {version.skills.length === 0 ? (
+                        <li className="text-muted-foreground text-sm">
+                          {t("Console.skillsEmpty")}
+                        </li>
+                      ) : null}
+                    </ul>
+                    <div>
+                      <p className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
+                        {t("Console.toolsLabel")}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {(version.capabilities ?? SOKO_BOT_CAPABILITIES).map(
+                          (capability) => (
+                            <span
+                              key={capability}
+                              className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs"
+                            >
+                              {capability.replaceAll("_", " ")}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    {t("Console.skillsEmpty")}
+                  </p>
+                )}
               </Section>
 
               <Section

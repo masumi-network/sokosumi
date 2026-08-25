@@ -515,7 +515,9 @@ export const sokoBotVersionSchema = z
     createdAt: z.string(),
     summary: z.string(),
     model: z.string(),
-    skills: z.array(z.object({ id: z.string(), name: z.string() })),
+    skills: z.array(
+      z.object({ id: z.string(), name: z.string(), description: z.string() }),
+    ),
     capabilities: z.array(z.string()).nullable(),
     systemPrompt: z.string(),
   })

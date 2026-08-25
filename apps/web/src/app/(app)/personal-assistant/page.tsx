@@ -60,9 +60,16 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
     return <CreateState userId={session.user.id} />;
   }
 
+  const versions = await sokoBotService.listVersions().catch(() => []);
+  const version =
+    versions.find((v) => v.id === load.state.bot.versionId) ??
+    versions[0] ??
+    null;
+
   return (
     <SokoBotConsole
       initialState={load.state}
+      version={version}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}

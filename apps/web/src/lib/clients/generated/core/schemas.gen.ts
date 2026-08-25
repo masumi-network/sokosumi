@@ -14613,11 +14613,15 @@ export const SokoBotVersionSchema = {
                     },
                     name: {
                         type: 'string'
+                    },
+                    description: {
+                        type: 'string'
                     }
                 },
                 required: [
                     'id',
-                    'name'
+                    'name',
+                    'description'
                 ]
             }
         },

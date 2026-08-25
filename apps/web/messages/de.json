@@ -5468,7 +5468,11 @@
         "activityTitle": "Letzte Aktivität",
         "activityDescription": "Die letzten Durchläufe aus Chat und Zeitplänen, mit dem, was sie getan haben.",
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
-        "showMore": "{count} weitere anzeigen"
+        "showMore": "{count} weitere anzeigen",
+        "skillsTitle": "Skills & Tools",
+        "skillsDescription": "Was dein Assistent gelernt hat und welche Tools er für dich nutzen darf.",
+        "skillsEmpty": "Keine Skills installiert.",
+        "toolsLabel": "Tools"
       },
       "Avatar": {
         "title": "Bild",

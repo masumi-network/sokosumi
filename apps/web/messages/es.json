@@ -5468,7 +5468,11 @@
         "activityTitle": "Actividad reciente",
         "activityDescription": "Los últimos turnos desde el chat y las programaciones, con lo que hicieron.",
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
-        "showMore": "Mostrar {count} más"
+        "showMore": "Mostrar {count} más",
+        "skillsTitle": "Skills y herramientas",
+        "skillsDescription": "Lo que tu asistente ha aprendido y qué herramientas puede usar en tu nombre.",
+        "skillsEmpty": "No hay skills instalados.",
+        "toolsLabel": "Herramientas"
       },
       "Avatar": {
         "title": "Imagen",

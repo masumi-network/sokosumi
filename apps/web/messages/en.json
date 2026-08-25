@@ -5468,7 +5468,11 @@
         "activityTitle": "Recent activity",
         "activityDescription": "The last turns from chat and schedules, with what they did.",
         "activityEmpty": "No turns yet. Open the chat and ask for something.",
-        "showMore": "Show {count} more"
+        "showMore": "Show {count} more",
+        "skillsTitle": "Skills & tools",
+        "skillsDescription": "What your assistant has learned and which tools it may use on your behalf.",
+        "skillsEmpty": "No skills installed.",
+        "toolsLabel": "Tools"
       },
       "Avatar": {
         "title": "Picture",

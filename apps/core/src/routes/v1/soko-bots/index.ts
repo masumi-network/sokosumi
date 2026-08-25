@@ -631,7 +631,11 @@ app.openapi(listVersionsRoute, async (c) => {
       model: version.model,
       skills: version.skills.map((id) => {
         const skill = getSokoBotSkill(id);
-        return { id: skill.id, name: skill.name };
+        return {
+          id: skill.id,
+          name: skill.name,
+          description: skill.description,
+        };
       }),
       capabilities: version.capabilities ? [...version.capabilities] : null,
       systemPrompt: composeSystemPrompt(version),
