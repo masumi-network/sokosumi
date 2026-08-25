@@ -28,6 +28,7 @@ import {
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
+import { publishMembershipVisibleRooms } from "@/components/chat/membership-visible-rooms-store";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -532,6 +533,10 @@ export function OrganizationChatList({
     () => partitionRoomsForSidebar(roomRows),
     [roomRows],
   );
+
+  useEffect(() => {
+    publishMembershipVisibleRooms(roomRows, organizationId);
+  }, [organizationId, roomRows]);
 
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>

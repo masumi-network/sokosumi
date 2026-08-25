@@ -348,7 +348,7 @@ End-to-end launch, doctor, and browser proof for web + Core. First-party skill l
 
 ### Issue tracker
 
-Issues live in Linear (team "Sokosumi", key `SOK`), accessed via the Linear MCP tools. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
+Issues live in Linear (team "Sokosumi", key `SOK`). When `linear` is on PATH, run the CLI for all Linear work and ignore Linear MCP (`linear__*`). Follow [`.agents/skills/linear-cli/`](.agents/skills/linear-cli/) for flags, `--json`, and `linear api`. If `command -v linear` fails, use Linear MCP. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
 
 ### Triage labels
 

@@ -969,6 +969,27 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("linkifies membership-visible channel names in the body", () => {
+    render(
+      <ChatMessageRow
+        message={userMessage({ content: "see #general please" })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        channelLinks={[
+          {
+            name: "general",
+            slug: "general",
+            href: "/chat/rooms/room-general",
+          },
+        ]}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body.textContent).toContain("[#general](/chat/rooms/room-general)");
+  });
+
   it("styles @all mention tokens in quote snippets", () => {
     renderRow({
       message: userMessage({

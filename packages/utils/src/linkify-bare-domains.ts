@@ -1,4 +1,12 @@
-import { escapeMarkdownLinkUrl, findMarkdownLinks } from "./markdown-links.js";
+import { escapeMarkdownLinkUrl } from "./markdown-links.js";
+import {
+  collectMarkdownLinkRanges,
+  escapeMarkdownLinkLabel,
+  isFenceChar,
+  rangeContaining,
+  skipFencedCode,
+  skipInlineCode,
+} from "./markdown-prose-scan.js";
 
 const TRAILING_PUNCTUATION = new Set([
   ".",
@@ -227,11 +235,6 @@ const FILE_EXTENSION_DENYLIST = new Set([
   "ipa",
 ]);
 
-interface IndexRange {
-  start: number;
-  end: number;
-}
-
 function isAsciiLetter(ch: string): boolean {
   const code = ch.charCodeAt(0);
   return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
@@ -418,101 +421,6 @@ function tryMatchBareDomain(
   return { match: stripped, end: start + stripped.length };
 }
 
-function isFenceChar(ch: string): ch is "`" | "~" {
-  return ch === "`" || ch === "~";
-}
-
-/** Skip a CommonMark/GFM fenced code block opened with `` ` `` or `~` (length ≥ 3). */
-function skipFencedCode(
-  text: string,
-  openIndex: number,
-  fenceChar: "`" | "~",
-): number {
-  let i = openIndex;
-  let fenceLen = 0;
-  while (i < text.length && text[i] === fenceChar) {
-    fenceLen += 1;
-    i += 1;
-  }
-  if (fenceLen < 3) {
-    return openIndex;
-  }
-  while (i < text.length && text[i] !== "\n") {
-    i += 1;
-  }
-  if (i < text.length && text[i] === "\n") i += 1;
-
-  while (i < text.length) {
-    if (text[i] === fenceChar) {
-      let closeLen = 0;
-      const closeStart = i;
-      while (i < text.length && text[i] === fenceChar) {
-        closeLen += 1;
-        i += 1;
-      }
-      if (closeLen >= fenceLen) {
-        return i;
-      }
-      i = closeStart + 1;
-      continue;
-    }
-    i += 1;
-  }
-  return text.length;
-}
-
-/** Escape characters that break or reformat Markdown link labels. */
-function escapeMarkdownLinkLabel(label: string): string {
-  let out = "";
-  for (let i = 0; i < label.length; i += 1) {
-    const ch = label[i]!;
-    if (
-      ch === "\\" ||
-      ch === "[" ||
-      ch === "]" ||
-      ch === "*" ||
-      ch === "_" ||
-      ch === "~"
-    ) {
-      out += `\\${ch}`;
-    } else {
-      out += ch;
-    }
-  }
-  return out;
-}
-
-function skipInlineCode(text: string, openIndex: number): number {
-  let fenceLen = 0;
-  let i = openIndex;
-  while (i < text.length && text[i] === "`") {
-    fenceLen += 1;
-    i += 1;
-  }
-  if (fenceLen === 0 || fenceLen >= 3) return openIndex;
-
-  while (i < text.length) {
-    if (text[i] === "`") {
-      let closeLen = 0;
-      const closeStart = i;
-      while (i < text.length && text[i] === "`") {
-        closeLen += 1;
-        i += 1;
-      }
-      if (closeLen === fenceLen) {
-        return i;
-      }
-      i = closeStart + 1;
-      continue;
-    }
-    if (text[i] === "\n") {
-      return openIndex + 1;
-    }
-    i += 1;
-  }
-  return openIndex + 1;
-}
-
 function skipSchemeUrl(text: string, start: number): number {
   let i = start;
   while (i < text.length && !isStopChar(text[i]!)) {
@@ -523,25 +431,6 @@ function skipSchemeUrl(text: string, start: number): number {
     end -= 1;
   }
   return Math.max(end, start + 1);
-}
-
-function collectMarkdownLinkRanges(markdown: string): IndexRange[] {
-  return findMarkdownLinks(markdown).map((link) => ({
-    start: link.index,
-    end: link.index + link.match.length,
-  }));
-}
-
-function rangeContaining(
-  ranges: IndexRange[],
-  index: number,
-): IndexRange | null {
-  for (const range of ranges) {
-    if (index >= range.start && index < range.end) {
-      return range;
-    }
-  }
-  return null;
 }
 
 /**

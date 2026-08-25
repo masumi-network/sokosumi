@@ -229,6 +229,12 @@
       "skillPath": "skills/lean-build/SKILL.md",
       "computedHash": "6074721f1653e6e9d6381595b094284807b8d5d001d7d3977ec534679b16a63c"
     },
+    "linear-cli": {
+      "source": "schpet/linear-cli",
+      "sourceType": "github",
+      "skillPath": "skills/linear-cli/SKILL.md",
+      "computedHash": "ca44cd117fccee057d70632aaf596c44529d5ea11d85d7650a62b9ed66475596"
+    },
     "linear-requirement": {
       "source": ".",
       "sourceType": "local",

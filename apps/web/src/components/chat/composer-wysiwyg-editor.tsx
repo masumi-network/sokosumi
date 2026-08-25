@@ -1,5 +1,7 @@
 "use client";
 
+import { channelLinkInsertText } from "@sokosumi/utils";
+import { Hash } from "lucide-react";
 import type { ClipboardEvent, ReactNode, Ref } from "react";
 import {
   useCallback,
@@ -12,6 +14,7 @@ import {
 import { createPortal, flushSync } from "react-dom";
 
 import {
+  type ComposerChannelOption,
   type ComposerSuggestion,
   resolveComposerSuggestion,
 } from "@/components/chat/composer-suggestions";
@@ -20,10 +23,12 @@ import {
   ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
 } from "@/components/chat/room-message-composer";
 import {
+  createChannelLinkSpan,
   createMentionSpan,
   deslugifyMentionSlug,
   filterNormalizedMentions,
   findPositionForOffset,
+  getActiveChannelTrigger,
   getActiveEmojiTrigger,
   getActiveTrigger,
   getCaretOffset,
@@ -99,6 +104,8 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   value: string;
   onChange: (value: string) => void;
   mentions?: Record<string, MentionRecordEntry<TData>>;
+  /** Membership-visible Channels for the `#` picker. */
+  channels?: readonly ComposerChannelOption[];
   placeholder?: string;
   className?: string;
   onSubmitShortcut?: () => void;
@@ -115,6 +122,8 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   ) => MentionSuggestionGroup<TData>[];
 }
 
+const EMPTY_COMPOSER_CHANNELS: readonly ComposerChannelOption[] = [];
+
 const EDITOR_PROSE_CLASSNAME = cn(
   "markdown-compose-surface",
   "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold",
@@ -126,6 +135,7 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_blockquote]:border-muted-foreground/40 [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
   "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
   "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
+  "[&_span[data-channel-label]]:text-primary [&_span[data-channel-label]]:cursor-pointer [&_span[data-channel-label]]:font-semibold [&_span[data-channel-label]]:hover:underline",
 );
 
 function isComposerEditorDomEmpty(editor: HTMLElement): boolean {
@@ -186,6 +196,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   value,
   onChange,
   mentions = {},
+  channels = EMPTY_COMPOSER_CHANNELS,
   placeholder = "",
   className,
   onSubmitShortcut,
@@ -295,6 +306,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
       ? suggestionUi.suggestion.matches
       : [];
 
+  const channelMatches =
+    suggestionUi.open && suggestionUi.suggestion.kind === "channel"
+      ? suggestionUi.suggestion.matches
+      : [];
+
   const activeIndex = suggestionUi.open ? suggestionUi.activeIndex : 0;
   const triggerPosition = suggestionUi.open ? suggestionUi.position : null;
   const suggestionKind = suggestionUi.open
@@ -304,7 +320,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const visibleSuggestionCount =
     suggestionKind === "emoji"
       ? emojiMatches.length
-      : selectableMentions.length;
+      : suggestionKind === "channel"
+        ? channelMatches.length
+        : selectableMentions.length;
 
   const selectedKeys = useMemo(() => {
     const parsed = parseMentions(value);
@@ -366,7 +384,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const getSuggestionPopupPosition = useCallback(
     (editor: HTMLElement, kind: ComposerSuggestion["kind"]) => {
-      if (kind === "mention" || kind === "emoji") {
+      if (kind === "mention" || kind === "emoji" || kind === "channel") {
         const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
         if (shell instanceof HTMLElement) {
           return getMentionPopupPositionFromAnchorRect(
@@ -416,7 +434,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
 
     const currentHtml = editor.innerHTML;
-    const newHtml = markdownToHtml(value, resolveMentionDisplay);
+    const newHtml = markdownToHtml(value, resolveMentionDisplay, {
+      channelLinks: channels.map((channel) => ({
+        name: channel.name,
+        slug: channel.slug,
+      })),
+    });
     const isFocused = editor.contains(document.activeElement);
     const editorLooksEmpty = isComposerEditorDomEmpty(editor);
 
@@ -429,7 +452,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       editor.innerHTML = newHtml || "";
     }
     isInternalChange.current = false;
-  }, [value, resolveMentionDisplay]);
+  }, [channels, resolveMentionDisplay, value]);
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
@@ -508,6 +531,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     const suggestion = resolveComposerSuggestion(text, caret, {
       mentionsAvailable: normalizedMentions.length > 0,
+      channels,
     });
 
     if (suggestion) {
@@ -524,6 +548,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     closeSuggestions();
   }, [
+    channels,
     closeSuggestions,
     getSuggestionPopupPosition,
     normalizedMentions.length,
@@ -648,6 +673,49 @@ export function ComposerWysiwygEditor<TData = unknown>({
       editorRef.current.focus();
     },
     [closeSuggestions, syncFromEditor],
+  );
+
+  const insertChannelLink = useCallback(
+    (channel: ComposerChannelOption) => {
+      if (!editorRef.current) return;
+
+      const { text, caret } = serializeEditor(editorRef.current);
+      const trigger = getActiveChannelTrigger(text, caret);
+      if (!trigger) {
+        closeSuggestions();
+        return;
+      }
+
+      const startPos = findPositionForOffset(
+        editorRef.current,
+        trigger.triggerStart,
+      );
+      const endPos = findPositionForOffset(editorRef.current, caret);
+      const range = document.createRange();
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset);
+      range.deleteContents();
+
+      const nextChar = text[caret];
+      const token = channelLinkInsertText(channel, channels);
+      const label = token.startsWith("#") ? token.slice(1) : token;
+      const channelSpan = createChannelLinkSpan(label, {
+        className: MENTION_CLASSNAME,
+      });
+      range.insertNode(channelSpan);
+      let caretNode: Node = channelSpan;
+      if (shouldAppendTrailingSpace(nextChar)) {
+        const spaceNode = document.createTextNode(" ");
+        channelSpan.after(spaceNode);
+        caretNode = spaceNode;
+      }
+      setCaretAfterNode(editorRef.current, caretNode);
+      isInternalChange.current = true;
+      syncFromEditor();
+      closeSuggestions();
+      editorRef.current.focus();
+    },
+    [channels, closeSuggestions, syncFromEditor],
   );
 
   const execCommand = useCallback(
@@ -848,8 +916,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const { text, caret } = serializeEditor(editorRef.current);
     return resolveComposerSuggestion(text, caret, {
       mentionsAvailable: normalizedMentions.length > 0,
+      channels,
     });
-  }, [normalizedMentions.length]);
+  }, [channels, normalizedMentions.length]);
 
   const syncSuggestionsWithCaret = useCallback(() => {
     publishActiveFormats();
@@ -863,7 +932,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
 
     const listLength =
-      live.kind === "emoji"
+      live.kind === "emoji" || live.kind === "channel"
         ? live.matches.length
         : filterNormalizedMentions(normalizedMentions, live.query).length;
 
@@ -1047,6 +1116,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
           if (suggestionKind === "emoji") {
             const match = emojiMatches[activeIndex];
             if (match) insertEmojiShortcode(match);
+          } else if (suggestionKind === "channel") {
+            const channel = channelMatches[activeIndex];
+            if (channel) insertChannelLink(channel);
           } else {
             const mention = selectableMentions[activeIndex];
             if (mention) insertMention(mention);
@@ -1113,6 +1185,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
       closeSuggestions,
       emojiMatches,
       handleInput,
+      channelMatches,
+      insertChannelLink,
       insertEmojiShortcode,
       insertMention,
       isOpen,
@@ -1308,66 +1382,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
                     <span className="truncate">:{match.name}:</span>
                   </div>
                 ))
-              : mentionGroups
-                ? (() => {
-                    let optionIndex = 0;
-                    return mentionGroups.map((group) => (
-                      <div key={group.id}>
-                        <div
-                          role="presentation"
-                          className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
-                        >
-                          {group.label}
-                        </div>
-                        {group.items.map((mention) => {
-                          const index = optionIndex;
-                          optionIndex += 1;
-                          return (
-                            <div
-                              key={mention.key}
-                              data-index={index}
-                              role="option"
-                              aria-selected={index === activeIndex}
-                              className={cn(
-                                "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
-                                index === activeIndex &&
-                                  "bg-accent text-accent-foreground",
-                              )}
-                              onMouseDown={() => {
-                                isSelectingRef.current = true;
-                              }}
-                              onClick={() => {
-                                insertMention(mention);
-                                isSelectingRef.current = false;
-                              }}
-                              onMouseEnter={() =>
-                                setActiveSuggestionIndex(() => index)
-                              }
-                            >
-                              {renderMentionItem ? (
-                                renderMentionItem(
-                                  mention,
-                                  index === activeIndex,
-                                )
-                              ) : (
-                                <>
-                                  <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                                    {mention.value.charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="truncate">
-                                    {mention.value}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ));
-                  })()
-                : selectableMentions.map((mention, index) => (
+              : suggestionKind === "channel"
+                ? channelMatches.map((channel, index) => (
                     <div
-                      key={mention.key}
+                      key={channel.id}
                       data-index={index}
                       role="option"
                       aria-selected={index === activeIndex}
@@ -1380,23 +1398,121 @@ export function ComposerWysiwygEditor<TData = unknown>({
                         isSelectingRef.current = true;
                       }}
                       onClick={() => {
-                        insertMention(mention);
+                        insertChannelLink(channel);
                         isSelectingRef.current = false;
                       }}
                       onMouseEnter={() => setActiveSuggestionIndex(() => index)}
                     >
-                      {renderMentionItem ? (
-                        renderMentionItem(mention, index === activeIndex)
-                      ) : (
-                        <>
-                          <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                            {mention.value.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="truncate">{mention.value}</span>
-                        </>
-                      )}
+                      <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                        <Hash
+                          className="text-muted-foreground size-3.5"
+                          aria-hidden
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">
+                          {channel.name}
+                        </div>
+                        <div className="text-muted-foreground truncate text-xs">
+                          #{channel.slug}
+                          {channel.organizationName
+                            ? ` · ${channel.organizationName}`
+                            : ""}
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  ))
+                : mentionGroups
+                  ? (() => {
+                      let optionIndex = 0;
+                      return mentionGroups.map((group) => (
+                        <div key={group.id}>
+                          <div
+                            role="presentation"
+                            className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+                          >
+                            {group.label}
+                          </div>
+                          {group.items.map((mention) => {
+                            const index = optionIndex;
+                            optionIndex += 1;
+                            return (
+                              <div
+                                key={mention.key}
+                                data-index={index}
+                                role="option"
+                                aria-selected={index === activeIndex}
+                                className={cn(
+                                  "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                                  index === activeIndex &&
+                                    "bg-accent text-accent-foreground",
+                                )}
+                                onMouseDown={() => {
+                                  isSelectingRef.current = true;
+                                }}
+                                onClick={() => {
+                                  insertMention(mention);
+                                  isSelectingRef.current = false;
+                                }}
+                                onMouseEnter={() =>
+                                  setActiveSuggestionIndex(() => index)
+                                }
+                              >
+                                {renderMentionItem ? (
+                                  renderMentionItem(
+                                    mention,
+                                    index === activeIndex,
+                                  )
+                                ) : (
+                                  <>
+                                    <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                                      {mention.value.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="truncate">
+                                      {mention.value}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ));
+                    })()
+                  : selectableMentions.map((mention, index) => (
+                      <div
+                        key={mention.key}
+                        data-index={index}
+                        role="option"
+                        aria-selected={index === activeIndex}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                          index === activeIndex &&
+                            "bg-accent text-accent-foreground",
+                        )}
+                        onMouseDown={() => {
+                          isSelectingRef.current = true;
+                        }}
+                        onClick={() => {
+                          insertMention(mention);
+                          isSelectingRef.current = false;
+                        }}
+                        onMouseEnter={() =>
+                          setActiveSuggestionIndex(() => index)
+                        }
+                      >
+                        {renderMentionItem ? (
+                          renderMentionItem(mention, index === activeIndex)
+                        ) : (
+                          <>
+                            <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                              {mention.value.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="truncate">{mention.value}</span>
+                          </>
+                        )}
+                      </div>
+                    ))}
           </div>,
           document.body,
         )}
