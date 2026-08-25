@@ -40,6 +40,7 @@ import {
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
   sokoBotTaskIdInputSchema as taskIdInputSchema,
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
+  sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { verifyVercelOidcToken } from "@vercel/oidc";
@@ -49,6 +50,9 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
+
+const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
+
 import { serializableTransaction } from "@/lib/db/transaction";
 import { getSokoBotTokenService } from "@/lib/soko-bot/factory";
 import {
@@ -838,6 +842,103 @@ export class SokoBotRuntimeService {
     };
   }
 
+  /** Progress a Task the bot's coworker is assigned to; no credits involved. */
+  private async updateAssignedTask(
+    authorized: AuthorizedSokoBotRuntime,
+    rawInput: unknown,
+    toolCallId: string,
+  ) {
+    const input = updateAssignedTaskInputSchema.parse(rawInput);
+    const allowed: Record<string, TaskStatus[]> = {
+      READY: [
+        TaskStatus.RUNNING,
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+      ],
+      RUNNING: [
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+      ],
+      INPUT_REQUIRED: [
+        TaskStatus.RUNNING,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+      ],
+      QUEUED: [TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.FAILED],
+    };
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(tx, authorized, false);
+      const task = await tx.task.findFirst({
+        where: {
+          id: input.taskId,
+          workspaceId: authorized.turn.workspaceId,
+          archivedAt: null,
+        },
+        select: {
+          id: true,
+          status: true,
+          assignee: { select: { sokoBotId: true } },
+        },
+      });
+      if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (task.assignee?.sokoBotId !== authorized.turn.sokoBotId) {
+        throw new SokoBotRuntimeValidationError(
+          "You are not the assignee of this Task; use reply_to_task to comment",
+        );
+      }
+      const next = TaskStatus[input.status];
+      if (!(allowed[task.status] ?? []).includes(next)) {
+        throw new SokoBotRuntimeValidationError(
+          `Task is ${task.status}; cannot set ${input.status}`,
+        );
+      }
+      await tx.taskEvent.create({
+        data: {
+          taskId: task.id,
+          status: next,
+          comment: input.comment,
+          channel: Channel.SOKOSUMI,
+          orchestratorId: authorized.turn.sokoBotId,
+        },
+      });
+      await applyGuardedTaskStatusUpdate({
+        tx,
+        taskId: task.id,
+        expectedStatus: task.status,
+        eventStatus: next,
+      });
+      await tx.sokoBotTaskWatch.upsert({
+        where: {
+          sokoBotId_taskId: {
+            sokoBotId: authorized.turn.sokoBotId,
+            taskId: task.id,
+          },
+        },
+        create: {
+          sokoBotId: authorized.turn.sokoBotId,
+          taskId: task.id,
+          lastSeenEventAt: new Date(),
+          lastSeenStatus: next,
+        },
+        update: { lastSeenEventAt: new Date(), lastSeenStatus: next },
+      });
+      await tx.sokoBotDelegation.create({
+        data: {
+          turnId: authorized.turn.id,
+          toolCallId,
+          kind: "TASK",
+          action: "update_assigned_task",
+          outcome: next,
+          lastSeenStatus: next,
+          taskId: task.id,
+        },
+      });
+      return { taskId: task.id, status: next };
+    }, "Soko Bot task update collided with another request");
+  }
+
   /** Comment on a Task, optionally resuming it (INPUT_REQUIRED/FAILED/… → READY). */
   private async replyToTask(
     authorized: AuthorizedSokoBotRuntime,
@@ -864,6 +965,21 @@ export class SokoBotRuntimeService {
         select: { id: true, name: true, status: true, assigneeId: true },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (!input.status) {
+        const recent = await tx.taskEvent.count({
+          where: {
+            taskId: task.id,
+            orchestratorId: authorized.turn.sokoBotId,
+            status: null,
+            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1_000) },
+          },
+        });
+        if (recent >= MAX_BOT_COMMENTS_PER_TASK_PER_DAY) {
+          throw new SokoBotRuntimeValidationError(
+            `You already commented ${recent} times on this Task today; hold further comments unless they are urgent`,
+          );
+        }
+      }
       if (input.status === "READY") {
         if (!resumable.includes(task.status)) {
           throw new SokoBotRuntimeValidationError(
@@ -1537,6 +1653,12 @@ export class SokoBotRuntimeService {
         const { taskId } = taskIdInputSchema.parse(input.input);
         return this.readTask(authorized, taskId);
       }
+      case "update_assigned_task":
+        return this.updateAssignedTask(
+          authorized,
+          input.input,
+          input.toolCallId,
+        );
       case "reply_to_task":
         return this.replyToTask(authorized, input.input, input.toolCallId);
       case "link_tasks":

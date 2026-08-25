@@ -81,7 +81,7 @@ export async function ensureSokoBotCoworker(
     description:
       "Your personal project manager: delegates Tasks to Coworkers and hires Agents.",
     baseURL: `soko-bot://${bot.id}`,
-    capabilities: ["chat"],
+    capabilities: ["chat", "tasks"],
     isWhitelisted: false,
     archivedAt: bot.archivedAt,
   };
@@ -309,7 +309,8 @@ export async function deliverSokoBotTurnToDirectRoom(
   if (!turn || turn.source === "CHAT" || turn.chatMention) return;
   if (turn.status !== "COMPLETED") return;
   const answer = turn.finalAnswer?.trim() ?? "";
-  if (!answer || /^nothing new worth flagging\.?$/i.test(answer)) return;
+  if (!answer || /^nothing (new worth flagging|to add)\.?$/i.test(answer))
+    return;
   const coworkerId = turn.sokoBot.coworker?.id;
   if (!coworkerId) return;
   const room = await prisma.chatRoom.findFirst({

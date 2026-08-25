@@ -63,6 +63,16 @@ export const sokoBotReplyToTaskInputSchema = z
   })
   .strict();
 
+export const sokoBotUpdateAssignedTaskInputSchema = z
+  .object({
+    taskId: z.string().min(1),
+    /** RUNNING while you work; INPUT_REQUIRED to ask; COMPLETED with the result; FAILED with the reason. */
+    status: z.enum(["RUNNING", "INPUT_REQUIRED", "COMPLETED", "FAILED"]),
+    /** The result, the question, or the reason — this is what the owner reads on the Taskboard. */
+    comment: z.string().trim().min(1).max(20_000),
+  })
+  .strict();
+
 export const sokoBotLinkTasksInputSchema = z
   .object({
     taskId: z.string().min(1),
@@ -205,6 +215,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   assign_task: sokoBotAssignTaskInputSchema,
   get_task_status: sokoBotTaskIdInputSchema,
   reply_to_task: sokoBotReplyToTaskInputSchema,
+  update_assigned_task: sokoBotUpdateAssignedTaskInputSchema,
   link_tasks: sokoBotLinkTasksInputSchema,
   find_agents: sokoBotSearchInputSchema,
   get_agent_input_schema: sokoBotAgentIdInputSchema,
@@ -242,6 +253,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
   reply_to_task:
     "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; without status it only comments.",
+  update_assigned_task:
+    "Progress a Task that is assigned to you: RUNNING when you start, INPUT_REQUIRED to ask the owner one clear question, COMPLETED with the full result in the comment, FAILED with why. Only for Tasks where you are the assignee.",
   link_tasks:
     "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
   find_agents:

@@ -1,0 +1,316 @@
+import prisma from "@/lib/db/prisma";
+import {
+  SokoBotBusyError,
+  sokoBotControlPlane,
+} from "@/services/soko-bot-control-plane.service";
+
+const WATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000;
+const MAX_TASKS_PER_TURN = 6;
+const MAX_EVENTS_PER_TASK = 5;
+/** Statuses in which a Task assigned to the bot is waiting for the bot. */
+const WORK_STATUSES = new Set(["READY", "QUEUED"]);
+
+export interface SokoBotTaskboardSyncInput {
+  abortSignal: AbortSignal;
+  shouldContinue: () => boolean;
+}
+
+export interface SokoBotTaskboardSyncResult {
+  bots: number;
+  woken: number;
+  deferred: number;
+  failed: number;
+}
+
+interface TaskUpdate {
+  taskId: string;
+  name: string;
+  status: string;
+  assignedToBot: boolean;
+  /** Bot must act: assigned and waiting for it. */
+  work: boolean;
+  events: {
+    at: Date;
+    by: string;
+    status: string | null;
+    comment: string | null;
+  }[];
+}
+
+function actorLabel(event: {
+  userId: string | null;
+  coworkerId: string | null;
+  user: { name: string | null } | null;
+  coworker: { name: string | null } | null;
+}): string {
+  if (event.userId) return event.user?.name?.trim() || "a teammate";
+  if (event.coworkerId)
+    return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
+  return "the system";
+}
+
+export function buildTaskboardMessage(updates: TaskUpdate[]): string {
+  const work = updates.filter((u) => u.work);
+  const rest = updates.filter((u) => !u.work);
+  const lines: string[] = [];
+  if (work.length > 0) {
+    lines.push("## Tasks assigned to you");
+    for (const task of work) {
+      lines.push(
+        `- "${task.name}" (id ${task.taskId}) is ${task.status} and waiting for you.`,
+      );
+      for (const event of task.events) {
+        if (event.comment) lines.push(`  - ${actorLine(event)}`);
+      }
+    }
+    lines.push("");
+  }
+  if (rest.length > 0) {
+    lines.push("## New on Tasks you follow");
+    for (const task of rest) {
+      lines.push(
+        `- "${task.name}" (id ${task.taskId}, ${task.status}${task.assignedToBot ? ", assigned to you" : ""}):`,
+      );
+      for (const event of task.events) lines.push(`  - ${actorLine(event)}`);
+    }
+    lines.push("");
+  }
+  lines.push(
+    "Follow your Taskboard collaboration skill: work Tasks assigned to you with update_assigned_task; on Tasks you only follow, add one comment with reply_to_task only when you have information the Task does not have yet, otherwise answer exactly `Nothing to add.`",
+  );
+  return lines.join("\n").trim();
+}
+
+function actorLine(event: TaskUpdate["events"][number]): string {
+  const status = event.status ? ` set ${event.status}` : "";
+  const comment = event.comment
+    ? `: ${event.comment.replace(/\s+/g, " ").trim().slice(0, 500)}`
+    : "";
+  return `${event.by}${status}${comment || (status ? "" : " updated the Task")}`;
+}
+
+/**
+ * Tells each bot what others did on Tasks it is assigned to or created,
+ * and hands it Tasks that were assigned to it. Poll-based like the other
+ * syncs: one cursor per (bot, task), idempotent, busy bots get it next tick.
+ */
+export class SokoBotTaskboardSyncService {
+  async syncTaskboard(
+    input: SokoBotTaskboardSyncInput,
+  ): Promise<SokoBotTaskboardSyncResult> {
+    const result: SokoBotTaskboardSyncResult = {
+      bots: 0,
+      woken: 0,
+      deferred: 0,
+      failed: 0,
+    };
+    const since = new Date(Date.now() - WATCH_WINDOW_MS);
+    const bots = await prisma.sokoBot.findMany({
+      where: {
+        archivedAt: null,
+        adminPausedAt: null,
+        coworker: { isNot: null },
+      },
+      select: {
+        id: true,
+        userId: true,
+        workspaceId: true,
+        coworker: { select: { id: true } },
+      },
+    });
+    for (const bot of bots) {
+      if (!input.shouldContinue()) break;
+      if (!bot.coworker) continue;
+      result.bots += 1;
+      try {
+        const woke = await this.syncBot(
+          { ...bot, coworkerId: bot.coworker.id },
+          since,
+          input.abortSignal,
+        );
+        if (woke) result.woken += 1;
+      } catch (error) {
+        if (error instanceof SokoBotBusyError) {
+          result.deferred += 1;
+          continue;
+        }
+        result.failed += 1;
+        console.error("Soko Bot taskboard sync failed", {
+          sokoBotId: bot.id,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+      }
+    }
+    return result;
+  }
+
+  private async syncBot(
+    bot: {
+      id: string;
+      userId: string;
+      workspaceId: string;
+      coworkerId: string;
+    },
+    since: Date,
+    abortSignal: AbortSignal,
+  ): Promise<boolean> {
+    const delegated = await prisma.sokoBotDelegation.findMany({
+      where: {
+        taskId: { not: null },
+        createdAt: { gte: since },
+        turn: { sokoBotId: bot.id },
+      },
+      select: { taskId: true },
+      distinct: ["taskId"],
+    });
+    const taskIds = new Set(
+      delegated.flatMap((d) => (d.taskId ? [d.taskId] : [])),
+    );
+    const tasks = await prisma.task.findMany({
+      where: {
+        workspaceId: bot.workspaceId,
+        archivedAt: null,
+        OR: [
+          {
+            assigneeId: bot.coworkerId,
+            status: { notIn: ["COMPLETED", "CANCELED", "DRAFT"] },
+          },
+          { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        assigneeId: true,
+        updatedAt: true,
+        sokoBotWatches: {
+          where: { sokoBotId: bot.id },
+          select: { id: true, lastSeenEventAt: true, lastSeenStatus: true },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+    if (tasks.length === 0) return false;
+
+    const now = new Date();
+    const updates: TaskUpdate[] = [];
+    const baselines: { taskId: string; status: string; watchId?: string }[] =
+      [];
+    for (const task of tasks) {
+      const watch = task.sokoBotWatches[0] ?? null;
+      const assignedToBot = task.assigneeId === bot.coworkerId;
+      const work = assignedToBot && WORK_STATUSES.has(task.status);
+      if (!watch) {
+        // First sight: baseline silently unless the Task is waiting for the bot.
+        if (!work) {
+          baselines.push({ taskId: task.id, status: task.status });
+          continue;
+        }
+      }
+      const events = await prisma.taskEvent.findMany({
+        where: {
+          taskId: task.id,
+          createdAt: { gt: watch?.lastSeenEventAt ?? since },
+          OR: [{ orchestratorId: null }, { orchestratorId: { not: bot.id } }],
+        },
+        orderBy: { createdAt: "asc" },
+        take: MAX_EVENTS_PER_TASK,
+        select: {
+          createdAt: true,
+          status: true,
+          comment: true,
+          userId: true,
+          coworkerId: true,
+          user: { select: { name: true } },
+          coworker: { select: { name: true } },
+        },
+      });
+      const alreadyHandedOver =
+        work && watch?.lastSeenStatus === task.status && events.length === 0;
+      if (alreadyHandedOver) continue;
+      const meaningful = events.filter(
+        (e) => e.comment || (e.status && assignedToBot),
+      );
+      if (!work && meaningful.length === 0) {
+        if (events.length > 0 && watch) {
+          baselines.push({
+            taskId: task.id,
+            status: task.status,
+            watchId: watch.id,
+          });
+        }
+        continue;
+      }
+      updates.push({
+        taskId: task.id,
+        name: task.name ?? "Untitled task",
+        status: task.status,
+        assignedToBot,
+        work,
+        events: meaningful.map((e) => ({
+          at: e.createdAt,
+          by: actorLabel(e),
+          status: e.status,
+          comment: e.comment,
+        })),
+      });
+    }
+
+    await this.stamp(bot.id, baselines, now);
+    if (updates.length === 0) return false;
+    const batch = updates.slice(0, MAX_TASKS_PER_TURN);
+    const started = await sokoBotControlPlane.startTurn({
+      userId: bot.userId,
+      workspaceId: bot.workspaceId,
+      clientTurnId: `taskboard:${bot.id}:${now.toISOString().slice(0, 16)}`,
+      message: buildTaskboardMessage(batch),
+      source: "EVENT",
+    });
+    await this.stamp(
+      bot.id,
+      batch.map((u) => ({ taskId: u.taskId, status: u.status })),
+      now,
+    );
+    if (
+      started.reconciliationLeaseToken &&
+      (started.status === "STARTING" || started.status === "RUNNING")
+    ) {
+      await sokoBotControlPlane
+        .reconcileTurn(
+          started.turnId,
+          abortSignal,
+          started.reconciliationLeaseToken,
+        )
+        .catch((error) => {
+          console.error("Soko Bot taskboard turn reconciliation failed", {
+            turnId: started.turnId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        });
+    }
+    return true;
+  }
+
+  private async stamp(
+    sokoBotId: string,
+    items: { taskId: string; status: string }[],
+    at: Date,
+  ) {
+    for (const item of items) {
+      await prisma.sokoBotTaskWatch.upsert({
+        where: { sokoBotId_taskId: { sokoBotId, taskId: item.taskId } },
+        create: {
+          sokoBotId,
+          taskId: item.taskId,
+          lastSeenEventAt: at,
+          lastSeenStatus: item.status,
+        },
+        update: { lastSeenEventAt: at, lastSeenStatus: item.status },
+      });
+    }
+  }
+}
+
+export const sokoBotTaskboardSyncService = new SokoBotTaskboardSyncService();

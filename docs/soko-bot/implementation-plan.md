@@ -880,3 +880,36 @@ needs adjusting in `integrations.ts` / the normalisers. Candidates after
 that: Slack and Linear/Notion as ingest sources, owner-set briefing time and
 timezone in the console, write actions (draft replies, create events)
 behind explicit owner confirmation.
+
+## Soko Bots on the Taskboard (2026-08-26)
+
+**Assignable.** The bot's chat coworker now carries capabilities
+`["chat", "tasks"]`, so it shows up in the assignee pickers (own bots only,
+per `buildSokoBotVisibilityWhere`). No vendor webhook exists for it; instead
+the taskboard sync (below) hands the bot any Task assigned to it that sits
+in READY/QUEUED.
+
+**Working a Task.** New tool `update_assigned_task` (RUNNING /
+INPUT_REQUIRED / COMPLETED / FAILED + comment) — only for Tasks where the
+bot's coworker is the assignee; no credits are charged. The result *is* the
+COMPLETED comment. Delegating parts to Coworkers/Agents and linking them
+uses the existing tools.
+
+**Staying informed.** `soko-bot-taskboard-sync.service.ts` runs inside
+`/sync/soko-bot-events` every minute. Watched set per bot: Tasks assigned
+to it (non-terminal) ∪ Tasks it created/replied to in the last 30 days.
+One cursor per (bot, task) in `soko_bot_task_watch` (`lastSeenEventAt`).
+Only events by *others* (owner, teammates, Coworkers) count; first sight of
+a Task is baselined silently unless it is waiting for the bot. One EVENT
+turn per bot per tick carries up to 6 Tasks ("assigned to you" vs "new on
+Tasks you follow"), each with up to 5 new comments.
+
+**Not annoying, by construction.**
+- Skill `taskboard-collaboration`: comment only when the bot has
+  information the Task lacks (memory, connected accounts, a decision, a
+  conflict); never acknowledge/thank/restate; otherwise answer exactly
+  `Nothing to add.` — which is swallowed (no chat delivery).
+- Core cap: at most 3 comment-only `reply_to_task` calls per Task per 24h;
+  the tool refuses beyond that with a plain message.
+- The bot's own events never wake it; status-only drift on delegated Tasks
+  stays with the existing delegation sync so it is not reported twice.

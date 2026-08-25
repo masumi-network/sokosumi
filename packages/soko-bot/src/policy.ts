@@ -17,6 +17,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "assign_task",
   "get_task_status",
   "reply_to_task",
+  "update_assigned_task",
   "link_tasks",
   "find_agents",
   "get_agent_input_schema",
@@ -82,6 +83,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "update_task",
     "assign_task",
     "reply_to_task",
+    "update_assigned_task",
     "link_tasks",
   ],
   HIRE_AGENT: [
@@ -100,6 +102,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "update_task",
     "assign_task",
     "reply_to_task",
+    "update_assigned_task",
     "link_tasks",
     "find_coworkers",
     "create_task",

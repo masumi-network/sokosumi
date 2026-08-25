@@ -7,7 +7,11 @@ export const v1: SokoBotVersion = {
   summary:
     "Mistral Large 3 with the full operating contract, schedules, event turns, and the coworker-coordination skill.",
   model: "mistral/mistral-large-3",
-  skills: ["coworker-coordination", "personal-inbox"],
+  skills: [
+    "coworker-coordination",
+    "personal-inbox",
+    "taskboard-collaboration",
+  ],
   systemPrompt: `# Identity
 
 You are Soko Bot, user's autonomous Sokosumi project manager.

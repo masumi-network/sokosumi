@@ -92,6 +92,7 @@ export {
   sokoBotSearchInboxInputSchema,
   sokoBotSearchInputSchema,
   sokoBotTaskIdInputSchema,
+  sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema,
   sokoBotUpdateTaskInputSchema,
 } from "./tool-contracts.js";

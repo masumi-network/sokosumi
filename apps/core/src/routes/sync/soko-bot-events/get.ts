@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 
 import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
+import { sokoBotTaskboardSyncService } from "@/services/soko-bot-taskboard-sync.service";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -17,6 +18,15 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
         });
         console.info("[sync/soko-bot-events] Completed sync", result);
+        if (!context.shouldContinue()) return;
+        const taskboard = await sokoBotTaskboardSyncService.syncTaskboard({
+          abortSignal: context.abortSignal,
+          shouldContinue: context.shouldContinue,
+        });
+        console.info(
+          "[sync/soko-bot-events] Completed taskboard sync",
+          taskboard,
+        );
       },
     );
   });

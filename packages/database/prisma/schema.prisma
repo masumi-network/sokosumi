@@ -1606,6 +1606,26 @@ enum SokoBotTurnSource {
   INGEST
 }
 
+/// Per-(bot, task) cursor for the taskboard sync: what the bot already saw.
+model SokoBotTaskWatch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  /// Newest task event the bot has been told about.
+  lastSeenEventAt DateTime
+  lastSeenStatus  String?
+
+  @@unique([sokoBotId, taskId])
+  @@index([taskId])
+  @@map("soko_bot_task_watch")
+}
+
 enum SokoBotIntegrationStatus {
   PENDING
   ACTIVE
@@ -1716,6 +1736,7 @@ model SokoBot {
   labRuns  SokoBotLabRun[]
   installedSkills SokoBotInstalledSkill[]
   integrations    SokoBotIntegration[]
+  taskWatches     SokoBotTaskWatch[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
   ingestTimezone String    @default("Europe/Berlin")
@@ -2216,6 +2237,7 @@ model Task {
   share PublicShare?
 
   events             TaskEvent[]
+  sokoBotWatches     SokoBotTaskWatch[]
   jobs               Job[]
   files              TaskFile[]
   x402Payments       TaskX402Payment[]
