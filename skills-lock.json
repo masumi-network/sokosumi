@@ -11,7 +11,7 @@
       "source": "vercel/ai",
       "sourceType": "github",
       "skillPath": "skills/use-ai-sdk/SKILL.md",
-      "computedHash": "da25c27a274ef2b71017c255f95a26350d2519765a75cb54ee1a37872b121dab"
+      "computedHash": "0883204d11b055e968dee697c5858e68064c27dfd4deb6310212895daa65c5ad"
     },
     "ask-matt": {
       "source": "mattpocock/skills",
@@ -127,6 +127,12 @@
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
       "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
     },
+    "debugging-with-ably-cli": {
+      "source": "ably/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/debugging-with-ably-cli/SKILL.md",
+      "computedHash": "5448f564e4b8d33e63b758e403afef30049a5d9285355a903c629af8db49f479"
+    },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -223,6 +229,12 @@
       "skillPath": "skills/lean-build/SKILL.md",
       "computedHash": "6074721f1653e6e9d6381595b094284807b8d5d001d7d3977ec534679b16a63c"
     },
+    "linear-cli": {
+      "source": "schpet/linear-cli",
+      "sourceType": "github",
+      "skillPath": "skills/linear-cli/SKILL.md",
+      "computedHash": "ca44cd117fccee057d70632aaf596c44529d5ea11d85d7650a62b9ed66475596"
+    },
     "linear-requirement": {
       "source": ".",
       "sourceType": "local",
@@ -245,6 +257,12 @@
       "sourceType": "github",
       "skillPath": "skills/migration/SKILL.md",
       "computedHash": "7348b2d21ca05bdecc1e4ec2c8b63515ccb1700c8a261fdbd458b04b7383945b"
+    },
+    "portless": {
+      "source": "vercel-labs/portless",
+      "sourceType": "github",
+      "skillPath": "skills/portless/SKILL.md",
+      "computedHash": "6cf90b3cfe12f98878065f2feab6a2b040e2ef07c0f7a120814f44861034f9d5"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -376,6 +394,18 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/triage/SKILL.md",
       "computedHash": "b954d74c219c805bf353d6642251a713c9b2e9cfdb11babfe588bcfe7dfd16d5"
+    },
+    "turborepo": {
+      "source": "vercel/turborepo",
+      "sourceType": "github",
+      "skillPath": "skills/turborepo/SKILL.md",
+      "computedHash": "eb988d5153a0483bee1e50e0accf39ce57690e55686f3cf25d3b960d672ca703"
+    },
+    "using-ably": {
+      "source": "ably/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/using-ably/SKILL.md",
+      "computedHash": "6c7a24d3b16ecfbefc9d3ceb9d5ba53ab228c0028b0429a028909b4f5747d759"
     },
     "using-git-worktrees": {
       "source": "obra/superpowers",

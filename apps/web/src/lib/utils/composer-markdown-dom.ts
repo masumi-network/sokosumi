@@ -1,12 +1,17 @@
 import {
+  type ChannelLinkIdentity,
+  collectChannelLinksInMarkdown,
   escapeMarkdownLinkUrl,
   replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
 
 import {
+  createChannelLinkSpan,
   createMentionSpan,
+  getChannelLinkToken,
   getMentionToken,
+  isChannelLinkSpan,
   isMentionSpan,
   MENTION_CLASSNAME,
   UNKNOWN_MENTION_CLASSNAME,
@@ -29,6 +34,10 @@ export type ResolveMentionDisplay = (
   mentionKey: string,
   mentionSlug: string,
 ) => MentionDisplayResolution;
+
+export interface MarkdownToHtmlOptions {
+  channelLinks?: readonly ChannelLinkIdentity[];
+}
 
 function normalizePersistedInternalMentions(text: string): string {
   return text.replace(
@@ -56,6 +65,7 @@ function defaultResolveMentionDisplay(
 export function markdownToHtml(
   text: string,
   resolveMentionDisplay: ResolveMentionDisplay = defaultResolveMentionDisplay,
+  options: MarkdownToHtmlOptions = {},
 ): string {
   if (!text) return "";
 
@@ -168,7 +178,40 @@ export function markdownToHtml(
     withMentionTokens = rebuilt;
   }
 
-  const html = withMentionTokens
+  const channelTokens: Array<{ token: string; html: string }> = [];
+  let withChannelTokens = withMentionTokens;
+  const channelLinks = options.channelLinks ?? [];
+  if (channelLinks.length > 0) {
+    const matches = collectChannelLinksInMarkdown(
+      withMentionTokens,
+      channelLinks,
+    );
+    if (matches.length > 0) {
+      let lastIndex = 0;
+      let rebuilt = "";
+      for (const match of matches) {
+        if (match.start > lastIndex) {
+          rebuilt += withMentionTokens.slice(lastIndex, match.start);
+        }
+        const token = `@@CHANNELTOKEN${channelTokens.length}@@`;
+        const label = match.label.startsWith("#")
+          ? match.label.slice(1)
+          : match.label;
+        const channelSpan = createChannelLinkSpan(label, {
+          className: MENTION_CLASSNAME,
+        });
+        channelTokens.push({ token, html: channelSpan.outerHTML });
+        rebuilt += token;
+        lastIndex = match.end;
+      }
+      if (lastIndex < withMentionTokens.length) {
+        rebuilt += withMentionTokens.slice(lastIndex);
+      }
+      withChannelTokens = rebuilt;
+    }
+  }
+
+  const html = withChannelTokens
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
@@ -185,9 +228,13 @@ export function markdownToHtml(
     return result.replace(mention.token, () => mention.html);
   }, html);
 
+  const withRestoredChannels = channelTokens.reduce((result, channel) => {
+    return result.replace(channel.token, () => channel.html);
+  }, withRestoredMentions);
+
   const withRestoredLinks = linkTokens.reduce((result, link) => {
     return result.replace(link.token, () => link.html);
-  }, withRestoredMentions);
+  }, withRestoredChannels);
 
   const withRestoredCode = codeBlocks.reduce((result, block) => {
     return result.replace(block.token, () => block.html);
@@ -317,18 +364,19 @@ export function htmlToMarkdown(element: HTMLElement): string {
     }
 
     if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement;
-      const tag = element.tagName.toLowerCase();
-
-      if (isMentionSpan(element)) {
+      if (isMentionSpan(node)) {
         return getMentionToken(
-          element.dataset.mentionKey ?? "",
-          element.dataset.mentionSlug ?? "",
+          node.dataset.mentionKey ?? "",
+          node.dataset.mentionSlug ?? "",
         );
       }
 
-      // Fresh binding: isMentionSpan false-branch over-narrows HTMLElement.
-      const htmlElement = element as HTMLElement;
+      if (isChannelLinkSpan(node)) {
+        return getChannelLinkToken(node.dataset.channelLabel ?? "");
+      }
+
+      const htmlElement = node as HTMLElement;
+      const tag = htmlElement.tagName.toLowerCase();
 
       if (tag === "pre") {
         const codeElement = htmlElement.querySelector("code");

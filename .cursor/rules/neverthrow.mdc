@@ -74,4 +74,4 @@ This plain DTO is the **only** allowed non-neverthrow Result shape. Do not add p
 
 - [neverthrow Documentation](https://github.com/supermacro/neverthrow)
 - Web helper: `apps/web/src/lib/actions/action-result.ts`
-- Epic: SOK-754 (ban ts-res; migrate batches SOK-763…768 complete once SOK-768 lands)
+- `ts-res` is gone (SOK-768). Do not reintroduce it.

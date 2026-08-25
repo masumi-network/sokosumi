@@ -118,6 +118,29 @@ export function isMentionSpan(node: Node): node is HTMLSpanElement {
   return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug);
 }
 
+export function getChannelLinkToken(label: string): string {
+  return `#${label}`;
+}
+
+export function isChannelLinkSpan(node: Node): node is HTMLSpanElement {
+  if (!(node instanceof HTMLSpanElement)) return false;
+  return Boolean(node.dataset.channelLabel);
+}
+
+export function createChannelLinkSpan(
+  label: string,
+  options?: { className?: string },
+): HTMLSpanElement {
+  const span = document.createElement("span");
+  span.dataset.channelLabel = label;
+  span.textContent = getChannelLinkToken(label);
+  span.contentEditable = "false";
+  if (options?.className) {
+    span.className = options.className;
+  }
+  return span;
+}
+
 export function isLineBreak(node: Node): node is HTMLBRElement {
   return node.nodeType === Node.ELEMENT_NODE && node.nodeName === "BR";
 }
@@ -132,6 +155,10 @@ function serializeNode(node: Node): string {
       node.dataset.mentionKey ?? "",
       node.dataset.mentionSlug ?? "",
     );
+  }
+
+  if (isChannelLinkSpan(node)) {
+    return getChannelLinkToken(node.dataset.channelLabel ?? "");
   }
 
   if (isLineBreak(node)) {
@@ -421,6 +448,32 @@ export function getActiveTrigger(
   // only activate suggestions for in-progress user queries, not persisted
   // mention token text.
   if (query.includes("@") || query.includes(":")) return null;
+
+  return { query, triggerStart: tokenStart };
+}
+
+/**
+ * Detect in-progress Channel link at caret. Token is start/whitespace-delimited,
+ * single leading `#` (not `##`), query is the rest of the token.
+ */
+export function getActiveChannelTrigger(
+  text: string,
+  caret: number,
+): { query: string; triggerStart: number } | null {
+  const clampedCaret = Math.max(0, Math.min(caret, text.length));
+  if (clampedCaret === 0) return null;
+
+  let tokenStart = clampedCaret;
+  while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
+    tokenStart -= 1;
+  }
+
+  if (tokenStart === clampedCaret) return null;
+  if (text[tokenStart] !== "#") return null;
+  if (text[tokenStart + 1] === "#") return null;
+
+  const query = text.slice(tokenStart + 1, clampedCaret);
+  if (query.includes("#")) return null;
 
   return { query, triggerStart: tokenStart };
 }

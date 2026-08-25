@@ -1,13 +1,25 @@
 ---
 name: better-auth-best-practices
-description: Skill for integrating Better Auth - the comprehensive TypeScript authentication framework.
+description: Configure Better Auth server and client, set up database adapters, manage sessions, add plugins, and handle environment variables. Use when users mention Better Auth, betterauth, auth.ts, or need to set up TypeScript authentication with email/password, OAuth, or plugin configuration.
 ---
 
 # Better Auth Integration Guide
 
 **Always consult [better-auth.com/docs](https://better-auth.com/docs) for code examples and latest API.**
 
-Better Auth is a TypeScript-first, framework-agnostic auth framework supporting email/password, OAuth, magic links, passkeys, and more via plugins.
+---
+
+## Setup Workflow
+
+1. Install: `npm install better-auth`
+2. Set env vars: `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`
+3. Create `auth.ts` with database + config
+4. Create route handler for your framework
+5. Run migrations:
+   - **Built-in adapter:** `npx @better-auth/cli@latest migrate`
+   - **Drizzle:** `npx @better-auth/cli@latest generate --output src/db/auth-schema.ts` then `npx drizzle-kit push` (dev) or `npx drizzle-kit generate && npx drizzle-kit migrate` (prod)
+   - **Prisma:** `npx @better-auth/cli@latest generate --output prisma/schema.prisma` then `npx prisma migrate dev`
+6. Verify: call `GET /api/auth/ok` — should return `{ status: "ok" }`
 
 ---
 
@@ -50,9 +62,11 @@ CLI looks for `auth.ts` in: `./`, `./lib`, `./utils`, or under `./src`. Use `--c
 
 ## Database
 
-**Direct connections:** Pass `pg.Pool`, `mysql2` pool, `better-sqlite3`, or `bun:sqlite` instance.
+**Direct connections:** Pass `pg.Pool`, `mysql2` pool, `better-sqlite3`, or `bun:sqlite` instance. For Postgres, also supports `postgres` (postgres.js) and `@neondatabase/serverless`.
 
 **ORM adapters:** Import from `better-auth/adapters/drizzle`, `better-auth/adapters/prisma`, `better-auth/adapters/mongodb`.
+
+**Drizzle provider values:** `"pg"` (PostgreSQL), `"mysql"` (MySQL), `"sqlite"` (SQLite). Must match the driver used.
 
 **Critical:** Better Auth uses adapter model names, NOT underlying table names. If Prisma model is `User` mapping to table `users`, use `modelName: "user"` (Prisma reference), not `"users"`.
 
@@ -154,6 +168,8 @@ For separate client/server projects: `createAuthClient<typeof auth>()`.
 4. **Cookie cache** - Custom session fields NOT cached, always re-fetched
 5. **Stateless mode** - No DB = session in cookie only, logout on cache expiry
 6. **Change email flow** - Sends to current email first, then new email
+7. **Drizzle: db not initialized** - `drizzleAdapter(db, ...)` requires a `db` instance from `drizzle()`. See `create-auth` skill for setup examples (node-postgres, postgres.js, Neon).
+8. **Drizzle: missing drizzle.config.ts** - `drizzle-kit` commands require a `drizzle.config.ts` pointing to the generated schema file and DB credentials.
 
 ---
 

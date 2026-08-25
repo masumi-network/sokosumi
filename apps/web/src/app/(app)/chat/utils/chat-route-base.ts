@@ -1,6 +1,11 @@
 /** App Router shell for full-page chat (`/chat/...`). */
 export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
 
+/** In-app href for a chat room (`/chat/rooms/{id}`). */
+export function chatRoomHref(roomId: string): string {
+  return `${CHAT_APP_ROUTE_PREFIX}/rooms/${roomId}`;
+}
+
 /**
  * Next.js BFF for room-keyed Core chat stream APIs.
  *

@@ -1,23 +1,31 @@
 # Sokosumi Monorepo
 
-Sokosumi is a modern, secure, and user-focused marketplace platform. This monorepo contains all core services, including the main web application and backend sync functions.
+Sokosumi is a marketplace platform. This monorepo is the web app, the Core API, and shared packages.
 
 ## Project Structure
 
 ```
 sokosumi/
 ├── apps/
-│   └── web/         # Next.js 16 web application (TypeScript, Tailwind, Shadcn UI)
+│   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
+│   └── core/        # Hono API — owns all Postgres/Prisma access
 ├── packages/
-│   └── database/    # Shared database layer with Prisma and repositories
-├── docs/            # Documentation (future)
+│   ├── database/    # @sokosumi/database — Prisma client, helpers, repositories
+│   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
+│   ├── utils/       # @sokosumi/utils — client-safe helpers
+│   ├── net/         # @sokosumi/net — SSRF-safe fetch
+│   ├── email/       # @sokosumi/email — renderers and locales
+│   ├── chat/        # @sokosumi/chat — chat types
+│   └── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
+├── docs/            # Agent, domain, coworker, and design docs
+├── skills/          # First-party agent skill sources
 ├── biome.jsonc      # Root Biome configuration
 ├── package.json     # Monorepo root config
-├── pnpm-workspace.yaml # Monorepo workspace config
-└── ...              # Other config and shared files
+└── pnpm-workspace.yaml
 ```
 
-- **apps/web/**: Main user-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl, Prisma, etc.)
+- **apps/web/**: User-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
+- **apps/core/**: Hono API on Node.js. All database reads and writes live here.
 
 ## Getting Started
 
@@ -29,7 +37,7 @@ sokosumi/
 ### Clone and Install
 
 ```bash
-git clone https://github.com/yourusername/sokosumi.git
+git clone https://github.com/masumi-network/sokosumi.git
 cd sokosumi
 pnpm install
 ```

@@ -1,7 +1,10 @@
 import {
   buildRoomQuoteSnippetParts,
+  type ChannelLinkTarget,
   type ChatRoomQuoteAttachment,
+  linkifyChannelLinksInMarkdown,
 } from "@sokosumi/utils";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type {
   MentionSuggestionGroup,
   NormalizedMention,
@@ -14,6 +17,7 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { parseMentions } from "@/lib/utils/mention-parser";
+import { chatRoomHref } from "../utils/chat-route-base";
 
 /**
  * Room markdown density: zero default paragraph margin so single-block
@@ -612,4 +616,96 @@ export function formatRoomMarkdownMentions({
   }
 
   return formatted;
+}
+
+export function mergeMembershipVisibleRooms<T extends Pick<ChatRoom, "id">>(
+  pageRooms: readonly T[],
+  sidebarRooms: readonly T[],
+): T[] {
+  const byId = new Map<string, T>();
+  for (const room of sidebarRooms) {
+    byId.set(room.id, room);
+  }
+  for (const room of pageRooms) {
+    if (!byId.has(room.id)) {
+      byId.set(room.id, room);
+    }
+  }
+  return [...byId.values()];
+}
+
+function channelPickerOrganizationName(
+  room: Pick<ChatRoom, "discoverability" | "myAccess" | "organizationName">,
+): string | null {
+  if (room.discoverability === "external" || room.myAccess === "guest") {
+    return room.organizationName ?? null;
+  }
+  return null;
+}
+
+export function membershipVisibleChannelOptions(
+  rooms: readonly Pick<
+    ChatRoom,
+    | "id"
+    | "name"
+    | "slug"
+    | "kind"
+    | "organizationName"
+    | "discoverability"
+    | "myAccess"
+  >[],
+): ComposerChannelOption[] {
+  const options: ComposerChannelOption[] = [];
+  for (const room of rooms) {
+    if (room.kind !== "channel") continue;
+    options.push({
+      id: room.id,
+      name: room.name,
+      slug: room.slug,
+      organizationName: channelPickerOrganizationName(room),
+    });
+  }
+  return options;
+}
+
+export function membershipVisibleChannelLinks(
+  rooms: readonly Pick<ChatRoom, "id" | "name" | "slug" | "kind">[],
+): ChannelLinkTarget[] {
+  const links: ChannelLinkTarget[] = [];
+  for (const room of rooms) {
+    if (room.kind !== "channel") continue;
+    links.push({
+      name: room.name,
+      slug: room.slug,
+      href: chatRoomHref(room.id),
+    });
+  }
+  return links;
+}
+
+export function formatRoomMarkdownContent({
+  content,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+  channelLinks = [],
+}: {
+  content: string;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  channelLinks?: readonly ChannelLinkTarget[];
+}): string {
+  return linkifyChannelLinksInMarkdown(
+    formatRoomMarkdownMentions({
+      content,
+      coworkersById,
+      coworkersBySlug,
+      usersById,
+      usersBySlug,
+    }),
+    channelLinks,
+  );
 }
