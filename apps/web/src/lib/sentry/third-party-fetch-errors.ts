@@ -12,7 +12,10 @@ import {
 import { isBrowserExtensionOnlyStackError } from "@/lib/sentry/third-party-browser-extension-errors";
 import { isThirdPartyDomMutationError } from "@/lib/sentry/third-party-dom-mutation-errors";
 import { isMinifiedOAuthRejectionNoise } from "@/lib/sentry/third-party-oauth-errors";
-import { isThirdPartyWalletError } from "@/lib/sentry/third-party-wallet-errors";
+import {
+  isThirdPartyWalletError,
+  thirdPartyWalletScriptFilenamePatterns,
+} from "@/lib/sentry/third-party-wallet-errors";
 
 /** Hostnames for marketing/analytics scripts loaded via GTM or similar. */
 const THIRD_PARTY_ANALYTICS_HOSTS = [
@@ -68,11 +71,10 @@ const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
 
 export const bareNetworkErrorIgnoreErrors: RegExp[] = [bareNetworkErrorPattern];
 
-/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13, SOKOSUMI-JB). */
+/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13, SOKOSUMI-JB, SOKOSUMI-RC). */
 export const thirdPartyScriptDenyUrls: RegExp[] = [
   /hook\.js/i,
-  /injected\.js/i,
-  /cardano\.bundle\.js/i,
+  ...thirdPartyWalletScriptFilenamePatterns,
 ];
 
 /** Core API hosts where client-side connectivity blips are user/network noise. */

@@ -1,14 +1,16 @@
 import type { ErrorEvent } from "@sentry/nextjs";
 
+import { thirdPartyWalletScriptFilenamePatterns } from "@/lib/sentry/third-party-wallet-errors";
+
 /**
  * React DevTools injects `hook.js` into the page. When the extension probes
  * fiber metadata it can throw `Cannot read properties of undefined (reading
  * 'id')` with no first-party frames (SOKOSUMI-NB on `/tasks` and
- * `/tasks/:taskId`).
+ * `/tasks/:taskId`). Wallet extensions inject similarly named page scripts.
  */
 const extensionOnlyStackFilenamePatterns: RegExp[] = [
   /hook\.js/i,
-  /injected\.js/i,
+  ...thirdPartyWalletScriptFilenamePatterns,
   /^chrome-extension:/i,
   /^moz-extension:/i,
   /^safari-extension:/i,

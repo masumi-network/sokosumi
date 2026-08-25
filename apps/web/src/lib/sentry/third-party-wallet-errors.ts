@@ -1,14 +1,23 @@
 import type { ErrorEvent } from "@sentry/nextjs";
 
 /**
- * Cardano browser wallets inject `cardano.bundle.js` or `injected.js` and throw
- * when their messaging bridge is unavailable (SOKOSUMI-13, SOKOSUMI-JB on
- * `/chat`).
+ * Cardano / multi-chain browser wallets inject page scripts and throw when
+ * their messaging bridge is unavailable (SOKOSUMI-13, SOKOSUMI-JB on `/chat`;
+ * Begin Wallet `requestProvider.js` / `requestSolanaProvider.js` on `/`,
+ * SOKOSUMI-RC / SOKOSUMI-RD).
  */
 export const thirdPartyWalletIgnoreErrors: RegExp[] = [
   /Cannot read properties of undefined \(reading 'REQUEST_ID'\)/,
   /Cannot assign to read only property 'cardano'/,
   /Failed to connect to MetaMask/i,
+];
+
+/** Injected wallet script filenames as Sentry records them (`app:///…`). */
+export const thirdPartyWalletScriptFilenamePatterns: RegExp[] = [
+  /cardano\.bundle\.js/i,
+  /injected\.js/i,
+  /requestProvider\.js/i,
+  /requestSolanaProvider\.js/i,
 ];
 
 function getStackFrameFilenames(event: ErrorEvent): string[] {
@@ -31,8 +40,9 @@ export function isThirdPartyWalletError(
     return false;
   }
 
-  return getStackFrameFilenames(event).some(
-    (filename) =>
-      /cardano\.bundle\.js/i.test(filename) || /injected\.js/i.test(filename),
+  return getStackFrameFilenames(event).some((filename) =>
+    thirdPartyWalletScriptFilenamePatterns.some((pattern) =>
+      pattern.test(filename),
+    ),
   );
 }
