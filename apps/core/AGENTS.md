@@ -34,7 +34,7 @@ for tasks: [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/
 
 ## Layout
 
-Look at `apps/core/src/`. Do not treat this file as a file list.
+The live tree is `apps/core/src/`.
 
 | Area | Role |
 | --- | --- |

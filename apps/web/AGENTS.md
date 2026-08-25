@@ -16,7 +16,7 @@
 
 ## App Router Structure
 
-Look at `src/app/`. Route groups: `(app)` protected, `(auth)` public auth, `(flows)` invitations/setup. Also `api/`, `share/`, `composio/`.
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `composio/`.
 
 ## App-Specific Conventions
 

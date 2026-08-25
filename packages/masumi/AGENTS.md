@@ -11,9 +11,9 @@
 
 ## Layout
 
-Look at `src/` and `package.json` `exports`. Do not treat this file as a file list.
+The live tree is `src/`. Package exports are in `package.json`.
 
-Notable areas: `clients/` (agent, payment, registry, generated OpenAPI), `hash/`, `schemas/` (agent, input, x402), `tools/` (DESIGN.md), `auth/`, `utils/`.
+`clients/` holds agent, payment, registry, and generated OpenAPI. Also `hash/`, `schemas/` (agent, input, x402), `tools/` (DESIGN.md), `auth/`, `utils/`.
 
 ## Entry Points
 

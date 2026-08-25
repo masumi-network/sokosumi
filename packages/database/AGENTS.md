@@ -11,13 +11,13 @@
 
 ## Layout
 
-Look at `src/` and `package.json` `exports`. Do not treat this file as a file list.
+The live tree is `src/`. Package exports are in `package.json`.
 
-- `src/client.ts` — `createPrismaClient`
-- `src/repositories/` — legacy data-access modules (pass Prisma client in)
-- `src/helpers/` — Prisma-backed domain logic
-- `src/types/` — shared types
-- `prisma/` — schema and migrations
+- `src/client.ts` is `createPrismaClient`
+- `src/repositories/` are legacy data-access modules. Pass the Prisma client in.
+- `src/helpers/` is Prisma-backed domain logic
+- `src/types/` is shared types
+- `prisma/` is schema and migrations
 
 ## Entry Points
 
