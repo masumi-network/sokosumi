@@ -272,7 +272,7 @@
       "coworkers": "Coworkers",
       "vendors": "Vendors",
       "docs": "Dokumentation",
-      "drive": "Drive"
+      "drive": "Dateien"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2904,7 +2904,7 @@
           "hermesNew": "Neu",
           "hermesUnread": "{count} ungelesen",
           "history": "Verlauf",
-          "drive": "Drive",
+          "drive": "Dateien",
           "admin": "Administration",
           "settings": "Einstellungen",
           "back": "Zurück",
@@ -5424,9 +5424,9 @@
       "checking": "Workspace-Zugriff wird geprüft"
     },
     "Drive": {
-      "breadcrumb": "Drive",
-      "breadcrumbNavLabel": "Drive-Ordner-Navigation",
-      "myDrive": "Mein Drive",
+      "breadcrumb": "Dateien",
+      "breadcrumbNavLabel": "Dateien-Ordner-Navigation",
+      "myDrive": "Meine Dateien",
       "uploadButton": "Hochladen",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "Noch keine Dateien",
@@ -5434,7 +5434,7 @@
       "searchPlaceholder": "Dateien suchen...",
       "noMatchTitle": "Keine Dateien gefunden",
       "noMatchDescription": "Versuche eine andere Suchanfrage",
-      "pickerEmptyMessage": "Keine Dateien in diesem Drive",
+      "pickerEmptyMessage": "Keine Dateien in diesem Ordner",
       "downloadAction": "Herunterladen",
       "renameAction": "Umbenennen",
       "deleteAction": "Löschen",
@@ -5453,10 +5453,10 @@
       "deleteError": "Datei konnte nicht gelöscht werden",
       "organizationDriveFallback": "Organisation",
       "uploadDuplicateError": "Eine Datei mit diesem Namen existiert bereits. Benenne sie um und versuche es erneut.",
-      "selectTitle": "Aus Drive auswählen",
-      "selectDescription": "Wähle eine Datei aus deinem persönlichen oder Organisations-Drive",
-      "uploadFile": "Datei hochladen",
-      "fromDrive": "Aus Drive",
+      "selectTitle": "Aus Dateien auswählen",
+      "selectDescription": "Wähle eine Datei aus deinen persönlichen oder Organisations-Dateien",
+      "uploadFile": "Vom Gerät hochladen",
+      "fromDrive": "Aus Dateien",
       "moreActions": "Weitere Aktionen",
       "uploadFab": "Datei hochladen",
       "folder": "Ordner",
