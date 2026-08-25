@@ -3089,21 +3089,6 @@ export const TaskFileSchema = {
             format: 'uri',
             example: 'https://blob.vercel.app/tasks/tsk_123/report.pdf'
         },
-        sourceUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri',
-            example: 'https://example.com/source.pdf',
-            description: 'Original source URL for output files'
-        },
-        status: {
-            $ref: '#/components/schemas/TaskFileStatus'
-        },
-        origin: {
-            $ref: '#/components/schemas/TaskFileOrigin'
-        },
         mimeType: {
             type: [
                 'string',
@@ -3119,6 +3104,21 @@ export const TaskFileSchema = {
             minimum: 0,
             example: 2048000
         },
+        status: {
+            $ref: '#/components/schemas/TaskFileStatus'
+        },
+        origin: {
+            $ref: '#/components/schemas/TaskFileOrigin'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/source.pdf',
+            description: 'Original source URL for output files'
+        },
         uploader: {
             $ref: '#/components/schemas/TaskFileUploader'
         }
@@ -3130,11 +3130,11 @@ export const TaskFileSchema = {
         'updatedAt',
         'name',
         'fileUrl',
-        'sourceUrl',
-        'status',
-        'origin',
         'mimeType',
         'size',
+        'status',
+        'origin',
+        'sourceUrl',
         'uploader'
     ]
 } as const;

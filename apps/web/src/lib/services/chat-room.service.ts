@@ -399,6 +399,19 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function retryMention(
+    roomId: string,
+    messageId: string,
+    mentionId: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.retryChatRoomMention(
+      roomId,
+      messageId,
+      mentionId,
+    );
+    return response.data;
+  }
+
   async function deleteMessage(
     roomId: string,
     messageId: string,
@@ -456,6 +469,7 @@ export const chatRoomService = (() => {
     unpinRoom,
     muteRoom,
     unmuteRoom,
+    retryMention,
     sendMessage,
     toggleReaction,
     updateRoom,
