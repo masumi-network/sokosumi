@@ -42,7 +42,7 @@ describe("listDriveTasks", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
-      type: "task-project",
+      type: "project",
       id: "proj-1",
       name: "Project 1",
     });
@@ -290,7 +290,7 @@ describe("listDriveTasks", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
-      type: "task-no-project",
+      type: "no-project",
       id: "null",
     });
   });
@@ -358,20 +358,20 @@ describe("listDriveTasks", () => {
 
     expect(result).toHaveLength(4);
     expect(result[0]).toMatchObject({
-      type: "task-project",
-      latestFileUpdatedAt: "2026-01-01T00:00:00.000Z",
+      type: "project",
+      latestFileUpdatedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     expect(result[1]).toMatchObject({
       type: "task",
-      latestFileUpdatedAt: "2026-01-02T00:00:00.000Z",
+      latestFileUpdatedAt: new Date("2026-01-02T00:00:00.000Z"),
     });
     expect(result[2]).toMatchObject({
       type: "task-file",
-      updatedAt: "2026-01-03T00:00:00.000Z",
+      updatedAt: new Date("2026-01-03T00:00:00.000Z"),
     });
     expect(result[3]).toMatchObject({
-      type: "task-no-project",
-      latestFileUpdatedAt: "2026-01-04T00:00:00.000Z",
+      type: "no-project",
+      latestFileUpdatedAt: new Date("2026-01-04T00:00:00.000Z"),
     });
   });
 });

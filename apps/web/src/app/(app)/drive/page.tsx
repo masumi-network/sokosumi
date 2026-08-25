@@ -520,52 +520,21 @@ function DrivePageWorkspace({
         setTasksLoading(true);
       }
 
-      const exploreItems = await listDriveTasks({
+      const nextItems = await listDriveTasks({
         scope,
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
-        ...(projectIdParam ? { projectId: projectIdParam } : {}),
-        ...(taskIdParam ? { taskId: taskIdParam } : {}),
+        ...(taskIdParam
+          ? { taskId: taskIdParam }
+          : projectIdParam
+            ? { projectId: projectIdParam }
+            : {}),
         ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
         signal: controller.signal,
       });
 
       if (!controller.signal.aborted) {
-        const nextItems: DriveTasksListItem[] = exploreItems.map((item) => {
-          if (item.type === "task-project") {
-            return {
-              type: "project",
-              id: item.id,
-              name: item.name,
-              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
-            };
-          }
-          if (item.type === "task-no-project") {
-            return {
-              type: "no-project",
-              id: item.id,
-              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
-            };
-          }
-          if (item.type === "task") {
-            return {
-              type: "task",
-              id: item.id,
-              name: item.name,
-              latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
-            };
-          }
-          return {
-            type: "task-file",
-            id: item.id,
-            name: item.name,
-            fileUrl: item.fileUrl,
-            size: item.size,
-            mimeType: item.mimeType,
-            updatedAt: new Date(item.updatedAt),
-          };
-        });
         setTasksItems(nextItems);
         setProjectNameCache((prev) => {
           const next = new Map(prev);
@@ -924,7 +893,6 @@ function DrivePageWorkspace({
     params.set("view", "tasks");
     params.set("taskId", taskId);
     params.delete("folder");
-    params.delete("projectId");
     router.push(`/drive?${params.toString()}`);
   }
 

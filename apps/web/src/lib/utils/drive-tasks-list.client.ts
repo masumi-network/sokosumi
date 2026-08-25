@@ -3,12 +3,6 @@
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveTasksListItem } from "@/lib/clients/generated/core";
 import { getDriveTasks } from "@/lib/clients/generated/core";
-import type {
-  TaskFileItem,
-  TaskItem,
-  TaskNoProjectItem,
-  TaskProjectItem,
-} from "@/lib/types/drive-explore-item";
 
 /** Core max page size for task items. */
 export const DRIVE_TASKS_PAGE_LIMIT = 100;
@@ -26,9 +20,7 @@ interface ListDriveTasksOptions {
 
 export async function listDriveTasks(
   options: ListDriveTasksOptions,
-): Promise<
-  Array<TaskProjectItem | TaskNoProjectItem | TaskItem | TaskFileItem>
-> {
+): Promise<DriveTasksListItem[]> {
   const items: DriveTasksListItem[] = [];
   let cursor: string | undefined;
 
@@ -62,42 +54,20 @@ export async function listDriveTasks(
     cursor = nextCursor;
   }
 
-  return items.map(mapTasksListItemToExploreItem);
+  return items.map(coerceDriveTasksListItemDates);
 }
 
-function mapTasksListItemToExploreItem(
+function coerceDriveTasksListItemDates(
   item: DriveTasksListItem,
-): TaskProjectItem | TaskNoProjectItem | TaskItem | TaskFileItem {
-  switch (item.type) {
-    case "project":
-      return {
-        type: "task-project",
-        id: item.id,
-        name: item.name,
-        latestFileUpdatedAt: new Date(item.latestFileUpdatedAt).toISOString(),
-      };
-    case "no-project":
-      return {
-        type: "task-no-project",
-        id: "null",
-        latestFileUpdatedAt: new Date(item.latestFileUpdatedAt).toISOString(),
-      };
-    case "task":
-      return {
-        type: "task",
-        id: item.id,
-        name: item.name,
-        latestFileUpdatedAt: new Date(item.latestFileUpdatedAt).toISOString(),
-      };
-    case "task-file":
-      return {
-        type: "task-file",
-        id: item.id,
-        name: item.name,
-        fileUrl: item.fileUrl,
-        size: item.size,
-        mimeType: item.mimeType,
-        updatedAt: new Date(item.updatedAt).toISOString(),
-      };
+): DriveTasksListItem {
+  if (item.type === "task-file") {
+    return {
+      ...item,
+      updatedAt: new Date(item.updatedAt),
+    };
   }
+  return {
+    ...item,
+    latestFileUpdatedAt: new Date(item.latestFileUpdatedAt),
+  };
 }

@@ -83,19 +83,30 @@ export function DriveTasksFilters({
       setTasks([]);
       return;
     }
+    const selectedProjectId = projectId;
+
+    const controller = new AbortController();
 
     async function loadTasks() {
       try {
         const response = await getTasks({
           client: getBrowserCoreClient(),
-          query: { projectId: projectId || undefined, limit: 100 },
+          query: { projectId: selectedProjectId, limit: 100 },
+          signal: controller.signal,
         });
-        setTasks(response.data?.data ?? []);
+        if (!controller.signal.aborted) {
+          setTasks(response.data?.data ?? []);
+        }
       } catch {
-        setTasks([]);
+        if (!controller.signal.aborted) {
+          setTasks([]);
+        }
       }
     }
     void loadTasks();
+    return () => {
+      controller.abort();
+    };
   }, [projectId]);
 
   const handleFilterChange = useCallback(
