@@ -1,6 +1,7 @@
 "use client";
 
-import { getExtensionFromUrl, type Session } from "@sokosumi/utils";
+import { getExtensionFromUrl } from "@sokosumi/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Check,
@@ -18,13 +19,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -91,6 +86,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
 
 function withoutLegacyDriveScopeParam(
   params: URLSearchParams,
@@ -175,15 +171,6 @@ function FileNameWithPreview({
   );
 }
 
-function workspaceKeyFromSession(
-  session: Session | null | undefined,
-): string | null {
-  if (!session) {
-    return null;
-  }
-  return session.session.activeOrganizationId ?? "personal";
-}
-
 interface DrivePageWorkspaceProps {
   activeOrganizationId: string | null;
 }
@@ -233,24 +220,22 @@ function DriveListSkeleton(): ReactElement {
 
 export default function DrivePage(): ReactElement {
   const { data: session } = useSession();
-  // Pending/refetch must not collapse to "personal" — that remounts Drive twice
-  // (personal, then the real org) on first paint and after router.refresh().
-  const workspaceKeyRef = useRef(workspaceKeyFromSession(session));
-  const nextWorkspaceKey = workspaceKeyFromSession(session);
-  if (nextWorkspaceKey) {
-    workspaceKeyRef.current = nextWorkspaceKey;
+  // Unknown session is not personal. Hold the last known workspace so a
+  // pending refetch cannot switch the list query to `{ scope: "me" }`.
+  const workspaceFromSession = session
+    ? (session.session.activeOrganizationId ?? null)
+    : undefined;
+  const workspaceIdRef = useRef(workspaceFromSession);
+  if (workspaceFromSession !== undefined) {
+    workspaceIdRef.current = workspaceFromSession;
   }
-  const workspaceKey = workspaceKeyRef.current;
-  const activeOrganizationId =
-    workspaceKey && workspaceKey !== "personal" ? workspaceKey : null;
+  const activeOrganizationId = workspaceIdRef.current;
   const router = useRouter();
   const searchParams = useSearchParams();
   const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
 
-  // Lives on the wrapper so remounting DrivePageWorkspace cannot treat a
-  // workspace switch as first paint and skip clearing a stale folder query.
   useEffect(() => {
-    if (!session) {
+    if (activeOrganizationId === undefined) {
       return;
     }
     if (previousWorkspaceIdRef.current === undefined) {
@@ -268,9 +253,9 @@ export default function DrivePage(): ReactElement {
     params.delete("folder");
     const query = params.toString();
     router.replace(query ? `/drive?${query}` : "/drive");
-  }, [session, activeOrganizationId, router, searchParams]);
+  }, [activeOrganizationId, router, searchParams]);
 
-  if (!workspaceKey) {
+  if (activeOrganizationId === undefined) {
     return (
       <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
         <DriveListSkeleton />
@@ -278,12 +263,7 @@ export default function DrivePage(): ReactElement {
     );
   }
 
-  return (
-    <DrivePageWorkspace
-      key={workspaceKey}
-      activeOrganizationId={activeOrganizationId}
-    />
-  );
+  return <DrivePageWorkspace activeOrganizationId={activeOrganizationId} />;
 }
 
 function DrivePageWorkspace({
@@ -292,11 +272,10 @@ function DrivePageWorkspace({
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [items, setItems] = useState<DriveItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
@@ -318,9 +297,25 @@ function DrivePageWorkspace({
   const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
 
-  const loadItemsAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+
+  if (uiWorkspaceId !== activeOrganizationId) {
+    setUiWorkspaceId(activeOrganizationId);
+    setEditingItemPath(null);
+    setEditingItemName("");
+    setDeleteDialogOpen(false);
+    setItemToDelete(null);
+    setCreateFolderDialogOpen(false);
+    setNewFolderName("");
+    setSnapshotFolder(null);
+    setMoveDialogOpen(false);
+    setItemToMove(null);
+    setSelectedDestination(null);
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+  }
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
@@ -345,40 +340,27 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery(value);
   }
 
-  const loadItems = useCallback(async () => {
-    loadItemsAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadItemsAbortRef.current = controller;
-
-    setLoading(true);
-    try {
-      const loaded = await listDriveItems({
-        ...driveStore,
-        ...(currentFolder ? { folder: currentFolder } : {}),
-        ...(debouncedSearchQuery.trim()
-          ? { q: debouncedSearchQuery.trim() }
-          : {}),
-        signal: controller.signal,
-      });
-
-      if (!controller.signal.aborted) {
-        setItems(loaded);
-      }
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load Drive items", err);
-        toast.error(t("loadFilesError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [scope, activeOrganizationId, currentFolder, debouncedSearchQuery, t]);
+  const driveItemsQuery = useQuery(
+    getDriveItemsQueryOptions({
+      store: driveStore,
+      folder: currentFolder,
+      search: debouncedSearchQuery,
+    }),
+  );
+  const items = driveItemsQuery.data ?? [];
+  const loading = driveItemsQuery.isPending;
 
   useEffect(() => {
-    void loadItems();
-  }, [loadItems]);
+    if (!driveItemsQuery.isError) {
+      return;
+    }
+    console.error("Failed to load Drive items", driveItemsQuery.error);
+    toast.error(t("loadFilesError"));
+  }, [driveItemsQuery.error, driveItemsQuery.isError, t]);
+
+  async function refreshDriveItems() {
+    await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+  }
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -431,7 +413,7 @@ function DrivePageWorkspace({
         },
       });
 
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       if (isDriveFileUploadDuplicate(err)) {
         toast.error(t("uploadDuplicateError"));
@@ -479,7 +461,7 @@ function DrivePageWorkspace({
 
       setEditingItemPath(null);
       setEditingItemName("");
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -524,7 +506,7 @@ function DrivePageWorkspace({
 
       setDeleteDialogOpen(false);
       setItemToDelete(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
@@ -610,7 +592,7 @@ function DrivePageWorkspace({
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
       setSnapshotFolder(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
 
@@ -676,7 +658,7 @@ function DrivePageWorkspace({
       setMoveDialogOpen(false);
       setItemToMove(null);
       setSelectedDestination(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
