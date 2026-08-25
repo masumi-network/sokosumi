@@ -15,4 +15,4 @@ Rules:
 - When a skill says "apply the needs-triage label", move the issue to the **Triage** status instead.
 - When a skill says "apply wontfix", move the issue to **Canceled** (optionally with a closing comment) instead.
 - Applying `ready-for-agent` or `ready-for-human` also moves the issue from Triage to **Todo** — the label says *who* should pick it up; the status says it is ready.
-- The three labels (`needs-info`, `ready-for-agent`, `ready-for-human`) do not exist in the Sokosumi team yet — create them on first use (`create_issue_label`).
+- The three labels (`needs-info`, `ready-for-agent`, `ready-for-human`) do not exist in the Sokosumi team yet — create them on first use (`linear label create --team SOK --name needs-info`).
