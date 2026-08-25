@@ -23,6 +23,7 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
+  removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
@@ -2009,6 +2010,28 @@ export function RoomsClient({
     });
   }
 
+  function handleRemoveUnfurl(message: ChatRoomMessage, url: string) {
+    if (!selectedRoom) {
+      return;
+    }
+    const roomId = selectedRoom.id;
+    void (async () => {
+      const result = await removeRoomMessageUnfurlAction(
+        roomId,
+        message.id,
+        url,
+      );
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
+      mergeUpdatedMessage(result.value);
+    })();
+  }
+
   function handleDeleteMessage(message: ChatRoomMessage) {
     if (!selectedRoom) return;
     const roomId = selectedRoom.id;
@@ -2569,6 +2592,9 @@ export function RoomsClient({
                       onDelete={
                         isOutboundLocal ? undefined : handleDeleteMessage
                       }
+                      onRemoveUnfurl={
+                        isOutboundLocal ? undefined : handleRemoveUnfurl
+                      }
                       onRetryOutbound={handleRetryOutbound}
                       onRetryMention={
                         isCurrentUserMentionerOfFailedShell({
@@ -2732,6 +2758,7 @@ export function RoomsClient({
                 openingDirectParticipantKey={openingDirectKey}
                 onStartEdit={handleStartEdit}
                 onDelete={handleDeleteMessage}
+                onRemoveUnfurl={handleRemoveUnfurl}
                 editSession={editSession}
                 onEditDraftChange={handleEditDraftChange}
                 onCancelEdit={handleCancelEdit}

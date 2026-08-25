@@ -1973,6 +1973,10 @@ export type ReactToChatRoomMessageRequest = {
     emoji: string;
 };
 
+export type RemoveChatRoomMessageUnfurlRequest = {
+    url: string;
+};
+
 export type ChatRoomFileUploadSession = {
     /**
      * Presigned Blob PUT URL (time-scoped, path-scoped)
@@ -14781,6 +14785,113 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData = {
+    body?: RemoveChatRoomMessageUnfurlRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/unfurls/remove';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveError = PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors[keyof PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponses = {
+    /**
+     * Room message unfurl removed
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponse = PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponses[keyof PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponses];
 
 export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryData = {
     body?: never;

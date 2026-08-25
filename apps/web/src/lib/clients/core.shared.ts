@@ -61,6 +61,7 @@ import type {
   PostChatsRoomsByIdFilesData,
   PostChatsRoomsByIdInviteLinksData,
   PostChatsRoomsByIdMessagesByMessageIdReactionsData,
+  PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
   PostJobsByIdInputsData,
@@ -266,6 +267,7 @@ import {
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdMessagesByMessageIdUnfurlsRemove as corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -964,6 +966,25 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function removeChatRoomMessageUnfurl(
+    id: string,
+    messageId: string,
+    body: NonNullable<
+      PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove({
+          client,
+          path: { id, messageId },
+          body,
+        }),
+      "Failed to remove chat room message unfurl",
     );
   }
 
@@ -4367,6 +4388,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unmuteChatRoom,
     markChatRoomUnread,
     deleteChatRoomMessage,
+    removeChatRoomMessageUnfurl,
     retryChatRoomMention,
     toggleChatRoomMessageReaction,
     getHermesInstance,
