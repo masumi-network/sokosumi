@@ -71,7 +71,6 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "create_task",
     "update_task",
     "assign_task",
-    "request_user_decision",
   ],
   HIRE_AGENT: [
     ...DIRECT_READ_CAPABILITIES,
@@ -81,14 +80,12 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "get_agent_input_schema",
     "hire_agent",
     "provide_job_input",
-    "request_user_decision",
   ],
   MANAGE_WORK: [
     ...DIRECT_READ_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     "update_memory",
     "update_task",
-    "request_user_decision",
   ],
   MIXED: [...DIRECT_READ_CAPABILITIES],
 } as const satisfies Record<SokoBotRoute, readonly SokoBotCapability[]>;

@@ -106,27 +106,16 @@ describe("evaluateScenario", () => {
     ]);
   });
 
-  it("accepts a hire only when it went through an approval", () => {
-    const scenario = byId("hire-agent-with-budget");
-    const silent = evaluateScenario(
-      scenario,
+  it("passes a budget-respecting hire that only used marketplace tools", () => {
+    const result = evaluateScenario(
+      byId("hire-agent-with-budget"),
       turn({
         route: "HIRE_AGENT",
-        toolCalls: [call("find_agents"), call("hire_agent")],
+        toolCalls: [call("find_agents"), call("get_agent_input_schema")],
+        finalAnswer: "Nothing under 10 credits; the cheapest fit costs 60.",
       }),
     );
-    expect(silent.checks.at(-1)).toMatchObject({
-      pass: false,
-      actual: "hired without asking",
-    });
-    const asked = evaluateScenario(
-      scenario,
-      turn({
-        route: "HIRE_AGENT",
-        toolCalls: [call("find_agents"), call("request_user_decision")],
-      }),
-    );
-    expect(asked.passed).toBe(asked.total);
+    expect(result.passed).toBe(result.total);
   });
 
   it("fails a bare promise to follow up without a schedule", () => {

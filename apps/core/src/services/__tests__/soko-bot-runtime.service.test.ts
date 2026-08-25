@@ -1053,94 +1053,6 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(detail).toBe("[Sensitive value removed]");
   });
 
-  it("requires owner approval below stored classifier confidence threshold", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["create_task"],
-    });
-    turnFindUniqueMock.mockResolvedValue({
-      id: SCOPE.turnId,
-      sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      eveSessionId: SCOPE.sessionId,
-      userMessage: "Maybe create something",
-      classification: { confidence: 0.5 },
-      status: "RUNNING",
-      deadlineAt: new Date(Date.now() + 60_000),
-      leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        archivedAt: null,
-        status: "RUNNING",
-      },
-    });
-    toolCallFindUniqueMock.mockResolvedValue(null);
-
-    const result = await new SokoBotRuntimeService().executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
-      ...SCOPE,
-      capability: "create_task",
-      toolCallId: "call_low_confidence",
-      input: { name: "Maybe", status: "DRAFT" },
-    });
-
-    expect(result).toMatchObject({ approvalRequired: true });
-    expect(transactionDecisionCreateMock).toHaveBeenCalledOnce();
-    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
-  });
-
-  it("reuses the pending decision when the model repeats an approval-gated call", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["assign_task"],
-    });
-    turnFindUniqueMock.mockResolvedValue({
-      id: SCOPE.turnId,
-      sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      eveSessionId: SCOPE.sessionId,
-      userMessage: "Assign it",
-      classification: { confidence: 1 },
-      status: "RUNNING",
-      deadlineAt: new Date(Date.now() + 60_000),
-      leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        archivedAt: null,
-        status: "RUNNING",
-      },
-    });
-    toolCallFindUniqueMock.mockResolvedValue(null);
-    const existing = {
-      id: "01960001-0001-7001-8001-00000000dec1",
-      status: "PENDING",
-      expiresAt: new Date(Date.now() + 60_000),
-    };
-    transactionDecisionFindFirstMock.mockResolvedValue(existing);
-
-    const result = await new SokoBotRuntimeService().executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
-      ...SCOPE,
-      capability: "assign_task",
-      toolCallId: "call_assign_repeat",
-      input: { taskId: "task_1", coworkerId: "cw_1", ready: true },
-    });
-
-    expect(result).toMatchObject({
-      approvalRequired: true,
-      decision: { id: existing.id },
-    });
-    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
-  });
-
   it("rejects mutation when stored user message contains negative imperative", async () => {
     turnGrantVerifyMock.mockResolvedValue({
       ...SCOPE,
@@ -1279,7 +1191,7 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(transactionTaskCreateMock).not.toHaveBeenCalled();
   });
 
-  it("always asks the owner before assigning a Task", async () => {
+  it("assigns a Task directly through shared assignee and status-event policy", async () => {
     turnGrantVerifyMock.mockResolvedValue({
       ...SCOPE,
       contextSnapshotId: "01960001-0001-7001-8001-000000000004",
@@ -1296,35 +1208,47 @@ describe("SokoBotRuntimeService authorization", () => {
       workspaceId: SCOPE.workspaceId,
       eveSessionId: SCOPE.sessionId,
       userMessage: "Assign it",
-      classification: { confidence: 1 },
+      classification: { confidence: 0.3 },
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionDecisionFindFirstMock.mockResolvedValue(null);
-    const created = {
-      id: "01960001-0001-7001-8001-00000000dec2",
-      status: "PENDING",
-      expiresAt: new Date(Date.now() + 60_000),
-    };
-    transactionDecisionCreateMock.mockResolvedValue(created);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+    });
+    transactionTaskUpdateMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      assigneeId: "coworker_1",
+    });
 
     const result = await new SokoBotRuntimeService().executeTool({
       oidcToken: "oidc",
       turnGrant: "grant",
       ...SCOPE,
       capability: "assign_task",
-      toolCallId: "call_assign_policy",
+      toolCallId: "call_assign_direct",
       input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
     });
 
     expect(result).toMatchObject({
-      approvalRequired: true,
-      decision: { id: created.id },
+      id: "task_1",
+      status: TaskStatus.READY,
+      assigneeId: "coworker_1",
     });
-    expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "coworker_1",
+      SCOPE.workspaceId,
+      expect.anything(),
+    );
   });
 
   it("limits Task updates to DRAFT and READY records", async () => {

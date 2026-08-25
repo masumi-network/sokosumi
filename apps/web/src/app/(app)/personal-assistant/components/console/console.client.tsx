@@ -28,12 +28,7 @@ import {
   AssistantImageContext,
   AssistantSeedContext,
 } from "../chat/assistant-avatar";
-import { DecisionCard } from "../chat/decision-card";
-import {
-  orderedTurns,
-  orphanPendingDecisions,
-  pendingDecisionCount,
-} from "../chat/timeline";
+import { orderedTurns } from "../chat/timeline";
 import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
@@ -140,11 +135,6 @@ export function SokoBotConsole({
   }
 
   const turns = useMemo(() => orderedTurns(state).reverse(), [state]);
-  const orphans = useMemo(() => orphanPendingDecisions(state), [state]);
-  const pendingCount = pendingDecisionCount(state);
-  const pendingTurns = turns.filter((turn) =>
-    turn.decisions.some((decision) => decision.status === "PENDING"),
-  );
 
   function openChat() {
     if (!bot.coworkerId) return;
@@ -210,39 +200,6 @@ export function SokoBotConsole({
 
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="min-w-0 space-y-6">
-              <Section
-                title={t("Console.approvalsTitle")}
-                description={t("Console.approvalsDescription")}
-                aside={
-                  pendingCount > 0 ? (
-                    <span className="text-semantic-warning text-xs font-medium tabular-nums">
-                      {pendingCount}
-                    </span>
-                  ) : null
-                }
-              >
-                {pendingCount === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    {t("Console.approvalsEmpty")}
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {[
-                      ...pendingTurns.flatMap((turn) =>
-                        turn.decisions.filter((d) => d.status === "PENDING"),
-                      ),
-                      ...orphans,
-                    ].map((decision) => (
-                      <DecisionCard
-                        key={decision.id}
-                        decision={decision}
-                        onResolved={refresh}
-                      />
-                    ))}
-                  </div>
-                )}
-              </Section>
-
               {labOpen ? (
                 <Section
                   title={t("Lab.title")}

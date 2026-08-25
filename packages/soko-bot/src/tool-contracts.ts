@@ -187,9 +187,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Find marketplace Agents when Coworker delegation is unsuitable.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
   hire_agent:
-    "Propose marketplace Agent hire. Core always asks owner approval.",
+    "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated.",
   get_job_status: "Read current marketplace Agent Job status.",
-  provide_job_input: "Propose input for Agent Job. Core asks owner approval.",
+  provide_job_input:
+    "Send the input an Agent Job is waiting for; applied right away.",
   request_user_decision:
     "Create durable Pending decision without parking runtime.",
   read_memory: "Read canonical short-term Soko Bot memory.",

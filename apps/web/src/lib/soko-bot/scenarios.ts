@@ -31,8 +31,6 @@ export interface SokoBotScenario {
     noDelegations?: boolean;
     /** The answer must ask the owner something. */
     asksQuestion?: boolean;
-    /** Paid or assigning work must go through an approval. */
-    asksBeforePaidWork?: boolean;
     /** The answer must not promise a later check without a schedule. */
     noEmptyPromise?: boolean;
     /** Every UUID in the answer must appear in a tool result or delegation. */
@@ -61,14 +59,14 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     id: "hire-agent-with-budget",
     title: "Hire an agent under a budget",
     intent:
-      "Finds an agent, checks its input, and asks before spending credits.",
+      "Finds an agent, checks its input, and hires only within the stated budget.",
     prompt:
-      "Find an agent in the marketplace that can write SEO blog posts, check what input it needs, and hire it to write an 800-word post on 'AI agents for accounting teams'. Do not spend more than 10 credits without asking me first, and tell me as soon as the result is in.",
+      "Find an agent in the marketplace that can write SEO blog posts, check what input it needs, and hire it to write an 800-word post on 'AI agents for accounting teams'. Spend at most 10 credits; if nothing fits that budget, tell me instead of hiring.",
     expect: {
       routes: ["HIRE_AGENT", "MIXED"],
       tools: ["find_agents"],
       forbiddenTools: ["create_task"],
-      asksBeforePaidWork: true,
+      noInventedIds: true,
     },
   },
   {
@@ -237,22 +235,6 @@ export function evaluateScenario(
       label: "Asks a question",
       pass: answer.includes("?"),
       actual: answer ? `${answer.slice(0, 80)}…` : "no answer",
-    });
-  }
-  if (expect.asksBeforePaidWork) {
-    const hired = tools.has("hire_agent");
-    const asked =
-      turn.decisions.length > 0 || tools.has("request_user_decision");
-    checks.push({
-      label: "Asks before paid work",
-      pass: !hired || asked,
-      actual: hired
-        ? asked
-          ? "hired via approval"
-          : "hired without asking"
-        : asked
-          ? "asked first"
-          : "did not hire",
     });
   }
   if (expect.noEmptyPromise) {

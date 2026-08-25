@@ -64,7 +64,7 @@ function baseClassification(
     candidateCoworkerIds: [],
     candidateAgentIds: [],
     requiresClarification: route === "CLARIFY" || route === "MIXED",
-    requiresApproval: route === "HIRE_AGENT",
+    requiresApproval: false,
     ...(route === "DELEGATE_TASK"
       ? { proposedTaskBrief: message.trim().slice(0, 1_000) }
       : {}),

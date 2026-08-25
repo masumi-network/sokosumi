@@ -63,7 +63,6 @@ const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALL_LIMIT_PER_TURN = 64;
 const TOOL_RESULT_MAX_BYTES = 16_384;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
-const MUTATION_CONFIDENCE_THRESHOLD = 0.65;
 const PERSISTED_VALUE_MAX_DEPTH = 8;
 const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
@@ -196,8 +195,6 @@ export interface SokoBotActionContext {
     workspaceId: string;
     eveSessionId: string | null;
   };
-  /** True when executing a proposal the owner already accepted. */
-  ownerApproved: boolean;
   classificationConfidence: number;
   hasNegatedMutationIntent: boolean;
 }
@@ -410,32 +407,6 @@ async function requireSokoBotWorkspaceAccess(
     );
   }
   return workspace;
-}
-
-function requiresDecision(
-  authorized: SokoBotActionContext,
-  capability: SokoBotCapability,
-  input: unknown,
-): boolean {
-  if (capability === "hire_agent" || capability === "provide_job_input")
-    return true;
-  if (capability === "request_user_decision") return false;
-  if (
-    isSokoBotDecisionTarget(capability) &&
-    authorized.classificationConfidence < MUTATION_CONFIDENCE_THRESHOLD
-  ) {
-    return true;
-  }
-  if (authorized.ownerApproved) return false;
-  // Fixed policy: drafts are free; assigning work or making it READY asks.
-  if (capability === "assign_task") return true;
-  if (capability === "create_task") {
-    return taskCreateInputSchema.parse(input).status === "READY";
-  }
-  if (capability === "update_task") {
-    return taskUpdateInputSchema.parse(input).status === "READY";
-  }
-  return false;
 }
 
 export function isSokoBotDecisionTargetAllowed(
@@ -656,7 +627,6 @@ export class SokoBotRuntimeService {
         workspaceId: turn.workspaceId,
         eveSessionId: storedSessionId,
       },
-      ownerApproved: false,
       classificationConfidence:
         typeof turn.classification === "object" &&
         turn.classification !== null &&
@@ -690,6 +660,37 @@ export class SokoBotRuntimeService {
       );
     }
     return snapshot;
+  }
+
+  /**
+   * Nothing waits for an owner: the proposal is recorded as a decision the
+   * owner's policy accepts on the spot, then executed through the same
+   * fenced, idempotent path an accepted approval uses.
+   */
+  private async executeAsAccepted(
+    authorized: AuthorizedSokoBotRuntime,
+    toolName: SokoBotDecisionTarget,
+    proposal: unknown,
+    toolCallId: string,
+  ) {
+    const decision = await this.createDecision(
+      authorized,
+      toolName,
+      proposal,
+      toolCallId,
+      false,
+    );
+    const resolved = await this.resolveDecision(
+      authorized.turn.userId,
+      decision.id,
+      true,
+    );
+    return {
+      executed: resolved.status === "ACCEPTED",
+      decisionId: resolved.id,
+      status: resolved.status,
+      resultingEntityId: resolved.resultingEntityId,
+    };
   }
 
   private async createDecision(
@@ -1201,26 +1202,6 @@ export class SokoBotRuntimeService {
         "User explicitly asked not to create, assign, or hire work",
       );
     }
-    if (requiresDecision(authorized, input.capability, input.input)) {
-      if (!isSokoBotDecisionTarget(input.capability)) {
-        throw new SokoBotRuntimeValidationError(
-          "Capability cannot create an approval decision",
-        );
-      }
-      const decision = await this.createDecision(
-        authorized,
-        input.capability,
-        input.input,
-        input.toolCallId,
-        true,
-      );
-      return {
-        approvalRequired: true,
-        decision,
-        message: DECISION_PENDING_MESSAGE,
-      };
-    }
-
     switch (input.capability) {
       case "refresh_context":
         return this.getContext(input);
@@ -1354,12 +1335,11 @@ export class SokoBotRuntimeService {
       }
       case "hire_agent":
         parseHireAgentInput(input.input);
-        return this.createDecision(
+        return this.executeAsAccepted(
           authorized,
           input.capability,
           input.input,
           input.toolCallId,
-          false,
         );
       case "get_job_status": {
         const { jobId } = jobIdInputSchema.parse(input.input);
@@ -1390,12 +1370,11 @@ export class SokoBotRuntimeService {
       }
       case "provide_job_input":
         provideJobInputSchema.parse(input.input);
-        return this.createDecision(
+        return this.executeAsAccepted(
           authorized,
           input.capability,
           input.input,
           input.toolCallId,
-          false,
         );
       case "request_user_decision": {
         const decision = decisionInputSchema.parse(input.input);
@@ -1978,7 +1957,6 @@ export class SokoBotRuntimeService {
             workspaceId: decision.workspaceId,
             eveSessionId: decision.turn.eveSessionId,
           },
-          ownerApproved: true,
           classificationConfidence: 1,
           hasNegatedMutationIntent: false,
         };
@@ -1999,7 +1977,6 @@ export class SokoBotRuntimeService {
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
             },
-            ownerApproved: true,
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
           },
@@ -2018,7 +1995,6 @@ export class SokoBotRuntimeService {
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
             },
-            ownerApproved: true,
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
           },
