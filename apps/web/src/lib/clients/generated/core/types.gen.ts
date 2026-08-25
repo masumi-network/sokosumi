@@ -846,11 +846,41 @@ export type TaskFile = {
     createdAt: Date;
     updatedAt: Date;
     name: string;
-    fileUrl: string;
+    fileUrl: string | null;
     mimeType: string | null;
     size: number | null;
+    status: TaskFileStatus;
+    origin: TaskFileOrigin;
+    /**
+     * Original source URL for output files
+     */
+    sourceUrl: string | null;
     uploader: TaskFileUploader;
 };
+
+/**
+ * Sync status of the file
+ */
+export const TaskFileStatus = {
+    PENDING: 'PENDING',
+    READY: 'READY',
+    FAILED: 'FAILED'
+} as const;
+
+/**
+ * Sync status of the file
+ */
+export type TaskFileStatus = typeof TaskFileStatus[keyof typeof TaskFileStatus];
+
+/**
+ * Origin of the file
+ */
+export const TaskFileOrigin = { USER_UPLOAD: 'USER_UPLOAD', TASK_OUTPUT: 'TASK_OUTPUT' } as const;
+
+/**
+ * Origin of the file
+ */
+export type TaskFileOrigin = typeof TaskFileOrigin[keyof typeof TaskFileOrigin];
 
 /**
  * Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).

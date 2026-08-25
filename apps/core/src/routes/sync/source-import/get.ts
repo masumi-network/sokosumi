@@ -22,7 +22,7 @@ export default function mount(app: Hono) {
           });
 
         console.info(
-          `[sync/source-import] Completed sync (pendingBlobs=${pendingBlobCount}, durationMs=${Date.now() - startedAt})`,
+          `[sync/source-import] Completed import sync (pendingBlobs=${pendingBlobCount}, durationMs=${Date.now() - startedAt})`,
         );
       },
     );

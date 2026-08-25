@@ -56,6 +56,12 @@ export function isFileLikeUrl(url: string): boolean {
     if (u.hash) {
       return false;
     }
+
+    // Special case: /deliverables/ paths are file-like even without an extension
+    if (u.pathname.includes("/deliverables/")) {
+      return true;
+    }
+
     const ext = getExtensionFromUrl(url);
     if (!ext) {
       return false;

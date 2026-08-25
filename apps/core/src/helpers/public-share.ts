@@ -177,14 +177,19 @@ function mapPublicTask(task: PublicTaskWithRelations) {
     events: task.events
       .map((event) => mapPublicTaskMilestone(event))
       .filter((event): event is PublicSharedTaskMilestone => event !== null),
-    files: (task.files ?? []).map((file) => ({
-      id: file.id,
-      name: file.name,
-      fileUrl: file.fileUrl,
-      mimeType: file.mimeType ?? null,
-      size: file.size != null ? Number(file.size) : null,
-      createdAt: file.createdAt,
-    })),
+    files: (task.files ?? [])
+      .filter(
+        (file): file is typeof file & { fileUrl: string } =>
+          file.fileUrl !== null,
+      )
+      .map((file) => ({
+        id: file.id,
+        name: file.name,
+        fileUrl: file.fileUrl,
+        mimeType: file.mimeType ?? null,
+        size: file.size != null ? Number(file.size) : null,
+        createdAt: file.createdAt,
+      })),
   };
 }
 
