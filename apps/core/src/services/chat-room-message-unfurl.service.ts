@@ -4,13 +4,13 @@ import {
   mergeChatRoomMessageMetadataKeys,
 } from "@/helpers/chat-room-message-metadata-patch";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
-import { scrapeUnfurlCards } from "@/lib/chat-unfurl-scrape";
-import prisma from "@/lib/db/prisma";
 import {
   pruneRemovedUnfurlUrls,
   REMOVED_UNFURL_URLS_METADATA_KEY,
   readRemovedUnfurlUrlsFromMetadata,
-} from "@/routes/v1/chats/rooms/helpers";
+} from "@/helpers/chat-room-message-unfurl-metadata";
+import { scrapeUnfurlCards } from "@/lib/chat-unfurl-scrape";
+import prisma from "@/lib/db/prisma";
 
 export interface ScheduleChatRoomMessageUnfurlsResult {
   messageId: string;

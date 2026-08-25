@@ -6,6 +6,12 @@ import {
   mergeChatRoomMessageMetadataKeys,
 } from "@/helpers/chat-room-message-metadata-patch";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import {
+  applyRemovedUnfurlToMetadata,
+  REMOVED_UNFURL_URLS_METADATA_KEY,
+  readRemovedUnfurlUrlsFromMetadata,
+  readUnfurlsFromMetadata,
+} from "@/helpers/chat-room-message-unfurl-metadata";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -21,12 +27,8 @@ import {
 } from "@/schemas/chat-room.schema";
 
 import {
-  applyRemovedUnfurlToMetadata,
   chatRoomMessageInclude,
   mapChatRoomMessage,
-  REMOVED_UNFURL_URLS_METADATA_KEY,
-  readRemovedUnfurlUrlsFromMetadata,
-  readUnfurlsFromMetadata,
   requireChatRoomUserWriteAccess,
 } from "../../../../../helpers";
 import { assertChatRoomContentMessage } from "../../../../../membership-status";
