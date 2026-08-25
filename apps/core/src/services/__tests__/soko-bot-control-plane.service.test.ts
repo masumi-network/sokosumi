@@ -93,6 +93,12 @@ const {
   workspaceFindFirstMock: vi.fn(),
 }));
 
+vi.mock("@/services/soko-bot-chat.service", () => ({
+  ensureSokoBotCoworker: vi.fn().mockResolvedValue({ id: "cw", slug: "soko" }),
+  finalizeSokoBotChatTurn: vi.fn().mockResolvedValue(undefined),
+  publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {

@@ -70,6 +70,7 @@ function mapBot(
   return {
     ...bot,
     memory: bot.memoryRevisions[0] ?? null,
+    coworker: bot.coworker ?? null,
     memoryRevisions: undefined,
   };
 }

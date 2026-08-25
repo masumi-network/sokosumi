@@ -1463,6 +1463,21 @@ describe("buildCoworkerUsableInWorkspaceWhere", () => {
             },
           },
         },
+        {
+          sokoBot: {
+            archivedAt: null,
+            user: {
+              OR: [
+                { workspace: { id: workspaceId } },
+                {
+                  members: {
+                    some: { organization: { workspace: { id: workspaceId } } },
+                  },
+                },
+              ],
+            },
+          },
+        },
       ],
     });
   });
@@ -1511,18 +1526,7 @@ describe("buildCoworkerVisibleToUserOr", () => {
 });
 
 const usableInWorkspaceWhere = {
-  archivedAt: null,
-  OR: [
-    { isWhitelisted: true },
-    {
-      workspaceAccess: {
-        some: {
-          workspaceId,
-          status: CoworkerWorkspaceAccessStatus.GRANTED,
-        },
-      },
-    },
-  ],
+  ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
   capabilities: {
     has: "tasks" as const,
   },
@@ -1674,18 +1678,7 @@ describe("requireCoworkerChatCapabilityInWorkspace", () => {
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
-        OR: [
-          { isWhitelisted: true },
-          {
-            workspaceAccess: {
-              some: {
-                workspaceId,
-                status: CoworkerWorkspaceAccessStatus.GRANTED,
-              },
-            },
-          },
-        ],
+        ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
         capabilities: {
           has: "chat",
         },

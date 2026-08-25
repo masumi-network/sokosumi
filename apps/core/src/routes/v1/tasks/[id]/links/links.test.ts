@@ -807,7 +807,7 @@ describe("POST /tasks/{id}/links", () => {
   });
 
   it("uses a serializable transaction and returns 409 on transaction conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("Transaction failed"), { code: "P2034" }),
     );
 

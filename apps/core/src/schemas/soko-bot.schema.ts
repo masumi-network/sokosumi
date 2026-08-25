@@ -192,6 +192,11 @@ export const sokoBotSchema = z
     legacyMessages: z.array(sokoBotLegacyMessageSchema).optional(),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     schedules: z.array(sokoBotScheduleSchema).optional(),
+    /** Chat-facing coworker row; open a direct with it to chat with the bot. */
+    coworker: z
+      .object({ id: z.string(), slug: z.string() })
+      .nullable()
+      .optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })

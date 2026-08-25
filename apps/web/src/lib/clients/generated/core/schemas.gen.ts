@@ -2120,6 +2120,24 @@ export const SokoBotSchema = {
                 $ref: '#/components/schemas/SokoBotSchedule'
             }
         },
+        coworker: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                slug: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'slug'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -7109,6 +7127,18 @@ export const ChatRoomCoworkerParticipantSchema = {
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
+        },
+        sokoBotId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sokoBotAvatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [

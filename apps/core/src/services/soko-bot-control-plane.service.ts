@@ -44,6 +44,7 @@ import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
+import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
@@ -105,6 +106,8 @@ export interface StartSokoBotTurnInput {
   clientTurnId: string;
   message: string;
   source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY";
+  /** Set when a chat-room mention started the turn; the reply lands there. */
+  chat?: { mentionId: string; responseMessageId: string };
   scheduleReservation?: {
     runId: string;
     attempt: number;
@@ -933,6 +936,7 @@ export class SokoBotControlPlane {
             },
           });
         }
+        await ensureSokoBotCoworker(updated.id, tx);
         return updated;
       }
 
@@ -958,6 +962,7 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
+      await ensureSokoBotCoworker(bot.id, tx);
       return bot;
     });
   }
@@ -966,6 +971,7 @@ export class SokoBotControlPlane {
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, archivedAt: null },
       include: {
+        coworker: { select: { id: true, slug: true } },
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
         legacyMessages: {
           orderBy: { createdAt: "desc" },
@@ -1237,7 +1243,24 @@ export class SokoBotControlPlane {
         }
       }
       return true;
-    }, "Soko Bot turn settlement collided with another operation");
+    }, "Soko Bot turn settlement collided with another operation").then(
+      async (settled) => {
+        if (settled) {
+          // Lazy: the chat bridge pulls in realtime publishing, which the
+          // control plane must not load for page/schedule turns or tests.
+          const { finalizeSokoBotChatTurn } = await import(
+            "@/services/soko-bot-chat.service"
+          );
+          await finalizeSokoBotChatTurn(input.turnId).catch((error) => {
+            console.error("Soko Bot chat write-back failed", {
+              turnId: input.turnId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          });
+        }
+        return settled;
+      },
+    );
   }
 
   async settleUndeliverableCancellation(turnId: string): Promise<boolean> {
@@ -1549,6 +1572,8 @@ export class SokoBotControlPlane {
             route: classification.classification.route,
             clientTurnId,
             userMessage: message,
+            chatMentionId: input.chat?.mentionId,
+            chatResponseMessageId: input.chat?.responseMessageId,
             classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,
@@ -2107,6 +2132,22 @@ export class SokoBotControlPlane {
           turnData.errorDetail = pendingErrorDetail;
         }
         const eventWasNew = await persistEvent(indexed, turnData);
+        if (
+          eventWasNew &&
+          turn.chatResponseMessageId &&
+          (indexed.event.type === "actions.requested" ||
+            indexed.event.type === "action.result")
+        ) {
+          const { publishSokoBotChatProgress } = await import(
+            "@/services/soko-bot-chat.service"
+          );
+          await publishSokoBotChatProgress(turn.id).catch((error) => {
+            console.warn("Soko Bot chat progress publish failed", {
+              turnId: turn.id,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          });
+        }
         if (
           eventWasNew &&
           nextAggregateUsage &&
@@ -3262,6 +3303,7 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
+      await ensureSokoBotCoworker(bot.id, tx);
       return activeTurn;
     }, "Soko Bot archive collided with active work");
     if (!active) return;

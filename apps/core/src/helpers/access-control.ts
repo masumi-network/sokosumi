@@ -200,8 +200,33 @@ export function buildCoworkerUsableInWorkspaceWhere(
           },
         },
       },
+      // A user's Soko Bot is usable in their personal workspace and in every
+      // organization workspace they belong to; dispatch still enforces that
+      // only the owner can task it.
+      {
+        sokoBot: {
+          archivedAt: null,
+          user: {
+            OR: [
+              { workspace: { id: workspaceId } },
+              {
+                members: {
+                  some: { organization: { workspace: { id: workspaceId } } },
+                },
+              },
+            ],
+          },
+        },
+      },
     ],
   };
+}
+
+/** Hide other users' Soko Bots from coworker listings and pickers. */
+export function buildSokoBotVisibilityWhere(
+  userId: string,
+): Prisma.CoworkerWhereInput {
+  return { OR: [{ sokoBotId: null }, { sokoBot: { userId } }] };
 }
 
 /**

@@ -459,7 +459,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("returns 409 when the serializable transaction hits a write conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("Transaction failed"), { code: "P2034" }),
     );
 
@@ -484,7 +484,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("returns 409 when the pg adapter reports a write conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("TransactionWriteConflict"), {
         name: "DriverAdapterError",
       }),

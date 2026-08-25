@@ -1,6 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildCoworkerUsableInWorkspaceWhere,
+  buildSokoBotVisibilityWhere,
+} from "@/helpers/access-control";
 import { coworkerInclude } from "@/helpers/coworker";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -51,17 +54,9 @@ const sampleVendor = {
 };
 
 const usableInWorkspaceWhere = {
-  archivedAt: null,
-  OR: [
-    { isWhitelisted: true },
-    {
-      workspaceAccess: {
-        some: {
-          workspaceId: personalWorkspaceId,
-          status: CoworkerWorkspaceAccessStatus.GRANTED,
-        },
-      },
-    },
+  AND: [
+    buildCoworkerUsableInWorkspaceWhere(personalWorkspaceId),
+    buildSokoBotVisibilityWhere("user_123"),
   ],
 };
 

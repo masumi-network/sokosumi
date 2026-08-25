@@ -629,7 +629,7 @@ describe("PATCH /chats/rooms/{id}", () => {
   });
 
   it("returns 409 concurrency_conflict when serializable roster rewrite races (e.g. concurrent leave)", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("Transaction failed"), { code: "P2034" }),
     );
 

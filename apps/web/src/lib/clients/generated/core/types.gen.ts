@@ -475,6 +475,10 @@ export type SokoBot = {
     legacyMessages?: Array<SokoBotLegacyMessage>;
     pendingDecisions?: Array<SokoBotPendingDecision>;
     schedules?: Array<SokoBotSchedule>;
+    coworker?: {
+        id: string;
+        slug: string;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -1925,6 +1929,8 @@ export type ChatRoomCoworkerParticipant = {
     caption: string | null;
     image: string | null;
     presence: ChatRoomPresence;
+    sokoBotId?: string | null;
+    sokoBotAvatarSeed?: string | null;
 };
 
 /**

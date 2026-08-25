@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 
-import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
+import {
+  buildCoworkerUsableInWorkspaceWhere,
+  buildSokoBotVisibilityWhere,
+} from "@/helpers/access-control";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -82,11 +85,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...buildAccessibleCoworkersWhere(userAuthContext.userId),
       };
     } else if (scope === "available") {
-      requireUserAuthContext(authContext);
+      const userAuthContext = requireUserAuthContext(authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      baseScope = buildCoworkerUsableInWorkspaceWhere(
-        workspaceContext.workspaceId,
-      );
+      baseScope = {
+        AND: [
+          buildCoworkerUsableInWorkspaceWhere(workspaceContext.workspaceId),
+          buildSokoBotVisibilityWhere(userAuthContext.userId),
+        ],
+      };
     } else if (scope === "archived") {
       baseScope = { archivedAt: { not: null } };
     } else {

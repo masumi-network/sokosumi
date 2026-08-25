@@ -1549,6 +1549,10 @@ model Coworker {
   vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
+  /// First-party Soko Bot this coworker row represents in chat (null for marketplace coworkers).
+  sokoBotId String?  @unique @db.Uuid
+  sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
   coworkerApiKeys CoworkerApiKey[]
   assignments     CoworkerAssignment[]
   workspaceAccess CoworkerWorkspaceAccess[]
@@ -1669,6 +1673,9 @@ model SokoBot {
   /// Owner of this Soko Bot. One row per user (active or archived).
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Chat-facing coworker row for this bot (created when the bot is created).
+  coworker Coworker?
 
   /// User-chosen display name for their personal assistant. Null until named.
   name String?
@@ -1796,6 +1803,12 @@ model SokoBotTurn {
   durationMs              Int?
   errorKind               String?
   errorDetail             String?
+
+  /// Chat-room mention that started this turn (null for the assistant page and schedules).
+  chatMentionId         String?          @unique @db.Uuid
+  chatMention           ChatRoomMention? @relation(fields: [chatMentionId], references: [id], onDelete: SetNull)
+  /// Thought placeholder / reply message in the room for a chat-started turn.
+  chatResponseMessageId String?          @db.Uuid
 
   contextSnapshot  SokoBotContextSnapshot?
   events           SokoBotEvent[]
@@ -3000,6 +3013,8 @@ model ChatRoomMention {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  sokoBotTurn SokoBotTurn?
 
   @@unique([messageId, coworkerId])
   @@index([coworkerId, status])
