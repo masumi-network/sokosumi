@@ -2,7 +2,7 @@
 
 import { Folder, ListCheck, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -75,6 +75,8 @@ export function DriveTasksFilters({
     null,
   );
   const [selectedTaskName, setSelectedTaskName] = useState<string | null>(null);
+  const loadMoreProjectsAbortRef = useRef<AbortController | null>(null);
+  const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     async function loadCoworkers() {
@@ -177,6 +179,8 @@ export function DriveTasksFilters({
     void loadTasks();
     return () => {
       controller.abort();
+      loadMoreTasksAbortRef.current?.abort();
+      loadMoreTasksAbortRef.current = null;
     };
   }, [projectId]);
 
@@ -218,27 +222,40 @@ export function DriveTasksFilters({
       return;
     }
 
+    loadMoreProjectsAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreProjectsAbortRef.current = controller;
+    const cursorAtRequest = projectsNextCursor;
+
     setProjectsLoadingMore(true);
     try {
       const response = await getProjects({
         client: getBrowserCoreClient(),
         query: {
           limit: FILTER_PAGE_LIMIT,
-          cursor: projectsNextCursor,
+          cursor: cursorAtRequest,
         },
+        signal: controller.signal,
       });
+      if (controller.signal.aborted) {
+        return;
+      }
       const nextPage = response.data?.data ?? [];
       setProjects((current) => [...current, ...nextPage]);
       setProjectsNextCursor(
         resolveNextCursor(
           response.data?.meta?.pagination?.nextCursor ?? null,
-          projectsNextCursor,
+          cursorAtRequest,
         ),
       );
     } catch {
-      // Leave the current list intact when pagination fails.
+      if (!controller.signal.aborted) {
+        // Leave the current list intact when pagination fails.
+      }
     } finally {
-      setProjectsLoadingMore(false);
+      if (!controller.signal.aborted) {
+        setProjectsLoadingMore(false);
+      }
     }
   }, [projectsNextCursor, projectsLoadingMore]);
 
@@ -247,28 +264,42 @@ export function DriveTasksFilters({
       return;
     }
 
+    loadMoreTasksAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreTasksAbortRef.current = controller;
+    const projectIdAtRequest = projectId;
+    const cursorAtRequest = tasksNextCursor;
+
     setTasksLoadingMore(true);
     try {
       const response = await getTasks({
         client: getBrowserCoreClient(),
         query: {
-          projectId,
+          projectId: projectIdAtRequest,
           limit: FILTER_PAGE_LIMIT,
-          cursor: tasksNextCursor,
+          cursor: cursorAtRequest,
         },
+        signal: controller.signal,
       });
+      if (controller.signal.aborted || projectId !== projectIdAtRequest) {
+        return;
+      }
       const nextPage = response.data?.data ?? [];
       setTasks((current) => [...current, ...nextPage]);
       setTasksNextCursor(
         resolveNextCursor(
           response.data?.meta?.pagination?.nextCursor ?? null,
-          tasksNextCursor,
+          cursorAtRequest,
         ),
       );
     } catch {
-      // Leave the current list intact when pagination fails.
+      if (!controller.signal.aborted) {
+        // Leave the current list intact when pagination fails.
+      }
     } finally {
-      setTasksLoadingMore(false);
+      if (!controller.signal.aborted && projectId === projectIdAtRequest) {
+        setTasksLoadingMore(false);
+      }
     }
   }, [projectId, tasksNextCursor, tasksLoadingMore]);
 

@@ -195,6 +195,7 @@ function FilterDropdownMenuSectionItem({
               <CommandItem
                 key={`${section.id}-load-more`}
                 value={`${section.id}-load-more`}
+                forceMount
                 onSelect={() => {
                   section.pagination?.onLoadMore();
                 }}

@@ -416,6 +416,7 @@ function DrivePageWorkspace({
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
   const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
   const loadTasksAbortRef = useRef<AbortController | null>(null);
+  const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(activeOrganizationId);
   workspaceIdRef.current = activeOrganizationId;
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
@@ -441,6 +442,7 @@ function DrivePageWorkspace({
     setSearchQuery("");
     setDebouncedSearchQuery("");
     loadTasksAbortRef.current?.abort();
+    loadMoreTasksAbortRef.current?.abort();
     setTasksItems([]);
     setTasksLoading(false);
     setTasksNextCursor(null);
@@ -503,6 +505,8 @@ function DrivePageWorkspace({
     }
 
     loadTasksAbortRef.current?.abort();
+    loadMoreTasksAbortRef.current?.abort();
+    loadMoreTasksAbortRef.current = null;
     const controller = new AbortController();
     loadTasksAbortRef.current = controller;
 
@@ -587,21 +591,49 @@ function DrivePageWorkspace({
       return;
     }
 
+    loadMoreTasksAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreTasksAbortRef.current = controller;
+    const workspaceIdAtRequest = workspaceIdRef.current;
+    const queryAtRequest = {
+      scope,
+      organizationId: activeOrganizationId,
+      projectId: projectIdParam,
+      taskId: taskIdParam,
+      assigneeId: assigneeIdParam,
+      cursor: tasksNextCursor,
+    };
+
     setTasksLoadingMore(true);
     try {
       const page = await fetchDriveTasksPage({
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
+        scope: queryAtRequest.scope,
+        ...(queryAtRequest.scope === "org" && queryAtRequest.organizationId
+          ? { organizationId: queryAtRequest.organizationId }
           : {}),
-        ...(taskIdParam
-          ? { taskId: taskIdParam }
-          : projectIdParam
-            ? { projectId: projectIdParam }
+        ...(queryAtRequest.taskId
+          ? { taskId: queryAtRequest.taskId }
+          : queryAtRequest.projectId
+            ? { projectId: queryAtRequest.projectId }
             : {}),
-        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
-        cursor: tasksNextCursor,
+        ...(queryAtRequest.assigneeId
+          ? { assigneeId: queryAtRequest.assigneeId }
+          : {}),
+        cursor: queryAtRequest.cursor,
+        signal: controller.signal,
       });
+
+      const queryStillMatches =
+        workspaceIdRef.current === workspaceIdAtRequest &&
+        scope === queryAtRequest.scope &&
+        activeOrganizationId === queryAtRequest.organizationId &&
+        projectIdParam === queryAtRequest.projectId &&
+        taskIdParam === queryAtRequest.taskId &&
+        assigneeIdParam === queryAtRequest.assigneeId;
+
+      if (controller.signal.aborted || !queryStillMatches) {
+        return;
+      }
 
       setTasksItems((current) => [...current, ...page.items]);
       setTasksNextCursor(page.nextCursor);
@@ -624,10 +656,14 @@ function DrivePageWorkspace({
         return next;
       });
     } catch (err) {
-      console.error("Failed to load more tasks", err);
-      toast.error(t("loadMoreTasksError"));
+      if (!controller.signal.aborted) {
+        console.error("Failed to load more tasks", err);
+        toast.error(t("loadMoreTasksError"));
+      }
     } finally {
-      setTasksLoadingMore(false);
+      if (!controller.signal.aborted) {
+        setTasksLoadingMore(false);
+      }
     }
   }, [
     isTasksView,
