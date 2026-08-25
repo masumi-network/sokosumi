@@ -5301,7 +5301,8 @@
           "askedBy": "Preguntado por {name}",
           "teammate": "un compañero",
           "inDirect": "en tu chat directo",
-          "inRoom": "en #{room}"
+          "inRoom": "en #{room}",
+          "event": "Activado por cambio de trabajo"
         },
         "thinkingMessages": {
           "0": "Pensando",

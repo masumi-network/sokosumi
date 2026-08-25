@@ -103,8 +103,11 @@ export function completedStepsForTurn(turn: ChatTurn): ProgressChip[] {
 }
 
 /** Whether a scheduled or operator-triggered turn should carry a kind chip. */
-export function turnKind(turn: ChatTurn): "scheduled" | "retry" | null {
+export function turnKind(
+  turn: ChatTurn,
+): "scheduled" | "retry" | "event" | null {
   if (turn.source === "SCHEDULE") return "scheduled";
   if (turn.source === "ADMIN_RETRY") return "retry";
+  if (turn.source === "EVENT") return "event";
   return null;
 }

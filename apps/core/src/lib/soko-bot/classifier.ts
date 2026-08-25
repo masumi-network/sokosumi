@@ -98,8 +98,9 @@ export function classifyDeterministically(
   }
 
   const hireSignal = includesAny(normalized, [
-    /\b(hire|book|run|use)\b.{0,40}\b(agent|ai agent)\b/,
-    /\b(agent marketplace|marketplace agent)\b/,
+    /\bhire\b/,
+    /\b(book|run|use)\b.{0,40}\b(agent|ai agent)\b/,
+    /\b(agent marketplace|marketplace agent|agent (in|from|on) the marketplace)\b/,
   ]);
   const delegateSignal = includesAny(normalized, [
     /\b(delegate|assign|hand off|create|make|open)\b.{0,50}\b(task|coworker|co-worker)\b/,
@@ -112,14 +113,19 @@ export function classifyDeterministically(
     /\b(research|analy[sz]e|investigate|draft|write|prepare|compile|summari[sz]e|compare|review|plan|outline|design|build|create|produce|put together|look into|dig into|find out)\b/,
   ]);
   const manageSignal = includesAny(normalized, [
-    /\b(status|progress|update|reprioritize|follow up|follow-up)\b.{0,50}\b(task|job|project)\b/,
-    /\b(task|job)\b.{0,50}\b(status|progress|update|reprioritize)\b/,
+    /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
+    /\b(tasks?|jobs?)\b.{0,50}\b(status|progress|update|reprioriti[sz]e)\b/,
+  ]);
+  // Managing the bot's own follow-ups ("stop checking in", "drop the
+  // reminder") is work management too; it only needs the schedule tools.
+  const scheduleSignal = includesAny(normalized, [
+    /\b(stop|drop|cancel|remove|pause|change|move|delete)\b.{0,60}\b(check[- ]?ins?|checking in|reminders?|nudg(e|es|ing)|schedules?|follow[- ]?ups?)\b/,
   ]);
 
-  if (
-    (hireSignal && delegateSignal) ||
-    (manageSignal && (hireSignal || delegateSignal))
-  ) {
+  // Delegation already carries the manage tools, so "create tasks and keep
+  // them updated" is one route; only hire + delegate or hire + manage are
+  // genuinely two independent actions.
+  if ((hireSignal && delegateSignal) || (manageSignal && hireSignal)) {
     return baseClassification(
       "MIXED",
       message,
@@ -151,11 +157,13 @@ export function classifyDeterministically(
       0.82,
     );
   }
-  if (manageSignal) {
+  if (manageSignal || scheduleSignal) {
     return baseClassification(
       "MANAGE_WORK",
       message,
-      "Message asks about existing Task, Job, or Project work.",
+      scheduleSignal
+        ? "Message changes the assistant's own follow-up schedules."
+        : "Message asks about existing Task, Job, or Project work.",
       0.94,
     );
   }

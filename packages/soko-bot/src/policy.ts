@@ -24,6 +24,10 @@ export const SOKO_BOT_CAPABILITIES = [
   "request_user_decision",
   "read_memory",
   "update_memory",
+  "list_schedules",
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
   "scratch_read",
   "scratch_write",
   "scratch_list",
@@ -36,6 +40,14 @@ const DIRECT_READ_CAPABILITIES = [
   "get_task_status",
   "get_job_status",
   "read_memory",
+  "list_schedules",
+] as const satisfies readonly SokoBotCapability[];
+
+/** Follow-ups the bot sets up for itself; never need owner approval. */
+const SCHEDULE_CAPABILITIES = [
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
 export const SOKO_BOT_SCRATCH_CAPABILITIES = [
@@ -45,10 +57,15 @@ export const SOKO_BOT_SCRATCH_CAPABILITIES = [
 ] as const satisfies readonly SokoBotCapability[];
 
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
-  DIRECT_RESPONSE: [...DIRECT_READ_CAPABILITIES, "update_memory"],
+  DIRECT_RESPONSE: [
+    ...DIRECT_READ_CAPABILITIES,
+    ...SCHEDULE_CAPABILITIES,
+    "update_memory",
+  ],
   CLARIFY: [...DIRECT_READ_CAPABILITIES],
   DELEGATE_TASK: [
     ...DIRECT_READ_CAPABILITIES,
+    ...SCHEDULE_CAPABILITIES,
     "update_memory",
     "find_coworkers",
     "create_task",
@@ -58,6 +75,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   HIRE_AGENT: [
     ...DIRECT_READ_CAPABILITIES,
+    ...SCHEDULE_CAPABILITIES,
     "update_memory",
     "find_agents",
     "get_agent_input_schema",
@@ -67,6 +85,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   MANAGE_WORK: [
     ...DIRECT_READ_CAPABILITIES,
+    ...SCHEDULE_CAPABILITIES,
     "update_memory",
     "update_task",
     "request_user_decision",

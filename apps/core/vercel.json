@@ -66,6 +66,10 @@
     {
       "path": "/sync/soko-bot-turns",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-events",
+      "schedule": "* * * * *"
     }
   ]
 }

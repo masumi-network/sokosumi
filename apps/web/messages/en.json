@@ -5301,7 +5301,8 @@
           "askedBy": "Asked by {name}",
           "teammate": "a teammate",
           "inDirect": "in your direct chat",
-          "inRoom": "in #{room}"
+          "inRoom": "in #{room}",
+          "event": "Woke by work update"
         },
         "thinkingMessages": {
           "0": "Thinking",

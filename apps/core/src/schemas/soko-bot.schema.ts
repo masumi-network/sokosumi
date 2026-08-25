@@ -168,7 +168,7 @@ export const sokoBotTurnSchema = z
     id: z.string().uuid(),
     sokoBotId: z.string().uuid(),
     workspaceId: z.string().uuid(),
-    source: z.enum(["CHAT", "SCHEDULE", "ADMIN_RETRY"]),
+    source: z.enum(["CHAT", "SCHEDULE", "ADMIN_RETRY", "EVENT"]),
     status: sokoBotTurnStatusSchema,
     route: sokoBotTurnRouteSchema.nullable(),
     clientTurnId: z.string(),

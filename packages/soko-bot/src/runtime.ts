@@ -11,7 +11,7 @@ export interface SokoBotContextPacket {
   generatedAt: string;
   hash: string;
   trigger: {
-    source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY";
+    source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT";
     route: SokoBotRoute;
     confidence: number;
     requestedOutcome: string;

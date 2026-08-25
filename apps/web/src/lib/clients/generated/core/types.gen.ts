@@ -405,7 +405,7 @@ export type SokoBotTurn = {
     id: string;
     sokoBotId: string;
     workspaceId: string;
-    source: 'CHAT' | 'SCHEDULE' | 'ADMIN_RETRY';
+    source: 'CHAT' | 'SCHEDULE' | 'ADMIN_RETRY' | 'EVENT';
     status: SokoBotTurnStatus;
     route: SokoBotTurnRoute;
     clientTurnId: string;

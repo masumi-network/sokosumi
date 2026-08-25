@@ -65,9 +65,14 @@ describe("evaluateScenario", () => {
 
   it("passes a delegated brief that created a task", () => {
     const result = evaluateScenario(
-      byId("delegate-research-brief"),
+      byId("delegate-with-daily-checkin"),
       turn({
-        toolCalls: [call("find_coworkers"), call("create_task")],
+        toolCalls: [
+          call("find_coworkers"),
+          call("create_task"),
+          call("create_schedule"),
+        ],
+        finalAnswer: "Created it and I'll check every weekday at 9.",
         delegations: [
           {
             id: "d1",
@@ -124,9 +129,35 @@ describe("evaluateScenario", () => {
     expect(asked.passed).toBe(asked.total);
   });
 
+  it("fails a bare promise to follow up without a schedule", () => {
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [call("create_task")],
+        finalAnswer: "Task created. I will check on it daily.",
+        delegations: [
+          {
+            id: "d1",
+            kind: "TASK",
+            action: "create_task",
+            outcome: "ok",
+            error: null,
+            taskId: "task-1",
+            jobId: null,
+          },
+        ],
+      }),
+    );
+    const failed = result.checks.filter((c) => !c.pass).map((c) => c.label);
+    expect(failed).toEqual([
+      "Calls create_schedule",
+      "No follow-up promise without a schedule",
+    ]);
+  });
+
   it("counts tools from the event stream too", () => {
     const result = evaluateScenario(
-      byId("launch-plan"),
+      byId("launch-plan-weekly-nudge"),
       turn({
         events: [
           {
@@ -141,7 +172,7 @@ describe("evaluateScenario", () => {
             createdAt: "2026-08-25T00:00:00.000Z",
           },
         ],
-        toolCalls: [call("create_task")],
+        toolCalls: [call("create_task"), call("create_schedule")],
         delegations: ["a", "b", "c"].map((id) => ({
           id,
           kind: "TASK" as const,

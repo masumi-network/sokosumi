@@ -111,6 +111,33 @@ export const sokoBotScratchWriteInputSchema = z
   })
   .strict();
 
+const cronExpressionSchema = z.string().trim().min(9).max(120);
+const timezoneSchema = z.string().trim().min(1).max(100);
+
+export const sokoBotCreateScheduleInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    cronExpression: cronExpressionSchema,
+    timezone: timezoneSchema,
+    prompt: z.string().trim().min(1).max(4_000),
+  })
+  .strict();
+
+export const sokoBotUpdateScheduleInputSchema = z
+  .object({
+    scheduleId: z.string().uuid(),
+    name: z.string().trim().min(1).max(120).optional(),
+    enabled: z.boolean().optional(),
+    cronExpression: cronExpressionSchema.optional(),
+    timezone: timezoneSchema.optional(),
+    prompt: z.string().trim().min(1).max(4_000).optional(),
+  })
+  .strict();
+
+export const sokoBotScheduleIdInputSchema = z
+  .object({ scheduleId: z.string().uuid() })
+  .strict();
+
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   refresh_context: emptyInputSchema,
   find_coworkers: sokoBotSearchInputSchema,
@@ -126,6 +153,10 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   request_user_decision: sokoBotDecisionInputSchema,
   read_memory: emptyInputSchema,
   update_memory: sokoBotMemoryUpdateInputSchema,
+  list_schedules: emptyInputSchema,
+  create_schedule: sokoBotCreateScheduleInputSchema,
+  update_schedule: sokoBotUpdateScheduleInputSchema,
+  delete_schedule: sokoBotScheduleIdInputSchema,
   scratch_read: sokoBotScratchReadInputSchema,
   scratch_write: sokoBotScratchWriteInputSchema,
   scratch_list: emptyInputSchema,
@@ -152,6 +183,13 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_memory: "Read canonical short-term Soko Bot memory.",
   update_memory:
     "Replace bounded canonical memory file with durable working context.",
+  list_schedules: "List your recurring follow-up schedules (cron prompts).",
+  create_schedule:
+    "Create a recurring follow-up: a cron expression, timezone, and the prompt you will receive each run. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check.",
+  update_schedule:
+    "Change or pause a follow-up schedule (name, cron, timezone, prompt, enabled).",
+  delete_schedule:
+    "Remove a follow-up schedule once its work is done or the owner no longer wants it.",
   scratch_read: "Read bounded temporary scratch file from current sandbox.",
   scratch_write: "Write bounded temporary scratch file in current sandbox.",
   scratch_list: "List temporary scratch files in current sandbox.",

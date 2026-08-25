@@ -5301,7 +5301,8 @@
           "askedBy": "Gefragt von {name}",
           "teammate": "einem Teammitglied",
           "inDirect": "im Direktchat",
-          "inRoom": "in #{room}"
+          "inRoom": "in #{room}",
+          "event": "Durch Arbeitsupdate geweckt"
         },
         "thinkingMessages": {
           "0": "Denkt nach",

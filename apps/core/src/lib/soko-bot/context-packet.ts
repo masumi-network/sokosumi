@@ -84,7 +84,7 @@ export interface BuildContextPacketInput {
   userId: string;
   sokoBotId: string;
   workspaceId: string;
-  source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY";
+  source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT";
   classification: TurnClassification;
 }
 

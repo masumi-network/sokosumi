@@ -254,7 +254,10 @@ function ScenarioRow({
           </blockquote>
           {latest ? (
             <div className="space-y-2">
-              <p className="text-muted-foreground text-xs tabular-nums">
+              <p
+                className="text-muted-foreground text-xs tabular-nums"
+                suppressHydrationWarning
+              >
                 {t("lastRun", {
                   time: format.relativeTime(new Date(latest.at), new Date()),
                 })}

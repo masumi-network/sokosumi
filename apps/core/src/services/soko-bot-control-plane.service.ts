@@ -21,7 +21,6 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
-import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -46,13 +45,20 @@ import {
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
 import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
+import {
+  type CreateSokoBotScheduleInput,
+  createSokoBotSchedule,
+  deleteSokoBotSchedule,
+  SokoBotScheduleNotFoundError,
+  SokoBotScheduleValidationError,
+  type UpdateSokoBotScheduleInput,
+  updateSokoBotSchedule,
+} from "@/services/soko-bot-schedule.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
-const MIN_SCHEDULE_INTERVAL_MS = 60_000;
-export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
 
 const ACTIVE_TURN_STATUSES = [
   SokoBotTurnStatus.QUEUED,
@@ -64,6 +70,20 @@ const ACTIVE_TURN_STATUSES = [
 export class SokoBotNotFoundError extends Error {}
 export class SokoBotBusyError extends Error {}
 export class SokoBotValidationError extends Error {}
+
+async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof SokoBotScheduleNotFoundError) {
+      throw new SokoBotNotFoundError(error.message);
+    }
+    if (error instanceof SokoBotScheduleValidationError) {
+      throw new SokoBotValidationError(error.message);
+    }
+    throw error;
+  }
+}
 export class SokoBotIdempotencyConflictError extends Error {}
 export class SokoBotRetryableStartError extends Error {}
 class SokoBotReconciliationLeaseLostError extends Error {}
@@ -107,7 +127,7 @@ export interface StartSokoBotTurnInput {
   workspaceId: string;
   clientTurnId: string;
   message: string;
-  source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY";
+  source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT";
   /** Set when a chat-room mention started the turn; the reply lands there. */
   chat?: {
     mentionId: string;
@@ -147,25 +167,6 @@ export interface SokoBotTurnStartResult {
   duplicate: boolean;
   errorKind?: string | null;
   reconciliationLeaseToken?: string;
-}
-
-export interface CreateSokoBotScheduleInput {
-  userId: string;
-  workspaceId: string;
-  name: string;
-  timezone: string;
-  cronExpression: string;
-  prompt: string;
-}
-
-export interface UpdateSokoBotScheduleInput {
-  userId: string;
-  scheduleId: string;
-  name?: string;
-  enabled?: boolean;
-  timezone?: string;
-  cronExpression?: string;
-  prompt?: string;
 }
 
 export type SokoBotAdminActionName =
@@ -2411,121 +2412,17 @@ export class SokoBotControlPlane {
   }
 
   async createSchedule(input: CreateSokoBotScheduleInput) {
-    const nextRunAt = computeNextRunWithMinimumInterval(
-      { cron: input.cronExpression, timezone: input.timezone },
-      MIN_SCHEDULE_INTERVAL_MS,
-    );
-    if (!nextRunAt)
-      throw new SokoBotValidationError(
-        "Invalid cron expression, timezone, or interval below one minute",
-      );
-    const name = input.name.trim();
-    const prompt = input.prompt.trim();
-    if (!name || !prompt) {
-      throw new SokoBotValidationError("Schedule name and prompt are required");
-    }
-    const bot = await prisma.sokoBot.findFirst({
-      where: { userId: input.userId, archivedAt: null },
-      select: { id: true },
-    });
-    if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
-    const workspace = await prisma.workspace.findFirst({
-      where: {
-        id: input.workspaceId,
-        OR: [
-          { userId: input.userId },
-          { organization: { members: { some: { userId: input.userId } } } },
-        ],
-      },
-      select: { id: true },
-    });
-    if (!workspace) throw new SokoBotNotFoundError("Workspace not found");
-    return serializableTransaction(async (tx) => {
-      const activeCount = await tx.sokoBotSchedule.count({
-        where: { sokoBotId: bot.id, enabled: true },
-      });
-      if (activeCount >= MAX_ACTIVE_SOKO_BOT_SCHEDULES) {
-        throw new SokoBotValidationError(
-          `Soko Bot supports at most ${MAX_ACTIVE_SOKO_BOT_SCHEDULES} active schedules`,
-        );
-      }
-      return tx.sokoBotSchedule.create({
-        data: {
-          sokoBotId: bot.id,
-          userId: input.userId,
-          workspaceId: input.workspaceId,
-          name: name.slice(0, 120),
-          timezone: input.timezone,
-          cronExpression: input.cronExpression,
-          prompt: prompt.slice(0, 20_000),
-          nextRunAt,
-        },
-      });
-    }, "Soko Bot schedule creation collided with another request");
+    return translateScheduleErrors(() => createSokoBotSchedule(input));
   }
 
   async updateSchedule(input: UpdateSokoBotScheduleInput) {
-    const schedule = await prisma.sokoBotSchedule.findFirst({
-      where: { id: input.scheduleId, userId: input.userId },
-    });
-    if (!schedule) throw new SokoBotNotFoundError("Schedule not found");
-    const timezone = input.timezone ?? schedule.timezone;
-    const cronExpression = input.cronExpression ?? schedule.cronExpression;
-    const now = new Date();
-    const nextRunAt = computeNextRunWithMinimumInterval(
-      { cron: cronExpression, timezone, from: now },
-      MIN_SCHEDULE_INTERVAL_MS,
-    );
-    if (!nextRunAt) {
-      throw new SokoBotValidationError(
-        "Invalid cron expression, timezone, or interval below one minute",
-      );
-    }
-    const data = {
-      name: input.name?.trim(),
-      enabled: input.enabled,
-      consecutiveFailures:
-        input.enabled === true && !schedule.enabled ? 0 : undefined,
-      timezone: input.timezone,
-      cronExpression: input.cronExpression,
-      prompt: input.prompt?.trim(),
-      nextRunAt:
-        input.timezone !== undefined ||
-        input.cronExpression !== undefined ||
-        (input.enabled === true &&
-          !schedule.enabled &&
-          schedule.nextRunAt <= now)
-          ? nextRunAt
-          : undefined,
-    };
-    if (input.enabled === true && !schedule.enabled) {
-      return serializableTransaction(async (tx) => {
-        const activeCount = await tx.sokoBotSchedule.count({
-          where: { sokoBotId: schedule.sokoBotId, enabled: true },
-        });
-        if (activeCount >= MAX_ACTIVE_SOKO_BOT_SCHEDULES) {
-          throw new SokoBotValidationError(
-            `Soko Bot supports at most ${MAX_ACTIVE_SOKO_BOT_SCHEDULES} active schedules`,
-          );
-        }
-        return tx.sokoBotSchedule.update({
-          where: { id: schedule.id },
-          data,
-        });
-      }, "Soko Bot schedule activation collided with another request");
-    }
-    return prisma.sokoBotSchedule.update({
-      where: { id: schedule.id },
-      data,
-    });
+    return translateScheduleErrors(() => updateSokoBotSchedule(input));
   }
 
   async deleteSchedule(userId: string, scheduleId: string): Promise<void> {
-    const deleted = await prisma.sokoBotSchedule.deleteMany({
-      where: { id: scheduleId, userId },
-    });
-    if (deleted.count === 0)
-      throw new SokoBotNotFoundError("Schedule not found");
+    return translateScheduleErrors(() =>
+      deleteSokoBotSchedule(userId, scheduleId),
+    );
   }
 
   async listForAdmin(

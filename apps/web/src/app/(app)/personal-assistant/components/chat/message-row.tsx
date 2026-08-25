@@ -266,11 +266,15 @@ export function TurnRows({
 
   return (
     <>
-      {kind === "scheduled" || turn.requestedBy || turn.chatRoom ? (
+      {kind === "scheduled" ||
+      kind === "event" ||
+      turn.requestedBy ||
+      turn.chatRoom ? (
         <div className="flex w-full flex-wrap items-center justify-end gap-2 px-4 pt-3">
           {kind === "scheduled" ? (
             <KindChip>{t("kind.scheduled")}</KindChip>
           ) : null}
+          {kind === "event" ? <KindChip>{t("kind.event")}</KindChip> : null}
           {turn.requestedBy ? (
             <KindChip>
               {t("kind.askedBy", {
@@ -295,7 +299,7 @@ export function TurnRows({
         createdAt={turn.createdAt}
         userImageUrl={turn.requestedBy ? turn.requestedBy.image : userImageUrl}
         userName={turn.requestedBy ? turn.requestedBy.name : userName}
-        muted={kind === "scheduled" || turn.requestedBy !== null}
+        muted={kind !== null || turn.requestedBy !== null}
       />
       {active ? (
         <TurnProgress

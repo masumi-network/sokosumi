@@ -74,6 +74,7 @@ function ActivityRow({
         <span className="text-muted-foreground hidden shrink-0 items-center gap-2 text-xs sm:flex">
           {turn.route ? <span>{tRoute(turn.route)}</span> : null}
           {kind === "scheduled" ? <span>{t("kind.scheduled")}</span> : null}
+          {kind === "event" ? <span>{t("kind.event")}</span> : null}
           {turn.requestedBy ? (
             <span>
               {t("kind.askedBy", {
@@ -87,6 +88,7 @@ function ActivityRow({
         </span>
         <time
           dateTime={turn.createdAt}
+          suppressHydrationWarning
           className="text-muted-foreground shrink-0 text-xs tabular-nums"
         >
           {when}

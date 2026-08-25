@@ -1605,6 +1605,7 @@ enum SokoBotTurnSource {
   CHAT
   SCHEDULE
   ADMIN_RETRY
+  EVENT
 }
 
 enum SokoBotTurnStatus {
@@ -1962,6 +1963,9 @@ model SokoBotDelegation {
 
   jobId String?
   job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  /// Entity status the bot last reacted to; the events sync wakes the bot when it drifts.
+  lastSeenStatus String?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])

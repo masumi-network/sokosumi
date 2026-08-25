@@ -1741,7 +1741,8 @@ export const SokoBotTurnSchema = {
             enum: [
                 'CHAT',
                 'SCHEDULE',
-                'ADMIN_RETRY'
+                'ADMIN_RETRY',
+                'EVENT'
             ]
         },
         status: {

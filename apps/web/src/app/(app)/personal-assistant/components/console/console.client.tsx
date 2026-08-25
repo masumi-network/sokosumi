@@ -181,7 +181,7 @@ export function SokoBotConsole({
               <p className="text-muted-foreground text-sm">
                 {t("Console.tagline")}
                 {bot.lastActivityAt ? (
-                  <span className="ml-2 tabular-nums">
+                  <span className="ml-2 tabular-nums" suppressHydrationWarning>
                     ·{" "}
                     {t("Console.lastActivity", {
                       time: format.relativeTime(

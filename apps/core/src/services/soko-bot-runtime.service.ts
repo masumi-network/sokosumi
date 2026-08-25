@@ -11,6 +11,7 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   containsSokoBotSensitiveMaterial,
+  sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
   hasSokoBotNegatedMutationIntent,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
@@ -26,11 +27,13 @@ import {
   type SokoBotDecisionTarget,
   type SokoBotTurnGrantClaims,
   sanitizeSokoBotMemoryMarkdown,
+  sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
   sokoBotTaskIdInputSchema as taskIdInputSchema,
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
+  sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { verifyVercelOidcToken } from "@vercel/oidc";
 import { getEnv } from "@/config/env";
@@ -39,6 +42,14 @@ import { createAgentJobForUser } from "@/helpers/job";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { getSokoBotTokenService } from "@/lib/soko-bot/factory";
+import {
+  createSokoBotSchedule,
+  deleteSokoBotSchedule,
+  listSokoBotSchedules,
+  SokoBotScheduleNotFoundError,
+  SokoBotScheduleValidationError,
+  updateSokoBotSchedule,
+} from "@/services/soko-bot-schedule.service";
 import {
   createTaskForActor,
   updateTaskForActor,
@@ -204,6 +215,21 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
+
+/** Schedule tools never need approval; their domain errors become tool errors the model can read. */
+async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (
+      error instanceof SokoBotScheduleNotFoundError ||
+      error instanceof SokoBotScheduleValidationError
+    ) {
+      throw new SokoBotRuntimeValidationError(error.message);
+    }
+    throw error;
+  }
+}
 
 function jsonInput(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -779,6 +805,7 @@ export class SokoBotRuntimeService {
           kind: "TASK",
           action: "create_task",
           outcome: result.status,
+          lastSeenStatus: result.status,
           taskId: result.id,
         },
       });
@@ -836,6 +863,7 @@ export class SokoBotRuntimeService {
           kind: "TASK",
           action: "update_task",
           outcome: updated.status,
+          lastSeenStatus: updated.status,
           taskId: updated.id,
         },
       });
@@ -893,6 +921,7 @@ export class SokoBotRuntimeService {
           kind: "TASK",
           action: "assign_task",
           outcome: updated.status,
+          lastSeenStatus: updated.status,
           taskId: updated.id,
         },
       });
@@ -1403,6 +1432,30 @@ export class SokoBotRuntimeService {
           });
       case "update_memory":
         return this.updateMemory(authorized, input.input, input.toolCallId);
+      case "list_schedules":
+        return listSokoBotSchedules(authorized.turn.sokoBotId);
+      case "create_schedule":
+        return runScheduleTool(() =>
+          createSokoBotSchedule({
+            userId: authorized.turn.userId,
+            workspaceId: authorized.turn.workspaceId,
+            ...createScheduleInputSchema.parse(input.input),
+          }),
+        );
+      case "update_schedule":
+        return runScheduleTool(() =>
+          updateSokoBotSchedule({
+            userId: authorized.turn.userId,
+            ...updateScheduleInputSchema.parse(input.input),
+          }),
+        );
+      case "delete_schedule": {
+        const { scheduleId } = scheduleIdInputSchema.parse(input.input);
+        return runScheduleTool(async () => {
+          await deleteSokoBotSchedule(authorized.turn.userId, scheduleId);
+          return { deleted: true, scheduleId };
+        });
+      }
       case "scratch_read":
       case "scratch_write":
       case "scratch_list":
