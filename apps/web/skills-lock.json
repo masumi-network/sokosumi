@@ -7,12 +7,6 @@
       "skillPath": "better-auth/best-practices/SKILL.md",
       "computedHash": "61ba0ef64ed2e7c424401cc848ca33dd6d790a720c44727717dc0c5cba5fc122"
     },
-    "better-icons": {
-      "source": "better-auth/better-icons",
-      "sourceType": "github",
-      "skillPath": "skills/SKILL.md",
-      "computedHash": "656a618d6d5d5e9c567253eff57a06bee3be5d4fb983bdc401a46a209c5b76de"
-    },
     "next-best-practices": {
       "source": "vercel-labs/openreview",
       "sourceType": "github",
