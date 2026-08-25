@@ -213,8 +213,8 @@ export function evaluateScenario(
     });
   }
   if (expect.minDelegations !== undefined) {
-    // Under Supervised autonomy a READY task becomes an approval instead of
-    // a delegation; both count as work the turn set in motion.
+    // A READY task becomes an approval instead of a delegation; both count
+    // as work the turn set in motion.
     const touched = new Set([
       ...turn.delegations.map((d) => d.taskId ?? d.jobId ?? d.id),
       ...turn.decisions.map((d) => d.resultingEntityId ?? d.id),

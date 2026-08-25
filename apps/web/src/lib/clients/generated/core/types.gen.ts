@@ -183,7 +183,6 @@ export type AdminSokoBotListItem = {
     id: string;
     name: string | null;
     status: SokoBotStatus;
-    autonomyLevel: SokoBotAutonomyLevel;
     archivedAt: Date | null;
     runtimeVersion: string | null;
     runtimeDeployment: string | null;
@@ -207,10 +206,6 @@ export const SokoBotStatus = {
 } as const;
 
 export type SokoBotStatus = typeof SokoBotStatus[keyof typeof SokoBotStatus];
-
-export const SokoBotAutonomyLevel = { SUPERVISED: 'SUPERVISED', AUTONOMOUS: 'AUTONOMOUS' } as const;
-
-export type SokoBotAutonomyLevel = typeof SokoBotAutonomyLevel[keyof typeof SokoBotAutonomyLevel];
 
 export type AdminSokoBotOwner = {
     id: string;
@@ -481,7 +476,6 @@ export type SokoBot = {
     personalityTone: number | null;
     personalityDetail: number | null;
     personalityStyle: number | null;
-    autonomyLevel: SokoBotAutonomyLevel;
     status: SokoBotStatus;
     runtimeVersion: string | null;
     lastSandboxStatus: string | null;
@@ -4139,7 +4133,6 @@ export type CreateSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
-    autonomyLevel?: SokoBotAutonomyLevel;
 };
 
 export type StartSokoBotTurnResponse = {

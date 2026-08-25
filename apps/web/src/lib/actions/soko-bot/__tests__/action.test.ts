@@ -15,7 +15,6 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
       serviceMock: {
         getMine: vi.fn(),
         createOrUpdate: vi.fn(),
-        updateAutonomy: vi.fn(),
         startTurn: vi.fn(),
         resolveDecision: vi.fn(),
         createSchedule: vi.fn(),
@@ -60,7 +59,6 @@ import {
   createSokoBotScheduleAction,
   resolveSokoBotDecisionAction,
   startSokoBotTurnAction,
-  updateSokoBotAutonomyAction,
 } from "../action";
 
 describe("soko-bot actions", () => {
@@ -71,44 +69,20 @@ describe("soko-bot actions", () => {
   it("createSokoBotAction validates input and revalidates the route", async () => {
     serviceMock.createOrUpdate.mockResolvedValue({ id: "bot_1" });
     const ok = await createSokoBotAction({
-      input: { name: "  Atlas ", autonomyLevel: "SUPERVISED" },
+      input: { name: "  Atlas " },
     });
     expect(ok).toEqual({ ok: true, value: { id: "bot_1" } });
     expect(serviceMock.createOrUpdate).toHaveBeenCalledWith({
       name: "Atlas",
-      autonomyLevel: "SUPERVISED",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOT_ROUTE);
 
     const bad = await createSokoBotAction({
-      input: { name: "", autonomyLevel: "SUPERVISED" },
+      input: { name: "" },
     });
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.code).toBe(CommonErrorCode.BAD_INPUT);
     expect(serviceMock.createOrUpdate).toHaveBeenCalledTimes(1);
-  });
-
-  it("updateSokoBotAutonomyAction rejects unknown levels and missing bots", async () => {
-    const bad = await updateSokoBotAutonomyAction({ autonomyLevel: "MAX" });
-    expect(bad.ok).toBe(false);
-
-    serviceMock.getMine.mockResolvedValue(null);
-    const missing = await updateSokoBotAutonomyAction({
-      autonomyLevel: "AUTONOMOUS",
-    });
-    expect(missing.ok).toBe(false);
-    if (!missing.ok) expect(missing.error.code).toBe(CommonErrorCode.NOT_FOUND);
-
-    serviceMock.getMine.mockResolvedValue({ id: "bot_1", name: "Atlas" });
-    serviceMock.updateAutonomy.mockResolvedValue({ id: "bot_1" });
-    const good = await updateSokoBotAutonomyAction({
-      autonomyLevel: "AUTONOMOUS",
-    });
-    expect(good.ok).toBe(true);
-    expect(serviceMock.updateAutonomy).toHaveBeenCalledWith(
-      { id: "bot_1", name: "Atlas" },
-      "AUTONOMOUS",
-    );
   });
 
   it("startSokoBotTurnAction maps Core 409 to the busy error code", async () => {

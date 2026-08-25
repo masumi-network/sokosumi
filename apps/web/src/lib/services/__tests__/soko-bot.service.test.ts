@@ -26,31 +26,9 @@ describe("sokoBotService", () => {
   });
 
   it("returns the bot DTO unchanged", async () => {
-    const bot = { id: "bot_1", name: "Atlas", autonomyLevel: "SUPERVISED" };
+    const bot = { id: "bot_1", name: "Atlas" };
     coreMock.getMySokoBot.mockResolvedValue({ data: { sokoBot: bot } });
     await expect(sokoBotService.getMine()).resolves.toBe(bot);
-  });
-
-  it("updateAutonomy re-sends identity fields with the new level", async () => {
-    coreMock.createMySokoBot.mockResolvedValue({ data: { id: "bot_1" } });
-    await sokoBotService.updateAutonomy(
-      {
-        name: "Atlas",
-        avatarSeed: "seed",
-        personalityTone: 1,
-        personalityDetail: 2,
-        personalityStyle: 3,
-      } as never,
-      "AUTONOMOUS",
-    );
-    expect(coreMock.createMySokoBot).toHaveBeenCalledWith({
-      name: "Atlas",
-      avatarSeed: "seed",
-      personalityTone: 1,
-      personalityDetail: 2,
-      personalityStyle: 3,
-      autonomyLevel: "AUTONOMOUS",
-    });
   });
 
   it("listTurns forwards the limit and unwraps data", async () => {

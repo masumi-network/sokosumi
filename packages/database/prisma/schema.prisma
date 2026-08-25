@@ -1596,11 +1596,6 @@ enum SokoBotStatus {
   ERROR
 }
 
-enum SokoBotAutonomyLevel {
-  SUPERVISED
-  AUTONOMOUS
-}
-
 enum SokoBotTurnSource {
   CHAT
   SCHEDULE
@@ -1695,7 +1690,6 @@ model SokoBot {
 
   /// Governs which product mutations may execute without owner approval.
   /// Agent hiring always remains approval-gated regardless of this value.
-  autonomyLevel SokoBotAutonomyLevel @default(SUPERVISED)
 
   /// First-party Soko Bot runtime state. Physical table remains `orchestrator`
   /// during the expand/backfill/switch compatibility window.

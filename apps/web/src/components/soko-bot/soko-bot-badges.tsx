@@ -1,7 +1,6 @@
 import { useTranslations } from "next-intl";
 
 import type {
-  SokoBotAutonomyLevel,
   SokoBotDelegation,
   SokoBotPendingDecision,
   SokoBotScheduleRun,
@@ -66,11 +65,6 @@ const TOOL_TONE: Record<SokoBotToolCall["status"], StatusTone> = {
   PENDING: "info",
   COMPLETED: "success",
   FAILED: "danger",
-};
-
-const AUTONOMY_TONE: Record<SokoBotAutonomyLevel, StatusTone> = {
-  SUPERVISED: "neutral",
-  AUTONOMOUS: "accent",
 };
 
 export function SokoBotStatusBadge({ status }: { status: SokoBotStatus }) {
@@ -139,11 +133,6 @@ export function ToolCallStatusBadge({
       {t(status)}
     </StatusBadge>
   );
-}
-
-export function AutonomyBadge({ level }: { level: SokoBotAutonomyLevel }) {
-  const t = useTranslations("Components.SokoBot.Autonomy");
-  return <StatusBadge tone={AUTONOMY_TONE[level]}>{t(level)}</StatusBadge>;
 }
 
 export function DelegationKindBadge({

@@ -6,10 +6,6 @@ export const sokoBotStatusSchema = z
   .enum(["IDLE", "RUNNING", "PAUSED", "ERROR"])
   .openapi("SokoBotStatus");
 
-export const sokoBotAutonomyLevelSchema = z
-  .enum(["SUPERVISED", "AUTONOMOUS"])
-  .openapi("SokoBotAutonomyLevel");
-
 export const sokoBotTurnStatusSchema = z
   .enum([
     "QUEUED",
@@ -228,7 +224,6 @@ export const sokoBotSchema = z
     personalityTone: z.number().int().nullable(),
     personalityDetail: z.number().int().nullable(),
     personalityStyle: z.number().int().nullable(),
-    autonomyLevel: sokoBotAutonomyLevelSchema,
     status: sokoBotStatusSchema,
     runtimeVersion: z.string().nullable(),
     lastSandboxStatus: z.string().nullable(),
@@ -268,7 +263,6 @@ export const createSokoBotRequestSchema = z
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
     personalityStyle: z.number().int().min(0).max(100).nullable().optional(),
-    autonomyLevel: sokoBotAutonomyLevelSchema.optional(),
   })
   .strict()
   .openapi("CreateSokoBotRequest");
@@ -336,7 +330,6 @@ export const adminSokoBotListItemSchema = z
     id: z.string().uuid(),
     name: z.string().nullable(),
     status: sokoBotStatusSchema,
-    autonomyLevel: sokoBotAutonomyLevelSchema,
     archivedAt: dateTimeSchema.nullable(),
     runtimeVersion: z.string().nullable(),
     runtimeDeployment: z.string().nullable(),

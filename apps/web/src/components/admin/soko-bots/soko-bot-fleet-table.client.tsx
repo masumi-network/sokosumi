@@ -6,10 +6,7 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
-import {
-  AutonomyBadge,
-  SokoBotStatusBadge,
-} from "@/components/soko-bot/soko-bot-badges";
+import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -91,7 +88,6 @@ export function SokoBotFleetTable({
               <TableHead>{t("bot")}</TableHead>
               <TableHead>{t("owner")}</TableHead>
               <TableHead>{t("status")}</TableHead>
-              <TableHead>{t("autonomy")}</TableHead>
               <TableHead className="text-right">{t("turns")}</TableHead>
               <TableHead className="text-right">{t("pending")}</TableHead>
               <TableHead className="text-right">{t("schedules")}</TableHead>
@@ -141,9 +137,6 @@ export function SokoBotFleetTable({
                         </StatusBadge>
                       ) : null}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <AutonomyBadge level={item.autonomyLevel} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {item.turnCount}

@@ -67,7 +67,6 @@ const MUTATION_CONFIDENCE_THRESHOLD = 0.65;
 const PERSISTED_VALUE_MAX_DEPTH = 8;
 const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
-type SokoBotAutonomyLevel = "SUPERVISED" | "AUTONOMOUS";
 
 interface SellerReservationMarker {
   version: typeof SELLER_RESERVATION_MARKER_VERSION;
@@ -197,7 +196,8 @@ export interface SokoBotActionContext {
     workspaceId: string;
     eveSessionId: string | null;
   };
-  autonomyLevel: SokoBotAutonomyLevel;
+  /** True when executing a proposal the owner already accepted. */
+  ownerApproved: boolean;
   classificationConfidence: number;
   hasNegatedMutationIntent: boolean;
 }
@@ -426,14 +426,14 @@ function requiresDecision(
   ) {
     return true;
   }
-  if (authorized.autonomyLevel === "SUPERVISED") {
-    if (capability === "assign_task") return true;
-    if (capability === "create_task") {
-      return taskCreateInputSchema.parse(input).status === "READY";
-    }
-    if (capability === "update_task") {
-      return taskUpdateInputSchema.parse(input).status === "READY";
-    }
+  if (authorized.ownerApproved) return false;
+  // Fixed policy: drafts are free; assigning work or making it READY asks.
+  if (capability === "assign_task") return true;
+  if (capability === "create_task") {
+    return taskCreateInputSchema.parse(input).status === "READY";
+  }
+  if (capability === "update_task") {
+    return taskUpdateInputSchema.parse(input).status === "READY";
   }
   return false;
 }
@@ -500,7 +500,6 @@ export class SokoBotRuntimeService {
         leaseExpiresAt: true,
         sokoBot: {
           select: {
-            autonomyLevel: true,
             adminPausedAt: true,
             archivedAt: true,
             status: true,
@@ -657,7 +656,7 @@ export class SokoBotRuntimeService {
         workspaceId: turn.workspaceId,
         eveSessionId: storedSessionId,
       },
-      autonomyLevel: turn.sokoBot.autonomyLevel,
+      ownerApproved: false,
       classificationConfidence:
         typeof turn.classification === "object" &&
         turn.classification !== null &&
@@ -1979,7 +1978,7 @@ export class SokoBotRuntimeService {
             workspaceId: decision.workspaceId,
             eveSessionId: decision.turn.eveSessionId,
           },
-          autonomyLevel: "AUTONOMOUS",
+          ownerApproved: true,
           classificationConfidence: 1,
           hasNegatedMutationIntent: false,
         };
@@ -2000,7 +1999,7 @@ export class SokoBotRuntimeService {
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
             },
-            autonomyLevel: "AUTONOMOUS",
+            ownerApproved: true,
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
           },
@@ -2019,7 +2018,7 @@ export class SokoBotRuntimeService {
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
             },
-            autonomyLevel: "AUTONOMOUS",
+            ownerApproved: true,
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
           },

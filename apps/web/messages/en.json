@@ -881,10 +881,6 @@
         "COMPLETED": "Completed",
         "FAILED": "Failed"
       },
-      "Autonomy": {
-        "SUPERVISED": "Supervised",
-        "AUTONOMOUS": "Autonomous"
-      },
       "DelegationKind": {
         "TASK": "Task",
         "JOB": "Job"
@@ -3275,7 +3271,6 @@
           "bot": "Bot",
           "owner": "Owner",
           "status": "Status",
-          "autonomy": "Autonomy",
           "turns": "Turns",
           "pending": "Pending",
           "schedules": "Schedules",
@@ -5209,17 +5204,6 @@
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture"
       },
-      "Autonomy": {
-        "label": "Autonomy",
-        "descriptions": {
-          "SUPERVISED": "Creates draft Tasks on its own; asks before assigning work or hiring Agents.",
-          "AUTONOMOUS": "Assigns Tasks on its own when it is confident; still asks before paid hires."
-        },
-        "save": "Save autonomy",
-        "saving": "Saving…",
-        "saved": "Autonomy updated.",
-        "error": "Could not update autonomy."
-      },
       "Memory": {
         "title": "Memory",
         "description": "Short-term working notes. Product records stay the source of truth.",
@@ -5366,9 +5350,6 @@
           }
         },
         "chips": {
-          "autonomy": "Autonomy",
-          "autonomyTooltip": "Autonomy: {level}",
-          "autonomyDescription": "How much your Soko Bot may do without asking first.",
           "schedules": "Schedules",
           "schedulesTooltip": "Prompts it runs on a schedule",
           "memory": "Memory",

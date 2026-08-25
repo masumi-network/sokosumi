@@ -14,10 +14,7 @@ import { toast } from "sonner";
 
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import Markdown from "@/components/markdown";
-import {
-  AutonomyBadge,
-  SokoBotStatusBadge,
-} from "@/components/soko-bot/soko-bot-badges";
+import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotAvatar } from "@/lib/clients/generated/core";
@@ -25,7 +22,6 @@ import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
-import { AutonomySettings } from "../autonomy-settings.client";
 import { AvatarPicker } from "../avatar-picker.client";
 import {
   AssistantAvatar,
@@ -175,7 +171,6 @@ export function SokoBotConsole({
                   {botName}
                 </h1>
                 <SokoBotStatusBadge status={bot.status} />
-                <AutonomyBadge level={bot.autonomyLevel} />
               </div>
               <p className="text-muted-foreground text-sm">
                 {t("Console.tagline")}
@@ -278,13 +273,6 @@ export function SokoBotConsole({
             </div>
 
             <aside className="space-y-6">
-              <Section
-                title={t("Chat.chips.autonomy")}
-                description={t("Chat.chips.autonomyDescription")}
-              >
-                <AutonomySettings current={bot.autonomyLevel} />
-              </Section>
-
               <Section
                 title={t("Schedules.title")}
                 description={t("Schedules.description")}

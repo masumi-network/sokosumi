@@ -394,7 +394,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -422,7 +421,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -457,7 +455,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -515,7 +512,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -584,7 +580,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -636,7 +631,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -682,7 +676,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         eveSessionId: priorSessionId,
@@ -737,7 +730,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -829,7 +821,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -886,7 +877,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -935,7 +925,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -978,7 +967,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1039,7 +1027,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1086,7 +1073,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1127,7 +1113,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "SUPERVISED",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1176,7 +1161,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1209,7 +1193,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1264,7 +1247,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1297,7 +1279,7 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(transactionTaskCreateMock).not.toHaveBeenCalled();
   });
 
-  it("assigns Task through shared assignee and status-event policy", async () => {
+  it("always asks the owner before assigning a Task", async () => {
     turnGrantVerifyMock.mockResolvedValue({
       ...SCOPE,
       contextSnapshotId: "01960001-0001-7001-8001-000000000004",
@@ -1313,64 +1295,36 @@ describe("SokoBotRuntimeService authorization", () => {
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
       eveSessionId: SCOPE.sessionId,
+      userMessage: "Assign it",
+      classification: { confidence: 1 },
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
-        archivedAt: null,
-        status: "RUNNING",
-      },
+      sokoBot: { archivedAt: null, status: "RUNNING" },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionTaskFindFirstMock.mockResolvedValue({
-      id: "task_1",
-      ownerId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      status: TaskStatus.DRAFT,
-      assigneeId: null,
-    });
-    transactionTaskUpdateMock.mockResolvedValue({
-      id: "task_1",
-      name: "Launch",
-      status: TaskStatus.READY,
-      assigneeId: "coworker_1",
-    });
+    transactionDecisionFindFirstMock.mockResolvedValue(null);
+    const created = {
+      id: "01960001-0001-7001-8001-00000000dec2",
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    transactionDecisionCreateMock.mockResolvedValue(created);
 
     const result = await new SokoBotRuntimeService().executeTool({
       oidcToken: "oidc",
       turnGrant: "grant",
       ...SCOPE,
       capability: "assign_task",
-      toolCallId: "call_assign_shared",
+      toolCallId: "call_assign_policy",
       input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
     });
 
     expect(result).toMatchObject({
-      id: "task_1",
-      status: TaskStatus.READY,
-      assigneeId: "coworker_1",
+      approvalRequired: true,
+      decision: { id: created.id },
     });
-    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
-      "coworker_1",
-      SCOPE.workspaceId,
-      expect.anything(),
-    );
-    expect(transactionTaskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          assigneeId: "coworker_1",
-          status: TaskStatus.READY,
-          events: {
-            create: expect.objectContaining({
-              channel: "SOKOSUMI",
-              orchestratorId: SCOPE.sokoBotId,
-              status: TaskStatus.READY,
-            }),
-          },
-        }),
-      }),
-    );
+    expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("limits Task updates to DRAFT and READY records", async () => {
@@ -1391,7 +1345,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1438,7 +1391,6 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1459,53 +1411,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     expect(transactionTurnLockMock).toHaveBeenCalledTimes(2);
     expect(transactionTaskFindFirstMock).not.toHaveBeenCalled();
-  });
-
-  it("limits Task assignment to pre-execution records", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["assign_task"],
-    });
-    turnFindUniqueMock.mockResolvedValue({
-      id: SCOPE.turnId,
-      sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      eveSessionId: SCOPE.sessionId,
-      status: "RUNNING",
-      deadlineAt: new Date(Date.now() + 60_000),
-      leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
-        archivedAt: null,
-        status: "RUNNING",
-      },
-    });
-    toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionTaskFindFirstMock.mockResolvedValue(null);
-
-    const service = new SokoBotRuntimeService();
-    await expect(
-      service.executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
-        ...SCOPE,
-        capability: "assign_task",
-        toolCallId: "call_3",
-        input: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
-      }),
-    ).rejects.toThrow("Task not found");
-
-    expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: { in: ["DRAFT", "READY"] },
-        }),
-      }),
-    );
   });
 });
 
@@ -1535,7 +1440,6 @@ describe("SokoBotRuntimeService memory updates", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "AUTONOMOUS",
         archivedAt: null,
         status: "RUNNING",
       },
@@ -1913,6 +1817,88 @@ describe("SokoBotRuntimeService hire decisions", () => {
     expect(createAgentJobForUserMock).not.toHaveBeenCalled();
     expect(jobInputFindManyMock).not.toHaveBeenCalled();
     expect(decisionUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("assigns through shared assignee and status-event policy once accepted", async () => {
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision("PENDING"),
+      toolName: "assign_task",
+      proposal: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+      turn: {
+        capabilityNames: ["assign_task"],
+        eveSessionId: SCOPE.sessionId,
+      },
+    });
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+    });
+    transactionTaskUpdateMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      assigneeId: "coworker_1",
+    });
+    decisionUpdateMock.mockResolvedValue({
+      status: "ACCEPTED",
+      resultingEntityId: "task_1",
+    });
+
+    const resolved = await new SokoBotRuntimeService().resolveDecision(
+      SCOPE.userId,
+      DECISION_ID,
+      true,
+    );
+
+    expect(resolved).toMatchObject({
+      status: "ACCEPTED",
+      resultingEntityId: "task_1",
+    });
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "coworker_1",
+      SCOPE.workspaceId,
+      expect.anything(),
+    );
+    expect(transactionTaskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assigneeId: "coworker_1",
+          status: TaskStatus.READY,
+        }),
+      }),
+    );
+  });
+
+  it("limits accepted Task assignment to pre-execution records", async () => {
+    decisionFindFirstMock.mockResolvedValue({
+      ...hireDecision("PENDING"),
+      toolName: "assign_task",
+      proposal: { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+      turn: {
+        capabilityNames: ["assign_task"],
+        eveSessionId: SCOPE.sessionId,
+      },
+    });
+    transactionTaskFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("Task not found");
+
+    expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["DRAFT", "READY"] },
+        }),
+      }),
+    );
   });
 
   it("finalizes a processing task from its durable Task link", async () => {

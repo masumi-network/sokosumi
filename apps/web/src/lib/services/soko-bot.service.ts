@@ -6,7 +6,6 @@ import type {
   CreateSokoBotScheduleRequest,
   ResolveSokoBotDecisionRequest,
   SokoBot,
-  SokoBotAutonomyLevel,
   SokoBotAvatar,
   SokoBotTurn,
   StartSokoBotTurnRequest,
@@ -33,26 +32,11 @@ export const sokoBotService = {
 
   /**
    * Create the user's bot, or reactivate/update an archived or existing one.
-   * Core upserts on `userId`, so this doubles as the autonomy/identity update.
+   * Core upserts on `userId`, so this doubles as the identity update.
    */
   async createOrUpdate(input: CreateSokoBotRequest): Promise<SokoBot> {
     const response = await coreClient.createMySokoBot(input);
     return response.data;
-  },
-
-  /** Update autonomy while keeping identity fields as they are. */
-  async updateAutonomy(
-    current: SokoBot,
-    autonomyLevel: SokoBotAutonomyLevel,
-  ): Promise<SokoBot> {
-    return this.createOrUpdate({
-      name: current.name ?? "Soko Bot",
-      avatarSeed: current.avatarSeed,
-      personalityTone: current.personalityTone,
-      personalityDetail: current.personalityDetail,
-      personalityStyle: current.personalityStyle,
-      autonomyLevel,
-    });
   },
 
   async archive(): Promise<void> {

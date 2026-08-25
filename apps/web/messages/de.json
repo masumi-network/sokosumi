@@ -881,10 +881,6 @@
         "COMPLETED": "Abgeschlossen",
         "FAILED": "Fehlgeschlagen"
       },
-      "Autonomy": {
-        "SUPERVISED": "Beaufsichtigt",
-        "AUTONOMOUS": "Autonom"
-      },
       "DelegationKind": {
         "TASK": "Task",
         "JOB": "Job"
@@ -3244,7 +3240,6 @@
           "bot": "Bot",
           "owner": "Besitzer",
           "status": "Status",
-          "autonomy": "Autonomie",
           "turns": "Turns",
           "pending": "Offen",
           "schedules": "Zeitpläne",
@@ -5209,17 +5204,6 @@
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild"
       },
-      "Autonomy": {
-        "label": "Autonomie",
-        "descriptions": {
-          "SUPERVISED": "Erstellt Task-Entwürfe selbst; fragt, bevor es Arbeit zuweist oder Agents beauftragt.",
-          "AUTONOMOUS": "Weist Tasks selbst zu, wenn es sicher ist; fragt weiterhin vor bezahlten Beauftragungen."
-        },
-        "save": "Autonomie speichern",
-        "saving": "Wird gespeichert…",
-        "saved": "Autonomie aktualisiert.",
-        "error": "Autonomie konnte nicht aktualisiert werden."
-      },
       "Memory": {
         "title": "Gedächtnis",
         "description": "Kurzfristige Arbeitsnotizen. Produktdaten bleiben die Quelle der Wahrheit.",
@@ -5366,9 +5350,6 @@
           }
         },
         "chips": {
-          "autonomy": "Autonomie",
-          "autonomyTooltip": "Autonomie: {level}",
-          "autonomyDescription": "Wie viel dein Soko Bot tun darf, ohne vorher zu fragen.",
           "schedules": "Zeitpläne",
           "schedulesTooltip": "Prompts, die nach Zeitplan laufen",
           "memory": "Gedächtnis",

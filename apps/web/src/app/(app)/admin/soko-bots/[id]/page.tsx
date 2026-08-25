@@ -11,10 +11,7 @@ import { AdminSchedulesPanel } from "@/components/admin/soko-bots/admin-schedule
 import { AdminSokoBotActions } from "@/components/admin/soko-bots/admin-soko-bot-actions.client";
 import { AdminSokoBotOverview } from "@/components/admin/soko-bots/admin-soko-bot-overview";
 import { AdminTurnsPanel } from "@/components/admin/soko-bots/admin-turns-panel";
-import {
-  AutonomyBadge,
-  SokoBotStatusBadge,
-} from "@/components/soko-bot/soko-bot-badges";
+import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
@@ -74,7 +71,6 @@ export default async function AdminSokoBotDetailPage({
                 {bot.name ?? t("unnamed")}
               </h1>
               <SokoBotStatusBadge status={bot.status} />
-              <AutonomyBadge level={bot.autonomyLevel} />
               {bot.archivedAt ? (
                 <StatusBadge tone="neutral">{t("archived")}</StatusBadge>
               ) : null}

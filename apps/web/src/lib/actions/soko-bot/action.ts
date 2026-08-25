@@ -15,7 +15,6 @@ import {
 } from "@/lib/clients/core.client";
 import {
   type SokoBot,
-  SokoBotAutonomyLevel,
   SokoBotAvatar,
   type SokoBotMemory,
   type SokoBotPendingDecision,
@@ -32,14 +31,8 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-const autonomySchema = z.enum([
-  SokoBotAutonomyLevel.SUPERVISED,
-  SokoBotAutonomyLevel.AUTONOMOUS,
-]);
-
 const createSokoBotSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  autonomyLevel: autonomySchema,
   avatarId: z.string().uuid().nullable().optional(),
 });
 
@@ -95,31 +88,6 @@ export const createSokoBotAction = withSession<
   if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
     const bot = await sokoBotService.createOrUpdate(parsed.data);
-    revalidate();
-    return toActionResult(ok(bot));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
-
-interface UpdateAutonomyParams extends AuthenticatedRequest {
-  autonomyLevel: unknown;
-}
-
-export const updateSokoBotAutonomyAction = withSession<
-  UpdateAutonomyParams,
-  ActionResultDto<SokoBot, ActionError>
->(async ({ autonomyLevel }) => {
-  const parsed = autonomySchema.safeParse(autonomyLevel);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
-  try {
-    const current = await sokoBotService.getMine();
-    if (!current) {
-      return toActionResult(
-        err({ code: CommonErrorCode.NOT_FOUND, message: "No Soko Bot" }),
-      );
-    }
-    const bot = await sokoBotService.updateAutonomy(current, parsed.data);
     revalidate();
     return toActionResult(ok(bot));
   } catch (error) {

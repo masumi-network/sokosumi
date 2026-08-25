@@ -369,12 +369,12 @@ Every mutation returns explicit entity id, resulting state, link, and safe summa
 Approval policy first release:
 
 - creating DRAFT Task: allowed within route capability;
-- creating READY/assigned Task: allowed only when classifier confidence and user autonomy setting permit, otherwise approval;
+- creating READY/assigned Task: always an owner approval (drafts are created freely);
 - hiring paid Agent/setting max credits/providing paid input: explicit user approval in v1. Saved budget policy is a later, separately reviewed extension;
 - changing/canceling active work: outside v1 Soko Bot mutation ceiling; it proposes user action or delegates follow-up;
 - crossing workspace, inviting/granting access, billing changes, destructive actions: never autonomous.
 
-Autonomy is enforced by Core policy, not prompt or UI toggle alone.
+The policy is fixed in Core (`requiresDecision`), not configurable per bot: drafts are free; assigning work, making a Task READY, hiring an Agent, or providing paid Job input asks the owner.
 
 Approval never parks Eve via HITL or `ask_question`. Core stores `SokoBotPendingDecision`, Eve finishes turn, and lease reaches `session.waiting`. Accept executes stored typed proposal as a new owner-authorized action/turn with current workspace/organization override validation; reject/expiry records resolution. This preserves current confirmation/autonomy UX without hours-long parked turns.
 
@@ -526,7 +526,7 @@ Replace current `/personal-assistant` implementation with Soko Bot components an
 - authoritative Cancel calls Core/Eve, shows `Cancelling`, and permits new send only after projected `session.waiting`;
 - Context indicator explains current workspace and data freshness without dumping prompt;
 - Task/Job result cards link to product objects;
-- settings preserve the two-level (supervised/autonomous) autonomy and confirmation semantics through Pending decisions, plus name/personality/budget/memory reset; remove Composio skills/integrations from initial release;
+- settings cover name/picture/memory reset; confirmation semantics live in Pending decisions (no per-bot autonomy setting); remove Composio skills/integrations from initial release;
 - accessibility, responsive layout, light/dark themes, dynamic type, translations in en/de/es;
 - Server Components own initial data; minimal client islands handle composer and four-second active-turn polling.
 
@@ -547,7 +547,7 @@ Detail information architecture:
 - Delegations: per-turn Task/Job operations, outcomes, and ids;
 - Memory: current/recent revisions, size/hash, reset;
 - Schedules: definitions, next/last run, failures, and run timeline;
-- Operations: autonomy/runtime details plus reason-required audited pause/resume/retry/reset actions.
+- Operations: runtime details plus reason-required audited pause/resume/retry/reset actions.
 
 Safety:
 

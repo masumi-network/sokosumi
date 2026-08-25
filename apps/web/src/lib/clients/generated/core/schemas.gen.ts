@@ -768,9 +768,6 @@ export const AdminSokoBotListItemSchema = {
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
-        autonomyLevel: {
-            $ref: '#/components/schemas/SokoBotAutonomyLevel'
-        },
         archivedAt: {
             type: [
                 'string',
@@ -849,7 +846,6 @@ export const AdminSokoBotListItemSchema = {
         'id',
         'name',
         'status',
-        'autonomyLevel',
         'archivedAt',
         'runtimeVersion',
         'runtimeDeployment',
@@ -873,14 +869,6 @@ export const SokoBotStatusSchema = {
         'RUNNING',
         'PAUSED',
         'ERROR'
-    ]
-} as const;
-
-export const SokoBotAutonomyLevelSchema = {
-    type: 'string',
-    enum: [
-        'SUPERVISED',
-        'AUTONOMOUS'
     ]
 } as const;
 
@@ -2142,9 +2130,6 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
-        autonomyLevel: {
-            $ref: '#/components/schemas/SokoBotAutonomyLevel'
-        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
@@ -2270,7 +2255,6 @@ export const SokoBotSchema = {
         'personalityTone',
         'personalityDetail',
         'personalityStyle',
-        'autonomyLevel',
         'status',
         'runtimeVersion',
         'lastSandboxStatus',
@@ -14264,9 +14248,6 @@ export const CreateSokoBotRequestSchema = {
             ],
             minimum: 0,
             maximum: 100
-        },
-        autonomyLevel: {
-            $ref: '#/components/schemas/SokoBotAutonomyLevel'
         }
     },
     required: [

@@ -11,16 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import {
-  SokoBotAutonomyLevel,
-  type SokoBotAvatar,
-} from "@/lib/clients/generated/core";
+import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 
-import { AutonomyRadioGroup } from "./autonomy-radio-group.client";
 import { AvatarPicker } from "./avatar-picker.client";
 
 /**
- * First visit: the bot's orb, what it does, a name, and an autonomy level.
+ * First visit: the bot's orb, what it does, a name, and a picture.
  * Core upserts on the user, so this also reactivates an archived bot.
  */
 export function CreateState({ userId }: { userId: string }) {
@@ -29,9 +25,6 @@ export function CreateState({ userId }: { userId: string }) {
   const router = useRouter();
   const nameId = useId();
   const [name, setName] = useState("");
-  const [autonomyLevel, setAutonomyLevel] = useState<SokoBotAutonomyLevel>(
-    SokoBotAutonomyLevel.SUPERVISED,
-  );
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -41,7 +34,7 @@ export function CreateState({ userId }: { userId: string }) {
     if (!trimmed) return;
     startTransition(async () => {
       const result = await createSokoBotAction({
-        input: { name: trimmed, autonomyLevel, avatarId: avatar?.id ?? null },
+        input: { name: trimmed, avatarId: avatar?.id ?? null },
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("error"));
@@ -96,12 +89,6 @@ export function CreateState({ userId }: { userId: string }) {
           <Label>{t("avatarLabel")}</Label>
           <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
         </div>
-
-        <AutonomyRadioGroup
-          value={autonomyLevel}
-          onChange={setAutonomyLevel}
-          compact
-        />
 
         <Button
           type="submit"

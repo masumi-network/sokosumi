@@ -119,7 +119,6 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
-  autonomyLevel?: "SUPERVISED" | "AUTONOMOUS";
 }
 
 export interface StartSokoBotTurnInput {
@@ -1010,7 +1009,6 @@ export class SokoBotControlPlane {
             personalityTone: input.personalityTone,
             personalityDetail: input.personalityDetail,
             personalityStyle: input.personalityStyle,
-            autonomyLevel: input.autonomyLevel,
             // Owner reactivation must not clear a durable administrator pause.
             status:
               isReactivation && existing.adminPausedAt === null
@@ -1044,7 +1042,6 @@ export class SokoBotControlPlane {
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,
           personalityStyle: input.personalityStyle,
-          autonomyLevel: input.autonomyLevel,
           memoryVersion: 1,
           memoryHash: hash,
         },

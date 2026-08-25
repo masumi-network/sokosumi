@@ -1,6 +1,5 @@
 import type {
   SokoBot,
-  SokoBotAutonomyLevel,
   SokoBotDelegation,
   SokoBotEvent,
   SokoBotLegacyMessage,
@@ -154,7 +153,6 @@ export interface ChatBot {
   avatarImageUrl: string | null;
   /** Chat coworker row id; open a direct with it to talk to the bot. */
   coworkerId: string | null;
-  autonomyLevel: SokoBotAutonomyLevel;
   status: SokoBotStatus;
   memoryVersion: number;
   memory: ChatMemory | null;
@@ -308,7 +306,6 @@ export function toChatBot(bot: SokoBot): ChatBot {
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
     coworkerId: bot.coworker?.id ?? null,
-    autonomyLevel: bot.autonomyLevel,
     status: bot.status,
     memoryVersion: bot.memoryVersion,
     memory: memory

@@ -881,10 +881,6 @@
         "COMPLETED": "Completada",
         "FAILED": "Fallida"
       },
-      "Autonomy": {
-        "SUPERVISED": "Supervisado",
-        "AUTONOMOUS": "Autónomo"
-      },
       "DelegationKind": {
         "TASK": "Task",
         "JOB": "Job"
@@ -3244,7 +3240,6 @@
           "bot": "Bot",
           "owner": "Propietario",
           "status": "Estado",
-          "autonomy": "Autonomía",
           "turns": "Turnos",
           "pending": "Pendientes",
           "schedules": "Programaciones",
@@ -5209,17 +5204,6 @@
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen"
       },
-      "Autonomy": {
-        "label": "Autonomía",
-        "descriptions": {
-          "SUPERVISED": "Crea borradores de Tasks por su cuenta; pregunta antes de asignar trabajo o contratar Agents.",
-          "AUTONOMOUS": "Asigna Tasks por su cuenta cuando está seguro; sigue preguntando antes de contrataciones de pago."
-        },
-        "save": "Guardar autonomía",
-        "saving": "Guardando…",
-        "saved": "Autonomía actualizada.",
-        "error": "No se pudo actualizar la autonomía."
-      },
       "Memory": {
         "title": "Memoria",
         "description": "Notas de trabajo a corto plazo. Los registros del producto siguen siendo la fuente de verdad.",
@@ -5366,9 +5350,6 @@
           }
         },
         "chips": {
-          "autonomy": "Autonomía",
-          "autonomyTooltip": "Autonomía: {level}",
-          "autonomyDescription": "Cuánto puede hacer tu Soko Bot sin preguntar antes.",
           "schedules": "Programaciones",
           "schedulesTooltip": "Prompts que ejecuta según una programación",
           "memory": "Memoria",
