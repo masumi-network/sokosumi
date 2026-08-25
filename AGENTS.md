@@ -321,15 +321,25 @@ docs(readme): update setup instructions
 
 ## Agent skills
 
+First-party skills are authored in `skills/<name>/` and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
+
+### Ask Matt
+
+Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](.agents/skills/caveman/).
 
 ### Linear issue implementation
 
-Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, pinned-`headSha` re-verify, Review `/goal`, and opt-in swarm-verify (user ask, `swarm-verify: true`, or label `swarm-verify`). Human merges. Bugs/refactors without a Linear Requirement use other poteto playbooks.
+Inside that flow, ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
 
-Do **not** invent or file Linear issues during poteto implement work. Filing a new requirement is a separate, explicit ask via [`.cursor/skills/linear-requirement/`](.cursor/skills/linear-requirement/) (`disable-model-invocation`).
+Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`.agents/skills/linear-requirement/`](./.agents/skills/linear-requirement/) (`disable-model-invocation`).
+
+### Translations
+
+When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`.agents/skills/translations/`](./.agents/skills/translations/).
 
 ### Issue tracker
 
