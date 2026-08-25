@@ -4,6 +4,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
+  JudgeSokoBotLabTurnRequest,
   ResolveSokoBotDecisionRequest,
   SimulateSokoBotTaskEventRequest,
   SokoBot,
@@ -68,10 +69,9 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async judgeLabTurn(input: {
-    turnId: string;
-    scenarioId: string;
-  }): Promise<SokoBotLabVerdict> {
+  async judgeLabTurn(
+    input: JudgeSokoBotLabTurnRequest,
+  ): Promise<SokoBotLabVerdict> {
     const response = await coreClient.judgeMySokoBotLabTurn(input);
     return response.data;
   },

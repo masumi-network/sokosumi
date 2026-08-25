@@ -308,6 +308,15 @@ export const setSokoBotVersionAction = withSession<
 const judgeLabTurnSchema = z.object({
   turnId: z.string().uuid(),
   scenarioId: z.string().min(1).max(80),
+  evaluation: z
+    .object({
+      passed: z.number().int().min(0),
+      total: z.number().int().min(0),
+      checks: z.array(
+        z.object({ label: z.string(), pass: z.boolean(), actual: z.string() }),
+      ),
+    })
+    .optional(),
 });
 
 interface JudgeLabTurnParams extends AuthenticatedRequest {

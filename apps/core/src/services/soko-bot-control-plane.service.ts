@@ -1374,6 +1374,17 @@ export class SokoBotControlPlane {
               error: error instanceof Error ? error.message : "unknown",
             });
           });
+          // Quality score for every settled turn; the lab re-judges its own
+          // turns with the scenario rubric afterwards.
+          const { judgeTurnQuality } = await import(
+            "@/services/soko-bot-lab-judge.service"
+          );
+          void judgeTurnQuality(input.turnId).catch((error) => {
+            console.error("Soko Bot turn judge failed", {
+              turnId: input.turnId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          });
         }
         return settled;
       },

@@ -3462,6 +3462,18 @@
           "count": "{count, plural, one {# mensaje} other {# mensajes}}",
           "empty": "No hay historial heredado para este bot.",
           "toggle": "{count, plural, one {Mostrar # mensaje} other {Mostrar # mensajes}}"
+        },
+        "Quality": {
+          "title": "Calidad",
+          "description": "Puntuaciones del evaluador (1–5) de cada turno finalizado, toda la flota, últimos 30 días.",
+          "overall": "{judged} de {turns} turnos evaluados",
+          "version": "Versión",
+          "turns": "Turnos",
+          "avgScore": "Media",
+          "labRuns": "Ejecuciones lab",
+          "labPassRate": "Lab superado",
+          "labJudge": "Evaluador lab",
+          "verdicts": "pass / weak / fail"
         }
       }
     },
@@ -5286,7 +5298,8 @@
           "teammate": "un compañero",
           "inDirect": "en tu chat directo",
           "inRoom": "en #{room}",
-          "event": "Activado por cambio de trabajo"
+          "event": "Activado por cambio de trabajo",
+          "qualityTitle": "Puntuación (1–5)"
         },
         "thinkingMessages": {
           "0": "Pensando",
@@ -5463,7 +5476,8 @@
         "showPrompt": "Mostrar",
         "hidePrompt": "Ocultar",
         "judge": "Evaluación (Claude)",
-        "judgeScores": "delegación {d} · seguimiento {f} · criterio {j} · honestidad {h}"
+        "judgeScores": "delegación {d} · seguimiento {f} · criterio {j} · honestidad {h}",
+        "runAllVersions": "Ejecutar las {count} versiones"
       }
     }
   },

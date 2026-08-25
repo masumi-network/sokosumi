@@ -896,6 +896,134 @@ export const AdminSokoBotOwnerSchema = {
     ]
 } as const;
 
+export const AdminSokoBotQualitySchema = {
+    type: 'object',
+    properties: {
+        overall: {
+            type: 'object',
+            properties: {
+                turns: {
+                    type: 'integer'
+                },
+                judged: {
+                    type: 'integer'
+                },
+                avgScore: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'turns',
+                'judged',
+                'avgScore'
+            ]
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string'
+                    },
+                    turns: {
+                        type: 'integer'
+                    },
+                    avgScore: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'date',
+                    'turns',
+                    'avgScore'
+                ]
+            }
+        },
+        versions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    versionId: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    turns: {
+                        type: 'integer'
+                    },
+                    avgScore: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    labRuns: {
+                        type: 'integer'
+                    },
+                    labPassRate: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    labAvgJudge: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    labVerdicts: {
+                        type: 'object',
+                        properties: {
+                            pass: {
+                                type: 'integer'
+                            },
+                            weak: {
+                                type: 'integer'
+                            },
+                            fail: {
+                                type: 'integer'
+                            }
+                        },
+                        required: [
+                            'pass',
+                            'weak',
+                            'fail'
+                        ]
+                    }
+                },
+                required: [
+                    'versionId',
+                    'name',
+                    'turns',
+                    'avgScore',
+                    'labRuns',
+                    'labPassRate',
+                    'labAvgJudge',
+                    'labVerdicts'
+                ]
+            }
+        }
+    },
+    required: [
+        'overall',
+        'daily',
+        'versions'
+    ]
+} as const;
+
 export const AdminSokoBotDetailSchema = {
     allOf: [
         {
@@ -1749,6 +1877,13 @@ export const SokoBotTurnSchema = {
                 'null'
             ]
         },
+        qualityScore: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        qualityVerdict: {},
         userMessage: {
             type: 'string'
         },
@@ -14642,6 +14777,46 @@ export const JudgeSokoBotLabTurnRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 80
+        },
+        evaluation: {
+            type: 'object',
+            properties: {
+                passed: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                total: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                checks: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            label: {
+                                type: 'string'
+                            },
+                            pass: {
+                                type: 'boolean'
+                            },
+                            actual: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'label',
+                            'pass',
+                            'actual'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'passed',
+                'total',
+                'checks'
+            ]
         }
     },
     required: [

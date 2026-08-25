@@ -96,6 +96,8 @@ export interface ChatTurn {
   requestedBy: { id: string; name: string | null; image: string | null } | null;
   /** Room a chat-started turn came from. */
   chatRoom: { id: string; name: string | null; kind: string } | null;
+  /** Judge model's 1–5 overall score, once graded. */
+  qualityScore: number | null;
   /** Client-only: sent but Core has not echoed it back yet. */
   optimistic?: boolean;
 }
@@ -253,6 +255,7 @@ export function toChatTurn(turn: SokoBotTurn): ChatTurn {
     decisions: (turn.pendingDecisions ?? []).map(toDecision),
     requestedBy: turn.requestedBy ?? null,
     chatRoom: turn.chatRoom ?? null,
+    qualityScore: turn.qualityScore ?? null,
   };
 }
 

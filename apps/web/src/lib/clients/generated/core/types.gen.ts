@@ -213,6 +213,33 @@ export type AdminSokoBotOwner = {
     email: string;
 };
 
+export type AdminSokoBotQuality = {
+    overall: {
+        turns: number;
+        judged: number;
+        avgScore: number | null;
+    };
+    daily: Array<{
+        date: string;
+        turns: number;
+        avgScore: number | null;
+    }>;
+    versions: Array<{
+        versionId: string;
+        name: string | null;
+        turns: number;
+        avgScore: number | null;
+        labRuns: number;
+        labPassRate: number | null;
+        labAvgJudge: number | null;
+        labVerdicts: {
+            pass: number;
+            weak: number;
+            fail: number;
+        };
+    }>;
+};
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -406,6 +433,8 @@ export type SokoBotTurn = {
     route: SokoBotTurnRoute;
     clientTurnId: string;
     versionId?: string | null;
+    qualityScore?: number | null;
+    qualityVerdict?: unknown;
     userMessage: string;
     finalAnswer: string | null;
     classification: {
@@ -4230,6 +4259,15 @@ export type SokoBotLabVerdict = {
 export type JudgeSokoBotLabTurnRequest = {
     turnId: string;
     scenarioId: string;
+    evaluation?: {
+        passed: number;
+        total: number;
+        checks: Array<{
+            label: string;
+            pass: boolean;
+            actual: string;
+        }>;
+    };
 };
 
 export type SokoBotRuntimeError = {
@@ -5398,6 +5436,62 @@ export type ListAdminSokoBotsResponses = {
 };
 
 export type ListAdminSokoBotsResponse = ListAdminSokoBotsResponses[keyof ListAdminSokoBotsResponses];
+
+export type GetAdminSokoBotQualityData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/quality';
+};
+
+export type GetAdminSokoBotQualityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotQualityError = GetAdminSokoBotQualityErrors[keyof GetAdminSokoBotQualityErrors];
+
+export type GetAdminSokoBotQualityResponses = {
+    /**
+     * Judge scores over time and per agent version
+     */
+    200: {
+        data: AdminSokoBotQuality;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotQualityResponse = GetAdminSokoBotQualityResponses[keyof GetAdminSokoBotQualityResponses];
 
 export type GetAdminSokoBotData = {
     body?: never;

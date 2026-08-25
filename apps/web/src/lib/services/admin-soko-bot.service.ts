@@ -5,6 +5,7 @@ import type {
   AdminSokoBotActionRequest,
   AdminSokoBotDetail,
   AdminSokoBotList,
+  AdminSokoBotQuality,
 } from "@/lib/clients/generated/core";
 
 export interface ListAdminSokoBotsParams {
@@ -21,6 +22,11 @@ export const adminSokoBotService = {
       cursor: params.cursor,
       limit: params.limit,
     });
+    return response.data;
+  },
+
+  async quality(): Promise<AdminSokoBotQuality> {
+    const response = await coreClient.getAdminSokoBotQuality();
     return response.data;
   },
 

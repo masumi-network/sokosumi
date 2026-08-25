@@ -9,7 +9,7 @@ import {
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,6 +133,7 @@ export function ScenarioLab({
   const [history, setHistory] = useState<History>({});
   const [versions, setVersions] = useState<SokoBotVersion[]>([]);
   const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
+  const activeVersionRef = useRef<string | null>(versionId);
   const [switching, setSwitching] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const current = versions.find((v) => v.id === activeVersion) ?? null;
@@ -151,6 +152,7 @@ export function ScenarioLab({
     const result = await setSokoBotVersionAction({ versionId: id });
     setSwitching(false);
     if (result.ok) {
+      activeVersionRef.current = id;
       setActiveVersion(id);
       onTurnFinished();
     }
@@ -223,12 +225,20 @@ export function ScenarioLab({
       }
       const result = evaluateScenario(scenario, turn);
       const judged = await judgeSokoBotLabTurnAction({
-        input: { turnId: turn.id, scenarioId: scenario.id },
+        input: {
+          turnId: turn.id,
+          scenarioId: scenario.id,
+          evaluation: {
+            passed: result.passed,
+            total: result.total,
+            checks: result.checks,
+          },
+        },
       });
       record(scenario.id, {
         turnId: turn.id,
         at: new Date().toISOString(),
-        versionId: activeVersion,
+        versionId: activeVersionRef.current,
         route: turn.route,
         passed: result.passed,
         total: result.total,
@@ -250,6 +260,13 @@ export function ScenarioLab({
   async function runAll() {
     // Sequential: turns share the bot's session lock and the context they read.
     for (const scenario of SOKO_BOT_SCENARIOS) await run(scenario);
+  }
+
+  async function runAllVersions() {
+    for (const version of versions) {
+      await chooseVersion(version.id);
+      for (const scenario of SOKO_BOT_SCENARIOS) await run(scenario);
+    }
   }
 
   const anyRunning = running.size > 0;
@@ -318,16 +335,28 @@ export function ScenarioLab({
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-xs">{t("warning")}</p>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={anyRunning}
-          onClick={() => void runAll()}
-        >
-          <Play aria-hidden className="size-3.5" />
-          {t("runAll")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={anyRunning || versions.length === 0}
+            onClick={() => void runAllVersions()}
+          >
+            <Play aria-hidden className="size-3.5" />
+            {t("runAllVersions", { count: versions.length })}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={anyRunning}
+            onClick={() => void runAll()}
+          >
+            <Play aria-hidden className="size-3.5" />
+            {t("runAll")}
+          </Button>
+        </div>
       </div>
       <ol className="divide-y rounded-lg border">
         {SOKO_BOT_SCENARIOS.map((scenario) => (

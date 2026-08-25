@@ -89,6 +89,13 @@ const baseEnvSchema = z.object({
 
   // Project memory (Vercel AI Gateway, Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  /** Judge model for lab runs and per-turn quality scores (AI Gateway id). */
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("openai/gpt-5.5"),
+  /** Score every completed turn with the judge model. */
+  SOKO_BOT_TURN_JUDGE_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
   /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
   FAL_KEY: z.string().min(1).optional(),
   PROJECT_MEMORY_MODEL: z

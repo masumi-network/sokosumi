@@ -54,6 +54,7 @@ function turn(overrides: Partial<ChatTurn> = {}): ChatTurn {
     decisions: [],
     requestedBy: null,
     chatRoom: null,
+    qualityScore: null,
     ...overrides,
   };
 }

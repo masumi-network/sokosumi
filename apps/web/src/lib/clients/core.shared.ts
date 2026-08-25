@@ -34,6 +34,7 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   GetTasksSummaryData,
+  JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
   Notice,
   PaginationMetadata,
@@ -128,6 +129,7 @@ import {
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminSokoBot as coreGetAdminSokoBot,
+  getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -3623,10 +3625,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function judgeMySokoBotLabTurn(body: {
-    turnId: string;
-    scenarioId: string;
-  }) {
+  async function judgeMySokoBotLabTurn(body: JudgeSokoBotLabTurnRequest) {
     return executeCoreOperation(
       getClient,
       (client) => coreJudgeMySokoBotLabTurn({ client, body }),
@@ -3739,6 +3738,14 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreListAdminSokoBots({ client, query, cache: "no-store" }),
       "Failed to fetch Soko Bots",
+    );
+  }
+
+  async function getAdminSokoBotQuality() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetAdminSokoBotQuality({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot quality",
     );
   }
 
@@ -4421,6 +4428,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     resolveMySokoBotDecision,
     listAdminSokoBots,
     getAdminSokoBot,
+    getAdminSokoBotQuality,
     performAdminSokoBotAction,
   };
 }

@@ -1672,6 +1672,7 @@ model SokoBot {
 
   /// Chat-facing coworker row for this bot (created when the bot is created).
   coworker Coworker?
+  labRuns  SokoBotLabRun[]
 
   /// Picked mascot image (see SokoBotAvatar); null → generative orb.
   avatarImageUrl String?
@@ -1796,6 +1797,12 @@ model SokoBotTurn {
   clientTurnId String
   /// Version the turn ran with; null for turns before versions existed.
   versionId    String?
+  /// Judge model's overall 1–5 score for this turn (see soko-bot-lab-judge.service).
+  qualityScore   Int?
+  qualityVerdict Json?
+  qualityModel   String?
+  judgedAt       DateTime?
+  labRun         SokoBotLabRun?
   userMessage  String
   finalAnswer  String?
 
@@ -3170,4 +3177,31 @@ model EnterpriseContractPeriod {
   @@index([contractId, periodStart])
   @@index([status, periodStart])
   @@map("enterprise_contract_period")
+}
+
+/// One behaviour-lab run: scenario × version × the turn it produced, with the
+/// deterministic checks and the judge verdict. Written by the console lab and
+/// the headless runner; read by the admin quality overview.
+model SokoBotLabRun {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  userId    String
+
+  turnId String      @unique @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  scenarioId String
+  versionId  String
+  passed     Int
+  total      Int
+  checks     Json
+  judge      Json?
+  judgeModel String?
+
+  @@index([versionId, createdAt(sort: Desc)])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_lab_run")
 }

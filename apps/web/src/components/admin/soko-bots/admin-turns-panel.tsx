@@ -1,5 +1,4 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import {
   formatDurationMs,
   formatTokens,
@@ -15,6 +14,7 @@ import {
 } from "@/components/soko-bot/soko-bot-badges";
 import { TurnActivity } from "@/components/soko-bot/turn-activity";
 import type { AdminSokoBotTurn } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 interface AdminTurnsPanelProps {
@@ -78,6 +78,21 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                     <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                       <TurnStatusBadge status={turn.status} />
                       <TurnRouteBadge route={turn.route} />
+                      {turn.qualityScore !== null &&
+                      turn.qualityScore !== undefined ? (
+                        <span
+                          className={cn(
+                            "rounded px-1.5 py-0.5 text-xs font-medium tabular-nums",
+                            turn.qualityScore >= 4
+                              ? "bg-semantic-success/10 text-semantic-success"
+                              : turn.qualityScore >= 3
+                                ? "bg-semantic-warning/10 text-semantic-warning"
+                                : "bg-semantic-destructive/10 text-semantic-destructive",
+                          )}
+                        >
+                          {turn.qualityScore}/5
+                        </span>
+                      ) : null}
                       {classification.confidence ? (
                         <span className="text-muted-foreground text-xs tabular-nums">
                           {classification.confidence}

@@ -170,6 +170,9 @@ export const sokoBotTurnSchema = z
     route: sokoBotTurnRouteSchema.nullable(),
     clientTurnId: z.string(),
     versionId: z.string().nullable().optional(),
+    /** Judge model's 1–5 overall score once the turn has been graded. */
+    qualityScore: z.number().int().nullable().optional(),
+    qualityVerdict: z.unknown().nullable().optional(),
     userMessage: z.string(),
     finalAnswer: z.string().nullable(),
     classification: z.record(z.string(), z.unknown()).nullable(),
@@ -524,7 +527,23 @@ export const updateSokoBotVersionRequestSchema = z
   .openapi("UpdateSokoBotVersionRequest");
 
 export const judgeSokoBotLabTurnRequestSchema = z
-  .object({ turnId: z.string().uuid(), scenarioId: z.string().min(1).max(80) })
+  .object({
+    turnId: z.string().uuid(),
+    scenarioId: z.string().min(1).max(80),
+    evaluation: z
+      .object({
+        passed: z.number().int().min(0),
+        total: z.number().int().min(0),
+        checks: z.array(
+          z.object({
+            label: z.string(),
+            pass: z.boolean(),
+            actual: z.string(),
+          }),
+        ),
+      })
+      .optional(),
+  })
   .strict()
   .openapi("JudgeSokoBotLabTurnRequest");
 
@@ -542,6 +561,39 @@ export const sokoBotLabVerdictSchema = z
     issues: z.array(z.string()),
   })
   .openapi("SokoBotLabVerdict");
+
+export const adminSokoBotQualitySchema = z
+  .object({
+    overall: z.object({
+      turns: z.number().int(),
+      judged: z.number().int(),
+      avgScore: z.number().nullable(),
+    }),
+    daily: z.array(
+      z.object({
+        date: z.string(),
+        turns: z.number().int(),
+        avgScore: z.number().nullable(),
+      }),
+    ),
+    versions: z.array(
+      z.object({
+        versionId: z.string(),
+        name: z.string().nullable(),
+        turns: z.number().int(),
+        avgScore: z.number().nullable(),
+        labRuns: z.number().int(),
+        labPassRate: z.number().nullable(),
+        labAvgJudge: z.number().nullable(),
+        labVerdicts: z.object({
+          pass: z.number().int(),
+          weak: z.number().int(),
+          fail: z.number().int(),
+        }),
+      }),
+    ),
+  })
+  .openapi("AdminSokoBotQuality");
 
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({

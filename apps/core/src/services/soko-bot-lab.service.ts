@@ -53,6 +53,14 @@ export async function simulateSokoBotTaskEvent(input: {
       data: { status: input.status },
       select: { id: true, name: true, status: true },
     });
+    // Re-running the same simulated event must wake the bot again: rewind
+    // what the events sync last saw to the status before this event.
+    await tx.sokoBotDelegation.updateMany({
+      where: { taskId: task.id },
+      data: {
+        lastSeenStatus: task.status === input.status ? "READY" : task.status,
+      },
+    });
     return { taskId: updated.id, name: updated.name, status: updated.status };
   }, "Soko Bot lab event collided with another action");
 }

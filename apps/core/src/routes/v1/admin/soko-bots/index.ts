@@ -24,6 +24,7 @@ import {
   adminSokoBotActionRequestSchema,
   adminSokoBotDetailSchema,
   adminSokoBotListSchema,
+  adminSokoBotQualitySchema,
 } from "@/schemas/soko-bot.schema";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
@@ -35,6 +36,7 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { getSokoBotQualityOverview } from "@/services/soko-bot-quality.service";
 
 const app = new OpenAPIHonoWithAuth();
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -118,6 +120,28 @@ app.openapi(listRoute, async (c) => {
       items,
     }),
     createPaginationMeta(items, fleet.total, take, fleet.hasMore, cursor),
+  );
+});
+
+const qualityRoute = createRoute({
+  method: "get",
+  path: "/quality",
+  operationId: "getAdminSokoBotQuality",
+  tags: ["Admin"],
+  responses: {
+    200: jsonSuccessResponse(
+      adminSokoBotQualitySchema,
+      "Judge scores over time and per agent version",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+app.openapi(qualityRoute, async (c) => {
+  return ok(
+    c,
+    adminSokoBotQualitySchema.parse(await getSokoBotQualityOverview()),
   );
 });
 

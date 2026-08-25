@@ -3462,6 +3462,18 @@
           "count": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
           "empty": "Kein Legacy-Verlauf für diesen Bot.",
           "toggle": "{count, plural, one {# Nachricht anzeigen} other {# Nachrichten anzeigen}}"
+        },
+        "Quality": {
+          "title": "Qualität",
+          "description": "Bewertungen (1–5) für jeden abgeschlossenen Durchlauf, flottenweit, letzte 30 Tage.",
+          "overall": "{judged} von {turns} Durchläufen bewertet",
+          "version": "Version",
+          "turns": "Durchläufe",
+          "avgScore": "Ø Score",
+          "labRuns": "Lab-Läufe",
+          "labPassRate": "Lab bestanden",
+          "labJudge": "Lab-Bewertung",
+          "verdicts": "pass / weak / fail"
         }
       }
     },
@@ -5286,7 +5298,8 @@
           "teammate": "einem Teammitglied",
           "inDirect": "im Direktchat",
           "inRoom": "in #{room}",
-          "event": "Durch Arbeitsupdate geweckt"
+          "event": "Durch Arbeitsupdate geweckt",
+          "qualityTitle": "Bewertung (1–5)"
         },
         "thinkingMessages": {
           "0": "Denkt nach",
@@ -5463,7 +5476,8 @@
         "showPrompt": "Anzeigen",
         "hidePrompt": "Ausblenden",
         "judge": "Bewertung (Claude)",
-        "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}"
+        "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}",
+        "runAllVersions": "Alle {count} Versionen ausführen"
       }
     }
   },

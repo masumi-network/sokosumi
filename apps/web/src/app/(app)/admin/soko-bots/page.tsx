@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { FleetHealthSummary } from "@/components/admin/soko-bots/fleet-health-summary";
+import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { SokoBotFleetTable } from "@/components/admin/soko-bots/soko-bot-fleet-table.client";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
@@ -13,9 +14,10 @@ export const metadata: Metadata = {
 const FLEET_PAGE_LIMIT = 100;
 
 export default async function AdminSokoBotsPage() {
-  const [t, list] = await Promise.all([
+  const [t, list, quality] = await Promise.all([
     getTranslations("App.Admin.SokoBots"),
     adminSokoBotService.list({ limit: FLEET_PAGE_LIMIT }),
+    adminSokoBotService.quality(),
   ]);
 
   return (
@@ -29,6 +31,7 @@ export default async function AdminSokoBotsPage() {
         </div>
 
         <FleetHealthSummary items={list.items} total={list.total} />
+        <QualityOverview quality={quality} />
         <SokoBotFleetTable initialList={list} limit={FLEET_PAGE_LIMIT} />
       </div>
     </div>
