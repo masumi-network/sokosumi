@@ -20,6 +20,13 @@ describe("Soko Bot turn classifier", () => {
     ["Hire an AI agent for this research", "HIRE_AGENT"],
     ["What is the status of task 42?", "MANAGE_WORK"],
     ["Create a task and hire an agent", "MIXED"],
+    ["Hi Soko bot", "DIRECT_RESPONSE"],
+    ["Can you please research Apple TV for me", "DELEGATE_TASK"],
+    [
+      "Competitive research on the Apple TV marketing strategy pls",
+      "DELEGATE_TASK",
+    ],
+    ["Draft a brief on our Q4 launch", "DELEGATE_TASK"],
   ])("routes %s", (message, route) => {
     expect(classifyDeterministically(message)?.route).toBe(route);
   });

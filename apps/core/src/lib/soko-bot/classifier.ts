@@ -105,6 +105,12 @@ export function classifyDeterministically(
     /\b(delegate|assign|hand off|create|make|open)\b.{0,50}\b(task|coworker|co-worker)\b/,
     /\btaskboard\b/,
   ]);
+  // Imperative work requests ("research X", "draft a brief on Y") are
+  // delegation intents even without the word "task"; a project manager
+  // hands them to a Coworker rather than interrogating the requester.
+  const workRequestSignal = includesAny(normalized, [
+    /\b(research|analy[sz]e|investigate|draft|write|prepare|compile|summari[sz]e|compare|review|plan|outline|design|build|create|produce|put together|look into|dig into|find out)\b/,
+  ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|reprioritize|follow up|follow-up)\b.{0,50}\b(task|job|project)\b/,
     /\b(task|job)\b.{0,50}\b(status|progress|update|reprioritize)\b/,
@@ -137,6 +143,14 @@ export function classifyDeterministically(
       0.98,
     );
   }
+  if (workRequestSignal && !manageSignal) {
+    return baseClassification(
+      "DELEGATE_TASK",
+      message,
+      "Message requests a piece of work that a Coworker can own.",
+      0.82,
+    );
+  }
   if (manageSignal) {
     return baseClassification(
       "MANAGE_WORK",
@@ -147,7 +161,7 @@ export function classifyDeterministically(
   }
   if (
     includesAny(normalized, [
-      /^(hi|hello|hey|thanks|thank you|good (morning|afternoon|evening))[!. ]*$/,
+      /^(hi|hello|hey|thanks|thank you|good (morning|afternoon|evening))\b[^?]{0,40}$/,
       /^(what|why|how|when|where|who|can you explain|summarize|tell me)\b/,
     ])
   ) {
