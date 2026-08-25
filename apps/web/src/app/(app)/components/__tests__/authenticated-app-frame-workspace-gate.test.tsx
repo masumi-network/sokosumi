@@ -83,6 +83,9 @@ vi.mock("../notice-dialog-context", () => ({
 vi.mock("../notification-toaster.client", () => ({
   NotificationToaster: () => null,
 }));
+vi.mock("../auth-session-hydrator.client", () => ({
+  AuthSessionHydrator: () => null,
+}));
 vi.mock("@/components/emergency-dialog", () => ({
   EmergencyDialog: () => null,
 }));
