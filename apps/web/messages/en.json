@@ -5426,7 +5426,7 @@
     "Drive": {
       "breadcrumb": "Drive",
       "breadcrumbNavLabel": "Drive folder navigation",
-      "myDriveTab": "My Drive",
+      "myDrive": "My Drive",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "No files yet",
@@ -5451,7 +5451,7 @@
       "renameFolderToFileConflictError": "A file with this name already exists",
       "renameConflictError": "A file or folder with this name already exists",
       "deleteError": "Failed to delete file",
-      "organizationTabFallback": "Organization",
+      "organizationDriveFallback": "Organization",
       "uploadDuplicateError": "A file with this name already exists. Rename it and try again.",
       "selectTitle": "Select from Drive",
       "selectDescription": "Choose a file from your personal or organization Drive",
