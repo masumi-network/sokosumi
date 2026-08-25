@@ -444,7 +444,7 @@ function MessageUnfurlList({
     <div className="space-y-1" data-testid="room-message-unfurls">
       {visible.map((unfurl) => (
         <MessageUnfurlCard
-          key={unfurl.url}
+          key={`${unfurl.url}:${unfurl.imageUrl ?? ""}`}
           unfurl={unfurl}
           canRemove={canRemove}
           onRemove={onRemove}

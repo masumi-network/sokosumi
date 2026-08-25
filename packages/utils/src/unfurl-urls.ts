@@ -191,10 +191,14 @@ export function selectUnfurlCandidateUrls(markdown: string): string[] {
   return selected;
 }
 
-/** True when an unfurl has a thumbnail or a description (not title-only). */
-export function unfurlCardHasPreviewContent(card: {
+export interface UnfurlPreviewContent {
   imageUrl: string | null;
   description: string | null;
-}): boolean {
+}
+
+/** True when an unfurl has a thumbnail or a description (not title-only). */
+export function unfurlCardHasPreviewContent(
+  card: UnfurlPreviewContent,
+): boolean {
   return Boolean(card.imageUrl?.trim()) || Boolean(card.description?.trim());
 }

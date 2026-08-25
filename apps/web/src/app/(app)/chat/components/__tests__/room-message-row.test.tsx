@@ -1797,6 +1797,61 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
   });
 
+  it("shows a replacement thumbnail after a later scrape when the first image failed", () => {
+    const coworkersById = new Map();
+    const coworkersBySlug = new Map();
+    const first = userMessage({
+      content: "https://youtube.com/watch?v=1",
+      unfurls: [
+        {
+          url: "https://youtube.com/watch?v=1",
+          title: "Watch",
+          description: null,
+          imageUrl: "https://cdn.example.com/broken.jpg",
+          siteName: "YouTube",
+        },
+      ],
+    });
+
+    const { rerender } = render(
+      <ChatMessageRow
+        message={first}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    );
+    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={{
+          ...first,
+          unfurls: [
+            {
+              url: "https://youtube.com/watch?v=1",
+              title: "Watch",
+              description: null,
+              imageUrl: "https://cdn.example.com/ok.jpg",
+              siteName: "YouTube",
+            },
+          ],
+        }}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    ).toHaveAttribute("src", "https://cdn.example.com/ok.jpg");
+  });
+
   it("keeps the unfurl card when the preview image fails and a description remains", () => {
     renderRow({
       message: userMessage({
