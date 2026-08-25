@@ -86,21 +86,6 @@ function ActivityRow({
             <span>{t("kind.inRoom", { room: turn.chatRoom.name ?? "" })}</span>
           ) : null}
         </span>
-        {turn.qualityScore !== null ? (
-          <span
-            title={t("kind.qualityTitle")}
-            className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums",
-              turn.qualityScore >= 4
-                ? "bg-semantic-success/10 text-semantic-success"
-                : turn.qualityScore >= 3
-                  ? "bg-semantic-warning/10 text-semantic-warning"
-                  : "bg-semantic-destructive/10 text-semantic-destructive",
-            )}
-          >
-            {turn.qualityScore}/5
-          </span>
-        ) : null}
         <time
           dateTime={turn.createdAt}
           suppressHydrationWarning

@@ -5247,8 +5247,7 @@
       },
       "Memory": {
         "title": "Memory",
-        "description": "Short-term working notes. Product records stay the source of truth.",
-        "version": "Version",
+        "description": "What it currently keeps in mind.",
         "hash": "Hash",
         "size": "Size",
         "updated": "Updated",
@@ -5264,7 +5263,7 @@
       },
       "Schedules": {
         "title": "Schedules",
-        "description": "Prompts your Soko Bot runs on a schedule. Approvals still come to you.",
+        "description": "Things it does on its own, on a schedule.",
         "count": "{count, plural, one {# schedule} other {# schedules}}",
         "empty": "No schedules yet.",
         "nextRun": "Next",
@@ -5327,8 +5326,7 @@
           "teammate": "a teammate",
           "inDirect": "in your direct chat",
           "inRoom": "in #{room}",
-          "event": "Woke by work update",
-          "qualityTitle": "Judge score (1–5)"
+          "event": "Woke by work update"
         },
         "thinkingMessages": {
           "0": "Thinking",
@@ -5460,17 +5458,17 @@
         }
       },
       "Console": {
-        "tagline": "Personal project manager: delegates Tasks, hires Agents, keeps you informed. Talk to it in chat.",
+        "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
         "lastActivity": "last active {time}",
         "openChat": "Open chat",
         "openingChat": "Opening…",
         "openChatError": "Could not open the chat with your Soko Bot.",
         "activityTitle": "Recent activity",
-        "activityDescription": "The last turns from chat and schedules, with what they did.",
+        "activityDescription": "What it did recently.",
         "activityEmpty": "No turns yet. Open the chat and ask for something.",
         "showMore": "Show {count} more",
-        "skillsTitle": "Skills & tools",
-        "skillsDescription": "What your assistant has learned and which tools it may use on your behalf."
+        "skillsTitle": "Skills",
+        "skillsDescription": "What your assistant knows how to do. Add more from skills.sh."
       },
       "Avatar": {
         "title": "Picture",
@@ -5485,7 +5483,7 @@
         "loadError": "Could not load pictures."
       },
       "Skills": {
-        "builtIn": "Built-in",
+        "builtIn": "Included",
         "installedTitle": "Installed from skills.sh",
         "installedEmpty": "No installed skills yet.",
         "sourcePlaceholder": "owner/repo/skill or skills.sh link",
@@ -5501,9 +5499,8 @@
         "search": "Search",
         "searchError": "Search failed.",
         "installs": "{count} installs",
-        "hint": "Installed skills are loaded on demand when a request matches their description. Review a skill's source before installing — browse",
-        "tools": "Tools",
-        "popular": "Most installed on skills.sh",
+        "hint": "Skills are loaded when a request matches them. Have a look at a skill's source before installing — browse",
+        "popular": "Popular on skills.sh",
         "searchResults": "{count} results",
         "pageOf": "{page} / {pages}",
         "prev": "Prev",

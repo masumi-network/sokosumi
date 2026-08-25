@@ -5247,8 +5247,7 @@
       },
       "Memory": {
         "title": "Memoria",
-        "description": "Notas de trabajo a corto plazo. Los registros del producto siguen siendo la fuente de verdad.",
-        "version": "Versión",
+        "description": "Lo que tiene en mente ahora.",
         "hash": "Hash",
         "size": "Tamaño",
         "updated": "Actualizada",
@@ -5264,7 +5263,7 @@
       },
       "Schedules": {
         "title": "Programaciones",
-        "description": "Prompts que tu Soko Bot ejecuta según un horario. Las aprobaciones siguen llegándote a ti.",
+        "description": "Lo que hace por su cuenta, según un horario.",
         "count": "{count, plural, one {# programación} other {# programaciones}}",
         "empty": "Aún no hay programaciones.",
         "nextRun": "Próxima",
@@ -5327,8 +5326,7 @@
           "teammate": "un compañero",
           "inDirect": "en tu chat directo",
           "inRoom": "en #{room}",
-          "event": "Activado por cambio de trabajo",
-          "qualityTitle": "Puntuación (1–5)"
+          "event": "Activado por cambio de trabajo"
         },
         "thinkingMessages": {
           "0": "Pensando",
@@ -5460,17 +5458,17 @@
         }
       },
       "Console": {
-        "tagline": "Gestor de proyectos personal: delega Tasks, contrata Agents y te mantiene informado. Háblale en el chat.",
+        "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
         "lastActivity": "última actividad {time}",
         "openChat": "Abrir chat",
         "openingChat": "Abriendo…",
         "openChatError": "No se pudo abrir el chat con tu Soko Bot.",
         "activityTitle": "Actividad reciente",
-        "activityDescription": "Los últimos turnos desde el chat y las programaciones, con lo que hicieron.",
+        "activityDescription": "Lo que hizo últimamente.",
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
         "showMore": "Mostrar {count} más",
-        "skillsTitle": "Skills y herramientas",
-        "skillsDescription": "Lo que tu asistente ha aprendido y qué herramientas puede usar en tu nombre."
+        "skillsTitle": "Skills",
+        "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh."
       },
       "Avatar": {
         "title": "Imagen",
@@ -5485,7 +5483,7 @@
         "loadError": "No se pudieron cargar las imágenes."
       },
       "Skills": {
-        "builtIn": "Integrados",
+        "builtIn": "Incluidos",
         "installedTitle": "Instalados desde skills.sh",
         "installedEmpty": "Aún no hay skills instalados.",
         "sourcePlaceholder": "owner/repo/skill o enlace de skills.sh",
@@ -5501,9 +5499,8 @@
         "search": "Buscar",
         "searchError": "La búsqueda falló.",
         "installs": "{count} instalaciones",
-        "hint": "Los skills instalados se cargan bajo demanda cuando una petición coincide con su descripción. Revisa la fuente antes de instalar — explora",
-        "tools": "Herramientas",
-        "popular": "Más instalados en skills.sh",
+        "hint": "Los skills se cargan cuando una petición coincide con ellos. Revisa la fuente antes de instalar — explora",
+        "popular": "Populares en skills.sh",
         "searchResults": "{count} resultados",
         "pageOf": "{page} / {pages}",
         "prev": "Anterior",

@@ -5247,8 +5247,7 @@
       },
       "Memory": {
         "title": "Gedächtnis",
-        "description": "Kurzfristige Arbeitsnotizen. Produktdaten bleiben die Quelle der Wahrheit.",
-        "version": "Version",
+        "description": "Was er gerade im Kopf behält.",
         "hash": "Hash",
         "size": "Größe",
         "updated": "Aktualisiert",
@@ -5264,7 +5263,7 @@
       },
       "Schedules": {
         "title": "Zeitpläne",
-        "description": "Prompts, die dein Soko Bot nach Zeitplan ausführt. Freigaben kommen weiterhin zu dir.",
+        "description": "Was er von selbst nach Zeitplan erledigt.",
         "count": "{count, plural, one {# Zeitplan} other {# Zeitpläne}}",
         "empty": "Noch keine Zeitpläne.",
         "nextRun": "Nächster",
@@ -5327,8 +5326,7 @@
           "teammate": "einem Teammitglied",
           "inDirect": "im Direktchat",
           "inRoom": "in #{room}",
-          "event": "Durch Arbeitsupdate geweckt",
-          "qualityTitle": "Bewertung (1–5)"
+          "event": "Durch Arbeitsupdate geweckt"
         },
         "thinkingMessages": {
           "0": "Denkt nach",
@@ -5460,17 +5458,17 @@
         }
       },
       "Console": {
-        "tagline": "Persönlicher Projektmanager: delegiert Tasks, beauftragt Agents, hält dich auf dem Laufenden. Sprich im Chat mit ihm.",
+        "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
         "lastActivity": "zuletzt aktiv {time}",
         "openChat": "Chat öffnen",
         "openingChat": "Wird geöffnet…",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
         "activityTitle": "Letzte Aktivität",
-        "activityDescription": "Die letzten Durchläufe aus Chat und Zeitplänen, mit dem, was sie getan haben.",
+        "activityDescription": "Was er zuletzt getan hat.",
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
         "showMore": "{count} weitere anzeigen",
-        "skillsTitle": "Skills & Tools",
-        "skillsDescription": "Was dein Assistent gelernt hat und welche Tools er für dich nutzen darf."
+        "skillsTitle": "Skills",
+        "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh."
       },
       "Avatar": {
         "title": "Bild",
@@ -5485,7 +5483,7 @@
         "loadError": "Bilder konnten nicht geladen werden."
       },
       "Skills": {
-        "builtIn": "Eingebaut",
+        "builtIn": "Enthalten",
         "installedTitle": "Installiert von skills.sh",
         "installedEmpty": "Noch keine installierten Skills.",
         "sourcePlaceholder": "owner/repo/skill oder skills.sh-Link",
@@ -5501,9 +5499,8 @@
         "search": "Suchen",
         "searchError": "Suche fehlgeschlagen.",
         "installs": "{count} Installationen",
-        "hint": "Installierte Skills werden bei passenden Anfragen bei Bedarf geladen. Prüfe die Quelle vor dem Installieren — stöbern auf",
-        "tools": "Tools",
-        "popular": "Meistinstalliert auf skills.sh",
+        "hint": "Skills werden geladen, wenn eine Anfrage zu ihnen passt. Schau dir die Quelle vor dem Installieren an — stöbern auf",
+        "popular": "Beliebt auf skills.sh",
         "searchResults": "{count} Treffer",
         "pageOf": "{page} / {pages}",
         "prev": "Zurück",

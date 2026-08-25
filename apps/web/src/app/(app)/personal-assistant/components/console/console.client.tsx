@@ -16,8 +16,8 @@ import type {
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
+import { describeCron } from "@/lib/soko-bot/describe-cron";
 import { cn } from "@/lib/utils";
-
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { AvatarPicker } from "../avatar-picker.client";
 import {
@@ -30,6 +30,7 @@ import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
+
 import { SkillsSection } from "../skills-section.client";
 
 import { ActivityList } from "./activity-list.client";
@@ -218,8 +219,11 @@ export function SokoBotConsole({
                               <p className="truncate text-sm font-medium">
                                 {schedule.name}
                               </p>
-                              <p className="text-muted-foreground font-mono text-xs">
-                                {schedule.cronExpression} · {schedule.timezone}
+                              <p
+                                className="text-muted-foreground text-xs"
+                                title={`${schedule.cronExpression} · ${schedule.timezone}`}
+                              >
+                                {describeCron(schedule.cronExpression)}
                               </p>
                             </div>
                             <ScheduleRowActions
@@ -276,12 +280,6 @@ export function SokoBotConsole({
                           dateStyle: "medium",
                           timeStyle: "short",
                         })}
-                      </span>
-                      <span className="ml-3">
-                        {t("Memory.version")}{" "}
-                        <span className="text-foreground tabular-nums">
-                          {bot.memory.version}
-                        </span>
                       </span>
                     </p>
                     <Markdown className="prose prose-sm dark:prose-invert max-h-80 max-w-none overflow-y-auto text-sm">

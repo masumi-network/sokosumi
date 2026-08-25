@@ -1,6 +1,5 @@
 "use client";
 
-import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { ExternalLink, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
@@ -117,11 +116,6 @@ export function SkillsSection({
       <div>
         <p className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
           {t("builtIn")}
-          {version ? (
-            <span className="ml-2 normal-case tracking-normal">
-              {version.name}
-            </span>
-          ) : null}
         </p>
         <ul className="space-y-2">
           {(version?.skills ?? []).map((skill) => (
@@ -327,7 +321,8 @@ export function SkillsSection({
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{row.name}</p>
                       <p className="text-muted-foreground truncate text-xs tabular-nums">
-                        {row.source} · {row.meta}
+                        {row.source}
+                        {row.meta ? ` · ${row.meta}` : ""}
                       </p>
                     </div>
                     <a
@@ -369,24 +364,6 @@ export function SkillsSection({
             skills.sh
           </a>
         </p>
-      </div>
-
-      <div>
-        <p className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
-          {t("tools")}
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {(version?.capabilities ?? SOKO_BOT_CAPABILITIES).map(
-            (capability) => (
-              <span
-                key={capability}
-                className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs"
-              >
-                {capability.replaceAll("_", " ")}
-              </span>
-            ),
-          )}
-        </div>
       </div>
     </div>
   );
