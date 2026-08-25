@@ -4249,6 +4249,7 @@ export type SokoBotTeam = {
         id: string;
         kind: 'personal' | 'organization';
         name: string;
+        logo: string | null;
     };
     members: Array<{
         userId: string;

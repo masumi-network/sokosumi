@@ -14733,12 +14733,19 @@ export const SokoBotTeamSchema = {
                 },
                 name: {
                     type: 'string'
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
                 }
             },
             required: [
                 'id',
                 'kind',
-                'name'
+                'name',
+                'logo'
             ]
         },
         members: {

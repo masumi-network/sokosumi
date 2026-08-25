@@ -683,6 +683,7 @@ export const sokoBotTeamSchema = z
       id: z.string().uuid(),
       kind: z.enum(["personal", "organization"]),
       name: z.string(),
+      logo: z.string().nullable(),
     }),
     members: z.array(
       z.object({
