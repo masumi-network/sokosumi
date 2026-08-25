@@ -129,7 +129,7 @@ export function ScenarioLab({
   versionId: string | null;
   onTurnFinished?: () => void;
 }) {
-  const t = useTranslations("App.SokoBot.Lab");
+  const t = useTranslations("App.Admin.SokoBots.Lab");
   const [history, setHistory] = useState<History>({});
   const [versions, setVersions] = useState<SokoBotVersion[]>([]);
   const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
@@ -392,7 +392,7 @@ function ScenarioRow({
   failure: string | null;
   onRun: () => void;
 }) {
-  const t = useTranslations("App.SokoBot.Lab");
+  const t = useTranslations("App.Admin.SokoBots.Lab");
   const format = useFormatter();
   const [open, setOpen] = useState(false);
   const latest = runs[0] ?? null;
@@ -534,7 +534,7 @@ function ScenarioRow({
 
 /** Newest run on the right; a full-score run is a solid dot. */
 function ScoreTrail({ runs }: { runs: RunRecord[] }) {
-  const t = useTranslations("App.SokoBot.Lab");
+  const t = useTranslations("App.Admin.SokoBots.Lab");
   if (runs.length === 0) return null;
   return (
     <div className="flex items-center gap-1.5 self-center">

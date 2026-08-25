@@ -3475,7 +3475,35 @@
           "labJudge": "Evaluador lab",
           "verdicts": "pass / weak / fail"
         },
-        "labLink": "Laboratorio de comportamiento"
+        "labLink": "Laboratorio de comportamiento",
+        "Lab": {
+          "title": "Laboratorio de comportamiento",
+          "description": "Prompts fijos puntuados según cómo debería reaccionar el asistente. Vuelve a ejecutarlos tras cambiar el prompt, el clasificador o el modelo.",
+          "warning": "Las ejecuciones son turnos reales: crean tareas y aprobaciones en tu espacio de trabajo.",
+          "runAll": "Ejecutar todo",
+          "run": "Ejecutar",
+          "running": "Ejecutando…",
+          "lastRun": "Última ejecución {time}",
+          "openTurn": "Abrir turno",
+          "neverRun": "Aún no ejecutado.",
+          "score": "{passed}/{total} comprobaciones superadas",
+          "startError": "No se pudo iniciar el turno.",
+          "timeout": "El turno no terminó en 5 minutos.",
+          "version": "Versión",
+          "overviewModel": "Modelo",
+          "overviewSkills": "Skills",
+          "overviewTools": "Herramientas",
+          "overviewPrompt": "Prompt del sistema",
+          "allTools": "todas las herramientas de la ruta",
+          "showPrompt": "Mostrar",
+          "hidePrompt": "Ocultar",
+          "judge": "Evaluación (Claude)",
+          "judgeScores": "delegación {d} · seguimiento {f} · criterio {j} · honestidad {h}",
+          "runAllVersions": "Ejecutar las {count} versiones",
+          "noBotTitle": "Necesitas un Soko Bot para usar el laboratorio",
+          "noBotDescription": "Las ejecuciones usan tu propio asistente.",
+          "noBotLink": "Créalo aquí."
+        }
       }
     },
     "Billing": {
@@ -5453,34 +5481,6 @@
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
         "loadError": "No se pudieron cargar las imágenes."
-      },
-      "Lab": {
-        "title": "Laboratorio de comportamiento",
-        "description": "Prompts fijos puntuados según cómo debería reaccionar el asistente. Vuelve a ejecutarlos tras cambiar el prompt, el clasificador o el modelo.",
-        "warning": "Las ejecuciones son turnos reales: crean tareas y aprobaciones en tu espacio de trabajo.",
-        "runAll": "Ejecutar todo",
-        "run": "Ejecutar",
-        "running": "Ejecutando…",
-        "lastRun": "Última ejecución {time}",
-        "openTurn": "Abrir turno",
-        "neverRun": "Aún no ejecutado.",
-        "score": "{passed}/{total} comprobaciones superadas",
-        "startError": "No se pudo iniciar el turno.",
-        "timeout": "El turno no terminó en 5 minutos.",
-        "version": "Versión",
-        "overviewModel": "Modelo",
-        "overviewSkills": "Skills",
-        "overviewTools": "Herramientas",
-        "overviewPrompt": "Prompt del sistema",
-        "allTools": "todas las herramientas de la ruta",
-        "showPrompt": "Mostrar",
-        "hidePrompt": "Ocultar",
-        "judge": "Evaluación (Claude)",
-        "judgeScores": "delegación {d} · seguimiento {f} · criterio {j} · honestidad {h}",
-        "runAllVersions": "Ejecutar las {count} versiones",
-        "noBotTitle": "Necesitas un Soko Bot para usar el laboratorio",
-        "noBotDescription": "Las ejecuciones usan tu propio asistente.",
-        "noBotLink": "Créalo aquí."
       }
     }
   },

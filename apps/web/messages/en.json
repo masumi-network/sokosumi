@@ -3506,7 +3506,35 @@
           "labJudge": "Lab judge",
           "verdicts": "pass / weak / fail"
         },
-        "labLink": "Behaviour lab"
+        "labLink": "Behaviour lab",
+        "Lab": {
+          "title": "Behaviour lab",
+          "description": "Fixed prompts scored against how the assistant should react. Re-run after changing the prompt, classifier, or model.",
+          "warning": "Runs are real turns: they create tasks and approvals in your workspace.",
+          "runAll": "Run all",
+          "run": "Run",
+          "running": "Running…",
+          "lastRun": "Last run {time}",
+          "openTurn": "Open turn",
+          "neverRun": "Not run yet.",
+          "score": "{passed}/{total} checks passed",
+          "startError": "Could not start the turn.",
+          "timeout": "The turn did not finish within 5 minutes.",
+          "version": "Version",
+          "overviewModel": "Model",
+          "overviewSkills": "Skills",
+          "overviewTools": "Tools",
+          "overviewPrompt": "System prompt",
+          "allTools": "all tools of the route",
+          "showPrompt": "Show",
+          "hidePrompt": "Hide",
+          "judge": "Judge (Claude)",
+          "judgeScores": "delegation {d} · follow-through {f} · judgment {j} · honesty {h}",
+          "runAllVersions": "Run all {count} versions",
+          "noBotTitle": "You need a Soko Bot to run the lab",
+          "noBotDescription": "Runs use your own assistant.",
+          "noBotLink": "Create it here."
+        }
       }
     },
     "Billing": {
@@ -5453,34 +5481,6 @@
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
         "loadError": "Could not load pictures."
-      },
-      "Lab": {
-        "title": "Behaviour lab",
-        "description": "Fixed prompts scored against how the assistant should react. Re-run after changing the prompt, classifier, or model.",
-        "warning": "Runs are real turns: they create tasks and approvals in your workspace.",
-        "runAll": "Run all",
-        "run": "Run",
-        "running": "Running…",
-        "lastRun": "Last run {time}",
-        "openTurn": "Open turn",
-        "neverRun": "Not run yet.",
-        "score": "{passed}/{total} checks passed",
-        "startError": "Could not start the turn.",
-        "timeout": "The turn did not finish within 5 minutes.",
-        "version": "Version",
-        "overviewModel": "Model",
-        "overviewSkills": "Skills",
-        "overviewTools": "Tools",
-        "overviewPrompt": "System prompt",
-        "allTools": "all tools of the route",
-        "showPrompt": "Show",
-        "hidePrompt": "Hide",
-        "judge": "Judge (Claude)",
-        "judgeScores": "delegation {d} · follow-through {f} · judgment {j} · honesty {h}",
-        "runAllVersions": "Run all {count} versions",
-        "noBotTitle": "You need a Soko Bot to run the lab",
-        "noBotDescription": "Runs use your own assistant.",
-        "noBotLink": "Create it here."
       }
     }
   },

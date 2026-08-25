@@ -18,7 +18,7 @@ export const metadata: Metadata = {
  */
 export default async function AdminSokoBotLabPage() {
   const [t, bot] = await Promise.all([
-    getTranslations("App.SokoBot.Lab"),
+    getTranslations("App.Admin.SokoBots.Lab"),
     sokoBotService.getMine(),
   ]);
 

@@ -3475,7 +3475,35 @@
           "labJudge": "Lab-Bewertung",
           "verdicts": "pass / weak / fail"
         },
-        "labLink": "Verhaltenslabor"
+        "labLink": "Verhaltenslabor",
+        "Lab": {
+          "title": "Verhaltenslabor",
+          "description": "Feste Prompts, bewertet daran, wie der Assistent reagieren sollte. Nach Änderungen an Prompt, Classifier oder Modell erneut ausführen.",
+          "warning": "Läufe sind echte Durchläufe: Sie erzeugen Tasks und Freigaben in deinem Workspace.",
+          "runAll": "Alle ausführen",
+          "run": "Ausführen",
+          "running": "Läuft…",
+          "lastRun": "Letzter Lauf {time}",
+          "openTurn": "Durchlauf öffnen",
+          "neverRun": "Noch nicht ausgeführt.",
+          "score": "{passed}/{total} Prüfungen bestanden",
+          "startError": "Der Durchlauf konnte nicht gestartet werden.",
+          "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig.",
+          "version": "Version",
+          "overviewModel": "Modell",
+          "overviewSkills": "Skills",
+          "overviewTools": "Tools",
+          "overviewPrompt": "System-Prompt",
+          "allTools": "alle Tools der Route",
+          "showPrompt": "Anzeigen",
+          "hidePrompt": "Ausblenden",
+          "judge": "Bewertung (Claude)",
+          "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}",
+          "runAllVersions": "Alle {count} Versionen ausführen",
+          "noBotTitle": "Für das Labor brauchst du einen Soko Bot",
+          "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
+          "noBotLink": "Hier erstellen."
+        }
       }
     },
     "Billing": {
@@ -5453,34 +5481,6 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "loadError": "Bilder konnten nicht geladen werden."
-      },
-      "Lab": {
-        "title": "Verhaltenslabor",
-        "description": "Feste Prompts, bewertet daran, wie der Assistent reagieren sollte. Nach Änderungen an Prompt, Classifier oder Modell erneut ausführen.",
-        "warning": "Läufe sind echte Durchläufe: Sie erzeugen Tasks und Freigaben in deinem Workspace.",
-        "runAll": "Alle ausführen",
-        "run": "Ausführen",
-        "running": "Läuft…",
-        "lastRun": "Letzter Lauf {time}",
-        "openTurn": "Durchlauf öffnen",
-        "neverRun": "Noch nicht ausgeführt.",
-        "score": "{passed}/{total} Prüfungen bestanden",
-        "startError": "Der Durchlauf konnte nicht gestartet werden.",
-        "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig.",
-        "version": "Version",
-        "overviewModel": "Modell",
-        "overviewSkills": "Skills",
-        "overviewTools": "Tools",
-        "overviewPrompt": "System-Prompt",
-        "allTools": "alle Tools der Route",
-        "showPrompt": "Anzeigen",
-        "hidePrompt": "Ausblenden",
-        "judge": "Bewertung (Claude)",
-        "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}",
-        "runAllVersions": "Alle {count} Versionen ausführen",
-        "noBotTitle": "Für das Labor brauchst du einen Soko Bot",
-        "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
-        "noBotLink": "Hier erstellen."
       }
     }
   },
