@@ -6,17 +6,11 @@
 
 **Framework**: Next.js 16 App Router with React 19.2 Server Components
 **Location**: `apps/web/` directory within the pnpm workspace
-**Key Directories**:
-
-- `src/app/` - App Router routes, server actions, API handlers
-- `src/components/` - Shared UI components (Shadcn UI + Radix)
-- `src/lib/` - Domain logic following three-layer pattern
-- `src/hooks/` - Custom React hooks
-- `src/contexts/` - React contexts
+**Key Directories**: The live tree is `src/`. Conventions that still match: `src/app/` (routes), `src/components/` (Shadcn + Radix), `src/lib/` (three-layer services/actions/utils), `src/hooks/`, `src/contexts/`. Also `src/auth/`, `src/config/`, `src/i18n/`, `src/queries/`, `src/middleware/`.
 
 ## App Router Structure
 
-The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `composio/`.
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `composio/`, `tasks/`, `maintenance`.
 
 ## App-Specific Conventions
 
@@ -183,7 +177,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 ## App-Specific Testing
 
 - Test files colocated in `__tests__/` directories
-- Mock external APIs using `__mocks__/` directory
+- Mock external APIs with colocated `vi.mock` (there is no `__mocks__/` directory)
 - Test both server and client components appropriately
 - Use Testing Library for component testing
 

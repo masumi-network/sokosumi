@@ -14,46 +14,24 @@
 
 ## Project Layout
 
+The live trees are the directories below. Package **exports** (not a cached file list) are the entry points — see each `package.json`. Scoped contracts: [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
+
 ```
 sokosumi/
 ├── apps/
-│   ├── web/                   # Next.js web application
-│   │   ├── src/app/           # App Router routes, server actions, API handlers
-│   │   ├── src/components/    # Shared UI components
-│   │   ├── src/hooks/         # Custom React hooks
-│   │   ├── src/contexts/      # React contexts
-│   │   ├── src/lib/           # Domain logic (services, actions, utilities)
-│   │   │   ├── services/      # Business logic coordination
-│   │   │   ├── actions/       # Server mutations
-│   │   │   └── utils/         # Helper functions and transformers
-│   │   ├── __tests__/         # Colocated tests
-│   │   ├── __mocks__/         # Reusable test doubles
-│   │   ├── public/            # Static assets
-│   │   └── messages/          # Translation catalogs
-│   └── core/                  # Hono API service
-│       ├── src/routes/v1/     # API route handlers (versioned)
-│       ├── src/middleware/    # Request middleware (auth, etc.)
-│       ├── src/helpers/       # Response and error helpers
-│       ├── src/schemas/       # Zod validation schemas
-│       └── src/lib/           # Shared utilities
+│   ├── web/                   # Next.js web app — live tree `src/`
+│   └── core/                  # Hono API — live tree `src/`
 ├── packages/
-│   ├── database/              # Shared database layer (@sokosumi/database)
-│   │   ├── src/repositories/  # Prisma/Postgres access layer
-│   │   ├── src/helpers/       # Database domain logic
-│   │   ├── src/types/         # Database type definitions
-│   │   └── prisma/            # Database schema and migrations
-│   ├── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
-│   │   ├── src/clients/       # Agent, payment, registry clients
-│   │   ├── src/hash/          # Hash utilities for job verification
-│   │   ├── src/schemas/       # Agent / input / x402 Zod schemas
-│   │   └── src/tools/         # Masumi-hosted tools (DESIGN.md)
-│   ├── utils/                 # Shared utilities (@sokosumi/utils)
-│   │   └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
-│   ├── net/                   # Network helpers (@sokosumi/net; SSRF-safe fetch, etc.)
-│   ├── email/                 # Shared email renderers and locales (@sokosumi/email)
-│   ├── chat/                  # Chat types and shared chat utilities (@sokosumi/chat)
-│   └── ai-provider/           # Sokosumi AI SDK provider (@sokosumi/ai-provider)
+│   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
+│   ├── masumi/                # @sokosumi/masumi — `src/`; exports in package.json
+│   ├── utils/                 # @sokosumi/utils — `src/`
+│   ├── net/                   # @sokosumi/net — `src/`
+│   ├── email/                 # @sokosumi/email — `src/`
+│   ├── chat/                  # @sokosumi/chat — `src/`
+│   └── ai-provider/           # @sokosumi/ai-provider — `src/`
 ├── docs/                      # Agent, domain, coworker, and design docs
+├── scripts/                   # local-env, cloud-agent-db, CI helpers
+├── skills/                    # First-party skill sources (installed into `.agents/skills/`)
 └── biome.jsonc                # Root Biome configuration
 ```
 
@@ -227,7 +205,7 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 - **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages and `apps/core`)
 - **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
-- **Mocking**: Use `__mocks__` or Prisma factories for external services
+- **Mocking**: Colocate `vi.mock` (and Prisma factories in Core / `@sokosumi/database`) next to the test. Web has no `__mocks__/` directory.
 - **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
 - **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
 
@@ -364,6 +342,10 @@ Do **not** invent or file Linear issues during implement work. Filing a new requ
 
 When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`.agents/skills/translations/`](./.agents/skills/translations/).
 
+### Verify Sokosumi
+
+End-to-end launch, doctor, and browser proof for web + Core. First-party skill lives at [`.cursor/skills/verify-sokosumi/`](./.cursor/skills/verify-sokosumi/) (not under `skills/`). Use `verify-sokosumi launch` / `doctor` / `sign-in` instead of inventing a local stack.
+
 ### Issue tracker
 
 Issues live in Linear (team "Sokosumi", key `SOK`). When `linear` is on PATH, run the CLI for all Linear work and ignore Linear MCP (`linear__*`). Follow [`.agents/skills/linear-cli/`](.agents/skills/linear-cli/) for flags, `--json`, and `linear api`. If `command -v linear` fails, use Linear MCP. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
@@ -404,7 +386,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.18.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.23.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
 ### Database (Cloud agent Neon branch)
 
