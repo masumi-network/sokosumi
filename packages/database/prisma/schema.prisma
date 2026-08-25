@@ -1806,7 +1806,7 @@ model SokoBotTurn {
   scheduleRun      SokoBotScheduleRun?
 
   @@unique([sokoBotId, clientTurnId])
-  @@unique([sokoBotId, eveTurnId])
+  @@unique([sokoBotId, eveSessionId, eveTurnId])
   @@index([userId, createdAt(sort: Desc)])
   @@index([sokoBotId, status, createdAt(sort: Desc)])
   @@index([status, reconcilerHeartbeatAt])
