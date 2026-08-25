@@ -3497,7 +3497,7 @@
           "allTools": "alle Tools der Route",
           "showPrompt": "Anzeigen",
           "hidePrompt": "Ausblenden",
-          "judge": "Bewertung (Claude)",
+          "judge": "Bewertung",
           "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}",
           "runAllVersions": "Alle {count} Versionen ausführen",
           "noBotTitle": "Für das Labor brauchst du einen Soko Bot",

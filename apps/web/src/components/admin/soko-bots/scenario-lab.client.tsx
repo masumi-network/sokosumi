@@ -459,7 +459,8 @@ function ScenarioRow({
                   )}
                 >
                   <p className="font-medium">
-                    {t("judge")} · {latest.judge.verdict}
+                    {t("judge")} ({latest.judge.model || "—"}) ·{" "}
+                    {latest.judge.verdict}
                     <span className="text-muted-foreground ml-2 font-normal tabular-nums">
                       {t("judgeScores", {
                         d: latest.judge.scores.delegation,

@@ -3528,7 +3528,7 @@
           "allTools": "all tools of the route",
           "showPrompt": "Show",
           "hidePrompt": "Hide",
-          "judge": "Judge (Claude)",
+          "judge": "Judge",
           "judgeScores": "delegation {d} · follow-through {f} · judgment {j} · honesty {h}",
           "runAllVersions": "Run all {count} versions",
           "noBotTitle": "You need a Soko Bot to run the lab",
