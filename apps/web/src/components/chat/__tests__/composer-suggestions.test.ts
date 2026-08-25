@@ -73,4 +73,68 @@ describe("resolveComposerSuggestion", () => {
       resolveComposerSuggestion("@al", 3, { mentionsAvailable: false }),
     ).toBeNull();
   });
+
+  it("resolves a channel query when the catalog has matches", () => {
+    expect(
+      resolveComposerSuggestion("hi #lau", 7, {
+        mentionsAvailable: false,
+        channels: [
+          {
+            id: "r1",
+            name: "Launch Room",
+            slug: "launch-room",
+            organizationName: null,
+          },
+        ],
+      }),
+    ).toEqual({
+      kind: "channel",
+      query: "lau",
+      triggerStart: 3,
+      matches: [
+        {
+          id: "r1",
+          name: "Launch Room",
+          slug: "launch-room",
+          organizationName: null,
+        },
+      ],
+    });
+  });
+
+  it("does not resolve a channel query with zero matches", () => {
+    expect(
+      resolveComposerSuggestion("hi #zzz", 7, {
+        mentionsAvailable: false,
+        channels: [
+          {
+            id: "r1",
+            name: "Launch Room",
+            slug: "launch-room",
+            organizationName: null,
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("prefers @mention over #channel when both catalogs exist", () => {
+    expect(
+      resolveComposerSuggestion("Hello @wr", 9, {
+        mentionsAvailable: true,
+        channels: [
+          {
+            id: "r1",
+            name: "writers",
+            slug: "writers",
+            organizationName: null,
+          },
+        ],
+      }),
+    ).toEqual({
+      kind: "mention",
+      query: "wr",
+      triggerStart: 6,
+    });
+  });
 });

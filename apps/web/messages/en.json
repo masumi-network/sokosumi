@@ -288,7 +288,7 @@
       "coworkers": "Coworkers",
       "vendors": "Vendors",
       "docs": "Documentation",
-      "drive": "Drive"
+      "drive": "Files"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2904,7 +2904,7 @@
           "hermesNew": "New",
           "hermesUnread": "{count} unread",
           "history": "History",
-          "drive": "Drive",
+          "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",
           "back": "Back",
@@ -5424,9 +5424,9 @@
       "checking": "Checking workspace access"
     },
     "Drive": {
-      "breadcrumb": "Drive",
-      "breadcrumbNavLabel": "Drive folder navigation",
-      "myDriveTab": "My Drive",
+      "breadcrumb": "Files",
+      "breadcrumbNavLabel": "Files folder navigation",
+      "myDrive": "My Files",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "No files yet",
@@ -5434,7 +5434,7 @@
       "searchPlaceholder": "Search files...",
       "noMatchTitle": "No files found",
       "noMatchDescription": "Try a different search query",
-      "pickerEmptyMessage": "No files in this Drive",
+      "pickerEmptyMessage": "No files in this folder",
       "downloadAction": "Download",
       "renameAction": "Rename",
       "deleteAction": "Delete",
@@ -5451,12 +5451,12 @@
       "renameFolderToFileConflictError": "A file with this name already exists",
       "renameConflictError": "A file or folder with this name already exists",
       "deleteError": "Failed to delete file",
-      "organizationTabFallback": "Organization",
+      "organizationDriveFallback": "Organization",
       "uploadDuplicateError": "A file with this name already exists. Rename it and try again.",
-      "selectTitle": "Select from Drive",
-      "selectDescription": "Choose a file from your personal or organization Drive",
-      "uploadFile": "Upload file",
-      "fromDrive": "From Drive",
+      "selectTitle": "Select from Files",
+      "selectDescription": "Choose a file from your personal or organization Files",
+      "uploadFile": "Upload from device",
+      "fromDrive": "From Files",
       "moreActions": "More actions",
       "uploadFab": "Upload file",
       "folder": "Folder",

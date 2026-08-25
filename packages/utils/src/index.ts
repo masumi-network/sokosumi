@@ -173,6 +173,14 @@ export {
 } from "./job-blob-path.js";
 export { linkifyBareDomainsInMarkdown } from "./linkify-bare-domains.js";
 export {
+  type ChannelLinkIdentity,
+  type ChannelLinkMatch,
+  type ChannelLinkTarget,
+  channelLinkInsertText,
+  collectChannelLinksInMarkdown,
+  linkifyChannelLinksInMarkdown,
+} from "./linkify-channel-links.js";
+export {
   type AppLocale,
   DEFAULT_LOCALE,
   getEmailLocale,

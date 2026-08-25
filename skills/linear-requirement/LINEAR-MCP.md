@@ -1,4 +1,6 @@
-# Linear MCP — Requirement Issues
+# Linear MCP — Requirement Issues (CLI fallback)
+
+Use this file **only when `linear` is not on PATH**. If `command -v linear` succeeds, use `LINEAR-CLI.md` instead and ignore Linear MCP.
 
 Run **only after** the user approves the draft in chat.
 
@@ -61,7 +63,7 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 ## Hard rules
 
-- Use MCP only. No browser automation, curl, or raw API.
+- Use Linear MCP on this path. No browser automation, curl, or Linear REST. Do not use MCP when `linear` is on PATH.
 - Inspect Linear tool descriptors before write calls.
 - Never call a write tool without a complete arguments object matching the live schema.
 - Stop if Linear MCP is not loaded.

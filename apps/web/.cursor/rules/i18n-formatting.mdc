@@ -1,7 +1,6 @@
 ---
 description: Locale-safe number and date formatting in client components (hydration)
-globs:
-  - "*.tsx"
+globs: apps/web/**/*.tsx
 alwaysApply: false
 ---
 
@@ -41,7 +40,7 @@ function CreditsCell({ credits }: { credits: number }) {
 }
 ```
 
-For dates in client components, prefer `formatter.dateTime(value, options)` (see `jobs-table.tsx`, `job-meta-details.tsx`).
+For dates in client components, prefer `formatter.dateTime(value, options)` (see `job-meta-details.tsx`, `personal-subscription-section.tsx`).
 
 **Server components** — use `getFormatter()` from `next-intl/server`:
 
@@ -60,6 +59,6 @@ Pure server components (no `'use client'`) that never hydrate the formatted node
 
 ## References
 
-- [next-intl `useFormatter`](https://next-intl-docs.vercel.app/docs/usage/numbers)
-- `apps/web/src/app/(app)/agents/[agentId]/jobs/components/jobs-table.tsx`
+- [next-intl `useFormatter`](https://next-intl.dev/docs/usage/numbers)
 - `apps/web/src/components/jobs/job-details/job-meta-details.tsx`
+- `apps/web/src/components/billing/personal-subscription-section.tsx`

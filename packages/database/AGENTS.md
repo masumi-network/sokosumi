@@ -9,56 +9,15 @@
 **Runtime**: Node.js 24.x (server-only)
 **Location**: `packages/database/` within the pnpm workspace
 
-## Package Structure
+## Layout
 
-```
-packages/database/
-├── src/
-│   ├── client.ts              # Prisma client factory function
-│   ├── index.ts               # Main exports (types & models)
-│   ├── repositories/          # Repository layer
-│   │   ├── agent.repository.ts
-│   │   ├── agentList.repository.ts
-│   │   ├── agentRating.repository.ts
-│   │   ├── blob.repository.ts
-│   │   ├── category.repository.ts
-│   │   ├── creditCost.repository.ts
-│   │   ├── transaction.repository.ts
-│   │   ├── invitation.repository.ts
-│   │   ├── job.repository.ts
-│   │   ├── job-event.repository.ts
-│   │   ├── job-input.repository.ts
-│   │   ├── job-purchase.repository.ts
-│   │   ├── link.repository.ts
-│   │   ├── lock.repository.ts
-│   │   ├── member.repository.ts
-│   │   ├── organization.repository.ts
-│   │   ├── sync-metadata.repository.ts
-│   │   ├── tag.repository.ts
-│   │   ├── user.repository.ts
-│   │   ├── utmAttribution.repository.ts
-│   │   └── index.ts           # Export all repositories
-│   ├── helpers/               # Domain helpers
-│   │   ├── credit.ts          # Credit calculation helpers
-│   │   ├── job.ts             # Job status computation
-│   │   └── index.ts
-│   └── types/                 # Shared type definitions
-│       ├── agent.ts
-│       ├── agentList.ts
-│       ├── agentRating.ts
-│       ├── invitation.ts
-│       ├── job.ts
-│       ├── public-share.ts
-│       ├── link.ts
-│       ├── member.ts
-│       ├── organization.ts
-│       └── utm.ts
-├── prisma/
-│   ├── schema/               # Prisma schema files
-│   └── migrations/           # Migration history
-├── dist/                     # Compiled output (gitignored)
-└── package.json
-```
+The live tree is `src/`. Package exports are in `package.json`.
+
+- `src/client.ts` is `createPrismaClient`
+- `src/repositories/` are legacy data-access modules. Pass the Prisma client in.
+- `src/helpers/` is Prisma-backed domain logic
+- `src/types/` is shared types
+- `prisma/` is schema and migrations
 
 ## Entry Points
 
@@ -179,7 +138,7 @@ export default prisma;
 
 ### ✅ Do
 
-- Prefer direct Prisma in new Core route handlers (see [core AGENTS](../../apps/core/AGENTS.md) and [data-access](../../apps/core/.cursor/rules/data-access.mdc))
+- Prefer direct Prisma in new Core route handlers (see [core AGENTS](../../apps/core/AGENTS.md); `import prisma from "@/lib/db/prisma"`)
 - Keep repositories for package consumers / legacy Core services that still use them; pass Prisma client explicitly
 - Import types from the main export (`@sokosumi/database`) in Core and server packages
 - Use database helpers for Prisma-backed domain logic (job status, credit buckets); use `@sokosumi/utils` for credit conversion
