@@ -438,7 +438,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       channelLinks: channels.map((channel) => ({
         name: channel.name,
         slug: channel.slug,
-        href: channel.id,
       })),
     });
     const isFocused = editor.contains(document.activeElement);

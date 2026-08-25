@@ -1,8 +1,11 @@
 import { escapeMarkdownLinkUrl, findMarkdownLinks } from "./markdown-links.js";
 
-export interface ChannelLinkTarget {
+export interface ChannelLinkIdentity {
   name: string;
   slug: string;
+}
+
+export interface ChannelLinkTarget extends ChannelLinkIdentity {
   href: string;
 }
 
@@ -11,7 +14,7 @@ export interface ChannelLinkMatch {
   end: number;
   /** Matched source including `#`. */
   label: string;
-  href: string;
+  href?: string;
 }
 
 interface IndexRange {
@@ -142,7 +145,7 @@ function isMatchBoundary(text: string, end: number): boolean {
   return !TOKEN_CONTINUATION.test(text[end]!);
 }
 
-function uniqueKeys(channel: ChannelLinkTarget): string[] {
+function uniqueKeys(channel: ChannelLinkIdentity): string[] {
   const name = channel.name.trim();
   const slug = channel.slug.trim();
   if (name.length === 0 && slug.length === 0) return [];
@@ -155,34 +158,41 @@ function uniqueKeys(channel: ChannelLinkTarget): string[] {
   return keys;
 }
 
+function channelHref(channel: ChannelLinkIdentity): string | undefined {
+  return "href" in channel && typeof channel.href === "string"
+    ? channel.href
+    : undefined;
+}
+
 function findChannelMatch(
   text: string,
   startAfterHash: number,
-  channels: readonly ChannelLinkTarget[],
-): { href: string; end: number } | null {
+  channels: readonly ChannelLinkIdentity[],
+): { channel: ChannelLinkIdentity; end: number } | null {
   const rest = text.slice(startAfterHash);
   const restLower = rest.toLowerCase();
   let bestLen = 0;
-  let bestHref: string | null = null;
+  let bestIndex = -1;
   let tied = false;
 
-  for (const channel of channels) {
+  for (let index = 0; index < channels.length; index += 1) {
+    const channel = channels[index]!;
     for (const key of uniqueKeys(channel)) {
       if (!restLower.startsWith(key.toLowerCase())) continue;
       const end = startAfterHash + key.length;
       if (!isMatchBoundary(text, end)) continue;
       if (key.length > bestLen) {
         bestLen = key.length;
-        bestHref = channel.href;
+        bestIndex = index;
         tied = false;
-      } else if (key.length === bestLen && channel.href !== bestHref) {
+      } else if (key.length === bestLen && index !== bestIndex) {
         tied = true;
       }
     }
   }
 
-  if (tied || bestHref == null || bestLen === 0) return null;
-  return { href: bestHref, end: startAfterHash + bestLen };
+  if (tied || bestIndex < 0 || bestLen === 0) return null;
+  return { channel: channels[bestIndex]!, end: startAfterHash + bestLen };
 }
 
 /**
@@ -191,7 +201,7 @@ function findChannelMatch(
  */
 export function collectChannelLinksInMarkdown(
   markdown: string,
-  channels: readonly ChannelLinkTarget[],
+  channels: readonly ChannelLinkIdentity[],
 ): ChannelLinkMatch[] {
   if (!markdown || channels.length === 0) return [];
 
@@ -251,7 +261,7 @@ export function collectChannelLinksInMarkdown(
             start: i,
             end: hit.end,
             label: markdown.slice(i, hit.end),
-            href: hit.href,
+            href: channelHref(hit.channel),
           });
           i = hit.end;
           continue;
@@ -282,7 +292,11 @@ export function linkifyChannelLinksInMarkdown(
   let last = 0;
   for (const match of matches) {
     result += markdown.slice(last, match.start);
-    result += `[${escapeMarkdownLinkLabel(match.label)}](${escapeMarkdownLinkUrl(match.href)})`;
+    if (match.href) {
+      result += `[${escapeMarkdownLinkLabel(match.label)}](${escapeMarkdownLinkUrl(match.href)})`;
+    } else {
+      result += markdown.slice(match.start, match.end);
+    }
     last = match.end;
   }
   result += markdown.slice(last);

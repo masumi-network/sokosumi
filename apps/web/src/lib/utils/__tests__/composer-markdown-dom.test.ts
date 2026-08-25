@@ -30,9 +30,7 @@ describe("markdownToHtml", () => {
 
   it("wraps membership-visible channel links as chips", () => {
     const html = markdownToHtml("see #general please", undefined, {
-      channelLinks: [
-        { name: "general", slug: "general", href: "/chat/rooms/g" },
-      ],
+      channelLinks: [{ name: "general", slug: "general" }],
     });
     expect(html).toContain('data-channel-label="general"');
     expect(html).toContain("#general");

@@ -1,5 +1,5 @@
 import {
-  type ChannelLinkTarget,
+  type ChannelLinkIdentity,
   collectChannelLinksInMarkdown,
   escapeMarkdownLinkUrl,
   replaceMarkdownLinks,
@@ -36,7 +36,7 @@ export type ResolveMentionDisplay = (
 ) => MentionDisplayResolution;
 
 export interface MarkdownToHtmlOptions {
-  channelLinks?: readonly ChannelLinkTarget[];
+  channelLinks?: readonly ChannelLinkIdentity[];
 }
 
 function normalizePersistedInternalMentions(text: string): string {
