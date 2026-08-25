@@ -31,8 +31,27 @@ async function loadWorkspaceBots(): Promise<SidebarSokoBotAvatar[]> {
   }
 }
 
+/** No bots yet: a few mascots from the pool, so the entry still shows faces. */
+async function loadPreviewAvatars(): Promise<SidebarSokoBotAvatar[]> {
+  try {
+    const avatars = await sokoBotService.listAvatars(12, []);
+    return avatars
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+      .map((avatar) => ({
+        id: avatar.id,
+        imageUrl: avatar.imageUrl,
+        seed: "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 async function WithBots() {
-  const bots = await loadWorkspaceBots();
+  const workspaceBots = await loadWorkspaceBots();
+  const bots =
+    workspaceBots.length > 0 ? workspaceBots : await loadPreviewAvatars();
   return <PersonalAssistantNavClient bots={bots} />;
 }
 

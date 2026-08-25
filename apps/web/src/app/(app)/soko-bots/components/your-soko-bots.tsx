@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, Plus } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -7,6 +7,7 @@ import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { SokoBotTeam } from "@/lib/clients/generated/core";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
 import { MessageBotButton } from "./message-bot-button.client";
@@ -17,6 +18,9 @@ type Member = SokoBotTeam["members"][number];
 export async function YourSokoBots({ me }: { me: Member | null }) {
   const t = await getTranslations("App.SokoBots");
   const bot = me?.bot ?? null;
+  const previews = bot
+    ? []
+    : await sokoBotService.listAvatars(4, []).catch(() => []);
   return (
     <section className="space-y-3">
       <h2 className="text-foreground text-lg font-medium">{t("yoursTitle")}</h2>
@@ -68,14 +72,20 @@ export async function YourSokoBots({ me }: { me: Member | null }) {
             </div>
           </div>
         ) : (
-          <Link
-            href={SOKO_BOT_ROUTE}
-            className="border-primary/50 hover:border-primary hover:bg-primary/5 flex flex-col gap-4 rounded-lg border-2 border-dashed p-4 transition-colors"
-          >
+          <div className="bg-background flex flex-col gap-4 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <span className="bg-primary text-primary-foreground inline-flex size-12 shrink-0 items-center justify-center rounded-full">
-                <Plus aria-hidden className="size-5" />
-              </span>
+              {previews.length > 0 ? (
+                <span className="flex shrink-0 -space-x-3" aria-hidden>
+                  {previews.map((avatar) => (
+                    <img
+                      key={avatar.id}
+                      src={avatar.imageUrl}
+                      alt=""
+                      className="ring-background size-12 rounded-full object-cover ring-2"
+                    />
+                  ))}
+                </span>
+              ) : null}
               <div className="min-w-0">
                 <p className="font-medium">{t("createAssistant")}</p>
                 <p className="text-muted-foreground text-sm">
@@ -83,16 +93,15 @@ export async function YourSokoBots({ me }: { me: Member | null }) {
                 </p>
               </div>
             </div>
-            <span className="text-primary inline-flex items-center gap-1 text-sm font-medium">
-              {t("createNow")}
-              <ArrowRight aria-hidden className="size-3.5" />
-            </span>
-          </Link>
+            <Button asChild className="w-fit">
+              <Link href={SOKO_BOT_ROUTE}>
+                {t("createNow")}
+                <ArrowRight aria-hidden className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
         )}
-        <div className="text-muted-foreground flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm">
-          <span className="bg-muted inline-flex size-12 shrink-0 items-center justify-center rounded-full">
-            <Bot aria-hidden className="size-5" />
-          </span>
+        <div className="text-muted-foreground flex items-center rounded-lg border border-dashed p-4 text-sm">
           <span>
             <span className="text-foreground block font-medium">
               {t("moreTitle")}
