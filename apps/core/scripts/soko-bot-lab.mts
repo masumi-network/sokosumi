@@ -2,7 +2,7 @@
  * Headless Soko Bot behaviour lab: runs the shared scenarios against the
  * local stack (Core + Eve + DB) and scores them, without the web UI.
  *
- * pnpm --filter core soko-bot:lab -- --label large-3
+ * pnpm --filter core soko-bot:lab -- --label v1
  * pnpm --filter core soko-bot:lab -- --only ambiguous-request,coworker-question
  * Requires a running Eve runtime and the same .env Core uses.
  */
@@ -140,10 +140,10 @@ async function startScenario(
 }
 
 const owner = await resolveOwner();
-const presetId = flag("preset");
-if (presetId) {
-  await sokoBotControlPlane.updatePreset(owner.bot.userId, presetId);
-  console.log(`Preset set to ${presetId}`);
+const versionId = flag("version");
+if (versionId) {
+  await sokoBotControlPlane.updateVersion(owner.bot.userId, versionId);
+  console.log(`Version set to ${versionId}`);
 }
 const scenarios = SOKO_BOT_SCENARIOS.filter(
   (s) => !only || only.includes(s.id),

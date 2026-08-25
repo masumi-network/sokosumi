@@ -5409,7 +5409,7 @@
             "CANCELLED": "Cancelled"
           },
           "request": "Sent to Eve",
-          "requestLine": "{model} · preset {preset} · {tools} tools",
+          "requestLine": "{model} · version {version} · {tools} tools",
           "rawMessage": "Message",
           "rawPacket": "Context packet",
           "rawInput": "Raw input",
@@ -5454,7 +5454,14 @@
         "score": "{passed}/{total} checks passed",
         "startError": "Could not start the turn.",
         "timeout": "The turn did not finish within 5 minutes.",
-        "preset": "Preset"
+        "version": "Version",
+        "overviewModel": "Model",
+        "overviewSkills": "Skills",
+        "overviewTools": "Tools",
+        "overviewPrompt": "System prompt",
+        "allTools": "all tools of the route",
+        "showPrompt": "Show",
+        "hidePrompt": "Hide"
       }
     }
   },

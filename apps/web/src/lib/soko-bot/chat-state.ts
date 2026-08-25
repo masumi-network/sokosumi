@@ -115,9 +115,9 @@ export interface ChatTurnDetail extends ChatTurn {
   } | null;
   toolCalls: ChatToolCall[];
   contextSummary: ChatContextSummary | null;
-  /** Exactly what the runtime received: context packet and preset. */
+  /** Exactly what the runtime received: context packet and version. */
   contextPacket: unknown;
-  presetId: string | null;
+  versionId: string | null;
 }
 
 export interface ChatLegacyMessage {
@@ -155,7 +155,7 @@ export interface ChatBot {
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
-  presetId: string | null;
+  versionId: string | null;
   /** Chat coworker row id; open a direct with it to talk to the bot. */
   coworkerId: string | null;
   status: SokoBotStatus;
@@ -275,7 +275,7 @@ export function toChatTurnDetail(turn: SokoBotTurn): ChatTurnDetail {
     toolCalls: (turn.toolCalls ?? []).map(toToolCall),
     contextSummary: turn.contextSummary ?? null,
     contextPacket: turn.contextPacket ?? null,
-    presetId: turn.presetId ?? null,
+    versionId: turn.versionId ?? null,
   };
 }
 
@@ -313,7 +313,7 @@ export function toChatBot(bot: SokoBot): ChatBot {
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
-    presetId: bot.presetId ?? null,
+    versionId: bot.versionId ?? null,
     coworkerId: bot.coworker?.id ?? null,
     status: bot.status,
     memoryVersion: bot.memoryVersion,

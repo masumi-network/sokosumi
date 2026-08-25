@@ -1743,7 +1743,7 @@ export const SokoBotTurnSchema = {
         clientTurnId: {
             type: 'string'
         },
-        presetId: {
+        versionId: {
             type: [
                 'string',
                 'null'
@@ -2226,7 +2226,7 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
-        presetId: {
+        versionId: {
             type: [
                 'string',
                 'null'
@@ -14450,7 +14450,7 @@ export const ClaimSokoBotAvatarRequestSchema = {
     ]
 } as const;
 
-export const SokoBotPresetSchema = {
+export const SokoBotVersionSchema = {
     type: 'object',
     properties: {
         id: {
@@ -14459,11 +14459,32 @@ export const SokoBotPresetSchema = {
         name: {
             type: 'string'
         },
-        description: {
+        createdAt: {
+            type: 'string'
+        },
+        summary: {
             type: 'string'
         },
         model: {
             type: 'string'
+        },
+        skills: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'name'
+                ]
+            }
         },
         capabilities: {
             type: [
@@ -14474,41 +14495,33 @@ export const SokoBotPresetSchema = {
                 type: 'string'
             }
         },
-        instructions: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        skills: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
+        systemPrompt: {
+            type: 'string'
         }
     },
     required: [
         'id',
         'name',
-        'description',
+        'createdAt',
+        'summary',
         'model',
+        'skills',
         'capabilities',
-        'instructions',
-        'skills'
+        'systemPrompt'
     ]
 } as const;
 
-export const UpdateSokoBotPresetRequestSchema = {
+export const UpdateSokoBotVersionRequestSchema = {
     type: 'object',
     properties: {
-        presetId: {
+        versionId: {
             type: 'string',
             minLength: 1,
             maxLength: 64
         }
     },
     required: [
-        'presetId'
+        'versionId'
     ],
     additionalProperties: false
 } as const;

@@ -169,7 +169,7 @@ export const sokoBotTurnSchema = z
     status: sokoBotTurnStatusSchema,
     route: sokoBotTurnRouteSchema.nullable(),
     clientTurnId: z.string(),
-    presetId: z.string().nullable().optional(),
+    versionId: z.string().nullable().optional(),
     userMessage: z.string(),
     finalAnswer: z.string().nullable(),
     classification: z.record(z.string(), z.unknown()).nullable(),
@@ -244,7 +244,7 @@ export const sokoBotSchema = z
     schedules: z.array(sokoBotScheduleSchema).optional(),
     /** Picked mascot image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
-    presetId: z.string().nullable().optional(),
+    versionId: z.string().nullable().optional(),
     /** Chat-facing coworker row; open a direct with it to chat with the bot. */
     coworker: z
       .object({ id: z.string(), slug: z.string() })
@@ -505,22 +505,23 @@ export const listSokoBotAvatarsQuerySchema = z.object({
   exclude: z.string().max(1_000).optional(),
 });
 
-export const sokoBotPresetSchema = z
+export const sokoBotVersionSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    description: z.string(),
+    createdAt: z.string(),
+    summary: z.string(),
     model: z.string(),
+    skills: z.array(z.object({ id: z.string(), name: z.string() })),
     capabilities: z.array(z.string()).nullable(),
-    instructions: z.string().nullable(),
-    skills: z.array(z.string()),
+    systemPrompt: z.string(),
   })
-  .openapi("SokoBotPreset");
+  .openapi("SokoBotVersion");
 
-export const updateSokoBotPresetRequestSchema = z
-  .object({ presetId: z.string().min(1).max(64) })
+export const updateSokoBotVersionRequestSchema = z
+  .object({ versionId: z.string().min(1).max(64) })
   .strict()
-  .openapi("UpdateSokoBotPresetRequest");
+  .openapi("UpdateSokoBotVersionRequest");
 
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({

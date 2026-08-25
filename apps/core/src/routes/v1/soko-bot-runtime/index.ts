@@ -51,7 +51,16 @@ const runtimeErrorSchema = errorResponseWithExtensionsSchema(
 );
 
 const jsonObjectSchema = z.record(z.string(), z.unknown());
+const runtimeVersionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  model: z.string(),
+  systemPrompt: z.string(),
+  skills: z.array(z.string()),
+});
+
 const runtimeContextResponseSchema = z.object({
+  version: runtimeVersionSchema.optional(),
   packet: z.object({
     schemaVersion: z.literal(1),
     generatedAt: z.string().datetime(),

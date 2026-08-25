@@ -13,12 +13,12 @@ import { useEffect, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import {
-  listSokoBotPresetsAction,
-  setSokoBotPresetAction,
+  listSokoBotVersionsAction,
+  setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
-import type { SokoBotPreset } from "@/lib/clients/generated/core";
+import type { SokoBotVersion } from "@/lib/clients/generated/core";
 import type {
   ChatTurnDetail,
   SokoBotChatState,
@@ -33,7 +33,7 @@ const HISTORY_PER_SCENARIO = 5;
 interface RunRecord {
   turnId: string;
   at: string;
-  presetId: string | null;
+  versionId: string | null;
   route: string | null;
   passed: number;
   total: number;
@@ -118,33 +118,35 @@ async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
  * runs. Runs create real tasks and approvals in the owner's workspace.
  */
 export function ScenarioLab({
-  presetId,
+  versionId,
   onTurnFinished,
 }: {
-  presetId: string | null;
+  versionId: string | null;
   onTurnFinished: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Lab");
   const [history, setHistory] = useState<History>({});
-  const [presets, setPresets] = useState<SokoBotPreset[]>([]);
-  const [activePreset, setActivePreset] = useState<string | null>(presetId);
+  const [versions, setVersions] = useState<SokoBotVersion[]>([]);
+  const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
   const [switching, setSwitching] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const current = versions.find((v) => v.id === activeVersion) ?? null;
 
   useEffect(() => {
-    void listSokoBotPresetsAction({}).then((result) => {
+    void listSokoBotVersionsAction({}).then((result) => {
       if (result.ok) {
-        setPresets(result.value);
-        setActivePreset((current) => current ?? result.value[0]?.id ?? null);
+        setVersions(result.value);
+        setActiveVersion((current) => current ?? result.value[0]?.id ?? null);
       }
     });
   }, []);
 
-  async function choosePreset(id: string) {
+  async function chooseVersion(id: string) {
     setSwitching(true);
-    const result = await setSokoBotPresetAction({ presetId: id });
+    const result = await setSokoBotVersionAction({ versionId: id });
     setSwitching(false);
     if (result.ok) {
-      setActivePreset(id);
+      setActiveVersion(id);
       onTurnFinished();
     }
   }
@@ -218,7 +220,7 @@ export function ScenarioLab({
       record(scenario.id, {
         turnId: turn.id,
         at: new Date().toISOString(),
-        presetId: activePreset,
+        versionId: activeVersion,
         route: turn.route,
         passed: result.passed,
         total: result.total,
@@ -246,25 +248,65 @@ export function ScenarioLab({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-muted-foreground text-xs">{t("preset")}</span>
-        {presets.map((preset) => (
+        <span className="text-muted-foreground text-xs">{t("version")}</span>
+        {versions.map((version) => (
           <button
-            key={preset.id}
+            key={version.id}
             type="button"
             disabled={anyRunning || switching}
-            onClick={() => void choosePreset(preset.id)}
-            title={`${preset.model}${preset.instructions ? " · custom guidance" : ""}`}
+            onClick={() => void chooseVersion(version.id)}
+            title={version.summary}
             className={cn(
               "rounded-md border px-2 py-1 text-xs transition-colors",
-              activePreset === preset.id
+              activeVersion === version.id
                 ? "border-primary bg-primary/5 text-foreground"
                 : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
-            {preset.name}
+            {version.name}
           </button>
         ))}
       </div>
+      {current ? (
+        <div className="bg-muted/30 rounded-lg border px-4 py-3 text-xs">
+          <p className="text-foreground text-sm font-medium">
+            {current.name}
+            <span className="text-muted-foreground ml-2 font-normal tabular-nums">
+              {current.createdAt}
+            </span>
+          </p>
+          <p className="text-muted-foreground mt-1">{current.summary}</p>
+          <dl className="mt-2 grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-1">
+            <dt className="text-muted-foreground">{t("overviewModel")}</dt>
+            <dd className="font-mono">{current.model}</dd>
+            <dt className="text-muted-foreground">{t("overviewSkills")}</dt>
+            <dd>
+              {current.skills.length > 0
+                ? current.skills.map((skill) => skill.name).join(", ")
+                : "—"}
+            </dd>
+            <dt className="text-muted-foreground">{t("overviewTools")}</dt>
+            <dd>{current.capabilities?.join(", ") ?? t("allTools")}</dd>
+            <dt className="text-muted-foreground">{t("overviewPrompt")}</dt>
+            <dd>
+              <button
+                type="button"
+                onClick={() => setPromptOpen((v) => !v)}
+                aria-expanded={promptOpen}
+                className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+              >
+                {promptOpen ? t("hidePrompt") : t("showPrompt")} ·{" "}
+                {Math.round(current.systemPrompt.length / 1024)} KB
+              </button>
+              {promptOpen ? (
+                <pre className="bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+                  {current.systemPrompt}
+                </pre>
+              ) : null}
+            </dd>
+          </dl>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-xs">{t("warning")}</p>
         <Button
@@ -284,7 +326,7 @@ export function ScenarioLab({
             key={scenario.id}
             scenario={scenario}
             runs={(history[scenario.id] ?? []).filter(
-              (run) => !run.presetId || run.presetId === activePreset,
+              (run) => run.versionId === activeVersion,
             )}
             running={running.has(scenario.id)}
             disabled={anyRunning}

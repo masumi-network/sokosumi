@@ -10,9 +10,11 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
+  composeSystemPrompt,
   containsSokoBotSensitiveMaterial,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
+  getSokoBotVersion,
   hasSokoBotNegatedMutationIntent,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
@@ -198,6 +200,7 @@ export interface SokoBotActionContext {
     userId: string;
     workspaceId: string;
     eveSessionId: string | null;
+    versionId?: string | null;
   };
   classificationConfidence: number;
   hasNegatedMutationIntent: boolean;
@@ -471,6 +474,7 @@ export class SokoBotRuntimeService {
         status: true,
         classification: true,
         userMessage: true,
+        versionId: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         sokoBot: {
@@ -663,7 +667,17 @@ export class SokoBotRuntimeService {
         "Context snapshot is unavailable",
       );
     }
-    return snapshot;
+    const version = getSokoBotVersion(authorized.turn.versionId);
+    return {
+      ...snapshot,
+      version: {
+        id: version.id,
+        name: version.name,
+        model: version.model,
+        systemPrompt: composeSystemPrompt(version),
+        skills: [...version.skills],
+      },
+    };
   }
 
   /**

@@ -5409,7 +5409,7 @@
             "CANCELLED": "Cancelado"
           },
           "request": "Enviado a Eve",
-          "requestLine": "{model} · preset {preset} · {tools} herramientas",
+          "requestLine": "{model} · versión {version} · {tools} herramientas",
           "rawMessage": "Mensaje",
           "rawPacket": "Paquete de contexto",
           "rawInput": "Entrada sin procesar",
@@ -5454,7 +5454,14 @@
         "score": "{passed}/{total} comprobaciones superadas",
         "startError": "No se pudo iniciar el turno.",
         "timeout": "El turno no terminó en 5 minutos.",
-        "preset": "Preset"
+        "version": "Versión",
+        "overviewModel": "Modelo",
+        "overviewSkills": "Skills",
+        "overviewTools": "Herramientas",
+        "overviewPrompt": "Prompt del sistema",
+        "allTools": "todas las herramientas de la ruta",
+        "showPrompt": "Mostrar",
+        "hidePrompt": "Ocultar"
       }
     }
   },

@@ -25,11 +25,21 @@ export const sokoBotContextPacketSchema = z.object({
   omissions: z.record(z.string(), z.number().int().nonnegative()),
 });
 
+/** The version the control plane chose for the turn: prompt and skills are already composed. */
+export const sokoBotRuntimeVersionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  model: z.string(),
+  systemPrompt: z.string(),
+  skills: z.array(z.string()),
+});
+
 export const sokoBotRuntimeContextSchema = z.object({
   packet: sokoBotContextPacketSchema,
   hash: z.string(),
   schemaVersion: z.number().int().positive(),
   generatedAt: z.string().datetime(),
+  version: sokoBotRuntimeVersionSchema.optional(),
 });
 
 export const sokoBotRuntimeToolResultSchema = z.json();

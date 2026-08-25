@@ -226,7 +226,7 @@ import {
   listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
   listSokoBotAvatars as coreListSokoBotAvatars,
-  listSokoBotPresets as coreListSokoBotPresets,
+  listSokoBotVersions as coreListSokoBotVersions,
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
@@ -328,8 +328,8 @@ import {
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
-  updateMySokoBotPreset as coreUpdateMySokoBotPreset,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
+  updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   NoticeKind,
 } from "@/lib/clients/generated/core";
 import {
@@ -3606,19 +3606,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function listSokoBotPresets() {
+  async function listSokoBotVersions() {
     return executeCoreOperation(
       getClient,
-      (client) => coreListSokoBotPresets({ client }),
-      "Failed to list Soko Bot presets",
+      (client) => coreListSokoBotVersions({ client }),
+      "Failed to list Soko Bot versions",
     );
   }
 
-  async function updateMySokoBotPreset(body: { presetId: string }) {
+  async function updateMySokoBotVersion(body: { versionId: string }) {
     return executeCoreOperation(
       getClient,
-      (client) => coreUpdateMySokoBotPreset({ client, body }),
-      "Failed to update Soko Bot preset",
+      (client) => coreUpdateMySokoBotVersion({ client, body }),
+      "Failed to update Soko Bot version",
     );
   }
 
@@ -4395,8 +4395,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     listSokoBotAvatars,
     claimMySokoBotAvatar,
     simulateMySokoBotTaskEvent,
-    listSokoBotPresets,
-    updateMySokoBotPreset,
+    listSokoBotVersions,
+    updateMySokoBotVersion,
     listMySokoBotTurns,
     getMySokoBotTurn,
     startMySokoBotTurn,

@@ -248,7 +248,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
           <p className="text-muted-foreground text-xs">
             {t("requestLine", {
               model: turn.modelId ?? "—",
-              preset: turn.presetId ?? "—",
+              version: turn.versionId ?? "—",
               tools: turn.capabilityNames.length,
             })}
           </p>

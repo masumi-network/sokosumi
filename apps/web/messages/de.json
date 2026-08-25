@@ -5409,7 +5409,7 @@
             "CANCELLED": "Abgebrochen"
           },
           "request": "An Eve gesendet",
-          "requestLine": "{model} · Preset {preset} · {tools} Tools",
+          "requestLine": "{model} · Version {version} · {tools} Tools",
           "rawMessage": "Nachricht",
           "rawPacket": "Kontextpaket",
           "rawInput": "Rohe Eingabe",
@@ -5454,7 +5454,14 @@
         "score": "{passed}/{total} Prüfungen bestanden",
         "startError": "Der Durchlauf konnte nicht gestartet werden.",
         "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig.",
-        "preset": "Preset"
+        "version": "Version",
+        "overviewModel": "Modell",
+        "overviewSkills": "Skills",
+        "overviewTools": "Tools",
+        "overviewPrompt": "System-Prompt",
+        "allTools": "alle Tools der Route",
+        "showPrompt": "Anzeigen",
+        "hidePrompt": "Ausblenden"
       }
     }
   },

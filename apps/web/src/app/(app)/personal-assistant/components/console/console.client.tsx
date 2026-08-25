@@ -211,7 +211,7 @@ export function SokoBotConsole({
                   description={t("Lab.description")}
                 >
                   <ScenarioLab
-                    presetId={bot.presetId}
+                    versionId={bot.versionId}
                     onTurnFinished={refresh}
                   />
                 </Section>

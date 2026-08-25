@@ -8,10 +8,9 @@ export interface RuntimeAuthAttributes {
   sessionIdClaim: string;
   turnGrant: string;
   capabilities: SokoBotCapability[];
-  /** Preset the control plane chose for this turn; empty on eval/legacy tokens. */
+  /** Version the control plane chose for this turn; empty on eval/legacy tokens. */
   model: string | null;
-  presetId: string | null;
-  presetInstructions: string | null;
+  versionId: string | null;
 }
 
 function required(value: string | undefined, name: string): string {
@@ -63,7 +62,6 @@ export function readRuntimeAuth(
     turnGrant: scalar(attributes.turnGrant, "turnGrant"),
     capabilities: parsed as SokoBotCapability[],
     model: optional(attributes.model),
-    presetId: optional(attributes.presetId),
-    presetInstructions: optional(attributes.presetInstructions),
+    versionId: optional(attributes.versionId),
   };
 }

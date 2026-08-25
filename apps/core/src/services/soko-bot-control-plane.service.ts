@@ -7,12 +7,12 @@ import {
   SokoBotTurnStatus,
 } from "@sokosumi/database";
 import {
-  applyPresetCapabilities,
+  applyVersionCapabilities,
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
-  getSokoBotPreset,
+  getSokoBotVersion,
   type IndexedRuntimeEvent,
-  isSokoBotPresetId,
+  isSokoBotVersionId,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -130,8 +130,8 @@ export interface StartSokoBotTurnInput {
   clientTurnId: string;
   message: string;
   source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT";
-  /** Preset override for this turn (lab); otherwise the bot's preset. */
-  presetId?: string;
+  /** Version override for this turn (lab); otherwise the bot's version. */
+  versionId?: string;
   /** Set when a chat-room mention started the turn; the reply lands there. */
   chat?: {
     mentionId: string;
@@ -772,14 +772,13 @@ export class SokoBotControlPlane {
       sessionId: expectedSessionId,
       turnId: turn.id,
     };
-    const preset = getSokoBotPreset(turn.presetId);
+    const version = getSokoBotVersion(turn.versionId);
     const tokens = await this.tokenServicePromise;
     const [requestToken, turnGrant] = await Promise.all([
       tokens.signRequestToken({
         ...tokenScope,
-        model: preset.model,
-        presetId: preset.id,
-        presetInstructions: preset.instructions,
+        model: version.model,
+        versionId: version.id,
       }),
       tokens.signTurnGrant({
         ...tokenScope,
@@ -1617,9 +1616,9 @@ export class SokoBotControlPlane {
       input.chat.requestedByUserId !== input.userId;
     // A teammate may ask the owner's bot questions but never spend the
     // owner's credits or create work in their name: read-only ceiling.
-    const preset = getSokoBotPreset(input.presetId ?? bot.presetId);
-    const capabilities = applyPresetCapabilities(
-      preset,
+    const version = getSokoBotVersion(input.versionId ?? bot.versionId);
+    const capabilities = applyVersionCapabilities(
+      version,
       (requestedByTeammate
         ? [
             ...SOKO_BOT_ROUTE_CAPABILITIES.CLARIFY,
@@ -1703,7 +1702,7 @@ export class SokoBotControlPlane {
             status: "STARTING",
             route: classification.classification.route,
             clientTurnId,
-            presetId: preset.id,
+            versionId: version.id,
             userMessage: message,
             chatMentionId: input.chat?.mentionId,
             chatResponseMessageId: input.chat?.responseMessageId,
@@ -1806,9 +1805,8 @@ export class SokoBotControlPlane {
       const [requestToken, turnGrant] = await Promise.all([
         tokens.signRequestToken({
           ...tokenScope,
-          model: preset.model,
-          presetId: preset.id,
-          presetInstructions: preset.instructions,
+          model: version.model,
+          versionId: version.id,
         }),
         tokens.signTurnGrant({
           ...tokenScope,
@@ -2428,13 +2426,13 @@ export class SokoBotControlPlane {
     }, "Soko Bot memory changed concurrently");
   }
 
-  async updatePreset(userId: string, presetId: string) {
-    if (!isSokoBotPresetId(presetId)) {
-      throw new SokoBotValidationError("Unknown Soko Bot preset");
+  async updateVersion(userId: string, versionId: string) {
+    if (!isSokoBotVersionId(versionId)) {
+      throw new SokoBotValidationError("Unknown Soko Bot version");
     }
     const updated = await prisma.sokoBot.updateMany({
       where: { userId, archivedAt: null },
-      data: { presetId },
+      data: { versionId },
     });
     if (updated.count === 0)
       throw new SokoBotNotFoundError("Soko Bot not found");

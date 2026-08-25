@@ -21,14 +21,6 @@ export {
   type SokoBotRoute,
   type TurnClassification,
 } from "./policy.js";
-export {
-  applyPresetCapabilities,
-  DEFAULT_SOKO_BOT_PRESET_ID,
-  getSokoBotPreset,
-  isSokoBotPresetId,
-  SOKO_BOT_PRESETS,
-  type SokoBotPreset,
-} from "./presets.js";
 export type {
   IndexedRuntimeEvent,
   RuntimeCancelInput,
@@ -82,6 +74,18 @@ export {
   sokoBotUpdateTaskInputSchema,
 } from "./tool-contracts.js";
 export {
+  applyVersionCapabilities,
+  composeSystemPrompt,
+  DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkill,
+  getSokoBotVersion,
+  isSokoBotVersionId,
+  SOKO_BOT_SKILLS,
+  SOKO_BOT_VERSIONS,
+  type SokoBotSkill,
+  type SokoBotVersion,
+} from "./versions/index.js";
+export {
   eveAcceptedResponseSchema,
   type SokoBotRuntimeContext,
   type SokoBotRuntimeToolResult,
@@ -90,4 +94,5 @@ export {
   sokoBotRuntimeContextSchema,
   sokoBotRuntimeEventSchema,
   sokoBotRuntimeToolResultSchema,
+  sokoBotRuntimeVersionSchema,
 } from "./wire-contracts.js";

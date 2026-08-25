@@ -405,7 +405,7 @@ export type SokoBotTurn = {
     status: SokoBotTurnStatus;
     route: SokoBotTurnRoute;
     clientTurnId: string;
-    presetId?: string | null;
+    versionId?: string | null;
     userMessage: string;
     finalAnswer: string | null;
     classification: {
@@ -494,7 +494,7 @@ export type SokoBot = {
     pendingDecisions?: Array<SokoBotPendingDecision>;
     schedules?: Array<SokoBotSchedule>;
     avatarImageUrl?: string | null;
-    presetId?: string | null;
+    versionId?: string | null;
     coworker?: {
         id: string;
         slug: string;
@@ -4184,18 +4184,22 @@ export type ClaimSokoBotAvatarRequest = {
     avatarId: string;
 };
 
-export type SokoBotPreset = {
+export type SokoBotVersion = {
     id: string;
     name: string;
-    description: string;
+    createdAt: string;
+    summary: string;
     model: string;
+    skills: Array<{
+        id: string;
+        name: string;
+    }>;
     capabilities: Array<string> | null;
-    instructions: string | null;
-    skills: Array<string>;
+    systemPrompt: string;
 };
 
-export type UpdateSokoBotPresetRequest = {
-    presetId: string;
+export type UpdateSokoBotVersionRequest = {
+    versionId: string;
 };
 
 export type SokoBotLabTaskEvent = {
@@ -28374,14 +28378,14 @@ export type ClaimMySokoBotAvatarResponses = {
 
 export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
 
-export type ListSokoBotPresetsData = {
+export type ListSokoBotVersionsData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/soko-bots/presets';
+    url: '/soko-bots/versions';
 };
 
-export type ListSokoBotPresetsErrors = {
+export type ListSokoBotVersionsErrors = {
     /**
      * Unauthorized
      */
@@ -28398,14 +28402,14 @@ export type ListSokoBotPresetsErrors = {
     };
 };
 
-export type ListSokoBotPresetsError = ListSokoBotPresetsErrors[keyof ListSokoBotPresetsErrors];
+export type ListSokoBotVersionsError = ListSokoBotVersionsErrors[keyof ListSokoBotVersionsErrors];
 
-export type ListSokoBotPresetsResponses = {
+export type ListSokoBotVersionsResponses = {
     /**
-     * Agent presets
+     * Agent versions
      */
     200: {
-        data: Array<SokoBotPreset>;
+        data: Array<SokoBotVersion>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -28414,16 +28418,16 @@ export type ListSokoBotPresetsResponses = {
     };
 };
 
-export type ListSokoBotPresetsResponse = ListSokoBotPresetsResponses[keyof ListSokoBotPresetsResponses];
+export type ListSokoBotVersionsResponse = ListSokoBotVersionsResponses[keyof ListSokoBotVersionsResponses];
 
-export type UpdateMySokoBotPresetData = {
-    body?: UpdateSokoBotPresetRequest;
+export type UpdateMySokoBotVersionData = {
+    body?: UpdateSokoBotVersionRequest;
     path?: never;
     query?: never;
-    url: '/soko-bots/me/preset';
+    url: '/soko-bots/me/version';
 };
 
-export type UpdateMySokoBotPresetErrors = {
+export type UpdateMySokoBotVersionErrors = {
     /**
      * Unauthorized
      */
@@ -28468,11 +28472,11 @@ export type UpdateMySokoBotPresetErrors = {
     };
 };
 
-export type UpdateMySokoBotPresetError = UpdateMySokoBotPresetErrors[keyof UpdateMySokoBotPresetErrors];
+export type UpdateMySokoBotVersionError = UpdateMySokoBotVersionErrors[keyof UpdateMySokoBotVersionErrors];
 
-export type UpdateMySokoBotPresetResponses = {
+export type UpdateMySokoBotVersionResponses = {
     /**
-     * Bot with the new preset
+     * Bot with the new version
      */
     200: {
         data: SokoBot;
@@ -28484,7 +28488,7 @@ export type UpdateMySokoBotPresetResponses = {
     };
 };
 
-export type UpdateMySokoBotPresetResponse = UpdateMySokoBotPresetResponses[keyof UpdateMySokoBotPresetResponses];
+export type UpdateMySokoBotVersionResponse = UpdateMySokoBotVersionResponses[keyof UpdateMySokoBotVersionResponses];
 
 export type SimulateMySokoBotTaskEventData = {
     body?: SimulateSokoBotTaskEventRequest;

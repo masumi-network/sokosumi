@@ -9,8 +9,8 @@ import type {
   SokoBot,
   SokoBotAvatar,
   SokoBotLabTaskEvent,
-  SokoBotPreset,
   SokoBotTurn,
+  SokoBotVersion,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
 } from "@/lib/clients/generated/core";
@@ -57,13 +57,13 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async listPresets(): Promise<SokoBotPreset[]> {
-    const response = await coreClient.listSokoBotPresets();
+  async listVersions(): Promise<SokoBotVersion[]> {
+    const response = await coreClient.listSokoBotVersions();
     return response.data;
   },
 
-  async setPreset(presetId: string): Promise<SokoBot> {
-    const response = await coreClient.updateMySokoBotPreset({ presetId });
+  async setVersion(versionId: string): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotVersion({ versionId });
     return response.data;
   },
 

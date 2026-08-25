@@ -1,7 +1,14 @@
+import {
+  composeSystemPrompt,
+  DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotVersion,
+} from "@sokosumi/soko-bot";
 import { getVercelOidcToken } from "@vercel/oidc";
 
 import type { RuntimeAuthAttributes } from "./auth";
 import { isLocalEvaluationEnvironment } from "./evaluation";
+
+const evaluationVersion = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
 
 interface CoreResponseSchema<T> {
   parse(value: unknown): T;
@@ -148,6 +155,13 @@ export async function callCore<T>(
         hash: "eval-context",
         schemaVersion: 1,
         generatedAt: new Date(0).toISOString(),
+        version: {
+          id: evaluationVersion.id,
+          name: evaluationVersion.name,
+          model: evaluationVersion.model,
+          systemPrompt: composeSystemPrompt(evaluationVersion),
+          skills: [...evaluationVersion.skills],
+        },
       });
     }
     if (path === "/v1/internal/soko-bot/tools/execute") {

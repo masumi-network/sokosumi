@@ -19,8 +19,8 @@ import {
   type SokoBotLabTaskEvent,
   type SokoBotMemory,
   type SokoBotPendingDecision,
-  type SokoBotPreset,
   type SokoBotSchedule,
+  type SokoBotVersion,
   type StartSokoBotTurnResponse,
 } from "@/lib/clients/generated/core";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
@@ -274,29 +274,29 @@ interface ClaimAvatarParams extends AuthenticatedRequest {
   avatarId: unknown;
 }
 
-export const listSokoBotPresetsAction = withSession<
+export const listSokoBotVersionsAction = withSession<
   AuthenticatedRequest,
-  ActionResultDto<SokoBotPreset[], ActionError>
+  ActionResultDto<SokoBotVersion[], ActionError>
 >(async () => {
   try {
-    return toActionResult(ok(await sokoBotService.listPresets()));
+    return toActionResult(ok(await sokoBotService.listVersions()));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
-interface SetPresetParams extends AuthenticatedRequest {
-  presetId: unknown;
+interface SetVersionParams extends AuthenticatedRequest {
+  versionId: unknown;
 }
 
-export const setSokoBotPresetAction = withSession<
-  SetPresetParams,
+export const setSokoBotVersionAction = withSession<
+  SetVersionParams,
   ActionResultDto<SokoBot, ActionError>
->(async ({ presetId }) => {
-  const parsed = z.string().min(1).max(64).safeParse(presetId);
+>(async ({ versionId }) => {
+  const parsed = z.string().min(1).max(64).safeParse(versionId);
   if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
-    const bot = await sokoBotService.setPreset(parsed.data);
+    const bot = await sokoBotService.setVersion(parsed.data);
     revalidate();
     return toActionResult(ok(bot));
   } catch (error) {
