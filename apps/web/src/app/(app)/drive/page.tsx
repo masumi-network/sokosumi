@@ -300,6 +300,9 @@ function DrivePageWorkspace({
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
 
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
 
   if (uiWorkspaceId !== activeOrganizationId) {
     setUiWorkspaceId(activeOrganizationId);
@@ -313,6 +316,7 @@ function DrivePageWorkspace({
     setMoveDialogOpen(false);
     setItemToMove(null);
     setSelectedDestination(null);
+    debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
   }
@@ -330,10 +334,6 @@ function DrivePageWorkspace({
     pathname,
     segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
-
-  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
-    setDebouncedSearchQuery(value);
-  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
 
   function handleSearchChange(value: string) {
     setSearchQuery(value);
