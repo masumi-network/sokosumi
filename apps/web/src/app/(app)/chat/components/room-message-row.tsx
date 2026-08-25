@@ -399,7 +399,7 @@ function MessageUnfurlCard({
           variant="secondary"
           size="icon"
           className="border-border absolute top-1 right-1 z-10 size-6 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:pointer-events-auto [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:opacity-100"
-          aria-label={t("remove")}
+          aria-label={t("remove", { title: unfurl.title })}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();

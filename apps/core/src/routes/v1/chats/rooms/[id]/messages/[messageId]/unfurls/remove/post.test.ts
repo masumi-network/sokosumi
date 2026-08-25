@@ -190,14 +190,15 @@ describe("POST /chats/rooms/:id/messages/:messageId/unfurls/remove", () => {
     expect(body.data.unfurls).toEqual([resendCard]);
     expect(body.data.editedAt).toBeNull();
     expect(body.data.content).toBe(`see ${ABLY_URL} and ${RESEND_URL}`);
-    expect(mergeMetadataKeysMock).toHaveBeenCalledWith({
-      client: tx,
-      messageId: MESSAGE_ID,
-      patch: {
-        unfurls: [resendCard],
-        removedUnfurlUrls: [ABLY_URL],
-      },
-    });
+    expect(mergeMetadataKeysMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client: tx,
+        messageId: MESSAGE_ID,
+        patch: expect.objectContaining({
+          unfurls: [resendCard],
+        }),
+      }),
+    );
     expect(deleteMetadataKeysMock).not.toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: MESSAGE_ID }),

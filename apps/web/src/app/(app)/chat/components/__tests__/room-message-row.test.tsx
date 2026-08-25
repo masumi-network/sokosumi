@@ -37,8 +37,8 @@ vi.mock("next-intl", () => ({
       if (key === "openLink" && values) {
         return `Open link preview: ${values.title}`;
       }
-      if (key === "remove") {
-        return "Remove link preview";
+      if (key === "remove" && values) {
+        return `Remove link preview: ${values.title}`;
       }
       if (key === "imageAlt" && values) {
         return `Preview image for ${values.title}`;
@@ -1852,8 +1852,11 @@ describe("ChatMessageRow", () => {
     });
 
     expect(
-      screen.getAllByRole("button", { name: "Remove link preview" }),
-    ).toHaveLength(2);
+      screen.getByRole("button", { name: "Remove link preview: Ably" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove link preview: Resend" }),
+    ).toBeInTheDocument();
   });
 
   it("does not show unfurl remove for another member", () => {
@@ -1875,7 +1878,31 @@ describe("ChatMessageRow", () => {
     });
 
     expect(
-      screen.queryByRole("button", { name: "Remove link preview" }),
+      screen.queryByRole("button", { name: /Remove link preview/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show unfurl remove on a coworker-authored message", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: coworkerMessage({
+        content: "Check https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: null,
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    expect(screen.getByTestId("room-message-unfurl")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Remove link preview/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -1902,7 +1929,7 @@ describe("ChatMessageRow", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: "Remove link preview" }),
+      screen.getByRole("button", { name: "Remove link preview: Ably" }),
     );
 
     expect(onRemoveUnfurl).toHaveBeenCalledWith(message, "https://ably.com");

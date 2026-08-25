@@ -5199,7 +5199,7 @@
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",
         "imageAlt": "Imagen de vista previa de {title}",
-        "remove": "Quitar vista previa del enlace"
+        "remove": "Quitar vista previa del enlace: {title}"
       },
       "Message": {
         "delete": "Eliminar",

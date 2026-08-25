@@ -5199,7 +5199,7 @@
       "Unfurl": {
         "openLink": "Linkvorschau öffnen: {title}",
         "imageAlt": "Vorschaubild für {title}",
-        "remove": "Linkvorschau entfernen"
+        "remove": "Linkvorschau entfernen: {title}"
       },
       "Message": {
         "delete": "Löschen",
