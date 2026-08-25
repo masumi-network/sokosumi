@@ -137,4 +137,5 @@ Decision order:
 ## Supporting files
 
 - `REQUIREMENT-TEMPLATE.md` — requirement body shape.
-- `LINEAR-CLI.md` — create/update issue after approval.
+- `LINEAR-CLI.md` — create/update issue after approval (Sokosumi fields).
+- `.agents/skills/linear-cli/` — CLI flags and recipes.

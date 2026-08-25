@@ -1,12 +1,12 @@
 # Issue tracker: Linear
 
-Issues and PRDs for this repo live in **Linear**, team **Sokosumi** (issue key `SOK`). Use the `linear` CLI ([`schpet/linear-cli`](https://github.com/schpet/linear-cli)) for all operations.
+Issues and PRDs for this repo live in **Linear**, team **Sokosumi** (issue key `SOK`). Use the `linear` CLI for all operations.
 
 Do not call Linear MCP tools (`linear__*`, `search_tool` for the `linear` server, `use_tool` with `linear__…`). If a Linear MCP tool is offered, ignore it and use `linear`.
 
-Repo config: [`.linear.toml`](../../.linear.toml) (`workspace = "masumi"`, `team_id = "SOK"`). Auth: `LINEAR_API_KEY` in the environment, or `linear auth login`. Never print the API key.
+Command catalog: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/) (flags, `--json`, `--description-file`, `linear api`). This file is Sokosumi conventions (team, project, states, branch names).
 
-Prefer `--json` when you need structured fields, `--description-file` / `--body-file` for markdown, and `--no-interactive` on create. `--no-pager` and `--no-download` keep agent output bounded. `linear api` is the GraphQL fallback when a typed command does not expose a field — not curl, browser, or Linear REST.
+Repo config: [`.linear.toml`](../../.linear.toml) (`workspace = "masumi"`, `team_id = "SOK"`). Auth: `LINEAR_API_KEY` in the environment, or `linear auth login`. Never print the API key. `linear api` is the GraphQL fallback when a typed command does not expose a field — not curl, browser, or Linear REST.
 
 ## Conventions
 

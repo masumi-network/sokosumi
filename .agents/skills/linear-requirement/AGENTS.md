@@ -6,7 +6,7 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 1. Read `SKILL.md` (workflow lives there).
 2. Use `REQUIREMENT-TEMPLATE.md` for the draft body.
-3. Read `LINEAR-CLI.md` only **after** user approval.
+3. Read `LINEAR-CLI.md` only **after** user approval. CLI flags: `.agents/skills/linear-cli/`.
 
 ## Runtime notes
 
