@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChannelLinkTarget } from "@sokosumi/utils";
 import {
   ALargeSmall,
   AtSign,
@@ -30,6 +31,7 @@ import {
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
@@ -67,7 +69,7 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
-  formatRoomMarkdownMentions,
+  formatRoomMarkdownContent,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -167,10 +169,12 @@ function PendingQuotePreview({
   quote,
   onDismiss,
   mentions,
+  channelLinks,
 }: {
   quote: PendingRoomQuote;
   onDismiss: () => void;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channelLinks: readonly ChannelLinkTarget[];
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
@@ -200,12 +204,13 @@ function PendingQuotePreview({
           {quote.snippet.trim() ? (
             <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
               <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-                {formatRoomMarkdownMentions({
+                {formatRoomMarkdownContent({
                   content: quote.snippet,
                   coworkersById,
                   coworkersBySlug,
                   usersById,
                   usersBySlug,
+                  channelLinks,
                 })}
               </Markdown>
             </div>
@@ -233,6 +238,8 @@ export function RoomComposer({
   value,
   onValueChange,
   mentions,
+  channels = [],
+  channelLinks = [],
   onSelectedKeysChange,
   placeholder,
   attachments,
@@ -253,6 +260,8 @@ export function RoomComposer({
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channels?: readonly ComposerChannelOption[];
+  channelLinks?: readonly ChannelLinkTarget[];
   onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: RoomComposerAttachment[];
@@ -505,6 +514,7 @@ export function RoomComposer({
                 quote={pendingQuote}
                 onDismiss={onClearPendingQuote}
                 mentions={composerMentions}
+                channelLinks={channelLinks}
               />
             ) : null}
             {formatToolbarOpen ? (
@@ -610,6 +620,7 @@ export function RoomComposer({
           onChange={onValueChange}
           onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
+          channels={channels}
           placeholder={placeholder}
           onSubmitShortcut={() => formRef.current?.requestSubmit()}
           onLinkShortcut={openLinkDialog}

@@ -1,6 +1,6 @@
 "use client";
 
-import { getExtensionFromUrl } from "@sokosumi/utils";
+import { type ChannelLinkTarget, getExtensionFromUrl } from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
@@ -102,7 +102,7 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatMessageTime,
-  formatRoomMarkdownMentions,
+  formatRoomMarkdownContent,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -258,12 +258,14 @@ function MessageQuoteBlock({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -294,12 +296,13 @@ function MessageQuoteBlock({
             )}
           >
             <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-              {formatRoomMarkdownMentions({
+              {formatRoomMarkdownContent({
                 content: quote.snippet,
                 coworkersById,
                 coworkersBySlug,
                 usersById,
                 usersBySlug,
+                channelLinks,
               })}
             </Markdown>
           </div>
@@ -407,12 +410,14 @@ function ChannelMarkdownSegment({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
 }) {
   if (!content.trim()) {
     return null;
@@ -420,12 +425,13 @@ function ChannelMarkdownSegment({
 
   return (
     <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
-      {formatRoomMarkdownMentions({
+      {formatRoomMarkdownContent({
         content,
         coworkersById,
         coworkersBySlug,
         usersById,
         usersBySlug,
+        channelLinks,
       })}
     </Markdown>
   );
@@ -437,12 +443,14 @@ function ChannelMessageText({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -454,6 +462,7 @@ function ChannelMessageText({
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
         usersBySlug={usersBySlug}
+        channelLinks={channelLinks}
       />
     );
   }
@@ -471,6 +480,7 @@ function ChannelMessageText({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                channelLinks={channelLinks}
               />
             );
           case "files": {
@@ -512,6 +522,7 @@ function ChannelMessageBody({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
 }: {
   messageId: string;
   content: string;
@@ -519,6 +530,7 @@ function ChannelMessageBody({
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -560,6 +572,7 @@ function ChannelMessageBody({
           coworkersBySlug={coworkersBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
+          channelLinks={channelLinks}
         />
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
@@ -1601,6 +1614,7 @@ export function ChatMessageRow({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks = [],
   currentUserId,
   canOpenHumanDirect = false,
   onOpenDirectMessage,
@@ -1631,6 +1645,7 @@ export function ChatMessageRow({
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks?: readonly ChannelLinkTarget[];
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
@@ -1873,6 +1888,7 @@ export function ChatMessageRow({
                   coworkersBySlug={coworkersBySlug}
                   usersById={usersById}
                   usersBySlug={usersBySlug}
+                  channelLinks={channelLinks}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
@@ -1932,6 +1948,7 @@ export function ChatMessageRow({
                     coworkersBySlug={coworkersBySlug}
                     usersById={usersById}
                     usersBySlug={usersBySlug}
+                    channelLinks={channelLinks}
                   />
                   {isContinuation && showEdited ? (
                     <span className="text-muted-foreground ml-1.5 text-xs">

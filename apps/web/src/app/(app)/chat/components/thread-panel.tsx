@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
@@ -7,6 +8,7 @@ import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-s
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
@@ -42,6 +44,8 @@ export function ThreadPanel({
   usersById,
   usersBySlug,
   mentionRecords,
+  channelOptions = [],
+  channelLinks = [],
   draftKey,
   onBeforeSendReply,
   onSendReply,
@@ -83,6 +87,8 @@ export function ThreadPanel({
   usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   mentionRecords: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channelOptions?: readonly ComposerChannelOption[];
+  channelLinks?: readonly ChannelLinkTarget[];
   draftKey: string;
   onBeforeSendReply?: (clientMessageId: string) => boolean;
   onSendReply: (
@@ -242,6 +248,7 @@ export function ThreadPanel({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                channelLinks={channelLinks}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectParticipantKey}
@@ -294,6 +301,7 @@ export function ThreadPanel({
                           coworkersBySlug={coworkersBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
+                          channelLinks={channelLinks}
                           canOpenHumanDirect={canOpenHumanDirect}
                           onOpenDirectMessage={onOpenDirectMessage}
                           openingDirectParticipantKey={
@@ -333,6 +341,8 @@ export function ThreadPanel({
           roomId={roomId}
           draftKey={draftKey}
           mentions={mentionRecords}
+          channels={channelOptions}
+          channelLinks={channelLinks}
           placeholder={t("Thread.replyPlaceholder")}
           isSending={isSendingReply}
           showMentionShortcut={showMentionShortcut}
