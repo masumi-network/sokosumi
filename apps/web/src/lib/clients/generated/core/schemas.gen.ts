@@ -14848,6 +14848,53 @@ export const SokoBotSkillSearchResultSchema = {
     ]
 } as const;
 
+export const SokoBotSkillBrowseSchema = {
+    type: 'object',
+    properties: {
+        page: {
+            type: 'integer'
+        },
+        pageSize: {
+            type: 'integer'
+        },
+        total: {
+            type: 'integer'
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    source: {
+                        type: 'string'
+                    },
+                    rank: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'source',
+                    'rank'
+                ]
+            }
+        }
+    },
+    required: [
+        'page',
+        'pageSize',
+        'total',
+        'items'
+    ]
+} as const;
+
 export const SokoBotLabRunSchema = {
     type: 'object',
     properties: {

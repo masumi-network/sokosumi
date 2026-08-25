@@ -14,6 +14,7 @@ import type {
   SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
+  SokoBotSkillBrowse,
   SokoBotSkillSearchResult,
   SokoBotTurn,
   SokoBotVersion,
@@ -88,6 +89,11 @@ export const sokoBotService = {
 
   async removeSkill(skillId: string): Promise<void> {
     await coreClient.removeMySokoBotSkill(skillId);
+  },
+
+  async browseSkills(page: number): Promise<SokoBotSkillBrowse> {
+    const response = await coreClient.browseSokoBotSkills(page);
+    return response.data;
   },
 
   async searchSkills(q: string): Promise<SokoBotSkillSearchResult[]> {

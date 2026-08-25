@@ -5502,7 +5502,15 @@
         "searchError": "Suche fehlgeschlagen.",
         "installs": "{count} Installationen",
         "hint": "Installierte Skills werden bei passenden Anfragen bei Bedarf geladen. Prüfe die Quelle vor dem Installieren — stöbern auf",
-        "tools": "Tools"
+        "tools": "Tools",
+        "popular": "Meistinstalliert auf skills.sh",
+        "searchResults": "{count} Treffer",
+        "pageOf": "{page} / {pages}",
+        "prev": "Zurück",
+        "next": "Weiter",
+        "noResults": "Keine passenden Skills.",
+        "loading": "Lädt…",
+        "installedLabel": "Installiert"
       }
     }
   },

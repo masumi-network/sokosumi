@@ -132,7 +132,7 @@ export function SokoBotConsole({
   return (
     <AssistantSeedContext.Provider value={seed}>
       <AssistantImageContext.Provider value={bot.avatarImageUrl}>
-        <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-4">
+        <div className="w-full space-y-6 px-4 py-4 lg:px-6">
           <header className="flex flex-wrap items-center gap-4">
             <AssistantAvatar size="lg" />
             <div className="min-w-0 flex-1 space-y-1">
@@ -167,7 +167,7 @@ export function SokoBotConsole({
             </Button>
           </header>
 
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="min-w-0 space-y-6">
               <Section
                 title={t("Console.activityTitle")}
@@ -186,6 +186,15 @@ export function SokoBotConsole({
                     onDecisionResolved={refresh}
                   />
                 )}
+              </Section>
+              <Section
+                title={t("Console.skillsTitle")}
+                description={t("Console.skillsDescription")}
+              >
+                <SkillsSection
+                  version={version}
+                  initialInstalled={installedSkills}
+                />
               </Section>
             </div>
 
@@ -251,16 +260,6 @@ export function SokoBotConsole({
                   )}
                   <ScheduleForm />
                 </div>
-              </Section>
-
-              <Section
-                title={t("Console.skillsTitle")}
-                description={t("Console.skillsDescription")}
-              >
-                <SkillsSection
-                  version={version}
-                  initialInstalled={installedSkills}
-                />
               </Section>
 
               <Section

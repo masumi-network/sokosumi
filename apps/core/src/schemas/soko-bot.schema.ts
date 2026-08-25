@@ -661,6 +661,22 @@ export const sokoBotSkillSearchResultSchema = z
   })
   .openapi("SokoBotSkillSearchResult");
 
+export const sokoBotSkillBrowseSchema = z
+  .object({
+    page: z.number().int(),
+    pageSize: z.number().int(),
+    total: z.number().int(),
+    items: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        source: z.string(),
+        rank: z.number().int(),
+      }),
+    ),
+  })
+  .openapi("SokoBotSkillBrowse");
+
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({
     /** Defaults to the newest Task the bot delegated. */

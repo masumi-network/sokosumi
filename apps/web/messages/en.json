@@ -5502,7 +5502,15 @@
         "searchError": "Search failed.",
         "installs": "{count} installs",
         "hint": "Installed skills are loaded on demand when a request matches their description. Review a skill's source before installing — browse",
-        "tools": "Tools"
+        "tools": "Tools",
+        "popular": "Most installed on skills.sh",
+        "searchResults": "{count} results",
+        "pageOf": "{page} / {pages}",
+        "prev": "Prev",
+        "next": "Next",
+        "noResults": "No skills match.",
+        "loading": "Loading…",
+        "installedLabel": "Installed"
       }
     }
   },

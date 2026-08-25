@@ -4277,6 +4277,18 @@ export type SokoBotSkillSearchResult = {
     installs: number;
 };
 
+export type SokoBotSkillBrowse = {
+    page: number;
+    pageSize: number;
+    total: number;
+    items: Array<{
+        id: string;
+        name: string;
+        source: string;
+        rank: number;
+    }>;
+};
+
 export type SokoBotLabRun = {
     id: string;
     turnId: string;
@@ -28950,6 +28962,64 @@ export type SearchSokoBotSkillsResponses = {
 };
 
 export type SearchSokoBotSkillsResponse = SearchSokoBotSkillsResponses[keyof SearchSokoBotSkillsResponses];
+
+export type BrowseSokoBotSkillsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        page?: number | null;
+    };
+    url: '/soko-bots/skills/browse';
+};
+
+export type BrowseSokoBotSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type BrowseSokoBotSkillsError = BrowseSokoBotSkillsErrors[keyof BrowseSokoBotSkillsErrors];
+
+export type BrowseSokoBotSkillsResponses = {
+    /**
+     * skills.sh leaderboard page
+     */
+    200: {
+        data: SokoBotSkillBrowse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type BrowseSokoBotSkillsResponse = BrowseSokoBotSkillsResponses[keyof BrowseSokoBotSkillsResponses];
 
 export type ListMySokoBotLabRunsData = {
     body?: never;

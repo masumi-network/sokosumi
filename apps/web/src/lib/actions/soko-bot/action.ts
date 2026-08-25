@@ -23,6 +23,7 @@ import {
   type SokoBotMemory,
   type SokoBotPendingDecision,
   type SokoBotSchedule,
+  type SokoBotSkillBrowse,
   type SokoBotSkillSearchResult,
   type SokoBotVersion,
   type StartSokoBotTurnResponse,
@@ -346,6 +347,23 @@ export const removeSokoBotSkillAction = withSession<
     await sokoBotService.removeSkill(parsed.data);
     revalidate();
     return toActionResult(ok());
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface BrowseSkillsParams extends AuthenticatedRequest {
+  page: unknown;
+}
+
+export const browseSokoBotSkillsAction = withSession<
+  BrowseSkillsParams,
+  ActionResultDto<SokoBotSkillBrowse, ActionError>
+>(async ({ page }) => {
+  const parsed = z.number().int().min(0).max(50).safeParse(page);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(ok(await sokoBotService.browseSkills(parsed.data)));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

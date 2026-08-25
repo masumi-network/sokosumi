@@ -48,6 +48,7 @@ import {
   sokoBotPendingDecisionSchema,
   sokoBotScheduleSchema,
   sokoBotSchema,
+  sokoBotSkillBrowseSchema,
   sokoBotSkillSearchResultSchema,
   sokoBotStateSchema,
   sokoBotTurnSchema,
@@ -87,6 +88,7 @@ import {
   sokoBotRuntimeService,
 } from "@/services/soko-bot-runtime.service";
 import {
+  browseSkillsSh,
   installSkill,
   listInstalledSkills,
   removeInstalledSkill,
@@ -832,6 +834,43 @@ app.openapi(searchSkillsRoute, async (c) => {
   requireUserAuthContext(c.var.authContext);
   try {
     return ok(c, await searchSkillsSh(c.req.valid("query").q));
+  } catch (error) {
+    if (error instanceof SokoBotSkillError) {
+      throw unprocessableEntity(error.message);
+    }
+    throw error;
+  }
+});
+
+const browseSkillsRoute = createRoute({
+  method: "get",
+  path: "/skills/browse",
+  operationId: "browseSokoBotSkills",
+  tags: ["Soko Bots"],
+  request: {
+    query: z.object({
+      page: z.coerce.number().int().min(0).max(50).default(0),
+    }),
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotSkillBrowseSchema,
+      "skills.sh leaderboard page",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(browseSkillsRoute, async (c) => {
+  requireUserAuthContext(c.var.authContext);
+  try {
+    return ok(
+      c,
+      sokoBotSkillBrowseSchema.parse(
+        await browseSkillsSh(c.req.valid("query").page),
+      ),
+    );
   } catch (error) {
     if (error instanceof SokoBotSkillError) {
       throw unprocessableEntity(error.message);

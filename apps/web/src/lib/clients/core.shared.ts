@@ -89,6 +89,7 @@ import {
   archiveMySokoBot as coreArchiveMySokoBot,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
+  browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
   claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
@@ -3657,6 +3658,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function browseSokoBotSkills(page: number) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreBrowseSokoBotSkills({ client, query: { page } }),
+      "Failed to browse skills",
+    );
+  }
+
   async function searchSokoBotSkills(q: string) {
     return executeCoreOperation(
       getClient,
@@ -4473,6 +4482,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     installMySokoBotSkill,
     removeMySokoBotSkill,
     searchSokoBotSkills,
+    browseSokoBotSkills,
     updateMySokoBotVersion,
     listMySokoBotTurns,
     getMySokoBotTurn,

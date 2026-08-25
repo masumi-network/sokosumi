@@ -5502,7 +5502,15 @@
         "searchError": "La búsqueda falló.",
         "installs": "{count} instalaciones",
         "hint": "Los skills instalados se cargan bajo demanda cuando una petición coincide con su descripción. Revisa la fuente antes de instalar — explora",
-        "tools": "Herramientas"
+        "tools": "Herramientas",
+        "popular": "Más instalados en skills.sh",
+        "searchResults": "{count} resultados",
+        "pageOf": "{page} / {pages}",
+        "prev": "Anterior",
+        "next": "Siguiente",
+        "noResults": "Ningún skill coincide.",
+        "loading": "Cargando…",
+        "installedLabel": "Instalado"
       }
     }
   },

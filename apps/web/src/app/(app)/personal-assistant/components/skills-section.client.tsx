@@ -3,17 +3,19 @@
 import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { ExternalLink, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  browseSokoBotSkillsAction,
   installSokoBotSkillAction,
   removeSokoBotSkillAction,
   searchSokoBotSkillsAction,
 } from "@/lib/actions/soko-bot/action";
 import type {
   SokoBotInstalledSkill,
+  SokoBotSkillBrowse,
   SokoBotSkillSearchResult,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
@@ -40,8 +42,23 @@ export function SkillsSection({
   const [source, setSource] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SokoBotSkillSearchResult[]>([]);
+  const [results, setResults] = useState<SokoBotSkillSearchResult[] | null>(
+    null,
+  );
+  const [browse, setBrowse] = useState<SokoBotSkillBrowse | null>(null);
+  const [page, setPage] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const installedNames = new Set(installed.map((skill) => skill.name));
+
+  useEffect(() => {
+    let cancelled = false;
+    void browseSokoBotSkillsAction({ page }).then((result) => {
+      if (!cancelled && result.ok) setBrowse(result.value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
 
   function install(sourceToInstall: string, skillName?: string) {
     startTransition(async () => {
@@ -81,7 +98,10 @@ export function SkillsSection({
 
   function search() {
     const q = query.trim();
-    if (!q) return;
+    if (!q) {
+      setResults(null);
+      return;
+    }
     startTransition(async () => {
       const result = await searchSokoBotSkillsAction({ q });
       if (!result.ok) {
@@ -218,7 +238,10 @@ export function SkillsSection({
         >
           <Input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              if (!event.target.value.trim()) setResults(null);
+            }}
             placeholder={t("searchPlaceholder")}
             aria-label={t("searchLabel")}
             autoComplete="off"
@@ -233,33 +256,108 @@ export function SkillsSection({
             {t("search")}
           </Button>
         </form>
-        {results.length > 0 ? (
-          <ul className="mt-2 divide-y rounded-md border">
-            {results.map((result) => (
-              <li
-                key={result.id}
-                className="flex items-center gap-2 px-3 py-2 text-sm"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{result.name}</p>
-                  <p className="text-muted-foreground truncate text-xs tabular-nums">
-                    {result.source} ·{" "}
-                    {t("installs", { count: result.installs })}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={isPending}
-                  onClick={() => install(result.source, result.name)}
-                >
-                  {t("install")}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        {(() => {
+          const rows: {
+            id: string;
+            name: string;
+            source: string;
+            meta: string;
+          }[] = results
+            ? results.map((r) => ({
+                id: r.id,
+                name: r.name,
+                source: r.source,
+                meta: t("installs", { count: r.installs }),
+              }))
+            : (browse?.items ?? []).map((r) => ({
+                id: r.id,
+                name: r.name,
+                source: r.source,
+                meta: `#${r.rank}`,
+              }));
+          return (
+            <div className="mt-2 rounded-md border">
+              <p className="text-muted-foreground flex items-center justify-between border-b px-3 py-1.5 text-xs">
+                <span>
+                  {results
+                    ? t("searchResults", { count: results.length })
+                    : t("popular")}
+                </span>
+                {!results && browse ? (
+                  <span className="flex items-center gap-2 tabular-nums">
+                    {t("pageOf", {
+                      page: page + 1,
+                      pages: Math.max(
+                        1,
+                        Math.ceil(browse.total / browse.pageSize),
+                      ),
+                    })}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={page === 0}
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    >
+                      {t("prev")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={(page + 1) * browse.pageSize >= browse.total}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      {t("next")}
+                    </Button>
+                  </span>
+                ) : null}
+              </p>
+              <ul className="divide-y">
+                {rows.length === 0 ? (
+                  <li className="text-muted-foreground px-3 py-2 text-sm">
+                    {results ? t("noResults") : t("loading")}
+                  </li>
+                ) : null}
+                {rows.map((row) => (
+                  <li
+                    key={row.id}
+                    className="flex items-center gap-3 px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{row.name}</p>
+                      <p className="text-muted-foreground truncate text-xs tabular-nums">
+                        {row.source} · {row.meta}
+                      </p>
+                    </div>
+                    <a
+                      href={`https://skills.sh/${row.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label={row.id}
+                    >
+                      <ExternalLink aria-hidden className="size-3.5" />
+                    </a>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        installedNames.has(row.name) ? "ghost" : "outline"
+                      }
+                      disabled={isPending || installedNames.has(row.name)}
+                      onClick={() => install(row.source, row.name)}
+                    >
+                      {installedNames.has(row.name)
+                        ? t("installedLabel")
+                        : t("install")}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
         <p className="text-muted-foreground mt-2 text-xs">
           {t("hint")}{" "}
           <a

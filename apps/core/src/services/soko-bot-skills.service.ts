@@ -300,6 +300,73 @@ export async function removeInstalledSkill(userId: string, skillId: string) {
   if (deleted.count === 0) throw new SokoBotSkillError("Skill not found");
 }
 
+const BROWSE_PAGE_SIZE = 20;
+const BROWSE_CACHE_MS = 60 * 60 * 1_000;
+const RESERVED_FIRST_SEGMENTS = new Set([
+  "site",
+  "agent",
+  "topic",
+  "packs",
+  "docs",
+  "audits",
+  "official",
+  "hot",
+  "trending",
+  "api",
+  "b",
+]);
+let browseCache: {
+  at: number;
+  items: { id: string; name: string; source: string; rank: number }[];
+} | null = null;
+
+/**
+ * The skills.sh leaderboard (all-time, GitHub-hosted skills only), scraped
+ * from the homepage's ordered skill links and cached for an hour. Enough to
+ * browse the popular ones; search covers the rest.
+ */
+export async function browseSkillsSh(page: number) {
+  if (!browseCache || Date.now() - browseCache.at > BROWSE_CACHE_MS) {
+    const response = await fetch("https://www.skills.sh/", {
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; sokosumi-soko-bot)",
+        accept: "text/html",
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) throw new SokoBotSkillError("skills.sh is unavailable");
+    const html = await response.text();
+    const seen = new Set<string>();
+    const items: { id: string; name: string; source: string; rank: number }[] =
+      [];
+    for (const match of html.matchAll(
+      /href="\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)"/g,
+    )) {
+      const [, owner, repo, name] = match;
+      if (RESERVED_FIRST_SEGMENTS.has(owner)) continue;
+      const id = `${owner}/${repo}/${name}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      items.push({
+        id,
+        name,
+        source: `${owner}/${repo}`,
+        rank: items.length + 1,
+      });
+    }
+    if (items.length === 0)
+      throw new SokoBotSkillError("Could not read the skills.sh leaderboard");
+    browseCache = { at: Date.now(), items };
+  }
+  const start = Math.max(0, page) * BROWSE_PAGE_SIZE;
+  return {
+    page,
+    pageSize: BROWSE_PAGE_SIZE,
+    total: browseCache.items.length,
+    items: browseCache.items.slice(start, start + BROWSE_PAGE_SIZE),
+  };
+}
+
 /** skills.sh search, proxied so the browser never talks to it directly. */
 export async function searchSkillsSh(query: string) {
   const url = new URL("/api/search", SKILLS_SH);
