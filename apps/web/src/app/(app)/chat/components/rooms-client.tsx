@@ -339,6 +339,7 @@ interface RoomHeaderChromeProps {
   onToggleThreadList: () => void;
   rosterOpen: boolean;
   onToggleRoster: () => void;
+  currentUserId: string;
   organizationMembers: Member[];
   coworkers: Coworker[];
   canEditMembers: boolean;
@@ -361,6 +362,7 @@ function RoomHeaderChrome({
   onToggleThreadList,
   rosterOpen,
   onToggleRoster,
+  currentUserId,
   organizationMembers,
   coworkers,
   canEditMembers,
@@ -429,6 +431,7 @@ function RoomHeaderChrome({
             channel={room}
             members={organizationMembers}
             coworkers={coworkers}
+            currentUserId={currentUserId}
             canEditMembers={canEditMembers}
             canManageSettings={canManageSettings}
             canArchive={canArchive}
@@ -2441,6 +2444,7 @@ export function RoomsClient({
         }}
         rosterOpen={rosterOpen}
         onToggleRoster={handleToggleRoster}
+        currentUserId={currentUserId}
         organizationMembers={organizationMembers}
         coworkers={coworkers}
         canEditMembers={canEditSelectedRoomMembers}
@@ -2823,6 +2827,7 @@ export function RoomsClient({
                 open={isCreateChannelRequested}
                 members={organizationMembers}
                 coworkers={coworkers}
+                currentUserId={currentUserId}
                 organizationName={activeOrganization?.name ?? ""}
                 membersLoadFailed={membersLoadFailed}
                 canCreateExternal={isOrgOwnerOrAdmin}

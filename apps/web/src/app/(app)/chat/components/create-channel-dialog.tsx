@@ -43,6 +43,7 @@ interface CreateChannelDialogProps {
   members: Member[];
   coworkers: Coworker[];
   organizationName: string;
+  currentUserId: string;
   membersLoadFailed?: boolean;
   /** Org owner/admin only — create discoverability external. */
   canCreateExternal?: boolean;
@@ -57,6 +58,7 @@ export function CreateChannelDialog({
   members,
   coworkers,
   organizationName,
+  currentUserId,
   membersLoadFailed = false,
   canCreateExternal = false,
 }: CreateChannelDialogProps) {
@@ -112,7 +114,11 @@ export function CreateChannelDialog({
       }
       notifyOrganizationChatRoomsChanged(result.value);
       setWizard(
-        toAddPeople(wizard, { id: result.value.id, name: result.value.name }),
+        toAddPeople(
+          wizard,
+          { id: result.value.id, name: result.value.name },
+          currentUserId,
+        ),
       );
     });
   }
@@ -150,17 +156,22 @@ export function CreateChannelDialog({
     }
     if (wizard.mode === "all") {
       finishAddPeople({
-        memberUserIds: allMemberUserIds,
+        memberUserIds: allMemberUserIds.includes(currentUserId)
+          ? allMemberUserIds
+          : [currentUserId, ...allMemberUserIds],
         coworkerIds: [],
         skipUpdate: false,
       });
       return;
     }
+    const memberUserIds = wizard.memberUserIds.includes(currentUserId)
+      ? wizard.memberUserIds
+      : [currentUserId, ...wizard.memberUserIds];
+    const extraHumans = memberUserIds.filter((id) => id !== currentUserId);
     finishAddPeople({
-      memberUserIds: wizard.memberUserIds,
+      memberUserIds,
       coworkerIds: wizard.coworkerIds,
-      skipUpdate:
-        wizard.memberUserIds.length === 0 && wizard.coworkerIds.length === 0,
+      skipUpdate: extraHumans.length === 0 && wizard.coworkerIds.length === 0,
     });
   }
 
@@ -351,6 +362,7 @@ export function CreateChannelDialog({
                 coworkers={coworkers}
                 memberIds={wizard.memberUserIds}
                 coworkerIds={wizard.coworkerIds}
+                lockedUserId={currentUserId}
                 onMemberIdsChange={(memberUserIds) =>
                   setWizard(
                     setSpecificMembers(wizard, {
