@@ -31,7 +31,7 @@ flowchart LR
 
 ## Runtime compatibility
 
-Canonical files: `skills/linear-requirement/`. Agents load `.agents/skills/linear-requirement/` (symlink). Invoke by name or explicit ask (`disable-model-invocation`). Other repos: `npx skills add <this-repo> --skill linear-requirement`.
+Canonical files: `skills/linear-requirement/`. Invoke by name or explicit ask (`disable-model-invocation`). Install into agent skill dirs with `npx skills add . --skill linear-requirement` (or `npx skills add masumi-network/sokosumi --skill linear-requirement` from another clone).
 
 ## Defaults
 
