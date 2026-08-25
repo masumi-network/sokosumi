@@ -13,7 +13,7 @@ import type { CreditUsage } from "@/lib/types/credit";
 import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
-import PersonalAssistantNav from "./components/personal-assistant-nav.client";
+import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
 
 export type SidebarCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];

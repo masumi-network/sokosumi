@@ -28,12 +28,9 @@ vi.mock("@/app/components/private-sidebar-cache", () => ({
     getPrivateCachedChatListArchivedAndMembersMock(...args),
 }));
 
-vi.mock(
-  "@/app/components/sidebar/components/personal-assistant-nav.client",
-  () => ({
-    default: () => <div data-testid="personal-assistant-nav" />,
-  }),
-);
+vi.mock("@/app/components/sidebar/components/personal-assistant-nav", () => ({
+  default: () => <div data-testid="personal-assistant-nav" />,
+}));
 
 vi.mock("@/components/chat/organization-chat-list.client", () => ({
   OrganizationChatList: (props: {

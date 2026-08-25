@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { AuroraOrb } from "@/components/aurora-orb";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -21,7 +22,46 @@ import { cn } from "@/lib/utils";
  * assistants, and where a person creates their own. Set apart from the rest
  * of the nav by a divider rendered in the sidebar composition.
  */
-export default function PersonalAssistantNav() {
+export interface SidebarSokoBotAvatar {
+  id: string;
+  imageUrl: string | null;
+  seed: string;
+}
+
+const MAX_STACK = 3;
+
+/** Up to three workspace Soko Bots, overlapping like a team roster. */
+function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
+  return (
+    <span className="flex shrink-0 -space-x-1.5" aria-hidden>
+      {bots
+        .slice(0, MAX_STACK)
+        .map((bot) =>
+          bot.imageUrl ? (
+            <img
+              key={bot.id}
+              src={bot.imageUrl}
+              alt=""
+              className="ring-sidebar size-5 rounded-full object-cover ring-2"
+            />
+          ) : (
+            <AuroraOrb
+              key={bot.id}
+              seed={bot.seed}
+              size={40}
+              className="ring-sidebar size-5 ring-2"
+            />
+          ),
+        )}
+    </span>
+  );
+}
+
+export default function PersonalAssistantNav({
+  bots = [],
+}: {
+  bots?: SidebarSokoBotAvatar[];
+}) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some(
@@ -46,7 +86,11 @@ export default function PersonalAssistantNav() {
                       : "border-primary/50 hover:border-primary/70 text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
-                  <Bot className="size-4 shrink-0" aria-hidden />
+                  {bots.length > 0 ? (
+                    <BotStack bots={bots} />
+                  ) : (
+                    <Bot className="size-4 shrink-0" aria-hidden />
+                  )}
                   <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:hidden">
                     {t("sokoBot")}
                   </span>

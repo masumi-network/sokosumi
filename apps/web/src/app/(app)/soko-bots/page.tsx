@@ -28,7 +28,9 @@ export default async function SokoBotsPage() {
   return (
     <div className="w-full space-y-8 px-4 py-4 lg:px-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+        <h1 className="text-foreground text-2xl font-light md:text-3xl">
+          {t("title")}
+        </h1>
         <p className="text-muted-foreground max-w-2xl text-sm">
           {t("description")}
         </p>
@@ -38,7 +40,9 @@ export default async function SokoBotsPage() {
           <YourSokoBots me={me} />
           <section className="space-y-3">
             <div>
-              <h2 className="text-base font-semibold">{t("teamTitle")}</h2>
+              <h2 className="text-foreground text-lg font-medium">
+                {t("teamTitle")}
+              </h2>
               <p className="text-muted-foreground text-sm">
                 {team.workspace.kind === "organization"
                   ? t("teamDescription")

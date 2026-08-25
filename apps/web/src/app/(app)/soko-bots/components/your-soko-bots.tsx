@@ -19,7 +19,7 @@ export async function YourSokoBots({ me }: { me: Member | null }) {
   const bot = me?.bot ?? null;
   return (
     <section className="space-y-3">
-      <h2 className="text-base font-semibold">{t("yoursTitle")}</h2>
+      <h2 className="text-foreground text-lg font-medium">{t("yoursTitle")}</h2>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {bot && me ? (
           <div className="bg-background flex flex-col gap-4 rounded-lg border p-4">

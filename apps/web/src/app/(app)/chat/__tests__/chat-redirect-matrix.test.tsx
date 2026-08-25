@@ -27,12 +27,9 @@ vi.mock("@/app/components/private-sidebar-cache", () => ({
   }),
 }));
 
-vi.mock(
-  "@/app/components/sidebar/components/personal-assistant-nav.client",
-  () => ({
-    default: () => null,
-  }),
-);
+vi.mock("@/app/components/sidebar/components/personal-assistant-nav", () => ({
+  default: () => null,
+}));
 
 vi.mock("@/components/chat/organization-chat-list.client", () => ({
   OrganizationChatList: () => null,
