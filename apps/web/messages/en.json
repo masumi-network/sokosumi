@@ -5482,6 +5482,8 @@
       "tasksEmptyTitle": "No task files yet",
       "tasksEmptyDescription": "Task files will appear here when you complete tasks",
       "loadTasksError": "Failed to load tasks",
+      "loadMore": "Load more",
+      "loadMoreTasksError": "Failed to load more tasks",
       "copyToFilesAction": "Copy to Files",
       "copyToFilesSuccess": "File copied to Files",
       "copyToFilesError": "Failed to copy file",

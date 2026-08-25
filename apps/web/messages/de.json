@@ -5482,6 +5482,8 @@
       "tasksEmptyTitle": "Noch keine Aufgabendateien",
       "tasksEmptyDescription": "Aufgabendateien werden hier angezeigt, wenn du Aufgaben abschließt",
       "loadTasksError": "Laden der Aufgaben fehlgeschlagen",
+      "loadMore": "Mehr laden",
+      "loadMoreTasksError": "Weitere Aufgaben konnten nicht geladen werden",
       "copyToFilesAction": "In Dateien kopieren",
       "copyToFilesSuccess": "Datei in Dateien kopiert",
       "copyToFilesError": "Kopieren fehlgeschlagen",

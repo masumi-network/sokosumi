@@ -32,6 +32,13 @@ export interface FilterDropdownMenuOption {
   searchKeywords?: string[];
 }
 
+export interface FilterDropdownMenuSectionPagination {
+  nextCursor: string | null;
+  onLoadMore: () => void;
+  isLoadingMore?: boolean;
+  loadMoreLabel: string;
+}
+
 export interface FilterDropdownMenuSection {
   id: string;
   label: string;
@@ -40,6 +47,7 @@ export interface FilterDropdownMenuSection {
   options: FilterDropdownMenuOption[];
   allLabel?: string;
   onChange: (value: string | null) => void;
+  pagination?: FilterDropdownMenuSectionPagination;
 }
 
 interface FilterDropdownMenuProps {
@@ -183,6 +191,19 @@ function FilterDropdownMenuSectionItem({
                 </CommandItem>
               );
             })}
+            {section.pagination?.nextCursor ? (
+              <CommandItem
+                key={`${section.id}-load-more`}
+                value={`${section.id}-load-more`}
+                onSelect={() => {
+                  section.pagination?.onLoadMore();
+                }}
+                disabled={section.pagination.isLoadingMore}
+                className="text-muted-foreground justify-center text-xs"
+              >
+                {section.pagination.loadMoreLabel}
+              </CommandItem>
+            ) : null}
           </CommandList>
         </Command>
       </DropdownMenuSubContent>

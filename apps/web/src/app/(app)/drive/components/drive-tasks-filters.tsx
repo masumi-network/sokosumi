@@ -12,10 +12,14 @@ import {
   type Coworker,
   getCoworkers,
   getProjects,
+  getProjectsById,
   getTasks,
+  getTasksById,
   type ProjectListItem,
   type TaskListItem,
 } from "@/lib/clients/generated/core";
+
+const FILTER_PAGE_LIMIT = 100;
 
 interface DriveTasksFiltersProps {
   activeOrganizationId: string | null;
@@ -30,7 +34,21 @@ interface DriveTasksFiltersProps {
     coworkerLabel: string;
     projectLabel: string;
     taskLabel: string;
+    loadMore: string;
   };
+}
+
+function resolveNextCursor(
+  cursor: string | null,
+  previousCursor?: string,
+): string | null {
+  if (!cursor) {
+    return null;
+  }
+  if (previousCursor && cursor === previousCursor) {
+    return null;
+  }
+  return cursor;
 }
 
 export function DriveTasksFilters({
@@ -46,7 +64,17 @@ export function DriveTasksFilters({
 
   const [coworkers, setCoworkers] = useState<Coworker[]>([]);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [projectsNextCursor, setProjectsNextCursor] = useState<string | null>(
+    null,
+  );
+  const [projectsLoadingMore, setProjectsLoadingMore] = useState(false);
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
+  const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
+  const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
+  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(
+    null,
+  );
+  const [selectedTaskName, setSelectedTaskName] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCoworkers() {
@@ -68,19 +96,58 @@ export function DriveTasksFilters({
       try {
         const response = await getProjects({
           client: getBrowserCoreClient(),
-          query: { limit: 100 },
+          query: { limit: FILTER_PAGE_LIMIT },
         });
         setProjects(response.data?.data ?? []);
+        setProjectsNextCursor(
+          response.data?.meta?.pagination?.nextCursor ?? null,
+        );
       } catch {
         setProjects([]);
+        setProjectsNextCursor(null);
       }
     }
     void loadProjects();
   }, []);
 
   useEffect(() => {
+    if (!projectId || projectId === "null") {
+      setSelectedProjectName(null);
+      return;
+    }
+
+    if (projects.some((project) => project.id === projectId)) {
+      setSelectedProjectName(null);
+      return;
+    }
+
+    const selectedProjectId = projectId;
+
+    async function fetchSelectedProject() {
+      try {
+        const response = await getProjectsById({
+          client: getBrowserCoreClient(),
+          path: { id: selectedProjectId },
+          throwOnError: true,
+        });
+        const selectedProject = response.data?.data;
+        if (!selectedProject?.name) {
+          return;
+        }
+        setSelectedProjectName(selectedProject.name);
+      } catch {
+        setSelectedProjectName(null);
+      }
+    }
+
+    void fetchSelectedProject();
+  }, [projectId, projects]);
+
+  useEffect(() => {
     if (!projectId) {
       setTasks([]);
+      setTasksNextCursor(null);
+      setSelectedTaskName(null);
       return;
     }
     const selectedProjectId = projectId;
@@ -91,15 +158,19 @@ export function DriveTasksFilters({
       try {
         const response = await getTasks({
           client: getBrowserCoreClient(),
-          query: { projectId: selectedProjectId, limit: 100 },
+          query: { projectId: selectedProjectId, limit: FILTER_PAGE_LIMIT },
           signal: controller.signal,
         });
         if (!controller.signal.aborted) {
           setTasks(response.data?.data ?? []);
+          setTasksNextCursor(
+            response.data?.meta?.pagination?.nextCursor ?? null,
+          );
         }
       } catch {
         if (!controller.signal.aborted) {
           setTasks([]);
+          setTasksNextCursor(null);
         }
       }
     }
@@ -108,6 +179,98 @@ export function DriveTasksFilters({
       controller.abort();
     };
   }, [projectId]);
+
+  useEffect(() => {
+    if (!taskId || !projectId) {
+      setSelectedTaskName(null);
+      return;
+    }
+
+    if (tasks.some((task) => task.id === taskId)) {
+      setSelectedTaskName(null);
+      return;
+    }
+
+    const selectedTaskId = taskId;
+
+    async function fetchSelectedTask() {
+      try {
+        const response = await getTasksById({
+          client: getBrowserCoreClient(),
+          path: { id: selectedTaskId },
+          throwOnError: true,
+        });
+        const selectedTask = response.data?.data;
+        if (!selectedTask?.name) {
+          return;
+        }
+        setSelectedTaskName(selectedTask.name);
+      } catch {
+        setSelectedTaskName(null);
+      }
+    }
+
+    void fetchSelectedTask();
+  }, [taskId, projectId, tasks]);
+
+  const loadMoreProjects = useCallback(async () => {
+    if (!projectsNextCursor || projectsLoadingMore) {
+      return;
+    }
+
+    setProjectsLoadingMore(true);
+    try {
+      const response = await getProjects({
+        client: getBrowserCoreClient(),
+        query: {
+          limit: FILTER_PAGE_LIMIT,
+          cursor: projectsNextCursor,
+        },
+      });
+      const nextPage = response.data?.data ?? [];
+      setProjects((current) => [...current, ...nextPage]);
+      setProjectsNextCursor(
+        resolveNextCursor(
+          response.data?.meta?.pagination?.nextCursor ?? null,
+          projectsNextCursor,
+        ),
+      );
+    } catch {
+      // Leave the current list intact when pagination fails.
+    } finally {
+      setProjectsLoadingMore(false);
+    }
+  }, [projectsNextCursor, projectsLoadingMore]);
+
+  const loadMoreTasks = useCallback(async () => {
+    if (!projectId || !tasksNextCursor || tasksLoadingMore) {
+      return;
+    }
+
+    setTasksLoadingMore(true);
+    try {
+      const response = await getTasks({
+        client: getBrowserCoreClient(),
+        query: {
+          projectId,
+          limit: FILTER_PAGE_LIMIT,
+          cursor: tasksNextCursor,
+        },
+      });
+      const nextPage = response.data?.data ?? [];
+      setTasks((current) => [...current, ...nextPage]);
+      setTasksNextCursor(
+        resolveNextCursor(
+          response.data?.meta?.pagination?.nextCursor ?? null,
+          tasksNextCursor,
+        ),
+      );
+    } catch {
+      // Leave the current list intact when pagination fails.
+    } finally {
+      setTasksLoadingMore(false);
+    }
+  }, [projectId, tasksNextCursor, tasksLoadingMore]);
 
   const handleFilterChange = useCallback(
     (param: "assigneeId" | "projectId" | "taskId", value: string | null) => {
@@ -156,10 +319,27 @@ export function DriveTasksFilters({
       value: projectId,
       allLabel: labels.all,
       onChange: (value) => handleFilterChange("projectId", value),
-      options: projects.map((project) => ({
-        value: project.id,
-        label: project.name,
-      })),
+      options: [
+        ...(projectId &&
+        selectedProjectName &&
+        !projects.some((project) => project.id === projectId)
+          ? [{ value: projectId, label: selectedProjectName }]
+          : []),
+        ...projects.map((project) => ({
+          value: project.id,
+          label: project.name,
+        })),
+      ],
+      pagination: projectsNextCursor
+        ? {
+            nextCursor: projectsNextCursor,
+            onLoadMore: () => {
+              void loadMoreProjects();
+            },
+            isLoadingMore: projectsLoadingMore,
+            loadMoreLabel: labels.loadMore,
+          }
+        : undefined,
     });
 
     if (projectId && tasks.length > 0) {
@@ -170,10 +350,27 @@ export function DriveTasksFilters({
         value: taskId,
         allLabel: labels.all,
         onChange: (value) => handleFilterChange("taskId", value),
-        options: tasks.map((task) => ({
-          value: task.id,
-          label: task.name,
-        })),
+        options: [
+          ...(taskId &&
+          selectedTaskName &&
+          !tasks.some((task) => task.id === taskId)
+            ? [{ value: taskId, label: selectedTaskName }]
+            : []),
+          ...tasks.map((task) => ({
+            value: task.id,
+            label: task.name,
+          })),
+        ],
+        pagination: tasksNextCursor
+          ? {
+              nextCursor: tasksNextCursor,
+              onLoadMore: () => {
+                void loadMoreTasks();
+              },
+              isLoadingMore: tasksLoadingMore,
+              loadMoreLabel: labels.loadMore,
+            }
+          : undefined,
       });
     }
 
@@ -184,10 +381,19 @@ export function DriveTasksFilters({
     taskId,
     coworkers,
     projects,
+    projectsNextCursor,
+    projectsLoadingMore,
+    selectedProjectName,
     tasks,
+    tasksNextCursor,
+    tasksLoadingMore,
+    selectedTaskName,
     handleFilterChange,
+    loadMoreProjects,
+    loadMoreTasks,
     labels.all,
     labels.coworkerLabel,
+    labels.loadMore,
     labels.projectLabel,
     labels.taskLabel,
   ]);

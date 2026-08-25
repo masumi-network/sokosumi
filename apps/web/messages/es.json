@@ -5482,6 +5482,8 @@
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
       "tasksEmptyDescription": "Los archivos de tareas aparecerán aquí cuando completes tareas",
       "loadTasksError": "Error al cargar las tareas",
+      "loadMore": "Cargar más",
+      "loadMoreTasksError": "No se pudieron cargar más tareas",
       "copyToFilesAction": "Copiar a Archivos",
       "copyToFilesSuccess": "Archivo copiado a Archivos",
       "copyToFilesError": "Error al copiar archivo",

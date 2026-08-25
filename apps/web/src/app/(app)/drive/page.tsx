@@ -99,7 +99,7 @@ import {
   isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
-import { listDriveTasks } from "@/lib/utils/drive-tasks-list.client";
+import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
@@ -400,6 +400,8 @@ function DrivePageWorkspace({
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
   const [tasksItems, setTasksItems] = useState<DriveTasksListItem[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
+  const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
@@ -441,6 +443,8 @@ function DrivePageWorkspace({
     loadTasksAbortRef.current?.abort();
     setTasksItems([]);
     setTasksLoading(false);
+    setTasksNextCursor(null);
+    setTasksLoadingMore(false);
     setCopyDialogOpen(false);
     setTaskFileToCopy(null);
     setProjectNameCache(new Map());
@@ -506,6 +510,7 @@ function DrivePageWorkspace({
       if (scope === "org" && !activeOrganizationId) {
         if (!controller.signal.aborted) {
           setTasksItems([]);
+          setTasksNextCursor(null);
           setTasksLoading(false);
         }
         return;
@@ -513,10 +518,11 @@ function DrivePageWorkspace({
 
       if (!controller.signal.aborted) {
         setTasksItems([]);
+        setTasksNextCursor(null);
         setTasksLoading(true);
       }
 
-      const nextItems = await listDriveTasks({
+      const page = await fetchDriveTasksPage({
         scope,
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
@@ -531,10 +537,11 @@ function DrivePageWorkspace({
       });
 
       if (!controller.signal.aborted) {
-        setTasksItems(nextItems);
+        setTasksItems(page.items);
+        setTasksNextCursor(page.nextCursor);
         setProjectNameCache((prev) => {
           const next = new Map(prev);
-          for (const item of nextItems) {
+          for (const item of page.items) {
             if (item.type === "project") {
               next.set(item.id, item.name);
             }
@@ -543,7 +550,7 @@ function DrivePageWorkspace({
         });
         setTaskNameCache((prev) => {
           const next = new Map(prev);
-          for (const item of nextItems) {
+          for (const item of page.items) {
             if (item.type === "task") {
               next.set(item.id, item.name);
             }
@@ -563,6 +570,69 @@ function DrivePageWorkspace({
     }
   }, [
     isTasksView,
+    scope,
+    activeOrganizationId,
+    projectIdParam,
+    taskIdParam,
+    assigneeIdParam,
+    t,
+  ]);
+
+  const loadMoreTasksItems = useCallback(async () => {
+    if (!isTasksView || !tasksNextCursor || tasksLoadingMore) {
+      return;
+    }
+
+    if (scope === "org" && !activeOrganizationId) {
+      return;
+    }
+
+    setTasksLoadingMore(true);
+    try {
+      const page = await fetchDriveTasksPage({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(taskIdParam
+          ? { taskId: taskIdParam }
+          : projectIdParam
+            ? { projectId: projectIdParam }
+            : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        cursor: tasksNextCursor,
+      });
+
+      setTasksItems((current) => [...current, ...page.items]);
+      setTasksNextCursor(page.nextCursor);
+      setProjectNameCache((prev) => {
+        const next = new Map(prev);
+        for (const item of page.items) {
+          if (item.type === "project") {
+            next.set(item.id, item.name);
+          }
+        }
+        return next;
+      });
+      setTaskNameCache((prev) => {
+        const next = new Map(prev);
+        for (const item of page.items) {
+          if (item.type === "task") {
+            next.set(item.id, item.name);
+          }
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to load more tasks", err);
+      toast.error(t("loadMoreTasksError"));
+    } finally {
+      setTasksLoadingMore(false);
+    }
+  }, [
+    isTasksView,
+    tasksNextCursor,
+    tasksLoadingMore,
     scope,
     activeOrganizationId,
     projectIdParam,
@@ -1227,6 +1297,7 @@ function DrivePageWorkspace({
                 coworkerLabel: t("filterCoworkerLabel"),
                 projectLabel: t("filterProjectLabel"),
                 taskLabel: t("filterTaskLabel"),
+                loadMore: t("loadMore"),
               }}
             />
           )}
@@ -1896,6 +1967,19 @@ function DrivePageWorkspace({
                 </article>
               );
             })}
+            {isTasksView && tasksNextCursor ? (
+              <div className="flex justify-center py-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadMoreTasksItems()}
+                  disabled={tasksLoadingMore}
+                >
+                  {t("loadMore")}
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

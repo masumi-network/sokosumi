@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DriveTasksListItem } from "@/lib/clients/generated/core";
 import {
-  DRIVE_TASKS_MAX_PAGES,
   DRIVE_TASKS_PAGE_LIMIT,
-  listDriveTasks,
+  fetchDriveTasksPage,
 } from "../drive-tasks-list.client";
 
 const getDriveTasksMock = vi.fn();
@@ -16,7 +15,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({}),
 }));
 
-describe("listDriveTasks", () => {
+describe("fetchDriveTasksPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -38,10 +37,11 @@ describe("listDriveTasks", () => {
       },
     });
 
-    const result = await listDriveTasks({ scope: "me" });
+    const result = await fetchDriveTasksPage({ scope: "me" });
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
+    expect(result.items).toHaveLength(1);
+    expect(result.nextCursor).toBeNull();
+    expect(result.items[0]).toMatchObject({
       type: "project",
       id: "proj-1",
       name: "Project 1",
@@ -80,13 +80,13 @@ describe("listDriveTasks", () => {
       },
     });
 
-    const result = await listDriveTasks({
+    const result = await fetchDriveTasksPage({
       scope: "org",
       organizationId: "org-123",
     });
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
       type: "task",
       id: "task-1",
       name: "Task 1",
@@ -110,7 +110,7 @@ describe("listDriveTasks", () => {
       },
     });
 
-    await listDriveTasks({
+    await fetchDriveTasksPage({
       scope: "me",
       projectId: "proj-456",
     });
@@ -132,7 +132,7 @@ describe("listDriveTasks", () => {
       },
     });
 
-    await listDriveTasks({
+    await fetchDriveTasksPage({
       scope: "me",
       taskId: "task-789",
     });
@@ -154,7 +154,7 @@ describe("listDriveTasks", () => {
       },
     });
 
-    await listDriveTasks({
+    await fetchDriveTasksPage({
       scope: "me",
       assigneeId: "cow-123",
     });
@@ -168,7 +168,7 @@ describe("listDriveTasks", () => {
     );
   });
 
-  it("handles pagination with cursor", async () => {
+  it("returns one page and nextCursor without auto-fetching", async () => {
     const page1Items: DriveTasksListItem[] = [
       {
         type: "project",
@@ -177,6 +177,23 @@ describe("listDriveTasks", () => {
         latestFileUpdatedAt: new Date("2026-01-01"),
       },
     ];
+
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: page1Items,
+        meta: { pagination: { nextCursor: "cursor-1" } },
+      },
+    });
+
+    const result = await fetchDriveTasksPage({ scope: "me" });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe("proj-1");
+    expect(result.nextCursor).toBe("cursor-1");
+    expect(getDriveTasksMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes cursor for subsequent pages", async () => {
     const page2Items: DriveTasksListItem[] = [
       {
         type: "project",
@@ -186,28 +203,21 @@ describe("listDriveTasks", () => {
       },
     ];
 
-    getDriveTasksMock
-      .mockResolvedValueOnce({
-        data: {
-          data: page1Items,
-          meta: { pagination: { nextCursor: "cursor-1" } },
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: page2Items,
-          meta: { pagination: { nextCursor: null } },
-        },
-      });
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: page2Items,
+        meta: { pagination: { nextCursor: null } },
+      },
+    });
 
-    const result = await listDriveTasks({ scope: "me" });
+    const result = await fetchDriveTasksPage({
+      scope: "me",
+      cursor: "cursor-1",
+    });
 
-    expect(result).toHaveLength(2);
-    expect(result[0].id).toBe("proj-1");
-    expect(result[1].id).toBe("proj-2");
-    expect(getDriveTasksMock).toHaveBeenCalledTimes(2);
-    expect(getDriveTasksMock).toHaveBeenNthCalledWith(
-      2,
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe("proj-2");
+    expect(getDriveTasksMock).toHaveBeenCalledWith(
       expect.objectContaining({
         query: expect.objectContaining({
           cursor: "cursor-1",
@@ -216,7 +226,7 @@ describe("listDriveTasks", () => {
     );
   });
 
-  it("stops after max pages", async () => {
+  it("clears repeated nextCursor values", async () => {
     const mockItem: DriveTasksListItem = {
       type: "project",
       id: "proj-1",
@@ -227,14 +237,16 @@ describe("listDriveTasks", () => {
     getDriveTasksMock.mockResolvedValue({
       data: {
         data: [mockItem],
-        meta: { pagination: { nextCursor: "always-has-next" } },
+        meta: { pagination: { nextCursor: "cursor-1" } },
       },
     });
 
-    const result = await listDriveTasks({ scope: "me" });
+    const result = await fetchDriveTasksPage({
+      scope: "me",
+      cursor: "cursor-1",
+    });
 
-    expect(getDriveTasksMock).toHaveBeenCalledTimes(DRIVE_TASKS_MAX_PAGES);
-    expect(result).toHaveLength(DRIVE_TASKS_MAX_PAGES);
+    expect(result.nextCursor).toBeNull();
   });
 
   it("maps task-file items correctly", async () => {
@@ -257,10 +269,10 @@ describe("listDriveTasks", () => {
       },
     });
 
-    const result = await listDriveTasks({ scope: "me" });
+    const result = await fetchDriveTasksPage({ scope: "me" });
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
       type: "task-file",
       id: "file-1",
       name: "output.txt",
@@ -286,10 +298,10 @@ describe("listDriveTasks", () => {
       },
     });
 
-    const result = await listDriveTasks({ scope: "me" });
+    const result = await fetchDriveTasksPage({ scope: "me" });
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
       type: "no-project",
       id: "null",
     });
@@ -305,7 +317,7 @@ describe("listDriveTasks", () => {
       },
     });
 
-    await listDriveTasks({
+    await fetchDriveTasksPage({
       scope: "me",
       signal: controller.signal,
     });
@@ -318,18 +330,18 @@ describe("listDriveTasks", () => {
   });
 
   it("handles string dates from Core runtime JSON", async () => {
-    const mockItems: DriveTasksListItem[] = [
+    const mockItems = [
       {
         type: "project",
         id: "proj-1",
         name: "Project 1",
-        latestFileUpdatedAt: "2026-01-01T00:00:00.000Z" as unknown as Date,
+        latestFileUpdatedAt: "2026-01-01T00:00:00.000Z",
       },
       {
         type: "task",
         id: "task-1",
         name: "Task 1",
-        latestFileUpdatedAt: "2026-01-02T00:00:00.000Z" as unknown as Date,
+        latestFileUpdatedAt: "2026-01-02T00:00:00.000Z",
       },
       {
         type: "task-file",
@@ -338,12 +350,12 @@ describe("listDriveTasks", () => {
         fileUrl: "https://example.com/file.txt",
         size: 1024,
         mimeType: "text/plain",
-        updatedAt: "2026-01-03T00:00:00.000Z" as unknown as Date,
+        updatedAt: "2026-01-03T00:00:00.000Z",
       },
       {
         type: "no-project",
         id: "null",
-        latestFileUpdatedAt: "2026-01-04T00:00:00.000Z" as unknown as Date,
+        latestFileUpdatedAt: "2026-01-04T00:00:00.000Z",
       },
     ];
 
@@ -354,22 +366,22 @@ describe("listDriveTasks", () => {
       },
     });
 
-    const result = await listDriveTasks({ scope: "me" });
+    const result = await fetchDriveTasksPage({ scope: "me" });
 
-    expect(result).toHaveLength(4);
-    expect(result[0]).toMatchObject({
+    expect(result.items).toHaveLength(4);
+    expect(result.items[0]).toMatchObject({
       type: "project",
       latestFileUpdatedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
-    expect(result[1]).toMatchObject({
+    expect(result.items[1]).toMatchObject({
       type: "task",
       latestFileUpdatedAt: new Date("2026-01-02T00:00:00.000Z"),
     });
-    expect(result[2]).toMatchObject({
+    expect(result.items[2]).toMatchObject({
       type: "task-file",
       updatedAt: new Date("2026-01-03T00:00:00.000Z"),
     });
-    expect(result[3]).toMatchObject({
+    expect(result.items[3]).toMatchObject({
       type: "no-project",
       latestFileUpdatedAt: new Date("2026-01-04T00:00:00.000Z"),
     });
