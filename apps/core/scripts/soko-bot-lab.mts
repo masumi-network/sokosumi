@@ -138,6 +138,11 @@ async function startScenario(
 }
 
 const owner = await resolveOwner();
+const presetId = flag("preset");
+if (presetId) {
+  await sokoBotControlPlane.updatePreset(owner.bot.userId, presetId);
+  console.log(`Preset set to ${presetId}`);
+}
 const scenarios = SOKO_BOT_SCENARIOS.filter(
   (s) => !only || only.includes(s.id),
 );
@@ -188,3 +193,4 @@ await writeFile(
 );
 console.log(`Wrote ${out}`);
 await prisma.$disconnect();
+process.exit(0);

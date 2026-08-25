@@ -226,6 +226,7 @@ import {
   listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
   listSokoBotAvatars as coreListSokoBotAvatars,
+  listSokoBotPresets as coreListSokoBotPresets,
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
@@ -327,6 +328,7 @@ import {
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  updateMySokoBotPreset as coreUpdateMySokoBotPreset,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   NoticeKind,
 } from "@/lib/clients/generated/core";
@@ -3604,6 +3606,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listSokoBotPresets() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListSokoBotPresets({ client }),
+      "Failed to list Soko Bot presets",
+    );
+  }
+
+  async function updateMySokoBotPreset(body: { presetId: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreUpdateMySokoBotPreset({ client, body }),
+      "Failed to update Soko Bot preset",
+    );
+  }
+
   async function simulateMySokoBotTaskEvent(body: {
     taskId?: string;
     status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
@@ -4377,6 +4395,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     listSokoBotAvatars,
     claimMySokoBotAvatar,
     simulateMySokoBotTaskEvent,
+    listSokoBotPresets,
+    updateMySokoBotPreset,
     listMySokoBotTurns,
     getMySokoBotTurn,
     startMySokoBotTurn,

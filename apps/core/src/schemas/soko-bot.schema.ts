@@ -137,6 +137,7 @@ export const sokoBotToolCallSchema = z
     toolCallId: z.string(),
     capability: z.string(),
     inputHash: z.string(),
+    input: z.unknown().nullable().optional(),
     status: z.enum(["PENDING", "COMPLETED", "FAILED"]),
     result: z.unknown().nullable(),
     errorKind: z.string().nullable(),
@@ -168,6 +169,7 @@ export const sokoBotTurnSchema = z
     status: sokoBotTurnStatusSchema,
     route: sokoBotTurnRouteSchema.nullable(),
     clientTurnId: z.string(),
+    presetId: z.string().nullable().optional(),
     userMessage: z.string(),
     finalAnswer: z.string().nullable(),
     classification: z.record(z.string(), z.unknown()).nullable(),
@@ -192,6 +194,8 @@ export const sokoBotTurnSchema = z
     toolCalls: z.array(sokoBotToolCallSchema).optional(),
     /** Present on the detail route: what the model was given this turn. */
     contextSummary: sokoBotContextSummarySchema.nullable().optional(),
+    /** Detail route only: the exact context packet sent to the runtime. */
+    contextPacket: z.unknown().nullable().optional(),
     /** Teammate who asked in chat (null when the owner asked or it was scheduled). */
     requestedBy: z
       .object({
@@ -240,6 +244,7 @@ export const sokoBotSchema = z
     schedules: z.array(sokoBotScheduleSchema).optional(),
     /** Picked mascot image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
+    presetId: z.string().nullable().optional(),
     /** Chat-facing coworker row; open a direct with it to chat with the bot. */
     coworker: z
       .object({ id: z.string(), slug: z.string() })
@@ -499,6 +504,23 @@ export const listSokoBotAvatarsQuerySchema = z.object({
   /** Comma-separated avatar ids already shown; ask for a fresh set. */
   exclude: z.string().max(1_000).optional(),
 });
+
+export const sokoBotPresetSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    model: z.string(),
+    capabilities: z.array(z.string()).nullable(),
+    instructions: z.string().nullable(),
+    skills: z.array(z.string()),
+  })
+  .openapi("SokoBotPreset");
+
+export const updateSokoBotPresetRequestSchema = z
+  .object({ presetId: z.string().min(1).max(64) })
+  .strict()
+  .openapi("UpdateSokoBotPresetRequest");
 
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({

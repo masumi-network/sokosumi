@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -67,6 +67,9 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}
+      isAdmin={hasAdminRole(
+        (session.user as { role?: string | null }).role ?? null,
+      )}
     />
   );
 }

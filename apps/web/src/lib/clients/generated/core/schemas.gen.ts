@@ -1572,6 +1572,7 @@ export const SokoBotToolCallSchema = {
         inputHash: {
             type: 'string'
         },
+        input: {},
         status: {
             type: 'string',
             enum: [
@@ -1742,6 +1743,12 @@ export const SokoBotTurnSchema = {
         clientTurnId: {
             type: 'string'
         },
+        presetId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         userMessage: {
             type: 'string'
         },
@@ -1874,6 +1881,7 @@ export const SokoBotTurnSchema = {
         contextSummary: {
             $ref: '#/components/schemas/SokoBotContextSummary'
         },
+        contextPacket: {},
         requestedBy: {
             type: [
                 'object',
@@ -2213,6 +2221,12 @@ export const SokoBotSchema = {
             }
         },
         avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        presetId: {
             type: [
                 'string',
                 'null'
@@ -14434,6 +14448,69 @@ export const ClaimSokoBotAvatarRequestSchema = {
     required: [
         'avatarId'
     ]
+} as const;
+
+export const SokoBotPresetSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        model: {
+            type: 'string'
+        },
+        capabilities: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                type: 'string'
+            }
+        },
+        instructions: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        skills: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'model',
+        'capabilities',
+        'instructions',
+        'skills'
+    ]
+} as const;
+
+export const UpdateSokoBotPresetRequestSchema = {
+    type: 'object',
+    properties: {
+        presetId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'presetId'
+    ],
+    additionalProperties: false
 } as const;
 
 export const SokoBotLabTaskEventSchema = {

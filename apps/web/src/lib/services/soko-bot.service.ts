@@ -9,6 +9,7 @@ import type {
   SokoBot,
   SokoBotAvatar,
   SokoBotLabTaskEvent,
+  SokoBotPreset,
   SokoBotTurn,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
@@ -53,6 +54,16 @@ export const sokoBotService = {
       take,
       exclude: excludeIds.length > 0 ? excludeIds.join(",") : undefined,
     });
+    return response.data;
+  },
+
+  async listPresets(): Promise<SokoBotPreset[]> {
+    const response = await coreClient.listSokoBotPresets();
+    return response.data;
+  },
+
+  async setPreset(presetId: string): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotPreset({ presetId });
     return response.data;
   },
 

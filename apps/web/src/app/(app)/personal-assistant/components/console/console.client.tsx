@@ -74,6 +74,8 @@ export interface SokoBotConsoleProps {
   userImageUrl: string | null;
   /** Turn to scroll to / highlight (from a chat "review approval" link). */
   focusTurnId: string | null;
+  /** Platform admins see the behaviour lab. */
+  isAdmin: boolean;
 }
 
 /**
@@ -86,6 +88,7 @@ export function SokoBotConsole({
   userName,
   userImageUrl,
   focusTurnId,
+  isAdmin,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
@@ -177,17 +180,19 @@ export function SokoBotConsole({
                 ) : null}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={t("Lab.toggle")}
-              aria-pressed={labOpen}
-              onClick={toggleLab}
-              className={cn(labOpen && "bg-muted")}
-            >
-              <FlaskConical aria-hidden className="size-4" />
-            </Button>
+            {isAdmin ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("Lab.toggle")}
+                aria-pressed={labOpen}
+                onClick={toggleLab}
+                className={cn(labOpen && "bg-muted")}
+              >
+                <FlaskConical aria-hidden className="size-4" />
+              </Button>
+            ) : null}
             <Button
               type="button"
               onClick={openChat}
@@ -200,12 +205,15 @@ export function SokoBotConsole({
 
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="min-w-0 space-y-6">
-              {labOpen ? (
+              {isAdmin && labOpen ? (
                 <Section
                   title={t("Lab.title")}
                   description={t("Lab.description")}
                 >
-                  <ScenarioLab onTurnFinished={refresh} />
+                  <ScenarioLab
+                    presetId={bot.presetId}
+                    onTurnFinished={refresh}
+                  />
                 </Section>
               ) : null}
 

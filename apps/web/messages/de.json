@@ -5407,7 +5407,14 @@
             "COMPLETED": "Abgeschlossen",
             "FAILED": "Fehlgeschlagen",
             "CANCELLED": "Abgebrochen"
-          }
+          },
+          "request": "An Eve gesendet",
+          "requestLine": "{model} · Preset {preset} · {tools} Tools",
+          "rawMessage": "Nachricht",
+          "rawPacket": "Kontextpaket",
+          "rawInput": "Rohe Eingabe",
+          "rawResult": "Rohes Ergebnis",
+          "rawEvents": "Runtime-Ereignisstrom ({count})"
         }
       },
       "Console": {
@@ -5446,7 +5453,8 @@
         "neverRun": "Noch nicht ausgeführt.",
         "score": "{passed}/{total} Prüfungen bestanden",
         "startError": "Der Durchlauf konnte nicht gestartet werden.",
-        "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig."
+        "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig.",
+        "preset": "Preset"
       }
     }
   },

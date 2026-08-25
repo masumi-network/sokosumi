@@ -1682,6 +1682,8 @@ model SokoBot {
 
   /// Seed for the assistant's deterministic generative "aurora orb" avatar.
   avatarSeed String?
+  /// Agent preset id (see @sokosumi/soko-bot presets); null = default.
+  presetId String?
 
   /// Personality spectrums 0–100 (tone / detail / style). Null until set.
   personalityTone   Int?
@@ -1792,6 +1794,8 @@ model SokoBotTurn {
   status       SokoBotTurnStatus @default(QUEUED)
   route        SokoBotTurnRoute?
   clientTurnId String
+  /// Preset the turn ran with; null for turns before presets existed.
+  presetId     String?
   userMessage  String
   finalAnswer  String?
 
@@ -1862,6 +1866,8 @@ model SokoBotToolCall {
   toolCallId  String
   capability  String
   inputHash   String
+  /// Redacted, bounded copy of the tool input for the step-detail view.
+  input       Json?
   status      SokoBotToolCallStatus @default(PENDING)
   result      Json?
   errorKind   String?

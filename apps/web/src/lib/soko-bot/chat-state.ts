@@ -34,6 +34,7 @@ export interface ChatTurnEvent {
 export interface ChatToolCall {
   id: string;
   capability: string;
+  input: unknown;
   status: SokoBotToolCall["status"];
   result: unknown;
   errorKind: string | null;
@@ -114,6 +115,9 @@ export interface ChatTurnDetail extends ChatTurn {
   } | null;
   toolCalls: ChatToolCall[];
   contextSummary: ChatContextSummary | null;
+  /** Exactly what the runtime received: context packet and preset. */
+  contextPacket: unknown;
+  presetId: string | null;
 }
 
 export interface ChatLegacyMessage {
@@ -151,6 +155,7 @@ export interface ChatBot {
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
+  presetId: string | null;
   /** Chat coworker row id; open a direct with it to talk to the bot. */
   coworkerId: string | null;
   status: SokoBotStatus;
@@ -191,6 +196,7 @@ function toToolCall(call: SokoBotToolCall): ChatToolCall {
   return {
     id: call.id,
     capability: call.capability,
+    input: call.input ?? null,
     status: call.status,
     result: call.result ?? null,
     errorKind: call.errorKind,
@@ -268,6 +274,8 @@ export function toChatTurnDetail(turn: SokoBotTurn): ChatTurnDetail {
       : null,
     toolCalls: (turn.toolCalls ?? []).map(toToolCall),
     contextSummary: turn.contextSummary ?? null,
+    contextPacket: turn.contextPacket ?? null,
+    presetId: turn.presetId ?? null,
   };
 }
 
@@ -305,6 +313,7 @@ export function toChatBot(bot: SokoBot): ChatBot {
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
+    presetId: bot.presetId ?? null,
     coworkerId: bot.coworker?.id ?? null,
     status: bot.status,
     memoryVersion: bot.memoryVersion,

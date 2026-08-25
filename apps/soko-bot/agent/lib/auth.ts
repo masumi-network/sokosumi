@@ -8,11 +8,21 @@ export interface RuntimeAuthAttributes {
   sessionIdClaim: string;
   turnGrant: string;
   capabilities: SokoBotCapability[];
+  /** Preset the control plane chose for this turn; empty on eval/legacy tokens. */
+  model: string | null;
+  presetId: string | null;
+  presetInstructions: string | null;
 }
 
 function required(value: string | undefined, name: string): string {
   if (!value) throw new Error(`Soko Bot runtime auth missing ${name}`);
   return value;
+}
+
+function optional(
+  value: string | readonly string[] | undefined,
+): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function scalar(
@@ -52,5 +62,8 @@ export function readRuntimeAuth(
     sessionIdClaim: scalar(attributes.sessionIdClaim, "sessionIdClaim"),
     turnGrant: scalar(attributes.turnGrant, "turnGrant"),
     capabilities: parsed as SokoBotCapability[],
+    model: optional(attributes.model),
+    presetId: optional(attributes.presetId),
+    presetInstructions: optional(attributes.presetInstructions),
   };
 }

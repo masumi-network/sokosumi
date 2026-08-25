@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { SOKO_BOT_PRESETS } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
@@ -33,12 +34,14 @@ import {
   sokoBotLabTaskEventSchema,
   sokoBotMemorySchema,
   sokoBotPendingDecisionSchema,
+  sokoBotPresetSchema,
   sokoBotScheduleSchema,
   sokoBotSchema,
   sokoBotStateSchema,
   sokoBotTurnSchema,
   startSokoBotTurnRequestSchema,
   startSokoBotTurnResponseSchema,
+  updateSokoBotPresetRequestSchema,
   updateSokoBotScheduleRequestSchema,
 } from "@/schemas/soko-bot.schema";
 import {
@@ -588,6 +591,67 @@ app.openapi(claimAvatarRoute, async (c) => {
   if (!bot) throw notFound("Create a Soko Bot first");
   await claimAvatar(bot.id, c.req.valid("json").avatarId);
   await ensureSokoBotCoworker(bot.id);
+  const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
+  return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
+});
+
+const listPresetsRoute = createRoute({
+  method: "get",
+  path: "/presets",
+  operationId: "listSokoBotPresets",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(z.array(sokoBotPresetSchema), "Agent presets"),
+    401: jsonErrorResponse("Unauthorized"),
+  },
+});
+
+app.openapi(listPresetsRoute, async (c) => {
+  requireUserAuthContext(c.var.authContext);
+  return ok(
+    c,
+    SOKO_BOT_PRESETS.map((preset) => ({
+      id: preset.id,
+      name: preset.name,
+      description: preset.description,
+      model: preset.model,
+      capabilities: preset.capabilities ? [...preset.capabilities] : null,
+      instructions: preset.instructions ?? null,
+      skills: preset.skills ? [...preset.skills] : [],
+    })),
+  );
+});
+
+const updatePresetRoute = createRoute({
+  method: "put",
+  path: "/me/preset",
+  operationId: "updateMySokoBotPreset",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: updateSokoBotPresetRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotSchema, "Bot with the new preset"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(updatePresetRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  try {
+    await sokoBotControlPlane.updatePreset(
+      auth.userId,
+      c.req.valid("json").presetId,
+    );
+  } catch (error) {
+    mapControlPlaneError(error);
+  }
   const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
   return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
 });

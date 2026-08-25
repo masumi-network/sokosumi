@@ -134,6 +134,49 @@ function ChainRow({
   );
 }
 
+function pretty(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+/** Collapsed raw payload, for the exact data behind a step. */
+function Raw({ label, value }: { label: string; value: unknown }) {
+  const [open, setOpen] = useState(false);
+  const text = pretty(value);
+  if (!text) return null;
+  const size =
+    text.length > 1024
+      ? `${Math.round(text.length / 1024)} KB`
+      : `${text.length} B`;
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[0.6875rem] font-medium"
+      >
+        <ChevronRight
+          aria-hidden
+          className={cn("size-3 transition-transform", open && "rotate-90")}
+        />
+        {label}
+        <span className="text-muted-foreground/60 tabular-nums">· {size}</span>
+      </button>
+      {open ? (
+        <pre className="bg-muted/40 text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+          {text}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 function Row({
   label,
   children,
@@ -201,6 +244,17 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
             </span>
           </Row>
         ) : null}
+        <Row label={t("request")}>
+          <p className="text-muted-foreground text-xs">
+            {t("requestLine", {
+              model: turn.modelId ?? "—",
+              preset: turn.presetId ?? "—",
+              tools: turn.capabilityNames.length,
+            })}
+          </p>
+          <Raw label={t("rawMessage")} value={turn.userMessage} />
+          <Raw label={t("rawPacket")} value={turn.contextPacket} />
+        </Row>
         <Row label={t("tools")}>
           <div className="flex flex-wrap gap-1">
             {turn.capabilityNames.map((name) => (
@@ -266,11 +320,42 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                       {failed ? t("failed") : t("result")}: {result}
                     </p>
                   ) : null}
+                  <Raw
+                    label={t("rawInput")}
+                    value={item.call?.input ?? item.input}
+                  />
+                  <Raw
+                    label={t("rawResult")}
+                    value={
+                      item.call?.errorDetail
+                        ? {
+                            errorKind: item.call.errorKind,
+                            errorDetail: item.call.errorDetail,
+                          }
+                        : item.call?.result
+                    }
+                  />
                 </ChainRow>
               );
             })}
           </ol>
         )}
+      </div>
+
+      <div className="px-4 py-2">
+        <Raw
+          label={t("rawEvents", { count: turn.events.length })}
+          value={turn.events.map((event) => ({
+            sequence: event.sequence,
+            type: event.type,
+            at: event.createdAt,
+            summary: event.summary,
+            toolName: event.toolName,
+            toolStatus: event.toolStatus,
+            durationMs: event.durationMs,
+            payload: event.payload,
+          }))}
+        />
       </div>
 
       <div className="px-4 py-2">

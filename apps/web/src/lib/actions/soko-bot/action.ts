@@ -19,6 +19,7 @@ import {
   type SokoBotLabTaskEvent,
   type SokoBotMemory,
   type SokoBotPendingDecision,
+  type SokoBotPreset,
   type SokoBotSchedule,
   type StartSokoBotTurnResponse,
 } from "@/lib/clients/generated/core";
@@ -272,6 +273,36 @@ export const listSokoBotAvatarsAction = withSession<
 interface ClaimAvatarParams extends AuthenticatedRequest {
   avatarId: unknown;
 }
+
+export const listSokoBotPresetsAction = withSession<
+  AuthenticatedRequest,
+  ActionResultDto<SokoBotPreset[], ActionError>
+>(async () => {
+  try {
+    return toActionResult(ok(await sokoBotService.listPresets()));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface SetPresetParams extends AuthenticatedRequest {
+  presetId: unknown;
+}
+
+export const setSokoBotPresetAction = withSession<
+  SetPresetParams,
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ presetId }) => {
+  const parsed = z.string().min(1).max(64).safeParse(presetId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.setPreset(parsed.data);
+    revalidate();
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 const simulateTaskEventSchema = z.object({
   taskId: z.string().uuid().optional(),

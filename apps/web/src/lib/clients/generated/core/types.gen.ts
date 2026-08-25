@@ -364,6 +364,7 @@ export type SokoBotToolCall = {
     toolCallId: string;
     capability: string;
     inputHash: string;
+    input?: unknown;
     status: 'PENDING' | 'COMPLETED' | 'FAILED';
     result?: unknown;
     errorKind: string | null;
@@ -404,6 +405,7 @@ export type SokoBotTurn = {
     status: SokoBotTurnStatus;
     route: SokoBotTurnRoute;
     clientTurnId: string;
+    presetId?: string | null;
     userMessage: string;
     finalAnswer: string | null;
     classification: {
@@ -429,6 +431,7 @@ export type SokoBotTurn = {
     pendingDecisions?: Array<SokoBotPendingDecision>;
     toolCalls?: Array<SokoBotToolCall>;
     contextSummary?: SokoBotContextSummary;
+    contextPacket?: unknown;
     requestedBy?: {
         id: string;
         name: string | null;
@@ -491,6 +494,7 @@ export type SokoBot = {
     pendingDecisions?: Array<SokoBotPendingDecision>;
     schedules?: Array<SokoBotSchedule>;
     avatarImageUrl?: string | null;
+    presetId?: string | null;
     coworker?: {
         id: string;
         slug: string;
@@ -4178,6 +4182,20 @@ export type SokoBotAvatar = {
 
 export type ClaimSokoBotAvatarRequest = {
     avatarId: string;
+};
+
+export type SokoBotPreset = {
+    id: string;
+    name: string;
+    description: string;
+    model: string;
+    capabilities: Array<string> | null;
+    instructions: string | null;
+    skills: Array<string>;
+};
+
+export type UpdateSokoBotPresetRequest = {
+    presetId: string;
 };
 
 export type SokoBotLabTaskEvent = {
@@ -28355,6 +28373,118 @@ export type ClaimMySokoBotAvatarResponses = {
 };
 
 export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
+
+export type ListSokoBotPresetsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/presets';
+};
+
+export type ListSokoBotPresetsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotPresetsError = ListSokoBotPresetsErrors[keyof ListSokoBotPresetsErrors];
+
+export type ListSokoBotPresetsResponses = {
+    /**
+     * Agent presets
+     */
+    200: {
+        data: Array<SokoBotPreset>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotPresetsResponse = ListSokoBotPresetsResponses[keyof ListSokoBotPresetsResponses];
+
+export type UpdateMySokoBotPresetData = {
+    body?: UpdateSokoBotPresetRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/preset';
+};
+
+export type UpdateMySokoBotPresetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateMySokoBotPresetError = UpdateMySokoBotPresetErrors[keyof UpdateMySokoBotPresetErrors];
+
+export type UpdateMySokoBotPresetResponses = {
+    /**
+     * Bot with the new preset
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateMySokoBotPresetResponse = UpdateMySokoBotPresetResponses[keyof UpdateMySokoBotPresetResponses];
 
 export type SimulateMySokoBotTaskEventData = {
     body?: SimulateSokoBotTaskEventRequest;

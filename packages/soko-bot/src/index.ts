@@ -21,6 +21,14 @@ export {
   type SokoBotRoute,
   type TurnClassification,
 } from "./policy.js";
+export {
+  applyPresetCapabilities,
+  DEFAULT_SOKO_BOT_PRESET_ID,
+  getSokoBotPreset,
+  isSokoBotPresetId,
+  SOKO_BOT_PRESETS,
+  type SokoBotPreset,
+} from "./presets.js";
 export type {
   IndexedRuntimeEvent,
   RuntimeCancelInput,

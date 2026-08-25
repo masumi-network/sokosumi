@@ -5407,7 +5407,14 @@
             "COMPLETED": "Completed",
             "FAILED": "Failed",
             "CANCELLED": "Cancelled"
-          }
+          },
+          "request": "Sent to Eve",
+          "requestLine": "{model} · preset {preset} · {tools} tools",
+          "rawMessage": "Message",
+          "rawPacket": "Context packet",
+          "rawInput": "Raw input",
+          "rawResult": "Raw result",
+          "rawEvents": "Runtime event stream ({count})"
         }
       },
       "Console": {
@@ -5446,7 +5453,8 @@
         "neverRun": "Not run yet.",
         "score": "{passed}/{total} checks passed",
         "startError": "Could not start the turn.",
-        "timeout": "The turn did not finish within 5 minutes."
+        "timeout": "The turn did not finish within 5 minutes.",
+        "preset": "Preset"
       }
     }
   },

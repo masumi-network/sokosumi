@@ -110,6 +110,9 @@ const sokoBotAuth: AuthFn<Request> = async (request) => {
           turnId: `eval:${scenario}`,
           turnGrant: "eval-turn-grant",
           capabilities: JSON.stringify(evaluationCapabilities(scenario)),
+          model: "",
+          presetId: "",
+          presetInstructions: "",
         },
         authenticator: "soko-bot:eval",
         issuer: "eve-eval",
@@ -171,6 +174,12 @@ const sokoBotAuth: AuthFn<Request> = async (request) => {
         turnId,
         turnGrant,
         capabilities: JSON.stringify(capabilities),
+        model: typeof claims.model === "string" ? claims.model : "",
+        presetId: typeof claims.presetId === "string" ? claims.presetId : "",
+        presetInstructions:
+          typeof claims.presetInstructions === "string"
+            ? claims.presetInstructions
+            : "",
       },
       authenticator: "soko-bot:eddsa",
       issuer: requiredClaim(claims.iss, "issuer"),

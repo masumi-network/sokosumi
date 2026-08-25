@@ -13,9 +13,12 @@ import { useEffect, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import {
+  listSokoBotPresetsAction,
+  setSokoBotPresetAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
+import type { SokoBotPreset } from "@/lib/clients/generated/core";
 import type {
   ChatTurnDetail,
   SokoBotChatState,
@@ -30,6 +33,7 @@ const HISTORY_PER_SCENARIO = 5;
 interface RunRecord {
   turnId: string;
   at: string;
+  presetId: string | null;
   route: string | null;
   passed: number;
   total: number;
@@ -114,12 +118,36 @@ async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
  * runs. Runs create real tasks and approvals in the owner's workspace.
  */
 export function ScenarioLab({
+  presetId,
   onTurnFinished,
 }: {
+  presetId: string | null;
   onTurnFinished: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Lab");
   const [history, setHistory] = useState<History>({});
+  const [presets, setPresets] = useState<SokoBotPreset[]>([]);
+  const [activePreset, setActivePreset] = useState<string | null>(presetId);
+  const [switching, setSwitching] = useState(false);
+
+  useEffect(() => {
+    void listSokoBotPresetsAction({}).then((result) => {
+      if (result.ok) {
+        setPresets(result.value);
+        setActivePreset((current) => current ?? result.value[0]?.id ?? null);
+      }
+    });
+  }, []);
+
+  async function choosePreset(id: string) {
+    setSwitching(true);
+    const result = await setSokoBotPresetAction({ presetId: id });
+    setSwitching(false);
+    if (result.ok) {
+      setActivePreset(id);
+      onTurnFinished();
+    }
+  }
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [failures, setFailures] = useState<Record<string, string>>({});
 
@@ -190,6 +218,7 @@ export function ScenarioLab({
       record(scenario.id, {
         turnId: turn.id,
         at: new Date().toISOString(),
+        presetId: activePreset,
         route: turn.route,
         passed: result.passed,
         total: result.total,
@@ -216,6 +245,26 @@ export function ScenarioLab({
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground text-xs">{t("preset")}</span>
+        {presets.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            disabled={anyRunning || switching}
+            onClick={() => void choosePreset(preset.id)}
+            title={`${preset.model}${preset.instructions ? " · custom guidance" : ""}`}
+            className={cn(
+              "rounded-md border px-2 py-1 text-xs transition-colors",
+              activePreset === preset.id
+                ? "border-primary bg-primary/5 text-foreground"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {preset.name}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-xs">{t("warning")}</p>
         <Button
@@ -234,7 +283,9 @@ export function ScenarioLab({
           <ScenarioRow
             key={scenario.id}
             scenario={scenario}
-            runs={history[scenario.id] ?? []}
+            runs={(history[scenario.id] ?? []).filter(
+              (run) => !run.presetId || run.presetId === activePreset,
+            )}
             running={running.has(scenario.id)}
             disabled={anyRunning}
             failure={failures[scenario.id] ?? null}

@@ -5407,7 +5407,14 @@
             "COMPLETED": "Completado",
             "FAILED": "Fallido",
             "CANCELLED": "Cancelado"
-          }
+          },
+          "request": "Enviado a Eve",
+          "requestLine": "{model} · preset {preset} · {tools} herramientas",
+          "rawMessage": "Mensaje",
+          "rawPacket": "Paquete de contexto",
+          "rawInput": "Entrada sin procesar",
+          "rawResult": "Resultado sin procesar",
+          "rawEvents": "Flujo de eventos del runtime ({count})"
         }
       },
       "Console": {
@@ -5446,7 +5453,8 @@
         "neverRun": "Aún no ejecutado.",
         "score": "{passed}/{total} comprobaciones superadas",
         "startError": "No se pudo iniciar el turno.",
-        "timeout": "El turno no terminó en 5 minutos."
+        "timeout": "El turno no terminó en 5 minutos.",
+        "preset": "Preset"
       }
     }
   },

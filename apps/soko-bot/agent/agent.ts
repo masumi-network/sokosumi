@@ -1,4 +1,9 @@
-import { type AgentDefinition, type DefinedAgent, defineAgent } from "eve";
+import {
+  type AgentDefinition,
+  type DefinedAgent,
+  defineAgent,
+  defineDynamic,
+} from "eve";
 import { mockModel } from "eve/evals";
 
 import {
@@ -107,17 +112,52 @@ const evaluationModel = mockModel(
   },
 );
 
-const sokoBotAgent: DefinedAgent<AgentDefinition> = defineAgent({
-  model: isLocalEvaluationEnvironment()
-    ? evaluationModel
-    : (process.env.SOKO_BOT_AGENT_MODEL ?? "mistral/mistral-large-3"),
-  modelContextWindowTokens: 128_000,
+const DEFAULT_MODEL = "mistral/mistral-large-3";
+const MODEL_CONTEXT_WINDOW_TOKENS = 128_000;
+const shared = {
   compaction: { thresholdPercent: 0.7 },
   limits: {
     sessionTimeoutMs: 7 * 24 * 60 * 60 * 1_000,
     maxInputTokensPerSession: false,
     maxOutputTokensPerSession: 100_000,
   },
-});
+} as const;
+
+function attribute(
+  auth: { readonly attributes: Readonly<Record<string, unknown>> } | null,
+  key: string,
+): string | null {
+  const value = auth?.attributes[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * The control plane picks the model per turn (agent presets) and sends it in
+ * the request token; sessions are per turn, so session scope resolves it once.
+ */
+const sokoBotAgent: DefinedAgent<AgentDefinition> =
+  isLocalEvaluationEnvironment()
+    ? defineAgent({
+        model: evaluationModel,
+        modelContextWindowTokens: MODEL_CONTEXT_WINDOW_TOKENS,
+        ...shared,
+      })
+    : defineAgent({
+        model: defineDynamic({
+          events: {
+            "session.started": (_event, ctx) => {
+              const model =
+                attribute(ctx.session.auth.initiator, "model") ??
+                attribute(ctx.session.auth.current, "model") ??
+                DEFAULT_MODEL;
+              return {
+                model,
+                modelContextWindowTokens: MODEL_CONTEXT_WINDOW_TOKENS,
+              };
+            },
+          },
+        }),
+        ...shared,
+      });
 
 export default sokoBotAgent;

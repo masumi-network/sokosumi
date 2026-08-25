@@ -1347,6 +1347,7 @@ export class SokoBotRuntimeService {
             toolCallId: input.toolCallId,
             capability: input.capability,
             inputHash,
+            input: persistedToolResult(input.input ?? null),
           },
         });
         return null;

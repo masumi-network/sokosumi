@@ -30,6 +30,10 @@ export interface SignRequestTokenInput {
   workspaceId: string;
   sessionId: string;
   turnId: string;
+  /** Preset the runtime should apply (model + extra instructions). */
+  model?: string;
+  presetId?: string;
+  presetInstructions?: string;
   now?: Date;
 }
 
@@ -83,6 +87,11 @@ export class SokoBotTokenService {
       workspaceId: input.workspaceId,
       sessionId: input.sessionId,
       turnId: input.turnId,
+      ...(input.model ? { model: input.model } : {}),
+      ...(input.presetId ? { presetId: input.presetId } : {}),
+      ...(input.presetInstructions
+        ? { presetInstructions: input.presetInstructions }
+        : {}),
     })
       .setProtectedHeader({ alg: "EdDSA", kid: this.config.currentKeyId })
       .setIssuer(this.config.issuer)
