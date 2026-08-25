@@ -272,7 +272,7 @@
       "coworkers": "Coworkers",
       "vendors": "Vendors",
       "docs": "Documentación",
-      "drive": "Drive"
+      "drive": "Archivos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2904,7 +2904,7 @@
           "hermesNew": "Nuevo",
           "hermesUnread": "{count} sin leer",
           "history": "Historial",
-          "drive": "Drive",
+          "drive": "Archivos",
           "admin": "Administración",
           "settings": "Configuración",
           "back": "Atrás",
@@ -5424,9 +5424,9 @@
       "checking": "Comprobando el acceso al espacio de trabajo"
     },
     "Drive": {
-      "breadcrumb": "Drive",
-      "breadcrumbNavLabel": "Navegación de carpetas de Drive",
-      "myDrive": "Mi Drive",
+      "breadcrumb": "Archivos",
+      "breadcrumbNavLabel": "Navegación de carpetas de Archivos",
+      "myDrive": "Mis archivos",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "Aún no hay archivos",
@@ -5434,7 +5434,7 @@
       "searchPlaceholder": "Buscar archivos...",
       "noMatchTitle": "No se encontraron archivos",
       "noMatchDescription": "Prueba con otra búsqueda",
-      "pickerEmptyMessage": "No hay archivos en este Drive",
+      "pickerEmptyMessage": "No hay archivos en esta carpeta",
       "downloadAction": "Descargar",
       "renameAction": "Renombrar",
       "deleteAction": "Eliminar",
@@ -5453,10 +5453,10 @@
       "deleteError": "No se pudo eliminar el archivo",
       "organizationDriveFallback": "Organización",
       "uploadDuplicateError": "Ya existe un archivo con este nombre. Cámbiale el nombre e inténtalo de nuevo.",
-      "selectTitle": "Seleccionar desde Drive",
-      "selectDescription": "Elige un archivo de tu Drive personal o de la organización",
-      "uploadFile": "Subir archivo",
-      "fromDrive": "Desde Drive",
+      "selectTitle": "Seleccionar desde Archivos",
+      "selectDescription": "Elige un archivo de tus Archivos personales o de la organización",
+      "uploadFile": "Subir desde el dispositivo",
+      "fromDrive": "Desde Archivos",
       "moreActions": "Más acciones",
       "uploadFab": "Subir archivo",
       "folder": "Carpeta",
