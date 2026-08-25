@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type {
   SokoBotAvatar,
+  SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
@@ -34,6 +35,7 @@ import { ScheduleRowActions } from "../schedule-row-actions.client";
 import { SkillsSection } from "../skills-section.client";
 
 import { ActivityList } from "./activity-list.client";
+import { DailyStats } from "./daily-stats";
 
 function Section({
   title,
@@ -73,6 +75,7 @@ export interface SokoBotConsoleProps {
   /** The agent version this bot runs: skills and tool allowlist. */
   version: SokoBotVersion | null;
   installedSkills: SokoBotInstalledSkill[];
+  stats: SokoBotDailyStats | null;
 }
 
 /**
@@ -87,6 +90,7 @@ export function SokoBotConsole({
   focusTurnId,
   version,
   installedSkills,
+  stats,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
@@ -170,6 +174,16 @@ export function SokoBotConsole({
 
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="min-w-0 space-y-6">
+              {stats ? (
+                <Section
+                  title={t("Console.Stats.title")}
+                  description={t("Console.Stats.description", {
+                    days: stats.days,
+                  })}
+                >
+                  <DailyStats stats={stats} />
+                </Section>
+              ) : null}
               <Section
                 title={t("Console.activityTitle")}
                 description={t("Console.activityDescription")}

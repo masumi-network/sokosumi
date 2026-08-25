@@ -725,6 +725,22 @@ export const sokoBotLabTaskEventSchema = z
   })
   .openapi("SokoBotLabTaskEvent");
 
+const sokoBotDayStatsFields = {
+  messages: z.number().int(),
+  background: z.number().int(),
+  tasks: z.number().int(),
+  jobs: z.number().int(),
+  toolCalls: z.number().int(),
+};
+
+export const sokoBotDailyStatsSchema = z
+  .object({
+    days: z.number().int(),
+    totals: z.object(sokoBotDayStatsFields),
+    daily: z.array(z.object({ date: z.string(), ...sokoBotDayStatsFields })),
+  })
+  .openapi("SokoBotDailyStats");
+
 export const introduceSokoBotRequestSchema = z
   .object({ roomId: z.string().uuid() })
   .openapi("IntroduceSokoBotRequest");

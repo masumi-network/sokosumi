@@ -167,6 +167,7 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getMySokoBot as coreGetMySokoBot,
+  getMySokoBotStats as coreGetMySokoBotStats,
   getMySokoBotTurn as coreGetMySokoBotTurn,
   getNotifications as coreGetNotifications,
   getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
@@ -3649,6 +3650,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getMySokoBotStats() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetMySokoBotStats({ client }),
+      "Failed to load Soko Bot stats",
+    );
+  }
+
   async function listMySokoBotSkills() {
     return executeCoreOperation(
       getClient,
@@ -4497,6 +4506,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listSokoBotVersions,
     judgeMySokoBotLabTurn,
     listMySokoBotLabRuns,
+    getMySokoBotStats,
     listMySokoBotSkills,
     getSokoBotTeam,
     installMySokoBotSkill,

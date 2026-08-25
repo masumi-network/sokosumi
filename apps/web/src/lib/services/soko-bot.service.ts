@@ -10,6 +10,7 @@ import type {
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
+  SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotLabRun,
   SokoBotLabTaskEvent,
@@ -77,6 +78,11 @@ export const sokoBotService = {
 
   async getTeam(): Promise<SokoBotTeam> {
     const response = await coreClient.getSokoBotTeam();
+    return response.data;
+  },
+
+  async getStats(): Promise<SokoBotDailyStats> {
+    const response = await coreClient.getMySokoBotStats();
     return response.data;
   },
 

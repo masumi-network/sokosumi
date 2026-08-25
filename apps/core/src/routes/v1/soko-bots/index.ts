@@ -42,6 +42,7 @@ import {
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
   sokoBotAvatarSchema,
+  sokoBotDailyStatsSchema,
   sokoBotInstalledSkillSchema,
   sokoBotLabRunSchema,
   sokoBotLabTaskEventSchema,
@@ -102,6 +103,7 @@ import {
   SokoBotSkillError,
   searchSkillsSh,
 } from "@/services/soko-bot-skills.service";
+import { getSokoBotDailyStats } from "@/services/soko-bot-stats.service";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -918,6 +920,32 @@ app.openapi(teamRoute, async (c) => {
       ],
     }),
   );
+});
+
+const statsRoute = createRoute({
+  method: "get",
+  path: "/me/stats",
+  operationId: "getMySokoBotStats",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotDailyStatsSchema,
+      "What the bot did per day over the last 30 days",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(statsRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const stats = await getSokoBotDailyStats({
+    userId: auth.userId,
+    workspaceId: workspace.workspaceId,
+  });
+  if (!stats) throw notFound("Create a Soko Bot first");
+  return ok(c, sokoBotDailyStatsSchema.parse(stats));
 });
 
 const listSkillsRoute = createRoute({

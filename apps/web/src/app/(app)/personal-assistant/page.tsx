@@ -61,9 +61,10 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
     return <CreateState />;
   }
 
-  const [versions, installedSkills] = await Promise.all([
+  const [versions, installedSkills, stats] = await Promise.all([
     sokoBotService.listVersions().catch(() => []),
     sokoBotService.listSkills().catch(() => []),
+    sokoBotService.getStats().catch(() => null),
   ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;
@@ -73,6 +74,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       initialState={state}
       version={version}
       installedSkills={installedSkills}
+      stats={stats}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}

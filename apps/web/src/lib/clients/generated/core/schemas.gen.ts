@@ -14865,6 +14865,81 @@ export const SokoBotTeamSchema = {
     ]
 } as const;
 
+export const SokoBotDailyStatsSchema = {
+    type: 'object',
+    properties: {
+        days: {
+            type: 'integer'
+        },
+        totals: {
+            type: 'object',
+            properties: {
+                messages: {
+                    type: 'integer'
+                },
+                background: {
+                    type: 'integer'
+                },
+                tasks: {
+                    type: 'integer'
+                },
+                jobs: {
+                    type: 'integer'
+                },
+                toolCalls: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'messages',
+                'background',
+                'tasks',
+                'jobs',
+                'toolCalls'
+            ]
+        },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string'
+                    },
+                    messages: {
+                        type: 'integer'
+                    },
+                    background: {
+                        type: 'integer'
+                    },
+                    tasks: {
+                        type: 'integer'
+                    },
+                    jobs: {
+                        type: 'integer'
+                    },
+                    toolCalls: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'date',
+                    'messages',
+                    'background',
+                    'tasks',
+                    'jobs',
+                    'toolCalls'
+                ]
+            }
+        }
+    },
+    required: [
+        'days',
+        'totals',
+        'daily'
+    ]
+} as const;
+
 export const SokoBotInstalledSkillSchema = {
     type: 'object',
     properties: {

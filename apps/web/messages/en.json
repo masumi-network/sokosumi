@@ -5466,6 +5466,18 @@
         "openChat": "Open chat",
         "openingChat": "Opening…",
         "openChatError": "Could not open the chat with your Soko Bot.",
+        "Stats": {
+          "title": "What it did",
+          "description": "Per day, last {days} days.",
+          "messages": "Messages",
+          "background": "On its own",
+          "tasks": "Tasks created",
+          "jobs": "Agents hired",
+          "toolCalls": "Tool calls",
+          "empty": "Nothing yet. Once you chat with it or it runs a schedule, the days fill in here.",
+          "chartLabel": "Activity per day over the last {days} days",
+          "today": "Today"
+        },
         "activityTitle": "Recent activity",
         "activityDescription": "What it did recently.",
         "activityEmpty": "No turns yet. Open the chat and ask for something.",

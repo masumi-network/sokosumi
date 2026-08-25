@@ -4276,6 +4276,25 @@ export type SokoBotTeam = {
     }>;
 };
 
+export type SokoBotDailyStats = {
+    days: number;
+    totals: {
+        messages: number;
+        background: number;
+        tasks: number;
+        jobs: number;
+        toolCalls: number;
+    };
+    daily: Array<{
+        date: string;
+        messages: number;
+        background: number;
+        tasks: number;
+        jobs: number;
+        toolCalls: number;
+    }>;
+};
+
 export type SokoBotInstalledSkill = {
     id: string;
     slug: string;
@@ -28890,6 +28909,62 @@ export type GetSokoBotTeamResponses = {
 };
 
 export type GetSokoBotTeamResponse = GetSokoBotTeamResponses[keyof GetSokoBotTeamResponses];
+
+export type GetMySokoBotStatsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/stats';
+};
+
+export type GetMySokoBotStatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotStatsError = GetMySokoBotStatsErrors[keyof GetMySokoBotStatsErrors];
+
+export type GetMySokoBotStatsResponses = {
+    /**
+     * What the bot did per day over the last 30 days
+     */
+    200: {
+        data: SokoBotDailyStats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotStatsResponse = GetMySokoBotStatsResponses[keyof GetMySokoBotStatsResponses];
 
 export type ListMySokoBotSkillsData = {
     body?: never;
