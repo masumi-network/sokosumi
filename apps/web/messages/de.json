@@ -272,7 +272,8 @@
       "coworkers": "Coworkers",
       "vendors": "Vendors",
       "docs": "Dokumentation",
-      "drive": "Drive"
+      "drive": "Drive",
+      "soko-bots": "Soko Bots"
     },
     "Jobs": {
       "StatusBadge": {
@@ -5525,7 +5526,8 @@
       "assistantOf": "Persönlicher Assistent von {name}",
       "openChat": "Chat öffnen",
       "messageAssistant": "Anschreiben",
-      "moreComing": "Weitere Arten von Soko Bots folgen bald"
+      "moreComing": "Weitere Arten von Soko Bots folgen bald",
+      "chatError": "Der Chat konnte nicht geöffnet werden."
     }
   },
   "Share": {
