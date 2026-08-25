@@ -114,7 +114,7 @@ export function classifyDeterministically(
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
-    /\b(tasks?|jobs?)\b.{0,50}\b(status|progress|update|reprioriti[sz]e)\b/,
+    /\b(tasks?|jobs?)\b.{0,30}\b(status|progress|reprioriti[sz]e)\b/,
   ]);
   // Managing the bot's own follow-ups ("stop checking in", "drop the
   // reminder") is work management too; it only needs the schedule tools.
@@ -149,7 +149,7 @@ export function classifyDeterministically(
       0.98,
     );
   }
-  if (workRequestSignal && !manageSignal) {
+  if (workRequestSignal && !manageSignal && !scheduleSignal) {
     return baseClassification(
       "DELEGATE_TASK",
       message,

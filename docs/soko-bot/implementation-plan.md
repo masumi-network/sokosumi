@@ -788,3 +788,10 @@ exclude `sokoBotId`). Only the owner's mentions dispatch; other members see
 the bot but cannot task it. The bot is usable in the owner's personal and
 organization workspaces (`buildCoworkerUsableInWorkspaceWhere`) and hidden
 from other users' listings (`buildSokoBotVisibilityWhere`).
+
+## Follow-ups and wake-ups (2026-08-25)
+
+- The bot owns its follow-ups: `list_schedules`, `create_schedule`, `update_schedule`, `delete_schedule` are capabilities on every non-CLARIFY route and never need owner approval. `create_schedule` is idempotent by name; update/delete accept `scheduleId` or `scheduleName`, and a not-found error lists what exists so the model can self-correct.
+- `EVENT` turns: `GET /sync/soko-bot-events` (cron, every minute) compares each `soko_bot_delegation.lastSeenStatus` with the delegated Task/Job status and starts one turn per bot summarising the changes (terminal and attention statuses only; a busy bot is retried next tick). Schedule + event runs are the only ways the bot acts without a message from the owner.
+- Behaviour lab (console, flask icon): six fixed prompts scored against expected route, tool calls, delegations/approvals, invented ids, and follow-up promises without a schedule. Run after prompt, classifier, or model changes; results are kept per browser.
+- Local dev: after changing `packages/soko-bot` or `apps/soko-bot/agent/instructions.md`, rebuild and restart Eve (`eve build && eve start`), otherwise the runtime keeps the old tool set. The three syncs must be curled every minute locally (see `soko-bot-local-eve-runtime` note).

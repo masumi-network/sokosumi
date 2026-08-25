@@ -2420,8 +2420,8 @@ export class SokoBotControlPlane {
   }
 
   async deleteSchedule(userId: string, scheduleId: string): Promise<void> {
-    return translateScheduleErrors(() =>
-      deleteSokoBotSchedule(userId, scheduleId),
+    await translateScheduleErrors(() =>
+      deleteSokoBotSchedule(userId, { scheduleId }),
     );
   }
 

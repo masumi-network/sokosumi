@@ -35,6 +35,8 @@ export interface SokoBotScenario {
     asksBeforePaidWork?: boolean;
     /** The answer must not promise a later check without a schedule. */
     noEmptyPromise?: boolean;
+    /** Every UUID in the answer must appear in a tool result or delegation. */
+    noInventedIds?: boolean;
   };
 }
 
@@ -52,6 +54,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["hire_agent"],
       minDelegations: 1,
       noEmptyPromise: true,
+      noInventedIds: true,
     },
   },
   {
@@ -81,6 +84,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       anyTools: ["update_memory"],
       forbiddenTools: ["hire_agent"],
       minDelegations: 3,
+      noInventedIds: true,
     },
   },
   {
@@ -118,10 +122,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "Stop checking in on the EU marketplace research brief and drop the weekly launch reminder; I will track both myself. Keep everything else as it is.",
     expect: {
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
-      tools: ["list_schedules"],
       anyTools: ["delete_schedule", "update_schedule"],
       forbiddenTools: ["create_task", "create_schedule", "hire_agent"],
       noDelegations: true,
+      noInventedIds: true,
     },
   },
 ];
@@ -153,6 +157,8 @@ function list(values: Iterable<string>): string {
   return items.length > 0 ? items.join(", ") : "none";
 }
 
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
 const EMPTY_PROMISE =
   /\b(I(?:'ll| will) (?:check|follow up|remind|monitor|keep an eye)|will check back|check back later)\b/i;
 
@@ -169,6 +175,15 @@ export function evaluateScenario(
     label: "Completed",
     pass: turn.status === "COMPLETED",
     actual: turn.status,
+  });
+  const failedTools = turn.toolCalls.filter((call) => call.status === "FAILED");
+  checks.push({
+    label: "No failed tool calls",
+    pass: failedTools.length === 0,
+    actual:
+      failedTools.length === 0
+        ? "clean"
+        : failedTools.map((c) => c.capability).join(", "),
   });
   checks.push({
     label: `Route ∈ ${expect.routes.join(" | ")}`,
@@ -198,9 +213,12 @@ export function evaluateScenario(
     });
   }
   if (expect.minDelegations !== undefined) {
-    const touched = new Set(
-      turn.delegations.map((d) => d.taskId ?? d.jobId ?? d.id),
-    ).size;
+    // Under Supervised autonomy a READY task becomes an approval instead of
+    // a delegation; both count as work the turn set in motion.
+    const touched = new Set([
+      ...turn.delegations.map((d) => d.taskId ?? d.jobId ?? d.id),
+      ...turn.decisions.map((d) => d.resultingEntityId ?? d.id),
+    ]).size;
     checks.push({
       label: `≥ ${expect.minDelegations} tasks/jobs touched`,
       pass: touched >= expect.minDelegations,
@@ -248,6 +266,28 @@ export function evaluateScenario(
           ? "promised and scheduled"
           : "promised, no schedule"
         : "no bare promise",
+    });
+  }
+
+  if (expect.noInventedIds) {
+    const known = JSON.stringify({
+      results: turn.toolCalls.map((call) => call.result),
+      delegations: turn.delegations,
+      decisions: turn.decisions,
+    }).toLowerCase();
+    const mentioned = Array.from(
+      new Set((answer.match(UUID) ?? []).map((id) => id.toLowerCase())),
+    );
+    const invented = mentioned.filter((id) => !known.includes(id));
+    checks.push({
+      label: "Only ids from tool results",
+      pass: invented.length === 0,
+      actual:
+        invented.length > 0
+          ? `invented ${list(invented)}`
+          : mentioned.length > 0
+            ? `${mentioned.length} id(s) verified`
+            : "no ids mentioned",
     });
   }
 

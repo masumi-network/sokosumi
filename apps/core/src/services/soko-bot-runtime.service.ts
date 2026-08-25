@@ -1450,10 +1450,13 @@ export class SokoBotRuntimeService {
           }),
         );
       case "delete_schedule": {
-        const { scheduleId } = scheduleIdInputSchema.parse(input.input);
+        const ref = scheduleIdInputSchema.parse(input.input);
         return runScheduleTool(async () => {
-          await deleteSokoBotSchedule(authorized.turn.userId, scheduleId);
-          return { deleted: true, scheduleId };
+          const deleted = await deleteSokoBotSchedule(
+            authorized.turn.userId,
+            ref,
+          );
+          return { deleted: true, ...deleted };
         });
       }
       case "scratch_read":

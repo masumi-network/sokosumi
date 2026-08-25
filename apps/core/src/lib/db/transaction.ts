@@ -17,11 +17,18 @@ export const CONCURRENCY_CONFLICT_KIND = "concurrency_conflict";
  * writes; that is an expected, retryable outcome, so it surfaces as a 409
  * conflict with the given message instead of an unhandled 500.
  */
-const SERIALIZATION_RETRY_ATTEMPTS = 6;
-const SERIALIZATION_RETRY_BASE_MS = 50;
+const SERIALIZATION_RETRY_ATTEMPTS = 8;
+const SERIALIZATION_RETRY_BASE_MS = 60;
+const SERIALIZATION_RETRY_MAX_DELAY_MS = 1_000;
 
 function retryDelayMs(attempt: number): number {
-  return SERIALIZATION_RETRY_BASE_MS * 2 ** attempt + Math.random() * 25;
+  return (
+    Math.min(
+      SERIALIZATION_RETRY_BASE_MS * 2 ** attempt,
+      SERIALIZATION_RETRY_MAX_DELAY_MS,
+    ) +
+    Math.random() * 100
+  );
 }
 
 export async function serializableTransaction<T>(

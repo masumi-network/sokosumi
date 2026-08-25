@@ -155,6 +155,21 @@ describe("evaluateScenario", () => {
     ]);
   });
 
+  it("flags ids that no tool result produced", () => {
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [call("create_task"), call("create_schedule")],
+        finalAnswer:
+          "Created task 01a039e2-1a0a-713e-903e-3f5f3a9b9d7a and scheduled check-ins.",
+      }),
+    );
+    expect(result.checks.at(-1)).toMatchObject({
+      pass: false,
+      actual: "invented 01a039e2-1a0a-713e-903e-3f5f3a9b9d7a",
+    });
+  });
+
   it("counts tools from the event stream too", () => {
     const result = evaluateScenario(
       byId("launch-plan-weekly-nudge"),

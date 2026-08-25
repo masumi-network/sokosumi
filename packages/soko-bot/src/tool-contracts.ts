@@ -123,20 +123,32 @@ export const sokoBotCreateScheduleInputSchema = z
   })
   .strict();
 
+/** Schedules are addressed by id or by their exact name; names are what models copy reliably. */
+const scheduleRefShape = {
+  scheduleId: z.string().uuid().optional(),
+  scheduleName: z.string().trim().min(1).max(120).optional(),
+};
+
+function hasScheduleRef(value: { scheduleId?: string; scheduleName?: string }) {
+  return Boolean(value.scheduleId || value.scheduleName);
+}
+
 export const sokoBotUpdateScheduleInputSchema = z
   .object({
-    scheduleId: z.string().uuid(),
+    ...scheduleRefShape,
     name: z.string().trim().min(1).max(120).optional(),
     enabled: z.boolean().optional(),
     cronExpression: cronExpressionSchema.optional(),
     timezone: timezoneSchema.optional(),
     prompt: z.string().trim().min(1).max(4_000).optional(),
   })
-  .strict();
+  .strict()
+  .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
 export const sokoBotScheduleIdInputSchema = z
-  .object({ scheduleId: z.string().uuid() })
-  .strict();
+  .object(scheduleRefShape)
+  .strict()
+  .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   refresh_context: emptyInputSchema,
@@ -187,9 +199,9 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   create_schedule:
     "Create a recurring follow-up: a cron expression, timezone, and the prompt you will receive each run. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check.",
   update_schedule:
-    "Change or pause a follow-up schedule (name, cron, timezone, prompt, enabled).",
+    "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
   delete_schedule:
-    "Remove a follow-up schedule once its work is done or the owner no longer wants it.",
+    "Remove a follow-up schedule once its work is done or the owner no longer wants it. Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
   scratch_read: "Read bounded temporary scratch file from current sandbox.",
   scratch_write: "Write bounded temporary scratch file in current sandbox.",
   scratch_list: "List temporary scratch files in current sandbox.",

@@ -19,7 +19,8 @@ export interface CreateSokoBotScheduleInput {
 
 export interface UpdateSokoBotScheduleInput {
   userId: string;
-  scheduleId: string;
+  scheduleId?: string;
+  scheduleName?: string;
   name?: string;
   enabled?: boolean;
   timezone?: string;
@@ -66,6 +67,26 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
   });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
   return serializableTransaction(async (tx) => {
+    // Same name = same follow-up: a model retrying or re-planning updates
+    // the existing schedule instead of stacking duplicates.
+    const existing = await tx.sokoBotSchedule.findFirst({
+      where: { sokoBotId: bot.id, name: name.slice(0, 120) },
+      select: { id: true },
+    });
+    if (existing) {
+      return tx.sokoBotSchedule.update({
+        where: { id: existing.id },
+        data: {
+          enabled: true,
+          consecutiveFailures: 0,
+          workspaceId: input.workspaceId,
+          timezone: input.timezone,
+          cronExpression: input.cronExpression,
+          prompt: prompt.slice(0, 20_000),
+          nextRunAt,
+        },
+      });
+    }
     const activeCount = await tx.sokoBotSchedule.count({
       where: { sokoBotId: bot.id, enabled: true },
     });
@@ -89,11 +110,44 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
   }, "Soko Bot schedule creation collided with another request");
 }
 
-export async function updateSokoBotSchedule(input: UpdateSokoBotScheduleInput) {
+/** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
+async function findScheduleForUser(
+  userId: string,
+  ref: { scheduleId?: string; scheduleName?: string },
+) {
   const schedule = await prisma.sokoBotSchedule.findFirst({
-    where: { id: input.scheduleId, userId: input.userId },
+    where: {
+      userId,
+      OR: [
+        ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
+        ...(ref.scheduleName
+          ? [
+              {
+                name: {
+                  equals: ref.scheduleName.trim(),
+                  mode: "insensitive" as const,
+                },
+              },
+            ]
+          : []),
+      ],
+    },
   });
-  if (!schedule) throw new SokoBotScheduleNotFoundError("Schedule not found");
+  if (schedule) return schedule;
+  const existing = await prisma.sokoBotSchedule.findMany({
+    where: { userId },
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const hint =
+    existing.length === 0
+      ? "There are no schedules."
+      : `Existing schedules: ${existing.map((s) => `${s.name} (${s.id})`).join("; ")}.`;
+  throw new SokoBotScheduleNotFoundError(`Schedule not found. ${hint}`);
+}
+
+export async function updateSokoBotSchedule(input: UpdateSokoBotScheduleInput) {
+  const schedule = await findScheduleForUser(input.userId, input);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
   const now = new Date();
@@ -139,14 +193,11 @@ export async function updateSokoBotSchedule(input: UpdateSokoBotScheduleInput) {
 
 export async function deleteSokoBotSchedule(
   userId: string,
-  scheduleId: string,
-): Promise<void> {
-  const deleted = await prisma.sokoBotSchedule.deleteMany({
-    where: { id: scheduleId, userId },
-  });
-  if (deleted.count === 0) {
-    throw new SokoBotScheduleNotFoundError("Schedule not found");
-  }
+  ref: { scheduleId?: string; scheduleName?: string },
+): Promise<{ id: string; name: string }> {
+  const schedule = await findScheduleForUser(userId, ref);
+  await prisma.sokoBotSchedule.delete({ where: { id: schedule.id } });
+  return { id: schedule.id, name: schedule.name };
 }
 
 /** Bot-facing view: what runs, when, and what it will be asked. */

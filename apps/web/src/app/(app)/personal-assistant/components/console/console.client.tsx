@@ -118,14 +118,13 @@ export function SokoBotConsole({
   }, []);
 
   function toggleLab() {
-    setLabOpen((value) => {
-      try {
-        localStorage.setItem(LAB_OPEN_KEY, value ? "0" : "1");
-      } catch {
-        // Storage unavailable.
-      }
-      return !value;
-    });
+    const next = !labOpen;
+    setLabOpen(next);
+    try {
+      localStorage.setItem(LAB_OPEN_KEY, next ? "1" : "0");
+    } catch {
+      // Storage unavailable.
+    }
   }
 
   function saveAvatar() {
