@@ -1,5 +1,9 @@
 import prisma from "@/lib/db/prisma";
 
+export interface ChatRoomMessageMetadataPatchClient {
+  $executeRaw: (typeof prisma)["$executeRaw"];
+}
+
 export interface ChatRoomMessageMetadataPatchGuard {
   messageId: string;
   /**
@@ -8,6 +12,11 @@ export interface ChatRoomMessageMetadataPatchGuard {
   contentMustEqual?: string;
   /** Skip soft-deleted rows. Default true. */
   requireNotDeleted?: boolean;
+  /**
+   * Use the interactive transaction client so a FOR UPDATE lock is held.
+   * Defaults to the process Prisma client.
+   */
+  client?: ChatRoomMessageMetadataPatchClient;
 }
 
 /**
@@ -27,11 +36,12 @@ export async function mergeChatRoomMessageMetadataKeys(
     patch,
     contentMustEqual,
     requireNotDeleted = true,
+    client = prisma,
   } = options;
   const patchJson = JSON.stringify(patch);
 
   if (contentMustEqual !== undefined && requireNotDeleted) {
-    return prisma.$executeRaw`
+    return client.$executeRaw`
       UPDATE "chat_room_message"
       SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
       WHERE id = ${messageId}::uuid
@@ -41,7 +51,7 @@ export async function mergeChatRoomMessageMetadataKeys(
   }
 
   if (contentMustEqual !== undefined) {
-    return prisma.$executeRaw`
+    return client.$executeRaw`
       UPDATE "chat_room_message"
       SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
       WHERE id = ${messageId}::uuid
@@ -50,7 +60,7 @@ export async function mergeChatRoomMessageMetadataKeys(
   }
 
   if (requireNotDeleted) {
-    return prisma.$executeRaw`
+    return client.$executeRaw`
       UPDATE "chat_room_message"
       SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
       WHERE id = ${messageId}::uuid
@@ -58,7 +68,7 @@ export async function mergeChatRoomMessageMetadataKeys(
     `;
   }
 
-  return prisma.$executeRaw`
+  return client.$executeRaw`
     UPDATE "chat_room_message"
     SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patchJson}::jsonb
     WHERE id = ${messageId}::uuid
@@ -81,6 +91,7 @@ export async function deleteChatRoomMessageMetadataKeys(
     keys,
     contentMustEqual,
     requireNotDeleted = true,
+    client = prisma,
   } = options;
 
   if (keys.length === 0) {
@@ -90,7 +101,7 @@ export async function deleteChatRoomMessageMetadataKeys(
   const keyArray = [...keys];
 
   if (contentMustEqual !== undefined && requireNotDeleted) {
-    return prisma.$executeRaw`
+    return client.$executeRaw`
       UPDATE "chat_room_message"
       SET metadata = NULLIF(
         COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
@@ -103,7 +114,7 @@ export async function deleteChatRoomMessageMetadataKeys(
   }
 
   if (contentMustEqual !== undefined) {
-    return prisma.$executeRaw`
+    return client.$executeRaw`
       UPDATE "chat_room_message"
       SET metadata = NULLIF(
         COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
@@ -115,7 +126,7 @@ export async function deleteChatRoomMessageMetadataKeys(
   }
 
   if (requireNotDeleted) {
-    return prisma.$executeRaw`
+    return client.$executeRaw`
       UPDATE "chat_room_message"
       SET metadata = NULLIF(
         COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],
@@ -126,7 +137,7 @@ export async function deleteChatRoomMessageMetadataKeys(
     `;
   }
 
-  return prisma.$executeRaw`
+  return client.$executeRaw`
     UPDATE "chat_room_message"
     SET metadata = NULLIF(
       COALESCE(metadata, '{}'::jsonb) - ${keyArray}::text[],

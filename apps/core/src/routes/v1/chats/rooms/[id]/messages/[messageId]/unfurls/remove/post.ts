@@ -85,8 +85,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, messageId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const existing = await prisma.$transaction(async (tx) => {
+    let shouldPublish = false;
+    const message = await prisma.$transaction(async (tx) => {
       await requireChatRoomUserWriteAccess(id, userContext.userId, tx);
+
+      // Serialize per-card removes on the same message so two in-flight
+      // clicks cannot each snapshot the old unfurls array and clobber the
+      // other's removed URL (last-write-wins resurrection).
+      const lockedMessages = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "chat_room_message"
+        WHERE "id" = ${messageId}::uuid AND "roomId" = ${id}::uuid
+        FOR UPDATE
+      `;
+      if (lockedMessages.length === 0) {
+        throw notFound("Message not found");
+      }
 
       const found = await tx.chatRoomMessage.findFirst({
         where: { id: messageId, roomId: id },
@@ -111,37 +124,49 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("Deleted messages cannot be updated");
       }
 
-      return found;
-    });
+      const applied = applyRemovedUnfurlToMetadata(found.metadata, body.url);
+      if (applied.status === "not_found") {
+        throw badRequest("Unfurl not found");
+      }
 
-    const applied = applyRemovedUnfurlToMetadata(existing.metadata, body.url);
-    if (applied.status === "not_found") {
-      throw badRequest("Unfurl not found");
-    }
+      const nextMessage = {
+        ...found,
+        metadata: applied.metadata as Prisma.JsonValue,
+      };
 
-    const message = {
-      ...existing,
-      metadata: applied.metadata as Prisma.JsonValue,
-    };
+      if (applied.status === "already_removed") {
+        return nextMessage;
+      }
 
-    if (applied.status === "removed") {
       const remaining = readUnfurlsFromMetadata(applied.metadata);
       const removedUrls = readRemovedUnfurlUrlsFromMetadata(applied.metadata);
-      if (!remaining) {
-        await deleteChatRoomMessageMetadataKeys({
+      if (remaining) {
+        await mergeChatRoomMessageMetadataKeys({
+          client: tx,
           messageId,
-          keys: ["unfurls"],
+          patch: {
+            unfurls: remaining,
+            [REMOVED_UNFURL_URLS_METADATA_KEY]: removedUrls,
+          },
         });
       } else {
         await mergeChatRoomMessageMetadataKeys({
+          client: tx,
           messageId,
-          patch: { unfurls: remaining },
+          patch: { [REMOVED_UNFURL_URLS_METADATA_KEY]: removedUrls },
+        });
+        await deleteChatRoomMessageMetadataKeys({
+          client: tx,
+          messageId,
+          keys: ["unfurls"],
         });
       }
-      await mergeChatRoomMessageMetadataKeys({
-        messageId,
-        patch: { [REMOVED_UNFURL_URLS_METADATA_KEY]: removedUrls },
-      });
+
+      shouldPublish = true;
+      return nextMessage;
+    });
+
+    if (shouldPublish) {
       await publishChatRoomMessageRealtime(message, "unfurl");
     }
 

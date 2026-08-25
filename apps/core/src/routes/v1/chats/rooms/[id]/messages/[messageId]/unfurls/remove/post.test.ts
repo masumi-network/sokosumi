@@ -12,6 +12,7 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   messageFindFirstMock,
+  queryRawMock,
   prismaTransactionMock,
   mergeMetadataKeysMock,
   deleteMetadataKeysMock,
@@ -20,6 +21,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   messageFindFirstMock: vi.fn(),
+  queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   mergeMetadataKeysMock: vi.fn(),
   deleteMetadataKeysMock: vi.fn(),
@@ -54,6 +56,7 @@ const ABLY_URL = "https://ably.com/platform";
 const RESEND_URL = "https://resend.com";
 
 const tx = {
+  $queryRaw: queryRawMock,
   chatRoom: {
     findFirst: roomFindFirstMock,
   },
@@ -174,6 +177,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/unfurls/remove", () => {
       role: "member",
     });
     messageFindFirstMock.mockResolvedValue(baseMessage());
+    queryRawMock.mockResolvedValue([{ id: MESSAGE_ID }]);
     mergeMetadataKeysMock.mockResolvedValue(1);
     deleteMetadataKeysMock.mockResolvedValue(1);
   });
@@ -187,18 +191,37 @@ describe("POST /chats/rooms/:id/messages/:messageId/unfurls/remove", () => {
     expect(body.data.editedAt).toBeNull();
     expect(body.data.content).toBe(`see ${ABLY_URL} and ${RESEND_URL}`);
     expect(mergeMetadataKeysMock).toHaveBeenCalledWith({
+      client: tx,
       messageId: MESSAGE_ID,
-      patch: { unfurls: [resendCard] },
-    });
-    expect(mergeMetadataKeysMock).toHaveBeenCalledWith({
-      messageId: MESSAGE_ID,
-      patch: { removedUnfurlUrls: [ABLY_URL] },
+      patch: {
+        unfurls: [resendCard],
+        removedUnfurlUrls: [ABLY_URL],
+      },
     });
     expect(deleteMetadataKeysMock).not.toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: MESSAGE_ID }),
       "unfurl",
     );
+  });
+
+  it("locks the message with FOR UPDATE before applying the remove", async () => {
+    const callOrder: string[] = [];
+    queryRawMock.mockImplementation(async () => {
+      callOrder.push("lock");
+      return [{ id: MESSAGE_ID }];
+    });
+    mergeMetadataKeysMock.mockImplementation(async () => {
+      callOrder.push("merge");
+      return 1;
+    });
+
+    const response = await removeUnfurl(ABLY_URL);
+
+    expect(response.status).toBe(200);
+    expect(callOrder).toEqual(["lock", "merge"]);
+    const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
+    expect(sqlParts.join(" ")).toContain("FOR UPDATE");
   });
 
   it("is idempotent when that unfurl is already removed", async () => {
