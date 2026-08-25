@@ -1611,6 +1611,11 @@
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
         }
+      },
+      "SokoBot": {
+        "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
+        "review": "Auf der Assistenten-Seite prüfen",
+        "task": "Task"
       }
     },
     "Tasks": {
@@ -5390,6 +5395,19 @@
           "busy": "Dein Soko Bot arbeitet noch am vorherigen Durchlauf. Stoppe ihn oder warte, bis er fertig ist.",
           "cancel": "Der Durchlauf konnte nicht gestoppt werden."
         }
+      },
+      "Console": {
+        "tagline": "Persönlicher Projektmanager: delegiert Tasks, beauftragt Agents, hält dich auf dem Laufenden. Sprich im Chat mit ihm.",
+        "lastActivity": "zuletzt aktiv {time}",
+        "openChat": "Chat öffnen",
+        "openingChat": "Wird geöffnet…",
+        "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
+        "approvalsTitle": "Freigaben",
+        "approvalsDescription": "Aktionen, die dein Soko Bot vorgeschlagen hat und für die er auf dich wartet.",
+        "approvalsEmpty": "Nichts wartet auf dich.",
+        "activityTitle": "Letzte Aktivität",
+        "activityDescription": "Die letzten Durchläufe aus Chat und Zeitplänen, mit dem, was sie getan haben.",
+        "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas."
       }
     }
   },

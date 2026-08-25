@@ -1611,6 +1611,11 @@
           "label": "Buscar",
           "subtitle": "Agentes Especializados"
         }
+      },
+      "SokoBot": {
+        "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
+        "review": "Revisar en la página del asistente",
+        "task": "Task"
       }
     },
     "Tasks": {
@@ -5390,6 +5395,19 @@
           "busy": "Tu Soko Bot sigue trabajando en el turno anterior. Detenlo o espera a que termine.",
           "cancel": "No se pudo detener el turno."
         }
+      },
+      "Console": {
+        "tagline": "Gestor de proyectos personal: delega Tasks, contrata Agents y te mantiene informado. Háblale en el chat.",
+        "lastActivity": "última actividad {time}",
+        "openChat": "Abrir chat",
+        "openingChat": "Abriendo…",
+        "openChatError": "No se pudo abrir el chat con tu Soko Bot.",
+        "approvalsTitle": "Aprobaciones",
+        "approvalsDescription": "Acciones que tu Soko Bot propuso y para las que espera tu respuesta.",
+        "approvalsEmpty": "Nada pendiente de ti.",
+        "activityTitle": "Actividad reciente",
+        "activityDescription": "Los últimos turnos desde el chat y las programaciones, con lo que hicieron.",
+        "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo."
       }
     }
   },

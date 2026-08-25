@@ -7,7 +7,7 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 
-import { SokoBotExperience } from "./components/chat/experience.client";
+import { SokoBotConsole } from "./components/console/console.client";
 import { CreateState } from "./components/create-state.client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -32,12 +32,19 @@ async function loadState(): Promise<StateLoad> {
   }
 }
 
-export default async function SokoBotPage() {
-  const [session, load, t] = await Promise.all([
+interface SokoBotPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/** The assistant console; the conversation itself lives in chat. */
+export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
+  const [session, load, t, params] = await Promise.all([
     getSessionOrRedirect(),
     loadState(),
     getTranslations("App.SokoBot"),
+    searchParams,
   ]);
+  const focusTurnId = typeof params.turn === "string" ? params.turn : null;
 
   if (load.kind === "unavailable") {
     return (
@@ -55,10 +62,11 @@ export default async function SokoBotPage() {
   }
 
   return (
-    <SokoBotExperience
+    <SokoBotConsole
       initialState={load.state}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
+      focusTurnId={focusTurnId}
     />
   );
 }

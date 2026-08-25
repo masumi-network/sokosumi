@@ -106,6 +106,8 @@ export interface ChatBot {
   userId: string;
   name: string | null;
   avatarSeed: string | null;
+  /** Chat coworker row id; open a direct with it to talk to the bot. */
+  coworkerId: string | null;
   autonomyLevel: SokoBotAutonomyLevel;
   status: SokoBotStatus;
   memoryVersion: number;
@@ -221,6 +223,7 @@ export function toChatBot(bot: SokoBot): ChatBot {
     userId: bot.userId,
     name: bot.name,
     avatarSeed: bot.avatarSeed,
+    coworkerId: bot.coworker?.id ?? null,
     autonomyLevel: bot.autonomyLevel,
     status: bot.status,
     memoryVersion: bot.memoryVersion,
