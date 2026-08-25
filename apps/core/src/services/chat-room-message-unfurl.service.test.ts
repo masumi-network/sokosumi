@@ -162,6 +162,47 @@ describe("scheduleChatRoomMessageUnfurls", () => {
     expect(publishByIdMock).not.toHaveBeenCalled();
   });
 
+  it("does not persist a title-only unfurl with no image and no description", async () => {
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content: "see https://masumi.sentry.io",
+        deletedAt: null,
+        editedAt: null,
+        metadata: null,
+      })
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content: "see https://masumi.sentry.io",
+        deletedAt: null,
+      });
+
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(
+        `<html><head><title>Sign In | Sentry</title></head></html>`,
+        {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        },
+      ),
+    );
+
+    const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+    expect(result).toEqual({
+      messageId: MESSAGE_ID,
+      attempted: 1,
+      persisted: 0,
+    });
+    expect(deleteMetadataKeysMock).toHaveBeenCalledWith({
+      messageId: MESSAGE_ID,
+      keys: ["unfurls"],
+      contentMustEqual: "see https://masumi.sentry.io",
+    });
+    expect(mergeMetadataKeysMock).not.toHaveBeenCalled();
+    expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID, "unfurl");
+  });
+
   it("atomically clears unfurls key on empty scrape", async () => {
     messageFindUniqueMock
       .mockResolvedValueOnce({

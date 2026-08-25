@@ -1,3 +1,5 @@
+import { unfurlCardHasPreviewContent } from "@sokosumi/utils";
+
 /** Decoded OG/Twitter/title fields from HTML (no I/O). */
 export interface OpenGraphFields {
   title: string | null;
@@ -160,7 +162,8 @@ function resolveSiteName(
 }
 
 /**
- * Turn OG fields + fetch URL into a DTO card, or null if title missing.
+ * Turn OG fields + fetch URL into a DTO card, or null if title missing
+ * or the card would be title-only (no image and no description).
  * Resolves relative image against `finalUrl`; drops non-http(s) image URLs.
  */
 export function toUnfurlCard(
@@ -174,11 +177,15 @@ export function toUnfurlCard(
   }
 
   const imageUrl = fields.image ? resolveHttpUrl(fields.image, finalUrl) : null;
+  const description = fields.description?.trim() || null;
+  if (!unfurlCardHasPreviewContent({ imageUrl, description })) {
+    return null;
+  }
 
   return {
     url: requestedUrl,
     title,
-    description: fields.description,
+    description,
     imageUrl,
     siteName: resolveSiteName(fields, requestedUrl, finalUrl),
   };
