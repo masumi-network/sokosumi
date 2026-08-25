@@ -771,3 +771,20 @@ Use existing Vitest + Testing Library/happy-dom for committed UI tests. Reposito
 - set retention periods for turns/events/Context/memory;
 - choose classifier model that meets Phase 0 quality/latency/cost gate;
 - decide whether future user integrations belong to Soko Bot intake or separate Coworker/Agent capabilities.
+
+## Chat integration (2026-08-25)
+
+The Personal Assistant page is the bot's console; conversation happens in
+chat. Each bot owns a first-party `Coworker` row (`Coworker.sokoBotId`) so it
+reuses room membership, mentions, sender FK, realtime, and the live Thought
+placeholder. A mention of the owner's bot (`chat-room-coworker-dispatch`
+branch) claims the mention, opens the placeholder, and starts a turn with
+`chat: { mentionId, responseMessageId }`; the control plane mirrors
+`actions.requested` progress into the placeholder and
+`finalizeSokoBotChatTurn` writes the answer, pending approval ids, and
+created Task ids into `metadata.soko_bot` on settle. Bot directs skip the
+coworker stream (`skipCoworkerMentions` and `isCoworkerOnlyDirectRoom` both
+exclude `sokoBotId`). Only the owner's mentions dispatch; other members see
+the bot but cannot task it. The bot is usable in the owner's personal and
+organization workspaces (`buildCoworkerUsableInWorkspaceWhere`) and hidden
+from other users' listings (`buildSokoBotVisibilityWhere`).

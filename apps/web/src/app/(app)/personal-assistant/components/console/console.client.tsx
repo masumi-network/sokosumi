@@ -13,7 +13,6 @@ import {
   SokoBotStatusBadge,
 } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
@@ -89,7 +88,8 @@ export function SokoBotConsole({
   const { state, refresh } = useSokoBotState(initialState);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
-  const seed = bot.avatarSeed ?? defaultOrbSeed(bot.userId);
+  // Same seed Core hands chat participants, so console and room match.
+  const seed = bot.avatarSeed ?? `orb:${bot.userId}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
 
   const turns = useMemo(() => orderedTurns(state).reverse(), [state]);
@@ -108,7 +108,7 @@ export function SokoBotConsole({
         toast.error(t("Console.openChatError"));
         return;
       }
-      router.push(`/chat/${encodeURIComponent(result.value.id)}`);
+      router.push(`/chat/rooms/${encodeURIComponent(result.value.id)}`);
     });
   }
 
