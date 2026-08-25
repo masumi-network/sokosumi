@@ -123,6 +123,19 @@ describe("thirdPartyScriptDenyUrls", () => {
       ),
     ).toBe(true);
   });
+
+  it("includes Begin Wallet provider injection bundles", () => {
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test("app:///requestProvider.js"),
+      ),
+    ).toBe(true);
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test("app:///requestSolanaProvider.js"),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("thirdPartyAnalyticsIgnoreErrors", () => {
@@ -335,6 +348,57 @@ describe("beforeSendClientEvent", () => {
                   "Cannot assign to read only property 'cardano' of object '#<Window>'",
                 stacktrace: {
                   frames: [{ filename: "app:///static/js/injected.js" }],
+                },
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Begin Wallet requestProvider.js failures (SOKOSUMI-RC)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/",
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [{ filename: "app:///requestProvider.js" }],
+                },
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Begin Wallet requestSolanaProvider.js failures (SOKOSUMI-RD)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/",
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [
+                    {
+                      filename: "app:///requestSolanaProvider.js",
+                      function: "a.handleResponse",
+                    },
+                  ],
                 },
               },
             ],

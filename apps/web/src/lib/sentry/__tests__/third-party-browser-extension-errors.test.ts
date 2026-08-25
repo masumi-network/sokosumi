@@ -43,6 +43,49 @@ describe("isBrowserExtensionOnlyStackError", () => {
     ).toBe(true);
   });
 
+  it("matches Begin Wallet requestProvider.js-only stacks", () => {
+    expect(
+      isBrowserExtensionOnlyStackError(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [{ filename: "app:///requestProvider.js" }],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Begin Wallet requestSolanaProvider.js-only stacks", () => {
+    expect(
+      isBrowserExtensionOnlyStackError(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [
+                    {
+                      filename: "app:///requestSolanaProvider.js",
+                      function: "a.handleResponse",
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("matches chrome-extension-only stacks", () => {
     expect(
       isBrowserExtensionOnlyStackError(

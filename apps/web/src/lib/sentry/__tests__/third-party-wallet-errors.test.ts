@@ -74,6 +74,80 @@ describe("isThirdPartyWalletError", () => {
     ).toBe(true);
   });
 
+  it("matches Begin Wallet requestProvider.js stacks (SOKOSUMI-RC)", () => {
+    expect(
+      isThirdPartyWalletError(
+        "Cannot read properties of undefined (reading 'type')",
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [{ filename: "app:///requestProvider.js" }],
+                },
+              },
+            ],
+          },
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Begin Wallet requestSolanaProvider.js stacks (SOKOSUMI-RD)", () => {
+    expect(
+      isThirdPartyWalletError(
+        "Cannot read properties of undefined (reading 'type')",
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [
+                    {
+                      filename: "app:///requestSolanaProvider.js",
+                      function: "a.handleResponse",
+                    },
+                    { filename: "app:///requestSolanaProvider.js" },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("does not match bare reading 'type' without wallet frames", () => {
+    expect(
+      isThirdPartyWalletError(
+        "Cannot read properties of undefined (reading 'type')",
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'type')",
+                stacktrace: {
+                  frames: [
+                    { filename: "app:///_next/static/chunks/app/page.js" },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ),
+    ).toBe(false);
+  });
+
   it("ignores unrelated application errors", () => {
     expect(
       isThirdPartyWalletError("Database unavailable", {
