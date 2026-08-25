@@ -9,6 +9,19 @@ export const DRIVE_FILES_PAGE_LIMIT = 100;
 /** Hard stop so a bad nextCursor cannot loop forever. */
 export const DRIVE_FILES_MAX_PAGES = 50;
 
+export type DriveWorkspaceStore =
+  | { scope: "me" }
+  | { scope: "org"; organizationId: string };
+
+export function driveStoreForActiveWorkspace(
+  activeOrganizationId: string | null,
+): DriveWorkspaceStore {
+  if (activeOrganizationId) {
+    return { scope: "org", organizationId: activeOrganizationId };
+  }
+  return { scope: "me" };
+}
+
 interface ListDriveFilesOptions {
   scope: "me" | "org";
   organizationId?: string;

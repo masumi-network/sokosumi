@@ -14,6 +14,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 import {
   DRIVE_FILES_MAX_PAGES,
   DRIVE_FILES_PAGE_LIMIT,
+  driveStoreForActiveWorkspace,
   listDriveFiles,
   listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
@@ -54,6 +55,19 @@ function pageResponse(
     },
   };
 }
+
+describe("driveStoreForActiveWorkspace", () => {
+  it("uses My Drive in a personal workspace", () => {
+    expect(driveStoreForActiveWorkspace(null)).toEqual({ scope: "me" });
+  });
+
+  it("uses the active organization Drive in an org workspace", () => {
+    expect(driveStoreForActiveWorkspace("org_a")).toEqual({
+      scope: "org",
+      organizationId: "org_a",
+    });
+  });
+});
 
 describe("listDriveFiles", () => {
   beforeEach(() => {
