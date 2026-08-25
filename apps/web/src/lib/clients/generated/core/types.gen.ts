@@ -306,7 +306,6 @@ export type AdminSokoBotTurn = SokoBotTurn & {
     eveSessionId: string | null;
     eveTurnId: string | null;
     contextSnapshot: SokoBotContextSnapshot;
-    toolCalls: Array<SokoBotToolCall>;
 };
 
 export const SokoBotTurnStatus = {
@@ -352,6 +351,9 @@ export type SokoBotEvent = {
     durationMs: number | null;
     providerAt: Date | null;
     createdAt: Date;
+    payload?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 export type SokoBotDelegation = {
@@ -366,19 +368,6 @@ export type SokoBotDelegation = {
     updatedAt: Date;
 };
 
-export type SokoBotContextSnapshot = {
-    id: string;
-    schemaVersion: number;
-    hash: string;
-    packet?: unknown;
-    byteSize: number;
-    tokenEstimate: number;
-    counts?: unknown;
-    omissions?: unknown;
-    generatedAt: Date;
-    createdAt: Date;
-} | null;
-
 export type SokoBotToolCall = {
     id: string;
     toolCallId: string;
@@ -391,6 +380,30 @@ export type SokoBotToolCall = {
     createdAt: Date;
     updatedAt: Date;
 };
+
+export type SokoBotContextSummary = {
+    projects: number;
+    tasks: number;
+    coworkers: number;
+    agents: number;
+    jobs: number;
+    recentTurns: number;
+    memoryVersion: number;
+    bytes: number;
+} | null;
+
+export type SokoBotContextSnapshot = {
+    id: string;
+    schemaVersion: number;
+    hash: string;
+    packet?: unknown;
+    byteSize: number;
+    tokenEstimate: number;
+    counts?: unknown;
+    omissions?: unknown;
+    generatedAt: Date;
+    createdAt: Date;
+} | null;
 
 export type SokoBotTurn = {
     id: string;
@@ -423,6 +436,8 @@ export type SokoBotTurn = {
     events?: Array<SokoBotEvent>;
     delegations?: Array<SokoBotDelegation>;
     pendingDecisions?: Array<SokoBotPendingDecision>;
+    toolCalls?: Array<SokoBotToolCall>;
+    contextSummary?: SokoBotContextSummary;
     createdAt: Date;
     updatedAt: Date;
 };

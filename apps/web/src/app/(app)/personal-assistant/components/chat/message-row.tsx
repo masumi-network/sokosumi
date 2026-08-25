@@ -19,7 +19,8 @@ import {
   progressChipsForTurn,
   turnKind,
 } from "./timeline";
-import { CompletedSteps, TurnProgress } from "./turn-progress";
+import { TurnExplain } from "./turn-explain";
+import { TurnProgress } from "./turn-progress";
 
 function useTimestamp() {
   const format = useFormatter();
@@ -291,7 +292,6 @@ export function TurnRows({
             expression={turn.status === "FAILED" ? "focused" : "idle"}
           />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <CompletedSteps steps={completedStepsForTurn(turn)} />
             {turn.finalAnswer ? (
               <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
                 {turn.finalAnswer}
@@ -322,6 +322,12 @@ export function TurnRows({
               createdAt={turn.completedAt ?? turn.createdAt}
               durationMs={turn.durationMs}
             />
+            {turn.optimistic ? null : (
+              <TurnExplain
+                turnId={turn.id}
+                stepCount={completedStepsForTurn(turn).length}
+              />
+            )}
           </div>
         </div>
       )}

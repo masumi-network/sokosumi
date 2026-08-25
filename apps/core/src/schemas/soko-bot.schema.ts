@@ -106,6 +106,8 @@ export const sokoBotEventSchema = z
     durationMs: z.number().int().nullable(),
     providerAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
+    /** Bounded, redacted detail for the owner's "explain" view. */
+    payload: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .openapi("SokoBotEvent");
 
@@ -132,6 +134,34 @@ export const sokoBotTurnUsageSchema = z
     costUsd: z.number().nonnegative(),
   })
   .openapi("SokoBotTurnUsage");
+
+export const sokoBotToolCallSchema = z
+  .object({
+    id: z.string().uuid(),
+    toolCallId: z.string(),
+    capability: z.string(),
+    inputHash: z.string(),
+    status: z.enum(["PENDING", "COMPLETED", "FAILED"]),
+    result: z.unknown().nullable(),
+    errorKind: z.string().nullable(),
+    errorDetail: z.string().nullable(),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("SokoBotToolCall");
+
+export const sokoBotContextSummarySchema = z
+  .object({
+    projects: z.number().int(),
+    tasks: z.number().int(),
+    coworkers: z.number().int(),
+    agents: z.number().int(),
+    jobs: z.number().int(),
+    recentTurns: z.number().int(),
+    memoryVersion: z.number().int(),
+    bytes: z.number().int(),
+  })
+  .openapi("SokoBotContextSummary");
 
 export const sokoBotTurnSchema = z
   .object({
@@ -163,6 +193,9 @@ export const sokoBotTurnSchema = z
     events: z.array(sokoBotEventSchema).optional(),
     delegations: z.array(sokoBotDelegationSchema).optional(),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
+    toolCalls: z.array(sokoBotToolCallSchema).optional(),
+    /** Present on the detail route: what the model was given this turn. */
+    contextSummary: sokoBotContextSummarySchema.nullable().optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -319,21 +352,6 @@ export const sokoBotContextSnapshotSchema = z
     createdAt: dateTimeSchema,
   })
   .openapi("SokoBotContextSnapshot");
-
-export const sokoBotToolCallSchema = z
-  .object({
-    id: z.string().uuid(),
-    toolCallId: z.string(),
-    capability: z.string(),
-    inputHash: z.string(),
-    status: z.enum(["PENDING", "COMPLETED", "FAILED"]),
-    result: z.unknown().nullable(),
-    errorKind: z.string().nullable(),
-    errorDetail: z.string().nullable(),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-  })
-  .openapi("SokoBotToolCall");
 
 export const adminSokoBotTurnSchema = sokoBotTurnSchema
   .extend({

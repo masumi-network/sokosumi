@@ -372,9 +372,70 @@ function addTurnUsage(
   };
 }
 
+const EVENT_TEXT_LIMIT = 800;
+const EVENT_INPUT_LIMIT = 1_200;
+
+/** Model-authored text, bounded and secret-scrubbed, for the owner's explain view. */
+function safeEventText(
+  value: unknown,
+  limit = EVENT_TEXT_LIMIT,
+): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const scrubbed = redactSokoBotSensitiveText(trimmed);
+  return scrubbed.length > limit
+    ? `${scrubbed.slice(0, limit - 1)}…`
+    : scrubbed;
+}
+
+function safeEventJson(value: unknown): string | null {
+  if (value === undefined) return null;
+  try {
+    return safeEventText(JSON.stringify(value), EVENT_INPUT_LIMIT);
+  } catch {
+    return null;
+  }
+}
+
+/** Counts only: what the model was given, never the packet itself. */
+export function summarizeContextPacket(packet: unknown) {
+  if (!packet || typeof packet !== "object") return null;
+  const record = packet as Record<string, unknown>;
+  const count = (key: string) =>
+    Array.isArray(record[key]) ? (record[key] as unknown[]).length : 0;
+  const memory =
+    record.memory && typeof record.memory === "object"
+      ? (record.memory as Record<string, unknown>)
+      : null;
+  return {
+    projects: count("projects"),
+    tasks: count("tasks"),
+    coworkers: count("coworkers"),
+    agents: count("agents"),
+    jobs: count("jobs"),
+    recentTurns: count("recentTurns"),
+    memoryVersion: typeof memory?.version === "number" ? memory.version : 0,
+    bytes: Buffer.byteLength(JSON.stringify(packet), "utf8"),
+  };
+}
+
 function safeEventProjection(type: string, data: Record<string, unknown>) {
+  if (type === "reasoning.completed") {
+    const text = safeEventText(data.text ?? data.reasoning ?? data.message);
+    return { summary: text ?? "Reasoning update", payload: undefined };
+  }
   if (type.startsWith("reasoning.")) {
     return { summary: "Reasoning update", payload: undefined };
+  }
+  if (type === "message.completed") {
+    const text = safeEventText(data.message);
+    const finishReason =
+      typeof data.finishReason === "string" ? data.finishReason : undefined;
+    return {
+      summary: text ?? "message completed",
+      payload: finishReason ? jsonInput({ finishReason }) : undefined,
+    };
   }
   if (type === "actions.requested") {
     const actions = Array.isArray(data.actions) ? data.actions : [];
@@ -383,12 +444,15 @@ function safeEventProjection(type: string, data: Record<string, unknown>) {
       first && typeof first === "object"
         ? (first as Record<string, unknown>)
         : null;
+    const input = safeEventJson(
+      action?.input ?? action?.args ?? action?.arguments,
+    );
     return {
       summary:
         typeof action?.name === "string"
           ? `Requested ${action.name}`
           : "Requested action",
-      payload: undefined,
+      payload: input ? jsonInput({ input }) : undefined,
       toolName: typeof action?.name === "string" ? action.name : undefined,
       toolCallId:
         typeof action?.callId === "string" ? action.callId : undefined,
@@ -1044,11 +1108,16 @@ export class SokoBotControlPlane {
             ],
           },
         },
-        contextSnapshot: true,
+        toolCalls: { orderBy: { createdAt: "asc" } },
+        contextSnapshot: { select: { packet: true } },
       },
     });
     if (!turn) throw new SokoBotNotFoundError("Soko Bot turn not found");
-    return turn;
+    const { contextSnapshot, ...rest } = turn;
+    return {
+      ...rest,
+      contextSummary: summarizeContextPacket(contextSnapshot?.packet ?? null),
+    };
   }
 
   private async classificationContext(userId: string, workspaceId: string) {

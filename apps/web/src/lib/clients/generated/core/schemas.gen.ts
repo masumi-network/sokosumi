@@ -1349,19 +1349,13 @@ export const AdminSokoBotTurnSchema = {
                 },
                 contextSnapshot: {
                     $ref: '#/components/schemas/SokoBotContextSnapshot'
-                },
-                toolCalls: {
-                    type: 'array',
-                    items: {
-                        $ref: '#/components/schemas/SokoBotToolCall'
-                    }
                 }
             },
             required: [
+                'toolCalls',
                 'eveSessionId',
                 'eveTurnId',
-                'contextSnapshot',
-                'toolCalls'
+                'contextSnapshot'
             ]
         }
     ]
@@ -1487,6 +1481,13 @@ export const SokoBotEventSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        payload: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
         }
     },
     required: [
@@ -1568,55 +1569,6 @@ export const SokoBotDelegationSchema = {
     ]
 } as const;
 
-export const SokoBotContextSnapshotSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        schemaVersion: {
-            type: 'integer'
-        },
-        hash: {
-            type: 'string'
-        },
-        packet: {},
-        byteSize: {
-            type: 'integer',
-            minimum: 0
-        },
-        tokenEstimate: {
-            type: 'integer',
-            minimum: 0
-        },
-        counts: {},
-        omissions: {},
-        generatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'schemaVersion',
-        'hash',
-        'byteSize',
-        'tokenEstimate',
-        'generatedAt',
-        'createdAt'
-    ]
-} as const;
-
 export const SokoBotToolCallSchema = {
     type: 'object',
     properties: {
@@ -1675,6 +1627,98 @@ export const SokoBotToolCallSchema = {
         'errorDetail',
         'createdAt',
         'updatedAt'
+    ]
+} as const;
+
+export const SokoBotContextSummarySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        projects: {
+            type: 'integer'
+        },
+        tasks: {
+            type: 'integer'
+        },
+        coworkers: {
+            type: 'integer'
+        },
+        agents: {
+            type: 'integer'
+        },
+        jobs: {
+            type: 'integer'
+        },
+        recentTurns: {
+            type: 'integer'
+        },
+        memoryVersion: {
+            type: 'integer'
+        },
+        bytes: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'projects',
+        'tasks',
+        'coworkers',
+        'agents',
+        'jobs',
+        'recentTurns',
+        'memoryVersion',
+        'bytes'
+    ]
+} as const;
+
+export const SokoBotContextSnapshotSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        schemaVersion: {
+            type: 'integer'
+        },
+        hash: {
+            type: 'string'
+        },
+        packet: {},
+        byteSize: {
+            type: 'integer',
+            minimum: 0
+        },
+        tokenEstimate: {
+            type: 'integer',
+            minimum: 0
+        },
+        counts: {},
+        omissions: {},
+        generatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'schemaVersion',
+        'hash',
+        'byteSize',
+        'tokenEstimate',
+        'generatedAt',
+        'createdAt'
     ]
 } as const;
 
@@ -1832,6 +1876,15 @@ export const SokoBotTurnSchema = {
             items: {
                 $ref: '#/components/schemas/SokoBotPendingDecision'
             }
+        },
+        toolCalls: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotToolCall'
+            }
+        },
+        contextSummary: {
+            $ref: '#/components/schemas/SokoBotContextSummary'
         },
         createdAt: {
             type: 'string',

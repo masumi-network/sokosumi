@@ -7,6 +7,7 @@ import type {
   SokoBotPendingDecision,
   SokoBotSchedule,
   SokoBotStatus,
+  SokoBotToolCall,
   SokoBotTurn,
   SokoBotTurnRoute,
   SokoBotTurnStatus,
@@ -28,6 +29,28 @@ export interface ChatTurnEvent {
   toolStatus: string | null;
   durationMs: number | null;
   createdAt: string;
+  payload: Record<string, unknown> | null;
+}
+
+export interface ChatToolCall {
+  id: string;
+  capability: string;
+  status: SokoBotToolCall["status"];
+  result: unknown;
+  errorKind: string | null;
+  errorDetail: string | null;
+  createdAt: string;
+}
+
+export interface ChatContextSummary {
+  projects: number;
+  tasks: number;
+  coworkers: number;
+  agents: number;
+  jobs: number;
+  recentTurns: number;
+  memoryVersion: number;
+  bytes: number;
 }
 
 export interface ChatDecision {
@@ -71,6 +94,23 @@ export interface ChatTurn {
   decisions: ChatDecision[];
   /** Client-only: sent but Core has not echoed it back yet. */
   optimistic?: boolean;
+}
+
+/** Detail route only: everything the owner needs to explain a turn. */
+export interface ChatTurnDetail extends ChatTurn {
+  classification: Record<string, unknown> | null;
+  classifierModel: string | null;
+  classifierLatencyMs: number | null;
+  classificationFailed: boolean;
+  capabilityNames: string[];
+  modelId: string | null;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+  } | null;
+  toolCalls: ChatToolCall[];
+  contextSummary: ChatContextSummary | null;
 }
 
 export interface ChatLegacyMessage {
@@ -138,6 +178,20 @@ function toEvent(event: SokoBotEvent): ChatTurnEvent {
     toolStatus: event.toolStatus,
     durationMs: event.durationMs,
     createdAt: event.createdAt.toISOString(),
+    payload:
+      (event.payload as Record<string, unknown> | null | undefined) ?? null,
+  };
+}
+
+function toToolCall(call: SokoBotToolCall): ChatToolCall {
+  return {
+    id: call.id,
+    capability: call.capability,
+    status: call.status,
+    result: call.result ?? null,
+    errorKind: call.errorKind,
+    errorDetail: call.errorDetail,
+    createdAt: call.createdAt.toISOString(),
   };
 }
 
@@ -187,6 +241,27 @@ export function toChatTurn(turn: SokoBotTurn): ChatTurn {
       .sort((a, b) => a.sequence - b.sequence),
     delegations: (turn.delegations ?? []).map(toDelegation),
     decisions: (turn.pendingDecisions ?? []).map(toDecision),
+  };
+}
+
+export function toChatTurnDetail(turn: SokoBotTurn): ChatTurnDetail {
+  return {
+    ...toChatTurn(turn),
+    classification: turn.classification,
+    classifierModel: turn.classifierModel,
+    classifierLatencyMs: turn.classifierLatencyMs,
+    classificationFailed: turn.classificationFailed,
+    capabilityNames: turn.capabilityNames,
+    modelId: turn.modelId,
+    usage: turn.usage
+      ? {
+          inputTokens: turn.usage.inputTokens,
+          outputTokens: turn.usage.outputTokens,
+          costUsd: turn.usage.costUsd,
+        }
+      : null,
+    toolCalls: (turn.toolCalls ?? []).map(toToolCall),
+    contextSummary: turn.contextSummary ?? null,
   };
 }
 

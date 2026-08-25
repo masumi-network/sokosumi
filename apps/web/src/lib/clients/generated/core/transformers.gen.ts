@@ -177,6 +177,12 @@ const sokoBotDelegationSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const sokoBotToolCallSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    return data;
+};
+
 const sokoBotTurnSchemaResponseTransformer = (data: any) => {
     data.deadlineAt = new Date(data.deadlineAt);
     if (data.cancellationRequestedAt) {
@@ -197,6 +203,9 @@ const sokoBotTurnSchemaResponseTransformer = (data: any) => {
     if (data.pendingDecisions) {
         data.pendingDecisions = data.pendingDecisions.map((item: any) => sokoBotPendingDecisionSchemaResponseTransformer(item));
     }
+    if (data.toolCalls) {
+        data.toolCalls = data.toolCalls.map((item: any) => sokoBotToolCallSchemaResponseTransformer(item));
+    }
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;
@@ -208,16 +217,9 @@ const sokoBotContextSnapshotSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
-const sokoBotToolCallSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    return data;
-};
-
 const adminSokoBotTurnSchemaResponseTransformer = (data: any) => {
     data = sokoBotTurnSchemaResponseTransformer(data);
     data.contextSnapshot = sokoBotContextSnapshotSchemaResponseTransformer(data.contextSnapshot);
-    data.toolCalls = data.toolCalls.map((item: any) => sokoBotToolCallSchemaResponseTransformer(item));
     return data;
 };
 

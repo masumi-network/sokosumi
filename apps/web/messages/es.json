@@ -5394,6 +5394,35 @@
           "send": "No se pudo enviar el mensaje.",
           "busy": "Tu Soko Bot sigue trabajando en el turno anterior. Detenlo o espera a que termine.",
           "cancel": "No se pudo detener el turno."
+        },
+        "explain": {
+          "toggle": "Explicar este turno",
+          "hide": "Ocultar explicación",
+          "loading": "Cargando…",
+          "error": "No se pudo cargar la explicación.",
+          "classified": "Clasificado como",
+          "confidence": "{percent}% de confianza",
+          "classifier": "{model} · {ms} ms",
+          "classifierFallback": "clasificador por reglas",
+          "classifierFailed": "el clasificador falló; turno de solo lectura",
+          "context": "Contexto proporcionado",
+          "contextLine": "{projects} proyectos · {tasks} Tasks · {coworkers} Coworkers · {agents} Agents · {jobs} Jobs · memoria v{memory} · {kb} KB",
+          "tools": "Herramientas permitidas",
+          "chain": "Qué ocurrió",
+          "said": "Dijo",
+          "reasoned": "Razonó",
+          "called": "Llamó a",
+          "result": "Resultado",
+          "failed": "Falló",
+          "approval": "Pidió aprobación",
+          "noChain": "No se registraron pasos para este turno.",
+          "usage": "Uso",
+          "usageLine": "{model} · {input} entrada / {output} salida · {cost} · {seconds}s",
+          "outcome": {
+            "COMPLETED": "Completado",
+            "FAILED": "Fallido",
+            "CANCELLED": "Cancelado"
+          }
         }
       },
       "Console": {

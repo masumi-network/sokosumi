@@ -5394,6 +5394,35 @@
           "send": "Could not send the message.",
           "busy": "Your Soko Bot is still working on the previous turn. Stop it or wait for it to finish.",
           "cancel": "Could not stop the turn."
+        },
+        "explain": {
+          "toggle": "Explain this turn",
+          "hide": "Hide explanation",
+          "loading": "Loading…",
+          "error": "Could not load the explanation.",
+          "classified": "Classified as",
+          "confidence": "{percent}% confident",
+          "classifier": "{model} · {ms} ms",
+          "classifierFallback": "rule-based classifier",
+          "classifierFailed": "classifier failed, fell back to a read-only turn",
+          "context": "Context given",
+          "contextLine": "{projects} projects · {tasks} tasks · {coworkers} coworkers · {agents} agents · {jobs} jobs · memory v{memory} · {kb} KB",
+          "tools": "Tools allowed",
+          "chain": "What happened",
+          "said": "Said",
+          "reasoned": "Reasoned",
+          "called": "Called",
+          "result": "Result",
+          "failed": "Failed",
+          "approval": "Asked for approval",
+          "noChain": "No steps were recorded for this turn.",
+          "usage": "Usage",
+          "usageLine": "{model} · {input} in / {output} out · {cost} · {seconds}s",
+          "outcome": {
+            "COMPLETED": "Completed",
+            "FAILED": "Failed",
+            "CANCELLED": "Cancelled"
+          }
         }
       },
       "Console": {

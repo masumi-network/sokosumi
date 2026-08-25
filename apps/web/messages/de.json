@@ -5394,6 +5394,35 @@
           "send": "Die Nachricht konnte nicht gesendet werden.",
           "busy": "Dein Soko Bot arbeitet noch am vorherigen Durchlauf. Stoppe ihn oder warte, bis er fertig ist.",
           "cancel": "Der Durchlauf konnte nicht gestoppt werden."
+        },
+        "explain": {
+          "toggle": "Diesen Durchlauf erklären",
+          "hide": "Erklärung ausblenden",
+          "loading": "Lädt…",
+          "error": "Die Erklärung konnte nicht geladen werden.",
+          "classified": "Eingestuft als",
+          "confidence": "{percent}% sicher",
+          "classifier": "{model} · {ms} ms",
+          "classifierFallback": "regelbasierter Klassifizierer",
+          "classifierFailed": "Klassifizierer fehlgeschlagen, Rückfall auf schreibgeschützten Durchlauf",
+          "context": "Bereitgestellter Kontext",
+          "contextLine": "{projects} Projekte · {tasks} Tasks · {coworkers} Coworker · {agents} Agents · {jobs} Jobs · Gedächtnis v{memory} · {kb} KB",
+          "tools": "Erlaubte Tools",
+          "chain": "Was passiert ist",
+          "said": "Sagte",
+          "reasoned": "Überlegte",
+          "called": "Rief auf",
+          "result": "Ergebnis",
+          "failed": "Fehlgeschlagen",
+          "approval": "Bat um Freigabe",
+          "noChain": "Für diesen Durchlauf wurden keine Schritte aufgezeichnet.",
+          "usage": "Verbrauch",
+          "usageLine": "{model} · {input} rein / {output} raus · {cost} · {seconds}s",
+          "outcome": {
+            "COMPLETED": "Abgeschlossen",
+            "FAILED": "Fehlgeschlagen",
+            "CANCELLED": "Abgebrochen"
+          }
         }
       },
       "Console": {
