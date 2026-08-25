@@ -366,7 +366,7 @@ When deleting or changing `useTranslations()` / `getTranslations()` usage or `ap
 
 ### Issue tracker
 
-Issues live in Linear (team "Sokosumi", key `SOK`). For all Linear work, run the `linear` CLI in the terminal. Follow [`.agents/skills/linear-cli/`](.agents/skills/linear-cli/) for flags, `--json`, and `linear api` fallback. Do not call Linear MCP tools (`linear__*`, `search_tool` for the `linear` server, `use_tool` with `linear__…`). If a Linear MCP tool is offered, ignore it and use `linear`. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
+Issues live in Linear (team "Sokosumi", key `SOK`). When `linear` is on PATH, run the CLI for all Linear work and ignore Linear MCP (`linear__*`). Follow [`.agents/skills/linear-cli/`](.agents/skills/linear-cli/) for flags, `--json`, and `linear api`. If `command -v linear` fails (cloud agents), use Linear MCP. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
 
 ### Triage labels
 

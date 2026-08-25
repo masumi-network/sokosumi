@@ -6,7 +6,7 @@ Creates or updates **one** Linear issue with `## Requirement`. No child issues.
 
 Only touch the fields documented here — no other Linear side effects.
 
-Use `linear`. CLI recipes and flags: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/). This file is Sokosumi requirement publish rules (team, project, approval, defaults). Ignore Linear MCP tools if this session exposes them. Pass `--no-interactive` on create. Prefer `--description-file` for markdown. Never print `LINEAR_API_KEY`.
+Use `linear` when it is on PATH. CLI recipes and flags: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/). This file is Sokosumi requirement publish rules (team, project, approval, defaults). Pass `--no-interactive` on create. Prefer `--description-file` for markdown. Never print `LINEAR_API_KEY`. If `command -v linear` fails, stop using this file and follow `LINEAR-MCP.md`.
 
 ## Defaults
 
@@ -63,9 +63,9 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 ## Hard rules
 
-- Use the `linear` CLI only. No Linear MCP, browser automation, curl, or Linear REST.
+- Use the `linear` CLI on this path. No browser automation, curl, or Linear REST.
 - `linear api` is GraphQL fallback for fields a typed command does not expose — not a substitute for create/update.
-- Stop if `linear` is missing or unauthenticated.
+- If `linear` is missing (cloud agents), switch to `LINEAR-MCP.md`. Do not use MCP while `linear` is on PATH.
 - **Never create or update before user approval.**
 - **Never create without `--project`** — same rule as `--state` and `--priority` on create.
 - **Never pass `--assignee` on create** unless the user explicitly requested one.
@@ -74,13 +74,9 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 Run **before** any Linear write (after user approval):
 
-1. `command -v linear`
-2. `linear team list` (proves auth; `.linear.toml` + `LINEAR_API_KEY` or `linear auth login`)
-3. If either fails, stop and tell the user:
-
-   ```text
-   linear CLI is not available. Install schpet/linear-cli (`brew install schpet/tap/linear`) and authenticate (`LINEAR_API_KEY` or `linear auth login`), then retry. Do not file the issue via Linear MCP, browser, curl, or the Linear REST API.
-   ```
+1. `command -v linear`. If it fails (cloud agents), stop this file and follow `LINEAR-MCP.md`.
+2. `linear team list` (proves auth; `.linear.toml` + `LINEAR_API_KEY` or `linear auth login`).
+3. If `linear` is present but `linear team list` fails, stop and tell the user to authenticate (`LINEAR_API_KEY` or `linear auth login`). Do not fall back to MCP when the binary is installed.
 
 ## Resolution order (create only)
 

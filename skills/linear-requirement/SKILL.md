@@ -18,7 +18,7 @@ You are the **requirement agent**. Turn a rough feature, bug, or improvement int
 
 **Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write.
 
-After the issue exists (or is updated), stop. Do not start `/to-spec` or `/implement` in this session. Only touch the requirement issue fields listed in `LINEAR-CLI.md` — no other Linear side effects.
+After the issue exists (or is updated), stop. Do not start `/to-spec` or `/implement` in this session. Only touch the requirement issue fields listed in `LINEAR-CLI.md` (or `LINEAR-MCP.md` when the CLI is missing) — no other Linear side effects.
 
 ```mermaid
 flowchart LR
@@ -54,18 +54,18 @@ Do not ask for the Linear project by default.
    - Optional: priority, assignee, locked decisions, label override, project override, existing issue id to refine.
    - Track **publish target**: `create` (default) or `update:SOK-XXX`.
    - If intake is vague, ask **one** clarifying question and wait.
-   - If intake names an existing Linear issue to refine, load with `linear issue view SOK-XXX --json --no-pager --no-download`, set publish target to `update:SOK-XXX`, and treat the body as raw input — not approved yet.
+   - If intake names an existing Linear issue to refine, load it (`linear issue view SOK-XXX --json --no-pager --no-download`, or `get_issue` if `linear` is missing), set publish target to `update:SOK-XXX`, and treat the body as raw input — not approved yet.
 
 2. **Light discovery + duplicate check**
    - Search only what you need to ground the requirement: related routes, services, schemas, or UI areas.
    - Read scoped `AGENTS.md` when the area is clear.
-   - If `linear` is available and publish target is still `create`, run a **duplicate search** before drafting:
+   - If publish target is still `create`, run a **duplicate search** before drafting:
      1. Build 2–5 keywords from the problem (product area + symptom/goal).
-     2. `linear issue query --team SOK --project sokosumi-6357694ddd23 --search "<keywords>" --limit 5 --json --no-pager`
+     2. CLI: `linear issue query --team SOK --project sokosumi-6357694ddd23 --search "<keywords>" --limit 5 --json --no-pager`. If `linear` is missing: `list_issues` filtered to team `SOK` / project Sōkosumi.
      3. Show up to **5** closest hits (id, title, state, URL).
      4. Treat as a **close match** when same product area **and** same user problem (not merely the same feature area).
      5. If any close match exists, ask: **update that issue**, **file a new one**, or **stop**.
-     6. If the user picks an issue to update, set publish target to `update:SOK-XXX` immediately and load it with `linear issue view SOK-XXX --json --no-pager --no-download` before drafting.
+     6. If the user picks an issue to update, set publish target to `update:SOK-XXX` immediately and load it (`linear issue view` or `get_issue`) before drafting.
    - Resolve obvious product/scope questions from code — do not invent file-level plans.
    - Keep notes short. No research report.
 
@@ -94,17 +94,16 @@ Do not ask for the Linear project by default.
      Reply with edits to revise the draft.
      ```
 
-   - **Stop.** Do not run `linear` writes until the user approves.
+   - **Stop.** Do not run Linear writes (`linear` or MCP) until the user approves.
    - On edits: revise and show the draft again. Repeat until approved.
 
 5. **Publish (only after approval)**
-   - Read `LINEAR-CLI.md`.
-   - Run CLI health check before any write.
-   - **Create** (publish target `create`): `linear issue create` with **all** required create flags — always include `--project sokosumi-6357694ddd23` when the user did not override project (do not skip it; do not use `"Sokosumi"`).
-   - **Update** (publish target `update:SOK-XXX`): follow **Update existing issue** in `LINEAR-CLI.md` — merge `## Requirement`, optional title/labels (preserve non-type labels); **do not** reset `state` (or other workflow fields) to create defaults.
-   - After write, run post-write verify in `LINEAR-CLI.md`.
+   - If `command -v linear` succeeds, read `LINEAR-CLI.md` and run its health check. If `linear` is missing (cloud agents), read `LINEAR-MCP.md` and run its MCP health check.
+   - **Create** (publish target `create`): CLI `linear issue create` or MCP `save_issue` with **all** required create fields — always include project `sokosumi-6357694ddd23` when the user did not override it (do not skip it; do not use `"Sokosumi"`).
+   - **Update** (publish target `update:SOK-XXX`): follow **Update existing issue** in the file you opened — merge `## Requirement`, optional title/labels (preserve non-type labels); **do not** reset `state` to create defaults.
+   - After write, run post-write verify in that same file.
    - Return issue id/URL, label, project, assignee, priority, and state.
-   - If `linear` is missing or unauthenticated, say so. Do not use Linear MCP, browser automation, curl, or Linear REST.
+   - If both `linear` and Linear MCP are unavailable, return the approved draft and say so. Do not use browser automation, curl, or Linear REST.
 
 ## Writing style
 
@@ -137,5 +136,6 @@ Decision order:
 ## Supporting files
 
 - `REQUIREMENT-TEMPLATE.md` — requirement body shape.
-- `LINEAR-CLI.md` — create/update issue after approval (Sokosumi fields).
+- `LINEAR-CLI.md` — create/update after approval when `linear` is on PATH.
+- `LINEAR-MCP.md` — create/update after approval when `linear` is missing (cloud agents).
 - `.agents/skills/linear-cli/` — CLI flags and recipes.

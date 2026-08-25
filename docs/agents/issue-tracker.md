@@ -1,12 +1,12 @@
 # Issue tracker: Linear
 
-Issues and PRDs for this repo live in **Linear**, team **Sokosumi** (issue key `SOK`). Use the `linear` CLI for all operations.
+Issues and PRDs for this repo live in **Linear**, team **Sokosumi** (issue key `SOK`).
 
-Do not call Linear MCP tools (`linear__*`, `search_tool` for the `linear` server, `use_tool` with `linear__…`). If a Linear MCP tool is offered, ignore it and use `linear`.
+**CLI first.** When `linear` is on PATH, use it for all operations and ignore Linear MCP (`linear__*`). Command catalog: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/).
 
-Command catalog: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/) (flags, `--json`, `--description-file`, `linear api`). This file is Sokosumi conventions (team, project, states, branch names).
+**MCP fallback (cloud agents).** If `command -v linear` fails, use Linear MCP. Inspect live schemas. Requirement writes: [`skills/linear-requirement/LINEAR-MCP.md`](../../skills/linear-requirement/LINEAR-MCP.md). Do not use MCP when the CLI is present. Do not use browser, curl, or Linear REST.
 
-Repo config: [`.linear.toml`](../../.linear.toml) (`workspace = "masumi"`, `team_id = "SOK"`). Auth: `LINEAR_API_KEY` in the environment, or `linear auth login`. Never print the API key. `linear api` is the GraphQL fallback when a typed command does not expose a field — not curl, browser, or Linear REST.
+Repo config: [`.linear.toml`](../../.linear.toml) (`workspace = "masumi"`, `team_id = "SOK"`). CLI auth: `LINEAR_API_KEY` or `linear auth login`. Never print the API key. `linear api` is the GraphQL fallback when a typed CLI command does not expose a field.
 
 ## Conventions
 
@@ -38,4 +38,4 @@ Create a Linear issue in the Sokosumi team (`--team SOK`).
 
 ## When a skill says "fetch the relevant ticket"
 
-`linear issue view <id> --json --no-pager --no-download`.
+`linear issue view <id> --json --no-pager --no-download`. If `linear` is not on PATH, `get_issue` plus `list_comments`.
