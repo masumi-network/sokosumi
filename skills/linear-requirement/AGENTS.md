@@ -12,7 +12,7 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 - `disable-model-invocation: true` — load only when the user names this skill or explicitly asks to draft/file a Linear requirement. Never auto-start from implement context.
 - Canonical files: `skills/linear-requirement/`. Install into agent skill dirs with `npx skills add . --skill linear-requirement`.
-- If Linear MCP is unavailable after approval, return the approved draft and say what to reload.
+- If Linear MCP is unavailable after approval, return the approved draft and say Linear MCP is not loaded in this agent.
 
 ## Output rule
 

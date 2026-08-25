@@ -339,7 +339,7 @@ Do **not** invent or file Linear issues during implement work. Filing a new requ
 
 ### Translations
 
-When deleting or changing `useTranslations()` usage or `apps/web/messages/*.json` keys, follow [`skills/translations/`](./skills/translations/).
+When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`skills/translations/`](./skills/translations/).
 
 ### Issue tracker
 

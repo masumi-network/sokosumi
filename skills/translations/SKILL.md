@@ -1,6 +1,6 @@
 ---
 name: translations
-description: Clean up and keep next-intl translation keys in sync when code or messages change. Use when deleting or modifying code that uses useTranslations(), when adding/removing/renaming keys in messages/en.json, or when working with messages/*.json locale files.
+description: Use when deleting or modifying code that uses useTranslations() or getTranslations(), when adding/removing/renaming keys in messages/en.json, or when working with messages/*.json locale files.
 ---
 
 # Translation Cleanup (next-intl)
@@ -15,6 +15,8 @@ When code that uses translations is deleted or modified, check for and remove un
 
 Parity: `pnpm --filter web messages:parity` (write: `messages:parity:write`). Wired into web `test`.
 
+`apps/web/messages/hermes-translations/` is a `de`/`es` overlay pack for `scripts/apply-hermes-i18n.mjs`, not a locale catalog. Do not add keys there instead of `en`/`de`/`es`.
+
 ## Client message bags
 
 Layouts nest `ClientMessageBoundary` so clients get a picked subset (`pickMessages` + `message-namespaces.ts`), not the full catalog. Server `getTranslations` still uses the full request catalog.
@@ -23,37 +25,41 @@ Bags: `GLOBAL`, `AUTH`, `APP` (no Hermes/Admin), nested `HERMES`/`ADMIN` (`APP_S
 
 ## Translation Usage Patterns
 
-Translations are accessed via `useTranslations()`:
+Client components: `useTranslations()`. Server components / metadata: `getTranslations()` from `next-intl/server`. Both resolve the same key paths in `messages/en.json`.
 
 ```typescript
-const t = useTranslations('Components.CookieConsent');
-return <h1>{t('title')}</h1>; // → "Components.CookieConsent.title"
+const t = useTranslations("CookieConsent");
+return <h1>{t("title")}</h1>; // → CookieConsent.title
+```
+
+```typescript
+const t = await getTranslations("Share.Metadata");
 ```
 
 Nested paths:
 
 ```typescript
-const t = useTranslations('Components');
-return <h1>{t('CookieConsent.title')}</h1>; // → "Components.CookieConsent.title"
+const t = useTranslations("Components");
+return <h1>{t("ShareButton.share")}</h1>; // → Components.ShareButton.share
 ```
 
 ## Cleanup When Code is Deleted
 
-1. **Identify deleted usage**: From deleted code, find `useTranslations(` and all `t('key')` / `t('nested.key')` and map to full keys in `messages/en.json`.
-2. **Check if keys are still used**: Search the codebase for each key (full path, and namespace + key, e.g. `CookieConsent.title` with `Components`).
+1. **Identify deleted usage**: From deleted code, find `useTranslations(` / `getTranslations(` and all `t('key')` / `t('nested.key')` and map to full keys in `messages/en.json`.
+2. **Check if keys are still used**: Search the codebase for each key (full path, and namespace + key, e.g. `ShareButton.share` with `Components`).
 3. **Remove unused keys**: Remove from `messages/en.json`, then remove empty parent objects. Preserve JSON structure.
 
 ### Key search patterns
 
-- `useTranslations('Components.CookieConsent')` + `t('title')` → `Components.CookieConsent.title`
-- `useTranslations('Components')` + `t('CookieConsent.title')` → `Components.CookieConsent.title`
-- Direct string: `'Components.CookieConsent.title'`
+- `useTranslations("CookieConsent")` or `getTranslations("CookieConsent")` + `t("title")` → `CookieConsent.title`
+- `useTranslations("Components")` + `t("ShareButton.share")` → `Components.ShareButton.share`
+- Direct string: `"CookieConsent.title"`
 
 ### Example
 
-After deleting a component that used `Components.CookieConsent.title`:
+After deleting a component that used `CookieConsent.title`:
 
-1. Search for `Components.CookieConsent.title` and `CookieConsent.title` (with `Components` namespace). If no matches, remove the key from `messages/en.json`.
+1. Search for `CookieConsent.title` and `t("title")` next to a `CookieConsent` namespace. If no matches, remove the key from `messages/en.json`.
 2. If the whole `CookieConsent` object is unused, remove it; remove empty parent objects as needed.
 
 ## When `messages/en.json` Keys Change
@@ -119,16 +125,13 @@ After changes:
 
 ```bash
 # Find translation usages
-grep -r "useTranslations" apps/web/src --include="*.tsx" --include="*.ts"
-
-# Check key in JSON (jq)
-jq 'has("Components.CookieConsent.title")' apps/web/messages/en.json
+grep -rE "useTranslations|getTranslations" apps/web/src --include="*.tsx" --include="*.ts"
 
 # List all keys
 jq -r 'paths(scalars) as $p | $p | join(".")' apps/web/messages/en.json
 
 # Spot-check one key across locales (replace KEY path)
-KEY='App.Organizations.OrganizationDetail.Subscription.exampleKey'
+KEY='CookieConsent.title'
 for locale in de es; do
   echo "$locale: $(jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/$locale.json)"
 done

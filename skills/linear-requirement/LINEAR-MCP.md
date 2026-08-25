@@ -6,6 +6,8 @@ Creates or updates **one** Linear issue with `## Requirement`. No child issues.
 
 Only touch the fields documented here — no other Linear side effects.
 
+Call Linear tools by whatever qualified name **this session** exposes (`save_issue`, `linear__save_issue`, `mcp__…__save_issue`, and the matching `get_issue` / `list_issues` / `get_user` names). Inspect the live input schema before each call. Pass the fields below; omit harness wrapper keys (`server`, `toolName`) unless this session’s schema requires them.
+
 ## Defaults
 
 ```typescript
@@ -51,16 +53,17 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 1. `get_issue` immediately before write — `save_issue` **replaces** the entire `description` when `description` is sent.
 2. Start from the full current description. Replace or insert `## Requirement` with the approved body. Preserve any other sections already on the issue.
-3. Call `save_issue` with `id` + merged `description`. Also set `title` and/or `labels` when the approved draft changed them.
-4. Set `priority`, `assignee`, or `project` **only** when the user explicitly overrode them in the approved draft.
-5. **Never set `state` on update** unless the user explicitly asked to change state. Do **not** reset `In Progress` / `In Review` / etc. to `Triage` because that is the create default.
-6. Do **not** create a second issue.
+3. Call `save_issue` with `id` + merged `description`. Also set `title` when the approved draft changed it.
+4. `labels` **replaces the full set**. If the type label (`Feature` / `Bug` / `Improvement`) changed, send that type label **plus every existing label that is not one of those three**. Omit `labels` when the type label is unchanged.
+5. Set `priority`, `assignee`, or `project` **only** when the user explicitly overrode them in the approved draft.
+6. **Never set `state` on update** unless the user explicitly asked to change state. Do **not** reset `In Progress` / `In Review` / etc. to `Triage` because that is the create default.
+7. Do **not** create a second issue.
 
 ## Hard rules
 
 - Use MCP only. No browser automation, curl, or raw API.
 - Inspect Linear tool descriptors before write calls.
-- Never call a write tool without a complete `arguments` object.
+- Never call a write tool without a complete arguments object matching the live schema.
 - Stop if Linear MCP is not loaded.
 - **Never create or update before user approval.**
 - **Never create without `project`** — same rule as `state` and `priority` on create.
@@ -70,16 +73,16 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 Run **before** any Linear write (after user approval):
 
-1. Inspect Linear MCP tool schemas (e.g. via `GetMcpTools` for the Linear server).
-2. If tools are missing or `CallMcpTool` reports the server does not exist, stop and tell the user:
+1. List this session’s Linear tools and read the `save_issue` / `get_issue` schemas.
+2. If those tools are missing, stop and tell the user:
 
    ```text
-   Linear MCP is not loaded in this agent. In Cursor: Settings → MCP → enable `linear` (server id `user-linear`), then reload MCP servers. For Cloud Agents, open the agent run → MCP/tools → enable Linear for that agent (first delegated run often needs this once).
+   Linear MCP is not loaded in this agent. Enable the Linear MCP server for this session, then retry. Do not file the issue via browser, curl, or the Linear REST API.
    ```
 
 3. Optional smoke test: `get_user` with `{ "query": "me" }` to confirm auth before `save_issue`.
 
-Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issue_labels`, `list_issues` / search, `get_user`, `get_issue`, `save_issue`, `save_comment`.
+Expected tool **names** (harness prefix may differ): `list_teams`, `list_projects`, `list_issue_statuses`, `list_issue_labels`, `list_issues`, `get_user`, `get_issue`, `save_issue`, `save_comment`.
 
 ## Resolution order (create only)
 
@@ -101,42 +104,36 @@ Immediately after create or update:
    - assignee set and user did **not** request one → `"assignee": null`
    - state not `Triage` → `"Triage"`
    - priority not Medium (`3`) → `3`
-3. **Update:** do **not** patch state/assignee/priority/project back to create defaults. Only confirm `## Requirement` (and approved title/labels) landed.
+3. **Update:** do **not** patch state/assignee/priority/project back to create defaults. Only confirm `## Requirement` (and approved title/labels) landed. If labels were sent, confirm non-type labels (e.g. `ready-for-agent`, `needs-info`) are still present.
 4. Return the issue id and URL.
 
-## Write-call shape (create)
+## Write-call arguments (create)
+
+Pass these fields to this session’s `save_issue` tool:
 
 ```json
 {
-  "server": "user-linear",
-  "toolName": "save_issue",
-  "arguments": {
-    "title": "History view for past agent jobs",
-    "description": "## Requirement\n\n**Problem:** …",
-    "team": "SOK",
-    "project": "sokosumi-6357694ddd23",
-    "state": "Triage",
-    "priority": 3,
-    "labels": ["Feature"]
-  }
+  "title": "History view for past agent jobs",
+  "description": "## Requirement\n\n**Problem:** …",
+  "team": "SOK",
+  "project": "sokosumi-6357694ddd23",
+  "state": "Triage",
+  "priority": 3,
+  "labels": ["Feature"]
 }
 ```
 
-## Write-call shape (update)
+## Write-call arguments (update)
 
 ```json
 {
-  "server": "user-linear",
-  "toolName": "save_issue",
-  "arguments": {
-    "id": "SOK-XXX",
-    "title": "History view for past agent jobs",
-    "description": "## Requirement\n\n**Problem:** …\n\n## Other preserved section\n…"
-  }
+  "id": "SOK-XXX",
+  "title": "History view for past agent jobs",
+  "description": "## Requirement\n\n**Problem:** …\n\n## Other preserved section\n…"
 }
 ```
 
-Omit `state` on update unless the user explicitly asked to change it. Include `labels` / `priority` / `assignee` / `project` only when the approved draft overrode them.
+Omit `state` on update unless the user explicitly asked to change it. Include `labels` only when the type label changed, and then send the full preserved set (see **Update existing issue**). Include `priority` / `assignee` / `project` only when the approved draft overrode them.
 
 ## Description body
 
@@ -147,4 +144,4 @@ Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, or verification c
 ## Post-write
 
 1. Return issue identifier and URL.
-2. Stop.
+2. Stop. Do not start `/to-spec`, `/implement`, or any other engineering flow in this session.

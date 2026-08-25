@@ -18,7 +18,7 @@ You are the **requirement agent**. Turn a rough feature, bug, or improvement int
 
 **Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write.
 
-After the issue exists (or is updated), stop. Only touch the requirement issue fields listed in `LINEAR-MCP.md` — no other Linear side effects.
+After the issue exists (or is updated), stop. Do not start `/to-spec` or `/implement` in this session. Only touch the requirement issue fields listed in `LINEAR-MCP.md` — no other Linear side effects.
 
 ```mermaid
 flowchart LR
@@ -101,11 +101,11 @@ Do not ask for the Linear project by default.
    - Read `LINEAR-MCP.md`.
    - Run MCP health check before any write.
    - **Create** (publish target `create`): `save_issue` with **all** required create fields — always include `project: "sokosumi-6357694ddd23"` when the user did not override project (do not skip it; do not use `"Sokosumi"`).
-   - **Update** (publish target `update:SOK-XXX`): follow **Update existing issue** in `LINEAR-MCP.md` — merge `## Requirement`, optional title/labels; **do not** reset `state` (or other workflow fields) to create defaults.
+   - **Update** (publish target `update:SOK-XXX`): follow **Update existing issue** in `LINEAR-MCP.md` — merge `## Requirement`, optional title/labels (preserve non-type labels); **do not** reset `state` (or other workflow fields) to create defaults.
    - After write, run post-write verify in `LINEAR-MCP.md`.
-   - Read MCP tool descriptors before any call.
+   - Read this session’s Linear MCP tool descriptors before any call. Use the live qualified tool names.
    - Return issue id/URL, label, project, assignee, priority, and state.
-   - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
+   - If Linear MCP is unavailable, say it is not loaded in this agent. Do not use browser automation or raw API fallback.
 
 ## Writing style
 
