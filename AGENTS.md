@@ -335,11 +335,11 @@ When the caveman skill is present, follow it for all replies. Off: "stop caveman
 
 Inside that flow, ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
 
-Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`skills/linear-requirement/`](./skills/linear-requirement/) (`disable-model-invocation`).
+Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`.agents/skills/linear-requirement/`](./.agents/skills/linear-requirement/) (`disable-model-invocation`).
 
 ### Translations
 
-When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`skills/translations/`](./skills/translations/).
+When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`.agents/skills/translations/`](./.agents/skills/translations/).
 
 ### Issue tracker
 

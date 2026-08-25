@@ -157,6 +157,12 @@
       "skillPath": "skills/finishing-a-development-branch/SKILL.md",
       "computedHash": "4f571e7befb8b0946d9d7770232c818812412e9ab1dfb811f847edfba1fc6275"
     },
+    "gh-stack": {
+      "source": "github/gh-stack",
+      "sourceType": "github",
+      "skillPath": "skills/gh-stack/SKILL.md",
+      "computedHash": "213d3fe0b3dc87b453912b5a5947fd189a884e4a82ce41fe8ce6c16fb93cd8b3"
+    },
     "git-guardrails-claude-code": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -216,6 +222,11 @@
       "sourceType": "github",
       "skillPath": "skills/lean-build/SKILL.md",
       "computedHash": "6074721f1653e6e9d6381595b094284807b8d5d001d7d3977ec534679b16a63c"
+    },
+    "linear-requirement": {
+      "source": ".",
+      "sourceType": "local",
+      "computedHash": "ee5bae09a88e18979b72e33e6aa6277f00e46faf3c5187f91be423ef80fe1f95"
     },
     "loop-me": {
       "source": "mattpocock/skills",
@@ -354,6 +365,11 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/to-tickets/SKILL.md",
       "computedHash": "bf5e6ebcb4f1272de0c188d5b3901f265a03d1fa9935a21a7a56938e21e2e761"
+    },
+    "translations": {
+      "source": ".",
+      "sourceType": "local",
+      "computedHash": "5aae80c2c770122efa95f0d495ddff4389931ecb97f08956266d2b6c74e44b23"
     },
     "triage": {
       "source": "mattpocock/skills",
