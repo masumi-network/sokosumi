@@ -6,7 +6,7 @@ import {
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { forbidden } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -124,7 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { scope, organizationId, projectId, taskId, assigneeId } =
       queryParams;
-    const { cursor, take } = parseCursorPagination(queryParams);
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
@@ -171,33 +171,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (taskId) {
       await requireTaskReadForRouteVars(c.var, taskId);
 
-      const [taskFiles, taskFileCount] = await Promise.all([
-        prisma.taskFile.findMany({
-          where: {
-            taskId,
-            ...DRIVE_TASK_FILE_WHERE,
-          },
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        }),
-        prisma.taskFile.count({
-          where: {
-            taskId,
-            ...DRIVE_TASK_FILE_WHERE,
-          },
-        }),
-      ]);
+      const taskFileWhere = {
+        taskId,
+        ...DRIVE_TASK_FILE_WHERE,
+      };
 
-      // Apply cursor pagination
-      let startIndex = 0;
       if (cursor) {
-        const cursorIndex = taskFiles.findIndex((f) => f.id === cursor);
-        if (cursorIndex >= 0) {
-          startIndex = cursorIndex + 1; // Skip cursor item
+        const cursorFile = await prisma.taskFile.findFirst({
+          where: {
+            id: cursor,
+            ...taskFileWhere,
+          },
+          select: { id: true },
+        });
+        if (!cursorFile) {
+          throw badRequest("Invalid pagination cursor");
         }
       }
 
-      const pagedFiles = taskFiles.slice(startIndex, startIndex + take);
-      const hasMore = startIndex + take < taskFiles.length;
+      const takePlusOne = take + 1;
+      const [taskFiles, taskFileCount] = await Promise.all([
+        prisma.taskFile.findMany({
+          where: taskFileWhere,
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        }),
+        prisma.taskFile.count({
+          where: taskFileWhere,
+        }),
+      ]);
+
+      const hasMore = taskFiles.length === takePlusOne;
+      const pagedFiles = taskFiles.slice(0, take);
 
       const items: DriveTasksListItem[] = pagedFiles
         .map((file) => {

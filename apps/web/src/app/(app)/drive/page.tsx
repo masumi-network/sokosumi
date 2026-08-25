@@ -507,6 +507,7 @@ function DrivePageWorkspace({
     loadTasksAbortRef.current?.abort();
     loadMoreTasksAbortRef.current?.abort();
     loadMoreTasksAbortRef.current = null;
+    setTasksLoadingMore(false);
     const controller = new AbortController();
     loadTasksAbortRef.current = controller;
 

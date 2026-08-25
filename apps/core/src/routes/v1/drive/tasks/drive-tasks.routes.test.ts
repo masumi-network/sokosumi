@@ -336,6 +336,8 @@ describe("Drive Tasks Routes", () => {
               taskId,
               ...DRIVE_TASK_FILE_WHERE,
             },
+            take: expect.any(Number),
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
           }),
         );
       });
@@ -362,7 +364,8 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaTaskFileFindFirstMock.mockResolvedValue({ id: "tf_1" });
+        prismaTaskFileFindManyMock.mockResolvedValue([files[1]]);
         prismaTaskFileCountMock.mockResolvedValue(2);
 
         const app = createDriveTasksApp();
@@ -374,6 +377,26 @@ describe("Drive Tasks Routes", () => {
         const json = await res.json();
         expect(json.data).toHaveLength(1);
         expect(json.data[0]).toMatchObject({ id: "tf_2" });
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            take: 2,
+            skip: 1,
+            cursor: { id: "tf_1" },
+          }),
+        );
+      });
+
+      it("returns 400 for an invalid pagination cursor", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+        prismaTaskFileFindFirstMock.mockResolvedValue(null);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
+        expect(prismaTaskFileFindManyMock).not.toHaveBeenCalled();
       });
     });
 
