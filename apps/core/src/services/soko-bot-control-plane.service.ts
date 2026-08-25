@@ -447,24 +447,35 @@ function safeEventProjection(type: string, data: Record<string, unknown>) {
     const input = safeEventJson(
       action?.input ?? action?.args ?? action?.arguments,
     );
+    const pick = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = action?.[key];
+        if (typeof value === "string" && value) return value;
+      }
+      return undefined;
+    };
+    const toolName = pick("name", "toolName", "tool");
     return {
-      summary:
-        typeof action?.name === "string"
-          ? `Requested ${action.name}`
-          : "Requested action",
+      summary: toolName ? `Requested ${toolName}` : "Requested action",
       payload: input ? jsonInput({ input }) : undefined,
-      toolName: typeof action?.name === "string" ? action.name : undefined,
-      toolCallId:
-        typeof action?.callId === "string" ? action.callId : undefined,
+      toolName,
+      toolCallId: pick("callId", "toolCallId", "id"),
       toolStatus: "requested",
     };
   }
   if (type === "action.result") {
+    const pick = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = data[key];
+        if (typeof value === "string" && value) return value;
+      }
+      return undefined;
+    };
     return {
       summary: "Action completed",
       payload: undefined,
-      toolName: typeof data.name === "string" ? data.name : undefined,
-      toolCallId: typeof data.callId === "string" ? data.callId : undefined,
+      toolName: pick("name", "toolName", "tool"),
+      toolCallId: pick("callId", "toolCallId", "id"),
       toolStatus: "completed",
     };
   }

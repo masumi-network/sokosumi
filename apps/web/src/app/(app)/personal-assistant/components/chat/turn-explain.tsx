@@ -70,6 +70,24 @@ function buildChain(turn: ChatTurnDetail): ChainItem[] {
   return items;
 }
 
+/** Tool inputs are stored as JSON text; show them as readable key: value lines. */
+function prettyInput(input: string): string {
+  try {
+    const value = JSON.parse(input) as unknown;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return Object.entries(value as Record<string, unknown>)
+        .map(
+          ([key, entry]) =>
+            `${key}: ${typeof entry === "string" ? entry : JSON.stringify(entry)}`,
+        )
+        .join("\n");
+    }
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return input;
+  }
+}
+
 function summarizeResult(call: ChatToolCall): string | null {
   if (call.errorKind)
     return `${call.errorKind}${call.errorDetail ? `: ${call.errorDetail}` : ""}`;
@@ -232,8 +250,8 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                     {toolLabel(item.toolName)}
                   </span>
                   {item.input ? (
-                    <pre className="text-muted-foreground mt-1 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs">
-                      {item.input}
+                    <pre className="text-muted-foreground mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs">
+                      {prettyInput(item.input)}
                     </pre>
                   ) : null}
                   {result ? (
