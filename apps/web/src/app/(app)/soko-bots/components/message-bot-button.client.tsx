@@ -6,33 +6,50 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
+import { Button } from "@/components/ui/button";
 
 /** Opens (or creates) the direct room with a Soko Bot's chat coworker. */
 export function MessageBotButton({
   coworkerId,
   label,
   errorLabel,
+  variant = "link",
 }: {
   coworkerId: string;
   label: string;
   errorLabel: string;
+  variant?: "link" | "button";
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const open = () =>
+    startTransition(async () => {
+      const result = await ensureCoworkerDirectRoomAction(coworkerId);
+      if (!result.ok || !result.value) {
+        toast.error(errorLabel);
+        return;
+      }
+      router.push(`/chat/rooms/${encodeURIComponent(result.value.id)}`);
+    });
+  if (variant === "button") {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={isPending}
+        onClick={open}
+      >
+        <MessageSquare aria-hidden className="size-3.5" />
+        {label}
+      </Button>
+    );
+  }
   return (
     <button
       type="button"
       disabled={isPending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await ensureCoworkerDirectRoomAction(coworkerId);
-          if (!result.ok || !result.value) {
-            toast.error(errorLabel);
-            return;
-          }
-          router.push(`/chat/rooms/${encodeURIComponent(result.value.id)}`);
-        })
-      }
+      onClick={open}
       className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs disabled:opacity-60"
     >
       <MessageSquare aria-hidden className="size-3" />

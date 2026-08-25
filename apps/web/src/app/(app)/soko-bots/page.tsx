@@ -6,13 +6,13 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 import { TeamChart } from "./components/team-chart";
+import { YourSokoBots } from "./components/your-soko-bots";
 
 export const metadata: Metadata = { title: "Soko Bots" };
 
 /**
- * The org chart of the current workspace: every person and the Soko Bot
- * they built. Today that is one Personal Assistant per person; more kinds
- * of Soko Bots will hang off the same tree.
+ * Your own Soko Bots first (create or open), then the team chart: every
+ * person in the workspace and the Soko Bot they built.
  */
 export default async function SokoBotsPage() {
   await getSessionOrRedirect();
@@ -23,9 +23,10 @@ export default async function SokoBotsPage() {
       throw error;
     }),
   ]);
+  const me = team?.members.find((member) => member.isYou) ?? null;
 
   return (
-    <div className="w-full space-y-6 px-4 py-4 lg:px-6">
+    <div className="w-full space-y-8 px-4 py-4 lg:px-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground max-w-2xl text-sm">
@@ -33,7 +34,20 @@ export default async function SokoBotsPage() {
         </p>
       </div>
       {team ? (
-        <TeamChart team={team} />
+        <>
+          <YourSokoBots me={me} />
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-base font-semibold">{t("teamTitle")}</h2>
+              <p className="text-muted-foreground text-sm">
+                {team.workspace.kind === "organization"
+                  ? t("teamDescription")
+                  : t("teamDescriptionPersonal")}
+              </p>
+            </div>
+            <TeamChart team={team} />
+          </section>
+        </>
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
       )}

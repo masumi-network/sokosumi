@@ -5527,7 +5527,16 @@
       "openChat": "Chat öffnen",
       "messageAssistant": "Anschreiben",
       "moreComing": "Weitere Arten von Soko Bots folgen bald",
-      "chatError": "Der Chat konnte nicht geöffnet werden."
+      "chatError": "Der Chat konnte nicht geöffnet werden.",
+      "yoursTitle": "Deine Soko Bots",
+      "yourAssistantBlurb": "Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden.",
+      "manage": "Öffnen",
+      "createAssistantBlurb": "Ein KI-Projektmanager, der in Sokosumi für dich arbeitet.",
+      "createNow": "Jetzt einrichten",
+      "moreTitle": "Weitere Arten von Soko Bots",
+      "teamTitle": "Team",
+      "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
+      "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen."
     }
   },
   "Share": {

@@ -785,6 +785,7 @@ app.openapi(teamRoute, async (c) => {
       where: { id: workspace.organizationId },
       select: {
         name: true,
+        logo: true,
         members: {
           orderBy: { createdAt: "asc" },
           select: { role: true, user: { select: userSelect } },
@@ -799,6 +800,7 @@ app.openapi(teamRoute, async (c) => {
           id: workspace.workspaceId,
           kind: "organization",
           name: organization.name,
+          logo: organization.logo,
         },
         members: organization.members.map((member) => ({
           userId: member.user.id,
@@ -823,6 +825,7 @@ app.openapi(teamRoute, async (c) => {
         id: workspace.workspaceId,
         kind: "personal",
         name: user.name,
+        logo: user.image,
       },
       members: [
         {

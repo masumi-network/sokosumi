@@ -1,4 +1,4 @@
-import { Bot, Building2, Plus, User } from "lucide-react";
+import { Building2, ChevronRight, Plus, User } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -93,9 +93,13 @@ async function BotNode({ member }: { member: Member }) {
       {member.isYou ? (
         <Link
           href={SOKO_BOT_ROUTE}
-          className="hover:bg-muted/40 flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors"
+          className="hover:bg-muted/40 group flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors"
         >
           {body}
+          <ChevronRight
+            aria-hidden
+            className="text-muted-foreground group-hover:text-foreground size-4 shrink-0"
+          />
         </Link>
       ) : (
         <div className="flex items-center gap-3 px-3 py-3 text-sm">{body}</div>
@@ -153,15 +157,6 @@ async function PersonNode({ member }: { member: Member }) {
       </div>
       <Stem />
       <BotNode member={member} />
-      {member.isYou ? (
-        <>
-          <Stem />
-          <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs">
-            <Bot aria-hidden className="size-3.5 shrink-0" />
-            {t("moreComing")}
-          </div>
-        </>
-      ) : null}
     </li>
   );
 }
@@ -175,13 +170,22 @@ export async function TeamChart({ team }: { team: SokoBotTeam }) {
   return (
     <div className="space-y-0">
       <div className="bg-background inline-flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
-        <span className="bg-muted text-muted-foreground inline-flex size-9 items-center justify-center rounded-full">
-          {team.workspace.kind === "organization" ? (
-            <Building2 aria-hidden className="size-4" />
-          ) : (
-            <User aria-hidden className="size-4" />
-          )}
-        </span>
+        {team.workspace.logo ? (
+          <img
+            src={team.workspace.logo}
+            alt=""
+            className="ring-border/40 size-9 shrink-0 rounded-full object-cover ring-1"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="bg-muted text-muted-foreground inline-flex size-9 items-center justify-center rounded-full">
+            {team.workspace.kind === "organization" ? (
+              <Building2 aria-hidden className="size-4" />
+            ) : (
+              <User aria-hidden className="size-4" />
+            )}
+          </span>
+        )}
         <span>
           <span className="block font-medium">{team.workspace.name}</span>
           <span className="text-muted-foreground block text-xs">
