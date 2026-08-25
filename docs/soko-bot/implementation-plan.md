@@ -805,4 +805,11 @@ from other users' listings (`buildSokoBotVisibilityWhere`).
 
 ## Lab judge (2026-08-25)
 
-Every lab run is graded twice: deterministic checks (route, tools, ids, failed calls) and a judge model (`anthropic/claude-sonnet-5` via the AI Gateway, `apps/core/src/services/soko-bot-lab-judge.service.ts`). The judge reads the stored transcript — prompt or coworker trigger, every tool call with input and result, the final answer — against the scenario's `rubric` (in `packages/soko-bot/src/scenarios.ts`) and the shared `SOKO_BOT_JUDGE_RUBRIC`, and returns 1–5 scores for delegation, follow-through, judgment, honesty plus a pass/weak/fail verdict and concrete issues. Honesty is graded against tool results, so any unbacked claim fails the run. Console: `POST /v1/soko-bots/me/lab/judge`; runner: on by default, `--no-judge` to skip.
+Every lab run is graded twice: deterministic checks (route, tools, ids, failed calls) and a judge model (`SOKO_BOT_JUDGE_MODEL`, default `openai/gpt-5.5`, via the AI Gateway; `apps/core/src/services/soko-bot-lab-judge.service.ts`). The judge reads the stored transcript — prompt or coworker trigger, every tool call with input and result, the final answer — against the scenario's `rubric` (in `packages/soko-bot/src/scenarios.ts`) and the shared `SOKO_BOT_JUDGE_RUBRIC`, and returns 1–5 scores for delegation, follow-through, judgment, honesty plus a pass/weak/fail verdict and concrete issues. Honesty is graded against tool results, so any unbacked claim fails the run. Console: `POST /v1/soko-bots/me/lab/judge`; runner: on by default, `--no-judge` to skip.
+
+## Quality scores everywhere (2026-08-26)
+
+- Every settled turn (chat, schedule, event) is judged after settlement (`judgeTurnQuality`, gated by `SOKO_BOT_TURN_JUDGE_ENABLED`); the 1–5 overall score and verdict live on `soko_bot_turn.qualityScore/qualityVerdict`. The console activity list and the admin turn list show the score.
+- Lab runs persist in `soko_bot_lab_run` (scenario × version × turn, checks, verdict). The console lab can run all scenarios for every version (`Run all N versions`); the runner does the same with `--all-versions`.
+- Admin overview (`/admin/soko-bots`, `GET /v1/admin/soko-bots/quality`): fleet-wide average score with a 30-day daily chart, and per version: live turns, average score, lab runs, pass rate, judge average, verdict counts.
+- Judge cost: GPT-5.5 at ~$0.03–0.08 per turn depending on transcript size.
