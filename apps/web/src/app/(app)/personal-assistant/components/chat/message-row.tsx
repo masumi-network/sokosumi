@@ -181,12 +181,23 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+/** One chip per Task/Job, showing its latest action (a turn may touch the same Task several times). */
+function collapseDelegations(delegations: ChatDelegation[]): ChatDelegation[] {
+  const byTarget = new Map<string, ChatDelegation>();
+  for (const delegation of delegations) {
+    const key = delegation.taskId ?? delegation.jobId ?? delegation.id;
+    byTarget.set(key, delegation);
+  }
+  return Array.from(byTarget.values());
+}
+
 function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
   const t = useTranslations("App.SokoBot.Chat.delegation");
-  if (delegations.length === 0) return null;
+  const collapsed = collapseDelegations(delegations);
+  if (collapsed.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2 pr-10">
-      {delegations.map((delegation) => {
+      {collapsed.map((delegation) => {
         const href = delegation.taskId
           ? `/tasks/${encodeURIComponent(delegation.taskId)}`
           : delegation.jobId

@@ -46,6 +46,8 @@ import {
 
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
+const DECISION_PENDING_MESSAGE =
+  "Owner approval requested. Do not call this tool again with the same input; tell the owner what is pending and finish the turn.";
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALL_LIMIT_PER_TURN = 64;
 const TOOL_RESULT_MAX_BYTES = 16_384;
@@ -626,8 +628,35 @@ export class SokoBotRuntimeService {
     approvalRequired: boolean,
   ) {
     const parsedProposal = parseDecisionProposal(toolName, proposal);
+    const proposalJson = jsonInput(parsedProposal);
     return serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(tx, authorized, false);
+      // A model that retries an approval-gated call with the same input must
+      // not fan out into several identical approvals for the owner.
+      const existing = await tx.sokoBotPendingDecision.findFirst({
+        where: {
+          turnId: authorized.turn.id,
+          toolName,
+          status: "PENDING",
+          proposal: { equals: proposalJson },
+        },
+        select: { id: true, status: true, expiresAt: true },
+      });
+      if (existing) {
+        const duplicate = {
+          approvalRequired: true,
+          decision: existing,
+          duplicate: true,
+          message: DECISION_PENDING_MESSAGE,
+        };
+        await tx.sokoBotToolCall.update({
+          where: {
+            turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
+          },
+          data: { status: "COMPLETED", result: persistedToolResult(duplicate) },
+        });
+        return existing;
+      }
       const decision = await tx.sokoBotPendingDecision.create({
         data: {
           sokoBotId: authorized.turn.sokoBotId,
@@ -636,13 +665,17 @@ export class SokoBotRuntimeService {
           workspaceId: authorized.turn.workspaceId,
           toolName,
           reason: decisionReason(toolName, parsedProposal),
-          proposal: jsonInput(parsedProposal),
+          proposal: proposalJson,
           expiresAt: new Date(Date.now() + DECISION_TTL_MS),
         },
         select: { id: true, status: true, expiresAt: true },
       });
       const result = approvalRequired
-        ? { approvalRequired: true, decision }
+        ? {
+            approvalRequired: true,
+            decision,
+            message: DECISION_PENDING_MESSAGE,
+          }
         : decision;
       await tx.sokoBotToolCall.update({
         where: {
@@ -1105,7 +1138,11 @@ export class SokoBotRuntimeService {
         input.toolCallId,
         true,
       );
-      return { approvalRequired: true, decision };
+      return {
+        approvalRequired: true,
+        decision,
+        message: DECISION_PENDING_MESSAGE,
+      };
     }
 
     switch (input.capability) {

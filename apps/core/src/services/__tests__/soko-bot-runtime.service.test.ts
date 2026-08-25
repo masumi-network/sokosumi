@@ -36,6 +36,7 @@ const {
   transactionMemoryRevisionFindUniqueMock,
   transactionProjectFindFirstMock,
   transactionDecisionCreateMock,
+  transactionDecisionFindFirstMock,
   transactionTaskCreateMock,
   transactionToolCallUpdateMock,
   transactionToolCallCountMock,
@@ -88,6 +89,7 @@ const {
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
   transactionProjectFindFirstMock: vi.fn(),
   transactionDecisionCreateMock: vi.fn(),
+  transactionDecisionFindFirstMock: vi.fn(),
   transactionTaskCreateMock: vi.fn(),
   transactionToolCallUpdateMock: vi.fn(),
   transactionToolCallCountMock: vi.fn(),
@@ -176,7 +178,10 @@ vi.mock("@/lib/db/transaction", () => ({
         update: delegationUpdateMock,
         updateMany: transactionDelegationUpdateManyMock,
       },
-      sokoBotPendingDecision: { create: transactionDecisionCreateMock },
+      sokoBotPendingDecision: {
+        create: transactionDecisionCreateMock,
+        findFirst: transactionDecisionFindFirstMock,
+      },
       sokoBotToolCall: {
         count: transactionToolCallCountMock,
         create: transactionToolCallCreateMock,
@@ -1068,6 +1073,51 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(result).toMatchObject({ approvalRequired: true });
     expect(transactionDecisionCreateMock).toHaveBeenCalledOnce();
     expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses the pending decision when the model repeats an approval-gated call", async () => {
+    turnGrantVerifyMock.mockResolvedValue({
+      ...SCOPE,
+      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
+      memoryRevisionId: null,
+      memoryVersion: 1,
+      capabilities: ["assign_task"],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Assign it",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { autonomyLevel: "MEDIUM", archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    const existing = {
+      id: "01960001-0001-7001-8001-00000000dec1",
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    transactionDecisionFindFirstMock.mockResolvedValue(existing);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      oidcToken: "oidc",
+      turnGrant: "grant",
+      ...SCOPE,
+      capability: "assign_task",
+      toolCallId: "call_assign_repeat",
+      input: { taskId: "task_1", coworkerId: "cw_1", ready: true },
+    });
+
+    expect(result).toMatchObject({
+      approvalRequired: true,
+      decision: { id: existing.id },
+    });
+    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects mutation when stored user message contains negative imperative", async () => {
