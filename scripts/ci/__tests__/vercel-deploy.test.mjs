@@ -373,10 +373,10 @@ describe("runPreviewDeployComment", () => {
     assert.equal(created[0].ref, "feat/x");
     assert.equal(created[0].repoId, 99);
     assert.deepEqual(posted, []);
-    assert.deepEqual(reactions, ["rocket"]);
+    assert.deepEqual(reactions, ["eyes", "rocket"]);
   });
 
-  it("reacts rocket on the triggering comment via the GitHub API", async () => {
+  it("reacts eyes then rocket on the triggering comment via the GitHub API", async () => {
     const calls = [];
     const result = await runPreviewDeployComment({
       commentBody: "/deploy mainnet",
@@ -410,13 +410,17 @@ describe("runPreviewDeployComment", () => {
       },
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].method, "POST");
-    assert.equal(
-      calls[0].url,
-      "https://api.github.com/repos/acme/sokosumi/issues/comments/4242/reactions",
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((call) => call.method === "POST"));
+    assert.ok(
+      calls.every(
+        (call) =>
+          call.url ===
+          "https://api.github.com/repos/acme/sokosumi/issues/comments/4242/reactions",
+      ),
     );
-    assert.deepEqual(JSON.parse(calls[0].body), { content: "rocket" });
+    assert.deepEqual(JSON.parse(calls[0].body), { content: "eyes" });
+    assert.deepEqual(JSON.parse(calls[1].body), { content: "rocket" });
   });
 
   it("comments when creating a deployment fails", async () => {
@@ -447,7 +451,7 @@ describe("runPreviewDeployComment", () => {
       /nope/,
     );
     assert.match(posted[0], /Preview deploy failed: nope/);
-    assert.deepEqual(reactions, []);
+    assert.deepEqual(reactions, ["eyes"]);
   });
 
   it("comments when a preview deployment is not READY", async () => {
@@ -483,7 +487,7 @@ describe("runPreviewDeployComment", () => {
       posted[0],
       /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
-    assert.deepEqual(reactions, []);
+    assert.deepEqual(reactions, ["eyes"]);
   });
 });
 

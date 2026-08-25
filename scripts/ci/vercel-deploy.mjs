@@ -386,6 +386,7 @@ export async function runPreviewDeployComment(options) {
   };
   let settled;
   try {
+    await react("eyes");
     const created = await Promise.all(
       targets.map((target) => create({ target, ...git })),
     );
