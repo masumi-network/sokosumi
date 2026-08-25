@@ -9,46 +9,11 @@
 **Runtime**: Node.js 24.x
 **Location**: `packages/masumi/` within the pnpm workspace
 
-## Package Structure
+## Layout
 
-```
-packages/masumi/
-├── src/
-│   ├── index.ts               # Main exports
-│   ├── clients/               # API clients
-│   │   ├── agent.client.ts    # Agent API client factory
-│   │   └── index.ts
-│   ├── hash/                  # Hash utilities
-│   │   ├── hash.ts            # Input/result hashing
-│   │   ├── verification.ts    # Hash verification
-│   │   ├── index.ts
-│   │   └── __tests__/         # Hash tests
-│   ├── schemas/               # Zod validation schemas
-│   │   ├── agent/             # Agent protocol schemas
-│   │   │   ├── availability.schema.ts
-│   │   │   ├── input_schema.schema.ts
-│   │   │   ├── provide_input.schema.ts
-│   │   │   ├── start_job.schema.ts
-│   │   │   └── status.schema.ts
-│   │   ├── input/             # Input validation schemas
-│   │   │   ├── input.schema.ts
-│   │   │   ├── validation.schema.ts
-│   │   │   └── __tests__/
-│   │   └── index.ts
-│   ├── types/                 # TypeScript types
-│   │   ├── agent.ts           # Agent type definitions
-│   │   ├── input-types.ts     # Input type definitions
-│   │   └── index.ts
-│   ├── tools/                 # Masumi-hosted tool clients
-│   │   ├── design-md/         # DESIGN.md generator client
-│   │   └── index.ts
-│   └── utils/                 # Utility functions
-│       ├── result.ts          # Result type (Ok/Err)
-│       ├── url.ts             # URL utilities
-│       └── index.ts
-├── dist/                      # Compiled output (gitignored)
-└── package.json
-```
+The live tree is `src/`. Package exports are in `package.json`.
+
+`clients/` holds agent, payment, registry, and generated OpenAPI. Also `hash/`, `schemas/` (agent, input, x402), `tools/` (DESIGN.md), `auth/`, `utils/`.
 
 ## Entry Points
 
@@ -119,6 +84,10 @@ import {
 } from "@sokosumi/masumi/tools";
 ```
 
+### Auth Export (`@sokosumi/masumi/auth`)
+
+Masumi-hosted auth translations and helpers. See `src/auth/`.
+
 ## Key Features
 
 ### Agent Client
@@ -168,33 +137,11 @@ const inputHash = hashInput(JSON.stringify(inputData), purchaserId);
 const resultHash = hashResult(resultString, purchaserId);
 ```
 
-### Result Type
-
-The package uses a Result type for error handling:
-
-```typescript
-import { Ok, Err, type Result } from "@sokosumi/masumi";
-
-function doSomething(): Result<string, string> {
-  if (success) {
-    return Ok("value");
-  }
-  return Err("error message");
-}
-
-const result = doSomething();
-if (result.ok) {
-  console.log(result.value);
-} else {
-  console.error(result.error);
-}
-```
-
 ## Key Conventions
 
 ### Error Handling
 
-- Use `Result<T, E>` type for operations that can fail
+- Use **neverthrow** (`ok` / `err` / `Result` from `"neverthrow"`).
 - Client methods return `Result` instead of throwing
 - Error types: `http_error`, `json_parse_error`, `schema_validation_error`, `network_error`
 
@@ -222,10 +169,7 @@ if (result.ok) {
 
 ## Testing
 
-Tests are colocated in `__tests__/` directories:
-
-- `src/hash/__tests__/` - Hash function tests
-- `src/schemas/input/__tests__/` - Input validation tests
+Tests are colocated in `__tests__/` next to the code they cover.
 
 Run tests with:
 
@@ -237,7 +181,7 @@ pnpm masumi:test
 
 ### ✅ Do
 
-- Use the `Result` type for fallible operations
+- Use neverthrow `Result` for fallible operations
 - Validate all external responses with Zod schemas
 - Use the agent client factory for all agent API calls
 - Hash inputs/results with the provided hash functions
