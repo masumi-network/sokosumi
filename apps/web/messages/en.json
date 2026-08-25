@@ -5441,7 +5441,8 @@
         "approvalsEmpty": "Nothing waiting on you.",
         "activityTitle": "Recent activity",
         "activityDescription": "The last turns from chat and schedules, with what they did.",
-        "activityEmpty": "No turns yet. Open the chat and ask for something."
+        "activityEmpty": "No turns yet. Open the chat and ask for something.",
+        "showMore": "Show {count} more"
       },
       "Avatar": {
         "title": "Picture",

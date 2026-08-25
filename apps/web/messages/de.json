@@ -5441,7 +5441,8 @@
         "approvalsEmpty": "Nichts wartet auf dich.",
         "activityTitle": "Letzte Aktivität",
         "activityDescription": "Die letzten Durchläufe aus Chat und Zeitplänen, mit dem, was sie getan haben.",
-        "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas."
+        "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
+        "showMore": "{count} weitere anzeigen"
       },
       "Avatar": {
         "title": "Bild",

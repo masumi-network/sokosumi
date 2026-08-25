@@ -27,7 +27,6 @@ import {
   AssistantSeedContext,
 } from "../chat/assistant-avatar";
 import { DecisionCard } from "../chat/decision-card";
-import { TurnRows } from "../chat/message-row";
 import {
   orderedTurns,
   orphanPendingDecisions,
@@ -37,6 +36,8 @@ import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
+
+import { ActivityList } from "./activity-list.client";
 
 function Section({
   title,
@@ -217,25 +218,13 @@ export function SokoBotConsole({
                     {t("Console.activityEmpty")}
                   </p>
                 ) : (
-                  <ol className="-mx-4 divide-y">
-                    {turns.map((turn) => (
-                      <li
-                        key={turn.id}
-                        id={`turn-${turn.id}`}
-                        className={cn(
-                          "py-3",
-                          focusTurnId === turn.id && "bg-primary/5",
-                        )}
-                      >
-                        <TurnRows
-                          turn={turn}
-                          userImageUrl={userImageUrl}
-                          userName={userName}
-                          onDecisionResolved={refresh}
-                        />
-                      </li>
-                    ))}
-                  </ol>
+                  <ActivityList
+                    turns={turns}
+                    focusTurnId={focusTurnId}
+                    userImageUrl={userImageUrl}
+                    userName={userName}
+                    onDecisionResolved={refresh}
+                  />
                 )}
               </Section>
             </div>
