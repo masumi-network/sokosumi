@@ -539,6 +539,18 @@ describe("Drive Tasks Routes", () => {
           }),
         );
       });
+
+      it("returns 400 for an invalid pagination cursor", async () => {
+        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&projectId=550e8400-e29b-41d4-a716-446655440000&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
+      });
     });
 
     describe("Level 1: Project + no-project rows", () => {
@@ -598,6 +610,19 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json.data).toHaveLength(1);
+      });
+
+      it("returns 400 for an invalid pagination cursor", async () => {
+        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaProjectFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
       });
 
       it("sorts projects by the latest READY file across all tasks", async () => {
@@ -877,6 +902,12 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(201);
+      expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+        "https://blob.example/tasks/tsk_1/document.pdf",
+        expect.objectContaining({
+          maxResponseBytes: expect.any(Number),
+        }),
+      );
       expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceContext: {
@@ -1092,6 +1123,58 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(409);
+    });
+
+    it("returns 503 when source blob exceeds the Drive upload size limit", async () => {
+      const { FILE_UPLOAD_MAX_SIZE_BYTES } = await import("@sokosumi/utils");
+      const taskFile = {
+        id: "tf_123",
+        name: "document.pdf",
+        fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+        size: BigInt(FILE_UPLOAD_MAX_SIZE_BYTES + 1),
+        mimeType: "application/pdf",
+        status: "READY",
+        origin: "TASK_OUTPUT",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+      requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+      requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+      const BlobNotFoundError = (await import("@vercel/blob"))
+        .BlobNotFoundError;
+      headMock.mockRejectedValue(new BlobNotFoundError());
+      listMock.mockResolvedValue({
+        blobs: [],
+        hasMore: false,
+        cursor: undefined,
+      });
+
+      ssrfSafeFetchMock.mockRejectedValue(
+        new Error(
+          `Response body exceeds maxResponseBytes (${FILE_UPLOAD_MAX_SIZE_BYTES})`,
+        ),
+      );
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(503);
+      expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+        "https://blob.example/tasks/tsk_1/document.pdf",
+        expect.objectContaining({
+          maxResponseBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+        }),
+      );
+      expect(putMock).not.toHaveBeenCalled();
     });
   });
 
