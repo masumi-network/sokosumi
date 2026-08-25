@@ -190,3 +190,11 @@ export function selectUnfurlCandidateUrls(markdown: string): string[] {
 
   return selected;
 }
+
+/** True when an unfurl has a thumbnail or a description (not title-only). */
+export function unfurlCardHasPreviewContent(card: {
+  imageUrl: string | null;
+  description: string | null;
+}): boolean {
+  return Boolean(card.imageUrl?.trim()) || Boolean(card.description?.trim());
+}

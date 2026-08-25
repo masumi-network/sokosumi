@@ -333,6 +333,7 @@ export {
 export {
   extractBareHttpUrls,
   selectUnfurlCandidateUrls,
+  unfurlCardHasPreviewContent,
 } from "./unfurl-urls.js";
 export {
   buildUserMetadataWithDesignMd,
