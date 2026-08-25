@@ -11,15 +11,21 @@ import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import {
   type Coworker,
   getCoworkers,
-  getProjects,
   getProjectsById,
-  getTasks,
   getTasksById,
-  type ProjectListItem,
-  type TaskListItem,
 } from "@/lib/clients/generated/core";
+import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
+import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 
-const FILTER_PAGE_LIMIT = 100;
+interface DriveTasksProjectFilterOption {
+  id: string;
+  name: string;
+}
+
+interface DriveTasksTaskFilterOption {
+  id: string;
+  name: string;
+}
 
 interface DriveTasksFiltersProps {
   activeOrganizationId: string | null;
@@ -34,6 +40,7 @@ interface DriveTasksFiltersProps {
     coworkerLabel: string;
     projectLabel: string;
     taskLabel: string;
+    noProjectLabel: string;
     loadMore: string;
   };
 }
@@ -51,6 +58,29 @@ function resolveNextCursor(
   return cursor;
 }
 
+function mapDriveTasksToProjectOptions(
+  items: Awaited<ReturnType<typeof fetchDriveTasksPage>>["items"],
+  noProjectLabel: string,
+): DriveTasksProjectFilterOption[] {
+  return items.flatMap((item) => {
+    if (item.type === "project") {
+      return [{ id: item.id, name: item.name }];
+    }
+    if (item.type === "no-project") {
+      return [{ id: item.id, name: noProjectLabel }];
+    }
+    return [];
+  });
+}
+
+function mapDriveTasksToTaskOptions(
+  items: Awaited<ReturnType<typeof fetchDriveTasksPage>>["items"],
+): DriveTasksTaskFilterOption[] {
+  return items.flatMap((item) =>
+    item.type === "task" ? [{ id: item.id, name: item.name }] : [],
+  );
+}
+
 export function DriveTasksFilters({
   activeOrganizationId,
   assigneeId,
@@ -63,12 +93,12 @@ export function DriveTasksFilters({
   const searchParams = useSearchParams();
 
   const [coworkers, setCoworkers] = useState<Coworker[]>([]);
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [projects, setProjects] = useState<DriveTasksProjectFilterOption[]>([]);
   const [projectsNextCursor, setProjectsNextCursor] = useState<string | null>(
     null,
   );
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false);
-  const [tasks, setTasks] = useState<TaskListItem[]>([]);
+  const [tasks, setTasks] = useState<DriveTasksTaskFilterOption[]>([]);
   const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [selectedProjectName, setSelectedProjectName] = useState<string | null>(
@@ -94,27 +124,51 @@ export function DriveTasksFilters({
   }, []);
 
   useEffect(() => {
+    const store = driveStoreForActiveWorkspace(activeOrganizationId);
+    if (store.scope === "org" && !activeOrganizationId) {
+      setProjects([]);
+      setProjectsNextCursor(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
     async function loadProjects() {
       try {
-        const response = await getProjects({
-          client: getBrowserCoreClient(),
-          query: { limit: FILTER_PAGE_LIMIT },
+        const page = await fetchDriveTasksPage({
+          scope: store.scope,
+          ...(store.scope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+          ...(assigneeId ? { assigneeId } : {}),
+          signal: controller.signal,
         });
-        setProjects(response.data?.data ?? []);
-        setProjectsNextCursor(
-          response.data?.meta?.pagination?.nextCursor ?? null,
-        );
+        if (!controller.signal.aborted) {
+          setProjects(
+            mapDriveTasksToProjectOptions(page.items, labels.noProjectLabel),
+          );
+          setProjectsNextCursor(page.nextCursor);
+        }
       } catch {
-        setProjects([]);
-        setProjectsNextCursor(null);
+        if (!controller.signal.aborted) {
+          setProjects([]);
+          setProjectsNextCursor(null);
+        }
       }
     }
     void loadProjects();
-  }, []);
+    return () => {
+      controller.abort();
+      loadMoreProjectsAbortRef.current?.abort();
+      loadMoreProjectsAbortRef.current = null;
+    };
+  }, [activeOrganizationId, assigneeId, labels.noProjectLabel]);
 
   useEffect(() => {
     if (!projectId || projectId === "null") {
-      setSelectedProjectName(null);
+      setSelectedProjectName(
+        projectId === "null" ? labels.noProjectLabel : null,
+      );
       return;
     }
 
@@ -143,7 +197,7 @@ export function DriveTasksFilters({
     }
 
     void fetchSelectedProject();
-  }, [projectId, projects]);
+  }, [projectId, projects, labels.noProjectLabel]);
 
   useEffect(() => {
     if (!projectId) {
@@ -152,22 +206,25 @@ export function DriveTasksFilters({
       setSelectedTaskName(null);
       return;
     }
+    const store = driveStoreForActiveWorkspace(activeOrganizationId);
     const selectedProjectId = projectId;
 
     const controller = new AbortController();
 
     async function loadTasks() {
       try {
-        const response = await getTasks({
-          client: getBrowserCoreClient(),
-          query: { projectId: selectedProjectId, limit: FILTER_PAGE_LIMIT },
+        const page = await fetchDriveTasksPage({
+          scope: store.scope,
+          ...(store.scope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+          projectId: selectedProjectId,
+          ...(assigneeId ? { assigneeId } : {}),
           signal: controller.signal,
         });
         if (!controller.signal.aborted) {
-          setTasks(response.data?.data ?? []);
-          setTasksNextCursor(
-            response.data?.meta?.pagination?.nextCursor ?? null,
-          );
+          setTasks(mapDriveTasksToTaskOptions(page.items));
+          setTasksNextCursor(page.nextCursor);
         }
       } catch {
         if (!controller.signal.aborted) {
@@ -182,7 +239,7 @@ export function DriveTasksFilters({
       loadMoreTasksAbortRef.current?.abort();
       loadMoreTasksAbortRef.current = null;
     };
-  }, [projectId]);
+  }, [projectId, activeOrganizationId, assigneeId]);
 
   useEffect(() => {
     if (!taskId || !projectId) {
@@ -222,6 +279,11 @@ export function DriveTasksFilters({
       return;
     }
 
+    const store = driveStoreForActiveWorkspace(activeOrganizationId);
+    if (store.scope === "org" && !activeOrganizationId) {
+      return;
+    }
+
     loadMoreProjectsAbortRef.current?.abort();
     const controller = new AbortController();
     loadMoreProjectsAbortRef.current = controller;
@@ -229,24 +291,25 @@ export function DriveTasksFilters({
 
     setProjectsLoadingMore(true);
     try {
-      const response = await getProjects({
-        client: getBrowserCoreClient(),
-        query: {
-          limit: FILTER_PAGE_LIMIT,
-          cursor: cursorAtRequest,
-        },
+      const page = await fetchDriveTasksPage({
+        scope: store.scope,
+        ...(store.scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(assigneeId ? { assigneeId } : {}),
+        cursor: cursorAtRequest,
         signal: controller.signal,
       });
       if (controller.signal.aborted) {
         return;
       }
-      const nextPage = response.data?.data ?? [];
+      const nextPage = mapDriveTasksToProjectOptions(
+        page.items,
+        labels.noProjectLabel,
+      );
       setProjects((current) => [...current, ...nextPage]);
       setProjectsNextCursor(
-        resolveNextCursor(
-          response.data?.meta?.pagination?.nextCursor ?? null,
-          cursorAtRequest,
-        ),
+        resolveNextCursor(page.nextCursor, cursorAtRequest),
       );
     } catch {
       if (!controller.signal.aborted) {
@@ -257,10 +320,21 @@ export function DriveTasksFilters({
         setProjectsLoadingMore(false);
       }
     }
-  }, [projectsNextCursor, projectsLoadingMore]);
+  }, [
+    activeOrganizationId,
+    assigneeId,
+    labels.noProjectLabel,
+    projectsNextCursor,
+    projectsLoadingMore,
+  ]);
 
   const loadMoreTasks = useCallback(async () => {
     if (!projectId || !tasksNextCursor || tasksLoadingMore) {
+      return;
+    }
+
+    const store = driveStoreForActiveWorkspace(activeOrganizationId);
+    if (store.scope === "org" && !activeOrganizationId) {
       return;
     }
 
@@ -272,26 +346,22 @@ export function DriveTasksFilters({
 
     setTasksLoadingMore(true);
     try {
-      const response = await getTasks({
-        client: getBrowserCoreClient(),
-        query: {
-          projectId: projectIdAtRequest,
-          limit: FILTER_PAGE_LIMIT,
-          cursor: cursorAtRequest,
-        },
+      const page = await fetchDriveTasksPage({
+        scope: store.scope,
+        ...(store.scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        projectId: projectIdAtRequest,
+        ...(assigneeId ? { assigneeId } : {}),
+        cursor: cursorAtRequest,
         signal: controller.signal,
       });
       if (controller.signal.aborted || projectId !== projectIdAtRequest) {
         return;
       }
-      const nextPage = response.data?.data ?? [];
+      const nextPage = mapDriveTasksToTaskOptions(page.items);
       setTasks((current) => [...current, ...nextPage]);
-      setTasksNextCursor(
-        resolveNextCursor(
-          response.data?.meta?.pagination?.nextCursor ?? null,
-          cursorAtRequest,
-        ),
-      );
+      setTasksNextCursor(resolveNextCursor(page.nextCursor, cursorAtRequest));
     } catch {
       if (!controller.signal.aborted) {
         // Leave the current list intact when pagination fails.
@@ -301,7 +371,13 @@ export function DriveTasksFilters({
         setTasksLoadingMore(false);
       }
     }
-  }, [projectId, tasksNextCursor, tasksLoadingMore]);
+  }, [
+    projectId,
+    activeOrganizationId,
+    assigneeId,
+    tasksNextCursor,
+    tasksLoadingMore,
+  ]);
 
   const handleFilterChange = useCallback(
     (param: "assigneeId" | "projectId" | "taskId", value: string | null) => {
@@ -427,6 +503,7 @@ export function DriveTasksFilters({
     labels.loadMore,
     labels.projectLabel,
     labels.taskLabel,
+    labels.noProjectLabel,
   ]);
 
   return (

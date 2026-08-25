@@ -1334,6 +1334,7 @@ function DrivePageWorkspace({
                 coworkerLabel: t("filterCoworkerLabel"),
                 projectLabel: t("filterProjectLabel"),
                 taskLabel: t("filterTaskLabel"),
+                noProjectLabel: t("noProject"),
                 loadMore: t("loadMore"),
               }}
             />
