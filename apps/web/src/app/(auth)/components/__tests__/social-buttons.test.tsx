@@ -30,7 +30,9 @@ interface MockWaitForAuthSessionOptions {
 }
 
 const mockWaitForAuthSession = vi.fn(
-  async (_options: MockWaitForAuthSessionOptions) => undefined,
+  async (
+    _options: MockWaitForAuthSessionOptions,
+  ): Promise<{ id: string } | null> => ({ id: "session-id" }),
 );
 const mockSignInEvent = vi.fn();
 
@@ -180,7 +182,7 @@ describe("SocialButtons", () => {
       error: null,
     });
     mockWaitForAuthSession.mockReset();
-    mockWaitForAuthSession.mockResolvedValue(undefined);
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-id" });
     mockSignInEvent.mockReset();
     mockIsConditionalMediationAvailable.mockReset();
     mockIsConditionalMediationAvailable.mockResolvedValue(false);
@@ -342,6 +344,23 @@ describe("SocialButtons", () => {
       expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
     });
     expect(mockSignInEvent).toHaveBeenCalledWith("passkey");
+  });
+
+  it("does not fire login when passkey sign-in succeeds without a session", async () => {
+    const user = userEvent.setup();
+
+    mockWaitForAuthSession.mockResolvedValue(null);
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
+    });
+    expect(mockSignInEvent).not.toHaveBeenCalled();
   });
 
   it("does not fire login when passkey sign-in fails", async () => {

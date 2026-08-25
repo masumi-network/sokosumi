@@ -19,9 +19,9 @@ const OAUTH_CONSENT_QUERY_KEYS = [
   "sig",
 ] as const;
 
-interface WaitForAuthSessionOptions {
+interface WaitForAuthSessionOptions<TSession = unknown> {
   context: "login" | "signup";
-  getSession: () => Promise<unknown>;
+  getSession: () => Promise<TSession | null>;
   logWarning: (message: string) => void;
   initialDelayMs?: number;
   retryDelayMs?: number;
@@ -39,10 +39,10 @@ function waitForMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function getSessionOrNull(
-  getSession: () => Promise<unknown>,
+async function getSessionOrNull<TSession>(
+  getSession: () => Promise<TSession | null>,
   timeoutMs: number,
-): Promise<unknown> {
+): Promise<TSession | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
@@ -69,7 +69,7 @@ export function createAuthSessionGetter<TSession>(
   };
 }
 
-export async function waitForAuthSession({
+export async function waitForAuthSession<TSession = unknown>({
   context,
   getSession,
   logWarning,
@@ -77,7 +77,7 @@ export async function waitForAuthSession({
   retryDelayMs = AUTH_SESSION_RETRY_WAIT_MS,
   sessionTimeoutMs = AUTH_SESSION_GET_TIMEOUT_MS,
   waitForMs: waitForMsFn = waitForMs,
-}: WaitForAuthSessionOptions): Promise<unknown> {
+}: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
   await waitForMsFn(initialDelayMs);
 
   const session = await getSessionOrNull(getSession, sessionTimeoutMs);
@@ -232,7 +232,8 @@ export function getAbsoluteAuthRedirectUrl(
 }
 
 /**
- * Builds a social-auth callback URL for `authClient.signIn.social`.
+ * Builds an absolute auth callback URL for Better Auth `callbackURL` /
+ * `newUserCallbackURL` (social, credential, magic-link).
  *
  * The result is an **absolute** URL anchored to the current web origin. This
  * matters when the browser `authClient` targets the Core Better Auth instance

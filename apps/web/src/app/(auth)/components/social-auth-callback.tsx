@@ -28,9 +28,10 @@ export default function SocialAuthCallback({
     const validationResult = authMethodIdSchema.safeParse(provider);
     const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
 
-    // Every login path lands here via a full page load (Better Auth
-    // hard-redirects to `callbackURL` on success), so firing the GTM event on
-    // mount is the only place it reliably survives — see apps/web/TRACKING.md.
+    // Credential, social, and magic-link land here via a full page load
+    // (Better Auth hard-redirects to `callbackURL` on success). Passkey
+    // fires in place in social-buttons.tsx. The GTM event on this page
+    // survives the hard nav — see apps/web/TRACKING.md.
     // The query string alone proves nothing: only count it when a session
     // actually exists, so a direct hit on this URL is not a fake login.
     // The first getSession() can be null (cookie still settling); reuse the

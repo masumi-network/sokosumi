@@ -85,7 +85,7 @@ export default function SocialButtons({
     magicLinkEmail.trim() === magicLinkSentTo;
 
   const finishPasskeySignIn = useCallback(async () => {
-    await waitForAuthSession({
+    const session = await waitForAuthSession({
       context: "login",
       getSession: createAuthSessionGetter(() => authClient.getSession()),
       logWarning: (message) => {
@@ -93,7 +93,9 @@ export default function SocialButtons({
       },
     });
 
-    fireGTMEvent.signIn("passkey");
+    if (session) {
+      fireGTMEvent.signIn("passkey");
+    }
     router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   }, [effectiveReturnUrl, router]);
 
