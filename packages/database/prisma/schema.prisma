@@ -1282,6 +1282,17 @@ enum BlobStatus {
   FAILED
 }
 
+enum TaskFileStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum TaskFileOrigin {
+  USER_UPLOAD
+  TASK_OUTPUT
+}
+
 model PublicShare {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1709,10 +1720,13 @@ model TaskFile {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  name     String
-  fileUrl  String
-  mimeType String?
-  size     BigInt?
+  name      String
+  fileUrl   String?
+  sourceUrl String?
+  mimeType  String?
+  size      BigInt?
+  status    TaskFileStatus @default(READY)
+  origin    TaskFileOrigin @default(USER_UPLOAD)
 
   uploadedByUserId String?
   uploadedByUser   User?   @relation("TaskFileUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
@@ -1721,7 +1735,10 @@ model TaskFile {
   uploadedByCoworker   Coworker? @relation("TaskFileUploadedByCoworker", fields: [uploadedByCoworkerId], references: [id], onDelete: SetNull)
 
   @@unique([taskId, fileUrl])
+  @@unique([taskId, sourceUrl])
   @@index([taskId, createdAt])
+  @@index([taskId, status])
+  @@index([status, origin, createdAt])
   @@index([uploadedByUserId])
   @@index([uploadedByCoworkerId])
   @@map("task_file")

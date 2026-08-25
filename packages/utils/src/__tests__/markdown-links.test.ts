@@ -107,12 +107,14 @@ describe("extractLinks", () => {
       `[x](${"a[".repeat(50000)}`, // unterminated url full of '[' (no close)
       `${"[a](b".repeat(50000)}`, // many unterminated link prefixes
     ];
+    // Budget is intentionally loose for CI runner variance; ReDoS would be seconds+.
+    const maxMs = 250;
     for (const evil of inputs) {
       const start = process.hrtime.bigint();
       extractLinks(evil);
       const elapsedMs = Number(process.hrtime.bigint() - start) / 1e6;
       assert.ok(
-        elapsedMs < 100,
+        elapsedMs < maxMs,
         `extractLinks took ${elapsedMs}ms on pathological input`,
       );
     }

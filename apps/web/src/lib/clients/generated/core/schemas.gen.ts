@@ -3082,9 +3082,27 @@ export const TaskFileSchema = {
             example: 'report.pdf'
         },
         fileUrl: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             format: 'uri',
             example: 'https://blob.vercel.app/tasks/tsk_123/report.pdf'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/source.pdf',
+            description: 'Original source URL for output files'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskFileStatus'
+        },
+        origin: {
+            $ref: '#/components/schemas/TaskFileOrigin'
         },
         mimeType: {
             type: [
@@ -3112,10 +3130,32 @@ export const TaskFileSchema = {
         'updatedAt',
         'name',
         'fileUrl',
+        'sourceUrl',
+        'status',
+        'origin',
         'mimeType',
         'size',
         'uploader'
     ]
+} as const;
+
+export const TaskFileStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'READY',
+        'FAILED'
+    ],
+    description: 'Sync status of the file'
+} as const;
+
+export const TaskFileOriginSchema = {
+    type: 'string',
+    enum: [
+        'USER_UPLOAD',
+        'TASK_OUTPUT'
+    ],
+    description: 'Origin of the file'
 } as const;
 
 export const TaskFileUploaderSchema = {

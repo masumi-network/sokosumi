@@ -261,6 +261,7 @@ const baseProps = {
   actionCommentedLabel: "commented",
   actionUpdatedStatusLabel: "updated status",
   events: [] as TaskEvent[],
+  taskFiles: [],
   currentUser: {
     id: "user-1",
     name: "User",
