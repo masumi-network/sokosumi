@@ -43,7 +43,7 @@ Key directories:
 ### TypeScript Standards
 - Use interfaces over types
 - Avoid enums; use maps instead
-- Leverage Prisma type inference
+- Use generated Core DTOs (`@/lib/clients/generated/core`); web does not import Prisma
 - Use descriptive variable names with auxiliary verbs (isLoading, hasError)
 
 ### Styling Rules
@@ -62,7 +62,7 @@ Key directories:
 - All user-facing text must use `useTranslations()` hook
 - Add new keys to `messages/en.json`
 - Never hardcode user-facing strings
-- **When deleting code**: Always check for and remove unused translation keys from `messages/en.json` (see `.cursor/rules/translations.mdc`)
+- **When deleting code**: Always check for and remove unused translation keys from `messages/en.json` (see [`.agents/skills/translations/`](../../../.agents/skills/translations/))
 
 ## Code Patterns
 
@@ -124,5 +124,5 @@ export function MyComponent() {
 - `src/app/globals.css` - Semantic color definitions
 - `src/components/ui/` - Available Shadcn components
 - `messages/en.json` - Translation keys
-- `.cursor/rules/translations.mdc` - Translation cleanup rules
+- `.agents/skills/translations/` - Translation cleanup and locale parity
 - `apps/web/AGENTS.md` - Detailed app guidelines
