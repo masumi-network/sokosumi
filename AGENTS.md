@@ -329,9 +329,9 @@ When the caveman skill is present, follow it for all replies. Off: "stop caveman
 
 ### Linear issue implementation
 
-Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, pinned-`headSha` re-verify, Review `/goal`, and opt-in swarm-verify (user ask, `swarm-verify: true`, or label `swarm-verify`). Human merges. Bugs/refactors without a Linear Requirement use other poteto playbooks.
+Ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
 
-Do **not** invent or file Linear issues during poteto implement work. Filing a new requirement is a separate, explicit ask via [`skills/linear-requirement/`](./skills/linear-requirement/) (`disable-model-invocation`).
+Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`skills/linear-requirement/`](./skills/linear-requirement/) (`disable-model-invocation`).
 
 ### Translations
 
