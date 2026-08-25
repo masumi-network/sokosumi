@@ -3,6 +3,7 @@
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { postDriveFiles } from "@/lib/clients/generated/core";
+import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 
 export type DriveFileUploadErrorCode = "duplicate" | "internal";
 
@@ -64,18 +65,16 @@ interface DriveFileUploadProgress {
   percentage: number;
 }
 
-interface DriveFileUploadOptions {
-  scope: "me" | "org";
-  organizationId?: string;
+type DriveFileUploadOptions = DriveWorkspaceStore & {
   folder?: string;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
-}
+};
 
 export async function uploadDriveFile(
   file: File,
   options: DriveFileUploadOptions,
 ): Promise<void> {
-  const { scope, organizationId, folder, onUploadProgress } = options;
+  const { scope, folder, onUploadProgress } = options;
 
   // Resolve contentType (fallback when File.type is empty)
   const contentType = resolveUserUploadContentType(file.name, file.type);
@@ -93,7 +92,7 @@ export async function uploadDriveFile(
         contentType,
         size: file.size,
         scope,
-        ...(scope === "org" && organizationId ? { organizationId } : {}),
+        ...(scope === "org" ? { organizationId: options.organizationId } : {}),
         ...(folder ? { folder } : {}),
       },
       throwOnError: true,

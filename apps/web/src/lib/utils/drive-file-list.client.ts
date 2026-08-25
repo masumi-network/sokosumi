@@ -9,13 +9,35 @@ export const DRIVE_FILES_PAGE_LIMIT = 100;
 /** Hard stop so a bad nextCursor cannot loop forever. */
 export const DRIVE_FILES_MAX_PAGES = 50;
 
-interface ListDriveFilesOptions {
-  scope: "me" | "org";
-  organizationId?: string;
+export type DriveWorkspaceStore =
+  | { scope: "me" }
+  | { scope: "org"; organizationId: string };
+
+export function driveStoreForActiveWorkspace(
+  activeOrganizationId: string | null,
+): DriveWorkspaceStore {
+  if (activeOrganizationId) {
+    return { scope: "org", organizationId: activeOrganizationId };
+  }
+  return { scope: "me" };
+}
+
+export function driveWorkspaceRootLabel(
+  store: DriveWorkspaceStore,
+  organizationName: string | null,
+  labels: { myDrive: string; organizationFallback: string },
+): string {
+  if (store.scope === "org") {
+    return organizationName || labels.organizationFallback;
+  }
+  return labels.myDrive;
+}
+
+type ListDriveFilesOptions = DriveWorkspaceStore & {
   q?: string;
   folder?: string;
   signal?: AbortSignal;
-}
+};
 
 export async function listDriveFiles(
   options: ListDriveFilesOptions,
@@ -36,7 +58,7 @@ export async function listDriveItems(
       query: {
         scope: options.scope,
         limit: DRIVE_FILES_PAGE_LIMIT,
-        ...(options.scope === "org" && options.organizationId
+        ...(options.scope === "org"
           ? { organizationId: options.organizationId }
           : {}),
         ...(options.folder ? { folder: options.folder } : {}),

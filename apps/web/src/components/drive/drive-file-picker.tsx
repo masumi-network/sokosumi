@@ -23,14 +23,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFile, DriveItem } from "@/lib/clients/generated/core";
 import { getUsersByIdOrganizations } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { listDriveItems } from "@/lib/utils/drive-file-list.client";
+import {
+  driveStoreForActiveWorkspace,
+  driveWorkspaceRootLabel,
+  listDriveItems,
+} from "@/lib/utils/drive-file-list.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 interface DriveFilePickerProps {
@@ -39,7 +42,14 @@ interface DriveFilePickerProps {
   onSelect: (file: DriveFile) => void;
 }
 
-export function DriveFilePicker({
+export function DriveFilePicker(props: DriveFilePickerProps) {
+  const { data: session } = useSession();
+  const workspaceKey = session?.session.activeOrganizationId ?? "personal";
+
+  return <DriveFilePickerWorkspace key={workspaceKey} {...props} />;
+}
+
+function DriveFilePickerWorkspace({
   open,
   onOpenChange,
   onSelect,
@@ -48,7 +58,8 @@ export function DriveFilePicker({
   const formatter = useFormatter();
   const { data: session } = useSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [scope, setScope] = useState<"me" | "org">("me");
+  const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
+  const scope = driveStore.scope;
   const [items, setItems] = useState<DriveItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +67,10 @@ export function DriveFilePicker({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentFolder, setCurrentFolder] = useState("");
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
@@ -77,18 +92,8 @@ export function DriveFilePicker({
     setLoading(true);
     setError(null);
     try {
-      if (scope === "org" && !activeOrganizationId) {
-        if (!controller.signal.aborted) {
-          setItems([]);
-        }
-        return;
-      }
-
       const loaded = await listDriveItems({
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
+        ...driveStore,
         ...(currentFolder ? { folder: currentFolder } : {}),
         ...(debouncedSearchQuery.trim()
           ? { q: debouncedSearchQuery.trim() }
@@ -159,13 +164,6 @@ export function DriveFilePicker({
     onOpenChange(false);
   }
 
-  function handleTabChange(value: string) {
-    if (value === "me" || value === "org") {
-      setScope(value);
-      setCurrentFolder("");
-    }
-  }
-
   function navigateToFolder(folderName: string) {
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
@@ -198,23 +196,8 @@ export function DriveFilePicker({
           <DialogDescription>{t("selectDescription")}</DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          value={scope}
-          onValueChange={handleTabChange}
-          className="min-w-0 w-full"
-        >
+        <div className="min-w-0 w-full">
           <div className="space-y-3 min-w-0 w-full">
-            <TabsList className="w-full">
-              <TabsTrigger value="me" className="flex-1">
-                {t("myDriveTab")}
-              </TabsTrigger>
-              {activeOrganizationId && (
-                <TabsTrigger value="org" className="flex-1">
-                  {organizationName || t("organizationTabFallback")}
-                </TabsTrigger>
-              )}
-            </TabsList>
-
             <div className="min-w-0 overflow-x-auto">
               <nav
                 className="text-muted-foreground flex flex-nowrap items-center gap-1 text-sm"
@@ -224,26 +207,19 @@ export function DriveFilePicker({
                   type="button"
                   onClick={() => navigateToBreadcrumb(-1)}
                   className={cn(
-                    "hover:text-foreground shrink-0 whitespace-nowrap transition-colors",
+                    "hover:text-foreground inline-flex shrink-0 items-center whitespace-nowrap transition-colors",
                     breadcrumbSegments.length === 0 &&
                       "text-foreground font-medium",
                   )}
-                  aria-label={
-                    scope === "org"
-                      ? organizationName || t("organizationTabFallback")
-                      : t("myDriveTab")
-                  }
-                  title={
-                    scope === "org"
-                      ? organizationName || t("organizationTabFallback")
-                      : t("myDriveTab")
-                  }
+                  aria-label={storeRootLabel}
+                  title={storeRootLabel}
                 >
                   {scope === "org" ? (
                     <Building2 className="size-4" aria-hidden />
                   ) : (
                     <Home className="size-4" aria-hidden />
                   )}
+                  <span className="ml-1">{storeRootLabel}</span>
                 </button>
                 {breadcrumbSegments.map((segment, index) => (
                   <span
@@ -280,7 +256,7 @@ export function DriveFilePicker({
             </div>
           </div>
 
-          <TabsContent value={scope} className="mt-4 min-w-0 w-full">
+          <div className="mt-4 min-w-0 w-full">
             {error ? (
               <div className="text-destructive text-center py-8 text-sm">
                 {error}
@@ -381,8 +357,8 @@ export function DriveFilePicker({
                 </div>
               </ScrollArea>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
