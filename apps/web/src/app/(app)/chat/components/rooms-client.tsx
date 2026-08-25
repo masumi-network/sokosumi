@@ -22,6 +22,7 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
+  retryRoomMentionAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
@@ -53,8 +54,11 @@ import {
 } from "@/app/chat/utils/classic-outbound-queue";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
 import {
+  isCurrentUserMentionerOfFailedShell,
   isFailedMentionThoughtShell,
   isPersistedMentionThoughtShell,
+  readFailedMentionShellTarget,
+  withMentionShellRetrying,
 } from "@/app/chat/utils/coworker-thought";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
@@ -629,11 +633,13 @@ export function RoomsClient({
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
   const [_isReacting, startReactionTransition] = useTransition();
+  const [_isRetryingMention, startMentionRetryTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
+  const pendingMentionRetriesRef = useRef<Set<string>>(new Set());
   // Classic POST: single-flight queue per composer (channel vs thread).
   const classicChannelRefs = useRef<ClassicOutboundQueueRefs>({
     queueRef: { current: [] },
@@ -1087,6 +1093,14 @@ export function RoomsClient({
     () => filterTopLevelChatRoomMessages(messagesState),
     [messagesState],
   );
+
+  const mentionRetrySourceMessages = useMemo(() => {
+    const rows = [...topLevelRoomMessages, ...threadMessages];
+    if (threadParentMessage) {
+      rows.push(threadParentMessage);
+    }
+    return rows;
+  }, [threadMessages, threadParentMessage, topLevelRoomMessages]);
 
   // Purge leaked thread replies from room state so consumers of messagesState
   // (pending-mention poll, search props) never see them after a prior leak.
@@ -1667,6 +1681,44 @@ export function RoomsClient({
     setThreadParentMessage((current) =>
       current?.id === updatedMessage.id ? updatedMessage : current,
     );
+  }
+
+  function handleRetryMention(shell: ChatRoomMessage) {
+    if (!selectedRoom) {
+      return;
+    }
+    const target = readFailedMentionShellTarget(shell.metadata);
+    if (!target) {
+      return;
+    }
+    if (pendingMentionRetriesRef.current.has(shell.id)) {
+      return;
+    }
+    pendingMentionRetriesRef.current.add(shell.id);
+    const roomId = selectedRoom.id;
+    mergeUpdatedMessage({
+      ...shell,
+      metadata: withMentionShellRetrying(shell.metadata, Date.now()),
+    });
+    startMentionRetryTransition(async () => {
+      const result = await retryRoomMentionAction(
+        roomId,
+        target.sourceMessageId,
+        target.mentionId,
+      );
+      pendingMentionRetriesRef.current.delete(shell.id);
+      if (!result.ok) {
+        toast.error(result.error.message);
+        if (isStillSelectedRoom(roomId)) {
+          mergeUpdatedMessage(shell);
+        }
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
+      mergeUpdatedMessage(result.value);
+    });
   }
 
   function updateParentThreadPreview(
@@ -2483,6 +2535,15 @@ export function RoomsClient({
                         isOutboundLocal ? undefined : handleDeleteMessage
                       }
                       onRetryOutbound={handleRetryOutbound}
+                      onRetryMention={
+                        isCurrentUserMentionerOfFailedShell({
+                          shell: message,
+                          currentUserId,
+                          sourceMessages: mentionRetrySourceMessages,
+                        })
+                          ? handleRetryMention
+                          : undefined
+                      }
                       onRemoveOutbound={handleRemoveOutbound}
                       showOutboundSentTick={outboundSentTickIds.has(message.id)}
                       isEditing={editSession?.messageId === message.id}
@@ -2619,6 +2680,7 @@ export function RoomsClient({
                   isCoworkerStreaming && threadStreamOverlayMessages.length > 0
                 }
                 onRetryOutbound={handleRetryOutbound}
+                onRetryMention={handleRetryMention}
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
