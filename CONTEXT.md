@@ -88,6 +88,10 @@ _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup p
 A named, organization-owned chat room people join by membership, not by participant set. Distinct from a Direct.
 _Avoid_: Room (all chats are rooms), conversation
 
+**Channel slug**:
+The unique handle for a Channel in its organization. Auto-generated from the Channel name (`Team Soko` → `team-soko`) in the create UI, editable there, and then stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
+_Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s identity (that is `id`), vanity URL, requiring the slug to match the name, regenerating the slug on rename
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel
@@ -97,7 +101,7 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1.
+A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1. Has no Channel slug.
 _Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Coworker 1:1**:
