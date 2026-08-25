@@ -1,6 +1,10 @@
 "use client";
 
-import { type ChannelLinkTarget, getExtensionFromUrl } from "@sokosumi/utils";
+import {
+  type ChannelLinkTarget,
+  getExtensionFromUrl,
+  unfurlCardHasPreviewContent,
+} from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
@@ -330,16 +334,13 @@ function MessageQuoteBlock({
 function MessageUnfurlImage({
   imageUrl,
   title,
+  onError,
 }: {
   imageUrl: string;
   title: string;
+  onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return null;
-  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -347,9 +348,7 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className="mt-2 h-auto max-h-48 max-w-full rounded-md"
-      onError={() => {
-        setFailed(true);
-      }}
+      onError={onError}
     />
   );
 }
@@ -364,7 +363,15 @@ function MessageUnfurlCard({
   onRemove?: (url: string) => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
+  const [imageFailed, setImageFailed] = useState(false);
   const siteLabel = unfurl.siteName?.trim() || null;
+  const description = unfurl.description?.trim() || null;
+  const imageUrl = unfurl.imageUrl?.trim() || null;
+  const showImage = Boolean(imageUrl) && !imageFailed;
+
+  if (!description && !showImage) {
+    return null;
+  }
 
   return (
     <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
@@ -384,13 +391,19 @@ function MessageUnfurlCard({
         <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
           {unfurl.title}
         </div>
-        {unfurl.description?.trim() ? (
+        {description ? (
           <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
-            {unfurl.description}
+            {description}
           </div>
         ) : null}
-        {unfurl.imageUrl ? (
-          <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
+        {showImage && imageUrl ? (
+          <MessageUnfurlImage
+            imageUrl={imageUrl}
+            title={unfurl.title}
+            onError={() => {
+              setImageFailed(true);
+            }}
+          />
         ) : null}
       </a>
       {canRemove && onRemove ? (
@@ -422,7 +435,8 @@ function MessageUnfurlList({
   canRemove: boolean;
   onRemove?: (url: string) => void;
 }) {
-  if (!unfurls || unfurls.length === 0) {
+  const visible = unfurls?.filter(unfurlCardHasPreviewContent) ?? [];
+  if (visible.length === 0) {
     return null;
   }
 
@@ -431,9 +445,9 @@ function MessageUnfurlList({
       className={cn("space-y-1", canRemove && "pr-3")}
       data-testid="room-message-unfurls"
     >
-      {unfurls.map((unfurl) => (
+      {visible.map((unfurl) => (
         <MessageUnfurlCard
-          key={unfurl.url}
+          key={`${unfurl.url}:${unfurl.imageUrl ?? ""}`}
           unfurl={unfurl}
           canRemove={canRemove}
           onRemove={onRemove}

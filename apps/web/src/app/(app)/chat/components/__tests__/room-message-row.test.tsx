@@ -1774,6 +1774,169 @@ describe("ChatMessageRow", () => {
     );
   });
 
+  it("hides the unfurl card when the preview image fails and there is no description", () => {
+    renderRow({
+      message: userMessage({
+        content: "https://youtube.com/watch?v=1",
+        unfurls: [
+          {
+            url: "https://youtube.com/watch?v=1",
+            title: "Watch",
+            description: null,
+            imageUrl: "https://cdn.example.com/broken.jpg",
+            siteName: "YouTube",
+          },
+        ],
+      }),
+    });
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    );
+
+    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+  });
+
+  it("shows a replacement thumbnail after a later scrape when the first image failed", () => {
+    const coworkersById = new Map();
+    const coworkersBySlug = new Map();
+    const first = userMessage({
+      content: "https://youtube.com/watch?v=1",
+      unfurls: [
+        {
+          url: "https://youtube.com/watch?v=1",
+          title: "Watch",
+          description: null,
+          imageUrl: "https://cdn.example.com/broken.jpg",
+          siteName: "YouTube",
+        },
+      ],
+    });
+
+    const { rerender } = render(
+      <ChatMessageRow
+        message={first}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    );
+    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={{
+          ...first,
+          unfurls: [
+            {
+              url: "https://youtube.com/watch?v=1",
+              title: "Watch",
+              description: null,
+              imageUrl: "https://cdn.example.com/ok.jpg",
+              siteName: "YouTube",
+            },
+          ],
+        }}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    ).toHaveAttribute("src", "https://cdn.example.com/ok.jpg");
+  });
+
+  it("keeps the unfurl card when the preview image fails and a description remains", () => {
+    renderRow({
+      message: userMessage({
+        content: "https://example.com/article",
+        unfurls: [
+          {
+            url: "https://example.com/article",
+            title: "Example Article",
+            description: "A short summary of the page.",
+            imageUrl: "https://cdn.example.com/broken.jpg",
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Example Article" }),
+    );
+
+    const card = screen.getByTestId("room-message-unfurl");
+    expect(card).toHaveTextContent("Example Article");
+    expect(card).toHaveTextContent("A short summary of the page.");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("omits title-only unfurl cards that have no image and no description", () => {
+    renderRow({
+      message: userMessage({
+        content: "Check [Sentry](https://masumi.sentry.io)",
+        unfurls: [
+          {
+            url: "https://masumi.sentry.io",
+            title: "Sign In | Sentry",
+            description: null,
+            imageUrl: null,
+            siteName: "masumi.sentry.io",
+          },
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: "  ",
+            imageUrl: null,
+            siteName: "resend.com",
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.queryByTestId("room-message-unfurls"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders only unfurls that have an image or a description", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "See [Sentry](https://masumi.sentry.io) and https://example.com/article",
+        unfurls: [
+          {
+            url: "https://masumi.sentry.io",
+            title: "Sign In | Sentry",
+            description: null,
+            imageUrl: null,
+            siteName: "masumi.sentry.io",
+          },
+          {
+            url: "https://example.com/article",
+            title: "Example Article",
+            description: "A short summary of the page.",
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    const cards = screen.getAllByTestId("room-message-unfurl");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent("Example Article");
+    expect(cards[0]).toHaveTextContent("A short summary of the page.");
+    expect(screen.queryByText("Sign In | Sentry")).not.toBeInTheDocument();
+  });
+
   it("omits unfurl cards when unfurls are null or empty", () => {
     const { rerender } = render(
       <ChatMessageRow
@@ -1809,7 +1972,7 @@ describe("ChatMessageRow", () => {
           {
             url: "https://example.com",
             title: "Example",
-            description: null,
+            description: "Example description",
             imageUrl: null,
             siteName: null,
           },
@@ -1836,14 +1999,14 @@ describe("ChatMessageRow", () => {
           {
             url: "https://ably.com",
             title: "Ably",
-            description: null,
+            description: "Realtime messaging",
             imageUrl: null,
             siteName: "Ably",
           },
           {
             url: "https://resend.com",
             title: "Resend",
-            description: null,
+            description: "Email for developers",
             imageUrl: null,
             siteName: "Resend",
           },
@@ -1869,7 +2032,7 @@ describe("ChatMessageRow", () => {
           {
             url: "https://ably.com",
             title: "Ably",
-            description: null,
+            description: "Realtime messaging",
             imageUrl: null,
             siteName: "Ably",
           },
@@ -1899,7 +2062,7 @@ describe("ChatMessageRow", () => {
           {
             url: "https://example.com",
             title: "Example",
-            description: null,
+            description: "Example description",
             imageUrl: null,
             siteName: "Example",
           },
@@ -1922,7 +2085,7 @@ describe("ChatMessageRow", () => {
           {
             url: "https://example.com",
             title: "Example",
-            description: null,
+            description: "Example description",
             imageUrl: null,
             siteName: "Example",
           },
@@ -1945,7 +2108,7 @@ describe("ChatMessageRow", () => {
         {
           url: "https://ably.com",
           title: "Ably",
-          description: null,
+          description: "Realtime messaging",
           imageUrl: null,
           siteName: "Ably",
         },
