@@ -283,7 +283,29 @@ docs(readme): update setup instructions
 
 ### Code Changes
 
-- **Prioritize maintainability** over short-term wins — see [maintainability](.cursor/rules/maintainability.mdc)
+**Judgment** (how to choose when several approaches fit; facts in this file win):
+
+- **Prefer delete over compatibility theater** in application code. Remove obsolete callers, branches, flags, and shims instead of dual paths. Persisted data and released contracts still need Prisma migrations, Core OpenAPI + web client regen, and honest API versioning when external clients exist. Do not invent silent dual-read/dual-write layers.
+- **Simplest that fully meets today.** No speculative abstractions, knobs, or extension points for unreal needs.
+- **Grow in working layers.** Smallest end-to-end slice first; do not trade a working product for unfinished complexity.
+- **Separate concerns.** Logic at the right layer (web UI/actions/services → Core routes → shared packages). Do not smuggle domain rules across boundaries to save a file.
+- **Prefer known libraries;** check what the monorepo already has. External npm stays pinned (see [pinned-dependencies](.cursor/rules/pinned-dependencies.mdc)). Prefer `workspace:*` over copying logic.
+- **Design you would keep.** A stopgap needs an explicit hotfix scope and a tracked follow-up.
+
+When those pull in different directions: (1) this file's boundaries beat a "simpler" shortcut, (2) pick the smallest design you would still want in six months, (3) ship a thin end-to-end path before a generalized framework, (4) when two keepable options remain, prefer the maintainable one below.
+
+**Maintainability** is a high priority. Prefer clear, consistent, easy-to-change work over options that only save time on this PR. When two approaches both work, choose the one that matches existing patterns, names things for what they mean today, leaves no dead parameters/branches/comments, and is understandable without tribal knowledge.
+
+| Short-term win | Maintainable choice |
+| --- | --- |
+| Reuse a positional arg slot for a new meaning | Named options object or explicit parameter |
+| Copy-paste to ship faster | Shared helper or package when logic is duplicated |
+| Leave a stub, TODO, or partial removal "for later" | Finish the removal or scope the PR honestly |
+| One-off hack around architecture | Fix at the right layer (Core, shared package, schema) |
+| Skip renaming because the diff is bigger | Rename when the old name is now misleading |
+
+A shortcut is acceptable only for an explicit smallest-change request, a documented follow-up issue when a hotfix cannot wait, or a bugfix that must not expand into a refactor unless the touched code clearly requires it. If you remove a feature, remove its types, routes, UI, migrations, and tests — not just the happy path. Clean up misleading API surfaces in the same change when you touch them.
+
 - Prefer editing existing files over creating new ones
 - Use semantic search to understand codebase before making changes
 - Follow the three-layer architecture pattern
@@ -361,8 +383,6 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Additional Rules
 
-- [Principles](.cursor/rules/principles.mdc) – architecture judgment: delete over shims, simplest keepable design, layered growth
-- [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code

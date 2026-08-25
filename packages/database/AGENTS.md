@@ -179,7 +179,7 @@ export default prisma;
 
 ### ✅ Do
 
-- Prefer direct Prisma in new Core route handlers (see [core AGENTS](../../apps/core/AGENTS.md) and [data-access](../../apps/core/.cursor/rules/data-access.mdc))
+- Prefer direct Prisma in new Core route handlers (see [core AGENTS](../../apps/core/AGENTS.md); `import prisma from "@/lib/db/prisma"`)
 - Keep repositories for package consumers / legacy Core services that still use them; pass Prisma client explicitly
 - Import types from the main export (`@sokosumi/database`) in Core and server packages
 - Use database helpers for Prisma-backed domain logic (job status, credit buckets); use `@sokosumi/utils` for credit conversion

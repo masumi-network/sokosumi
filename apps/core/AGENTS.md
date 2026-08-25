@@ -325,9 +325,7 @@ const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
 const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 ```
 
-**Note**: Credits use base 10^10 for precision (1 credit = 10^10 cents).
-
-For the **credits-only API contract** and **direct Prisma (no repository pattern)** conventions, see [.cursor/rules/credits-api.mdc](.cursor/rules/credits-api.mdc) and [.cursor/rules/data-access.mdc](.cursor/rules/data-access.mdc).
+**Note**: Credits use base 10^10 for precision (1 credit = 10^10 cents). Never expose cents in request/response bodies or query parameters; convert at the boundary (see [Credit Handling](#credit-handling)).
 
 ### Datetime Schemas
 
@@ -635,7 +633,7 @@ See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/rout
 Jobs have associated files (blobs) and links that can be accessed through Prisma queries:
 
 ```typescript
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
 import { linkWithJobIdInclude, flattenLinkJobId } from "@/types/link";
 
@@ -668,7 +666,7 @@ const userLinks = await prisma.link.findMany({
 const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
 
-**Note**: New Core routes use direct Prisma (`@/lib/db/prisma` or `@sokosumi/database/client`) with type-safe includes and flatten helpers. Repositories may still appear in legacy services — do not introduce new repository usage in routes.
+**Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
 **Shared Packages**:
 
@@ -735,8 +733,6 @@ Environment variables required by Vitest (or by code under test) must be set in 
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import from the canonical package; no passthrough re-export modules
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – shared pure helpers in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
-- [Credits API](.cursor/rules/credits-api.mdc) – expose credits only, never cents
-- [Data Access](.cursor/rules/data-access.mdc) – direct Prisma for new routes; repositories only in legacy services
 
 ## Coworker integrators
 

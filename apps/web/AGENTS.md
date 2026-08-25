@@ -476,8 +476,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Effects](.cursor/rules/effects.mdc)
-- [Principles](../../.cursor/rules/principles.mdc) – architecture judgment (monorepo-wide)
-- [Translations](.cursor/rules/translations.mdc)
+- [Translations](../../.agents/skills/translations/) – next-intl cleanup and locale parity
 - [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components
 
 ## References
