@@ -176,6 +176,38 @@ function FileNameWithPreview({
 }
 
 export default function DrivePage(): ReactElement {
+  const { data: session } = useSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const workspaceKey = activeOrganizationId ?? "personal";
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    if (previousWorkspaceIdRef.current === undefined) {
+      previousWorkspaceIdRef.current = activeOrganizationId;
+      return;
+    }
+    if (previousWorkspaceIdRef.current === activeOrganizationId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = activeOrganizationId;
+    if (!searchParams.get("folder")) {
+      return;
+    }
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.delete("folder");
+    const query = params.toString();
+    router.replace(query ? `/drive?${query}` : "/drive");
+  }, [session, activeOrganizationId, router, searchParams]);
+
+  return <DrivePageWorkspace key={workspaceKey} />;
+}
+
+function DrivePageWorkspace(): ReactElement {
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
@@ -218,7 +250,6 @@ export default function DrivePage(): ReactElement {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
   });
-  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
 
   useRegisterBreadcrumbOverride({
     pathname,
@@ -268,27 +299,6 @@ export default function DrivePage(): ReactElement {
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    if (previousWorkspaceIdRef.current === undefined) {
-      previousWorkspaceIdRef.current = activeOrganizationId;
-      return;
-    }
-    if (previousWorkspaceIdRef.current === activeOrganizationId) {
-      return;
-    }
-    previousWorkspaceIdRef.current = activeOrganizationId;
-    if (!searchParams.get("folder")) {
-      return;
-    }
-    const params = withoutLegacyDriveScopeParam(searchParams);
-    params.delete("folder");
-    const query = params.toString();
-    router.replace(query ? `/drive?${query}` : "/drive");
-  }, [session, activeOrganizationId, router, searchParams]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
