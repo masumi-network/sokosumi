@@ -43,10 +43,10 @@ sokosumi/
 │   │   ├── src/types/         # Database type definitions
 │   │   └── prisma/            # Database schema and migrations
 │   ├── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
-│   │   ├── src/clients/       # Agent API client
+│   │   ├── src/clients/       # Agent, payment, registry clients
 │   │   ├── src/hash/          # Hash utilities for job verification
-│   │   ├── src/schemas/       # Agent protocol Zod schemas
-│   │   └── src/types/         # Agent types
+│   │   ├── src/schemas/       # Agent / input / x402 Zod schemas
+│   │   └── src/tools/         # Masumi-hosted tools (DESIGN.md)
 │   ├── utils/                 # Shared utilities (@sokosumi/utils)
 │   │   └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
 │   ├── net/                   # Network helpers (@sokosumi/net; SSRF-safe fetch, etc.)
@@ -283,7 +283,30 @@ docs(readme): update setup instructions
 
 ### Code Changes
 
-- **Prioritize maintainability** over short-term wins — see [maintainability](.cursor/rules/maintainability.mdc)
+When several approaches fit, facts in this file win over a shortcut.
+
+Delete obsolete callers, branches, flags, and shims. Do not keep two paths. Prisma migrations, Core OpenAPI plus web client regen, and API versioning still apply when stored data or a released contract changes. Do not add silent dual-read or dual-write layers.
+
+Build the smallest thing that satisfies the current requirement. No knobs or extension points for work that is not real yet. Ship a thin end-to-end slice first. Do not replace a working product with a half-built framework.
+
+Put logic at the right layer. Web UI, actions, and services. Core routes. Shared packages. Do not smuggle domain rules across those boundaries to save a file.
+
+Prefer libraries already in the monorepo. Pin registry versions ([pinned-dependencies](.cursor/rules/pinned-dependencies.mdc)). Use `workspace:*` instead of copying logic.
+
+Keep a design you would still want in six months. A stopgap needs an explicit hotfix scope and a tracked follow-up.
+
+If two keepable options remain, pick the one that matches existing patterns, names things for what they mean today, and does not leave dead parameters, branches, or comments.
+
+| Short-term win | Maintainable choice |
+| --- | --- |
+| Reuse a positional arg slot for a new meaning | Named options object or explicit parameter |
+| Copy-paste to ship faster | Shared helper or package when logic is duplicated |
+| Leave a stub, TODO, or partial removal "for later" | Finish the removal or scope the PR honestly |
+| One-off hack around architecture | Fix at the right layer (Core, shared package, schema) |
+| Skip renaming because the diff is bigger | Rename when the old name is now misleading |
+
+A shortcut is fine when the user asked for the smallest change, when a hotfix has a tracked follow-up, or when expanding a bugfix would balloon into a refactor. Removing a feature means removing its types, routes, UI, migrations, and tests. If you touch a misleading API, rename it in the same change.
+
 - Prefer editing existing files over creating new ones
 - Use semantic search to understand codebase before making changes
 - Follow the three-layer architecture pattern
@@ -361,8 +384,6 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Additional Rules
 
-- [Principles](.cursor/rules/principles.mdc) – architecture judgment: delete over shims, simplest keepable design, layered growth
-- [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
