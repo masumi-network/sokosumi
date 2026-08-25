@@ -1,5 +1,7 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
+import { isStaleDeploymentError } from "@/lib/utils/deployment-refresh";
+
 const INVALID_SESSION_MESSAGE = /invalid, expired or missing session/i;
 
 const UNAUTHENTICATED_MESSAGE = /^user is not authenticated$/i;
@@ -166,6 +168,9 @@ export function isMaskedProductionRscRenderError(message: string): boolean {
 }
 
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
+  if (isStaleDeploymentError(message)) {
+    return true;
+  }
   return expectedClientNoiseIgnoreErrors.some((pattern) =>
     pattern.test(message),
   );

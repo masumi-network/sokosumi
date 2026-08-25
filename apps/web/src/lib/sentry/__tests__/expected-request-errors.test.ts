@@ -216,4 +216,12 @@ describe("isExpectedClientNoiseErrorMessage", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches Next 16 client UnrecognizedActionError (stale deploy skew)", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        'Server Action "6037bf81a54d2d4d92cb0ee900e49ae81c9bbdd98b" was not found on the server. \nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action',
+      ),
+    ).toBe(true);
+  });
 });
