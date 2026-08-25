@@ -65,12 +65,14 @@ async function loadTurn(
       events: { select: { type: true, toolName: true } },
       delegations: { select: { id: true, taskId: true, jobId: true } },
       pendingDecisions: { select: { id: true, resultingEntityId: true } },
+      contextSnapshot: { select: { packet: true } },
     },
   });
-  const { pendingDecisions, ...rest } = turn;
+  const { pendingDecisions, contextSnapshot, ...rest } = turn;
   return {
     ...rest,
     decisions: pendingDecisions,
+    contextPacket: contextSnapshot?.packet ?? null,
     costUsd:
       turn.costUsdMicros === null ? null : Number(turn.costUsdMicros) / 1e6,
   };

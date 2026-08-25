@@ -11,6 +11,8 @@
 export interface SokoBotLabTurn {
   /** Owner message or event text; ids it mentions are known, not invented. */
   userMessage?: string | null;
+  /** Context packet the runtime received; its ids are known too. */
+  contextPacket?: unknown;
   status: string;
   route: string | null;
   finalAnswer: string | null;
@@ -353,6 +355,7 @@ export function evaluateScenario(
   if (expect.noInventedIds) {
     const known = JSON.stringify({
       prompt: turn.userMessage ?? "",
+      packet: turn.contextPacket ?? null,
       results: turn.toolCalls.map((call) => call.result),
       delegations: turn.delegations,
       decisions: turn.decisions,
