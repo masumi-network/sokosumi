@@ -403,9 +403,6 @@ function DrivePageWorkspace({
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
-  const [copyDestinationScope, setCopyDestinationScope] = useState<
-    "me" | "org" | null
-  >(null);
   const [copying, setCopying] = useState(false);
   const [projectNameCache, setProjectNameCache] = useState<Map<string, string>>(
     () => new Map(),
@@ -446,7 +443,6 @@ function DrivePageWorkspace({
     setTasksLoading(false);
     setCopyDialogOpen(false);
     setTaskFileToCopy(null);
-    setCopyDestinationScope(null);
     setProjectNameCache(new Map());
     setTaskNameCache(new Map());
   }
@@ -1034,16 +1030,11 @@ function DrivePageWorkspace({
       return;
     }
     setTaskFileToCopy(item);
-    setCopyDestinationScope(null);
     setCopyDialogOpen(true);
   }
 
   async function handleCopyConfirm() {
-    if (
-      !taskFileToCopy ||
-      taskFileToCopy.type !== "task-file" ||
-      !copyDestinationScope
-    ) {
+    if (!taskFileToCopy || taskFileToCopy.type !== "task-file") {
       return;
     }
 
@@ -1053,24 +1044,23 @@ function DrivePageWorkspace({
         client: getBrowserCoreClient(),
         body: {
           taskFileId: taskFileToCopy.id,
-          scope: copyDestinationScope,
-          ...(copyDestinationScope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
+          scope: driveStore.scope,
+          ...(driveStore.scope === "org"
+            ? { organizationId: driveStore.organizationId }
             : {}),
         },
         throwOnError: true,
       });
 
-      toast.success(t("copyToDriveSuccess"));
+      toast.success(t("copyToFilesSuccess"));
       setCopyDialogOpen(false);
       setTaskFileToCopy(null);
-      setCopyDestinationScope(null);
     } catch (err) {
       console.error("Failed to copy file", err);
       if (isDuplicateResourceError(err)) {
-        toast.error(t("copyToDriveDuplicateError"));
+        toast.error(t("copyToFilesDuplicateError"));
       } else {
-        toast.error(t("copyToDriveError"));
+        toast.error(t("copyToFilesError"));
       }
     } finally {
       setCopying(false);
@@ -1692,7 +1682,7 @@ function DrivePageWorkspace({
                             }}
                           >
                             <Copy className="size-4" aria-hidden />
-                            {t("copyToDriveAction")}
+                            {t("copyToFilesAction")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -2045,64 +2035,44 @@ function DrivePageWorkspace({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("selectDestinationDrive")}</DialogTitle>
-            <DialogDescription>
-              {t("selectDestinationDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setCopyDestinationScope("me")}
-              className={cn(
-                "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                copyDestinationScope === "me" && "bg-muted border-primary",
-              )}
-            >
-              <Home className="text-muted-foreground size-4 shrink-0" />
-              <span className="flex-1">{t("myDriveDestination")}</span>
-            </button>
-            {activeOrganizationId && organizationName && (
-              <button
-                type="button"
-                onClick={() => setCopyDestinationScope("org")}
-                className={cn(
-                  "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                  copyDestinationScope === "org" && "bg-muted border-primary",
-                )}
-              >
-                <Building2 className="text-muted-foreground size-4 shrink-0" />
-                <span className="flex-1">
-                  {t("organizationDriveDestination", {
-                    name: organizationName,
-                  })}
-                </span>
-              </button>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setCopyDialogOpen(false);
-                setTaskFileToCopy(null);
-                setCopyDestinationScope(null);
+      <AlertDialog
+        open={copyDialogOpen}
+        onOpenChange={(open) => {
+          setCopyDialogOpen(open);
+          if (!open) {
+            setTaskFileToCopy(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("copyToFilesDialogTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("copyToFilesDialogDescription", {
+                fileName:
+                  taskFileToCopy?.type === "task-file"
+                    ? taskFileToCopy.name
+                    : "",
+                workspace: storeRootLabel,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={copying}>
+              {t("deleteDialogCancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={copying}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleCopyConfirm();
               }}
             >
-              {t("cancelAction")}
-            </Button>
-            <Button
-              onClick={() => void handleCopyConfirm()}
-              disabled={copying || !copyDestinationScope}
-            >
-              {t("copyToDriveAction")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {t("copyToFilesDialogConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
