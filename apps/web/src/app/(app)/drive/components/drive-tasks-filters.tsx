@@ -81,6 +81,28 @@ function mapDriveTasksToTaskOptions(
   );
 }
 
+export function buildDriveTasksFilterParams(
+  searchParams: URLSearchParams,
+  param: "assigneeId" | "projectId" | "taskId",
+  value: string | null,
+): URLSearchParams {
+  const params = new URLSearchParams(searchParams.toString());
+  if (value) {
+    params.set(param, value);
+  } else {
+    params.delete(param);
+  }
+
+  if (param === "assigneeId") {
+    params.delete("projectId");
+    params.delete("taskId");
+  } else if (param === "projectId") {
+    params.delete("taskId");
+  }
+
+  return params;
+}
+
 export function DriveTasksFilters({
   activeOrganizationId,
   assigneeId,
@@ -381,17 +403,7 @@ export function DriveTasksFilters({
 
   const handleFilterChange = useCallback(
     (param: "assigneeId" | "projectId" | "taskId", value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value) {
-        params.set(param, value);
-      } else {
-        params.delete(param);
-      }
-
-      if (param === "projectId") {
-        params.delete("taskId");
-      }
-
+      const params = buildDriveTasksFilterParams(searchParams, param, value);
       router.replace(`${pathname}?${params.toString()}`);
     },
     [pathname, router, searchParams],
@@ -449,7 +461,7 @@ export function DriveTasksFilters({
         : undefined,
     });
 
-    if (projectId && tasks.length > 0) {
+    if (projectId) {
       nextSections.push({
         id: "task",
         label: labels.taskLabel,
