@@ -169,14 +169,11 @@ describe("DrivePage workspace remount", () => {
     rerender(<DrivePage />);
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: "Reports" }) ??
-          screen.queryByDisplayValue("Reports"),
-      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
     });
 
     expect(screen.queryByTitle("saveAction")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    expect(screen.queryByDisplayValue("Reports")).not.toBeInTheDocument();
     expect(patchDriveFoldersRenameMock).not.toHaveBeenCalled();
   });
 
@@ -189,6 +186,7 @@ describe("DrivePage workspace remount", () => {
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
     });
+    expect(replaceMock).not.toHaveBeenCalled();
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
     rerender(<DrivePage />);

@@ -183,6 +183,8 @@ export default function DrivePage(): ReactElement {
   const searchParams = useSearchParams();
   const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
 
+  // Lives on the wrapper so remounting DrivePageWorkspace cannot treat a
+  // workspace switch as first paint and skip clearing a stale folder query.
   useEffect(() => {
     if (!session) {
       return;
