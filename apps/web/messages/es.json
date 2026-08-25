@@ -5455,6 +5455,21 @@
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
         "loadError": "No se pudieron cargar las imágenes."
+      },
+      "Lab": {
+        "toggle": "Laboratorio de comportamiento",
+        "title": "Laboratorio de comportamiento",
+        "description": "Prompts fijos puntuados según cómo debería reaccionar el asistente. Vuelve a ejecutarlos tras cambiar el prompt, el clasificador o el modelo.",
+        "warning": "Las ejecuciones son turnos reales: crean tareas y aprobaciones en tu espacio de trabajo.",
+        "runAll": "Ejecutar todo",
+        "run": "Ejecutar",
+        "running": "Ejecutando…",
+        "lastRun": "Última ejecución {time}",
+        "openTurn": "Abrir turno",
+        "neverRun": "Aún no ejecutado.",
+        "score": "{passed}/{total} comprobaciones superadas",
+        "startError": "No se pudo iniciar el turno.",
+        "timeout": "El turno no terminó en 5 minutos."
       }
     }
   },

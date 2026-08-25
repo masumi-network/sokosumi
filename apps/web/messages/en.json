@@ -5455,6 +5455,21 @@
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
         "loadError": "Could not load pictures."
+      },
+      "Lab": {
+        "toggle": "Behaviour lab",
+        "title": "Behaviour lab",
+        "description": "Fixed prompts scored against how the assistant should react. Re-run after changing the prompt, classifier, or model.",
+        "warning": "Runs are real turns: they create tasks and approvals in your workspace.",
+        "runAll": "Run all",
+        "run": "Run",
+        "running": "Running…",
+        "lastRun": "Last run {time}",
+        "openTurn": "Open turn",
+        "neverRun": "Not run yet.",
+        "score": "{passed}/{total} checks passed",
+        "startError": "Could not start the turn.",
+        "timeout": "The turn did not finish within 5 minutes."
       }
     }
   },

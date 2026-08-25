@@ -5455,6 +5455,21 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "loadError": "Bilder konnten nicht geladen werden."
+      },
+      "Lab": {
+        "toggle": "Verhaltenslabor",
+        "title": "Verhaltenslabor",
+        "description": "Feste Prompts, bewertet daran, wie der Assistent reagieren sollte. Nach Änderungen an Prompt, Classifier oder Modell erneut ausführen.",
+        "warning": "Läufe sind echte Durchläufe: Sie erzeugen Tasks und Freigaben in deinem Workspace.",
+        "runAll": "Alle ausführen",
+        "run": "Ausführen",
+        "running": "Läuft…",
+        "lastRun": "Letzter Lauf {time}",
+        "openTurn": "Durchlauf öffnen",
+        "neverRun": "Noch nicht ausgeführt.",
+        "score": "{passed}/{total} Prüfungen bestanden",
+        "startError": "Der Durchlauf konnte nicht gestartet werden.",
+        "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig."
       }
     }
   },

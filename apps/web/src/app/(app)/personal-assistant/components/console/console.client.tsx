@@ -1,9 +1,15 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { FlaskConical, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
@@ -38,6 +44,7 @@ import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
 
 import { ActivityList } from "./activity-list.client";
+import { ScenarioLab } from "./scenario-lab.client";
 
 function Section({
   title,
@@ -67,6 +74,8 @@ function Section({
     </section>
   );
 }
+
+const LAB_OPEN_KEY = "soko-bot-lab:open";
 
 export interface SokoBotConsoleProps {
   initialState: SokoBotChatState;
@@ -98,6 +107,26 @@ export function SokoBotConsole({
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
+  const [labOpen, setLabOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      setLabOpen(localStorage.getItem(LAB_OPEN_KEY) === "1");
+    } catch {
+      // Storage unavailable: the lab just starts hidden.
+    }
+  }, []);
+
+  function toggleLab() {
+    setLabOpen((value) => {
+      try {
+        localStorage.setItem(LAB_OPEN_KEY, value ? "0" : "1");
+      } catch {
+        // Storage unavailable.
+      }
+      return !value;
+    });
+  }
 
   function saveAvatar() {
     if (!pickedAvatar) return;
@@ -166,6 +195,17 @@ export function SokoBotConsole({
             </div>
             <Button
               type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("Lab.toggle")}
+              aria-pressed={labOpen}
+              onClick={toggleLab}
+              className={cn(labOpen && "bg-muted")}
+            >
+              <FlaskConical aria-hidden className="size-4" />
+            </Button>
+            <Button
+              type="button"
               onClick={openChat}
               disabled={!bot.coworkerId || isOpeningChat}
             >
@@ -208,6 +248,15 @@ export function SokoBotConsole({
                   </div>
                 )}
               </Section>
+
+              {labOpen ? (
+                <Section
+                  title={t("Lab.title")}
+                  description={t("Lab.description")}
+                >
+                  <ScenarioLab onTurnFinished={refresh} />
+                </Section>
+              ) : null}
 
               <Section
                 title={t("Console.activityTitle")}
