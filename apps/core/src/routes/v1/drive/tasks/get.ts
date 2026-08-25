@@ -1,13 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
-import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import {
   requireCoworkerCapability,
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
-import { requireDriveStoreMatchesActiveWorkspace } from "@/helpers/drive-file-access";
-import { badRequest, forbidden } from "@/helpers/error";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
+import { forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -132,51 +131,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const userContext = requireUserContext(authContext);
-    const userId = userContext.userId;
-    let workspaceId: string;
-
-    if (scope === "me") {
-      requireDriveStoreMatchesActiveWorkspace(
-        userContext,
-        "user",
-        userContext.userId,
-      );
-      const workspace = await workspaceRepository.resolveWorkspaceForContext(
-        userId,
-        null,
-        prisma,
-      );
-      workspaceId = workspace.id;
-    } else {
-      if (!organizationId) {
-        throw badRequest("organizationId is required when scope=org");
-      }
-
-      requireDriveStoreMatchesActiveWorkspace(
-        userContext,
-        "organization",
-        organizationId,
-      );
-
-      const member = await prisma.member.findUnique({
-        where: {
-          userId_organizationId: {
-            userId,
-            organizationId,
-          },
-        },
-      });
-      if (!member) {
-        throw forbidden("Not a member of this organization");
-      }
-
-      const workspace = await workspaceRepository.resolveWorkspaceForContext(
-        userId,
-        organizationId,
-        prisma,
-      );
-      workspaceId = workspace.id;
-    }
+    const workspaceContext = await resolveDriveTasksWorkspace({
+      userContext,
+      scope,
+      organizationId,
+    });
+    c.set("workspaceContext", workspaceContext);
+    const workspaceId = workspaceContext.workspaceId;
 
     const baseTaskWhere: Prisma.TaskWhereInput = {
       archivedAt: null,

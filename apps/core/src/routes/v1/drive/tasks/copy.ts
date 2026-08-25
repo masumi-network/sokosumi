@@ -19,6 +19,7 @@ import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
 } from "@/helpers/drive-file-access";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
@@ -111,7 +112,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const fileName = taskFile.name;
     const mimeType = taskFile.mimeType;
 
-    // Check read access to task
+    c.set(
+      "workspaceContext",
+      await resolveDriveTasksWorkspace({
+        userContext,
+        scope: body.scope,
+        organizationId: body.organizationId,
+      }),
+    );
     await requireTaskReadForRouteVars(c.var, taskId);
 
     // Determine destination pathname

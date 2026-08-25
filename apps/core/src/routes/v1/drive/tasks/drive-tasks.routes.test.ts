@@ -132,6 +132,22 @@ const ORG_AUTH_CONTEXT: AuthenticationContext = {
   authenticationMethod: "session",
 };
 
+const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: "ven_123",
+  context: {
+    userId: "user_123",
+    organizationId: null,
+  },
+};
+
+const BARE_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: "ven_123",
+};
+
 const DRIVE_TASK_FILE_WHERE = {
   status: "READY",
   origin: "TASK_OUTPUT",
@@ -186,6 +202,8 @@ describe("Drive Tasks Routes", () => {
     vi.clearAllMocks();
     workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
       id: "ws_personal",
+      userId: "user_123",
+      organizationId: null,
     });
   });
 
@@ -214,7 +232,16 @@ describe("Drive Tasks Routes", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+        expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            workspaceContext: {
+              workspaceId: "ws_personal",
+              userId: "user_123",
+              organizationId: null,
+            },
+          }),
+          "tsk_123",
+        );
       });
 
       it("omits PENDING and FAILED TaskFiles from results", async () => {
@@ -468,6 +495,8 @@ describe("Drive Tasks Routes", () => {
         // Simulate transferred task: Task.workspaceId = ws_org, Project.workspaceId = ws_personal
         workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
           id: "ws_org",
+          userId: null,
+          organizationId: "org_123",
         });
         prismaMemberFindUniqueMock.mockResolvedValue({
           userId: "user_123",
@@ -607,6 +636,31 @@ describe("Drive Tasks Routes", () => {
           "Organization Drive is only available in an organization workspace",
         );
       });
+
+      it("lists for a coworker with workspace context", async () => {
+        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaProjectFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp(COWORKER_AUTH_CONTEXT);
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(200);
+        expect(
+          workspaceRepositoryMock.resolveWorkspaceForContext,
+        ).toHaveBeenCalledWith("user_123", null, expect.anything());
+      });
+
+      it("rejects a coworker without workspace context", async () => {
+        const app = createDriveTasksApp(BARE_COWORKER_AUTH_CONTEXT);
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(403);
+        const json = await res.json();
+        expect(json.error?.message ?? json.message).toContain(
+          "Drive Tasks requires workspace context",
+        );
+      });
     });
   });
 
@@ -662,7 +716,16 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(201);
-      expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
+      expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceContext: {
+            workspaceId: "ws_personal",
+            userId: "user_123",
+            organizationId: null,
+          },
+        }),
+        "tsk_1",
+      );
     });
 
     it("returns 404 when TaskFile not found", async () => {
