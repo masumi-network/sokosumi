@@ -249,23 +249,14 @@ async function githubJson(fetchImpl, token, url, init = {}) {
   return payload;
 }
 
-function formatDeployComment(networks, sha, targets, deployments) {
-  const shortSha = sha.slice(0, 7);
-  const lines = [
-    `Preview deploy for **${networks.join(" + ")}** at \`${shortSha}\`:`,
-    "",
-  ];
-  for (let index = 0; index < targets.length; index += 1) {
-    const target = targets[index];
-    const deployment = deployments[index];
-    const state = deployment.readyState ?? "UNKNOWN";
-    const url =
-      state === "READY"
-        ? pickPreviewUrl(deployment)
-        : (deployment.inspectorUrl ?? pickPreviewUrl(deployment));
-    lines.push(`- ${target.name} (${state}): ${url ?? "no URL yet"}`);
-  }
-  return lines.join("\n");
+function failedDeploymentNames(targets, deployments) {
+  return targets.flatMap((target, index) => {
+    const state = deployments[index]?.readyState;
+    if (state === "READY") {
+      return [];
+    }
+    return [`${target.name} (${state ?? "UNKNOWN"})`];
+  });
 }
 
 export async function runPreviewDeployComment(options) {
@@ -273,6 +264,7 @@ export async function runPreviewDeployComment(options) {
     commentBody,
     isPullRequest,
     commentAuthor,
+    commentId,
     repoOwner,
     repoName,
     repoId,
@@ -286,6 +278,7 @@ export async function runPreviewDeployComment(options) {
     createDeployment,
     pollDeployment,
     postComment,
+    addReaction,
   } = options;
 
   if (!isPullRequest) {
@@ -308,6 +301,21 @@ export async function runPreviewDeployComment(options) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body }),
+        },
+      );
+    });
+
+  const react =
+    addReaction ??
+    (async (content) => {
+      await githubJson(
+        fetchImpl,
+        githubToken,
+        `https://api.github.com/repos/${repoOwner}/${repoName}/issues/comments/${commentId}/reactions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
         },
       );
     });
@@ -376,22 +384,24 @@ export async function runPreviewDeployComment(options) {
     ref: pullRequest.head.ref,
     sha: pullRequest.head.sha,
   };
+  let settled;
   try {
+    await react("eyes");
     const created = await Promise.all(
       targets.map((target) => create({ target, ...git })),
     );
-    const settled = await Promise.all(
-      created.map((deployment) => poll(deployment)),
-    );
-    await comment(
-      formatDeployComment(parsed.networks, git.sha, targets, settled),
-    );
-    return { kind: "deploy", deployments: settled };
+    settled = await Promise.all(created.map((deployment) => poll(deployment)));
+    const failed = failedDeploymentNames(targets, settled);
+    if (failed.length > 0) {
+      throw new Error(failed.join(", "));
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await comment(`Preview deploy failed: ${message}`);
     throw error;
   }
+  await react("rocket");
+  return { kind: "deploy", deployments: settled };
 }
 
 export async function runProductionDeploy(options) {
@@ -440,13 +450,7 @@ export async function runProductionDeploy(options) {
   const settled = await Promise.all(
     created.map((deployment) => poll(deployment)),
   );
-  const failed = targets.flatMap((target, index) => {
-    const state = settled[index]?.readyState;
-    if (state === "READY") {
-      return [];
-    }
-    return [`${target.name} (${state ?? "UNKNOWN"})`];
-  });
+  const failed = failedDeploymentNames(targets, settled);
   if (failed.length > 0) {
     throw new Error(`Production deploy failed: ${failed.join(", ")}`);
   }
@@ -478,6 +482,7 @@ async function cliPreview(env = process.env) {
   const result = await runPreviewDeployComment({
     commentBody: event.comment.body,
     commentAuthor: event.comment.user.login,
+    commentId: event.comment.id,
     isPullRequest: Boolean(event.issue.pull_request),
     issueNumber: event.issue.number,
     repoOwner,
