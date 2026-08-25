@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -56,6 +57,7 @@ export function ThreadPanel({
   onStartEdit,
   onDelete,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   outboundSentTickIds,
   editSession = null,
@@ -98,6 +100,7 @@ export function ThreadPanel({
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
@@ -139,6 +142,18 @@ export function ThreadPanel({
       pinToBottomAfterOwnSend();
     }
     return result;
+  }
+
+  const mentionRetrySourceMessages = [parentMessage, ...replies];
+
+  function retryMentionFor(message: ChatRoomMessage) {
+    return isCurrentUserMentionerOfFailedShell({
+      shell: message,
+      currentUserId,
+      sourceMessages: mentionRetrySourceMessages,
+    })
+      ? onRetryMention
+      : undefined;
   }
 
   function editPropsFor(messageId: string) {
@@ -232,6 +247,7 @@ export function ThreadPanel({
                 openingDirectParticipantKey={openingDirectParticipantKey}
                 onToggleReaction={onToggleReaction}
                 onQuote={onQuote ? handleQuote : undefined}
+                onRetryMention={retryMentionFor(parentMessage)}
                 showThreadButton={false}
                 reserveHoverActionGutter={false}
                 {...editPropsFor(parentMessage.id)}
@@ -286,6 +302,7 @@ export function ThreadPanel({
                           onToggleReaction={onToggleReaction}
                           onQuote={onQuote ? handleQuote : undefined}
                           onRetryOutbound={onRetryOutbound}
+                          onRetryMention={retryMentionFor(reply)}
                           onRemoveOutbound={onRemoveOutbound}
                           showOutboundSentTick={outboundSentTickIds?.has(
                             reply.id,

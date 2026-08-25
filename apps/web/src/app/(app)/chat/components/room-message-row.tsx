@@ -24,8 +24,8 @@ import {
   useState,
 } from "react";
 import {
+  CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
-  CoworkerMentionTerminalStatus,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
@@ -1462,6 +1462,32 @@ function MessageTimeOrOutboundStatus({
   return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
+function FailedMentionActions({
+  onRetryMention,
+}: {
+  onRetryMention?: () => void;
+}) {
+  const t = useTranslations("App.Channels");
+  if (!onRetryMention) {
+    return null;
+  }
+  return (
+    <div
+      className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      data-testid="coworker-mention-failed"
+    >
+      <button
+        type="button"
+        className="text-primary hover:text-primary/80 font-medium"
+        data-testid="coworker-mention-retry"
+        onClick={onRetryMention}
+      >
+        {t("MentionStatus.retry")}
+      </button>
+    </div>
+  );
+}
+
 function OutboundFailedActions({
   message,
   onRetryOutbound,
@@ -1585,6 +1611,7 @@ export function ChatMessageRow({
   onStartEdit,
   onDelete,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   showOutboundSentTick = false,
   isEditing = false,
@@ -1614,6 +1641,7 @@ export function ChatMessageRow({
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
@@ -1857,11 +1885,16 @@ export function ChatMessageRow({
                   isSaving={isSavingEdit}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
-                <CoworkerMentionTerminalStatus
-                  label={tChannels("MentionStatus.failed", {
-                    name: sender.name,
-                  })}
-                />
+                <>
+                  <CoworkerFailedThoughtSparkle
+                    label={tChannels("MentionStatus.failed")}
+                  />
+                  <FailedMentionActions
+                    onRetryMention={
+                      onRetryMention ? () => onRetryMention(message) : undefined
+                    }
+                  />
+                </>
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought

@@ -264,6 +264,7 @@ import {
   postChatsRoomsByIdInviteLinks as corePostChatsRoomsByIdInviteLinks,
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
+  postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
@@ -963,6 +964,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function retryChatRoomMention(
+    id: string,
+    messageId: string,
+    mentionId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry({
+          client,
+          path: { id, messageId, mentionId },
+        }),
+      "Failed to retry chat room mention",
     );
   }
 
@@ -4350,6 +4367,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unmuteChatRoom,
     markChatRoomUnread,
     deleteChatRoomMessage,
+    retryChatRoomMention,
     toggleChatRoomMessageReaction,
     getHermesInstance,
     getHermesMessages,
