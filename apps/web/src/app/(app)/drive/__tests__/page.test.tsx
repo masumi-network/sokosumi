@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -111,6 +112,31 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
 
 import DrivePage from "@/app/drive/page";
 
+function createDriveQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: 60_000,
+      },
+    },
+  });
+}
+
+let queryClient = createDriveQueryClient();
+
+function driveTree() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DrivePage />
+    </QueryClientProvider>
+  );
+}
+
+function renderDrive() {
+  return render(driveTree());
+}
+
 function reportsFolder() {
   return {
     type: "folder" as const,
@@ -142,6 +168,7 @@ function listedStore() {
 
 describe("DrivePage workspace remount", () => {
   beforeEach(() => {
+    queryClient = createDriveQueryClient();
     searchParams = new URLSearchParams();
     replaceMock.mockReset();
     pushMock.mockReset();
@@ -166,7 +193,7 @@ describe("DrivePage workspace remount", () => {
     const user = userEvent.setup();
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
-    const { rerender } = render(<DrivePage />);
+    const { rerender } = renderDrive();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
@@ -178,7 +205,7 @@ describe("DrivePage workspace remount", () => {
     expect(screen.getByTitle("saveAction")).toBeVisible();
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
-    rerender(<DrivePage />);
+    rerender(driveTree());
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
@@ -193,7 +220,7 @@ describe("DrivePage workspace remount", () => {
     searchParams = new URLSearchParams("folder=Reports");
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
-    const { rerender } = render(<DrivePage />);
+    const { rerender } = renderDrive();
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -201,7 +228,7 @@ describe("DrivePage workspace remount", () => {
     expect(replaceMock).not.toHaveBeenCalled();
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
-    rerender(<DrivePage />);
+    rerender(driveTree());
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/drive");
@@ -211,12 +238,12 @@ describe("DrivePage workspace remount", () => {
   it("does not mount personal drive while the session is pending", async () => {
     useSessionMock.mockReturnValue(pendingSession());
 
-    const { rerender } = render(<DrivePage />);
+    const { rerender } = renderDrive();
 
     expect(listDriveItemsMock).not.toHaveBeenCalled();
 
     useSessionMock.mockReturnValue(sessionFor("org_a"));
-    rerender(<DrivePage />);
+    rerender(driveTree());
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -232,7 +259,7 @@ describe("DrivePage workspace remount", () => {
   it("does not remount as personal when the session briefly goes pending", async () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
-    const { rerender } = render(<DrivePage />);
+    const { rerender } = renderDrive();
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -240,9 +267,9 @@ describe("DrivePage workspace remount", () => {
     const callsAfterFirstLoad = listDriveItemsMock.mock.calls.length;
 
     useSessionMock.mockReturnValue(pendingSession());
-    rerender(<DrivePage />);
+    rerender(driveTree());
     useSessionMock.mockReturnValue(sessionFor("org_a"));
-    rerender(<DrivePage />);
+    rerender(driveTree());
 
     expect(listDriveItemsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
     expect(
@@ -252,5 +279,42 @@ describe("DrivePage workspace remount", () => {
           (options as { organizationId?: string }).organizationId === "org_a",
       ),
     ).toBe(true);
+  });
+
+  it("does not refetch the same workspace after a refresh remount", async () => {
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+
+    const { rerender, unmount } = renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+    });
+
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    rerender(driveTree());
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+    });
+    expect(listedStore()).toMatchObject({
+      scope: "org",
+      organizationId: "org_b",
+    });
+
+    unmount();
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+    expect(
+      listDriveItemsMock.mock.calls.filter(
+        ([options]) =>
+          (options as { organizationId?: string }).organizationId === "org_b",
+      ),
+    ).toHaveLength(1);
   });
 });
