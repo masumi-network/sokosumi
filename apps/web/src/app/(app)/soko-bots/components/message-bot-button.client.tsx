@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
-import { ensureCoworkerDirectRoomAction } from "@/app/(app)/chat/actions";
+import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 
 /** Opens (or creates) the direct room with a Soko Bot's chat coworker. */
 export function MessageBotButton({
