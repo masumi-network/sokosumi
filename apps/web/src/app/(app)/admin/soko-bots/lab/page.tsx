@@ -6,6 +6,8 @@ import { ScenarioLab } from "@/components/admin/soko-bots/scenario-lab.client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Soko Bot behaviour lab",
   description: "Score agent versions against fixed scenarios",
