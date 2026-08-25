@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import { fireGTMEvent } from "@/lib/gtm-events";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -105,6 +106,7 @@ export function PersonalSubscriptionSection({
       }
 
       if (result.value.mode === "redirect") {
+        fireGTMEvent.beginCheckout({ plan });
         window.location.href = result.value.url;
         return;
       }

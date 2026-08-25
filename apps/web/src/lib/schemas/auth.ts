@@ -15,6 +15,14 @@ export const socialProviderIdSchema = z.enum([
 ]);
 export type SocialProviderId = z.infer<typeof socialProviderIdSchema>;
 
+/** Every way to sign in, for analytics (`provider` on `sign_up` / `login`). */
+export const authMethodIdSchema = z.enum([
+  ...socialProviderIdSchema.options,
+  "magic-link",
+  "passkey",
+]);
+export type AuthMethodId = z.infer<typeof authMethodIdSchema>;
+
 export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),
