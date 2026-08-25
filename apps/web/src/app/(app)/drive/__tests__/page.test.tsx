@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -316,5 +316,67 @@ describe("DrivePage workspace remount", () => {
           (options as { organizationId?: string }).organizationId === "org_b",
       ),
     ).toHaveLength(1);
+  });
+
+  it("ignores a stale move-folder list after the workspace changes", async () => {
+    const user = userEvent.setup();
+    const orgAOnly = {
+      type: "folder" as const,
+      name: "OrgAOnly",
+      path: "OrgAOnly",
+    };
+    const orgBOnly = {
+      type: "folder" as const,
+      name: "OrgBOnly",
+      path: "OrgBOnly",
+    };
+    let resolveOrgAFolders: ((items: (typeof orgAOnly)[]) => void) | undefined;
+    let listCalls = 0;
+
+    listDriveItemsMock.mockImplementation(() => {
+      listCalls += 1;
+      if (listCalls === 1) {
+        return Promise.resolve([reportsFolder()]);
+      }
+      if (listCalls === 2) {
+        return new Promise<(typeof orgAOnly)[]>((resolve) => {
+          resolveOrgAFolders = resolve;
+        });
+      }
+      if (listCalls === 3) {
+        return Promise.resolve([reportsFolder()]);
+      }
+      return Promise.resolve([orgBOnly]);
+    });
+
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    const { rerender } = renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+
+    await user.click(screen.getByRole("button", { name: /moveAction/i }));
+    expect(screen.getByText("loadingFolders")).toBeVisible();
+
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    rerender(driveTree());
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+
+    await user.click(screen.getByRole("button", { name: /moveAction/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("OrgBOnly")).toBeVisible();
+    });
+
+    await act(async () => {
+      resolveOrgAFolders?.([orgAOnly]);
+    });
+
+    expect(screen.queryByText("OrgAOnly")).not.toBeInTheDocument();
+    expect(screen.getByText("OrgBOnly")).toBeVisible();
   });
 });

@@ -300,6 +300,9 @@ function DrivePageWorkspace({
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
 
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+  const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
+  const workspaceIdRef = useRef(activeOrganizationId);
+  workspaceIdRef.current = activeOrganizationId;
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
     setDebouncedSearchQuery(value);
   }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
@@ -316,6 +319,9 @@ function DrivePageWorkspace({
     setMoveDialogOpen(false);
     setItemToMove(null);
     setSelectedDestination(null);
+    loadAllFoldersAbortRef.current?.abort();
+    setAllFolders([]);
+    setLoadingAllFolders(false);
     debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
@@ -394,6 +400,12 @@ function DrivePageWorkspace({
 
     void fetchOrganizationName();
   }, [activeOrganizationId, session?.user?.id]);
+
+  useEffect(() => {
+    return () => {
+      loadAllFoldersAbortRef.current?.abort();
+    };
+  }, [activeOrganizationId]);
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -617,18 +629,39 @@ function DrivePageWorkspace({
   }
 
   async function loadAllFolders() {
+    loadAllFoldersAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAllFoldersAbortRef.current = controller;
+    const requestedWorkspaceId = activeOrganizationId;
     setLoadingAllFolders(true);
     try {
       const loaded = await listDriveItems({
         ...driveStore,
+        signal: controller.signal,
       });
+      if (
+        controller.signal.aborted ||
+        workspaceIdRef.current !== requestedWorkspaceId
+      ) {
+        return;
+      }
 
       setAllFolders(loaded.filter((item) => item.type === "folder"));
     } catch (err) {
+      if (controller.signal.aborted) {
+        return;
+      }
       console.error("Failed to load all folders", err);
-      setAllFolders([]);
+      if (workspaceIdRef.current === requestedWorkspaceId) {
+        setAllFolders([]);
+      }
     } finally {
-      setLoadingAllFolders(false);
+      if (
+        !controller.signal.aborted &&
+        workspaceIdRef.current === requestedWorkspaceId
+      ) {
+        setLoadingAllFolders(false);
+      }
     }
   }
 
