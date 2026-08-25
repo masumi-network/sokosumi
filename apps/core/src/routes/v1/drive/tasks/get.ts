@@ -36,6 +36,9 @@ const DRIVE_TASK_FILE_WHERE = {
   fileUrl: { not: null },
 } as const;
 
+/** Stable sort key when a row has no READY task-output files yet. */
+const NO_DRIVE_TASK_FILE_SORT_EPOCH = new Date(0).toISOString();
+
 const query = z
   .object({
     scope: driveFileScopeSchema.openapi({
@@ -121,7 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { scope, organizationId, projectId, taskId, assigneeId } =
       queryParams;
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
 
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
@@ -192,7 +195,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           startIndex = cursorIndex + 1; // Skip cursor item
         }
       }
-      startIndex += skip ?? 0;
 
       const pagedFiles = taskFiles.slice(startIndex, startIndex + take);
       const hasMore = startIndex + take < taskFiles.length;
@@ -280,7 +282,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           startIndex = cursorIndex + 1; // Skip cursor item
         }
       }
-      startIndex += skip ?? 0;
 
       const pagedTasks = sortedTasks.slice(startIndex, startIndex + take);
       const hasMore = startIndex + take < sortedTasks.length;
@@ -347,8 +348,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     take: 1,
                   },
                 },
-                orderBy: [{ updatedAt: "desc" }],
-                take: 1,
               },
             },
           })
@@ -394,7 +393,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const latestFileUpdatedAt =
         latestTime > 0
           ? new Date(latestTime).toISOString()
-          : new Date().toISOString();
+          : NO_DRIVE_TASK_FILE_SORT_EPOCH;
 
       return {
         type: "project" as const,
@@ -425,7 +424,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const latestFileUpdatedAt =
         fileTime > 0
           ? new Date(fileTime).toISOString()
-          : new Date().toISOString();
+          : NO_DRIVE_TASK_FILE_SORT_EPOCH;
 
       sortableItems.push({
         type: "no-project",
@@ -450,7 +449,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         startIndex = cursorIndex + 1; // Skip cursor item
       }
     }
-    startIndex += skip ?? 0;
 
     const pagedItems = sortableItems.slice(startIndex, startIndex + take);
     const hasMore = startIndex + take < sortableItems.length;

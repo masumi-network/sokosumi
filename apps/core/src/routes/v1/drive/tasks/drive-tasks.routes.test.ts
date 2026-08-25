@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -200,6 +200,7 @@ function createFoldersApp(
 describe("Drive Tasks Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
       id: "ws_personal",
       userId: "user_123",
@@ -337,6 +338,42 @@ describe("Drive Tasks Routes", () => {
             },
           }),
         );
+      });
+
+      it("does not double-skip when paginating with a cursor", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        const files = [
+          {
+            id: "tf_1",
+            name: "file1.txt",
+            fileUrl: "https://example.com/file1.txt",
+            size: BigInt(1024),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-25T14:00:00.000Z"),
+          },
+          {
+            id: "tf_2",
+            name: "file2.txt",
+            fileUrl: "https://example.com/file2.txt",
+            size: BigInt(2048),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+        ];
+
+        prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaTaskFileCountMock.mockResolvedValue(2);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&cursor=tf_1&limit=1",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({ id: "tf_2" });
       });
     });
 
@@ -489,6 +526,58 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json.data).toHaveLength(1);
+      });
+
+      it("sorts projects by the latest READY file across all tasks", async () => {
+        const projects = [
+          {
+            id: "prj_1",
+            name: "Project 1",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T10:00:00.000Z") }],
+              },
+              {
+                files: [{ updatedAt: new Date("2026-03-25T16:00:00.000Z") }],
+              },
+            ],
+          },
+          {
+            id: "prj_2",
+            name: "Project 2",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T14:00:00.000Z") }],
+              },
+            ],
+          },
+        ];
+
+        prismaTaskFindManyMock.mockResolvedValue([
+          { projectId: "prj_1" },
+          { projectId: "prj_2" },
+        ]);
+        prismaProjectFindManyMock.mockResolvedValue(projects);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data.map((item: { id: string }) => item.id)).toEqual([
+          "prj_1",
+          "prj_2",
+        ]);
+        expect(prismaProjectFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            include: expect.objectContaining({
+              tasks: expect.not.objectContaining({
+                take: 1,
+              }),
+            }),
+          }),
+        );
       });
 
       it("shows transferred task project (Task.workspaceId matches, Project.workspaceId does not)", async () => {
@@ -742,6 +831,41 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(404);
+    });
+
+    it("returns 403 before validating TaskFile status when task read is denied", async () => {
+      const taskFile = {
+        id: "tf_123",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+      requireTaskReadForRouteVarsMock.mockRejectedValue(
+        forbidden("You can only access tasks assigned to your coworker"),
+      );
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(403);
+      expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceContext: {
+            workspaceId: "ws_personal",
+            userId: "user_123",
+            organizationId: null,
+          },
+        }),
+        "tsk_1",
+      );
+      expect(prismaTaskFileFindUniqueMock).toHaveBeenCalledTimes(1);
     });
 
     it("returns 400 when TaskFile is PENDING", async () => {

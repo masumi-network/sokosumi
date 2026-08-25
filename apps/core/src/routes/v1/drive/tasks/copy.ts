@@ -79,7 +79,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    // Find TaskFile
+    // Resolve task id before validation so ACL runs before status/origin leaks.
+    const taskFileRef = await prisma.taskFile.findUnique({
+      where: { id: body.taskFileId },
+      select: {
+        task: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!taskFileRef) {
+      throw notFound("TaskFile not found");
+    }
+
+    const taskId = taskFileRef.task.id;
+
+    c.set(
+      "workspaceContext",
+      await resolveDriveTasksWorkspace({
+        userContext,
+        scope: body.scope,
+        organizationId: body.organizationId,
+      }),
+    );
+    await requireTaskReadForRouteVars(c.var, taskId);
+
     const taskFile = await prisma.taskFile.findUnique({
       where: { id: body.taskFileId },
       include: {
@@ -107,20 +132,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Cannot copy TaskFile without a file URL");
     }
 
-    const taskId = taskFile.task.id;
     const sourceUrl = taskFile.fileUrl;
     const fileName = taskFile.name;
     const mimeType = taskFile.mimeType;
-
-    c.set(
-      "workspaceContext",
-      await resolveDriveTasksWorkspace({
-        userContext,
-        scope: body.scope,
-        organizationId: body.organizationId,
-      }),
-    );
-    await requireTaskReadForRouteVars(c.var, taskId);
 
     // Determine destination pathname
     let destPathname: string;
