@@ -1,3 +1,4 @@
+import { ComposioError } from "@composio/core";
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   composeSystemPrompt,
@@ -630,6 +631,9 @@ app.openapi(listAvatarsRoute, async (c) => {
 const providerParamSchema = z.object({ provider: z.string().min(1) });
 
 function mapIntegrationError(error: unknown): never {
+  if (error instanceof ComposioError) {
+    throw unprocessableEntity(`Composio: ${error.message}`);
+  }
   if (error instanceof SokoBotIntegrationError) {
     if (error.kind === "NOT_CONFIGURED" || error.kind === "NOT_FOUND")
       throw notFound(error.message);
