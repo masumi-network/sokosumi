@@ -1463,21 +1463,7 @@ describe("buildCoworkerUsableInWorkspaceWhere", () => {
             },
           },
         },
-        {
-          sokoBot: {
-            archivedAt: null,
-            user: {
-              OR: [
-                { workspace: { id: workspaceId } },
-                {
-                  members: {
-                    some: { organization: { workspace: { id: workspaceId } } },
-                  },
-                },
-              ],
-            },
-          },
-        },
+        { sokoBot: { archivedAt: null, workspaceId } },
       ],
     });
   });

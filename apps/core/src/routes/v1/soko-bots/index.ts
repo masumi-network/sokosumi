@@ -171,7 +171,11 @@ const getMeRoute = createRoute({
 
 app.openapi(getMeRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
-  const bot = await sokoBotControlPlane.getForUser(auth.userId);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const bot = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
 });
 
@@ -195,12 +199,17 @@ const createMeRoute = createRoute({
 
 app.openapi(createMeRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
   try {
     await sokoBotControlPlane.create({
       userId: auth.userId,
+      workspaceId: workspace.workspaceId,
       ...c.req.valid("json"),
     });
-    const bot = await sokoBotControlPlane.getForUser(auth.userId);
+    const bot = await sokoBotControlPlane.getForUser(
+      auth.userId,
+      workspace.workspaceId,
+    );
     if (!bot) throw new SokoBotNotFoundError("Soko Bot was not created");
     return created(c, sokoBotSchema.parse(mapBot(bot)));
   } catch (error) {
@@ -225,7 +234,8 @@ const archiveMeRoute = createRoute({
 
 app.openapi(archiveMeRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
-  await sokoBotControlPlane.archive(auth.userId);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  await sokoBotControlPlane.archive(auth.userId, workspace.workspaceId);
   return ok(c, { archived: true as const });
 });
 
@@ -308,10 +318,12 @@ const listTurnsRoute = createRoute({
 
 app.openapi(listTurnsRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
   const query = c.req.valid("query");
   const { cursor, take } = parseCursorPagination(query);
   const { turns, count, hasMore } = await sokoBotControlPlane.listTurns(
     auth.userId,
+    workspace.workspaceId,
     { cursor, take },
   );
   return ok(
@@ -401,8 +413,12 @@ const resetMemoryRoute = createRoute({
 
 app.openapi(resetMemoryRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
   try {
-    const memory = await sokoBotControlPlane.resetMemory(auth.userId);
+    const memory = await sokoBotControlPlane.resetMemory(
+      auth.userId,
+      workspace.workspaceId,
+    );
     return ok(c, sokoBotMemorySchema.parse(memory));
   } catch (error) {
     mapControlPlaneError(error);
@@ -614,11 +630,18 @@ const claimAvatarRoute = createRoute({
 
 app.openapi(claimAvatarRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
-  const bot = await sokoBotControlPlane.getForUser(auth.userId);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const bot = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
   if (!bot) throw notFound("Create a Soko Bot first");
   await claimAvatar(bot.id, c.req.valid("json").avatarId);
   await ensureSokoBotCoworker(bot.id);
-  const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
+  const refreshed = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
   return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
 });
 
@@ -679,15 +702,20 @@ const updateVersionRoute = createRoute({
 
 app.openapi(updateVersionRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
   try {
     await sokoBotControlPlane.updateVersion(
       auth.userId,
+      workspace.workspaceId,
       c.req.valid("json").versionId,
     );
   } catch (error) {
     mapControlPlaneError(error);
   }
-  const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
+  const refreshed = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
   return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
 });
 
@@ -759,7 +787,11 @@ app.openapi(teamRoute, async (c) => {
     id: true,
     name: true,
     image: true,
-    sokoBot: { select: BOT_TEAM_SELECT },
+    sokoBots: {
+      where: { workspaceId: workspace.workspaceId, archivedAt: null },
+      take: 1,
+      select: BOT_TEAM_SELECT,
+    },
   } as const;
   const mapBotForTeam = (bot: {
     id: string;
@@ -808,7 +840,9 @@ app.openapi(teamRoute, async (c) => {
           image: member.user.image,
           role: member.role,
           isYou: member.user.id === auth.userId,
-          bot: member.user.sokoBot ? mapBotForTeam(member.user.sokoBot) : null,
+          bot: member.user.sokoBots[0]
+            ? mapBotForTeam(member.user.sokoBots[0])
+            : null,
         })),
       }),
     );
@@ -834,7 +868,7 @@ app.openapi(teamRoute, async (c) => {
           image: user.image,
           role: null,
           isYou: true,
-          bot: user.sokoBot ? mapBotForTeam(user.sokoBot) : null,
+          bot: user.sokoBots[0] ? mapBotForTeam(user.sokoBots[0]) : null,
         },
       ],
     }),
@@ -857,11 +891,12 @@ const listSkillsRoute = createRoute({
 
 app.openapi(listSkillsRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
   return ok(
     c,
     z
       .array(sokoBotInstalledSkillSchema)
-      .parse(await listInstalledSkills(auth.userId)),
+      .parse(await listInstalledSkills(auth.userId, workspace.workspaceId)),
   );
 });
 
@@ -889,9 +924,11 @@ const installSkillRoute = createRoute({
 
 app.openapi(installSkillRoute, async (c) => {
   const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
   try {
     const result = await installSkill({
       userId: auth.userId,
+      workspaceId: workspace.workspaceId,
       ...c.req.valid("json"),
     });
     return ok(c, installSokoBotSkillResponseSchema.parse(result));

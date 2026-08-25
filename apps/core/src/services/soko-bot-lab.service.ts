@@ -18,7 +18,11 @@ export async function simulateSokoBotTaskEvent(input: {
   comment: string;
 }) {
   const bot = await prisma.sokoBot.findFirst({
-    where: { userId: input.userId, archivedAt: null },
+    where: {
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      archivedAt: null,
+    },
     select: { id: true },
   });
   if (!bot) throw new SokoBotLabError("Soko Bot not found");

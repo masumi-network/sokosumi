@@ -33,22 +33,22 @@ const only = flag("only")
   ?.split(",")
   .map((s) => s.trim());
 const userIdArg = flag("user") ?? process.env.SOKO_BOT_LAB_USER_ID;
+const workspaceIdArg = flag("workspace");
 const noJudge = args.includes("--no-judge");
 const TURN_TIMEOUT_MS = 6 * 60_000;
 
 async function resolveOwner() {
   const bot = await prisma.sokoBot.findFirst({
-    where: { archivedAt: null, ...(userIdArg ? { userId: userIdArg } : {}) },
-    select: { id: true, userId: true, name: true },
+    where: {
+      archivedAt: null,
+      ...(userIdArg ? { userId: userIdArg } : {}),
+      ...(workspaceIdArg ? { workspaceId: workspaceIdArg } : {}),
+    },
+    select: { id: true, userId: true, workspaceId: true, name: true },
     orderBy: { createdAt: "asc" },
   });
   if (!bot) throw new Error("No active Soko Bot found");
-  const workspace = await prisma.workspace.findFirst({
-    where: { userId: bot.userId },
-    select: { id: true },
-  });
-  if (!workspace) throw new Error("Owner has no personal workspace");
-  return { bot, workspaceId: workspace.id };
+  return { bot, workspaceId: bot.workspaceId };
 }
 
 async function loadTurn(
@@ -156,7 +156,11 @@ const scenarios = SOKO_BOT_SCENARIOS.filter(
 const rows: unknown[] = [];
 for (const versionId of versionIds) {
   if (versionId) {
-    await sokoBotControlPlane.updateVersion(owner.bot.userId, versionId);
+    await sokoBotControlPlane.updateVersion(
+      owner.bot.userId,
+      owner.workspaceId,
+      versionId,
+    );
     console.log(`=== version ${versionId}`);
   }
   console.log(

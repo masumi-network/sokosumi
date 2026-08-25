@@ -116,6 +116,7 @@ function requireContextMemoryRevision(
 
 export interface CreateSokoBotInput {
   userId: string;
+  workspaceId: string;
   name: string;
   avatarSeed?: string | null;
   avatarId?: string | null;
@@ -1005,7 +1006,12 @@ export class SokoBotControlPlane {
 
     return prisma.$transaction(async (tx) => {
       const existing = await tx.sokoBot.findUnique({
-        where: { userId: input.userId },
+        where: {
+          userId_workspaceId: {
+            userId: input.userId,
+            workspaceId: input.workspaceId,
+          },
+        },
       });
       if (existing) {
         const needsInitialMemory = existing.memoryVersion === 0;
@@ -1047,6 +1053,7 @@ export class SokoBotControlPlane {
       const bot = await tx.sokoBot.create({
         data: {
           userId: input.userId,
+          workspaceId: input.workspaceId,
           name,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
@@ -1071,9 +1078,9 @@ export class SokoBotControlPlane {
     });
   }
 
-  async getForUser(userId: string) {
+  async getForUser(userId: string, workspaceId: string) {
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, archivedAt: null },
+      where: { userId, workspaceId, archivedAt: null },
       include: {
         coworker: { select: { id: true, slug: true } },
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
@@ -1105,11 +1112,12 @@ export class SokoBotControlPlane {
 
   async listTurns(
     userId: string,
+    workspaceId: string,
     options: { cursor?: string; take?: number } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
     const turns = await prisma.sokoBotTurn.findMany({
-      where: { userId },
+      where: { userId, workspaceId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(options.cursor
@@ -1131,7 +1139,9 @@ export class SokoBotControlPlane {
     });
     const hasMore = turns.length > take;
     if (hasMore) turns.pop();
-    const count = await prisma.sokoBotTurn.count({ where: { userId } });
+    const count = await prisma.sokoBotTurn.count({
+      where: { userId, workspaceId },
+    });
     return { turns, count, hasMore };
   }
 
@@ -1526,7 +1536,11 @@ export class SokoBotControlPlane {
       throw new SokoBotValidationError("Invalid admin schedule reservation");
     }
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId: input.userId, archivedAt: null },
+      where: {
+        userId: input.userId,
+        workspaceId: input.workspaceId,
+        archivedAt: null,
+      },
     });
     if (!bot) throw new SokoBotNotFoundError("Create a Soko Bot first");
     const duplicate = await prisma.sokoBotTurn.findUnique({
@@ -2411,12 +2425,12 @@ export class SokoBotControlPlane {
     await this.deliverRuntimeCancellation(turn);
   }
 
-  async resetMemory(userId: string) {
+  async resetMemory(userId: string, workspaceId: string) {
     const markdown = renderSokoBotMemory(createEmptySokoBotMemory());
     const hash = memoryHash(markdown);
     return serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
-        where: { userId, archivedAt: null },
+        where: { userId, workspaceId, archivedAt: null },
       });
       if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
       const version = bot.memoryVersion + 1;
@@ -2437,12 +2451,12 @@ export class SokoBotControlPlane {
     }, "Soko Bot memory changed concurrently");
   }
 
-  async updateVersion(userId: string, versionId: string) {
+  async updateVersion(userId: string, workspaceId: string, versionId: string) {
     if (!isSokoBotVersionId(versionId)) {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }
     const updated = await prisma.sokoBot.updateMany({
-      where: { userId, archivedAt: null },
+      where: { userId, workspaceId, archivedAt: null },
       data: { versionId },
     });
     if (updated.count === 0)
@@ -3313,10 +3327,10 @@ export class SokoBotControlPlane {
     return this.getForAdmin(bot.id);
   }
 
-  async archive(userId: string): Promise<void> {
+  async archive(userId: string, workspaceId: string): Promise<void> {
     const active = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
-        where: { userId, archivedAt: null },
+        where: { userId, workspaceId, archivedAt: null },
       });
       if (!bot) return null;
       await tx.$queryRaw`

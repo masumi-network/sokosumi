@@ -102,7 +102,7 @@ model User {
   // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
   /// Per-user Soko Bot identity and control-plane state.
-  sokoBot                  SokoBot?
+  sokoBots                 SokoBot[]
   hermesPendingConnections HermesPendingConnection[]
 
   @@unique([email])
@@ -262,6 +262,8 @@ model Workspace {
   sokoBotTurns            SokoBotTurn[]
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
+
+  sokoBots                SokoBot[]
 
   @@map("workspace")
 }
@@ -1666,9 +1668,13 @@ model SokoBot {
   /// Soft-deactivate on purge; keep row while tasks/events reference it.
   archivedAt DateTime?
 
-  /// Owner of this Soko Bot. One row per user (active or archived).
-  userId String @unique
+  /// Owner of this Soko Bot. One row per user and workspace (active or archived).
+  userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Workspace this bot lives in; bots never cross workspaces.
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   /// Chat-facing coworker row for this bot (created when the bot is created).
   coworker Coworker?
@@ -1730,6 +1736,8 @@ model SokoBot {
 
   @@index([archivedAt])
   @@index([lastPolledAt])
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
   @@map("orchestrator")
 }
 

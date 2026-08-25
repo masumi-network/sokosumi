@@ -818,3 +818,13 @@ Every lab run is graded twice: deterministic checks (route, tools, ids, failed c
 
 - Owners install skills from skills.sh / GitHub in the console (`Skills & tools`): `owner/repo`, `owner/repo/skill`, a skills.sh link, or a GitHub tree URL. Core (`soko-bot-skills.service.ts`) resolves the repo's default branch, scans the same containers the skills CLI does (`skills/**`, `.agents/skills/**`, `.claude/skills/**`, …, ≤3 levels), reads each `SKILL.md` frontmatter, and stores the chosen skill's markdown in `soko_bot_installed_skill` (≤64 KB, ≤25 per bot). Multi-skill sources return candidates to pick from. `GET /v1/soko-bots/skills/search` proxies skills.sh search. Optional `GITHUB_TOKEN` raises the GitHub rate limit.
 - Runtime: `agent/skills/installed.ts` is a dynamic Eve skill resolver that fetches `/v1/internal/soko-bot/skills` per session and advertises each installed skill for `load_skill` (progressive disclosure, per the Agent Skills standard). `load_skill` is enabled again. Sibling files (`references/`, `scripts/`) are not installed yet — SKILL.md only.
+
+## Workspace scoping (2026-08-26)
+
+Soko Bots belong to exactly one workspace: `SokoBot.workspaceId` with
+`@@unique([userId, workspaceId])` (migration `20260826020000_soko_bot_per_workspace`
+backfills from the bot's latest turn, falling back to the owner's personal
+workspace). Every `/v1/soko-bots/me*` route resolves the bot through the
+request's workspace context, so console, skills, schedules, lab and the team
+page are all per workspace. Coworker visibility uses `sokoBot.workspaceId`
+directly. The lab runner accepts `--workspace <id>`.

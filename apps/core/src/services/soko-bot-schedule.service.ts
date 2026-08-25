@@ -51,7 +51,11 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
     );
   }
   const bot = await prisma.sokoBot.findFirst({
-    where: { userId: input.userId, archivedAt: null },
+    where: {
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      archivedAt: null,
+    },
     select: { id: true },
   });
   if (!bot) throw new SokoBotScheduleNotFoundError("Soko Bot not found");

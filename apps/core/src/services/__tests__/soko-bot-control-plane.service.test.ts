@@ -321,6 +321,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await new SokoBotControlPlane().create({
       userId: "user_1",
+      workspaceId: "ws_1",
       name: "Soko",
     });
 
@@ -342,7 +343,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     turnCountMock.mockResolvedValue(9);
 
-    const result = await new SokoBotControlPlane().listTurns("user_1", {
+    const result = await new SokoBotControlPlane().listTurns("user_1", "ws_1", {
       cursor: "turn_4",
       take: 2,
     });
@@ -404,6 +405,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await new SokoBotControlPlane().create({
       userId: "user_1",
+      workspaceId: "ws_1",
       name: "Soko",
     });
 
@@ -432,6 +434,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await new SokoBotControlPlane().create({
       userId: "user_1",
+      workspaceId: "ws_1",
       name: "Soko",
     });
 
@@ -1225,7 +1228,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const runtime = runtimeWithReset(vi.fn());
     runtime.cancelTurn = cancelTurn;
 
-    await new SokoBotControlPlane(runtime).archive("user_1");
+    await new SokoBotControlPlane(runtime).archive("user_1", "ws_1");
 
     expect(transactionQueryRawMock).toHaveBeenCalledOnce();
     expect(turnUpdateManyMock).toHaveBeenCalledWith(

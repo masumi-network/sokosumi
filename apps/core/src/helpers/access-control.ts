@@ -200,24 +200,9 @@ export function buildCoworkerUsableInWorkspaceWhere(
           },
         },
       },
-      // A user's Soko Bot is usable in their personal workspace and in every
-      // organization workspace they belong to; dispatch still enforces that
-      // only the owner can task it.
-      {
-        sokoBot: {
-          archivedAt: null,
-          user: {
-            OR: [
-              { workspace: { id: workspaceId } },
-              {
-                members: {
-                  some: { organization: { workspace: { id: workspaceId } } },
-                },
-              },
-            ],
-          },
-        },
-      },
+      // Soko Bots live in exactly one workspace; dispatch still enforces
+      // that only the owner can task it.
+      { sokoBot: { archivedAt: null, workspaceId } },
     ],
   };
 }
