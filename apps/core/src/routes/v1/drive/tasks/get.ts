@@ -285,9 +285,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let startIndex = 0;
       if (cursor) {
         const cursorIndex = sortedTasks.findIndex((t) => t.id === cursor);
-        if (cursorIndex >= 0) {
-          startIndex = cursorIndex + 1; // Skip cursor item
+        if (cursorIndex < 0) {
+          throw badRequest("Invalid pagination cursor");
         }
+        startIndex = cursorIndex + 1; // Skip cursor item
       }
 
       const pagedTasks = sortedTasks.slice(startIndex, startIndex + take);
@@ -452,9 +453,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let startIndex = 0;
     if (cursor) {
       const cursorIndex = sortableItems.findIndex((item) => item.id === cursor);
-      if (cursorIndex >= 0) {
-        startIndex = cursorIndex + 1; // Skip cursor item
+      if (cursorIndex < 0) {
+        throw badRequest("Invalid pagination cursor");
       }
+      startIndex = cursorIndex + 1; // Skip cursor item
     }
 
     const pagedItems = sortableItems.slice(startIndex, startIndex + take);
