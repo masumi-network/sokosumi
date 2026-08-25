@@ -65,13 +65,14 @@ export function backToName(wizard: CreateChannelWizard): CreateChannelWizard {
 export function toAddPeople(
   wizard: CreateChannelWizard,
   room: { id: string; name: string },
+  currentUserId: string,
 ): CreateChannelWizard {
   return {
     step: "add-people",
     roomId: room.id,
     roomName: room.name,
     mode: "all",
-    memberUserIds: [],
+    memberUserIds: [currentUserId],
     coworkerIds: [],
   };
 }

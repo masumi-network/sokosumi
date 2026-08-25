@@ -6892,6 +6892,20 @@ export const ReactToChatRoomMessageRequestSchema = {
     ]
 } as const;
 
+export const RemoveChatRoomMessageUnfurlRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://example.com/article'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
 export const ChatRoomFileUploadSessionSchema = {
     type: 'object',
     properties: {

@@ -15,6 +15,7 @@ import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -194,6 +195,7 @@ export function OrganizationSubscriptionSection({
         }
 
         if (result.value.mode === "redirect") {
+          fireGTMEvent.beginCheckout({ plan: planName, seats: targetSeats });
           window.location.href = result.value.url;
           return;
         }

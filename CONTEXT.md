@@ -126,6 +126,10 @@ _Avoid_: Roster (for this set), channel list (unless referring to a specific UI 
 The set of human and coworker members of one open room. Distinct from membership-visible rooms.
 _Avoid_: Sidebar rooms, room list (when meaning who is in the room)
 
+**Self on Channel roster**:
+A Member who creates a Channel or saves its host-org roster stays on that room roster. They cannot omit themselves in the member picker. They leave with Leave, or another member removes them. The last remaining member cannot leave.
+_Avoid_: Permanent creator, unchecking yourself as Leave
+
 **Membership revoke**:
 The event that the current user is no longer a member of a room — by remote removal (kick / roster remove), voluntary room leave, or because they left or were removed from the host Organization for a room owned by that Organization. After revoke they must not remain in membership-visible rooms for that room.
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
@@ -169,6 +173,14 @@ _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer d
 **Channel link**:
 In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
 _Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
+
+**Unfurl**:
+A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.
+_Avoid_: Metadata preview, embed when meaning this card, treating the body link as the unfurl
+
+**Removed unfurl**:
+An unfurl the message's human author took off the message. Gone for everyone. The body URL stays. It stays gone while that URL remains in the body. Not a body edit. Not a personal hide.
+_Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
 
 ### Chat outbound delivery
 

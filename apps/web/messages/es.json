@@ -5079,6 +5079,7 @@
         "topicPlaceholder": "What this channel is for",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "cannotRemoveSelf": "No puedes quitarte a ti mismo",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",
@@ -5197,7 +5198,8 @@
       },
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",
-        "imageAlt": "Imagen de vista previa de {title}"
+        "imageAlt": "Imagen de vista previa de {title}",
+        "remove": "Quitar vista previa del enlace: {title}"
       },
       "Message": {
         "delete": "Eliminar",

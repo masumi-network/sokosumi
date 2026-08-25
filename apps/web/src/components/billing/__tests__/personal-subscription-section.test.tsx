@@ -6,6 +6,7 @@ const refreshMock = vi.fn();
 const upgradePersonalSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
+const beginCheckoutMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -32,6 +33,12 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/subscription", () => ({
   upgradePersonalSubscription: (...args: unknown[]) =>
     upgradePersonalSubscriptionMock(...args),
+}));
+
+vi.mock("@/lib/gtm-events", () => ({
+  fireGTMEvent: {
+    beginCheckout: (...args: unknown[]) => beginCheckoutMock(...args),
+  },
 }));
 
 vi.mock("../subscription-plan-card", () => ({
@@ -159,6 +166,7 @@ describe("PersonalSubscriptionSection", () => {
         returnPath: "/billing?tab=subscription",
       });
     });
+    expect(beginCheckoutMock).toHaveBeenCalledWith({ plan: "standard" });
   });
 
   it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
@@ -193,6 +201,7 @@ describe("PersonalSubscriptionSection", () => {
       expect(toast.success).toHaveBeenCalledWith("statusSuccess");
       expect(refreshMock).toHaveBeenCalled();
     });
+    expect(beginCheckoutMock).not.toHaveBeenCalled();
   });
 
   it("does not show a status banner when status is null", () => {

@@ -235,6 +235,30 @@ describe("SignInForm", () => {
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
 
+  it("routes credential sign-in through the auth callback page", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
+    render(<SignInForm returnUrl="/chat" />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(mockSignInEmail).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = mockSignInEmail.mock.calls[0]?.[0] as {
+      callbackURL: string;
+    };
+    const callbackUrl = new URL(payload.callbackURL, "http://localhost");
+
+    expect(callbackUrl.pathname).toBe("/auth/callback/signin");
+    expect(callbackUrl.searchParams.get("provider")).toBe("credential");
+    expect(callbackUrl.searchParams.get("returnUrl")).toBe("/chat");
+  });
+
   it("defaults rememberMe so Better Auth issues a persistent session cookie", async () => {
     // SOK-752: rememberMe:false → session cookie (no Max-Age). iOS kills the
     // PWA process after a few minutes in background and drops that cookie;

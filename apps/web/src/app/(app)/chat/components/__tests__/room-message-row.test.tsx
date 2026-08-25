@@ -37,6 +37,9 @@ vi.mock("next-intl", () => ({
       if (key === "openLink" && values) {
         return `Open link preview: ${values.title}`;
       }
+      if (key === "remove" && values) {
+        return `Remove link preview: ${values.title}`;
+      }
       if (key === "imageAlt" && values) {
         return `Preview image for ${values.title}`;
       }
@@ -150,6 +153,7 @@ function renderRow({
   currentUserId,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
@@ -171,6 +175,7 @@ function renderRow({
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
@@ -193,6 +198,7 @@ function renderRow({
       onQuote={onQuote}
       onStartEdit={onStartEdit}
       onDelete={onDelete}
+      onRemoveUnfurl={onRemoveUnfurl}
       onRetryOutbound={onRetryOutbound}
       onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
@@ -1818,6 +1824,116 @@ describe("ChatMessageRow", () => {
     expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
       "Example",
     );
+  });
+
+  it("shows a remove control on each unfurl for the author", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: userMessage({
+        content: "Check https://ably.com https://resend.com",
+        unfurls: [
+          {
+            url: "https://ably.com",
+            title: "Ably",
+            description: null,
+            imageUrl: null,
+            siteName: "Ably",
+          },
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: null,
+            imageUrl: null,
+            siteName: "Resend",
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Remove link preview: Ably" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove link preview: Resend" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show unfurl remove for another member", () => {
+    renderRow({
+      currentUserId: "user-2",
+      onRemoveUnfurl: vi.fn(),
+      message: userMessage({
+        content: "Check https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: null,
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /Remove link preview/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show unfurl remove on a coworker-authored message", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: coworkerMessage({
+        content: "Check https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: null,
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    expect(screen.getByTestId("room-message-unfurl")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Remove link preview/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls onRemoveUnfurl with that card URL and does not open a confirm dialog", async () => {
+    const user = userEvent.setup();
+    const onRemoveUnfurl = vi.fn();
+    const message = userMessage({
+      content: "Check https://ably.com",
+      unfurls: [
+        {
+          url: "https://ably.com",
+          title: "Ably",
+          description: null,
+          imageUrl: null,
+          siteName: "Ably",
+        },
+      ],
+    });
+
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl,
+      message,
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Remove link preview: Ably" }),
+    );
+
+    expect(onRemoveUnfurl).toHaveBeenCalledWith(message, "https://ably.com");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });
 
