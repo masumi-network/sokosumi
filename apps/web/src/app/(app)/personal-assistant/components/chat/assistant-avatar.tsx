@@ -12,11 +12,12 @@ export const AssistantSeedContext = createContext<string>("soko-bot");
 
 export function AssistantAvatar({
   size = "sm",
-  expression = "idle",
+  expression,
   animated = false,
   className,
 }: {
   size?: "sm" | "lg";
+  /** Eyes override; omit for the orb's resting look. */
   expression?: OrbExpression;
   /** Live canvas (one rAF loop); use for a single hero orb only. */
   animated?: boolean;
@@ -29,7 +30,7 @@ export function AssistantAvatar({
       seed={seed}
       size={size === "lg" ? 160 : 64}
       animate={animated}
-      expression={expression}
+      expression={expression ?? null}
       alt={t("avatarAlt")}
       className={cn(
         "ring-border/40 ring-1",

@@ -116,7 +116,7 @@ export function SokoBotConsole({
     <AssistantSeedContext.Provider value={seed}>
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-4">
         <header className="flex flex-wrap items-center gap-4">
-          <AssistantAvatar size="lg" expression="idle" />
+          <AssistantAvatar size="lg" />
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="truncate text-2xl font-semibold tracking-tight">
@@ -131,7 +131,10 @@ export function SokoBotConsole({
                 <span className="ml-2 tabular-nums">
                   ·{" "}
                   {t("Console.lastActivity", {
-                    time: format.relativeTime(new Date(bot.lastActivityAt)),
+                    time: format.relativeTime(
+                      new Date(bot.lastActivityAt),
+                      new Date(),
+                    ),
                   })}
                 </span>
               ) : null}
