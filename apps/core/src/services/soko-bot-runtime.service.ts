@@ -120,6 +120,56 @@ function decisionReason(
   }
 }
 
+/**
+ * Owner-facing approval text: names instead of ids where they resolve, and
+ * the plain id otherwise. Names are display data, never authorization.
+ */
+async function describeDecision(
+  toolName: SokoBotDecisionTarget,
+  proposal: unknown,
+): Promise<string> {
+  const quote = (name: string | null | undefined, id: string) =>
+    name?.trim() ? `"${name.trim()}"` : id;
+  try {
+    switch (toolName) {
+      case "assign_task": {
+        const input = taskAssignInputSchema.parse(proposal);
+        const [task, coworker] = await Promise.all([
+          prisma.task.findUnique({
+            where: { id: input.taskId },
+            select: { name: true },
+          }),
+          prisma.coworker.findUnique({
+            where: { id: input.coworkerId },
+            select: { name: true },
+          }),
+        ]);
+        return `Assign Task ${quote(task?.name, input.taskId)} to Coworker ${quote(coworker?.name, input.coworkerId)}${input.ready ? " and start it" : ""}`;
+      }
+      case "update_task": {
+        const input = taskUpdateInputSchema.parse(proposal);
+        const task = await prisma.task.findUnique({
+          where: { id: input.taskId },
+          select: { name: true },
+        });
+        return `Update Task ${quote(task?.name, input.taskId)}`;
+      }
+      case "hire_agent": {
+        const input = parseHireAgentInput(proposal);
+        const agent = await prisma.agent.findUnique({
+          where: { id: input.agentId },
+          select: { name: true },
+        });
+        return `Hire Agent ${quote(agent?.name, input.agentId)} with a maximum of ${input.maxCredits} credits`;
+      }
+      default:
+        return decisionReason(toolName, proposal);
+    }
+  } catch {
+    return decisionReason(toolName, proposal);
+  }
+}
+
 export interface RuntimeAuthorizationInput {
   oidcToken: string;
   turnGrant: string;
@@ -629,6 +679,7 @@ export class SokoBotRuntimeService {
   ) {
     const parsedProposal = parseDecisionProposal(toolName, proposal);
     const proposalJson = jsonInput(parsedProposal);
+    const reason = await describeDecision(toolName, parsedProposal);
     return serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(tx, authorized, false);
       // A model that retries an approval-gated call with the same input must
@@ -664,7 +715,7 @@ export class SokoBotRuntimeService {
           userId: authorized.turn.userId,
           workspaceId: authorized.turn.workspaceId,
           toolName,
-          reason: decisionReason(toolName, parsedProposal),
+          reason,
           proposal: proposalJson,
           expiresAt: new Date(Date.now() + DECISION_TTL_MS),
         },

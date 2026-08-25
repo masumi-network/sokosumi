@@ -318,8 +318,10 @@ export async function updateTaskForActor(
       projectId: input.projectId,
       assigneeId: input.assigneeId,
       status: input.status,
+      // Record a status event only for a real transition; a Soko Bot
+      // re-assignment that keeps DRAFT must not spam the task timeline.
       events:
-        input.status !== undefined
+        input.status !== undefined && input.status !== task.status
           ? {
               create: {
                 status: input.status,

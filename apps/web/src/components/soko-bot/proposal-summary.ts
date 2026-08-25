@@ -82,6 +82,7 @@ export type ProposalFieldKey =
   | "description"
   | "jobId"
   | "eventId"
+  | "ready"
   | "reason";
 
 export interface ProposalField {
@@ -104,7 +105,7 @@ const FIELD_ORDER: Record<string, ProposalFieldKey[]> = {
   provide_job_input: ["jobId", "eventId", "inputData"],
   create_task: ["name", "coworkerId", "status", "projectId", "description"],
   update_task: ["taskId", "name", "status", "description"],
-  assign_task: ["taskId", "coworkerId", "status"],
+  assign_task: ["taskId", "coworkerId", "ready", "status"],
 };
 
 const MONO_KEYS = new Set<ProposalFieldKey>([

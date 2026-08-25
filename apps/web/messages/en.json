@@ -931,7 +931,8 @@
           "description": "Description",
           "jobId": "Job",
           "eventId": "Job event",
-          "reason": "Reason"
+          "reason": "Reason",
+          "ready": "Start right away"
         }
       },
       "DecisionExplain": {
