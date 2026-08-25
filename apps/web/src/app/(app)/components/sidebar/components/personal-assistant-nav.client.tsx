@@ -13,19 +13,20 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 /**
- * Personal Assistant (Soko Bot) entry at the top of the sidebar, set apart
- * from the rest of the nav by a divider rendered in the sidebar composition.
- * Available to every signed-in user.
+ * Soko Bots entry at the top of the sidebar: the team chart of everyone's
+ * assistants, and where a person creates their own. Set apart from the rest
+ * of the nav by a divider rendered in the sidebar composition.
  */
 export default function PersonalAssistantNav() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  const isActive =
-    pathname === SOKO_BOT_ROUTE || pathname.startsWith(`${SOKO_BOT_ROUTE}/`);
+  const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
 
   return (
     <SidebarGroup className="w-full">
@@ -35,7 +36,7 @@ export default function PersonalAssistantNav() {
             <SidebarMenuButton asChild isActive={isActive} size="lg">
               <SheetClose asChild>
                 <Link
-                  href={SOKO_BOT_ROUTE}
+                  href={SOKO_BOTS_ROUTE}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2.5 rounded-lg border px-3",

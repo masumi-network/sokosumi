@@ -190,6 +190,7 @@ import {
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
+  getSokoBotTeam as coreGetSokoBotTeam,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
@@ -3631,6 +3632,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getSokoBotTeam() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetSokoBotTeam({ client, cache: "no-store" }),
+      "Failed to load the Soko Bot team",
+    );
+  }
+
   async function listMySokoBotSkills() {
     return executeCoreOperation(
       getClient,
@@ -4479,6 +4488,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     judgeMySokoBotLabTurn,
     listMySokoBotLabRuns,
     listMySokoBotSkills,
+    getSokoBotTeam,
     installMySokoBotSkill,
     removeMySokoBotSkill,
     searchSokoBotSkills,

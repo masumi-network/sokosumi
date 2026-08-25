@@ -677,6 +677,35 @@ export const sokoBotSkillBrowseSchema = z
   })
   .openapi("SokoBotSkillBrowse");
 
+export const sokoBotTeamSchema = z
+  .object({
+    workspace: z.object({
+      id: z.string().uuid(),
+      kind: z.enum(["personal", "organization"]),
+      name: z.string(),
+    }),
+    members: z.array(
+      z.object({
+        userId: z.string(),
+        name: z.string(),
+        image: z.string().nullable(),
+        role: z.string().nullable(),
+        isYou: z.boolean(),
+        bot: z
+          .object({
+            id: z.string().uuid(),
+            name: z.string().nullable(),
+            avatarImageUrl: z.string().nullable(),
+            avatarSeed: z.string().nullable(),
+            status: sokoBotStatusSchema,
+            coworkerId: z.string().nullable(),
+          })
+          .nullable(),
+      }),
+    ),
+  })
+  .openapi("SokoBotTeam");
+
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({
     /** Defaults to the newest Task the bot delegated. */

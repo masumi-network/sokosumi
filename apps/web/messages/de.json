@@ -2361,7 +2361,7 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
-          "sokoBot": "Persönlicher Assistent",
+          "sokoBot": "Soko Bots",
           "history": "Verlauf",
           "drive": "Drive",
           "admin": "Administration",
@@ -5509,6 +5509,23 @@
         "loading": "Lädt…",
         "installedLabel": "Installiert"
       }
+    },
+    "SokoBots": {
+      "title": "Soko Bots",
+      "description": "Soko Bots sind die KI-Kollegen, die du selbst baust. Jeder bekommt einen persönlichen Assistenten, der Arbeit delegiert, nachhakt und auf dem Laufenden hält. Weitere Arten von Soko Bots folgen hier.",
+      "unavailable": "Die Teamübersicht ist gerade nicht verfügbar.",
+      "personalWorkspace": "Persönlicher Workspace",
+      "peopleCount": "{count, plural, one {# Person} other {# Personen}}",
+      "you": "du",
+      "noAssistant": "Noch kein Assistent",
+      "createAssistant": "Erstelle deinen persönlichen Assistenten",
+      "createAssistantHint": "Dauert eine Minute. Name und Bild wählen.",
+      "assistantFallback": "Persönlicher Assistent",
+      "yourAssistant": "Dein persönlicher Assistent",
+      "assistantOf": "Persönlicher Assistent von {name}",
+      "openChat": "Chat öffnen",
+      "messageAssistant": "Anschreiben",
+      "moreComing": "Weitere Arten von Soko Bots folgen bald"
     }
   },
   "Share": {

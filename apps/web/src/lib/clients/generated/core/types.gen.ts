@@ -4244,6 +4244,29 @@ export type SimulateSokoBotTaskEventRequest = {
     comment: string;
 };
 
+export type SokoBotTeam = {
+    workspace: {
+        id: string;
+        kind: 'personal' | 'organization';
+        name: string;
+    };
+    members: Array<{
+        userId: string;
+        name: string;
+        image: string | null;
+        role: string | null;
+        isYou: boolean;
+        bot: {
+            id: string;
+            name: string | null;
+            avatarImageUrl: string | null;
+            avatarSeed: string | null;
+            status: SokoBotStatus;
+            coworkerId: string | null;
+        } | null;
+    }>;
+};
+
 export type SokoBotInstalledSkill = {
     id: string;
     slug: string;
@@ -28746,6 +28769,62 @@ export type SimulateMySokoBotTaskEventResponses = {
 };
 
 export type SimulateMySokoBotTaskEventResponse = SimulateMySokoBotTaskEventResponses[keyof SimulateMySokoBotTaskEventResponses];
+
+export type GetSokoBotTeamData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/team';
+};
+
+export type GetSokoBotTeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotTeamError = GetSokoBotTeamErrors[keyof GetSokoBotTeamErrors];
+
+export type GetSokoBotTeamResponses = {
+    /**
+     * People in the current workspace and their Soko Bots
+     */
+    200: {
+        data: SokoBotTeam;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotTeamResponse = GetSokoBotTeamResponses[keyof GetSokoBotTeamResponses];
 
 export type ListMySokoBotSkillsData = {
     body?: never;

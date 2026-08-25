@@ -51,6 +51,7 @@ import {
   sokoBotSkillBrowseSchema,
   sokoBotSkillSearchResultSchema,
   sokoBotStateSchema,
+  sokoBotTeamSchema,
   sokoBotTurnSchema,
   sokoBotVersionSchema,
   startSokoBotTurnRequestSchema,
@@ -724,6 +725,117 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
     throw error;
   }
+});
+
+const BOT_TEAM_SELECT = {
+  id: true,
+  name: true,
+  avatarImageUrl: true,
+  avatarSeed: true,
+  status: true,
+  archivedAt: true,
+  coworker: { select: { id: true } },
+} as const;
+
+const teamRoute = createRoute({
+  method: "get",
+  path: "/team",
+  operationId: "getSokoBotTeam",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotTeamSchema,
+      "People in the current workspace and their Soko Bots",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(teamRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const userSelect = {
+    id: true,
+    name: true,
+    image: true,
+    sokoBot: { select: BOT_TEAM_SELECT },
+  } as const;
+  const mapBotForTeam = (bot: {
+    id: string;
+    name: string | null;
+    avatarImageUrl: string | null;
+    avatarSeed: string | null;
+    status: string;
+    archivedAt: Date | null;
+    coworker: { id: string } | null;
+  }) =>
+    bot.archivedAt
+      ? null
+      : {
+          id: bot.id,
+          name: bot.name,
+          avatarImageUrl: bot.avatarImageUrl,
+          avatarSeed: bot.avatarSeed,
+          status: bot.status,
+          coworkerId: bot.coworker?.id ?? null,
+        };
+  if (workspace.organizationId) {
+    const organization = await prisma.organization.findUnique({
+      where: { id: workspace.organizationId },
+      select: {
+        name: true,
+        members: {
+          orderBy: { createdAt: "asc" },
+          select: { role: true, user: { select: userSelect } },
+        },
+      },
+    });
+    if (!organization) throw notFound("Organization not found");
+    return ok(
+      c,
+      sokoBotTeamSchema.parse({
+        workspace: {
+          id: workspace.workspaceId,
+          kind: "organization",
+          name: organization.name,
+        },
+        members: organization.members.map((member) => ({
+          userId: member.user.id,
+          name: member.user.name,
+          image: member.user.image,
+          role: member.role,
+          isYou: member.user.id === auth.userId,
+          bot: member.user.sokoBot ? mapBotForTeam(member.user.sokoBot) : null,
+        })),
+      }),
+    );
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: auth.userId },
+    select: userSelect,
+  });
+  if (!user) throw notFound("User not found");
+  return ok(
+    c,
+    sokoBotTeamSchema.parse({
+      workspace: {
+        id: workspace.workspaceId,
+        kind: "personal",
+        name: user.name,
+      },
+      members: [
+        {
+          userId: user.id,
+          name: user.name,
+          image: user.image,
+          role: null,
+          isYou: true,
+          bot: user.sokoBot ? mapBotForTeam(user.sokoBot) : null,
+        },
+      ],
+    }),
+  );
 });
 
 const listSkillsRoute = createRoute({

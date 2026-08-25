@@ -16,6 +16,7 @@ import type {
   SokoBotLabVerdict,
   SokoBotSkillBrowse,
   SokoBotSkillSearchResult,
+  SokoBotTeam,
   SokoBotTurn,
   SokoBotVersion,
   StartSokoBotTurnRequest,
@@ -71,6 +72,11 @@ export const sokoBotService = {
 
   async setVersion(versionId: string): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotVersion({ versionId });
+    return response.data;
+  },
+
+  async getTeam(): Promise<SokoBotTeam> {
+    const response = await coreClient.getSokoBotTeam();
     return response.data;
   },
 

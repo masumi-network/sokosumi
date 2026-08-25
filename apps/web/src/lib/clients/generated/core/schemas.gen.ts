@@ -14714,6 +14714,124 @@ export const SimulateSokoBotTaskEventRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SokoBotTeamSchema = {
+    type: 'object',
+    properties: {
+        workspace: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'personal',
+                        'organization'
+                    ]
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'kind',
+                'name'
+            ]
+        },
+        members: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    userId: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    image: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    isYou: {
+                        type: 'boolean'
+                    },
+                    bot: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            id: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            avatarImageUrl: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            avatarSeed: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            status: {
+                                $ref: '#/components/schemas/SokoBotStatus'
+                            },
+                            coworkerId: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name',
+                            'avatarImageUrl',
+                            'avatarSeed',
+                            'status',
+                            'coworkerId'
+                        ]
+                    }
+                },
+                required: [
+                    'userId',
+                    'name',
+                    'image',
+                    'role',
+                    'isYou',
+                    'bot'
+                ]
+            }
+        }
+    },
+    required: [
+        'workspace',
+        'members'
+    ]
+} as const;
+
 export const SokoBotInstalledSkillSchema = {
     type: 'object',
     properties: {
