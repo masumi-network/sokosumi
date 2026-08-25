@@ -169,18 +169,7 @@ describe("handleCustomerCreatedEvent", () => {
       expect(
         ensureInitialLocalFreeSubscriptionPeriodMock,
       ).not.toHaveBeenCalled();
-      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(missing, {
-        level: "warning",
-        tags: {
-          context: "stripe_customer_created",
-          reason: "owner_missing",
-          ownerType: "organization",
-        },
-        extra: {
-          customerId: "cus_org_missing",
-          ownerId: "org-deleted",
-        },
-      });
+      expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Skipping Stripe customer cus_org_missing write-back: organization org-deleted no longer exists",
       );
@@ -208,15 +197,7 @@ describe("handleCustomerCreatedEvent", () => {
     ).resolves.toBeUndefined();
 
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
-      missing,
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          ownerType: "user",
-          reason: "owner_missing",
-        }),
-      }),
-    );
+    expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("skips organization write-back when organizationId metadata is missing", async () => {
