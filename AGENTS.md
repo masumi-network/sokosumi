@@ -321,6 +321,8 @@ docs(readme): update setup instructions
 
 ## Agent skills
 
+First-party skills are authored in `skills/<name>/` (skills.sh catalog) and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party skills (caveman, …) live only under `.agents/skills/`.
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](.agents/skills/caveman/).
