@@ -174,6 +174,14 @@ _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer d
 In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
 _Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
 
+**Unfurl**:
+A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.
+_Avoid_: Metadata preview, embed (when meaning this card), treating the body link as the unfurl
+
+**Removed unfurl**:
+An unfurl the message’s human author took off the message. Gone for everyone; the body URL stays. It stays gone while that URL remains in the body. Not a message edit, not a personal hide, not a composer opt-out.
+_Avoid_: Hidden unfurl, dismissed (Quote), edited message
+
 ### Chat outbound delivery
 
 **Outbound delivery status**:

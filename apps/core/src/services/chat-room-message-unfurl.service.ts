@@ -6,6 +6,11 @@ import {
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { scrapeUnfurlCards } from "@/lib/chat-unfurl-scrape";
 import prisma from "@/lib/db/prisma";
+import {
+  pruneRemovedUnfurlUrls,
+  REMOVED_UNFURL_URLS_METADATA_KEY,
+  readRemovedUnfurlUrlsFromMetadata,
+} from "@/routes/v1/chats/rooms/helpers";
 
 export interface ScheduleChatRoomMessageUnfurlsResult {
   messageId: string;
@@ -48,8 +53,33 @@ export async function scheduleChatRoomMessageUnfurls(
     }
 
     const contentSnapshot = message.content;
-    const urls = selectUnfurlCandidateUrls(contentSnapshot);
-    const cards = await scrapeUnfurlCards(urls);
+    const candidateUrls = selectUnfurlCandidateUrls(contentSnapshot);
+    const existingRemoved = readRemovedUnfurlUrlsFromMetadata(
+      asMetadataRecord(message.metadata),
+    );
+    const removedBeforeScrape = pruneRemovedUnfurlUrls(
+      existingRemoved,
+      candidateUrls,
+    );
+    if (removedBeforeScrape.length !== existingRemoved.length) {
+      if (removedBeforeScrape.length === 0) {
+        await deleteChatRoomMessageMetadataKeys({
+          messageId,
+          keys: [REMOVED_UNFURL_URLS_METADATA_KEY],
+          contentMustEqual: contentSnapshot,
+        });
+      } else {
+        await mergeChatRoomMessageMetadataKeys({
+          messageId,
+          patch: { [REMOVED_UNFURL_URLS_METADATA_KEY]: removedBeforeScrape },
+          contentMustEqual: contentSnapshot,
+        });
+      }
+    }
+    const urlsToScrape = candidateUrls.filter(
+      (url) => !removedBeforeScrape.includes(url),
+    );
+    const cards = await scrapeUnfurlCards(urlsToScrape);
 
     const latest = await prisma.chatRoomMessage.findUnique({
       where: { id: messageId },
@@ -57,40 +87,70 @@ export async function scheduleChatRoomMessageUnfurls(
         id: true,
         content: true,
         deletedAt: true,
+        metadata: true,
       },
     });
 
     if (!latest || latest.deletedAt != null) {
-      return { messageId, attempted: urls.length, persisted: 0 };
+      return { messageId, attempted: urlsToScrape.length, persisted: 0 };
     }
 
     if (latest.content !== contentSnapshot) {
-      return { messageId, attempted: urls.length, persisted: 0 };
+      return { messageId, attempted: urlsToScrape.length, persisted: 0 };
     }
 
-    const updated =
-      cards.length === 0
-        ? await deleteChatRoomMessageMetadataKeys({
-            messageId,
-            keys: ["unfurls"],
-            contentMustEqual: contentSnapshot,
-          })
-        : await mergeChatRoomMessageMetadataKeys({
-            messageId,
-            patch: { unfurls: cards },
-            contentMustEqual: contentSnapshot,
-          });
+    const removedUrls = pruneRemovedUnfurlUrls(
+      readRemovedUnfurlUrlsFromMetadata(asMetadataRecord(latest.metadata)),
+      candidateUrls,
+    );
+    const visibleCards = cards.filter(
+      (card) => !removedUrls.includes(card.url),
+    );
+    const existingRemovedAtPersist = readRemovedUnfurlUrlsFromMetadata(
+      asMetadataRecord(latest.metadata),
+    );
+
+    const patch: Record<string, unknown> = {};
+    const keysToDelete: string[] = [];
+    if (visibleCards.length === 0) {
+      keysToDelete.push("unfurls");
+    } else {
+      patch.unfurls = visibleCards;
+    }
+    if (removedUrls.length === 0) {
+      if (existingRemovedAtPersist.length > 0) {
+        keysToDelete.push(REMOVED_UNFURL_URLS_METADATA_KEY);
+      }
+    } else {
+      patch[REMOVED_UNFURL_URLS_METADATA_KEY] = removedUrls;
+    }
+
+    let updated = 0;
+    if (keysToDelete.length > 0) {
+      updated += await deleteChatRoomMessageMetadataKeys({
+        messageId,
+        keys: keysToDelete,
+        contentMustEqual: contentSnapshot,
+      });
+    }
+    if (Object.keys(patch).length > 0) {
+      updated += await mergeChatRoomMessageMetadataKeys({
+        messageId,
+        patch,
+        contentMustEqual: contentSnapshot,
+      });
+    }
 
     if (updated === 0) {
-      return { messageId, attempted: urls.length, persisted: 0 };
+      return { messageId, attempted: urlsToScrape.length, persisted: 0 };
     }
 
     await publishChatRoomMessageRealtimeById(messageId, "unfurl");
 
     return {
       messageId,
-      attempted: urls.length,
-      persisted: cards.length,
+      attempted: urlsToScrape.length,
+      persisted: visibleCards.length,
     };
   } catch (error) {
     console.warn(
@@ -99,4 +159,11 @@ export async function scheduleChatRoomMessageUnfurls(
     );
     return empty;
   }
+}
+
+function asMetadataRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
 }

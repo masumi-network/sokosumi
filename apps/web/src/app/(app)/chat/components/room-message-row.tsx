@@ -9,6 +9,7 @@ import {
   Pencil,
   Quote,
   Trash2,
+  X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -353,43 +354,73 @@ function MessageUnfurlImage({
   );
 }
 
-function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
+function MessageUnfurlCard({
+  unfurl,
+  canRemove,
+  onRemove,
+}: {
+  unfurl: ChatRoomMessageUnfurl;
+  canRemove: boolean;
+  onRemove?: (url: string) => void;
+}) {
   const t = useTranslations("App.Channels.Unfurl");
   const siteLabel = unfurl.siteName?.trim() || null;
 
   return (
-    <a
-      href={unfurl.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
-      aria-label={t("openLink", { title: unfurl.title })}
-      data-testid="room-message-unfurl"
-    >
-      {siteLabel ? (
-        <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
-          {siteLabel}
+    <div className="group relative mt-1.5 inline-block w-fit max-w-full">
+      <a
+        href={unfurl.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        aria-label={t("openLink", { title: unfurl.title })}
+        data-testid="room-message-unfurl"
+      >
+        {siteLabel ? (
+          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
+            {siteLabel}
+          </div>
+        ) : null}
+        <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
+          {unfurl.title}
         </div>
+        {unfurl.description?.trim() ? (
+          <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
+            {unfurl.description}
+          </div>
+        ) : null}
+        {unfurl.imageUrl ? (
+          <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
+        ) : null}
+      </a>
+      {canRemove && onRemove ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="border-border absolute top-1 right-1 size-6 rounded-full border opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
+          aria-label={t("remove")}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemove(unfurl.url);
+          }}
+        >
+          <X className="size-3.5" aria-hidden />
+        </Button>
       ) : null}
-      <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
-        {unfurl.title}
-      </div>
-      {unfurl.description?.trim() ? (
-        <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
-          {unfurl.description}
-        </div>
-      ) : null}
-      {unfurl.imageUrl ? (
-        <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
-      ) : null}
-    </a>
+    </div>
   );
 }
 
 function MessageUnfurlList({
   unfurls,
+  canRemove,
+  onRemove,
 }: {
   unfurls: ChatRoomMessageUnfurl[] | null;
+  canRemove: boolean;
+  onRemove?: (url: string) => void;
 }) {
   if (!unfurls || unfurls.length === 0) {
     return null;
@@ -398,7 +429,12 @@ function MessageUnfurlList({
   return (
     <div className="space-y-1" data-testid="room-message-unfurls">
       {unfurls.map((unfurl) => (
-        <MessageUnfurlCard key={unfurl.url} unfurl={unfurl} />
+        <MessageUnfurlCard
+          key={unfurl.url}
+          unfurl={unfurl}
+          canRemove={canRemove}
+          onRemove={onRemove}
+        />
       ))}
     </div>
   );
@@ -1624,6 +1660,7 @@ export function ChatMessageRow({
   onQuote,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
@@ -1655,6 +1692,7 @@ export function ChatMessageRow({
   onQuote?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
@@ -1732,6 +1770,14 @@ export function ChatMessageRow({
     !isDeleted;
   const canDelete =
     Boolean(onDelete) &&
+    Boolean(currentUserId) &&
+    !isDeleted &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
+  const canRemoveUnfurl =
+    Boolean(onRemoveUnfurl) &&
     Boolean(currentUserId) &&
     !isDeleted &&
     !isStreamOverlay &&
@@ -1955,7 +2001,15 @@ export function ChatMessageRow({
                       {tChannels("Edit.edited")}
                     </span>
                   ) : null}
-                  <MessageUnfurlList unfurls={message.unfurls} />
+                  <MessageUnfurlList
+                    unfurls={message.unfurls}
+                    canRemove={canRemoveUnfurl}
+                    onRemove={
+                      onRemoveUnfurl
+                        ? (url) => onRemoveUnfurl(message, url)
+                        : undefined
+                    }
+                  />
                 </>
               )}
             </>

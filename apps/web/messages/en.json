@@ -5198,7 +5198,8 @@
       },
       "Unfurl": {
         "openLink": "Open link preview: {title}",
-        "imageAlt": "Preview image for {title}"
+        "imageAlt": "Preview image for {title}",
+        "remove": "Remove link preview"
       },
       "Message": {
         "delete": "Delete",

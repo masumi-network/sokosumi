@@ -392,6 +392,12 @@ export const chatRoomMessageUnfurlSchema = z
   })
   .openapi("ChatRoomMessageUnfurl");
 
+export const removeChatRoomMessageUnfurlRequestSchema = z
+  .object({
+    url: z.string().url().openapi({ example: "https://example.com/article" }),
+  })
+  .openapi("RemoveChatRoomMessageUnfurlRequest");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),

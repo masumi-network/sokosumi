@@ -233,6 +233,129 @@ describe("scheduleChatRoomMessageUnfurls", () => {
     expect(publishByIdMock).not.toHaveBeenCalled();
   });
 
+  it("does not scrape or restore a removed unfurl while the URL stays in the body", async () => {
+    const content = "see https://ably.com/platform and https://resend.com";
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content,
+        deletedAt: null,
+        editedAt: null,
+        metadata: {
+          unfurls: [
+            {
+              url: "https://resend.com",
+              title: "Resend",
+              description: null,
+              imageUrl: null,
+              siteName: "Resend",
+            },
+          ],
+          removedUnfurlUrls: ["https://ably.com/platform"],
+        },
+      })
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content,
+        deletedAt: null,
+        metadata: {
+          removedUnfurlUrls: ["https://ably.com/platform"],
+        },
+      });
+
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(htmlPage("Resend"), {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      }),
+    );
+
+    const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+    expect(result).toEqual({
+      messageId: MESSAGE_ID,
+      attempted: 1,
+      persisted: 1,
+    });
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(1);
+    expect(ssrfSafeFetchMock.mock.calls[0]?.[0]).toBe("https://resend.com");
+    expect(mergeMetadataKeysMock).toHaveBeenCalledWith({
+      messageId: MESSAGE_ID,
+      contentMustEqual: content,
+      patch: {
+        unfurls: [
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: "Desc",
+            imageUrl: "https://cdn.example/i.png",
+            siteName: "Ex",
+          },
+        ],
+        removedUnfurlUrls: ["https://ably.com/platform"],
+      },
+    });
+  });
+
+  it("drops a removed URL once it leaves the body so a later paste may unfurl", async () => {
+    const content = "only https://resend.com now";
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content,
+        deletedAt: null,
+        editedAt: new Date(),
+        metadata: {
+          unfurls: [
+            {
+              url: "https://resend.com",
+              title: "Resend",
+              description: null,
+              imageUrl: null,
+              siteName: "Resend",
+            },
+          ],
+          removedUnfurlUrls: ["https://ably.com/platform"],
+        },
+      })
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content,
+        deletedAt: null,
+        metadata: {},
+      });
+
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(htmlPage("Resend"), {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      }),
+    );
+
+    await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+    expect(deleteMetadataKeysMock).toHaveBeenCalledWith({
+      messageId: MESSAGE_ID,
+      keys: ["removedUnfurlUrls"],
+      contentMustEqual: content,
+    });
+    expect(mergeMetadataKeysMock).toHaveBeenCalledWith({
+      messageId: MESSAGE_ID,
+      contentMustEqual: content,
+      patch: {
+        unfurls: [
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: "Desc",
+            imageUrl: "https://cdn.example/i.png",
+            siteName: "Ex",
+          },
+        ],
+      },
+    });
+  });
+
   it("never throws to waitUntil caller on scrape failure", async () => {
     messageFindUniqueMock.mockResolvedValue({
       id: MESSAGE_ID,
