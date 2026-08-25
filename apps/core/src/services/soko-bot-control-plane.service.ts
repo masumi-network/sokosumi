@@ -986,6 +986,11 @@ export class SokoBotControlPlane {
       },
     });
     if (!bot) return null;
+    // Bots created before chat support have no coworker row yet; heal lazily
+    // so "Open chat" works for them without a data migration.
+    if (!bot.coworker) {
+      bot.coworker = await ensureSokoBotCoworker(bot.id);
+    }
     const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
     return {
       ...bot,
