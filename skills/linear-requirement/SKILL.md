@@ -31,11 +31,7 @@ flowchart LR
 
 ## Runtime compatibility
 
-| Agent | How to use |
-|-------|------------|
-| Cursor | Load from `.cursor/skills/linear-requirement/SKILL.md`. |
-| Claude Code | Read this `SKILL.md` when asked to draft a Sokosumi requirement. |
-| Codex | Treat this directory as task instructions. |
+Canonical files: `skills/linear-requirement/`. Agents load `.agents/skills/linear-requirement/` (symlink). Invoke by name or explicit ask (`disable-model-invocation`). Other repos: `npx skills add <this-repo> --skill linear-requirement`.
 
 ## Defaults
 
