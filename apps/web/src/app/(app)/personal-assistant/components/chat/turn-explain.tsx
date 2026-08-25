@@ -4,6 +4,7 @@ import { ChevronRight, ListTree } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import Markdown from "@/components/markdown";
 import { formatTokens, formatUsd } from "@/components/soko-bot/format";
 import type { ChatToolCall, ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
@@ -208,7 +209,9 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
               if (item.kind === "said") {
                 return (
                   <ChainRow key={item.key} label={t("said")} tone="muted">
-                    <span className="whitespace-pre-wrap">{item.text}</span>
+                    <Markdown className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                      {item.text}
+                    </Markdown>
                   </ChainRow>
                 );
               }
