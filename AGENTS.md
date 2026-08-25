@@ -43,10 +43,10 @@ sokosumi/
 │   │   ├── src/types/         # Database type definitions
 │   │   └── prisma/            # Database schema and migrations
 │   ├── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
-│   │   ├── src/clients/       # Agent API client
+│   │   ├── src/clients/       # Agent, payment, registry clients
 │   │   ├── src/hash/          # Hash utilities for job verification
-│   │   ├── src/schemas/       # Agent protocol Zod schemas
-│   │   └── src/types/         # Agent types
+│   │   ├── src/schemas/       # Agent / input / x402 Zod schemas
+│   │   └── src/tools/         # Masumi-hosted tools (DESIGN.md)
 │   ├── utils/                 # Shared utilities (@sokosumi/utils)
 │   │   └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
 │   ├── net/                   # Network helpers (@sokosumi/net; SSRF-safe fetch, etc.)

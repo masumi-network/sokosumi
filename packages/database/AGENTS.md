@@ -9,56 +9,15 @@
 **Runtime**: Node.js 24.x (server-only)
 **Location**: `packages/database/` within the pnpm workspace
 
-## Package Structure
+## Layout
 
-```
-packages/database/
-├── src/
-│   ├── client.ts              # Prisma client factory function
-│   ├── index.ts               # Main exports (types & models)
-│   ├── repositories/          # Repository layer
-│   │   ├── agent.repository.ts
-│   │   ├── agentList.repository.ts
-│   │   ├── agentRating.repository.ts
-│   │   ├── blob.repository.ts
-│   │   ├── category.repository.ts
-│   │   ├── creditCost.repository.ts
-│   │   ├── transaction.repository.ts
-│   │   ├── invitation.repository.ts
-│   │   ├── job.repository.ts
-│   │   ├── job-event.repository.ts
-│   │   ├── job-input.repository.ts
-│   │   ├── job-purchase.repository.ts
-│   │   ├── link.repository.ts
-│   │   ├── lock.repository.ts
-│   │   ├── member.repository.ts
-│   │   ├── organization.repository.ts
-│   │   ├── sync-metadata.repository.ts
-│   │   ├── tag.repository.ts
-│   │   ├── user.repository.ts
-│   │   ├── utmAttribution.repository.ts
-│   │   └── index.ts           # Export all repositories
-│   ├── helpers/               # Domain helpers
-│   │   ├── credit.ts          # Credit calculation helpers
-│   │   ├── job.ts             # Job status computation
-│   │   └── index.ts
-│   └── types/                 # Shared type definitions
-│       ├── agent.ts
-│       ├── agentList.ts
-│       ├── agentRating.ts
-│       ├── invitation.ts
-│       ├── job.ts
-│       ├── public-share.ts
-│       ├── link.ts
-│       ├── member.ts
-│       ├── organization.ts
-│       └── utm.ts
-├── prisma/
-│   ├── schema/               # Prisma schema files
-│   └── migrations/           # Migration history
-├── dist/                     # Compiled output (gitignored)
-└── package.json
-```
+Look at `src/` and `package.json` `exports`. Do not treat this file as a file list.
+
+- `src/client.ts` — `createPrismaClient`
+- `src/repositories/` — legacy data-access modules (pass Prisma client in)
+- `src/helpers/` — Prisma-backed domain logic
+- `src/types/` — shared types
+- `prisma/` — schema and migrations
 
 ## Entry Points
 
