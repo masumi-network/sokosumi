@@ -210,7 +210,7 @@ describe("membershipVisibleChannelOptions", () => {
     ]);
   });
 
-  it("shows org name for External and guest Channels", () => {
+  it("shows org name for External Channels", () => {
     expect(
       membershipVisibleChannelOptions([
         {
@@ -228,6 +228,29 @@ describe("membershipVisibleChannelOptions", () => {
         id: "c2",
         name: "Client",
         slug: "client",
+        organizationName: "Acme",
+      },
+    ]);
+  });
+
+  it("shows org name for guest access on a host Channel", () => {
+    expect(
+      membershipVisibleChannelOptions([
+        {
+          id: "c3",
+          name: "Standup",
+          slug: "standup",
+          kind: "channel",
+          organizationName: "Acme",
+          discoverability: "public",
+          myAccess: "guest",
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "c3",
+        name: "Standup",
+        slug: "standup",
         organizationName: "Acme",
       },
     ]);

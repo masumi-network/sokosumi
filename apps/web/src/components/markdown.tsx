@@ -64,7 +64,7 @@ export default function Markdown({
       );
       if (isInternalAppPath(href)) {
         return (
-          <Link href={href} className={classNames}>
+          <Link href={href} className={classNames} {...props}>
             {children}
           </Link>
         );
