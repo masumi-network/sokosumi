@@ -15,7 +15,7 @@ export function getDriveItemsQueryKey(params: {
     ...DRIVE_ITEMS_QUERY_KEY,
     params.store,
     params.folder,
-    params.search,
+    params.search.trim(),
   ] as const;
 }
 
