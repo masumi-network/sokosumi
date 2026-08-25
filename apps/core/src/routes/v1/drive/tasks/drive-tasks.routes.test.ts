@@ -340,6 +340,55 @@ describe("Drive Tasks Routes", () => {
       });
     });
 
+    describe("Search: task-file rows", () => {
+      it("searches by task name, description, and file name", async () => {
+        const matchingFile = {
+          id: "tf_search",
+          name: "mockup.pdf",
+          fileUrl: "https://example.com/mockup.pdf",
+          size: BigInt(1024),
+          mimeType: "application/pdf",
+          updatedAt: new Date("2026-08-24T12:00:00.000Z"),
+          task: {
+            id: "tsk_search",
+            name: "Design mockups",
+            projectId: "prj_search",
+            project: { name: "Q4 Campaign" },
+          },
+        };
+
+        prismaTaskFileFindManyMock.mockResolvedValue([matchingFile]);
+        prismaTaskFileCountMock.mockResolvedValue(1);
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me&q=mockup");
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "task-file",
+          id: "tf_search",
+          name: "mockup.pdf",
+          taskId: "tsk_search",
+          taskName: "Design mockups",
+          projectId: "prj_search",
+          projectName: "Q4 Campaign",
+        });
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: expect.arrayContaining([
+                expect.objectContaining({
+                  name: { contains: "mockup", mode: "insensitive" },
+                }),
+              ]),
+            }),
+          }),
+        );
+      });
+    });
+
     describe("Level 2: Task rows", () => {
       it("lists tasks sorted by latest file updatedAt desc", async () => {
         const tasks = [

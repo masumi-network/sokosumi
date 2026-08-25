@@ -18,6 +18,7 @@ export interface FetchDriveTasksPageOptions {
   projectId?: string | "null";
   taskId?: string;
   assigneeId?: string;
+  q?: string;
   cursor?: string;
   signal?: AbortSignal;
 }
@@ -38,6 +39,7 @@ export async function fetchDriveTasksPage(
         : {}),
       ...(options.taskId ? { taskId: options.taskId } : {}),
       ...(options.assigneeId ? { assigneeId: options.assigneeId } : {}),
+      ...(options.q ? { q: options.q } : {}),
       ...(options.cursor ? { cursor: options.cursor } : {}),
     },
     ...(options.signal ? { signal: options.signal } : {}),

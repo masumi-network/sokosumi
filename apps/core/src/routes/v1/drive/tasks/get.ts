@@ -76,6 +76,15 @@ const query = z
         description: "Filter tasks by assignee coworker ID",
         example: "cow_123",
       }),
+    q: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        description:
+          "Search tasks and files by task name, task description, or file name (case-insensitive substring). Returns matching task-file rows.",
+        example: "mockup",
+      }),
   })
   .extend(cursorPaginationQuerySchema.shape)
   .refine(
@@ -119,8 +128,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { scope, organizationId, projectId, taskId, assigneeId } =
+    const { scope, organizationId, projectId, taskId, assigneeId, q } =
       queryParams;
+    const searchQuery = q?.trim();
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     if (isCoworkerAuthContext(authContext)) {
@@ -162,6 +172,119 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       baseTaskWhere.AND = [listAccessFilter];
+    }
+
+    if (searchQuery) {
+      const taskFileWhere: Prisma.TaskFileWhereInput = {
+        ...DRIVE_TASK_FILE_WHERE,
+        OR: [
+          {
+            name: { contains: searchQuery, mode: "insensitive" },
+            task: baseTaskWhere,
+          },
+          {
+            task: {
+              AND: [
+                baseTaskWhere,
+                {
+                  OR: [
+                    { name: { contains: searchQuery, mode: "insensitive" } },
+                    {
+                      description: {
+                        contains: searchQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const [matchingFiles, totalCount] = await Promise.all([
+        prisma.taskFile.findMany({
+          where: taskFileWhere,
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          include: {
+            task: {
+              select: {
+                id: true,
+                name: true,
+                projectId: true,
+                project: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.taskFile.count({ where: taskFileWhere }),
+      ]);
+
+      let startIndex = 0;
+      if (cursor) {
+        const cursorIndex = matchingFiles.findIndex(
+          (file) => file.id === cursor,
+        );
+        if (cursorIndex >= 0) {
+          startIndex = cursorIndex + 1;
+        }
+      }
+      startIndex += skip ?? 0;
+
+      const pagedFiles = matchingFiles.slice(startIndex, startIndex + take);
+      const hasMore = startIndex + take < matchingFiles.length;
+
+      const items: DriveTasksListItem[] = pagedFiles
+        .map((file) => {
+          if (!file.fileUrl) {
+            return null;
+          }
+
+          return {
+            type: "task-file" as const,
+            id: file.id,
+            name: file.name,
+            fileUrl: file.fileUrl,
+            size: file.size ? Number(file.size) : null,
+            mimeType: file.mimeType,
+            updatedAt: file.updatedAt.toISOString(),
+            taskId: file.task.id,
+            taskName: file.task.name,
+            projectId: file.task.projectId,
+            projectName: file.task.project?.name ?? null,
+          };
+        })
+        .filter(
+          (
+            item,
+          ): item is {
+            type: "task-file";
+            id: string;
+            name: string;
+            fileUrl: string;
+            size: number | null;
+            mimeType: string | null;
+            updatedAt: string;
+            taskId: string;
+            taskName: string;
+            projectId: string | null;
+            projectName: string | null;
+          } => item !== null,
+        );
+
+      const paginationMeta = createPaginationMeta(
+        pagedFiles,
+        totalCount,
+        take,
+        hasMore,
+        cursor,
+      );
+      return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
     // Determine level

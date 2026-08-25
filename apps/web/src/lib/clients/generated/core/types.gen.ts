@@ -2427,6 +2427,22 @@ export type DriveTasksTaskFileItem = {
      * TaskFile updatedAt
      */
     updatedAt: Date;
+    /**
+     * Parent task ID (search results only)
+     */
+    taskId?: string;
+    /**
+     * Parent task name (search results only)
+     */
+    taskName?: string;
+    /**
+     * Parent project ID, or null (search results only)
+     */
+    projectId?: string | null;
+    /**
+     * Parent project name, or null (search results only)
+     */
+    projectName?: string | null;
 };
 
 export type CopyTaskFileToDriveResponse = {
@@ -17027,6 +17043,10 @@ export type GetDriveTasksData = {
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;
+        /**
+         * Search tasks and files by task name, task description, or file name (case-insensitive substring). Returns matching task-file rows.
+         */
+        q?: string;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
