@@ -1,6 +1,7 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Check,
@@ -18,13 +19,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -91,6 +86,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
 
 function withoutLegacyDriveScopeParam(
   params: URLSearchParams,
@@ -175,16 +171,111 @@ function FileNameWithPreview({
   );
 }
 
+interface DrivePageWorkspaceProps {
+  activeOrganizationId: string | null;
+}
+
+function DriveListSkeleton(): ReactElement {
+  return (
+    <div
+      className={cn(
+        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      )}
+    >
+      <div className="divide-border/50 divide-y px-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <article
+            key={i}
+            className={cn(
+              "-mx-2 flex items-center gap-1 rounded-lg px-2",
+              PROJECTS_LIST_ROW_LAYOUT_CLASS,
+            )}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+              <div className="flex size-8 shrink-0 items-center justify-center">
+                <Skeleton className="size-4" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <Skeleton className="h-4 w-32 sm:w-48" />
+                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="shrink-0 pl-2">
+              <Skeleton className="size-8" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DrivePage(): ReactElement {
+  const { data: session } = useSession();
+  // Unknown session is not personal. Hold the last known workspace so a
+  // pending refetch cannot switch the list query to `{ scope: "me" }`.
+  const workspaceFromSession = session
+    ? (session.session.activeOrganizationId ?? null)
+    : undefined;
+  const workspaceIdRef = useRef(workspaceFromSession);
+  if (workspaceFromSession !== undefined) {
+    workspaceIdRef.current = workspaceFromSession;
+  }
+  const activeOrganizationId = workspaceIdRef.current;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (activeOrganizationId === undefined) {
+      return;
+    }
+    if (previousWorkspaceIdRef.current === undefined) {
+      previousWorkspaceIdRef.current = activeOrganizationId;
+      return;
+    }
+    if (previousWorkspaceIdRef.current === activeOrganizationId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = activeOrganizationId;
+    if (!searchParams.get("folder")) {
+      return;
+    }
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.delete("folder");
+    const query = params.toString();
+    router.replace(query ? `/drive?${query}` : "/drive");
+  }, [activeOrganizationId, router, searchParams]);
+
+  if (activeOrganizationId === undefined) {
+    return (
+      <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+        <DriveListSkeleton />
+      </div>
+    );
+  }
+
+  return <DrivePageWorkspace activeOrganizationId={activeOrganizationId} />;
+}
+
+function DrivePageWorkspace({
+  activeOrganizationId,
+}: DrivePageWorkspaceProps): ReactElement {
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [items, setItems] = useState<DriveItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
@@ -206,9 +297,35 @@ export default function DrivePage(): ReactElement {
   const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
 
-  const loadItemsAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+  const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
+  const workspaceIdRef = useRef(activeOrganizationId);
+  workspaceIdRef.current = activeOrganizationId;
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
+  if (uiWorkspaceId !== activeOrganizationId) {
+    setUiWorkspaceId(activeOrganizationId);
+    setEditingItemPath(null);
+    setEditingItemName("");
+    setDeleteDialogOpen(false);
+    setItemToDelete(null);
+    setCreateFolderDialogOpen(false);
+    setNewFolderName("");
+    setSnapshotFolder(null);
+    setMoveDialogOpen(false);
+    setItemToMove(null);
+    setSelectedDestination(null);
+    loadAllFoldersAbortRef.current?.abort();
+    setAllFolders([]);
+    setLoadingAllFolders(false);
+    debouncedSetSearchQuery.cancel();
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+  }
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
@@ -218,77 +335,38 @@ export default function DrivePage(): ReactElement {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
   });
-  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
 
   useRegisterBreadcrumbOverride({
     pathname,
     segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
 
-  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
-    setDebouncedSearchQuery(value);
-  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
-
   function handleSearchChange(value: string) {
     setSearchQuery(value);
     debouncedSetSearchQuery(value);
   }
 
-  const loadItems = useCallback(async () => {
-    loadItemsAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadItemsAbortRef.current = controller;
-
-    setLoading(true);
-    try {
-      const loaded = await listDriveItems({
-        ...driveStore,
-        ...(currentFolder ? { folder: currentFolder } : {}),
-        ...(debouncedSearchQuery.trim()
-          ? { q: debouncedSearchQuery.trim() }
-          : {}),
-        signal: controller.signal,
-      });
-
-      if (!controller.signal.aborted) {
-        setItems(loaded);
-      }
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load Drive items", err);
-        toast.error(t("loadFilesError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [scope, activeOrganizationId, currentFolder, debouncedSearchQuery, t]);
+  const driveItemsQuery = useQuery(
+    getDriveItemsQueryOptions({
+      store: driveStore,
+      folder: currentFolder,
+      search: debouncedSearchQuery,
+    }),
+  );
+  const items = driveItemsQuery.data ?? [];
+  const loading = driveItemsQuery.isPending;
 
   useEffect(() => {
-    void loadItems();
-  }, [loadItems]);
+    if (!driveItemsQuery.isError) {
+      return;
+    }
+    console.error("Failed to load Drive items", driveItemsQuery.error);
+    toast.error(t("loadFilesError"));
+  }, [driveItemsQuery.error, driveItemsQuery.isError, t]);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    if (previousWorkspaceIdRef.current === undefined) {
-      previousWorkspaceIdRef.current = activeOrganizationId;
-      return;
-    }
-    if (previousWorkspaceIdRef.current === activeOrganizationId) {
-      return;
-    }
-    previousWorkspaceIdRef.current = activeOrganizationId;
-    if (!searchParams.get("folder")) {
-      return;
-    }
-    const params = withoutLegacyDriveScopeParam(searchParams);
-    params.delete("folder");
-    const query = params.toString();
-    router.replace(query ? `/drive?${query}` : "/drive");
-  }, [session, activeOrganizationId, router, searchParams]);
+  async function refreshDriveItems() {
+    await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+  }
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -323,6 +401,12 @@ export default function DrivePage(): ReactElement {
     void fetchOrganizationName();
   }, [activeOrganizationId, session?.user?.id]);
 
+  useEffect(() => {
+    return () => {
+      loadAllFoldersAbortRef.current?.abort();
+    };
+  }, [activeOrganizationId]);
+
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -341,7 +425,7 @@ export default function DrivePage(): ReactElement {
         },
       });
 
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       if (isDriveFileUploadDuplicate(err)) {
         toast.error(t("uploadDuplicateError"));
@@ -389,7 +473,7 @@ export default function DrivePage(): ReactElement {
 
       setEditingItemPath(null);
       setEditingItemName("");
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -434,7 +518,7 @@ export default function DrivePage(): ReactElement {
 
       setDeleteDialogOpen(false);
       setItemToDelete(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
@@ -520,7 +604,7 @@ export default function DrivePage(): ReactElement {
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
       setSnapshotFolder(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
 
@@ -545,18 +629,39 @@ export default function DrivePage(): ReactElement {
   }
 
   async function loadAllFolders() {
+    loadAllFoldersAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAllFoldersAbortRef.current = controller;
+    const requestedWorkspaceId = activeOrganizationId;
     setLoadingAllFolders(true);
     try {
       const loaded = await listDriveItems({
         ...driveStore,
+        signal: controller.signal,
       });
+      if (
+        controller.signal.aborted ||
+        workspaceIdRef.current !== requestedWorkspaceId
+      ) {
+        return;
+      }
 
       setAllFolders(loaded.filter((item) => item.type === "folder"));
     } catch (err) {
+      if (controller.signal.aborted) {
+        return;
+      }
       console.error("Failed to load all folders", err);
-      setAllFolders([]);
+      if (workspaceIdRef.current === requestedWorkspaceId) {
+        setAllFolders([]);
+      }
     } finally {
-      setLoadingAllFolders(false);
+      if (
+        !controller.signal.aborted &&
+        workspaceIdRef.current === requestedWorkspaceId
+      ) {
+        setLoadingAllFolders(false);
+      }
     }
   }
 
@@ -586,7 +691,7 @@ export default function DrivePage(): ReactElement {
       setMoveDialogOpen(false);
       setItemToMove(null);
       setSelectedDestination(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
@@ -791,44 +896,7 @@ export default function DrivePage(): ReactElement {
       </div>
 
       {loading ? (
-        <div
-          className={cn(
-            "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-            PROJECTS_LIST_CARD_MIN_H_CLASS,
-          )}
-        >
-          <div className="divide-border/50 divide-y px-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <article
-                key={i}
-                className={cn(
-                  "-mx-2 flex items-center gap-1 rounded-lg px-2",
-                  PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                )}
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center">
-                    <Skeleton className="size-4" />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <Skeleton className="h-4 w-32 sm:w-48" />
-                    <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                      <Skeleton className="h-3 w-12" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
-                  <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                    <Skeleton className="h-3 w-12" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-                <div className="shrink-0 pl-2">
-                  <Skeleton className="size-8" />
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
+        <DriveListSkeleton />
       ) : emptyState ? (
         <div
           className={cn(
