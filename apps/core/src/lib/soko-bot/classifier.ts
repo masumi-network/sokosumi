@@ -9,7 +9,7 @@ import { generateText, Output } from "ai";
 
 const CLASSIFIER_MODEL = "mistral/mistral-small";
 const CLASSIFIER_VERSION = "soko-bot-classifier-v1";
-const CLASSIFIER_TIMEOUT_MS = 5_000;
+const CLASSIFIER_TIMEOUT_MS = 8_000;
 
 const classificationSchema = z.object({
   schemaVersion: z.literal(1),
@@ -277,7 +277,13 @@ export class ExternalTurnClassifier implements TurnClassifier {
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
       };
-    } catch (_error) {
+    } catch (error) {
+      // Fail closed, but never silently: a broken classifier turns every
+      // request into a clarification and looks like a prompt problem.
+      console.warn("Soko Bot classifier failed", {
+        model: CLASSIFIER_MODEL,
+        error: error instanceof Error ? error.message : "unknown",
+      });
       return {
         classification: baseClassification(
           "CLARIFY",
