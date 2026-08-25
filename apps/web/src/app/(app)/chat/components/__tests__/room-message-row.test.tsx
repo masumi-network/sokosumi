@@ -1915,13 +1915,15 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toBeInTheDocument();
-    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
+    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
       "MentionStatus.failed",
     );
     expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-thought-trace"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-failed"),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-mention-retry"),
@@ -1942,7 +1944,9 @@ describe("ChatMessageRow coworker Thought", () => {
 
     renderRow({ message, onRetryMention });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toBeInTheDocument();
+    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+      "MentionStatus.failed",
+    );
     await user.click(screen.getByTestId("coworker-mention-retry"));
     expect(onRetryMention).toHaveBeenCalledWith(message);
     expect(screen.getByTestId("coworker-mention-retry")).toHaveTextContent(

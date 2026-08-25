@@ -62,21 +62,27 @@ function ThoughtSparkle({ working }: { working: boolean }) {
   );
 }
 
-/** Settled sparkle on a failed mention shell so Thinking → fail does not swap widgets. */
+/** Settled Thought header for a failed mention shell. */
 export function CoworkerFailedThoughtSparkle({
+  label,
   className,
 }: {
+  label: string;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "-mx-1 flex min-h-6 w-fit max-w-full items-center rounded-md px-1 py-0.5",
+        "-mx-1 flex min-h-6 w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5",
         className,
       )}
       data-testid="coworker-thought-sparkle"
+      role="status"
     >
       <ThoughtSparkle working={false} />
+      <span className="text-muted-foreground truncate text-xs font-medium whitespace-nowrap">
+        {label}
+      </span>
     </div>
   );
 }

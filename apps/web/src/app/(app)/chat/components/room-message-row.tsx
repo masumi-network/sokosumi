@@ -1468,23 +1468,22 @@ function FailedMentionActions({
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
+  if (!onRetryMention) {
+    return null;
+  }
   return (
     <div
-      className="text-muted-foreground flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
       data-testid="coworker-mention-failed"
-      role="status"
     >
-      <span className="text-destructive">{t("MentionStatus.failed")}</span>
-      {onRetryMention ? (
-        <button
-          type="button"
-          className="text-primary hover:text-primary/80 font-medium"
-          data-testid="coworker-mention-retry"
-          onClick={onRetryMention}
-        >
-          {t("MentionStatus.retry")}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className="text-primary hover:text-primary/80 font-medium"
+        data-testid="coworker-mention-retry"
+        onClick={onRetryMention}
+      >
+        {t("MentionStatus.retry")}
+      </button>
     </div>
   );
 }
@@ -1887,7 +1886,9 @@ export function ChatMessageRow({
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
                 <>
-                  <CoworkerFailedThoughtSparkle />
+                  <CoworkerFailedThoughtSparkle
+                    label={tChannels("MentionStatus.failed")}
+                  />
                   <FailedMentionActions
                     onRetryMention={
                       onRetryMention ? () => onRetryMention(message) : undefined
