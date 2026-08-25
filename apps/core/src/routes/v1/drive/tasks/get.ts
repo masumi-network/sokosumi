@@ -6,7 +6,7 @@ import {
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { forbidden } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -35,6 +35,9 @@ const DRIVE_TASK_FILE_WHERE = {
   origin: "TASK_OUTPUT",
   fileUrl: { not: null },
 } as const;
+
+/** Stable sort key when a row has no READY task-output files yet. */
+const NO_DRIVE_TASK_FILE_SORT_EPOCH = new Date(0).toISOString();
 
 const query = z
   .object({
@@ -291,34 +294,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (taskId) {
       await requireTaskReadForRouteVars(c.var, taskId);
 
+      const taskFileWhere = {
+        taskId,
+        ...DRIVE_TASK_FILE_WHERE,
+      };
+
+      if (cursor) {
+        const cursorFile = await prisma.taskFile.findFirst({
+          where: {
+            id: cursor,
+            ...taskFileWhere,
+          },
+          select: { id: true },
+        });
+        if (!cursorFile) {
+          throw badRequest("Invalid pagination cursor");
+        }
+      }
+
+      const takePlusOne = take + 1;
       const [taskFiles, taskFileCount] = await Promise.all([
         prisma.taskFile.findMany({
-          where: {
-            taskId,
-            ...DRIVE_TASK_FILE_WHERE,
-          },
+          where: taskFileWhere,
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
           orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         }),
         prisma.taskFile.count({
-          where: {
-            taskId,
-            ...DRIVE_TASK_FILE_WHERE,
-          },
+          where: taskFileWhere,
         }),
       ]);
 
-      // Apply cursor pagination
-      let startIndex = 0;
-      if (cursor) {
-        const cursorIndex = taskFiles.findIndex((f) => f.id === cursor);
-        if (cursorIndex >= 0) {
-          startIndex = cursorIndex + 1; // Skip cursor item
-        }
-      }
-      startIndex += skip ?? 0;
-
-      const pagedFiles = taskFiles.slice(startIndex, startIndex + take);
-      const hasMore = startIndex + take < taskFiles.length;
+      const hasMore = taskFiles.length === takePlusOne;
+      const pagedFiles = taskFiles.slice(0, take);
 
       const items: DriveTasksListItem[] = pagedFiles
         .map((file) => {
@@ -403,7 +412,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           startIndex = cursorIndex + 1; // Skip cursor item
         }
       }
-      startIndex += skip ?? 0;
 
       const pagedTasks = sortedTasks.slice(startIndex, startIndex + take);
       const hasMore = startIndex + take < sortedTasks.length;
@@ -470,8 +478,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     take: 1,
                   },
                 },
-                orderBy: [{ updatedAt: "desc" }],
-                take: 1,
               },
             },
           })
@@ -517,7 +523,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const latestFileUpdatedAt =
         latestTime > 0
           ? new Date(latestTime).toISOString()
-          : new Date().toISOString();
+          : NO_DRIVE_TASK_FILE_SORT_EPOCH;
 
       return {
         type: "project" as const,
@@ -548,7 +554,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const latestFileUpdatedAt =
         fileTime > 0
           ? new Date(fileTime).toISOString()
-          : new Date().toISOString();
+          : NO_DRIVE_TASK_FILE_SORT_EPOCH;
 
       sortableItems.push({
         type: "no-project",
@@ -573,7 +579,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         startIndex = cursorIndex + 1; // Skip cursor item
       }
     }
-    startIndex += skip ?? 0;
 
     const pagedItems = sortableItems.slice(startIndex, startIndex + take);
     const hasMore = startIndex + take < sortableItems.length;
