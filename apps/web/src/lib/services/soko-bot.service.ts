@@ -4,14 +4,17 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
+  InstallSokoBotSkillResponse,
   JudgeSokoBotLabTurnRequest,
   ResolveSokoBotDecisionRequest,
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
+  SokoBotInstalledSkill,
   SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
+  SokoBotSkillSearchResult,
   SokoBotTurn,
   SokoBotVersion,
   StartSokoBotTurnRequest,
@@ -67,6 +70,28 @@ export const sokoBotService = {
 
   async setVersion(versionId: string): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotVersion({ versionId });
+    return response.data;
+  },
+
+  async listSkills(): Promise<SokoBotInstalledSkill[]> {
+    const response = await coreClient.listMySokoBotSkills();
+    return response.data;
+  },
+
+  async installSkill(input: {
+    source: string;
+    skillName?: string | null;
+  }): Promise<InstallSokoBotSkillResponse> {
+    const response = await coreClient.installMySokoBotSkill(input);
+    return response.data;
+  },
+
+  async removeSkill(skillId: string): Promise<void> {
+    await coreClient.removeMySokoBotSkill(skillId);
+  },
+
+  async searchSkills(q: string): Promise<SokoBotSkillSearchResult[]> {
+    const response = await coreClient.searchSokoBotSkills(q);
     return response.data;
   },
 

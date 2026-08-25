@@ -164,6 +164,9 @@ export async function callCore<T>(
         },
       });
     }
+    if (path === "/v1/internal/soko-bot/skills") {
+      return schema.parse({ skills: [] });
+    }
     if (path === "/v1/internal/soko-bot/tools/execute") {
       const capability = body.capability;
       if (scenario === "tool-failure" && capability === "create_task") {

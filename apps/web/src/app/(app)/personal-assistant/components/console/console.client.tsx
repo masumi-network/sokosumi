@@ -1,6 +1,5 @@
 "use client";
 
-import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
 import { MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -13,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type {
   SokoBotAvatar,
+  SokoBotInstalledSkill,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -30,6 +30,7 @@ import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
+import { SkillsSection } from "../skills-section.client";
 
 import { ActivityList } from "./activity-list.client";
 
@@ -70,6 +71,7 @@ export interface SokoBotConsoleProps {
   focusTurnId: string | null;
   /** The agent version this bot runs: skills and tool allowlist. */
   version: SokoBotVersion | null;
+  installedSkills: SokoBotInstalledSkill[];
 }
 
 /**
@@ -83,6 +85,7 @@ export function SokoBotConsole({
   userImageUrl,
   focusTurnId,
   version,
+  installedSkills,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
@@ -253,54 +256,11 @@ export function SokoBotConsole({
               <Section
                 title={t("Console.skillsTitle")}
                 description={t("Console.skillsDescription")}
-                aside={
-                  version ? (
-                    <span className="text-muted-foreground text-xs">
-                      {version.name}
-                    </span>
-                  ) : null
-                }
               >
-                {version ? (
-                  <div className="space-y-4">
-                    <ul className="space-y-2">
-                      {version.skills.map((skill) => (
-                        <li key={skill.id} className="text-sm">
-                          <p className="font-medium">{skill.name}</p>
-                          <p className="text-muted-foreground text-xs">
-                            {skill.description}
-                          </p>
-                        </li>
-                      ))}
-                      {version.skills.length === 0 ? (
-                        <li className="text-muted-foreground text-sm">
-                          {t("Console.skillsEmpty")}
-                        </li>
-                      ) : null}
-                    </ul>
-                    <div>
-                      <p className="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">
-                        {t("Console.toolsLabel")}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {(version.capabilities ?? SOKO_BOT_CAPABILITIES).map(
-                          (capability) => (
-                            <span
-                              key={capability}
-                              className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs"
-                            >
-                              {capability.replaceAll("_", " ")}
-                            </span>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    {t("Console.skillsEmpty")}
-                  </p>
-                )}
+                <SkillsSection
+                  version={version}
+                  initialInstalled={installedSkills}
+                />
               </Section>
 
               <Section

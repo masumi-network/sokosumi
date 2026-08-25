@@ -14714,6 +14714,140 @@ export const SimulateSokoBotTaskEventRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SokoBotInstalledSkillSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        slug: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        sourceUrl: {
+            type: 'string'
+        },
+        sourceRef: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'slug',
+        'name',
+        'description',
+        'sourceUrl',
+        'sourceRef',
+        'createdAt'
+    ]
+} as const;
+
+export const InstallSokoBotSkillResponseSchema = {
+    type: 'object',
+    properties: {
+        skill: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotInstalledSkill'
+                },
+                {
+                    type: [
+                        'object',
+                        'null'
+                    ]
+                }
+            ]
+        },
+        candidates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    path: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'description',
+                    'path'
+                ]
+            }
+        }
+    },
+    required: [
+        'skill',
+        'candidates'
+    ]
+} as const;
+
+export const InstallSokoBotSkillRequestSchema = {
+    type: 'object',
+    properties: {
+        source: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 300
+        },
+        skillName: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        }
+    },
+    required: [
+        'source'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SokoBotSkillSearchResultSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        source: {
+            type: 'string'
+        },
+        installs: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'source',
+        'installs'
+    ]
+} as const;
+
 export const SokoBotLabRunSchema = {
     type: 'object',
     properties: {

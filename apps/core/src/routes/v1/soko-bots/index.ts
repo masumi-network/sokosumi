@@ -32,12 +32,15 @@ import {
   claimSokoBotAvatarRequestSchema,
   createSokoBotRequestSchema,
   createSokoBotScheduleRequestSchema,
+  installSokoBotSkillRequestSchema,
+  installSokoBotSkillResponseSchema,
   judgeSokoBotLabTurnRequestSchema,
   listSokoBotAvatarsQuerySchema,
   listSokoBotLabRunsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
   sokoBotAvatarSchema,
+  sokoBotInstalledSkillSchema,
   sokoBotLabRunSchema,
   sokoBotLabTaskEventSchema,
   sokoBotLabVerdictSchema,
@@ -45,6 +48,7 @@ import {
   sokoBotPendingDecisionSchema,
   sokoBotScheduleSchema,
   sokoBotSchema,
+  sokoBotSkillSearchResultSchema,
   sokoBotStateSchema,
   sokoBotTurnSchema,
   sokoBotVersionSchema,
@@ -82,6 +86,13 @@ import {
   SokoBotRuntimeValidationError,
   sokoBotRuntimeService,
 } from "@/services/soko-bot-runtime.service";
+import {
+  installSkill,
+  listInstalledSkills,
+  removeInstalledSkill,
+  SokoBotSkillError,
+  searchSkillsSh,
+} from "@/services/soko-bot-skills.service";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -709,6 +720,122 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     return ok(c, sokoBotLabTaskEventSchema.parse(result));
   } catch (error) {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
+    throw error;
+  }
+});
+
+const listSkillsRoute = createRoute({
+  method: "get",
+  path: "/me/skills",
+  operationId: "listMySokoBotSkills",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(sokoBotInstalledSkillSchema),
+      "Installed skills",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+  },
+});
+
+app.openapi(listSkillsRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  return ok(
+    c,
+    z
+      .array(sokoBotInstalledSkillSchema)
+      .parse(await listInstalledSkills(auth.userId)),
+  );
+});
+
+const installSkillRoute = createRoute({
+  method: "post",
+  path: "/me/skills",
+  operationId: "installMySokoBotSkill",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: installSokoBotSkillRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      installSokoBotSkillResponseSchema,
+      "Installed skill, or the candidates to choose from",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(installSkillRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  try {
+    const result = await installSkill({
+      userId: auth.userId,
+      ...c.req.valid("json"),
+    });
+    return ok(c, installSokoBotSkillResponseSchema.parse(result));
+  } catch (error) {
+    if (error instanceof SokoBotSkillError) {
+      throw unprocessableEntity(error.message);
+    }
+    throw error;
+  }
+});
+
+const removeSkillRoute = createRoute({
+  method: "delete",
+  path: "/me/skills/{skillId}",
+  operationId: "removeMySokoBotSkill",
+  tags: ["Soko Bots"],
+  request: {
+    params: z.object({ skillId: z.string().uuid() }),
+  },
+  responses: {
+    200: jsonSuccessResponse(z.object({ removed: z.boolean() }), "Removed"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(removeSkillRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  try {
+    await removeInstalledSkill(auth.userId, c.req.valid("param").skillId);
+    return ok(c, { removed: true });
+  } catch (error) {
+    if (error instanceof SokoBotSkillError) throw notFound(error.message);
+    throw error;
+  }
+});
+
+const searchSkillsRoute = createRoute({
+  method: "get",
+  path: "/skills/search",
+  operationId: "searchSokoBotSkills",
+  tags: ["Soko Bots"],
+  request: { query: z.object({ q: z.string().trim().min(1).max(100) }) },
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(sokoBotSkillSearchResultSchema),
+      "skills.sh results",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(searchSkillsRoute, async (c) => {
+  requireUserAuthContext(c.var.authContext);
+  try {
+    return ok(c, await searchSkillsSh(c.req.valid("query").q));
+  } catch (error) {
+    if (error instanceof SokoBotSkillError) {
+      throw unprocessableEntity(error.message);
+    }
     throw error;
   }
 });

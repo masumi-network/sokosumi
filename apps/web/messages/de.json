@@ -5470,9 +5470,7 @@
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
         "showMore": "{count} weitere anzeigen",
         "skillsTitle": "Skills & Tools",
-        "skillsDescription": "Was dein Assistent gelernt hat und welche Tools er für dich nutzen darf.",
-        "skillsEmpty": "Keine Skills installiert.",
-        "toolsLabel": "Tools"
+        "skillsDescription": "Was dein Assistent gelernt hat und welche Tools er für dich nutzen darf."
       },
       "Avatar": {
         "title": "Bild",
@@ -5485,6 +5483,26 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "loadError": "Bilder konnten nicht geladen werden."
+      },
+      "Skills": {
+        "builtIn": "Eingebaut",
+        "installedTitle": "Installiert von skills.sh",
+        "installedEmpty": "Noch keine installierten Skills.",
+        "sourcePlaceholder": "owner/repo/skill oder skills.sh-Link",
+        "sourceLabel": "Skill-Quelle",
+        "install": "Installieren",
+        "installed": "{name} installiert.",
+        "installError": "Skill konnte nicht installiert werden.",
+        "remove": "Entfernen",
+        "removeError": "Skill konnte nicht entfernt werden.",
+        "pickOne": "Diese Quelle enthält {count} Skills — wähle einen:",
+        "searchPlaceholder": "skills.sh durchsuchen",
+        "searchLabel": "Skills suchen",
+        "search": "Suchen",
+        "searchError": "Suche fehlgeschlagen.",
+        "installs": "{count} Installationen",
+        "hint": "Installierte Skills werden bei passenden Anfragen bei Bedarf geladen. Prüfe die Quelle vor dem Installieren — stöbern auf",
+        "tools": "Tools"
       }
     }
   },

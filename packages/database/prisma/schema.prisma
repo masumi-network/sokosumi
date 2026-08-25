@@ -1673,6 +1673,7 @@ model SokoBot {
   /// Chat-facing coworker row for this bot (created when the bot is created).
   coworker Coworker?
   labRuns  SokoBotLabRun[]
+  installedSkills SokoBotInstalledSkill[]
 
   /// Picked mascot image (see SokoBotAvatar); null → generative orb.
   avatarImageUrl String?
@@ -3204,4 +3205,28 @@ model SokoBotLabRun {
   @@index([versionId, createdAt(sort: Desc)])
   @@index([sokoBotId, createdAt(sort: Desc)])
   @@map("soko_bot_lab_run")
+}
+
+/// A skill the owner installed from skills.sh / GitHub for their Soko Bot.
+/// Stored as the SKILL.md markdown; the runtime advertises it as a
+/// load-on-demand skill. `slug` is the source id (owner/repo/skill-name).
+model SokoBotInstalledSkill {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  userId    String
+
+  slug        String
+  name        String
+  description String
+  markdown    String
+  sourceUrl   String
+  sourceRef   String?
+
+  @@unique([sokoBotId, name])
+  @@index([sokoBotId])
+  @@map("soko_bot_installed_skill")
 }

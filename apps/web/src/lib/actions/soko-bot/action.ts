@@ -14,6 +14,7 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import {
+  type InstallSokoBotSkillResponse,
   type SokoBot,
   SokoBotAvatar,
   type SokoBotLabRun,
@@ -22,6 +23,7 @@ import {
   type SokoBotMemory,
   type SokoBotPendingDecision,
   type SokoBotSchedule,
+  type SokoBotSkillSearchResult,
   type SokoBotVersion,
   type StartSokoBotTurnResponse,
 } from "@/lib/clients/generated/core";
@@ -301,6 +303,66 @@ export const setSokoBotVersionAction = withSession<
     const bot = await sokoBotService.setVersion(parsed.data);
     revalidate();
     return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface InstallSkillParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+const installSkillSchema = z.object({
+  source: z.string().trim().min(3).max(300),
+  skillName: z.string().trim().min(1).max(120).nullable().optional(),
+});
+
+export const installSokoBotSkillAction = withSession<
+  InstallSkillParams,
+  ActionResultDto<InstallSokoBotSkillResponse, ActionError>
+>(async ({ input }) => {
+  const parsed = installSkillSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    const result = await sokoBotService.installSkill(parsed.data);
+    revalidate();
+    return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface RemoveSkillParams extends AuthenticatedRequest {
+  skillId: unknown;
+}
+
+export const removeSokoBotSkillAction = withSession<
+  RemoveSkillParams,
+  ActionResultDto<void, ActionError>
+>(async ({ skillId }) => {
+  const parsed = z.string().uuid().safeParse(skillId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    await sokoBotService.removeSkill(parsed.data);
+    revalidate();
+    return toActionResult(ok());
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface SearchSkillsParams extends AuthenticatedRequest {
+  q: unknown;
+}
+
+export const searchSokoBotSkillsAction = withSession<
+  SearchSkillsParams,
+  ActionResultDto<SokoBotSkillSearchResult[], ActionError>
+>(async ({ q }) => {
+  const parsed = z.string().trim().min(1).max(100).safeParse(q);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(ok(await sokoBotService.searchSkills(parsed.data)));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

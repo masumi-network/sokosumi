@@ -4244,6 +4244,39 @@ export type SimulateSokoBotTaskEventRequest = {
     comment: string;
 };
 
+export type SokoBotInstalledSkill = {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    sourceUrl: string;
+    sourceRef: string | null;
+    createdAt: Date;
+};
+
+export type InstallSokoBotSkillResponse = {
+    skill: SokoBotInstalledSkill & ({
+        [key: string]: unknown;
+    } | null);
+    candidates: Array<{
+        name: string;
+        description: string;
+        path: string;
+    }>;
+};
+
+export type InstallSokoBotSkillRequest = {
+    source: string;
+    skillName?: string | null;
+};
+
+export type SokoBotSkillSearchResult = {
+    id: string;
+    name: string;
+    source: string;
+    installs: number;
+};
+
 export type SokoBotLabRun = {
     id: string;
     turnId: string;
@@ -28701,6 +28734,222 @@ export type SimulateMySokoBotTaskEventResponses = {
 };
 
 export type SimulateMySokoBotTaskEventResponse = SimulateMySokoBotTaskEventResponses[keyof SimulateMySokoBotTaskEventResponses];
+
+export type ListMySokoBotSkillsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/skills';
+};
+
+export type ListMySokoBotSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListMySokoBotSkillsError = ListMySokoBotSkillsErrors[keyof ListMySokoBotSkillsErrors];
+
+export type ListMySokoBotSkillsResponses = {
+    /**
+     * Installed skills
+     */
+    200: {
+        data: Array<SokoBotInstalledSkill>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListMySokoBotSkillsResponse = ListMySokoBotSkillsResponses[keyof ListMySokoBotSkillsResponses];
+
+export type InstallMySokoBotSkillData = {
+    body?: InstallSokoBotSkillRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/skills';
+};
+
+export type InstallMySokoBotSkillErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type InstallMySokoBotSkillError = InstallMySokoBotSkillErrors[keyof InstallMySokoBotSkillErrors];
+
+export type InstallMySokoBotSkillResponses = {
+    /**
+     * Installed skill, or the candidates to choose from
+     */
+    200: {
+        data: InstallSokoBotSkillResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type InstallMySokoBotSkillResponse = InstallMySokoBotSkillResponses[keyof InstallMySokoBotSkillResponses];
+
+export type RemoveMySokoBotSkillData = {
+    body?: never;
+    path: {
+        skillId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/skills/{skillId}';
+};
+
+export type RemoveMySokoBotSkillErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveMySokoBotSkillError = RemoveMySokoBotSkillErrors[keyof RemoveMySokoBotSkillErrors];
+
+export type RemoveMySokoBotSkillResponses = {
+    /**
+     * Removed
+     */
+    200: {
+        data: {
+            removed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveMySokoBotSkillResponse = RemoveMySokoBotSkillResponses[keyof RemoveMySokoBotSkillResponses];
+
+export type SearchSokoBotSkillsData = {
+    body?: never;
+    path?: never;
+    query: {
+        q: string;
+    };
+    url: '/soko-bots/skills/search';
+};
+
+export type SearchSokoBotSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchSokoBotSkillsError = SearchSokoBotSkillsErrors[keyof SearchSokoBotSkillsErrors];
+
+export type SearchSokoBotSkillsResponses = {
+    /**
+     * skills.sh results
+     */
+    200: {
+        data: Array<SokoBotSkillSearchResult>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchSokoBotSkillsResponse = SearchSokoBotSkillsResponses[keyof SearchSokoBotSkillsResponses];
 
 export type ListMySokoBotLabRunsData = {
     body?: never;

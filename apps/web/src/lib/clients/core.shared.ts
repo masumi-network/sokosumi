@@ -212,6 +212,7 @@ import {
   getUsersByIdWorkspaceAccess as coreGetUsersByIdWorkspaceAccess,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  installMySokoBotSkill as coreInstallMySokoBotSkill,
   judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
   listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
@@ -227,6 +228,7 @@ import {
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
   listMySokoBotLabRuns as coreListMySokoBotLabRuns,
+  listMySokoBotSkills as coreListMySokoBotSkills,
   listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
   listSokoBotAvatars as coreListSokoBotAvatars,
@@ -321,12 +323,14 @@ import {
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
+  removeMySokoBotSkill as coreRemoveMySokoBotSkill,
   resetMySokoBotMemory as coreResetMySokoBotMemory,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  searchSokoBotSkills as coreSearchSokoBotSkills,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
@@ -3626,6 +3630,41 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listMySokoBotSkills() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListMySokoBotSkills({ client, cache: "no-store" }),
+      "Failed to list Soko Bot skills",
+    );
+  }
+
+  async function installMySokoBotSkill(body: {
+    source: string;
+    skillName?: string | null;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreInstallMySokoBotSkill({ client, body }),
+      "Failed to install Soko Bot skill",
+    );
+  }
+
+  async function removeMySokoBotSkill(skillId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreRemoveMySokoBotSkill({ client, path: { skillId } }),
+      "Failed to remove Soko Bot skill",
+    );
+  }
+
+  async function searchSokoBotSkills(q: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSearchSokoBotSkills({ client, query: { q } }),
+      "Failed to search skills",
+    );
+  }
+
   async function listMySokoBotLabRuns(query?: {
     versionId?: string;
     limit?: number;
@@ -4430,6 +4469,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     listSokoBotVersions,
     judgeMySokoBotLabTurn,
     listMySokoBotLabRuns,
+    listMySokoBotSkills,
+    installMySokoBotSkill,
+    removeMySokoBotSkill,
+    searchSokoBotSkills,
     updateMySokoBotVersion,
     listMySokoBotTurns,
     getMySokoBotTurn,

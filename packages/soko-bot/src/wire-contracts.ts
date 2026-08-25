@@ -34,6 +34,17 @@ export const sokoBotRuntimeVersionSchema = z.object({
   skills: z.array(z.string()),
 });
 
+/** Skills the owner installed (skills.sh / GitHub); Eve advertises them for load_skill. */
+export const sokoBotRuntimeSkillsSchema = z.object({
+  skills: z.array(
+    z.object({
+      name: z.string().min(1),
+      description: z.string(),
+      markdown: z.string(),
+    }),
+  ),
+});
+
 export const sokoBotRuntimeContextSchema = z.object({
   packet: sokoBotContextPacketSchema,
   hash: z.string(),

@@ -621,6 +621,46 @@ export const adminSokoBotQualitySchema = z
   })
   .openapi("AdminSokoBotQuality");
 
+export const sokoBotInstalledSkillSchema = z
+  .object({
+    id: z.string().uuid(),
+    slug: z.string(),
+    name: z.string(),
+    description: z.string(),
+    sourceUrl: z.string(),
+    sourceRef: z.string().nullable(),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("SokoBotInstalledSkill");
+
+export const installSokoBotSkillRequestSchema = z
+  .object({
+    /** owner/repo, owner/repo/skill, or a skills.sh / GitHub URL. */
+    source: z.string().trim().min(3).max(300),
+    skillName: z.string().trim().min(1).max(120).nullable().optional(),
+  })
+  .strict()
+  .openapi("InstallSokoBotSkillRequest");
+
+export const installSokoBotSkillResponseSchema = z
+  .object({
+    skill: sokoBotInstalledSkillSchema.nullable(),
+    /** Set when the source offers several skills and none was named. */
+    candidates: z.array(
+      z.object({ name: z.string(), description: z.string(), path: z.string() }),
+    ),
+  })
+  .openapi("InstallSokoBotSkillResponse");
+
+export const sokoBotSkillSearchResultSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    source: z.string(),
+    installs: z.number().int(),
+  })
+  .openapi("SokoBotSkillSearchResult");
+
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({
     /** Defaults to the newest Task the bot delegated. */

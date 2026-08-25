@@ -648,6 +648,17 @@ export class SokoBotRuntimeService {
     };
   }
 
+  /** Owner-installed skills, advertised by Eve as load-on-demand skills. */
+  async getInstalledSkills(input: RuntimeAuthorizationInput) {
+    const authorized = await this.authorize(input);
+    const skills = await prisma.sokoBotInstalledSkill.findMany({
+      where: { sokoBotId: authorized.turn.sokoBotId },
+      orderBy: { createdAt: "asc" },
+      select: { name: true, description: true, markdown: true },
+    });
+    return { skills };
+  }
+
   async getContext(input: RuntimeAuthorizationInput) {
     const authorized = await this.authorize(input);
     const snapshot = await prisma.sokoBotContextSnapshot.findFirst({

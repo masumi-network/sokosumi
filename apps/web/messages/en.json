@@ -5470,9 +5470,7 @@
         "activityEmpty": "No turns yet. Open the chat and ask for something.",
         "showMore": "Show {count} more",
         "skillsTitle": "Skills & tools",
-        "skillsDescription": "What your assistant has learned and which tools it may use on your behalf.",
-        "skillsEmpty": "No skills installed.",
-        "toolsLabel": "Tools"
+        "skillsDescription": "What your assistant has learned and which tools it may use on your behalf."
       },
       "Avatar": {
         "title": "Picture",
@@ -5485,6 +5483,26 @@
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
         "loadError": "Could not load pictures."
+      },
+      "Skills": {
+        "builtIn": "Built-in",
+        "installedTitle": "Installed from skills.sh",
+        "installedEmpty": "No installed skills yet.",
+        "sourcePlaceholder": "owner/repo/skill or skills.sh link",
+        "sourceLabel": "Skill source",
+        "install": "Install",
+        "installed": "Installed {name}.",
+        "installError": "Could not install the skill.",
+        "remove": "Remove",
+        "removeError": "Could not remove the skill.",
+        "pickOne": "This source has {count} skills — pick one:",
+        "searchPlaceholder": "Search skills.sh",
+        "searchLabel": "Search skills",
+        "search": "Search",
+        "searchError": "Search failed.",
+        "installs": "{count} installs",
+        "hint": "Installed skills are loaded on demand when a request matches their description. Review a skill's source before installing — browse",
+        "tools": "Tools"
       }
     }
   },

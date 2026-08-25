@@ -228,6 +228,54 @@ app.openapi(contextRoute, async (c) => {
   }
 });
 
+const skillsRoute = createRoute({
+  method: "post",
+  path: "/skills",
+  operationId: "getSokoBotRuntimeSkills",
+  tags: ["Soko Bot Runtime"],
+  request: {
+    headers: runtimeHeadersSchema,
+    body: { content: { "application/json": { schema: runtimeRequestSchema } } },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({
+        skills: z.array(
+          z.object({
+            name: z.string(),
+            description: z.string(),
+            markdown: z.string(),
+          }),
+        ),
+      }),
+      "Owner-installed skills for this turn",
+    ),
+    401: {
+      description: "Unauthorized",
+      content: jsonContent(runtimeErrorSchema),
+    },
+    500: {
+      description: "Internal error",
+      content: jsonContent(runtimeErrorSchema),
+    },
+  },
+});
+
+app.openapi(skillsRoute, async (c) => {
+  try {
+    const body = c.req.valid("json");
+    return ok(
+      c,
+      await sokoBotRuntimeService.getInstalledSkills({
+        ...runtimeAuth(c),
+        ...body,
+      }),
+    );
+  } catch (error) {
+    throwRuntimeError(error);
+  }
+});
+
 const executeToolRoute = createRoute({
   method: "post",
   path: "/tools/execute",

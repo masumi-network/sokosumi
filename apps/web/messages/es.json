@@ -5470,9 +5470,7 @@
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
         "showMore": "Mostrar {count} más",
         "skillsTitle": "Skills y herramientas",
-        "skillsDescription": "Lo que tu asistente ha aprendido y qué herramientas puede usar en tu nombre.",
-        "skillsEmpty": "No hay skills instalados.",
-        "toolsLabel": "Herramientas"
+        "skillsDescription": "Lo que tu asistente ha aprendido y qué herramientas puede usar en tu nombre."
       },
       "Avatar": {
         "title": "Imagen",
@@ -5485,6 +5483,26 @@
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
         "loadError": "No se pudieron cargar las imágenes."
+      },
+      "Skills": {
+        "builtIn": "Integrados",
+        "installedTitle": "Instalados desde skills.sh",
+        "installedEmpty": "Aún no hay skills instalados.",
+        "sourcePlaceholder": "owner/repo/skill o enlace de skills.sh",
+        "sourceLabel": "Fuente del skill",
+        "install": "Instalar",
+        "installed": "{name} instalado.",
+        "installError": "No se pudo instalar el skill.",
+        "remove": "Quitar",
+        "removeError": "No se pudo quitar el skill.",
+        "pickOne": "Esta fuente tiene {count} skills — elige uno:",
+        "searchPlaceholder": "Buscar en skills.sh",
+        "searchLabel": "Buscar skills",
+        "search": "Buscar",
+        "searchError": "La búsqueda falló.",
+        "installs": "{count} instalaciones",
+        "hint": "Los skills instalados se cargan bajo demanda cuando una petición coincide con su descripción. Revisa la fuente antes de instalar — explora",
+        "tools": "Herramientas"
       }
     }
   },

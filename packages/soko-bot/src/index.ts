@@ -98,6 +98,7 @@ export {
   sokoBotRuntimeCommandResponseSchema,
   sokoBotRuntimeContextSchema,
   sokoBotRuntimeEventSchema,
+  sokoBotRuntimeSkillsSchema,
   sokoBotRuntimeToolResultSchema,
   sokoBotRuntimeVersionSchema,
 } from "./wire-contracts.js";
