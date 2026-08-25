@@ -7983,7 +7983,7 @@ export const DriveTasksTaskFileItemSchema = {
                 'task-file'
             ],
             example: 'task-file',
-            description: 'TaskFile row'
+            description: 'READY TASK_OUTPUT TaskFile row'
         },
         id: {
             type: 'string',

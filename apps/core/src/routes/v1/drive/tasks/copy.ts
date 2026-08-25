@@ -38,7 +38,7 @@ const route = createRoute({
   method: "post",
   path: "/copy",
   description: [
-    "Copy a TaskFile or job output Blob to Drive root. Creates a new Drive file at Drive root using the source file name.",
+    "Copy a READY TASK_OUTPUT TaskFile to Drive root using the source file name.",
     "Source file unchanged. Requires read access to the task and write access to the destination Drive.",
   ].join("\n"),
   tags: ["Drive"],
@@ -88,6 +88,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (!taskFile) {
       throw notFound("TaskFile not found");
+    }
+
+    if (taskFile.origin !== "TASK_OUTPUT") {
+      throw badRequest(
+        "Cannot copy user-uploaded TaskFile. Only task outputs can be copied.",
+      );
     }
 
     if (taskFile.status !== "READY") {

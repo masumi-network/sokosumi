@@ -6,6 +6,7 @@ import {
   requireCoworkerCapability,
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
+import { requireDriveStoreMatchesActiveWorkspace } from "@/helpers/drive-file-access";
 import { badRequest, forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -29,6 +30,12 @@ import {
   driveTasksListSchema,
 } from "@/schemas/drive-tasks.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+
+const DRIVE_TASK_FILE_WHERE = {
+  status: "READY",
+  origin: "TASK_OUTPUT",
+  fileUrl: { not: null },
+} as const;
 
 const query = z
   .object({
@@ -89,10 +96,10 @@ const route = createRoute({
   method: "get",
   path: "/",
   description: [
-    "List Drive Tasks (virtual folder over TaskFile). One level at a time:",
+    "List Drive Tasks (virtual folder over READY TASK_OUTPUT TaskFiles). One level at a time:",
     "- No projectId, no taskId → project rows (+ no-project row when unscoped tasks have files)",
-    "- projectId set, no taskId → task rows with files",
-    "- taskId set → TaskFile rows",
+    "- projectId set, no taskId → task rows with output files",
+    "- taskId set → TASK_OUTPUT TaskFile rows",
   ].join("\n"),
   tags: ["Drive"],
   request: {
@@ -117,100 +124,66 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    // Resolve workspace from Drive scope (must match Tasks list ACL)
-    let workspaceId: string;
-    let userId: string | null = null;
-
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
-
-      // Coworker with context: resolve workspace like Tasks list
-      if (authContext.context) {
-        userId = authContext.context.userId;
-        const orgId = authContext.context.organizationId ?? null;
-
-        // Resolve workspace via workspaceRepository (same as Tasks list)
-        const workspace = await workspaceRepository.resolveWorkspaceForContext(
-          userId,
-          orgId,
-          prisma,
-        );
-        workspaceId = workspace.id;
-
-        // Map Drive scope to workspace ownership
-        if (scope === "me") {
-          if (orgId) {
-            throw badRequest(
-              "Cannot use scope=me when context has organizationId",
-            );
-          }
-        } else {
-          // scope === "org"
-          if (!organizationId) {
-            throw badRequest("organizationId is required when scope=org");
-          }
-          if (organizationId !== orgId) {
-            throw forbidden("Cannot access different organization's Drive");
-          }
-        }
-      } else {
-        // Bare coworker (no context): vendor-wide like Tasks list
-        // Drive Tasks is typically user-session only, but implement for ACL parity
+      if (!authContext.context) {
         throw forbidden("Drive Tasks requires workspace context");
-      }
-    } else {
-      // User path
-      const userContext = requireUserContext(authContext);
-      userId = userContext.userId;
-
-      if (scope === "me") {
-        // Personal workspace
-        const workspace = await workspaceRepository.resolveWorkspaceForContext(
-          userId,
-          null,
-          prisma,
-        );
-        workspaceId = workspace.id;
-      } else {
-        // scope === "org"
-        if (!organizationId) {
-          throw badRequest("organizationId is required when scope=org");
-        }
-
-        // Check membership
-        const member = await prisma.member.findUnique({
-          where: {
-            userId_organizationId: {
-              userId,
-              organizationId,
-            },
-          },
-        });
-        if (!member) {
-          throw forbidden("Not a member of this organization");
-        }
-
-        // Resolve org workspace
-        const workspace = await workspaceRepository.resolveWorkspaceForContext(
-          userId,
-          organizationId,
-          prisma,
-        );
-        workspaceId = workspace.id;
       }
     }
 
-    // Build base where clause (workspace-wide, like Tasks scope=workspace)
-    // Include only tasks with READY TaskFiles (non-null fileUrl)
+    const userContext = requireUserContext(authContext);
+    const userId = userContext.userId;
+    let workspaceId: string;
+
+    if (scope === "me") {
+      requireDriveStoreMatchesActiveWorkspace(
+        userContext,
+        "user",
+        userContext.userId,
+      );
+      const workspace = await workspaceRepository.resolveWorkspaceForContext(
+        userId,
+        null,
+        prisma,
+      );
+      workspaceId = workspace.id;
+    } else {
+      if (!organizationId) {
+        throw badRequest("organizationId is required when scope=org");
+      }
+
+      requireDriveStoreMatchesActiveWorkspace(
+        userContext,
+        "organization",
+        organizationId,
+      );
+
+      const member = await prisma.member.findUnique({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId,
+          },
+        },
+      });
+      if (!member) {
+        throw forbidden("Not a member of this organization");
+      }
+
+      const workspace = await workspaceRepository.resolveWorkspaceForContext(
+        userId,
+        organizationId,
+        prisma,
+      );
+      workspaceId = workspace.id;
+    }
+
     const baseTaskWhere: Prisma.TaskWhereInput = {
       archivedAt: null,
       workspaceId,
       ...(assigneeId ? { assigneeId } : {}),
       files: {
-        some: {
-          status: "READY",
-          fileUrl: { not: null },
-        },
+        some: DRIVE_TASK_FILE_WHERE,
       },
     };
 
@@ -232,24 +205,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Determine level
     if (taskId) {
-      // Level 3: TaskFile rows (READY + non-null fileUrl) only
       await requireTaskReadForRouteVars(c.var, taskId);
 
-      // After access check, query TaskFiles directly (same filter as Level 2's files.some)
       const [taskFiles, taskFileCount] = await Promise.all([
         prisma.taskFile.findMany({
           where: {
             taskId,
-            status: "READY",
-            fileUrl: { not: null },
+            ...DRIVE_TASK_FILE_WHERE,
           },
           orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         }),
         prisma.taskFile.count({
           where: {
             taskId,
-            status: "READY",
-            fileUrl: { not: null },
+            ...DRIVE_TASK_FILE_WHERE,
           },
         }),
       ]);
@@ -324,10 +293,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           take: MAX_TASKS_FOR_SORT,
           include: {
             files: {
-              where: {
-                status: "READY",
-                fileUrl: { not: null },
-              },
+              where: DRIVE_TASK_FILE_WHERE,
               orderBy: { updatedAt: "desc" },
               take: 1,
             },
@@ -415,10 +381,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 where: baseTaskWhere,
                 include: {
                   files: {
-                    where: {
-                      status: "READY",
-                      fileUrl: { not: null },
-                    },
+                    where: DRIVE_TASK_FILE_WHERE,
                     orderBy: { updatedAt: "desc" },
                     take: 1,
                   },
@@ -490,8 +453,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...baseTaskWhere,
             projectId: null,
           },
-          status: "READY",
-          fileUrl: { not: null },
+          ...DRIVE_TASK_FILE_WHERE,
         },
         orderBy: { updatedAt: "desc" },
         select: { updatedAt: true },
@@ -512,7 +474,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    // Sort all items by latest file/blob updatedAt desc (spec requirement)
     sortableItems.sort((a, b) => {
       if (b.latestFileTime !== a.latestFileTime) {
         return b.latestFileTime - a.latestFileTime;

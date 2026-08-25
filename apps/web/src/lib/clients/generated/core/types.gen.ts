@@ -2400,7 +2400,7 @@ export type DriveTasksTaskItem = {
 
 export type DriveTasksTaskFileItem = {
     /**
-     * TaskFile row
+     * READY TASK_OUTPUT TaskFile row
      */
     type: 'task-file';
     /**

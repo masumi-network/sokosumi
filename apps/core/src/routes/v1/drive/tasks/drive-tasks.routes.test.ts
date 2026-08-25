@@ -19,10 +19,6 @@ const {
   prismaTaskCountMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
-  prismaBlobFindManyMock,
-  prismaBlobFindFirstMock,
-  prismaBlobFindUniqueMock,
-  prismaBlobCountMock,
   requireTaskReadForRouteVarsMock,
   requireUserDriveFileUploadAccessMock,
   requireOrganizationDriveFileUploadAccessMock,
@@ -42,10 +38,6 @@ const {
   prismaTaskCountMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
-  prismaBlobFindManyMock: vi.fn(),
-  prismaBlobFindFirstMock: vi.fn(),
-  prismaBlobFindUniqueMock: vi.fn(),
-  prismaBlobCountMock: vi.fn(),
   requireTaskReadForRouteVarsMock: vi.fn(),
   requireUserDriveFileUploadAccessMock: vi.fn(),
   requireOrganizationDriveFileUploadAccessMock: vi.fn(),
@@ -77,12 +69,6 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findUnique: prismaMemberFindUniqueMock,
     },
-    blob: {
-      findMany: prismaBlobFindManyMock,
-      findFirst: prismaBlobFindFirstMock,
-      findUnique: prismaBlobFindUniqueMock,
-      count: prismaBlobCountMock,
-    },
   },
 }));
 
@@ -91,11 +77,16 @@ vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: vi.fn(),
 }));
 
-vi.mock("@/helpers/drive-file-access", () => ({
-  requireUserDriveFileUploadAccess: requireUserDriveFileUploadAccessMock,
-  requireOrganizationDriveFileUploadAccess:
-    requireOrganizationDriveFileUploadAccessMock,
-}));
+vi.mock("@/helpers/drive-file-access", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/drive-file-access")>();
+  return {
+    ...actual,
+    requireUserDriveFileUploadAccess: requireUserDriveFileUploadAccessMock,
+    requireOrganizationDriveFileUploadAccess:
+      requireOrganizationDriveFileUploadAccessMock,
+  };
+});
 
 vi.mock("@/helpers/vendor-grants", () => ({
   hasGrantedWorkspaceAccess: vi.fn().mockResolvedValue(false),
@@ -130,7 +121,22 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   userId: "user_123",
   organizationId: null,
   role: "user",
+  authenticationMethod: "session",
 };
+
+const ORG_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: "org_123",
+  role: "user",
+  authenticationMethod: "session",
+};
+
+const DRIVE_TASK_FILE_WHERE = {
+  status: "READY",
+  origin: "TASK_OUTPUT",
+  fileUrl: { not: null },
+} as const;
 
 function createDriveTasksApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
@@ -230,10 +236,7 @@ describe("Drive Tasks Routes", () => {
         // Verify that the TaskFile query filtered by status: READY and non-null fileUrl
         expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: expect.objectContaining({
-              status: "READY",
-              fileUrl: { not: null },
-            }),
+            where: expect.objectContaining(DRIVE_TASK_FILE_WHERE),
           }),
         );
       });
@@ -303,8 +306,7 @@ describe("Drive Tasks Routes", () => {
           expect.objectContaining({
             where: {
               taskId,
-              status: "READY",
-              fileUrl: { not: null },
+              ...DRIVE_TASK_FILE_WHERE,
             },
           }),
         );
@@ -371,18 +373,14 @@ describe("Drive Tasks Routes", () => {
           expect.objectContaining({
             where: expect.objectContaining({
               files: {
-                some: {
-                  status: "READY",
-                  fileUrl: { not: null },
-                },
+                some: DRIVE_TASK_FILE_WHERE,
               },
             }),
           }),
         );
       });
 
-      it("excludes tasks with only READY job blobs (no TaskFiles)", async () => {
-        // Tasks with only blobs should not appear
+      it("excludes tasks with only USER_UPLOAD TaskFiles", async () => {
         prismaTaskFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(0);
 
@@ -395,15 +393,11 @@ describe("Drive Tasks Routes", () => {
         const json = await res.json();
         expect(json.data).toHaveLength(0);
 
-        // Verify that the base task where clause requires TaskFiles, not blobs
         expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
               files: {
-                some: {
-                  status: "READY",
-                  fileUrl: { not: null },
-                },
+                some: DRIVE_TASK_FILE_WHERE,
               },
             }),
           }),
@@ -432,7 +426,6 @@ describe("Drive Tasks Routes", () => {
         prismaTaskFileFindFirstMock.mockResolvedValue({
           updatedAt: new Date("2026-03-25T12:00:00.000Z"),
         });
-        prismaBlobFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/?scope=me");
@@ -462,7 +455,6 @@ describe("Drive Tasks Routes", () => {
         prismaTaskFileFindFirstMock.mockResolvedValue({
           updatedAt: new Date("2026-03-25T12:00:00.000Z"),
         });
-        prismaBlobFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/?scope=me&limit=1");
@@ -504,7 +496,7 @@ describe("Drive Tasks Routes", () => {
         ]);
         prismaTaskCountMock.mockResolvedValue(0); // No no-project tasks
 
-        const app = createDriveTasksApp();
+        const app = createDriveTasksApp(ORG_AUTH_CONTEXT);
         const res = await app.request(
           "http://localhost/?scope=org&organizationId=org_123",
         );
@@ -556,7 +548,6 @@ describe("Drive Tasks Routes", () => {
         prismaTaskFileFindFirstMock.mockResolvedValue({
           updatedAt: new Date("2026-03-25T12:00:00.000Z"),
         });
-        prismaBlobFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/?scope=me");
@@ -587,10 +578,34 @@ describe("Drive Tasks Routes", () => {
         prismaProjectFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(0);
 
-        const app = createDriveTasksApp();
+        const app = createDriveTasksApp(ORG_AUTH_CONTEXT);
         await app.request("http://localhost/?scope=org&organizationId=org_123");
 
         expect(prismaMemberFindUniqueMock).toHaveBeenCalled();
+      });
+
+      it("rejects scope=me from an organization workspace", async () => {
+        const app = createDriveTasksApp(ORG_AUTH_CONTEXT);
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(403);
+        const json = await res.json();
+        expect(json.error?.message ?? json.message).toContain(
+          "My Drive is only available in a personal workspace",
+        );
+      });
+
+      it("rejects scope=org from a personal workspace", async () => {
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=org&organizationId=org_123",
+        );
+
+        expect(res.status).toBe(403);
+        const json = await res.json();
+        expect(json.error?.message ?? json.message).toContain(
+          "Organization Drive is only available in an organization workspace",
+        );
       });
     });
   });
@@ -604,6 +619,7 @@ describe("Drive Tasks Routes", () => {
         size: BigInt(1024),
         mimeType: "application/pdf",
         status: "READY",
+        origin: "TASK_OUTPUT",
         task: { id: "tsk_1" },
       };
 
@@ -673,6 +689,7 @@ describe("Drive Tasks Routes", () => {
         size: BigInt(1024),
         mimeType: "application/pdf",
         status: "PENDING",
+        origin: "TASK_OUTPUT",
         task: { id: "tsk_1" },
       };
 
@@ -701,6 +718,7 @@ describe("Drive Tasks Routes", () => {
         size: BigInt(1024),
         mimeType: "application/pdf",
         status: "FAILED",
+        origin: "TASK_OUTPUT",
         task: { id: "tsk_1" },
       };
 
@@ -721,6 +739,35 @@ describe("Drive Tasks Routes", () => {
       expect(json.error?.message ?? json.message).toContain("FAILED");
     });
 
+    it("returns 400 when TaskFile is USER_UPLOAD", async () => {
+      const taskFile = {
+        id: "tf_123",
+        name: "document.pdf",
+        fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+        size: BigInt(1024),
+        mimeType: "application/pdf",
+        status: "READY",
+        origin: "USER_UPLOAD",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error?.message ?? json.message).toContain("user-uploaded");
+    });
+
     it("returns 400 when TaskFile has null fileUrl", async () => {
       const taskFile = {
         id: "tf_123",
@@ -729,6 +776,7 @@ describe("Drive Tasks Routes", () => {
         size: BigInt(1024),
         mimeType: "application/pdf",
         status: "READY",
+        origin: "TASK_OUTPUT",
         task: { id: "tsk_1" },
       };
 
@@ -757,6 +805,7 @@ describe("Drive Tasks Routes", () => {
         size: BigInt(1024),
         mimeType: "application/pdf",
         status: "READY",
+        origin: "TASK_OUTPUT",
         task: { id: "tsk_1" },
       };
 
@@ -778,7 +827,6 @@ describe("Drive Tasks Routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          kind: "task-file",
           taskFileId: "tf_123",
           scope: "me",
         }),

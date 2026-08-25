@@ -66,6 +66,19 @@ function bindDriveStoreToWorkspace(
 }
 
 /**
+ * Bind a Drive store (`me` / `org`) to the active workspace.
+ * Session and X-Context actors cannot list or copy across stores.
+ * User API keys and OAuth skip the bind.
+ */
+export function requireDriveStoreMatchesActiveWorkspace(
+  userContext: UserContext,
+  scope: "user" | "organization",
+  ownerId: string,
+): void {
+  bindDriveStoreToWorkspace(userContext, scope, ownerId);
+}
+
+/**
  * Require user drive file upload access (personal drive only, owner).
  * Throws 403 if not the owner, or if a bound workspace is not personal.
  */

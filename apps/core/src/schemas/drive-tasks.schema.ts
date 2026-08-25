@@ -70,7 +70,7 @@ export const driveTasksTaskFileItemSchema = z
   .object({
     type: z.literal("task-file").openapi({
       example: "task-file",
-      description: "TaskFile row",
+      description: "READY TASK_OUTPUT TaskFile row",
     }),
     id: z.string().openapi({
       example: "tf_123",
