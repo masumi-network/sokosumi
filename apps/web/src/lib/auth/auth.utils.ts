@@ -1,4 +1,4 @@
-import type { SocialProviderId } from "@/lib/schemas";
+import type { AuthMethodId } from "@/lib/schemas";
 
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
@@ -221,7 +221,7 @@ export function getAbsoluteAuthRedirectUrl(
  */
 export function buildAuthCallbackUrl(
   path: string,
-  provider: SocialProviderId,
+  provider: AuthMethodId,
   returnUrl?: string,
 ): string {
   const params = new URLSearchParams({ provider });

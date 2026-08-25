@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { socialProviderIdSchema } from "@/lib/schemas/auth";
+import { authMethodIdSchema } from "@/lib/schemas/auth";
 
 interface SocialAuthCallbackProps {
   eventType: "signUp" | "signIn";
@@ -19,9 +19,12 @@ export default function SocialAuthCallback({
     const params = new URLSearchParams(window.location.search);
     const provider = params.get("provider");
     const returnUrl = params.get("returnUrl") ?? null;
-    const validationResult = socialProviderIdSchema.safeParse(provider);
+    const validationResult = authMethodIdSchema.safeParse(provider);
 
-    if (validationResult.success && validationResult.data !== "credential") {
+    // Every login path lands here via a full page load (Better Auth
+    // hard-redirects to `callbackURL` on success), so firing the GTM event on
+    // mount is the only place it reliably survives — see apps/web/TRACKING.md.
+    if (validationResult.success) {
       switch (eventType) {
         case "signUp":
           fireGTMEvent.signUp(validationResult.data);

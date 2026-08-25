@@ -476,7 +476,7 @@ describe("SocialButtons", () => {
     await waitFor(() => {
       expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
         email: "login-user@example.com",
-        callbackURL: `${window.location.origin}/`,
+        callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
       });
     });
 
@@ -538,13 +538,19 @@ describe("SocialButtons", () => {
     expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.email).toBe(
       "oauth-login-user@example.com",
     );
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
-      "/oauth/consent?",
+    const magicLinkCallbackUrl = new URL(
+      mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL,
+      "https://example.com",
     );
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
-      "client_id=test-client",
+    expect(magicLinkCallbackUrl.pathname).toBe("/auth/callback/signin");
+    expect(magicLinkCallbackUrl.searchParams.get("provider")).toBe(
+      "magic-link",
     );
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
+    const magicLinkReturnUrl =
+      magicLinkCallbackUrl.searchParams.get("returnUrl") ?? "";
+    expect(magicLinkReturnUrl).toContain("/oauth/consent?");
+    expect(magicLinkReturnUrl).toContain("client_id=test-client");
+    expect(magicLinkReturnUrl).toContain(
       "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
     );
   });
