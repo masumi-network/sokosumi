@@ -31,6 +31,7 @@ import { getUsersByIdOrganizations } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,
+  driveWorkspaceRootLabel,
   listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
@@ -41,7 +42,14 @@ interface DriveFilePickerProps {
   onSelect: (file: DriveFile) => void;
 }
 
-export function DriveFilePicker({
+export function DriveFilePicker(props: DriveFilePickerProps) {
+  const { data: session } = useSession();
+  const workspaceKey = session?.session.activeOrganizationId ?? "personal";
+
+  return <DriveFilePickerWorkspace key={workspaceKey} {...props} />;
+}
+
+function DriveFilePickerWorkspace({
   open,
   onOpenChange,
   onSelect,
@@ -59,12 +67,10 @@ export function DriveFilePicker({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentFolder, setCurrentFolder] = useState("");
-  const [folderWorkspaceId, setFolderWorkspaceId] =
-    useState(activeOrganizationId);
-  if (folderWorkspaceId !== activeOrganizationId) {
-    setFolderWorkspaceId(activeOrganizationId);
-    setCurrentFolder("");
-  }
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
 
   const loadFilesAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
@@ -205,27 +211,15 @@ export function DriveFilePicker({
                     breadcrumbSegments.length === 0 &&
                       "text-foreground font-medium",
                   )}
-                  aria-label={
-                    scope === "org"
-                      ? organizationName || t("organizationTabFallback")
-                      : t("myDriveTab")
-                  }
-                  title={
-                    scope === "org"
-                      ? organizationName || t("organizationTabFallback")
-                      : t("myDriveTab")
-                  }
+                  aria-label={storeRootLabel}
+                  title={storeRootLabel}
                 >
                   {scope === "org" ? (
                     <Building2 className="size-4" aria-hidden />
                   ) : (
                     <Home className="size-4" aria-hidden />
                   )}
-                  <span className="ml-1">
-                    {scope === "org"
-                      ? organizationName || t("organizationTabFallback")
-                      : t("myDriveTab")}
-                  </span>
+                  <span className="ml-1">{storeRootLabel}</span>
                 </button>
                 {breadcrumbSegments.map((segment, index) => (
                   <span

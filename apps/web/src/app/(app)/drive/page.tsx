@@ -81,6 +81,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,
+  driveWorkspaceRootLabel,
   listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
 import {
@@ -90,6 +91,14 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
+
+function withoutLegacyDriveScopeParam(
+  params: URLSearchParams,
+): URLSearchParams {
+  const next = new URLSearchParams(params.toString());
+  next.delete("scope");
+  return next;
+}
 
 function appendDownloadParam(url: string): string {
   try {
@@ -205,6 +214,11 @@ export default function DrivePage(): ReactElement {
   const scope = driveStore.scope;
   const folderParam = searchParams.get("folder") || "";
   const currentFolder = folderParam;
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
+  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
 
   useRegisterBreadcrumbOverride({
     pathname,
@@ -254,6 +268,27 @@ export default function DrivePage(): ReactElement {
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    if (previousWorkspaceIdRef.current === undefined) {
+      previousWorkspaceIdRef.current = activeOrganizationId;
+      return;
+    }
+    if (previousWorkspaceIdRef.current === activeOrganizationId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = activeOrganizationId;
+    if (!searchParams.get("folder")) {
+      return;
+    }
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.delete("folder");
+    const query = params.toString();
+    router.replace(query ? `/drive?${query}` : "/drive");
+  }, [session, activeOrganizationId, router, searchParams]);
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -431,14 +466,8 @@ export default function DrivePage(): ReactElement {
     setEditingItemName("");
   }
 
-  function driveSearchParams() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("scope");
-    return params;
-  }
-
   function navigateToFolder(folderName: string) {
-    const params = driveSearchParams();
+    const params = withoutLegacyDriveScopeParam(searchParams);
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
@@ -447,7 +476,7 @@ export default function DrivePage(): ReactElement {
   }
 
   function navigateToBreadcrumb(index: number) {
-    const params = driveSearchParams();
+    const params = withoutLegacyDriveScopeParam(searchParams);
     if (index === -1) {
       params.delete("folder");
     } else {
@@ -709,27 +738,15 @@ export default function DrivePage(): ReactElement {
               "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
               breadcrumbSegments.length === 0 && "text-foreground font-medium",
             )}
-            aria-label={
-              scope === "org"
-                ? organizationName || t("organizationTabFallback")
-                : t("myDriveTab")
-            }
-            title={
-              scope === "org"
-                ? organizationName || t("organizationTabFallback")
-                : t("myDriveTab")
-            }
+            aria-label={storeRootLabel}
+            title={storeRootLabel}
           >
             {scope === "org" ? (
               <Building2 className="size-4" aria-hidden />
             ) : (
               <Home className="size-4" aria-hidden />
             )}
-            <span className="ml-1">
-              {scope === "org"
-                ? organizationName || t("organizationTabFallback")
-                : t("myDriveTab")}
-            </span>
+            <span className="ml-1">{storeRootLabel}</span>
           </button>
           {breadcrumbSegments.map((segment, index) => (
             <span key={index} className="flex shrink-0 items-center gap-1">

@@ -5426,7 +5426,7 @@
     "Drive": {
       "breadcrumb": "Drive",
       "breadcrumbNavLabel": "Drive-Ordner-Navigation",
-      "myDriveTab": "Mein Drive",
+      "myDrive": "Mein Drive",
       "uploadButton": "Hochladen",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "Noch keine Dateien",
@@ -5451,7 +5451,7 @@
       "renameFolderToFileConflictError": "Eine Datei mit diesem Namen existiert bereits",
       "renameConflictError": "Eine Datei oder ein Ordner mit diesem Namen existiert bereits",
       "deleteError": "Datei konnte nicht gelöscht werden",
-      "organizationTabFallback": "Organisation",
+      "organizationDriveFallback": "Organisation",
       "uploadDuplicateError": "Eine Datei mit diesem Namen existiert bereits. Benenne sie um und versuche es erneut.",
       "selectTitle": "Aus Drive auswählen",
       "selectDescription": "Wähle eine Datei aus deinem persönlichen oder Organisations-Drive",

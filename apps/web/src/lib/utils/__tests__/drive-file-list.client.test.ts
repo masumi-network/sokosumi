@@ -15,6 +15,7 @@ import {
   DRIVE_FILES_MAX_PAGES,
   DRIVE_FILES_PAGE_LIMIT,
   driveStoreForActiveWorkspace,
+  driveWorkspaceRootLabel,
   listDriveFiles,
   listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
@@ -66,6 +67,39 @@ describe("driveStoreForActiveWorkspace", () => {
       scope: "org",
       organizationId: "org_a",
     });
+  });
+});
+
+describe("driveWorkspaceRootLabel", () => {
+  const labels = {
+    myDrive: "My Drive",
+    organizationFallback: "Organization",
+  };
+
+  it("uses My Drive in a personal workspace", () => {
+    expect(driveWorkspaceRootLabel({ scope: "me" }, "Acme", labels)).toBe(
+      "My Drive",
+    );
+  });
+
+  it("uses the organization name when present", () => {
+    expect(
+      driveWorkspaceRootLabel(
+        { scope: "org", organizationId: "org_a" },
+        "Acme",
+        labels,
+      ),
+    ).toBe("Acme");
+  });
+
+  it("falls back when the organization name is missing", () => {
+    expect(
+      driveWorkspaceRootLabel(
+        { scope: "org", organizationId: "org_a" },
+        null,
+        labels,
+      ),
+    ).toBe("Organization");
   });
 });
 

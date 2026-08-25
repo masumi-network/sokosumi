@@ -5426,7 +5426,7 @@
     "Drive": {
       "breadcrumb": "Drive",
       "breadcrumbNavLabel": "Navegación de carpetas de Drive",
-      "myDriveTab": "Mi Drive",
+      "myDrive": "Mi Drive",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "Aún no hay archivos",
@@ -5451,7 +5451,7 @@
       "renameFolderToFileConflictError": "Ya existe un archivo con este nombre",
       "renameConflictError": "Ya existe un archivo o carpeta con este nombre",
       "deleteError": "No se pudo eliminar el archivo",
-      "organizationTabFallback": "Organización",
+      "organizationDriveFallback": "Organización",
       "uploadDuplicateError": "Ya existe un archivo con este nombre. Cámbiale el nombre e inténtalo de nuevo.",
       "selectTitle": "Seleccionar desde Drive",
       "selectDescription": "Elige un archivo de tu Drive personal o de la organización",
