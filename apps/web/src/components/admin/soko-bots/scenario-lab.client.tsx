@@ -127,7 +127,7 @@ export function ScenarioLab({
   onTurnFinished,
 }: {
   versionId: string | null;
-  onTurnFinished: () => void;
+  onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Lab");
   const [history, setHistory] = useState<History>({});
@@ -154,7 +154,7 @@ export function ScenarioLab({
     if (result.ok) {
       activeVersionRef.current = id;
       setActiveVersion(id);
-      onTurnFinished();
+      onTurnFinished?.();
     }
   }
   const [running, setRunning] = useState<Set<string>>(new Set());
@@ -247,7 +247,7 @@ export function ScenarioLab({
         checks: result.checks,
         judge: judged.ok ? judged.value : null,
       });
-      onTurnFinished();
+      onTurnFinished?.();
     } finally {
       setRunning((current) => {
         const next = new Set(current);

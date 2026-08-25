@@ -3474,7 +3474,8 @@
           "labPassRate": "Lab bestanden",
           "labJudge": "Lab-Bewertung",
           "verdicts": "pass / weak / fail"
-        }
+        },
+        "labLink": "Verhaltenslabor"
       }
     },
     "Billing": {
@@ -5454,7 +5455,6 @@
         "loadError": "Bilder konnten nicht geladen werden."
       },
       "Lab": {
-        "toggle": "Verhaltenslabor",
         "title": "Verhaltenslabor",
         "description": "Feste Prompts, bewertet daran, wie der Assistent reagieren sollte. Nach Änderungen an Prompt, Classifier oder Modell erneut ausführen.",
         "warning": "Läufe sind echte Durchläufe: Sie erzeugen Tasks und Freigaben in deinem Workspace.",
@@ -5477,7 +5477,10 @@
         "hidePrompt": "Ausblenden",
         "judge": "Bewertung (Claude)",
         "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}",
-        "runAllVersions": "Alle {count} Versionen ausführen"
+        "runAllVersions": "Alle {count} Versionen ausführen",
+        "noBotTitle": "Für das Labor brauchst du einen Soko Bot",
+        "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
+        "noBotLink": "Hier erstellen."
       }
     }
   },

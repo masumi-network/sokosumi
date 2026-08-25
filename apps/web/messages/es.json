@@ -3474,7 +3474,8 @@
           "labPassRate": "Lab superado",
           "labJudge": "Evaluador lab",
           "verdicts": "pass / weak / fail"
-        }
+        },
+        "labLink": "Laboratorio de comportamiento"
       }
     },
     "Billing": {
@@ -5454,7 +5455,6 @@
         "loadError": "No se pudieron cargar las imágenes."
       },
       "Lab": {
-        "toggle": "Laboratorio de comportamiento",
         "title": "Laboratorio de comportamiento",
         "description": "Prompts fijos puntuados según cómo debería reaccionar el asistente. Vuelve a ejecutarlos tras cambiar el prompt, el clasificador o el modelo.",
         "warning": "Las ejecuciones son turnos reales: crean tareas y aprobaciones en tu espacio de trabajo.",
@@ -5477,7 +5477,10 @@
         "hidePrompt": "Ocultar",
         "judge": "Evaluación (Claude)",
         "judgeScores": "delegación {d} · seguimiento {f} · criterio {j} · honestidad {h}",
-        "runAllVersions": "Ejecutar las {count} versiones"
+        "runAllVersions": "Ejecutar las {count} versiones",
+        "noBotTitle": "Necesitas un Soko Bot para usar el laboratorio",
+        "noBotDescription": "Las ejecuciones usan tu propio asistente.",
+        "noBotLink": "Créalo aquí."
       }
     }
   },
