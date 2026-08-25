@@ -1,4 +1,4 @@
-import type { AuthMethodId } from "@/lib/schemas";
+import type { AuthMethodId } from "@/lib/schemas/auth";
 
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;

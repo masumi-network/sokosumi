@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
+import { authClient } from "@/lib/auth/auth.client";
+import {
+  createAuthSessionGetter,
+  normalizeAuthReturnUrl,
+} from "@/lib/auth/auth.utils";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { authMethodIdSchema } from "@/lib/schemas/auth";
 
@@ -20,23 +24,32 @@ export default function SocialAuthCallback({
     const provider = params.get("provider");
     const returnUrl = params.get("returnUrl") ?? null;
     const validationResult = authMethodIdSchema.safeParse(provider);
+    const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
 
     // Every login path lands here via a full page load (Better Auth
     // hard-redirects to `callbackURL` on success), so firing the GTM event on
     // mount is the only place it reliably survives — see apps/web/TRACKING.md.
-    if (validationResult.success) {
-      switch (eventType) {
-        case "signUp":
-          fireGTMEvent.signUp(validationResult.data);
-          break;
-        case "signIn":
-          fireGTMEvent.signIn(validationResult.data);
-          break;
+    // The query string alone proves nothing: only count it when a session
+    // actually exists, so a direct hit on this URL is not a fake login.
+    void (async () => {
+      if (validationResult.success) {
+        const getSession = createAuthSessionGetter(() =>
+          authClient.getSession(),
+        );
+        const session = await getSession().catch(() => null);
+        if (session) {
+          switch (eventType) {
+            case "signUp":
+              fireGTMEvent.signUp(validationResult.data);
+              break;
+            case "signIn":
+              fireGTMEvent.signIn(validationResult.data);
+              break;
+          }
+        }
       }
-    }
-
-    const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
-    router.replace(redirectUrl);
+      router.replace(redirectUrl);
+    })();
   }, [router, eventType]);
 
   return (

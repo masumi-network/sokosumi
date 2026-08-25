@@ -11,6 +11,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockReplace }),
 }));
 
+const mockGetSession = vi.fn();
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: { getSession: () => mockGetSession() },
+}));
+
 vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {
     signIn: (...args: unknown[]) => mockSignIn(...args),
@@ -21,6 +27,10 @@ vi.mock("@/lib/gtm-events", () => ({
 describe("SocialAuthCallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({
+      data: { session: { id: "session-1" } },
+      error: null,
+    });
   });
 
   afterEach(() => {
@@ -55,6 +65,18 @@ describe("SocialAuthCallback", () => {
       expect(mockReplace).toHaveBeenCalledWith("/");
     });
     expect(mockSignUp).toHaveBeenCalledWith("microsoft");
+  });
+
+  it("fires nothing without a session but still forwards", async () => {
+    mockGetSession.mockResolvedValue({ data: null, error: null });
+    setSearch("?provider=credential&returnUrl=%2Fchat");
+
+    render(<SocialAuthCallback eventType="signIn" />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/chat");
+    });
+    expect(mockSignIn).not.toHaveBeenCalled();
   });
 
   it("fires nothing for an unknown provider but still forwards", async () => {
