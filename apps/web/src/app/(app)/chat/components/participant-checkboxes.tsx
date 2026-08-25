@@ -38,7 +38,10 @@ export function ParticipantCheckboxes({
   const t = useTranslations("App.Channels");
   const [participantQuery, setParticipantQuery] = useState("");
   const normalizedQuery = participantQuery.trim().toLowerCase();
-  const selectedCount = memberIds.length + coworkerIds.length;
+  const selectedCount =
+    memberIds.length +
+    coworkerIds.length +
+    (lockedUserId && !memberIds.includes(lockedUserId) ? 1 : 0);
   const filteredMembers = useMemo(() => {
     if (!normalizedQuery) {
       return members;
@@ -144,6 +147,11 @@ export function ParticipantCheckboxes({
                         title={
                           locked ? t("Dialog.cannotRemoveSelf") : undefined
                         }
+                        aria-describedby={
+                          locked
+                            ? `cannot-remove-self-${member.user.id}`
+                            : undefined
+                        }
                         onCheckedChange={(nextChecked) => {
                           if (locked) {
                             return;
@@ -157,6 +165,14 @@ export function ParticipantCheckboxes({
                           );
                         }}
                       />
+                      {locked ? (
+                        <span
+                          id={`cannot-remove-self-${member.user.id}`}
+                          className="sr-only"
+                        >
+                          {t("Dialog.cannotRemoveSelf")}
+                        </span>
+                      ) : null}
                     </label>
                   );
                 })}

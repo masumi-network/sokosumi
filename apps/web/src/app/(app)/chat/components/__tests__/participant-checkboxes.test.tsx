@@ -54,6 +54,7 @@ describe("ParticipantCheckboxes locked self", () => {
 
     expect(self).toBeChecked();
     expect(self).toBeDisabled();
+    expect(self).toHaveAccessibleDescription("Dialog.cannotRemoveSelf");
     expect(other).not.toBeChecked();
     expect(other).not.toBeDisabled();
 
@@ -62,5 +63,23 @@ describe("ParticipantCheckboxes locked self", () => {
 
     await user.click(other);
     expect(onMemberIdsChange).toHaveBeenCalledWith(["user-self", "user-2"]);
+  });
+
+  it("counts a locked member as selected even if memberIds omitted them", () => {
+    render(
+      <ParticipantCheckboxes
+        members={[member("user-self", "Ada")]}
+        coworkers={[]}
+        memberIds={[]}
+        coworkerIds={[]}
+        onMemberIdsChange={vi.fn()}
+        onCoworkerIdsChange={vi.fn()}
+        membersLoadFailed={false}
+        lockedUserId="user-self"
+      />,
+    );
+
+    expect(screen.getByText("Dialog.selectedParticipants")).toBeTruthy();
+    expect(checkboxFor("Ada")).toBeChecked();
   });
 });
