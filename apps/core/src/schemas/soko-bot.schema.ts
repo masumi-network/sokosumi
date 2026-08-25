@@ -7,7 +7,7 @@ export const sokoBotStatusSchema = z
   .openapi("SokoBotStatus");
 
 export const sokoBotAutonomyLevelSchema = z
-  .enum(["LOW", "MEDIUM", "HIGH"])
+  .enum(["SUPERVISED", "AUTONOMOUS"])
   .openapi("SokoBotAutonomyLevel");
 
 export const sokoBotTurnStatusSchema = z

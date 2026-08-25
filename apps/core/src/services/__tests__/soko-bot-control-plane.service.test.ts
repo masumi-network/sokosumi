@@ -322,7 +322,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     await new SokoBotControlPlane().create({
       userId: "user_1",
       name: "Soko",
-      autonomyLevel: "HIGH",
+      autonomyLevel: "AUTONOMOUS",
     });
 
     expect(botUpdateMock).toHaveBeenCalledWith(
@@ -330,7 +330,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({
           archivedAt: undefined,
           status: undefined,
-          autonomyLevel: "HIGH",
+          autonomyLevel: "AUTONOMOUS",
         }),
       }),
     );

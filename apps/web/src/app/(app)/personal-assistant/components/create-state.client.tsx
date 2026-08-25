@@ -30,7 +30,7 @@ export function CreateState({ userId }: { userId: string }) {
   const nameId = useId();
   const [name, setName] = useState("");
   const [autonomyLevel, setAutonomyLevel] = useState<SokoBotAutonomyLevel>(
-    SokoBotAutonomyLevel.MEDIUM,
+    SokoBotAutonomyLevel.SUPERVISED,
   );
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   const [isPending, startTransition] = useTransition();

@@ -26,7 +26,7 @@ describe("sokoBotService", () => {
   });
 
   it("returns the bot DTO unchanged", async () => {
-    const bot = { id: "bot_1", name: "Atlas", autonomyLevel: "MEDIUM" };
+    const bot = { id: "bot_1", name: "Atlas", autonomyLevel: "SUPERVISED" };
     coreMock.getMySokoBot.mockResolvedValue({ data: { sokoBot: bot } });
     await expect(sokoBotService.getMine()).resolves.toBe(bot);
   });
@@ -41,7 +41,7 @@ describe("sokoBotService", () => {
         personalityDetail: 2,
         personalityStyle: 3,
       } as never,
-      "HIGH",
+      "AUTONOMOUS",
     );
     expect(coreMock.createMySokoBot).toHaveBeenCalledWith({
       name: "Atlas",
@@ -49,7 +49,7 @@ describe("sokoBotService", () => {
       personalityTone: 1,
       personalityDetail: 2,
       personalityStyle: 3,
-      autonomyLevel: "HIGH",
+      autonomyLevel: "AUTONOMOUS",
     });
   });
 

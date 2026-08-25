@@ -9,9 +9,8 @@ import { SokoBotAutonomyLevel } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 const LEVELS = [
-  SokoBotAutonomyLevel.LOW,
-  SokoBotAutonomyLevel.MEDIUM,
-  SokoBotAutonomyLevel.HIGH,
+  SokoBotAutonomyLevel.SUPERVISED,
+  SokoBotAutonomyLevel.AUTONOMOUS,
 ] as const;
 
 interface AutonomyRadioGroupProps {
@@ -21,7 +20,7 @@ interface AutonomyRadioGroupProps {
   compact?: boolean;
 }
 
-/** LOW / MEDIUM / HIGH autonomy picker with a one-line explanation each. */
+/** SUPERVISED / AUTONOMOUS picker with a one-line explanation each. */
 export function AutonomyRadioGroup({
   value,
   onChange,
@@ -38,7 +37,7 @@ export function AutonomyRadioGroup({
       <RadioGroup
         value={value}
         onValueChange={(next) => onChange(next as SokoBotAutonomyLevel)}
-        className={cn("gap-2", compact ? "grid-cols-1" : "sm:grid-cols-3")}
+        className={cn("gap-2", compact ? "grid-cols-1" : "sm:grid-cols-2")}
       >
         {LEVELS.map((level) => {
           const id = `${groupId}-${level}`;

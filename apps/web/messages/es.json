@@ -882,9 +882,8 @@
         "FAILED": "Fallida"
       },
       "Autonomy": {
-        "LOW": "Baja",
-        "MEDIUM": "Media",
-        "HIGH": "Alta"
+        "SUPERVISED": "Supervisado",
+        "AUTONOMOUS": "Autónomo"
       },
       "DelegationKind": {
         "TASK": "Task",
@@ -5213,9 +5212,8 @@
       "Autonomy": {
         "label": "Autonomía",
         "descriptions": {
-          "LOW": "Pide aprobación antes de crear cualquier Task o Job.",
-          "MEDIUM": "Crea borradores de Tasks por su cuenta; pregunta antes de asignar trabajo o contratar Agents.",
-          "HIGH": "Asigna Tasks por su cuenta cuando tiene confianza; sigue preguntando antes de contrataciones de pago."
+          "SUPERVISED": "Crea borradores de Tasks por su cuenta; pregunta antes de asignar trabajo o contratar Agents.",
+          "AUTONOMOUS": "Asigna Tasks por su cuenta cuando está seguro; sigue preguntando antes de contrataciones de pago."
         },
         "save": "Guardar autonomía",
         "saving": "Guardando…",

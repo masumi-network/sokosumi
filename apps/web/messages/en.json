@@ -882,9 +882,8 @@
         "FAILED": "Failed"
       },
       "Autonomy": {
-        "LOW": "Low",
-        "MEDIUM": "Medium",
-        "HIGH": "High"
+        "SUPERVISED": "Supervised",
+        "AUTONOMOUS": "Autonomous"
       },
       "DelegationKind": {
         "TASK": "Task",
@@ -5213,9 +5212,8 @@
       "Autonomy": {
         "label": "Autonomy",
         "descriptions": {
-          "LOW": "Asks for approval before every Task or Job it creates.",
-          "MEDIUM": "Creates draft Tasks on its own; asks before assigning work or hiring Agents.",
-          "HIGH": "Assigns Tasks on its own when it is confident; still asks before paid hires."
+          "SUPERVISED": "Creates draft Tasks on its own; asks before assigning work or hiring Agents.",
+          "AUTONOMOUS": "Assigns Tasks on its own when it is confident; still asks before paid hires."
         },
         "save": "Save autonomy",
         "saving": "Saving…",

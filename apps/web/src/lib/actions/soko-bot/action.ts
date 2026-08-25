@@ -33,9 +33,8 @@ import {
 } from "@/middleware/auth-middleware";
 
 const autonomySchema = z.enum([
-  SokoBotAutonomyLevel.LOW,
-  SokoBotAutonomyLevel.MEDIUM,
-  SokoBotAutonomyLevel.HIGH,
+  SokoBotAutonomyLevel.SUPERVISED,
+  SokoBotAutonomyLevel.AUTONOMOUS,
 ]);
 
 const createSokoBotSchema = z.object({

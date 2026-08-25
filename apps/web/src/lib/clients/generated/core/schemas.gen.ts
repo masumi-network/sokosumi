@@ -879,9 +879,8 @@ export const SokoBotStatusSchema = {
 export const SokoBotAutonomyLevelSchema = {
     type: 'string',
     enum: [
-        'LOW',
-        'MEDIUM',
-        'HIGH'
+        'SUPERVISED',
+        'AUTONOMOUS'
     ]
 } as const;
 

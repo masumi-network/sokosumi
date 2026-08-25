@@ -71,17 +71,17 @@ describe("soko-bot actions", () => {
   it("createSokoBotAction validates input and revalidates the route", async () => {
     serviceMock.createOrUpdate.mockResolvedValue({ id: "bot_1" });
     const ok = await createSokoBotAction({
-      input: { name: "  Atlas ", autonomyLevel: "LOW" },
+      input: { name: "  Atlas ", autonomyLevel: "SUPERVISED" },
     });
     expect(ok).toEqual({ ok: true, value: { id: "bot_1" } });
     expect(serviceMock.createOrUpdate).toHaveBeenCalledWith({
       name: "Atlas",
-      autonomyLevel: "LOW",
+      autonomyLevel: "SUPERVISED",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOT_ROUTE);
 
     const bad = await createSokoBotAction({
-      input: { name: "", autonomyLevel: "LOW" },
+      input: { name: "", autonomyLevel: "SUPERVISED" },
     });
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.code).toBe(CommonErrorCode.BAD_INPUT);
@@ -94,18 +94,20 @@ describe("soko-bot actions", () => {
 
     serviceMock.getMine.mockResolvedValue(null);
     const missing = await updateSokoBotAutonomyAction({
-      autonomyLevel: "HIGH",
+      autonomyLevel: "AUTONOMOUS",
     });
     expect(missing.ok).toBe(false);
     if (!missing.ok) expect(missing.error.code).toBe(CommonErrorCode.NOT_FOUND);
 
     serviceMock.getMine.mockResolvedValue({ id: "bot_1", name: "Atlas" });
     serviceMock.updateAutonomy.mockResolvedValue({ id: "bot_1" });
-    const good = await updateSokoBotAutonomyAction({ autonomyLevel: "HIGH" });
+    const good = await updateSokoBotAutonomyAction({
+      autonomyLevel: "AUTONOMOUS",
+    });
     expect(good.ok).toBe(true);
     expect(serviceMock.updateAutonomy).toHaveBeenCalledWith(
       { id: "bot_1", name: "Atlas" },
-      "HIGH",
+      "AUTONOMOUS",
     );
   });
 

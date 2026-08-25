@@ -69,9 +69,8 @@ const TOOL_TONE: Record<SokoBotToolCall["status"], StatusTone> = {
 };
 
 const AUTONOMY_TONE: Record<SokoBotAutonomyLevel, StatusTone> = {
-  LOW: "neutral",
-  MEDIUM: "info",
-  HIGH: "accent",
+  SUPERVISED: "neutral",
+  AUTONOMOUS: "accent",
 };
 
 export function SokoBotStatusBadge({ status }: { status: SokoBotStatus }) {

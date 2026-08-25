@@ -393,7 +393,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "CANCEL_REQUESTED",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
 
     const service = new SokoBotRuntimeService();
@@ -417,7 +421,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "CANCEL_REQUESTED",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
 
     const service = new SokoBotRuntimeService();
@@ -449,7 +457,7 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "HIGH",
+        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -507,7 +515,7 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "HIGH",
+        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -576,7 +584,7 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "HIGH",
+        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -628,7 +636,7 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "HIGH",
+        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -674,7 +682,7 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "HIGH",
+        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         eveSessionId: priorSessionId,
@@ -729,7 +737,7 @@ describe("SokoBotRuntimeService authorization", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
-        autonomyLevel: "HIGH",
+        autonomyLevel: "AUTONOMOUS",
         adminPausedAt: null,
         archivedAt: null,
         status: "RUNNING",
@@ -820,7 +828,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue({
       id: "01960001-0001-7001-8001-000000000010",
@@ -873,7 +885,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue({
       id: "01960001-0001-7001-8001-000000000010",
@@ -918,7 +934,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     transactionToolCallCountMock.mockResolvedValue(64);
@@ -957,7 +977,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     const rawResult = {
@@ -1014,7 +1038,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     taskFindFirstMock.mockRejectedValue(
@@ -1057,7 +1085,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
 
@@ -1094,7 +1126,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "MEDIUM", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "SUPERVISED",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     const existing = {
@@ -1139,7 +1175,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
 
@@ -1168,7 +1208,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
 
@@ -1219,7 +1263,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     transactionProjectFindFirstMock.mockResolvedValue(null);
@@ -1268,7 +1316,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     transactionTaskFindFirstMock.mockResolvedValue({
@@ -1338,7 +1390,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     transactionTaskFindFirstMock.mockResolvedValue(null);
@@ -1381,7 +1437,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     transactionWorkspaceFindFirstMock.mockResolvedValue(null);
@@ -1418,7 +1478,11 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     transactionTaskFindFirstMock.mockResolvedValue(null);
@@ -1470,7 +1534,11 @@ describe("SokoBotRuntimeService memory updates", () => {
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: { autonomyLevel: "HIGH", archivedAt: null, status: "RUNNING" },
+      sokoBot: {
+        autonomyLevel: "AUTONOMOUS",
+        archivedAt: null,
+        status: "RUNNING",
+      },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
     toolCallCreateMock.mockResolvedValue({});

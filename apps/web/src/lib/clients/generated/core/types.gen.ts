@@ -208,11 +208,7 @@ export const SokoBotStatus = {
 
 export type SokoBotStatus = typeof SokoBotStatus[keyof typeof SokoBotStatus];
 
-export const SokoBotAutonomyLevel = {
-    LOW: 'LOW',
-    MEDIUM: 'MEDIUM',
-    HIGH: 'HIGH'
-} as const;
+export const SokoBotAutonomyLevel = { SUPERVISED: 'SUPERVISED', AUTONOMOUS: 'AUTONOMOUS' } as const;
 
 export type SokoBotAutonomyLevel = typeof SokoBotAutonomyLevel[keyof typeof SokoBotAutonomyLevel];
 

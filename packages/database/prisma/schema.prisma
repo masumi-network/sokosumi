@@ -1597,9 +1597,8 @@ enum SokoBotStatus {
 }
 
 enum SokoBotAutonomyLevel {
-  LOW
-  MEDIUM
-  HIGH
+  SUPERVISED
+  AUTONOMOUS
 }
 
 enum SokoBotTurnSource {
@@ -1695,7 +1694,7 @@ model SokoBot {
 
   /// Governs which product mutations may execute without owner approval.
   /// Agent hiring always remains approval-gated regardless of this value.
-  autonomyLevel SokoBotAutonomyLevel @default(MEDIUM)
+  autonomyLevel SokoBotAutonomyLevel @default(SUPERVISED)
 
   /// First-party Soko Bot runtime state. Physical table remains `orchestrator`
   /// during the expand/backfill/switch compatibility window.

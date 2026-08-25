@@ -882,9 +882,8 @@
         "FAILED": "Fehlgeschlagen"
       },
       "Autonomy": {
-        "LOW": "Niedrig",
-        "MEDIUM": "Mittel",
-        "HIGH": "Hoch"
+        "SUPERVISED": "Beaufsichtigt",
+        "AUTONOMOUS": "Autonom"
       },
       "DelegationKind": {
         "TASK": "Task",
@@ -5213,9 +5212,8 @@
       "Autonomy": {
         "label": "Autonomie",
         "descriptions": {
-          "LOW": "Fragt vor jedem Task oder Job, den er anlegt, um Freigabe.",
-          "MEDIUM": "Legt Entwurfs-Tasks selbst an; fragt vor Zuweisungen oder Agent-Beauftragungen.",
-          "HIGH": "Weist Tasks bei hoher Sicherheit selbst zu; fragt weiterhin vor kostenpflichtigen Beauftragungen."
+          "SUPERVISED": "Erstellt Task-Entwürfe selbst; fragt, bevor es Arbeit zuweist oder Agents beauftragt.",
+          "AUTONOMOUS": "Weist Tasks selbst zu, wenn es sicher ist; fragt weiterhin vor bezahlten Beauftragungen."
         },
         "save": "Autonomie speichern",
         "saving": "Wird gespeichert…",

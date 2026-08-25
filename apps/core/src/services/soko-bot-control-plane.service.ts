@@ -99,7 +99,7 @@ export interface CreateSokoBotInput {
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
-  autonomyLevel?: "LOW" | "MEDIUM" | "HIGH";
+  autonomyLevel?: "SUPERVISED" | "AUTONOMOUS";
 }
 
 export interface StartSokoBotTurnInput {

@@ -526,7 +526,7 @@ Replace current `/personal-assistant` implementation with Soko Bot components an
 - authoritative Cancel calls Core/Eve, shows `Cancelling`, and permits new send only after projected `session.waiting`;
 - Context indicator explains current workspace and data freshness without dumping prompt;
 - Task/Job result cards link to product objects;
-- settings preserve current low/medium/high autonomy and confirmation semantics through Pending decisions, plus name/personality/budget/memory reset; remove Composio skills/integrations from initial release;
+- settings preserve the two-level (supervised/autonomous) autonomy and confirmation semantics through Pending decisions, plus name/personality/budget/memory reset; remove Composio skills/integrations from initial release;
 - accessibility, responsive layout, light/dark themes, dynamic type, translations in en/de/es;
 - Server Components own initial data; minimal client islands handle composer and four-second active-turn polling.
 

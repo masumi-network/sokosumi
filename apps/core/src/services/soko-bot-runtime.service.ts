@@ -56,7 +56,7 @@ const MUTATION_CONFIDENCE_THRESHOLD = 0.65;
 const PERSISTED_VALUE_MAX_DEPTH = 8;
 const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
-type SokoBotAutonomyLevel = "LOW" | "MEDIUM" | "HIGH";
+type SokoBotAutonomyLevel = "SUPERVISED" | "AUTONOMOUS";
 
 interface SellerReservationMarker {
   version: typeof SELLER_RESERVATION_MARKER_VERSION;
@@ -400,10 +400,7 @@ function requiresDecision(
   ) {
     return true;
   }
-  if (authorized.autonomyLevel === "LOW") {
-    return ["create_task", "update_task", "assign_task"].includes(capability);
-  }
-  if (authorized.autonomyLevel === "MEDIUM") {
+  if (authorized.autonomyLevel === "SUPERVISED") {
     if (capability === "assign_task") return true;
     if (capability === "create_task") {
       return taskCreateInputSchema.parse(input).status === "READY";
@@ -1926,7 +1923,7 @@ export class SokoBotRuntimeService {
             workspaceId: decision.workspaceId,
             eveSessionId: decision.turn.eveSessionId,
           },
-          autonomyLevel: "HIGH",
+          autonomyLevel: "AUTONOMOUS",
           classificationConfidence: 1,
           hasNegatedMutationIntent: false,
         };
@@ -1947,7 +1944,7 @@ export class SokoBotRuntimeService {
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
             },
-            autonomyLevel: "HIGH",
+            autonomyLevel: "AUTONOMOUS",
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
           },
@@ -1966,7 +1963,7 @@ export class SokoBotRuntimeService {
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
             },
-            autonomyLevel: "HIGH",
+            autonomyLevel: "AUTONOMOUS",
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
           },
