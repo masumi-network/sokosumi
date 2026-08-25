@@ -333,6 +333,10 @@ Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor
 
 Do **not** invent or file Linear issues during poteto implement work. Filing a new requirement is a separate, explicit ask via [`skills/linear-requirement/`](./skills/linear-requirement/) (`disable-model-invocation`).
 
+### Translations
+
+When deleting or changing `useTranslations()` usage or `apps/web/messages/*.json` keys, follow [`skills/translations/`](./skills/translations/).
+
 ### Issue tracker
 
 Issues live in Linear (team "Sokosumi", key `SOK`), accessed via the Linear MCP tools. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
