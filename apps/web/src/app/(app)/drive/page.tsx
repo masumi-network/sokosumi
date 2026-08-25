@@ -1,6 +1,6 @@
 "use client";
 
-import { getExtensionFromUrl } from "@sokosumi/utils";
+import { getExtensionFromUrl, type Session } from "@sokosumi/utils";
 import {
   Building2,
   Check,
@@ -175,10 +175,74 @@ function FileNameWithPreview({
   );
 }
 
+function workspaceKeyFromSession(
+  session: Session | null | undefined,
+): string | null {
+  if (!session) {
+    return null;
+  }
+  return session.session.activeOrganizationId ?? "personal";
+}
+
+interface DrivePageWorkspaceProps {
+  activeOrganizationId: string | null;
+}
+
+function DriveListSkeleton(): ReactElement {
+  return (
+    <div
+      className={cn(
+        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      )}
+    >
+      <div className="divide-border/50 divide-y px-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <article
+            key={i}
+            className={cn(
+              "-mx-2 flex items-center gap-1 rounded-lg px-2",
+              PROJECTS_LIST_ROW_LAYOUT_CLASS,
+            )}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+              <div className="flex size-8 shrink-0 items-center justify-center">
+                <Skeleton className="size-4" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <Skeleton className="h-4 w-32 sm:w-48" />
+                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="shrink-0 pl-2">
+              <Skeleton className="size-8" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DrivePage(): ReactElement {
   const { data: session } = useSession();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const workspaceKey = activeOrganizationId ?? "personal";
+  // Pending/refetch must not collapse to "personal" — that remounts Drive twice
+  // (personal, then the real org) on first paint and after router.refresh().
+  const workspaceKeyRef = useRef(workspaceKeyFromSession(session));
+  const nextWorkspaceKey = workspaceKeyFromSession(session);
+  if (nextWorkspaceKey) {
+    workspaceKeyRef.current = nextWorkspaceKey;
+  }
+  const workspaceKey = workspaceKeyRef.current;
+  const activeOrganizationId =
+    workspaceKey && workspaceKey !== "personal" ? workspaceKey : null;
   const router = useRouter();
   const searchParams = useSearchParams();
   const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
@@ -206,14 +270,28 @@ export default function DrivePage(): ReactElement {
     router.replace(query ? `/drive?${query}` : "/drive");
   }, [session, activeOrganizationId, router, searchParams]);
 
-  return <DrivePageWorkspace key={workspaceKey} />;
+  if (!workspaceKey) {
+    return (
+      <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+        <DriveListSkeleton />
+      </div>
+    );
+  }
+
+  return (
+    <DrivePageWorkspace
+      key={workspaceKey}
+      activeOrganizationId={activeOrganizationId}
+    />
+  );
 }
 
-function DrivePageWorkspace(): ReactElement {
+function DrivePageWorkspace({
+  activeOrganizationId,
+}: DrivePageWorkspaceProps): ReactElement {
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -803,44 +881,7 @@ function DrivePageWorkspace(): ReactElement {
       </div>
 
       {loading ? (
-        <div
-          className={cn(
-            "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-            PROJECTS_LIST_CARD_MIN_H_CLASS,
-          )}
-        >
-          <div className="divide-border/50 divide-y px-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <article
-                key={i}
-                className={cn(
-                  "-mx-2 flex items-center gap-1 rounded-lg px-2",
-                  PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                )}
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center">
-                    <Skeleton className="size-4" />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <Skeleton className="h-4 w-32 sm:w-48" />
-                    <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                      <Skeleton className="h-3 w-12" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
-                  <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                    <Skeleton className="h-3 w-12" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-                <div className="shrink-0 pl-2">
-                  <Skeleton className="size-8" />
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
+        <DriveListSkeleton />
       ) : emptyState ? (
         <div
           className={cn(

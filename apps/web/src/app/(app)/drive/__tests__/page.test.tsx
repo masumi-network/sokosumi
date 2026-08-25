@@ -119,13 +119,25 @@ function reportsFolder() {
   };
 }
 
-function sessionFor(activeOrganizationId: string) {
+function sessionFor(activeOrganizationId: string | null) {
   return {
     data: {
       user: { id: "user_1" },
       session: { activeOrganizationId },
     },
   };
+}
+
+function pendingSession() {
+  return { data: null, isPending: true };
+}
+
+function listedStore() {
+  const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as {
+    scope: string;
+    organizationId?: string;
+  };
+  return options;
 }
 
 describe("DrivePage workspace remount", () => {
@@ -194,5 +206,51 @@ describe("DrivePage workspace remount", () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/drive");
     });
+  });
+
+  it("does not mount personal drive while the session is pending", async () => {
+    useSessionMock.mockReturnValue(pendingSession());
+
+    const { rerender } = render(<DrivePage />);
+
+    expect(listDriveItemsMock).not.toHaveBeenCalled();
+
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    rerender(<DrivePage />);
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(listedStore()).toMatchObject({
+      scope: "org",
+      organizationId: "org_a",
+    });
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not remount as personal when the session briefly goes pending", async () => {
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+
+    const { rerender } = render(<DrivePage />);
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    const callsAfterFirstLoad = listDriveItemsMock.mock.calls.length;
+
+    useSessionMock.mockReturnValue(pendingSession());
+    rerender(<DrivePage />);
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    rerender(<DrivePage />);
+
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
+    expect(
+      listDriveItemsMock.mock.calls.every(
+        ([options]) =>
+          (options as { scope: string }).scope === "org" &&
+          (options as { organizationId?: string }).organizationId === "org_a",
+      ),
+    ).toBe(true);
   });
 });
