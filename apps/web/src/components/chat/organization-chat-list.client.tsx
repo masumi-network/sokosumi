@@ -535,8 +535,8 @@ export function OrganizationChatList({
   );
 
   useEffect(() => {
-    publishMembershipVisibleRooms(roomRows);
-  }, [roomRows]);
+    publishMembershipVisibleRooms(roomRows, organizationId);
+  }, [organizationId, roomRows]);
 
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>

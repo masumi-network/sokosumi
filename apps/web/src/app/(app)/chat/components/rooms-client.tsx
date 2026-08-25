@@ -460,10 +460,15 @@ export function RoomsClient({
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const organizationId = activeOrganization?.id ?? null;
+  const getSidebarRooms = useCallback(
+    () => getMembershipVisibleRooms(organizationId),
+    [organizationId],
+  );
   const sidebarRooms = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
-    getMembershipVisibleRooms,
-    getMembershipVisibleRooms,
+    getSidebarRooms,
+    getSidebarRooms,
   );
   const channelCatalogRooms = useMemo(
     () => mergeMembershipVisibleRooms(rooms, sidebarRooms),
