@@ -14,6 +14,11 @@ export {
   sanitizeSokoBotMemoryMarkdown,
 } from "./memory.js";
 export {
+  composeSokoBotIntroduction,
+  composeSokoBotPersona,
+  type SokoBotPersona,
+} from "./persona.js";
+export {
   hasSokoBotNegatedMutationIntent,
   isSokoBotCapability,
   isSokoBotRoute,

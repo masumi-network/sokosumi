@@ -679,13 +679,20 @@ export class SokoBotRuntimeService {
       );
     }
     const version = getSokoBotVersion(authorized.turn.versionId);
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { name: true, user: { select: { name: true } } },
+    });
     return {
       ...snapshot,
       version: {
         id: version.id,
         name: version.name,
         model: version.model,
-        systemPrompt: composeSystemPrompt(version),
+        systemPrompt: composeSystemPrompt(version, {
+          name: bot?.name ?? null,
+          ownerName: bot?.user.name ?? null,
+        }),
         skills: [...version.skills],
       },
     };

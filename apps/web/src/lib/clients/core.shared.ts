@@ -215,6 +215,7 @@ import {
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   installMySokoBotSkill as coreInstallMySokoBotSkill,
+  introduceMySokoBot as coreIntroduceMySokoBot,
   judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
   listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
@@ -3616,6 +3617,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function introduceMySokoBot(body: { roomId: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreIntroduceMySokoBot({ client, body }),
+      "Failed to introduce Soko Bot",
+    );
+  }
+
   async function listSokoBotVersions() {
     return executeCoreOperation(
       getClient,
@@ -4483,6 +4492,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     archiveMySokoBot,
     listSokoBotAvatars,
     claimMySokoBotAvatar,
+    introduceMySokoBot,
     simulateMySokoBotTaskEvent,
     listSokoBotVersions,
     judgeMySokoBotLabTurn,

@@ -126,6 +126,12 @@ export const sokoBotService = {
     return response.data;
   },
 
+  /** Posts the bot's first message in its direct room (once). */
+  async introduce(roomId: string): Promise<{ messageId: string }> {
+    const response = await coreClient.introduceMySokoBot({ roomId });
+    return response.data;
+  },
+
   async claimAvatar(avatarId: string): Promise<SokoBot> {
     const response = await coreClient.claimMySokoBotAvatar({ avatarId });
     return response.data;

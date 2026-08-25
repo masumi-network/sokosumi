@@ -4,14 +4,18 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-
+import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
+import {
+  createSokoBotAction,
+  introduceSokoBotAction,
+} from "@/lib/actions/soko-bot/action";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { SokoBotAvatar } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 
 import { AvatarPicker } from "./avatar-picker.client";
 
@@ -27,6 +31,7 @@ export function CreateState({ userId }: { userId: string }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [created, setCreated] = useState<{ name: string } | null>(null);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,9 +45,59 @@ export function CreateState({ userId }: { userId: string }) {
         toast.error(result.error.message ?? t("error"));
         return;
       }
-      toast.success(t("created"));
+      setCreated({ name: result.value.name ?? trimmed });
+      const coworkerId = result.value.coworker?.id ?? null;
+      // Let the reveal play before the chat takes over.
+      const reveal = new Promise((resolve) => setTimeout(resolve, 1800));
+      const room = coworkerId
+        ? await ensureCoworkerDirectRoomAction(coworkerId)
+        : null;
+      if (room?.ok && room.value) {
+        await introduceSokoBotAction({ roomId: room.value.id });
+      }
+      await reveal;
+      if (room?.ok && room.value) {
+        router.push(`/chat/rooms/${encodeURIComponent(room.value.id)}`);
+        return;
+      }
       router.refresh();
     });
+  }
+
+  if (created) {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-12 md:py-20">
+        <div
+          className={cn(
+            "animate-in zoom-in-50 fade-in fill-mode-both duration-500",
+            "ease-[cubic-bezier(0.25,1,0.5,1)]",
+          )}
+        >
+          {avatar ? (
+            <img
+              src={avatar.imageUrl}
+              alt={tChat("avatarAlt")}
+              className="ring-primary/30 size-32 rounded-full object-cover ring-4"
+            />
+          ) : (
+            <AuroraOrb
+              seed={defaultOrbSeed(userId)}
+              size={200}
+              animate
+              expression="happy"
+              alt={tChat("avatarAlt")}
+              className="ring-primary/30 size-32 ring-4"
+            />
+          )}
+        </div>
+        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl">
+          {t("successTitle", { name: created.name })}
+        </h1>
+        <p className="animate-in fade-in fill-mode-both text-muted-foreground mt-3 text-sm delay-700 duration-500">
+          {t("successHint")}
+        </p>
+      </div>
+    );
   }
 
   return (

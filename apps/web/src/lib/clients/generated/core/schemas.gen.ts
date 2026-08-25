@@ -14572,6 +14572,32 @@ export const SokoBotAvatarSchema = {
     ]
 } as const;
 
+export const IntroduceSokoBotResponseSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'messageId'
+    ]
+} as const;
+
+export const IntroduceSokoBotRequestSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'roomId'
+    ]
+} as const;
+
 export const ClaimSokoBotAvatarRequestSchema = {
     type: 'object',
     properties: {

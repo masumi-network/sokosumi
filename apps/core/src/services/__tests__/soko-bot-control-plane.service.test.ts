@@ -336,6 +336,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it("cursor-paginates user turns with a stable ID cursor", async () => {
+    botFindFirstMock.mockResolvedValue({ id: BOT_ID });
     turnFindManyMock.mockResolvedValue([
       { id: "turn_3" },
       { id: "turn_2" },
@@ -350,6 +351,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     expect(turnFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { sokoBotId: BOT_ID },
         cursor: { id: "turn_4" },
         skip: 1,
         take: 3,

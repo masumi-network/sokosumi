@@ -4209,6 +4209,14 @@ export type SokoBotAvatar = {
     background: string;
 };
 
+export type IntroduceSokoBotResponse = {
+    messageId: string;
+};
+
+export type IntroduceSokoBotRequest = {
+    roomId: string;
+};
+
 export type ClaimSokoBotAvatarRequest = {
     avatarId: string;
 };
@@ -28518,6 +28526,62 @@ export type ListSokoBotAvatarsResponses = {
 };
 
 export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
+
+export type IntroduceMySokoBotData = {
+    body?: IntroduceSokoBotRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/introduce';
+};
+
+export type IntroduceMySokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type IntroduceMySokoBotError = IntroduceMySokoBotErrors[keyof IntroduceMySokoBotErrors];
+
+export type IntroduceMySokoBotResponses = {
+    /**
+     * The bot's introduction message in its direct room
+     */
+    200: {
+        data: IntroduceSokoBotResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type IntroduceMySokoBotResponse = IntroduceMySokoBotResponses[keyof IntroduceMySokoBotResponses];
 
 export type ClaimMySokoBotAvatarData = {
     body?: ClaimSokoBotAvatarRequest;

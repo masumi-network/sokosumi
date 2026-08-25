@@ -1116,8 +1116,13 @@ export class SokoBotControlPlane {
     options: { cursor?: string; take?: number } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
+    const bot = await prisma.sokoBot.findFirst({
+      where: { userId, workspaceId, archivedAt: null },
+      select: { id: true },
+    });
+    if (!bot) return { turns: [], count: 0, hasMore: false };
     const turns = await prisma.sokoBotTurn.findMany({
-      where: { userId, workspaceId },
+      where: { sokoBotId: bot.id },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(options.cursor
@@ -1140,7 +1145,7 @@ export class SokoBotControlPlane {
     const hasMore = turns.length > take;
     if (hasMore) turns.pop();
     const count = await prisma.sokoBotTurn.count({
-      where: { userId, workspaceId },
+      where: { sokoBotId: bot.id },
     });
     return { turns, count, hasMore };
   }

@@ -5237,6 +5237,8 @@
       },
       "Create": {
         "title": "Conoce a tu Soko Bot",
+        "successTitle": "Conoce a {name}",
+        "successHint": "Abriendo tu chat…",
         "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tasks a tus Coworkers y contrata Agents del marketplace para ejecutar Jobs. Ponle un nombre y decide cuánto puede hacer por su cuenta.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",

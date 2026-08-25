@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
 import { getFirstName } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -221,6 +222,71 @@ export async function publishSokoBotChatProgress(
  * created Tasks ride along in metadata for the chat UI. Failures keep the
  * coworker-style failed shell so the room explains what happened.
  */
+export class SokoBotIntroductionError extends Error {}
+
+/**
+ * Posts the bot's self-introduction into its direct room once. Idempotent:
+ * a room where the bot already spoke gets the existing message back.
+ */
+export async function introduceSokoBot(input: {
+  userId: string;
+  workspaceId: string;
+  roomId: string;
+}): Promise<{ messageId: string }> {
+  const bot = await prisma.sokoBot.findFirst({
+    where: {
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      archivedAt: null,
+    },
+    select: {
+      name: true,
+      user: { select: { name: true } },
+      coworker: { select: { id: true } },
+    },
+  });
+  if (!bot?.coworker) throw new SokoBotIntroductionError("Soko Bot not found");
+  const coworkerId = bot.coworker.id;
+  const room = await prisma.chatRoom.findFirst({
+    where: {
+      id: input.roomId,
+      kind: "direct",
+      coworkerMembers: { some: { coworkerId } },
+      userMembers: { some: { userId: input.userId } },
+    },
+    select: { id: true },
+  });
+  if (!room) throw new SokoBotIntroductionError("Direct room not found");
+  const existing = await prisma.chatRoomMessage.findFirst({
+    where: { roomId: room.id, senderCoworkerId: coworkerId },
+    select: { id: true },
+  });
+  if (existing) return { messageId: existing.id };
+  const message = await prisma.$transaction(async (tx) => {
+    const created = await tx.chatRoomMessage.create({
+      data: {
+        roomId: room.id,
+        senderCoworkerId: coworkerId,
+        content: composeSokoBotIntroduction({
+          name: bot.name,
+          ownerName: bot.user.name,
+        }),
+      },
+      select: { id: true },
+    });
+    await tx.chatRoom.update({
+      where: { id: room.id },
+      data: { updatedAt: new Date() },
+    });
+    return created;
+  });
+  const { publishChatRoomMessageRealtimeById } = await import(
+    "@/helpers/chat-room-message-realtime"
+  );
+  await publishChatRoomMessageRealtimeById(message.id, "create");
+  return { messageId: message.id };
+}
+
 export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
   const turn = await loadChatLinkedTurn(turnId);
   if (!turn?.mention || !turn.chatResponseMessageId) return;

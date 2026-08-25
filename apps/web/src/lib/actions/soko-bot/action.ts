@@ -460,6 +460,23 @@ export const simulateSokoBotTaskEventAction = withSession<
   }
 });
 
+interface IntroduceParams extends AuthenticatedRequest {
+  roomId: unknown;
+}
+
+export const introduceSokoBotAction = withSession<
+  IntroduceParams,
+  ActionResultDto<{ messageId: string }, ActionError>
+>(async ({ roomId }) => {
+  const parsed = idSchema.safeParse(roomId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(ok(await sokoBotService.introduce(parsed.data)));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const claimSokoBotAvatarAction = withSession<
   ClaimAvatarParams,
   ActionResultDto<SokoBot, ActionError>

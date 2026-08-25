@@ -34,6 +34,8 @@ import {
   createSokoBotScheduleRequestSchema,
   installSokoBotSkillRequestSchema,
   installSokoBotSkillResponseSchema,
+  introduceSokoBotRequestSchema,
+  introduceSokoBotResponseSchema,
   judgeSokoBotLabTurnRequestSchema,
   listSokoBotAvatarsQuerySchema,
   listSokoBotLabRunsQuerySchema,
@@ -64,7 +66,11 @@ import {
   listAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
-import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
+import {
+  ensureSokoBotCoworker,
+  introduceSokoBot,
+  SokoBotIntroductionError,
+} from "@/services/soko-bot-chat.service";
 import {
   SokoBotBusyError,
   SokoBotIdempotencyConflictError,
@@ -606,6 +612,45 @@ app.openapi(listAvatarsRoute, async (c) => {
     : [];
   const avatars = await listAvailableAvatars(take, { excludeIds });
   return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
+});
+
+const introduceRoute = createRoute({
+  method: "post",
+  path: "/me/introduce",
+  operationId: "introduceMySokoBot",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: introduceSokoBotRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      introduceSokoBotResponseSchema,
+      "The bot's introduction message in its direct room",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(introduceRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const result = await introduceSokoBot({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      roomId: c.req.valid("json").roomId,
+    });
+    return ok(c, introduceSokoBotResponseSchema.parse(result));
+  } catch (error) {
+    if (error instanceof SokoBotIntroductionError)
+      throw notFound(error.message);
+    throw error;
+  }
 });
 
 const claimAvatarRoute = createRoute({

@@ -725,6 +725,14 @@ export const sokoBotLabTaskEventSchema = z
   })
   .openapi("SokoBotLabTaskEvent");
 
+export const introduceSokoBotRequestSchema = z
+  .object({ roomId: z.string().uuid() })
+  .openapi("IntroduceSokoBotRequest");
+
+export const introduceSokoBotResponseSchema = z
+  .object({ messageId: z.string().uuid() })
+  .openapi("IntroduceSokoBotResponse");
+
 export const claimSokoBotAvatarRequestSchema = z
   .object({ avatarId: z.string().uuid() })
   .openapi("ClaimSokoBotAvatarRequest");

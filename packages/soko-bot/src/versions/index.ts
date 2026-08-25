@@ -1,3 +1,4 @@
+import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
 import type { SokoBotCapability } from "../policy.js";
 import {
   getSokoBotSkill,
@@ -37,8 +38,12 @@ export function isSokoBotVersionId(value: unknown): value is string {
 }
 
 /** Base prompt followed by every included skill. */
-export function composeSystemPrompt(version: SokoBotVersion): string {
+export function composeSystemPrompt(
+  version: SokoBotVersion,
+  persona?: SokoBotPersona,
+): string {
   return [
+    ...(persona ? [composeSokoBotPersona(persona)] : []),
     version.systemPrompt.trim(),
     ...version.skills.map((id) => getSokoBotSkill(id).content.trim()),
   ].join("\n\n");
