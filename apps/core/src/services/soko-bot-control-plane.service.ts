@@ -130,7 +130,7 @@ export interface StartSokoBotTurnInput {
   workspaceId: string;
   clientTurnId: string;
   message: string;
-  source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT";
+  source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
   /** Version override for this turn (lab); otherwise the bot's version. */
   versionId?: string;
   /** Set when a chat-room mention started the turn; the reply lands there. */
@@ -1380,11 +1380,16 @@ export class SokoBotControlPlane {
         if (settled) {
           // Lazy: the chat bridge pulls in realtime publishing, which the
           // control plane must not load for page/schedule turns or tests.
-          const { finalizeSokoBotChatTurn } = await import(
-            "@/services/soko-bot-chat.service"
-          );
+          const { finalizeSokoBotChatTurn, deliverSokoBotTurnToDirectRoom } =
+            await import("@/services/soko-bot-chat.service");
           await finalizeSokoBotChatTurn(input.turnId).catch((error) => {
             console.error("Soko Bot chat write-back failed", {
+              turnId: input.turnId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          });
+          await deliverSokoBotTurnToDirectRoom(input.turnId).catch((error) => {
+            console.error("Soko Bot direct-room delivery failed", {
               turnId: input.turnId,
               error: error instanceof Error ? error.message : "unknown",
             });

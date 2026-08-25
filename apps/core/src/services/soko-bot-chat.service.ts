@@ -287,6 +287,63 @@ export async function introduceSokoBot(input: {
   return { messageId: message.id };
 }
 
+/**
+ * Turns the bot started itself (schedules, coworker events, inbox ingests)
+ * have no chat message to write back to; post the answer into the owner's
+ * direct room with the bot so they see it where they talk to it.
+ */
+export async function deliverSokoBotTurnToDirectRoom(
+  turnId: string,
+): Promise<void> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: {
+      source: true,
+      status: true,
+      finalAnswer: true,
+      userId: true,
+      chatMention: { select: { id: true } },
+      sokoBot: { select: { coworker: { select: { id: true } } } },
+    },
+  });
+  if (!turn || turn.source === "CHAT" || turn.chatMention) return;
+  if (turn.status !== "COMPLETED") return;
+  const answer = turn.finalAnswer?.trim() ?? "";
+  if (!answer || /^nothing new worth flagging\.?$/i.test(answer)) return;
+  const coworkerId = turn.sokoBot.coworker?.id;
+  if (!coworkerId) return;
+  const room = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      archivedAt: null,
+      coworkerMembers: { some: { coworkerId } },
+      userMembers: { some: { userId: turn.userId } },
+    },
+    select: { id: true },
+  });
+  if (!room) return;
+  const message = await prisma.$transaction(async (tx) => {
+    const created = await tx.chatRoomMessage.create({
+      data: {
+        roomId: room.id,
+        senderCoworkerId: coworkerId,
+        content: answer,
+        metadata: { soko_bot: { turn_id: turnId, source: turn.source } },
+      },
+      select: { id: true },
+    });
+    await tx.chatRoom.update({
+      where: { id: room.id },
+      data: { updatedAt: new Date() },
+    });
+    return created;
+  });
+  const { publishChatRoomMessageRealtimeById } = await import(
+    "@/helpers/chat-room-message-realtime"
+  );
+  await publishChatRoomMessageRealtimeById(message.id, "create");
+}
+
 export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
   const turn = await loadChatLinkedTurn(turnId);
   if (!turn?.mention || !turn.chatResponseMessageId) return;

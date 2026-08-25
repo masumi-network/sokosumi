@@ -828,3 +828,55 @@ workspace). Every `/v1/soko-bots/me*` route resolves the bot through the
 request's workspace context, so console, skills, schedules, lab and the team
 page are all per workspace. Coworker visibility uses `sokoBot.workspaceId`
 directly. The lab runner accepts `--workspace <id>`.
+
+## Integrations via Composio (2026-08-26)
+
+Each Soko Bot can connect external accounts through Composio; the first
+providers are Gmail, Outlook (mail + calendar) and Google Calendar. The
+registry — provider ids, Composio toolkit and tool slugs — is
+`packages/soko-bot/src/integrations.ts`; nothing else hard-codes slugs.
+
+**Identity and storage.** Composio's `userId` is `sokobot:<botId>`, so
+accounts belong to one bot and never cross workspaces. Sokosumi stores only
+the `connected_account` id, status and an ingest cursor
+(`soko_bot_integration`); tokens stay in Composio. Auth configs are
+Composio-managed and created lazily per toolkit (`ensureAuthConfigId`).
+
+**Connect flow.** `POST /v1/soko-bots/me/integrations/{provider}/connect`
+(`connectedAccounts.link` with a `callbackUrl`) → owner completes OAuth →
+Composio returns to `/personal-assistant/integrations/return?provider=…` →
+web calls `…/finalize`, which reads the account status from Composio and
+marks the row ACTIVE / FAILED. Disconnect deletes the account in Composio and
+the row.
+
+**Read-only by design.** The bot gets `list_integrations`, `search_inbox`,
+`read_email`, `list_calendar_events` (in `DIRECT_READ_CAPABILITIES`, so on
+every route). There is no send/reply/delete tool; the `personal-inbox` skill
+says so explicitly.
+
+**Ingest strategy** (`/sync/soko-bot-ingest`, Vercel cron every 15 min,
+`soko-bot-ingest.service.ts`):
+
+- *Morning briefing*, once per local day (bot `ingestTimezone`, default
+  Europe/Berlin) from 07:00: calendar for the next ~36 h plus mail since the
+  last look. Always wakes the bot.
+- *Delta ingest*, at most hourly per mailbox: mail newer than the cursor
+  (`newestSeenAt`). If nothing arrived, the cursor is stamped and **no turn
+  is started** — quiet inboxes cost nothing. The skill tells the bot to
+  answer exactly `Nothing new worth flagging.` when nothing matters; that
+  answer is not delivered to chat.
+- Packets are capped (20 mails, 15 events) and carry `[provider:id]`
+  references so the bot can `read_email` on demand instead of receiving
+  full bodies.
+- Ingest turns use the new `INGEST` turn source. Answers of self-started
+  turns (SCHEDULE, EVENT, INGEST) are now posted into the owner's direct
+  room with the bot (`deliverSokoBotTurnToDirectRoom`), so briefings show
+  up where the owner talks to it.
+
+**Not yet done / next.** Composio tool slugs and response shapes were
+written from the docs, not verified live (the local `COMPOSIO_API_KEY` is
+invalid) — first run with a real key will tell if any slug or field name
+needs adjusting in `integrations.ts` / the normalisers. Candidates after
+that: Slack and Linear/Notion as ingest sources, owner-set briefing time and
+timezone in the console, write actions (draft replies, create events)
+behind explicit owner confirmation.

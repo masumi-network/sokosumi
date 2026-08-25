@@ -1859,7 +1859,8 @@ export const SokoBotTurnSchema = {
                 'CHAT',
                 'SCHEDULE',
                 'ADMIN_RETRY',
-                'EVENT'
+                'EVENT',
+                'INGEST'
             ]
         },
         status: {
@@ -14569,6 +14570,131 @@ export const SokoBotAvatarSchema = {
         'imageUrl',
         'subject',
         'background'
+    ]
+} as const;
+
+export const SokoBotIntegrationsSchema = {
+    type: 'object',
+    properties: {
+        configured: {
+            type: 'boolean'
+        },
+        integrations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotIntegration'
+            }
+        }
+    },
+    required: [
+        'configured',
+        'integrations'
+    ]
+} as const;
+
+export const SokoBotIntegrationSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        kinds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'email',
+                    'calendar'
+                ]
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        },
+        connectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        lastIngestAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'name',
+        'kinds',
+        'status',
+        'connectedAt',
+        'lastIngestAt',
+        'lastError'
+    ]
+} as const;
+
+export const ConnectSokoBotIntegrationResponseSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const ConnectSokoBotIntegrationRequestSchema = {
+    type: 'object',
+    properties: {
+        returnUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'returnUrl'
+    ]
+} as const;
+
+export const FinalizeSokoBotIntegrationResponseSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'status'
     ]
 } as const;
 

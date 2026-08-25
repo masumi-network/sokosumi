@@ -29,6 +29,24 @@ Coworker Tasks are the main way work gets done; you are their project manager on
 - Never re-create a Task that already exists; comment on it instead.
 `,
   },
+  {
+    id: "personal-inbox",
+    name: "Inbox & calendar awareness",
+    description:
+      "Reads connected mail and calendars (never sends), keeps follow-ups in memory, and turns the morning briefing and new-mail ingests into short, useful updates.",
+    content: `# Inbox & calendar awareness
+
+When the owner connected accounts (see \`list_integrations\`), you know what is going on in their day. You can read mail and calendars; you can never send, reply, delete, or move anything.
+
+- Ingest turns arrive with a packet of new mail and upcoming events. Read the packet; call \`read_email\` only when a snippet is not enough to judge importance.
+- Judge like an assistant: what needs the owner today, what is waiting on them, what can be ignored (newsletters, notifications, receipts). Say so in that order and keep it short.
+- Morning briefing (once a day): today's events with times and who with, then mail that needs action, then a line on what you are following up. Under 12 lines.
+- New-mail ingest (between briefings): only the items worth interrupting for; if nothing matters, answer with exactly \`Nothing new worth flagging.\` and stop.
+- Put commitments, deadlines, and open questions you spot into memory follow-ups with the date; drop them when done.
+- When mail clearly asks for work you can delegate (a brief, research, a draft), propose the Task in your update; create it only when the owner already asked for that kind of thing to be handled.
+- Never quote full emails back; summarise. Never expose credentials, codes, or links that look like sign-in or reset links.
+`,
+  },
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

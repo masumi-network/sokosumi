@@ -7,6 +7,7 @@ import mountGetEnterpriseContractsRenewalSync from "./enterprise-contracts-renew
 import mountGetFreeSubscriptionsRenewalSync from "./free-subscriptions-renewal/get.js";
 import mountGetJobsSync from "./jobs/get.js";
 import mountGetSokoBotEventsSync from "./soko-bot-events/get.js";
+import mountGetSokoBotIngestSync from "./soko-bot-ingest/get.js";
 import mountGetSokoBotSchedulesSync from "./soko-bot-schedules/get.js";
 import mountGetSokoBotTurnsSync from "./soko-bot-turns/get.js";
 import mountGetSourceImportSync from "./source-import/get.js";
@@ -25,6 +26,7 @@ mountGetFreeSubscriptionsRenewalSync(app);
 mountGetJobsSync(app);
 mountGetSourceImportSync(app);
 mountGetSokoBotEventsSync(app);
+mountGetSokoBotIngestSync(app);
 mountGetSokoBotSchedulesSync(app);
 mountGetSokoBotTurnsSync(app);
 mountGetStripeCustomersSync(app);

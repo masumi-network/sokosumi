@@ -30,6 +30,10 @@ export const SOKO_BOT_CAPABILITIES = [
   "create_schedule",
   "update_schedule",
   "delete_schedule",
+  "list_integrations",
+  "search_inbox",
+  "read_email",
+  "list_calendar_events",
   "scratch_read",
   "scratch_write",
   "scratch_list",
@@ -43,6 +47,10 @@ const DIRECT_READ_CAPABILITIES = [
   "get_job_status",
   "read_memory",
   "list_schedules",
+  "list_integrations",
+  "search_inbox",
+  "read_email",
+  "list_calendar_events",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */

@@ -12,6 +12,7 @@ import type {
   SokoBotAvatar,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
+  SokoBotIntegrations,
   SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
@@ -79,6 +80,30 @@ export const sokoBotService = {
   async getTeam(): Promise<SokoBotTeam> {
     const response = await coreClient.getSokoBotTeam();
     return response.data;
+  },
+
+  async listIntegrations(): Promise<SokoBotIntegrations> {
+    const response = await coreClient.listMySokoBotIntegrations();
+    return response.data;
+  },
+
+  async connectIntegration(
+    provider: string,
+    returnUrl: string,
+  ): Promise<{ redirectUrl: string }> {
+    const response = await coreClient.connectMySokoBotIntegration(provider, {
+      returnUrl,
+    });
+    return response.data;
+  },
+
+  async finalizeIntegration(provider: string): Promise<string> {
+    const response = await coreClient.finalizeMySokoBotIntegration(provider);
+    return response.data.status;
+  },
+
+  async disconnectIntegration(provider: string): Promise<void> {
+    await coreClient.disconnectMySokoBotIntegration(provider);
   },
 
   async getStats(): Promise<SokoBotDailyStats> {

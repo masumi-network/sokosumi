@@ -460,6 +460,47 @@ export const simulateSokoBotTaskEventAction = withSession<
   }
 });
 
+interface IntegrationParams extends AuthenticatedRequest {
+  provider: unknown;
+}
+
+const providerSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z0-9_-]{1,40}$/);
+
+export const connectSokoBotIntegrationAction = withSession<
+  IntegrationParams & { returnUrl: unknown },
+  ActionResultDto<{ redirectUrl: string }, ActionError>
+>(async ({ provider, returnUrl }) => {
+  const parsed = providerSchema.safeParse(provider);
+  const parsedUrl = z.string().url().safeParse(returnUrl);
+  if (!parsed.success || !parsedUrl.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(
+      ok(await sokoBotService.connectIntegration(parsed.data, parsedUrl.data)),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const disconnectSokoBotIntegrationAction = withSession<
+  IntegrationParams,
+  ActionResultDto<{ disconnected: true }, ActionError>
+>(async ({ provider }) => {
+  const parsed = providerSchema.safeParse(provider);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    await sokoBotService.disconnectIntegration(parsed.data);
+    revalidate();
+    return toActionResult(ok({ disconnected: true as const }));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 interface IntroduceParams extends AuthenticatedRequest {
   roomId: unknown;
 }

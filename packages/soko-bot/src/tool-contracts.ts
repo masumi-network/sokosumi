@@ -168,7 +168,36 @@ export const sokoBotScheduleIdInputSchema = z
   .strict()
   .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
+export const sokoBotSearchInboxInputSchema = z.object({
+  /** Free-text search (sender, subject, words). Provider search syntax works (e.g. Gmail `from:x newer_than:2d`). */
+  query: z.string().max(500).optional(),
+  /** Only mail received after this ISO timestamp. */
+  since: z.string().datetime().optional(),
+  unreadOnly: z.boolean().optional(),
+  /** Restrict to one connected provider id; default all email providers. */
+  provider: z.string().optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+export const sokoBotReadEmailInputSchema = z.object({
+  provider: z.string(),
+  messageId: z.string(),
+});
+
+export const sokoBotListCalendarEventsInputSchema = z.object({
+  /** ISO start of the window; default now. */
+  from: z.string().datetime().optional(),
+  /** ISO end of the window; default 7 days after `from`. */
+  to: z.string().datetime().optional(),
+  provider: z.string().optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
+  list_integrations: emptyInputSchema,
+  search_inbox: sokoBotSearchInboxInputSchema,
+  read_email: sokoBotReadEmailInputSchema,
+  list_calendar_events: sokoBotListCalendarEventsInputSchema,
   refresh_context: emptyInputSchema,
   find_coworkers: sokoBotSearchInputSchema,
   create_task: sokoBotCreateTaskInputSchema,
@@ -195,6 +224,13 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
 } as const satisfies Record<SokoBotCapability, z.ZodType>;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
+  list_integrations:
+    "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
+  search_inbox:
+    "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Never send mail; you can only read.",
+  read_email: "Read one email in full by provider and messageId.",
+  list_calendar_events:
+    "The owner's calendar events in a time window across connected calendars. Default window: now to +7 days.",
   refresh_context: "Read immutable Context snapshot for current turn.",
   find_coworkers:
     "Find available AI Coworkers suitable for delegated Task work.",

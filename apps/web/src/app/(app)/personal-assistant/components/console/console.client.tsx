@@ -14,6 +14,7 @@ import type {
   SokoBotAvatar,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
+  SokoBotIntegrations,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -28,10 +29,10 @@ import {
 } from "../chat/assistant-avatar";
 import { orderedTurns } from "../chat/timeline";
 import { useSokoBotState } from "../chat/use-soko-bot-state";
+import { IntegrationsSection } from "../integrations-section.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
-
 import { SkillsSection } from "../skills-section.client";
 
 import { ActivityList } from "./activity-list.client";
@@ -76,6 +77,7 @@ export interface SokoBotConsoleProps {
   version: SokoBotVersion | null;
   installedSkills: SokoBotInstalledSkill[];
   stats: SokoBotDailyStats | null;
+  integrations: SokoBotIntegrations | null;
 }
 
 /**
@@ -91,6 +93,7 @@ export function SokoBotConsole({
   version,
   installedSkills,
   stats,
+  integrations,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
@@ -214,6 +217,14 @@ export function SokoBotConsole({
             </div>
 
             <aside className="space-y-6">
+              {integrations ? (
+                <Section
+                  title={t("Integrations.title")}
+                  description={t("Integrations.description")}
+                >
+                  <IntegrationsSection initial={integrations} />
+                </Section>
+              ) : null}
               <Section
                 title={t("Schedules.title")}
                 description={t("Schedules.description")}

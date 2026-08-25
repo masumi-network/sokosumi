@@ -30,8 +30,11 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   claimSokoBotAvatarRequestSchema,
+  connectSokoBotIntegrationRequestSchema,
+  connectSokoBotIntegrationResponseSchema,
   createSokoBotRequestSchema,
   createSokoBotScheduleRequestSchema,
+  finalizeSokoBotIntegrationResponseSchema,
   installSokoBotSkillRequestSchema,
   installSokoBotSkillResponseSchema,
   introduceSokoBotRequestSchema,
@@ -44,6 +47,7 @@ import {
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
   sokoBotInstalledSkillSchema,
+  sokoBotIntegrationsSchema,
   sokoBotLabRunSchema,
   sokoBotLabTaskEventSchema,
   sokoBotLabVerdictSchema,
@@ -81,6 +85,13 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import {
+  connectSokoBotIntegration,
+  disconnectSokoBotIntegration,
+  finalizeSokoBotIntegration,
+  listSokoBotIntegrations,
+  SokoBotIntegrationError,
+} from "@/services/soko-bot-integrations.service";
 import {
   SokoBotLabError,
   simulateSokoBotTaskEvent,
@@ -614,6 +625,150 @@ app.openapi(listAvatarsRoute, async (c) => {
     : [];
   const avatars = await listAvailableAvatars(take, { excludeIds });
   return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
+});
+
+const providerParamSchema = z.object({ provider: z.string().min(1) });
+
+function mapIntegrationError(error: unknown): never {
+  if (error instanceof SokoBotIntegrationError) {
+    if (error.kind === "NOT_CONFIGURED" || error.kind === "NOT_FOUND")
+      throw notFound(error.message);
+    if (error.kind === "UNKNOWN_PROVIDER") throw notFound(error.message);
+    throw unprocessableEntity(error.message);
+  }
+  throw error;
+}
+
+const listIntegrationsRoute = createRoute({
+  method: "get",
+  path: "/me/integrations",
+  operationId: "listMySokoBotIntegrations",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotIntegrationsSchema,
+      "Every provider with the bot's connection state",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(listIntegrationsRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const result = await listSokoBotIntegrations(
+      auth.userId,
+      workspace.workspaceId,
+    );
+    return ok(c, sokoBotIntegrationsSchema.parse(result));
+  } catch (error) {
+    mapIntegrationError(error);
+  }
+});
+
+const connectIntegrationRoute = createRoute({
+  method: "post",
+  path: "/me/integrations/{provider}/connect",
+  operationId: "connectMySokoBotIntegration",
+  tags: ["Soko Bots"],
+  request: {
+    params: providerParamSchema,
+    body: {
+      content: {
+        "application/json": { schema: connectSokoBotIntegrationRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      connectSokoBotIntegrationResponseSchema,
+      "Where to send the owner to authorise the account",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(connectIntegrationRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const result = await connectSokoBotIntegration({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      provider: c.req.valid("param").provider,
+      returnUrl: c.req.valid("json").returnUrl,
+    });
+    return ok(c, connectSokoBotIntegrationResponseSchema.parse(result));
+  } catch (error) {
+    mapIntegrationError(error);
+  }
+});
+
+const finalizeIntegrationRoute = createRoute({
+  method: "post",
+  path: "/me/integrations/{provider}/finalize",
+  operationId: "finalizeMySokoBotIntegration",
+  tags: ["Soko Bots"],
+  request: { params: providerParamSchema },
+  responses: {
+    200: jsonSuccessResponse(
+      finalizeSokoBotIntegrationResponseSchema,
+      "Connection state after the OAuth round-trip",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(finalizeIntegrationRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const status = await finalizeSokoBotIntegration({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      provider: c.req.valid("param").provider,
+    });
+    return ok(c, finalizeSokoBotIntegrationResponseSchema.parse({ status }));
+  } catch (error) {
+    mapIntegrationError(error);
+  }
+});
+
+const disconnectIntegrationRoute = createRoute({
+  method: "delete",
+  path: "/me/integrations/{provider}",
+  operationId: "disconnectMySokoBotIntegration",
+  tags: ["Soko Bots"],
+  request: { params: providerParamSchema },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ disconnected: z.literal(true) }),
+      "Disconnected",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(disconnectIntegrationRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    await disconnectSokoBotIntegration({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      provider: c.req.valid("param").provider,
+    });
+    return ok(c, { disconnected: true as const });
+  } catch (error) {
+    mapIntegrationError(error);
+  }
 });
 
 const introduceRoute = createRoute({

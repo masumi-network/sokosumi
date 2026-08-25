@@ -165,7 +165,7 @@ export const sokoBotTurnSchema = z
     id: z.string().uuid(),
     sokoBotId: z.string().uuid(),
     workspaceId: z.string().uuid(),
-    source: z.enum(["CHAT", "SCHEDULE", "ADMIN_RETRY", "EVENT"]),
+    source: z.enum(["CHAT", "SCHEDULE", "ADMIN_RETRY", "EVENT", "INGEST"]),
     status: sokoBotTurnStatusSchema,
     route: sokoBotTurnRouteSchema.nullable(),
     clientTurnId: z.string(),
@@ -740,6 +740,40 @@ export const sokoBotDailyStatsSchema = z
     daily: z.array(z.object({ date: z.string(), ...sokoBotDayStatsFields })),
   })
   .openapi("SokoBotDailyStats");
+
+export const sokoBotIntegrationSchema = z
+  .object({
+    provider: z.string(),
+    name: z.string(),
+    kinds: z.array(z.enum(["email", "calendar"])),
+    status: z.enum(["DISCONNECTED", "PENDING", "ACTIVE", "FAILED", "REVOKED"]),
+    connectedAt: z.coerce.date().nullable(),
+    lastIngestAt: z.coerce.date().nullable(),
+    lastError: z.string().nullable(),
+  })
+  .openapi("SokoBotIntegration");
+
+export const sokoBotIntegrationsSchema = z
+  .object({
+    /** False when Composio is not configured on this environment. */
+    configured: z.boolean(),
+    integrations: z.array(sokoBotIntegrationSchema),
+  })
+  .openapi("SokoBotIntegrations");
+
+export const connectSokoBotIntegrationRequestSchema = z
+  .object({ returnUrl: z.string().url() })
+  .openapi("ConnectSokoBotIntegrationRequest");
+
+export const connectSokoBotIntegrationResponseSchema = z
+  .object({ redirectUrl: z.string().url() })
+  .openapi("ConnectSokoBotIntegrationResponse");
+
+export const finalizeSokoBotIntegrationResponseSchema = z
+  .object({
+    status: z.enum(["DISCONNECTED", "PENDING", "ACTIVE", "FAILED", "REVOKED"]),
+  })
+  .openapi("FinalizeSokoBotIntegrationResponse");
 
 export const introduceSokoBotRequestSchema = z
   .object({ roomId: z.string().uuid() })

@@ -93,6 +93,7 @@ import {
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
   claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
+  connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createAdminVendor as coreCreateAdminVendor,
@@ -126,6 +127,8 @@ import {
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
+  disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
+  finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
@@ -231,6 +234,7 @@ import {
   listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
+  listMySokoBotIntegrations as coreListMySokoBotIntegrations,
   listMySokoBotLabRuns as coreListMySokoBotLabRuns,
   listMySokoBotSkills as coreListMySokoBotSkills,
   listMySokoBotTurns as coreListMySokoBotTurns,
@@ -3650,6 +3654,48 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listMySokoBotIntegrations() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListMySokoBotIntegrations({ client, cache: "no-store" }),
+      "Failed to load Soko Bot integrations",
+    );
+  }
+
+  async function connectMySokoBotIntegration(
+    provider: string,
+    body: { returnUrl: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreConnectMySokoBotIntegration({
+          client,
+          path: { provider },
+          body,
+        }),
+      "Failed to start the integration",
+    );
+  }
+
+  async function finalizeMySokoBotIntegration(provider: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreFinalizeMySokoBotIntegration({ client, path: { provider } }),
+      "Failed to finish the integration",
+    );
+  }
+
+  async function disconnectMySokoBotIntegration(provider: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDisconnectMySokoBotIntegration({ client, path: { provider } }),
+      "Failed to disconnect the integration",
+    );
+  }
+
   async function getMySokoBotStats() {
     return executeCoreOperation(
       getClient,
@@ -4507,6 +4553,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     judgeMySokoBotLabTurn,
     listMySokoBotLabRuns,
     getMySokoBotStats,
+    listMySokoBotIntegrations,
+    connectMySokoBotIntegration,
+    finalizeMySokoBotIntegration,
+    disconnectMySokoBotIntegration,
     listMySokoBotSkills,
     getSokoBotTeam,
     installMySokoBotSkill,

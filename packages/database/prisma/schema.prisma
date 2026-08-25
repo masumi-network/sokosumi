@@ -1603,6 +1603,41 @@ enum SokoBotTurnSource {
   SCHEDULE
   ADMIN_RETRY
   EVENT
+  INGEST
+}
+
+enum SokoBotIntegrationStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  REVOKED
+}
+
+/// One connected external account (Gmail, Outlook, Google Calendar, …) of
+/// a Soko Bot, brokered by Composio. Tokens live in Composio; only the
+/// account reference and our sync position live here.
+model SokoBotIntegration {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  /// Provider id from @sokosumi/soko-bot integrations (Composio toolkit slug).
+  provider          String
+  /// Composio connected_account id.
+  composioAccountId String                   @unique
+  status            SokoBotIntegrationStatus @default(PENDING)
+  connectedAt       DateTime?
+  lastError         String?
+  /// Provider-specific ingest position (e.g. newest seen email timestamp).
+  cursor            Json?
+  lastIngestAt      DateTime?
+
+  @@unique([sokoBotId, provider])
+  @@index([status])
+  @@map("soko_bot_integration")
 }
 
 enum SokoBotTurnStatus {
@@ -1680,6 +1715,12 @@ model SokoBot {
   coworker Coworker?
   labRuns  SokoBotLabRun[]
   installedSkills SokoBotInstalledSkill[]
+  integrations    SokoBotIntegration[]
+
+  /// Timezone for the morning briefing and "today" in ingest packets.
+  ingestTimezone String    @default("Europe/Berlin")
+  /// Last morning briefing sent; one per local day.
+  lastBriefingAt DateTime?
 
   /// Picked mascot image (see SokoBotAvatar); null → generative orb.
   avatarImageUrl String?

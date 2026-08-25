@@ -5264,6 +5264,24 @@
         "resetDone": "Gedächtnis zurückgesetzt.",
         "resetError": "Gedächtnis konnte nicht zurückgesetzt werden."
       },
+      "Integrations": {
+        "title": "Verbundene Konten",
+        "description": "Mail und Kalender, die er für dich liest. Er sendet oder ändert nie etwas.",
+        "connect": "Verbinden",
+        "reconnect": "Neu verbinden",
+        "disconnect": "Trennen",
+        "disconnected": "Getrennt.",
+        "connectError": "Verbindung konnte nicht gestartet werden.",
+        "disconnectError": "Trennen fehlgeschlagen.",
+        "unavailable": "Integrationen sind in dieser Umgebung nicht aktiviert.",
+        "pending": "Warte, bis du die Anmeldung abschließt…",
+        "failed": "Verbindung fehlgeschlagen. Neu verbinden, um es erneut zu versuchen.",
+        "connectedNotChecked": "Verbunden · erste Prüfung in maximal 15 Minuten",
+        "lastChecked": "Verbunden · geprüft {when}",
+        "kindsMail": "Liest deinen Posteingang",
+        "kindsCalendar": "Liest deinen Kalender",
+        "kindsMailCalendar": "Liest Posteingang und Kalender"
+      },
       "Schedules": {
         "title": "Zeitpläne",
         "description": "Was er von selbst nach Zeitplan erledigt.",

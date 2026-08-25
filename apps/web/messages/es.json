@@ -5264,6 +5264,24 @@
         "resetDone": "Memoria restablecida.",
         "resetError": "No se pudo restablecer la memoria."
       },
+      "Integrations": {
+        "title": "Cuentas conectadas",
+        "description": "Correo y calendarios que lee por ti. Nunca envía ni cambia nada.",
+        "connect": "Conectar",
+        "reconnect": "Reconectar",
+        "disconnect": "Desconectar",
+        "disconnected": "Desconectado.",
+        "connectError": "No se pudo iniciar la conexión.",
+        "disconnectError": "No se pudo desconectar.",
+        "unavailable": "Las integraciones no están habilitadas en este entorno.",
+        "pending": "Esperando a que termines de iniciar sesión…",
+        "failed": "La conexión falló. Reconecta para intentarlo de nuevo.",
+        "connectedNotChecked": "Conectado · primera comprobación en menos de 15 minutos",
+        "lastChecked": "Conectado · comprobado {when}",
+        "kindsMail": "Lee tu bandeja de entrada",
+        "kindsCalendar": "Lee tu calendario",
+        "kindsMailCalendar": "Lee tu bandeja de entrada y calendario"
+      },
       "Schedules": {
         "title": "Programaciones",
         "description": "Lo que hace por su cuenta, según un horario.",

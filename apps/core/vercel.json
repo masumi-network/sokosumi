@@ -70,6 +70,10 @@
     {
       "path": "/sync/soko-bot-events",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-ingest",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

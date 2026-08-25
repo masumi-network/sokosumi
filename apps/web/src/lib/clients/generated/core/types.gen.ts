@@ -428,7 +428,7 @@ export type SokoBotTurn = {
     id: string;
     sokoBotId: string;
     workspaceId: string;
-    source: 'CHAT' | 'SCHEDULE' | 'ADMIN_RETRY' | 'EVENT';
+    source: 'CHAT' | 'SCHEDULE' | 'ADMIN_RETRY' | 'EVENT' | 'INGEST';
     status: SokoBotTurnStatus;
     route: SokoBotTurnRoute;
     clientTurnId: string;
@@ -4207,6 +4207,33 @@ export type SokoBotAvatar = {
     imageUrl: string;
     subject: string;
     background: string;
+};
+
+export type SokoBotIntegrations = {
+    configured: boolean;
+    integrations: Array<SokoBotIntegration>;
+};
+
+export type SokoBotIntegration = {
+    provider: string;
+    name: string;
+    kinds: Array<'email' | 'calendar'>;
+    status: 'DISCONNECTED' | 'PENDING' | 'ACTIVE' | 'FAILED' | 'REVOKED';
+    connectedAt: Date | null;
+    lastIngestAt: Date | null;
+    lastError: string | null;
+};
+
+export type ConnectSokoBotIntegrationResponse = {
+    redirectUrl: string;
+};
+
+export type ConnectSokoBotIntegrationRequest = {
+    returnUrl: string;
+};
+
+export type FinalizeSokoBotIntegrationResponse = {
+    status: 'DISCONNECTED' | 'PENDING' | 'ACTIVE' | 'FAILED' | 'REVOKED';
 };
 
 export type IntroduceSokoBotResponse = {
@@ -28545,6 +28572,266 @@ export type ListSokoBotAvatarsResponses = {
 };
 
 export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
+
+export type ListMySokoBotIntegrationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/integrations';
+};
+
+export type ListMySokoBotIntegrationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListMySokoBotIntegrationsError = ListMySokoBotIntegrationsErrors[keyof ListMySokoBotIntegrationsErrors];
+
+export type ListMySokoBotIntegrationsResponses = {
+    /**
+     * Every provider with the bot's connection state
+     */
+    200: {
+        data: SokoBotIntegrations;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListMySokoBotIntegrationsResponse = ListMySokoBotIntegrationsResponses[keyof ListMySokoBotIntegrationsResponses];
+
+export type ConnectMySokoBotIntegrationData = {
+    body?: ConnectSokoBotIntegrationRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/integrations/{provider}/connect';
+};
+
+export type ConnectMySokoBotIntegrationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConnectMySokoBotIntegrationError = ConnectMySokoBotIntegrationErrors[keyof ConnectMySokoBotIntegrationErrors];
+
+export type ConnectMySokoBotIntegrationResponses = {
+    /**
+     * Where to send the owner to authorise the account
+     */
+    200: {
+        data: ConnectSokoBotIntegrationResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConnectMySokoBotIntegrationResponse = ConnectMySokoBotIntegrationResponses[keyof ConnectMySokoBotIntegrationResponses];
+
+export type FinalizeMySokoBotIntegrationData = {
+    body?: never;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/integrations/{provider}/finalize';
+};
+
+export type FinalizeMySokoBotIntegrationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinalizeMySokoBotIntegrationError = FinalizeMySokoBotIntegrationErrors[keyof FinalizeMySokoBotIntegrationErrors];
+
+export type FinalizeMySokoBotIntegrationResponses = {
+    /**
+     * Connection state after the OAuth round-trip
+     */
+    200: {
+        data: FinalizeSokoBotIntegrationResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinalizeMySokoBotIntegrationResponse = FinalizeMySokoBotIntegrationResponses[keyof FinalizeMySokoBotIntegrationResponses];
+
+export type DisconnectMySokoBotIntegrationData = {
+    body?: never;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/integrations/{provider}';
+};
+
+export type DisconnectMySokoBotIntegrationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DisconnectMySokoBotIntegrationError = DisconnectMySokoBotIntegrationErrors[keyof DisconnectMySokoBotIntegrationErrors];
+
+export type DisconnectMySokoBotIntegrationResponses = {
+    /**
+     * Disconnected
+     */
+    200: {
+        data: {
+            disconnected: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DisconnectMySokoBotIntegrationResponse = DisconnectMySokoBotIntegrationResponses[keyof DisconnectMySokoBotIntegrationResponses];
 
 export type IntroduceMySokoBotData = {
     body?: IntroduceSokoBotRequest;

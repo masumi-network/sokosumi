@@ -33,6 +33,9 @@ import {
   sanitizeSokoBotMemoryMarkdown,
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
+  sokoBotListCalendarEventsInputSchema,
+  sokoBotReadEmailInputSchema,
+  sokoBotSearchInboxInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
   sokoBotTaskIdInputSchema as taskIdInputSchema,
@@ -48,6 +51,13 @@ import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { getSokoBotTokenService } from "@/lib/soko-bot/factory";
+import {
+  activeIntegrationsForBot,
+  fetchCalendarEvents,
+  fetchInboxMessage,
+  fetchInboxMessages,
+  listSokoBotIntegrations,
+} from "@/services/soko-bot-integrations.service";
 import {
   createSokoBotSchedule,
   deleteSokoBotSchedule,
@@ -1667,6 +1677,82 @@ export class SokoBotRuntimeService {
         return this.updateMemory(authorized, input.input, input.toolCallId);
       case "list_schedules":
         return listSokoBotSchedules(authorized.turn.sokoBotId);
+      case "list_integrations":
+        return listSokoBotIntegrations(
+          authorized.turn.userId,
+          authorized.turn.workspaceId,
+        ).then((result) =>
+          result.integrations.filter((i) => i.status !== "DISCONNECTED"),
+        );
+      case "search_inbox": {
+        const parsed = sokoBotSearchInboxInputSchema.parse(input.input);
+        const integrations = await activeIntegrationsForBot(
+          authorized.turn.sokoBotId,
+          "email",
+          parsed.provider,
+        );
+        if (integrations.length === 0) {
+          return { messages: [], note: "No mailbox is connected." };
+        }
+        const limit = parsed.limit ?? 20;
+        const results = await Promise.all(
+          integrations.map((integration) =>
+            fetchInboxMessages(integration, {
+              query: parsed.query,
+              since: parsed.since ? new Date(parsed.since) : undefined,
+              unreadOnly: parsed.unreadOnly,
+              limit,
+            }),
+          ),
+        );
+        return {
+          messages: results
+            .flat()
+            .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+            .slice(0, limit),
+        };
+      }
+      case "read_email": {
+        const parsed = sokoBotReadEmailInputSchema.parse(input.input);
+        const [integration] = await activeIntegrationsForBot(
+          authorized.turn.sokoBotId,
+          "email",
+          parsed.provider,
+        );
+        if (!integration) {
+          throw new SokoBotRuntimeValidationError(
+            `No connected mailbox for provider ${parsed.provider}`,
+          );
+        }
+        return fetchInboxMessage(integration, parsed.messageId);
+      }
+      case "list_calendar_events": {
+        const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);
+        const from = parsed.from ? new Date(parsed.from) : new Date();
+        const to = parsed.to
+          ? new Date(parsed.to)
+          : new Date(from.getTime() + 7 * 24 * 60 * 60 * 1_000);
+        const integrations = await activeIntegrationsForBot(
+          authorized.turn.sokoBotId,
+          "calendar",
+          parsed.provider,
+        );
+        if (integrations.length === 0) {
+          return { events: [], note: "No calendar is connected." };
+        }
+        const limit = parsed.limit ?? 50;
+        const results = await Promise.all(
+          integrations.map((integration) =>
+            fetchCalendarEvents(integration, { from, to, limit }),
+          ),
+        );
+        return {
+          events: results
+            .flat()
+            .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+            .slice(0, limit),
+        };
+      }
       case "create_schedule":
         return runScheduleTool(() =>
           createSokoBotSchedule({

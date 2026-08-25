@@ -5264,6 +5264,24 @@
         "resetDone": "Memory reset.",
         "resetError": "Could not reset memory."
       },
+      "Integrations": {
+        "title": "Connected accounts",
+        "description": "Mail and calendars it reads for you. It never sends or changes anything.",
+        "connect": "Connect",
+        "reconnect": "Reconnect",
+        "disconnect": "Disconnect",
+        "disconnected": "Disconnected.",
+        "connectError": "Could not start the connection.",
+        "disconnectError": "Could not disconnect.",
+        "unavailable": "Integrations are not enabled on this environment.",
+        "pending": "Waiting for you to finish signing in…",
+        "failed": "Connection failed. Reconnect to try again.",
+        "connectedNotChecked": "Connected · first check runs within 15 minutes",
+        "lastChecked": "Connected · checked {when}",
+        "kindsMail": "Reads your inbox",
+        "kindsCalendar": "Reads your calendar",
+        "kindsMailCalendar": "Reads your inbox and calendar"
+      },
       "Schedules": {
         "title": "Schedules",
         "description": "Things it does on its own, on a schedule.",
