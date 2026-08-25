@@ -5461,7 +5461,9 @@
         "overviewPrompt": "Prompt del sistema",
         "allTools": "todas las herramientas de la ruta",
         "showPrompt": "Mostrar",
-        "hidePrompt": "Ocultar"
+        "hidePrompt": "Ocultar",
+        "judge": "Evaluación (Claude)",
+        "judgeScores": "delegación {d} · seguimiento {f} · criterio {j} · honestidad {h}"
       }
     }
   },

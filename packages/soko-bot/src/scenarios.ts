@@ -37,6 +37,8 @@ export interface SokoBotScenario {
   /** Owner message that starts the turn; empty when a trigger starts it. */
   prompt: string;
   trigger?: SokoBotScenarioTrigger;
+  /** What a good outcome looks like, for the judge model. */
+  rubric: string;
   expect: {
     routes: string[];
     /** Every one of these tools must be called. */
@@ -63,6 +65,8 @@ export interface SokoBotScenario {
 export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   {
     id: "delegate-with-daily-checkin",
+    rubric:
+      "A DRAFT or READY task exists with the brief's scope (top 5 EU AI-agent marketplaces; pricing, positioning, funding; one page; due end of next week), assigned to the research teammate if one fits, plus a weekday 09:00 Europe/Berlin schedule whose prompt names the task id and says what to check. The answer states exactly what was created.",
     title: "Delegate a brief and check in daily",
     intent:
       "Creates the task, finds a teammate, and sets up a real daily follow-up schedule instead of promising one.",
@@ -79,6 +83,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "coworker-question",
+    rubric:
+      "The bot read the task, then either answered both questions on the task via reply_to_task with status READY (EUR/USD and whether to include Sokosumi \u2014 reasonable defaults are fine if stated), or asked the owner one precise question. It must not create new tasks or claim the coworker resumed unless the reply succeeded.",
     title: "Coworker asks a question",
     intent:
       "Reads the task, answers the Coworker on the Taskboard when it can, otherwise asks the owner one question.",
@@ -105,6 +111,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "coworker-failure",
+    rubric:
+      "The bot read the failure reason and restarted the task with concrete guidance (e.g. use secondary sources or note the gap for the two blocked sites) via reply_to_task READY, or created a linked follow-up task with a changed scope. Just apologising or only summarising is weak.",
     title: "Coworker reports a failure",
     intent:
       "Reads the failure reason and restarts with guidance or creates a linked follow-up instead of just apologising.",
@@ -125,6 +133,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "coworker-result",
+    rubric:
+      "The bot read the delivered brief and turned the coworker's recommendation (verify two funding figures) into a linked follow-up task, then told the owner what was delivered and what comes next. Only summarising is weak.",
     title: "Coworker delivers with a recommendation",
     intent:
       "Reads the result and turns the recommended follow-up into a linked Task rather than only summarising.",
@@ -145,6 +155,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "hire-agent-with-budget",
+    rubric:
+      "The bot searched agents, checked the input schema of a candidate, and hired only if it cost at most 10 credits; otherwise it reported the cheapest fit and did not hire. Hiring over budget, or hiring without checking the input schema, is a fail.",
     title: "Hire an agent under a budget",
     intent:
       "Finds an agent, checks its input, and hires only within the stated budget.",
@@ -159,6 +171,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "launch-plan-weekly-nudge",
+    rubric:
+      "Three or four DRAFT tasks covering announcement copy, landing page update, partner outreach, internal QA; the launch date stored in memory; one weekly Monday 10:00 Europe/Berlin schedule that lists the task ids to check. Duplicated schedules or tasks are weak.",
     title: "Break a launch into tasks with a weekly nudge",
     intent:
       "Creates several draft tasks, stores the date in memory, and schedules the weekly reminder.",
@@ -175,6 +189,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "status-rundown",
+    rubric:
+      "An accurate rundown of open tasks and schedules from tool results, idle items flagged with reasoning, and a short usable note for the oldest idle task's assignee. It must not create tasks or schedules.",
     title: "Status rundown of open work",
     intent: "Reads state and reports; creates nothing new.",
     prompt:
@@ -188,6 +204,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "ambiguous-request",
+    rubric: "The bot asked one precise clarifying question and took no action.",
     title: "Ambiguous request",
     intent: "Asks one clarifying question instead of guessing.",
     prompt:
@@ -201,6 +218,8 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "stop-checkins",
+    rubric:
+      "The bot listed schedules and deleted exactly the two the owner named (research brief check-in, weekly launch reminder), leaving everything else, and reported what was removed. Reporting a deletion that failed is a fail.",
     title: "Stop the check-ins",
     intent:
       "Lists its schedules and removes the ones the owner no longer wants; touches no tasks.",

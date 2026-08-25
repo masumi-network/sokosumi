@@ -19,6 +19,7 @@ import prisma from "@/lib/db/prisma";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
+import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
 
 const args = process.argv.slice(2);
 function flag(name: string): string | undefined {
@@ -30,6 +31,7 @@ const only = flag("only")
   ?.split(",")
   .map((s) => s.trim());
 const userIdArg = flag("user") ?? process.env.SOKO_BOT_LAB_USER_ID;
+const noJudge = args.includes("--no-judge");
 const TURN_TIMEOUT_MS = 6 * 60_000;
 
 async function resolveOwner() {
@@ -159,6 +161,18 @@ for (const scenario of scenarios) {
     await waitForTurn(turnId);
     const turn = await loadTurn(turnId);
     const result = evaluateScenario(scenario, turn);
+    const judged = noJudge
+      ? null
+      : await judgeSokoBotLabTurn({
+          userId: owner.bot.userId,
+          turnId,
+          scenarioId: scenario.id,
+        }).catch((error) => {
+          console.log(
+            `     judge failed: ${error instanceof Error ? error.message : error}`,
+          );
+          return null;
+        });
     const tools = Array.from(new Set(turn.toolCalls.map((c) => c.capability)));
     rows.push({
       id: scenario.id,
@@ -170,13 +184,20 @@ for (const scenario of scenarios) {
       costUsd: turn.costUsd,
       tools,
       checks: result.checks,
+      judge: judged?.verdict ?? null,
       answer: turn.finalAnswer,
     });
     const failed = result.checks
       .filter((c) => !c.pass)
       .map((c) => `${c.label} (${c.actual})`);
+    if (judged?.verdict.issues.length) {
+      failed.push(...judged.verdict.issues.map((issue) => `judge: ${issue}`));
+    }
+    const judgeLine = judged
+      ? ` judge=${judged.verdict.verdict} d${judged.verdict.scores.delegation} f${judged.verdict.scores.followThrough} j${judged.verdict.scores.judgment} h${judged.verdict.scores.honesty}`
+      : "";
     console.log(
-      `${result.passed === result.total ? "PASS" : "FAIL"} ${scenario.id} ${result.passed}/${result.total} route=${turn.route} ${Math.round((turn.durationMs ?? 0) / 1000)}s $${(turn.costUsd ?? 0).toFixed(4)} tools=[${tools.join(",")}]${failed.length ? `\n     ✗ ${failed.join("\n     ✗ ")}` : ""}`,
+      `${result.passed === result.total ? "PASS" : "FAIL"} ${scenario.id} ${result.passed}/${result.total} route=${turn.route} ${Math.round((turn.durationMs ?? 0) / 1000)}s $${(turn.costUsd ?? 0).toFixed(4)} tools=[${tools.join(",")}]${judgeLine}${failed.length ? `\n     ✗ ${failed.join("\n     ✗ ")}` : ""}`,
     );
   } catch (error) {
     rows.push({

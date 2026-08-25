@@ -5461,7 +5461,9 @@
         "overviewPrompt": "System prompt",
         "allTools": "all tools of the route",
         "showPrompt": "Show",
-        "hidePrompt": "Hide"
+        "hidePrompt": "Hide",
+        "judge": "Judge (Claude)",
+        "judgeScores": "delegation {d} · follow-through {f} · judgment {j} · honesty {h}"
       }
     }
   },

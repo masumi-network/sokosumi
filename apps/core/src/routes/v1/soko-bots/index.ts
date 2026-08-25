@@ -31,11 +31,13 @@ import {
   claimSokoBotAvatarRequestSchema,
   createSokoBotRequestSchema,
   createSokoBotScheduleRequestSchema,
+  judgeSokoBotLabTurnRequestSchema,
   listSokoBotAvatarsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
   sokoBotAvatarSchema,
   sokoBotLabTaskEventSchema,
+  sokoBotLabVerdictSchema,
   sokoBotMemorySchema,
   sokoBotPendingDecisionSchema,
   sokoBotScheduleSchema,
@@ -67,6 +69,10 @@ import {
   SokoBotLabError,
   simulateSokoBotTaskEvent,
 } from "@/services/soko-bot-lab.service";
+import {
+  judgeSokoBotLabTurn,
+  SokoBotLabJudgeError,
+} from "@/services/soko-bot-lab-judge.service";
 import {
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -696,6 +702,40 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     return ok(c, sokoBotLabTaskEventSchema.parse(result));
   } catch (error) {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
+    throw error;
+  }
+});
+
+const judgeLabTurnRoute = createRoute({
+  method: "post",
+  path: "/me/lab/judge",
+  operationId: "judgeMySokoBotLabTurn",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: judgeSokoBotLabTurnRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotLabVerdictSchema, "Judge verdict"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(judgeLabTurnRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  try {
+    const { verdict, model } = await judgeSokoBotLabTurn({
+      userId: auth.userId,
+      ...c.req.valid("json"),
+    });
+    return ok(c, sokoBotLabVerdictSchema.parse({ model, ...verdict }));
+  } catch (error) {
+    if (error instanceof SokoBotLabJudgeError) throw notFound(error.message);
     throw error;
   }
 });

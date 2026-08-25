@@ -14575,6 +14575,82 @@ export const SimulateSokoBotTaskEventRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SokoBotLabVerdictSchema = {
+    type: 'object',
+    properties: {
+        model: {
+            type: 'string'
+        },
+        scores: {
+            type: 'object',
+            properties: {
+                delegation: {
+                    type: 'integer'
+                },
+                followThrough: {
+                    type: 'integer'
+                },
+                judgment: {
+                    type: 'integer'
+                },
+                honesty: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'delegation',
+                'followThrough',
+                'judgment',
+                'honesty'
+            ]
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'pass',
+                'weak',
+                'fail'
+            ]
+        },
+        rationale: {
+            type: 'string'
+        },
+        issues: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'model',
+        'scores',
+        'verdict',
+        'rationale',
+        'issues'
+    ]
+} as const;
+
+export const JudgeSokoBotLabTurnRequestSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        scenarioId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        }
+    },
+    required: [
+        'turnId',
+        'scenarioId'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SokoBotRuntimeErrorSchema = {
     type: 'object',
     properties: {

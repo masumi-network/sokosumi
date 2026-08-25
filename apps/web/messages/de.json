@@ -5461,7 +5461,9 @@
         "overviewPrompt": "System-Prompt",
         "allTools": "alle Tools der Route",
         "showPrompt": "Anzeigen",
-        "hidePrompt": "Ausblenden"
+        "hidePrompt": "Ausblenden",
+        "judge": "Bewertung (Claude)",
+        "judgeScores": "Delegation {d} · Nachverfolgung {f} · Urteil {j} · Ehrlichkeit {h}"
       }
     }
   },

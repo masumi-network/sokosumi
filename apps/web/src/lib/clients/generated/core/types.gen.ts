@@ -4214,6 +4214,24 @@ export type SimulateSokoBotTaskEventRequest = {
     comment: string;
 };
 
+export type SokoBotLabVerdict = {
+    model: string;
+    scores: {
+        delegation: number;
+        followThrough: number;
+        judgment: number;
+        honesty: number;
+    };
+    verdict: 'pass' | 'weak' | 'fail';
+    rationale: string;
+    issues: Array<string>;
+};
+
+export type JudgeSokoBotLabTurnRequest = {
+    turnId: string;
+    scenarioId: string;
+};
+
 export type SokoBotRuntimeError = {
     error: string;
     message: string;
@@ -28559,6 +28577,76 @@ export type SimulateMySokoBotTaskEventResponses = {
 };
 
 export type SimulateMySokoBotTaskEventResponse = SimulateMySokoBotTaskEventResponses[keyof SimulateMySokoBotTaskEventResponses];
+
+export type JudgeMySokoBotLabTurnData = {
+    body?: JudgeSokoBotLabTurnRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/lab/judge';
+};
+
+export type JudgeMySokoBotLabTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type JudgeMySokoBotLabTurnError = JudgeMySokoBotLabTurnErrors[keyof JudgeMySokoBotLabTurnErrors];
+
+export type JudgeMySokoBotLabTurnResponses = {
+    /**
+     * Judge verdict
+     */
+    200: {
+        data: SokoBotLabVerdict;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type JudgeMySokoBotLabTurnResponse = JudgeMySokoBotLabTurnResponses[keyof JudgeMySokoBotLabTurnResponses];
 
 export type GetCoworkersData = {
     body?: never;

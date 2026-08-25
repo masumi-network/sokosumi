@@ -210,6 +210,7 @@ import {
   getUsersByIdWorkspaceAccess as coreGetUsersByIdWorkspaceAccess,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
   listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
@@ -3622,6 +3623,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function judgeMySokoBotLabTurn(body: {
+    turnId: string;
+    scenarioId: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreJudgeMySokoBotLabTurn({ client, body }),
+      "Failed to judge Soko Bot lab turn",
+    );
+  }
+
   async function simulateMySokoBotTaskEvent(body: {
     taskId?: string;
     status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
@@ -4396,6 +4408,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     claimMySokoBotAvatar,
     simulateMySokoBotTaskEvent,
     listSokoBotVersions,
+    judgeMySokoBotLabTurn,
     updateMySokoBotVersion,
     listMySokoBotTurns,
     getMySokoBotTurn,

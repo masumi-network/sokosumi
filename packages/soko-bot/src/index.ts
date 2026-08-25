@@ -1,4 +1,9 @@
 export {
+  SOKO_BOT_JUDGE_RUBRIC,
+  type SokoBotJudgeVerdict,
+  sokoBotJudgeVerdictSchema,
+} from "./judge.js";
+export {
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   parseSokoBotMemory,

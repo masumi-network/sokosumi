@@ -13,12 +13,16 @@ import { useEffect, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import {
+  judgeSokoBotLabTurnAction,
   listSokoBotVersionsAction,
   setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
-import type { SokoBotVersion } from "@/lib/clients/generated/core";
+import type {
+  SokoBotLabVerdict,
+  SokoBotVersion,
+} from "@/lib/clients/generated/core";
 import type {
   ChatTurnDetail,
   SokoBotChatState,
@@ -40,6 +44,7 @@ interface RunRecord {
   durationMs: number | null;
   costUsd: number | null;
   checks: ScenarioResult["checks"];
+  judge: SokoBotLabVerdict | null;
 }
 
 type History = Record<string, RunRecord[]>;
@@ -217,6 +222,9 @@ export function ScenarioLab({
         return;
       }
       const result = evaluateScenario(scenario, turn);
+      const judged = await judgeSokoBotLabTurnAction({
+        input: { turnId: turn.id, scenarioId: scenario.id },
+      });
       record(scenario.id, {
         turnId: turn.id,
         at: new Date().toISOString(),
@@ -227,6 +235,7 @@ export function ScenarioLab({
         durationMs: turn.durationMs,
         costUsd: turn.usage?.costUsd ?? null,
         checks: result.checks,
+        judge: judged.ok ? judged.value : null,
       });
       onTurnFinished();
     } finally {
@@ -423,6 +432,40 @@ function ScenarioRow({
                   {t("openTurn")}
                 </Link>
               </p>
+              {latest.judge ? (
+                <div
+                  className={cn(
+                    "rounded-md border px-3 py-2 text-xs",
+                    latest.judge.verdict === "pass"
+                      ? "border-semantic-success/40"
+                      : latest.judge.verdict === "weak"
+                        ? "border-semantic-warning/40"
+                        : "border-semantic-destructive/40",
+                  )}
+                >
+                  <p className="font-medium">
+                    {t("judge")} · {latest.judge.verdict}
+                    <span className="text-muted-foreground ml-2 font-normal tabular-nums">
+                      {t("judgeScores", {
+                        d: latest.judge.scores.delegation,
+                        f: latest.judge.scores.followThrough,
+                        j: latest.judge.scores.judgment,
+                        h: latest.judge.scores.honesty,
+                      })}
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    {latest.judge.rationale}
+                  </p>
+                  {latest.judge.issues.length > 0 ? (
+                    <ul className="text-muted-foreground mt-1 list-disc pl-4">
+                      {latest.judge.issues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
               <ul className="space-y-1">
                 {latest.checks.map((check) => (
                   <li
@@ -472,10 +515,10 @@ function ScoreTrail({ runs }: { runs: RunRecord[] }) {
           title={t("score", { passed: run.passed, total: run.total })}
           className={cn(
             "size-2 rounded-full",
-            run.passed === run.total
-              ? "bg-semantic-success"
-              : run.passed === 0
-                ? "bg-semantic-destructive"
+            run.judge?.verdict === "fail" || run.passed === 0
+              ? "bg-semantic-destructive"
+              : run.passed === run.total && run.judge?.verdict !== "weak"
+                ? "bg-semantic-success"
                 : "bg-semantic-warning",
           )}
         />

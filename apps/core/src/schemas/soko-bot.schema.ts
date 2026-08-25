@@ -523,6 +523,26 @@ export const updateSokoBotVersionRequestSchema = z
   .strict()
   .openapi("UpdateSokoBotVersionRequest");
 
+export const judgeSokoBotLabTurnRequestSchema = z
+  .object({ turnId: z.string().uuid(), scenarioId: z.string().min(1).max(80) })
+  .strict()
+  .openapi("JudgeSokoBotLabTurnRequest");
+
+export const sokoBotLabVerdictSchema = z
+  .object({
+    model: z.string(),
+    scores: z.object({
+      delegation: z.number().int(),
+      followThrough: z.number().int(),
+      judgment: z.number().int(),
+      honesty: z.number().int(),
+    }),
+    verdict: z.enum(["pass", "weak", "fail"]),
+    rationale: z.string(),
+    issues: z.array(z.string()),
+  })
+  .openapi("SokoBotLabVerdict");
+
 export const simulateSokoBotTaskEventRequestSchema = z
   .object({
     /** Defaults to the newest Task the bot delegated. */

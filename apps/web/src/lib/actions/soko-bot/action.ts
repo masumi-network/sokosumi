@@ -17,6 +17,7 @@ import {
   type SokoBot,
   SokoBotAvatar,
   type SokoBotLabTaskEvent,
+  type SokoBotLabVerdict,
   type SokoBotMemory,
   type SokoBotPendingDecision,
   type SokoBotSchedule,
@@ -299,6 +300,28 @@ export const setSokoBotVersionAction = withSession<
     const bot = await sokoBotService.setVersion(parsed.data);
     revalidate();
     return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+const judgeLabTurnSchema = z.object({
+  turnId: z.string().uuid(),
+  scenarioId: z.string().min(1).max(80),
+});
+
+interface JudgeLabTurnParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const judgeSokoBotLabTurnAction = withSession<
+  JudgeLabTurnParams,
+  ActionResultDto<SokoBotLabVerdict, ActionError>
+>(async ({ input }) => {
+  const parsed = judgeLabTurnSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(ok(await sokoBotService.judgeLabTurn(parsed.data)));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
