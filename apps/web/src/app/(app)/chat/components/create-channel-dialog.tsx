@@ -3,9 +3,13 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { createChannelAction, updateRoomAction } from "@/app/chat/actions";
+import {
+  checkChannelSlugAvailabilityAction,
+  createChannelAction,
+  updateRoomAction,
+} from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,14 +29,17 @@ import {
   advanceNameToVisibility,
   backToName,
   CHANNEL_NAME_MAX,
+  type ChannelSlugCheckState,
   type CreateChannelWizard,
   canAdvanceFromName,
+  createChannelSubmitFields,
   createInitialWizard,
   type Discoverability,
   remainingNameChars,
-  sanitizeChannelNameInput,
   setAddPeopleMode,
   setDiscoverability,
+  setName,
+  setSlug,
   setSpecificMembers,
   toAddPeople,
 } from "./create-channel-wizard";
@@ -67,6 +74,8 @@ export function CreateChannelDialog({
   const router = useRouter();
   const [wizard, setWizard] =
     useState<CreateChannelWizard>(createInitialWizard);
+  const [availability, setAvailability] =
+    useState<ChannelSlugCheckState>("invalid");
   const [isPending, startTransition] = useTransition();
 
   const createStepNumber = wizard.step === "visibility" ? 2 : 1;
@@ -92,10 +101,45 @@ export function CreateChannelDialog({
     clearCreateQuery();
   }
 
+  const nameStepSlug = wizard.step === "name" ? wizard.slug : "";
+
+  useEffect(() => {
+    if (wizard.step !== "name") {
+      return;
+    }
+    if (!nameStepSlug) {
+      setAvailability("invalid");
+      return;
+    }
+    setAvailability("unknown");
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const result = await checkChannelSlugAvailabilityAction(nameStepSlug);
+      if (cancelled) {
+        return;
+      }
+      if (!result.ok) {
+        setAvailability("unknown");
+        return;
+      }
+      setAvailability(result.value.status);
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [wizard.step, nameStepSlug]);
+
   function handleNameNext() {
-    const next = advanceNameToVisibility(wizard);
+    const next = advanceNameToVisibility(wizard, availability);
     if (!next) {
-      toast.error(t("nameRequired"));
+      toast.error(
+        availability === "taken"
+          ? t("slugTaken")
+          : wizard.step === "name" && wizard.slug.length === 0
+            ? t("slugInvalid")
+            : t("nameRequired"),
+      );
       return;
     }
     setWizard(next);
@@ -105,9 +149,17 @@ export function CreateChannelDialog({
     if (wizard.step !== "visibility" || isPending) {
       return;
     }
-    const { name, discoverability } = wizard;
+    const fields = createChannelSubmitFields(wizard);
+    if (!fields) {
+      return;
+    }
+    const { name, slug, discoverability } = fields;
     startTransition(async () => {
-      const result = await createChannelAction({ name, discoverability });
+      const result = await createChannelAction({
+        name,
+        slug,
+        discoverability,
+      });
       if (!result.ok) {
         toast.error(result.error.message);
         return;
@@ -210,43 +262,79 @@ export function CreateChannelDialog({
         </DialogHeader>
 
         {wizard.step === "name" ? (
-          <div className="space-y-2">
-            <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
-            <div className="relative">
-              <span
-                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
-                aria-hidden
-              >
-                #
-              </span>
-              <Input
-                id="create-channel-name"
-                value={wizard.name}
-                onChange={(event) =>
-                  setWizard({
-                    step: "name",
-                    name: sanitizeChannelNameInput(event.target.value),
-                  })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleNameNext();
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
+              <div className="relative">
+                <span
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
+                  aria-hidden
+                >
+                  #
+                </span>
+                <Input
+                  id="create-channel-name"
+                  value={wizard.name}
+                  onChange={(event) =>
+                    setWizard(setName(wizard, event.target.value))
                   }
-                }}
-                placeholder={t("namePlaceholder")}
-                className="pr-10 pl-7"
-                autoFocus
-                maxLength={CHANNEL_NAME_MAX}
-              />
-              <span
-                className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
-                aria-hidden
-              >
-                {remainingNameChars(wizard.name)}
-              </span>
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleNameNext();
+                    }
+                  }}
+                  placeholder={t("namePlaceholder")}
+                  className="pr-10 pl-7"
+                  autoFocus
+                  maxLength={CHANNEL_NAME_MAX}
+                />
+                <span
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
+                  aria-hidden
+                >
+                  {remainingNameChars(wizard.name)}
+                </span>
+              </div>
+              <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
             </div>
-            <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
+            <div className="space-y-2">
+              <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
+              <div className="relative">
+                <span
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
+                  aria-hidden
+                >
+                  #
+                </span>
+                <Input
+                  id="create-channel-slug"
+                  value={wizard.slug}
+                  onChange={(event) =>
+                    setWizard(setSlug(wizard, event.target.value))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleNameNext();
+                    }
+                  }}
+                  placeholder={t("slugPlaceholder")}
+                  className="pl-7"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {availability === "taken"
+                  ? t("slugTaken")
+                  : availability === "unknown"
+                    ? t("slugChecking")
+                    : availability === "invalid" && wizard.slugDirty
+                      ? t("slugInvalid")
+                      : t("slugHelp")}
+              </p>
+            </div>
           </div>
         ) : null}
 
@@ -406,7 +494,8 @@ export function CreateChannelDialog({
                 variant="primary"
                 disabled={
                   isPending ||
-                  (wizard.step === "name" && !canAdvanceFromName(wizard))
+                  (wizard.step === "name" &&
+                    !canAdvanceFromName(wizard, availability))
                 }
                 onClick={wizard.step === "name" ? handleNameNext : handleCreate}
               >

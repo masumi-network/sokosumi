@@ -1,5 +1,8 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
-import { buildRoomQuoteSnippetParts } from "@sokosumi/utils";
+import {
+  buildRoomQuoteSnippetParts,
+  sanitizeChannelSlug,
+} from "@sokosumi/utils";
 
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
@@ -1346,15 +1349,18 @@ export function membershipAccessForUser(
 }
 
 export function slugifyRoomName(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return sanitizeChannelSlug(name) || "room";
+}
 
-  return slug || "room";
+export function requireSanitizedChannelSlug(raw: string | undefined): string {
+  if (raw === undefined) {
+    throw badRequest("Channel slug is required");
+  }
+  const slug = sanitizeChannelSlug(raw);
+  if (!slug) {
+    throw badRequest("Channel slug is invalid");
+  }
+  return slug;
 }
 
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
@@ -1406,42 +1412,6 @@ export function buildDirectRoomName(names: readonly string[]): string {
   }
 
   return `${cleanNames.slice(0, 3).join(", ")} and ${cleanNames.length - 3} more`;
-}
-
-export async function buildUniqueRoomSlug(
-  organizationId: string | null,
-  name: string,
-  createdByUserId: string,
-  tx: Prisma.TransactionClient,
-): Promise<string> {
-  const baseSlug = slugifyRoomName(name);
-  const existing = await tx.chatRoom.findMany({
-    where:
-      organizationId === null
-        ? {
-            organizationId: null,
-            createdByUserId,
-            slug: { startsWith: baseSlug },
-          }
-        : {
-            organizationId,
-            slug: { startsWith: baseSlug },
-          },
-    select: { slug: true },
-  });
-  const used = new Set(existing.map((room) => room.slug));
-  if (!used.has(baseSlug)) {
-    return baseSlug;
-  }
-
-  for (let suffix = 2; suffix < 1000; suffix += 1) {
-    const candidate = `${baseSlug}-${suffix}`;
-    if (!used.has(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw badRequest("Could not create a unique room slug");
 }
 
 /**

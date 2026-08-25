@@ -5417,7 +5417,11 @@ export const ChatRoomSchema = {
             example: 'Launch Room'
         },
         slug: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Channel slug unique among Channels in the organization. Null for Directs.',
             example: 'launch-room'
         },
         kind: {
@@ -5733,6 +5737,11 @@ export const CreateChatRoomRequestSchema = {
                     maxLength: 80,
                     example: 'Launch Room'
                 },
+                slug: {
+                    type: 'string',
+                    description: 'Required Channel slug. Core sanitizes with kebab rules and rejects missing or empty-after-sanitize values. Unique among Channels in the organization.',
+                    example: 'launch-room'
+                },
                 topic: {
                     type: 'string',
                     maxLength: 200,
@@ -5892,6 +5901,24 @@ export const DiscoverableChannelDiscoverabilitySchema = {
     ],
     description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.',
     example: 'public'
+} as const;
+
+export const ChannelSlugAvailabilitySchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'free',
+                'taken'
+            ],
+            description: 'Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.',
+            example: 'free'
+        }
+    },
+    required: [
+        'status'
+    ]
 } as const;
 
 export const GetChatUiMessagesResponseDataSchema = {
@@ -6056,6 +6083,11 @@ export const UpdateChatRoomRequestSchema = {
             minLength: 1,
             maxLength: 80,
             example: 'Launch Room'
+        },
+        slug: {
+            type: 'string',
+            description: 'Rejected. Channel slug is immutable after create.',
+            example: 'launch-room'
         },
         topic: {
             type: [

@@ -20,6 +20,7 @@ import type {
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsByIdThreadsData,
+  GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetCoworkersData,
@@ -150,6 +151,7 @@ import {
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
   getChatsRoomsByIdThreadsByParentMessageIdMessages as coreGetChatsRoomsByIdThreadsByParentMessageIdMessages,
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
+  getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -634,6 +636,21 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch discoverable chat rooms",
+    );
+  }
+
+  async function getChannelSlugAvailability(
+    query: NonNullable<GetChatsRoomsChannelSlugAvailabilityData["query"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsChannelSlugAvailability({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to check Channel slug availability",
     );
   }
 
@@ -4357,6 +4374,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
     getChatRooms,
+    getChannelSlugAvailability,
     getDiscoverableChatRooms,
     markChatRoomRead,
     markChatRoomThreadsRead,

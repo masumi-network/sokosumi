@@ -52,6 +52,7 @@ type ChannelDiscoverability = "public" | "private" | "external";
 
 interface CreateChannelInput {
   name: string;
+  slug: string;
   topic?: string;
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
@@ -116,6 +117,28 @@ async function invalidateSidebarChatList(): Promise<void> {
   });
 }
 
+export async function checkChannelSlugAvailabilityAction(
+  slug: string,
+): Promise<RoomActionResult<{ status: "free" | "taken" }>> {
+  const activeOrganization = await userService.getActiveOrganization();
+  if (!activeOrganization) {
+    return roomFail("Select an organization first.");
+  }
+
+  const cleanSlug = cleanString(slug);
+  if (!cleanSlug) {
+    return roomFail("Channel slug is required.");
+  }
+
+  try {
+    const availability =
+      await chatRoomService.getChannelSlugAvailability(cleanSlug);
+    return roomOk(availability);
+  } catch (error) {
+    return roomCatch(error, "Could not check Channel slug.");
+  }
+}
+
 export async function createChannelAction(
   input: CreateChannelInput,
 ): Promise<RoomActionResult<ChatRoom>> {
@@ -128,11 +151,16 @@ export async function createChannelAction(
   if (!name) {
     return roomFail("Channel name is required.");
   }
+  const slug = cleanString(input.slug);
+  if (!slug) {
+    return roomFail("Channel slug is required.");
+  }
 
   try {
     const room = await chatRoomService.createRoom({
       kind: "channel",
       name,
+      slug,
       topic: cleanString(input.topic),
       discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),

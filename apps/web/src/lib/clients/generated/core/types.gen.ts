@@ -1536,7 +1536,10 @@ export type ChatRoom = {
      */
     organizationName: string | null;
     name: string;
-    slug: string;
+    /**
+     * Channel slug unique among Channels in the organization. Null for Directs.
+     */
+    slug: string | null;
     kind: 'channel' | 'direct';
     /**
      * Deterministic key for direct rooms; null for normal rooms.
@@ -1650,6 +1653,10 @@ export type CreateChatRoomRequest = {
      */
     kind: 'channel';
     name: string;
+    /**
+     * Required Channel slug. Core sanitizes with kebab rules and rejects missing or empty-after-sanitize values. Unique among Channels in the organization.
+     */
+    slug?: string;
     topic?: string;
     /**
      * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join. `"external"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).
@@ -1704,6 +1711,13 @@ export const DiscoverableChannelDiscoverability = {
  */
 export type DiscoverableChannelDiscoverability = typeof DiscoverableChannelDiscoverability[keyof typeof DiscoverableChannelDiscoverability];
 
+export type ChannelSlugAvailability = {
+    /**
+     * Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.
+     */
+    status: 'free' | 'taken';
+};
+
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
 };
@@ -1738,6 +1752,10 @@ export type ChatUiMessage = {
 
 export type UpdateChatRoomRequest = {
     name?: string;
+    /**
+     * Rejected. Channel slug is immutable after create.
+     */
+    slug?: string;
     topic?: string | null;
     discoverability?: ChatRoomDiscoverability;
     /**
@@ -11009,7 +11027,7 @@ export type PostChatsRoomsErrors = {
         };
     };
     /**
-     * Room already exists
+     * This Channel slug is taken.
      */
     409: {
         error: string;
@@ -11169,6 +11187,115 @@ export type GetChatsRoomsDiscoverableResponses = {
 };
 
 export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
+
+export type GetChatsRoomsChannelSlugAvailabilityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Channel slug to check. Sanitized with the same kebab rules as create.
+         */
+        slug: string;
+    };
+    url: '/chats/rooms/channel-slug-availability';
+};
+
+export type GetChatsRoomsChannelSlugAvailabilityErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsChannelSlugAvailabilityError = GetChatsRoomsChannelSlugAvailabilityErrors[keyof GetChatsRoomsChannelSlugAvailabilityErrors];
+
+export type GetChatsRoomsChannelSlugAvailabilityResponses = {
+    /**
+     * Channel slug availability
+     */
+    200: {
+        data: ChannelSlugAvailability;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsChannelSlugAvailabilityResponse = GetChatsRoomsChannelSlugAvailabilityResponses[keyof GetChatsRoomsChannelSlugAvailabilityResponses];
 
 export type GetChatsRoomsByIdStreamMessagesData = {
     body?: never;

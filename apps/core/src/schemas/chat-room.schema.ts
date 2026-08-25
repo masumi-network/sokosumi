@@ -103,7 +103,11 @@ export const chatRoomSchema = z
       example: "Acme Corp",
     }),
     name: z.string().openapi({ example: "Launch Room" }),
-    slug: z.string().openapi({ example: "launch-room" }),
+    slug: z.string().nullable().openapi({
+      description:
+        "Channel slug unique among Channels in the organization. Null for Directs.",
+      example: "launch-room",
+    }),
     kind: z.enum(["channel", "direct"]).openapi({ example: "channel" }),
     directKey: z.string().nullable().openapi({
       description: "Deterministic key for direct rooms; null for normal rooms.",
@@ -181,6 +185,16 @@ const roomCoworkerIdsSchema = z
     example: ["cow_123"],
   });
 
+export const channelSlugAvailabilitySchema = z
+  .object({
+    status: z.enum(["free", "taken"]).openapi({
+      description:
+        "Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.",
+      example: "free",
+    }),
+  })
+  .openapi("ChannelSlugAvailability");
+
 export const chatRoomKindSchema = z
   .enum(["channel", "direct"])
   .openapi("ChatRoomKind");
@@ -198,6 +212,11 @@ export const createChatRoomRequestSchema = z
       }),
       name: z.string().trim().min(1).max(80).openapi({
         example: "Launch Room",
+      }),
+      slug: z.string().optional().openapi({
+        description:
+          "Required Channel slug. Core sanitizes with kebab rules and rejects missing or empty-after-sanitize values. Unique among Channels in the organization.",
+        example: "launch-room",
       }),
       topic: z.string().trim().max(200).optional().openapi({
         example: "Launch planning with design and AI research partners",
@@ -230,6 +249,10 @@ export const updateChatRoomRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional().openapi({
       example: "Launch Room",
+    }),
+    slug: z.string().optional().openapi({
+      description: "Rejected. Channel slug is immutable after create.",
+      example: "launch-room",
     }),
     topic: z.string().trim().max(200).nullable().optional().openapi({
       example: "Launch planning with design and AI research partners",

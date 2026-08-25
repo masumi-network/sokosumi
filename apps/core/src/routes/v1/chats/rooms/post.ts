@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
@@ -27,7 +28,6 @@ import {
 import {
   buildDirectParticipantRoomKey,
   buildDirectRoomName,
-  buildUniqueRoomSlug,
   chatRoomInclude,
   filterOrganizationUserIds,
   findLiveDirectByParticipantKey,
@@ -36,6 +36,7 @@ import {
   mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
   requireActiveOrganizationId,
+  requireSanitizedChannelSlug,
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
   validateChatCoworkerIds,
@@ -77,7 +78,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Organization not found"),
-      409: jsonErrorResponse("Room already exists"),
+      409: jsonErrorResponse("Conflict"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -151,12 +152,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId,
           tx,
         );
-        const slug = await buildUniqueRoomSlug(
-          organizationId,
-          body.name,
-          userContext.userId,
-          tx,
-        );
+        const slug = requireSanitizedChannelSlug(body.slug);
 
         return tx.chatRoom.create({
           data: {
@@ -191,7 +187,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     } catch (error) {
       if (isSlugUniqueConstraintError(error)) {
-        throw conflict("Room already exists");
+        throw conflict("This Channel slug is taken.", {
+          kind: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+        });
       }
       throw error;
     }
@@ -543,21 +541,11 @@ async function createOrGetDirectRoom(params: {
         throw conflict("Direct room already exists");
       }
 
-      // Slug-only race: retry with a freshly reserved slug. Never report this
-      // as a direct-room conflict — the participant set may still be free.
-      if (isSlugUniqueConstraintError(error) && attempt < maxAttempts - 1) {
-        continue;
-      }
-
-      if (isSlugUniqueConstraintError(error)) {
-        throw conflict("Room already exists");
-      }
-
       throw error;
     }
   }
 
-  throw conflict("Room already exists");
+  throw conflict("Direct room already exists");
 }
 
 async function createDirectRoomRecord(params: {
@@ -604,19 +592,12 @@ async function createDirectRoomRecord(params: {
       return coworkersById.get(coworkerId)?.name || coworkerId;
     }),
   ]);
-  const slug = await buildUniqueRoomSlug(
-    organizationId,
-    directName,
-    currentUserId,
-    tx,
-  );
-
   const room = await tx.chatRoom.create({
     data: {
       organizationId,
       createdByUserId: currentUserId,
       name: directName,
-      slug,
+      slug: null,
       kind: "direct",
       directKey,
       userMembers: {

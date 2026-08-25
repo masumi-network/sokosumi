@@ -4,18 +4,26 @@ import {
   backToName,
   CHANNEL_NAME_MAX,
   canAdvanceFromName,
+  createChannelSubmitFields,
   createInitialWizard,
   remainingNameChars,
   sanitizeChannelNameInput,
   setAddPeopleMode,
   setDiscoverability,
+  setName,
+  setSlug,
   setSpecificMembers,
   toAddPeople,
 } from "../create-channel-wizard";
 
 describe("create-channel-wizard", () => {
-  it("createInitialWizard starts on name with empty string", () => {
-    expect(createInitialWizard()).toEqual({ step: "name", name: "" });
+  it("createInitialWizard starts on name with empty slug following the name", () => {
+    expect(createInitialWizard()).toEqual({
+      step: "name",
+      name: "",
+      slug: "",
+      slugDirty: false,
+    });
   });
 
   it("sanitizeChannelNameInput strips leading hashes and clamps length", () => {
@@ -26,37 +34,169 @@ describe("create-channel-wizard", () => {
     ).toBe("a".repeat(CHANNEL_NAME_MAX));
   });
 
-  it("canAdvanceFromName requires trimmed length 1..80", () => {
-    expect(canAdvanceFromName({ step: "name", name: "" })).toBe(false);
-    expect(canAdvanceFromName({ step: "name", name: "   " })).toBe(false);
-    expect(canAdvanceFromName({ step: "name", name: "ok" })).toBe(true);
+  it("canAdvanceFromName requires a name, a sanitized slug, and free availability", () => {
     expect(
-      canAdvanceFromName({ step: "name", name: "a".repeat(CHANNEL_NAME_MAX) }),
+      canAdvanceFromName(
+        { step: "name", name: "", slug: "", slugDirty: false },
+        "free",
+      ),
+    ).toBe(false);
+    expect(
+      canAdvanceFromName(
+        { step: "name", name: "   ", slug: "", slugDirty: false },
+        "free",
+      ),
+    ).toBe(false);
+    expect(
+      canAdvanceFromName(
+        { step: "name", name: "ok", slug: "ok", slugDirty: false },
+        "free",
+      ),
     ).toBe(true);
     expect(
-      canAdvanceFromName({
-        step: "visibility",
-        name: "ok",
-        discoverability: "public",
-      }),
+      canAdvanceFromName(
+        { step: "name", name: "ok", slug: "ok", slugDirty: false },
+        "taken",
+      ),
+    ).toBe(false);
+    expect(
+      canAdvanceFromName(
+        { step: "name", name: "ok", slug: "ok", slugDirty: false },
+        "unknown",
+      ),
+    ).toBe(false);
+    expect(
+      canAdvanceFromName(
+        { step: "name", name: "ok", slug: "", slugDirty: true },
+        "invalid",
+      ),
+    ).toBe(false);
+    expect(
+      canAdvanceFromName(
+        {
+          step: "name",
+          name: "a".repeat(CHANNEL_NAME_MAX),
+          slug: "a".repeat(CHANNEL_NAME_MAX),
+          slugDirty: false,
+        },
+        "free",
+      ),
+    ).toBe(true);
+    expect(
+      canAdvanceFromName(
+        {
+          step: "visibility",
+          name: "ok",
+          slug: "ok",
+          slugDirty: false,
+          discoverability: "public",
+        },
+        "free",
+      ),
     ).toBe(false);
   });
 
-  it("advanceNameToVisibility trims name and defaults to public", () => {
+  it("prefills slug from the name and follows until the slug is edited", () => {
+    const named = setName(createInitialWizard(), "Team Soko");
+    expect(named).toEqual({
+      step: "name",
+      name: "Team Soko",
+      slug: "team-soko",
+      slugDirty: false,
+    });
+    expect(setName(named, "Engineering")).toEqual({
+      step: "name",
+      name: "Engineering",
+      slug: "engineering",
+      slugDirty: false,
+    });
+  });
+
+  it("stops following the name after the slug is edited", () => {
+    const named = setName(createInitialWizard(), "Team Soko");
+    const custom = setSlug(named, "soko");
+    expect(custom).toEqual({
+      step: "name",
+      name: "Team Soko",
+      slug: "soko",
+      slugDirty: true,
+    });
+    expect(setName(custom, "Engineering")).toEqual({
+      step: "name",
+      name: "Engineering",
+      slug: "soko",
+      slugDirty: true,
+    });
+  });
+
+  it("live-sanitizes typed slug keystrokes", () => {
+    const named = setName(createInitialWizard(), "Engineering");
+    expect(setSlug(named, " Team Soko ")).toEqual({
+      step: "name",
+      name: "Engineering",
+      slug: "team-soko",
+      slugDirty: true,
+    });
+  });
+
+  it("cannot continue when the slug is empty after sanitize", () => {
+    const wizard = setSlug(setName(createInitialWizard(), "Team Soko"), "---");
+    expect(wizard).toMatchObject({ step: "name", slug: "" });
+    expect(canAdvanceFromName(wizard, "invalid")).toBe(false);
+    expect(advanceNameToVisibility(wizard, "invalid")).toBeNull();
+  });
+
+  it("advanceNameToVisibility trims name, keeps slug, and defaults to public", () => {
     expect(
-      advanceNameToVisibility({ step: "name", name: "  launch  " }),
+      advanceNameToVisibility(
+        { step: "name", name: "  launch  ", slug: "launch", slugDirty: false },
+        "free",
+      ),
     ).toEqual({
       step: "visibility",
       name: "launch",
+      slug: "launch",
+      slugDirty: false,
       discoverability: "public",
     });
-    expect(advanceNameToVisibility({ step: "name", name: "  " })).toBeNull();
+    expect(
+      advanceNameToVisibility(
+        { step: "name", name: "  ", slug: "", slugDirty: false },
+        "free",
+      ),
+    ).toBeNull();
+  });
+
+  it("createChannelSubmitFields sends the visible slug", () => {
+    expect(
+      createChannelSubmitFields({
+        step: "visibility",
+        name: "Team Soko",
+        slug: "soko",
+        slugDirty: true,
+        discoverability: "private",
+      }),
+    ).toEqual({
+      name: "Team Soko",
+      slug: "soko",
+      discoverability: "private",
+    });
+    expect(
+      createChannelSubmitFields({
+        step: "name",
+        name: "Team Soko",
+        slug: "soko",
+        slugDirty: true,
+      }),
+    ).toBeNull();
   });
 
   it("setDiscoverability and backToName only apply on visibility", () => {
     const visibility = {
       step: "visibility" as const,
       name: "launch",
+      slug: "launch",
+      slugDirty: false,
       discoverability: "public" as const,
     };
     expect(setDiscoverability(visibility, "private")).toEqual({
@@ -67,7 +207,12 @@ describe("create-channel-wizard", () => {
       ...visibility,
       discoverability: "external",
     });
-    expect(backToName(visibility)).toEqual({ step: "name", name: "launch" });
+    expect(backToName(visibility)).toEqual({
+      step: "name",
+      name: "launch",
+      slug: "launch",
+      slugDirty: false,
+    });
 
     const nameStep = createInitialWizard();
     expect(setDiscoverability(nameStep, "private")).toBe(nameStep);
@@ -79,6 +224,8 @@ describe("create-channel-wizard", () => {
     const visibility = {
       step: "visibility" as const,
       name: "partners",
+      slug: "partners",
+      slugDirty: false,
       discoverability: "external" as const,
     };
     expect(visibility.discoverability).toBe("external");
@@ -95,6 +242,8 @@ describe("create-channel-wizard", () => {
     const visibility = {
       step: "visibility" as const,
       name: "launch",
+      slug: "launch",
+      slugDirty: false,
       discoverability: "public" as const,
     };
     expect(
@@ -114,6 +263,8 @@ describe("create-channel-wizard", () => {
       {
         step: "visibility",
         name: "launch",
+        slug: "launch",
+        slugDirty: false,
         discoverability: "public",
       },
       { id: "room-1", name: "launch" },
