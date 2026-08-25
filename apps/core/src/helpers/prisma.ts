@@ -63,8 +63,12 @@ export function isPrismaTransactionConflict(error: unknown): boolean {
         ? (error as { name: string }).name
         : "";
 
+  // Driver adapters (Neon) surface serialization failures either as a bare
+  // DriverAdapterError or wrapped in a PrismaClientKnownRequestError whose
+  // message embeds it; both are the same retryable condition.
   return (
-    name === "DriverAdapterError" && /transactionwriteconflict/i.test(message)
+    /transactionwriteconflict/i.test(message) &&
+    (name === "DriverAdapterError" || /driverAdapterError/i.test(message))
   );
 }
 
