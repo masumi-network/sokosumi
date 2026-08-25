@@ -11,9 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import { SokoBotAutonomyLevel } from "@/lib/clients/generated/core";
+import {
+  SokoBotAutonomyLevel,
+  type SokoBotAvatar,
+} from "@/lib/clients/generated/core";
 
 import { AutonomyRadioGroup } from "./autonomy-radio-group.client";
+import { AvatarPicker } from "./avatar-picker.client";
 
 /**
  * First visit: the bot's orb, what it does, a name, and an autonomy level.
@@ -28,6 +32,7 @@ export function CreateState({ userId }: { userId: string }) {
   const [autonomyLevel, setAutonomyLevel] = useState<SokoBotAutonomyLevel>(
     SokoBotAutonomyLevel.MEDIUM,
   );
+  const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -36,7 +41,7 @@ export function CreateState({ userId }: { userId: string }) {
     if (!trimmed) return;
     startTransition(async () => {
       const result = await createSokoBotAction({
-        input: { name: trimmed, autonomyLevel },
+        input: { name: trimmed, autonomyLevel, avatarId: avatar?.id ?? null },
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("error"));
@@ -49,14 +54,22 @@ export function CreateState({ userId }: { userId: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-12 md:py-20">
-      <AuroraOrb
-        seed={defaultOrbSeed(userId)}
-        size={160}
-        animate
-        expression="happy"
-        alt={tChat("avatarAlt")}
-        className="ring-border/40 size-24 ring-1"
-      />
+      {avatar ? (
+        <img
+          src={avatar.imageUrl}
+          alt={tChat("avatarAlt")}
+          className="ring-border/40 size-24 rounded-full object-cover ring-1"
+        />
+      ) : (
+        <AuroraOrb
+          seed={defaultOrbSeed(userId)}
+          size={160}
+          animate
+          expression="happy"
+          alt={tChat("avatarAlt")}
+          className="ring-border/40 size-24 ring-1"
+        />
+      )}
       <h1 className="text-foreground mt-6 text-center text-2xl font-semibold tracking-tight text-balance md:text-3xl">
         {t("title")}
       </h1>
@@ -77,6 +90,11 @@ export function CreateState({ userId }: { userId: string }) {
             autoComplete="off"
             autoFocus
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>{t("avatarLabel")}</Label>
+          <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
         </div>
 
         <AutonomyRadioGroup

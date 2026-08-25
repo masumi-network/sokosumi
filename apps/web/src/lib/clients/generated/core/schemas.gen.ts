@@ -1886,6 +1886,60 @@ export const SokoBotTurnSchema = {
         contextSummary: {
             $ref: '#/components/schemas/SokoBotContextSummary'
         },
+        requestedBy: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'image'
+            ]
+        },
+        chatRoom: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                kind: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -2172,6 +2226,12 @@ export const SokoBotSchema = {
             items: {
                 $ref: '#/components/schemas/SokoBotSchedule'
             }
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         coworker: {
             type: [
@@ -14174,6 +14234,13 @@ export const CreateSokoBotRequestSchema = {
             ],
             maxLength: 200
         },
+        avatarId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
         personalityTone: {
             type: [
                 'integer',
@@ -14348,6 +14415,44 @@ export const ResolveSokoBotDecisionRequestSchema = {
         'resolution'
     ],
     additionalProperties: false
+} as const;
+
+export const SokoBotAvatarSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        imageUrl: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        background: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'imageUrl',
+        'subject',
+        'background'
+    ]
+} as const;
+
+export const ClaimSokoBotAvatarRequestSchema = {
+    type: 'object',
+    properties: {
+        avatarId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'avatarId'
+    ]
 } as const;
 
 export const SokoBotRuntimeErrorSchema = {

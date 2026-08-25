@@ -73,6 +73,7 @@ model User {
   coworkerUsages          CoworkerUsage[]
   orchestratorUsages      OrchestratorUsage[]
   sokoBotTurns            SokoBotTurn[]
+  sokoBotRequestedTurns   SokoBotTurn[] @relation("SokoBotTurnRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
   sokoBotLegacyMessages   SokoBotLegacyMessage[]
@@ -1677,6 +1678,10 @@ model SokoBot {
   /// Chat-facing coworker row for this bot (created when the bot is created).
   coworker Coworker?
 
+  /// Picked mascot image (see SokoBotAvatar); null → generative orb.
+  avatarImageUrl String?
+  avatar         SokoBotAvatar?
+
   /// User-chosen display name for their personal assistant. Null until named.
   name String?
 
@@ -1732,6 +1737,28 @@ model SokoBot {
 
 /// Immutable copy of external Hermes chat history made during first-party
 /// Soko Bot cutover. New messages are represented by SokoBotTurn.
+/// Pool of pre-generated mascot images. Each row is a unique (subject,
+/// background, seed) draw; a bot claims at most one at a time.
+model SokoBotAvatar {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  subject    String
+  background String
+  seed       Int
+  model      String
+  imageUrl   String
+  sourceUrl  String?
+
+  claimedBySokoBotId String?  @unique @db.Uuid
+  claimedBySokoBot   SokoBot? @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
+  claimedAt          DateTime?
+
+  @@unique([subject, background, seed])
+  @@index([claimedAt])
+  @@map("soko_bot_avatar")
+}
+
 model SokoBotLegacyMessage {
   id        String   @id @db.Uuid
   createdAt DateTime
@@ -1803,6 +1830,10 @@ model SokoBotTurn {
   durationMs              Int?
   errorKind               String?
   errorDetail             String?
+
+  /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
+  requestedByUserId String?
+  requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   /// Chat-room mention that started this turn (null for the assistant page and schedules).
   chatMentionId         String?          @unique @db.Uuid

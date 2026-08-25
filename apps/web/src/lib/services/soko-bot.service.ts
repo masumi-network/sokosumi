@@ -7,6 +7,7 @@ import type {
   ResolveSokoBotDecisionRequest,
   SokoBot,
   SokoBotAutonomyLevel,
+  SokoBotAvatar,
   SokoBotTurn,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
@@ -56,6 +57,22 @@ export const sokoBotService = {
 
   async archive(): Promise<void> {
     await coreClient.archiveMySokoBot();
+  },
+
+  async listAvatars(
+    take: number,
+    excludeIds: string[],
+  ): Promise<SokoBotAvatar[]> {
+    const response = await coreClient.listSokoBotAvatars({
+      take,
+      exclude: excludeIds.length > 0 ? excludeIds.join(",") : undefined,
+    });
+    return response.data;
+  },
+
+  async claimAvatar(avatarId: string): Promise<SokoBot> {
+    const response = await coreClient.claimMySokoBotAvatar({ avatarId });
+    return response.data;
   },
 
   /** Bot + recent turns as the JSON-safe chat projection; `null` without a bot. */

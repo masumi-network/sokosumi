@@ -266,18 +266,36 @@ export function TurnRows({
 
   return (
     <>
-      {kind === "scheduled" ? (
-        <div className="flex w-full items-start gap-3 px-4 pt-3">
-          <div className="size-8 shrink-0" aria-hidden />
-          <KindChip>{t("kind.scheduled")}</KindChip>
+      {kind === "scheduled" || turn.requestedBy || turn.chatRoom ? (
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 px-4 pt-3">
+          {kind === "scheduled" ? (
+            <KindChip>{t("kind.scheduled")}</KindChip>
+          ) : null}
+          {turn.requestedBy ? (
+            <KindChip>
+              {t("kind.askedBy", {
+                name: turn.requestedBy.name ?? t("kind.teammate"),
+              })}
+            </KindChip>
+          ) : null}
+          {turn.chatRoom ? (
+            <Link
+              href={`/chat/rooms/${encodeURIComponent(turn.chatRoom.id)}`}
+              className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
+            >
+              {turn.chatRoom.kind === "direct"
+                ? t("kind.inDirect")
+                : t("kind.inRoom", { room: turn.chatRoom.name ?? "" })}
+            </Link>
+          ) : null}
         </div>
       ) : null}
       <UserRow
         content={turn.userMessage}
         createdAt={turn.createdAt}
-        userImageUrl={userImageUrl}
-        userName={userName}
-        muted={kind === "scheduled"}
+        userImageUrl={turn.requestedBy ? turn.requestedBy.image : userImageUrl}
+        userName={turn.requestedBy ? turn.requestedBy.name : userName}
+        muted={kind === "scheduled" || turn.requestedBy !== null}
       />
       {active ? (
         <TurnProgress

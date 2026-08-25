@@ -1786,7 +1786,9 @@ export function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            {sender.kind === "coworker" && sender.sokoBotAvatarSeed ? (
+            {sender.kind === "coworker" &&
+            sender.sokoBotAvatarSeed &&
+            !sender.image ? (
               <AuroraOrb
                 seed={sender.sokoBotAvatarSeed}
                 size={64}

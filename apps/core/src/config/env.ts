@@ -89,6 +89,8 @@ const baseEnvSchema = z.object({
 
   // Project memory (Vercel AI Gateway, Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  FAL_KEY: z.string().min(1).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")

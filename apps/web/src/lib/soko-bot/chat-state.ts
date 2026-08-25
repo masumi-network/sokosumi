@@ -92,6 +92,10 @@ export interface ChatTurn {
   events: ChatTurnEvent[];
   delegations: ChatDelegation[];
   decisions: ChatDecision[];
+  /** Teammate who asked in chat; null when the owner asked. */
+  requestedBy: { id: string; name: string | null; image: string | null } | null;
+  /** Room a chat-started turn came from. */
+  chatRoom: { id: string; name: string | null; kind: string } | null;
   /** Client-only: sent but Core has not echoed it back yet. */
   optimistic?: boolean;
 }
@@ -146,6 +150,8 @@ export interface ChatBot {
   userId: string;
   name: string | null;
   avatarSeed: string | null;
+  /** Picked mascot image; null → generative orb. */
+  avatarImageUrl: string | null;
   /** Chat coworker row id; open a direct with it to talk to the bot. */
   coworkerId: string | null;
   autonomyLevel: SokoBotAutonomyLevel;
@@ -241,6 +247,8 @@ export function toChatTurn(turn: SokoBotTurn): ChatTurn {
       .sort((a, b) => a.sequence - b.sequence),
     delegations: (turn.delegations ?? []).map(toDelegation),
     decisions: (turn.pendingDecisions ?? []).map(toDecision),
+    requestedBy: turn.requestedBy ?? null,
+    chatRoom: turn.chatRoom ?? null,
   };
 }
 
@@ -298,6 +306,7 @@ export function toChatBot(bot: SokoBot): ChatBot {
     userId: bot.userId,
     name: bot.name,
     avatarSeed: bot.avatarSeed,
+    avatarImageUrl: bot.avatarImageUrl ?? null,
     coworkerId: bot.coworker?.id ?? null,
     autonomyLevel: bot.autonomyLevel,
     status: bot.status,

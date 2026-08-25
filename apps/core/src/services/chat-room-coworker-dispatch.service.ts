@@ -980,8 +980,12 @@ async function runSokoBotMentionDispatch(params: {
     await failWithShell("This Soko Bot is no longer active");
     return;
   }
-  if (bot.userId !== userId) {
-    await failWithShell("Only the owner can task their Soko Bot");
+  // Teammates may talk to the bot in organization rooms; the turn runs as
+  // the owner (their bot, their credits) with a read-only ceiling, and the
+  // console shows who asked. Personal rooms stay owner-only.
+  const isOwner = bot.userId === userId;
+  if (!isOwner && !mention.message.room.organizationId) {
+    await failWithShell("Only the owner can message this assistant here");
     return;
   }
   const membership = await prisma.chatRoomCoworkerMember.findUnique({
@@ -1046,12 +1050,18 @@ async function runSokoBotMentionDispatch(params: {
 
   try {
     const result = await sokoBotControlPlane.startTurn({
-      userId,
+      userId: bot.userId,
       workspaceId,
       clientTurnId: `chat:${mentionId}`,
-      message,
+      message: isOwner
+        ? message
+        : `${mention.message.senderUser?.name ?? "A teammate"} (a teammate, not your owner) asked:\n${message}`,
       source: "CHAT",
-      chat: { mentionId, responseMessageId: placeholderId },
+      chat: {
+        mentionId,
+        responseMessageId: placeholderId,
+        requestedByUserId: isOwner ? null : userId,
+      },
     });
     if (
       result.reconciliationLeaseToken &&

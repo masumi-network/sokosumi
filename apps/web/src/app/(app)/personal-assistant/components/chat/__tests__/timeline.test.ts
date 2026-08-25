@@ -31,6 +31,7 @@ function event(
     toolStatus: null,
     durationMs: null,
     createdAt: new Date(2026, 0, 1, 0, 0, sequence).toISOString(),
+    payload: null,
   };
 }
 
@@ -51,6 +52,8 @@ function turn(overrides: Partial<ChatTurn> = {}): ChatTurn {
     events: [],
     delegations: [],
     decisions: [],
+    requestedBy: null,
+    chatRoom: null,
     ...overrides,
   };
 }
@@ -78,6 +81,7 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       userId: "user",
       name: "Atlas",
       avatarSeed: null,
+      avatarImageUrl: null,
       coworkerId: null,
       autonomyLevel: "MEDIUM",
       status: "IDLE",

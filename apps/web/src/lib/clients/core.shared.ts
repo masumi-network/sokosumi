@@ -90,6 +90,7 @@ import {
   assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
+  claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createAdminVendor as coreCreateAdminVendor,
@@ -224,6 +225,7 @@ import {
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
   listMySokoBotTurns as coreListMySokoBotTurns,
   listMyVendorMemberships as coreListMyVendorMemberships,
+  listSokoBotAvatars as coreListSokoBotAvatars,
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
@@ -3582,6 +3584,25 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listSokoBotAvatars(query?: {
+    take?: number;
+    exclude?: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListSokoBotAvatars({ client, query, cache: "no-store" }),
+      "Failed to fetch Soko Bot avatars",
+    );
+  }
+
+  async function claimMySokoBotAvatar(body: { avatarId: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreClaimMySokoBotAvatar({ client, body }),
+      "Failed to update Soko Bot avatar",
+    );
+  }
+
   async function listMySokoBotTurns(query?: {
     cursor?: string;
     limit?: number;
@@ -4340,6 +4361,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMySokoBot,
     createMySokoBot,
     archiveMySokoBot,
+    listSokoBotAvatars,
+    claimMySokoBotAvatar,
     listMySokoBotTurns,
     getMySokoBotTurn,
     startMySokoBotTurn,

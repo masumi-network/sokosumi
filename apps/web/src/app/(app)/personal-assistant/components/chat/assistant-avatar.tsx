@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 
 /** The bot's orb seed: its avatar in every assistant row and the header. */
 export const AssistantSeedContext = createContext<string>("soko-bot");
+/** Picked mascot image; when set it replaces the orb everywhere. */
+export const AssistantImageContext = createContext<string | null>(null);
 
 export function AssistantAvatar({
   size = "sm",
@@ -25,6 +27,20 @@ export function AssistantAvatar({
 }) {
   const t = useTranslations("App.SokoBot.Chat");
   const seed = useContext(AssistantSeedContext);
+  const imageUrl = useContext(AssistantImageContext);
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={t("avatarAlt")}
+        className={cn(
+          "ring-border/40 shrink-0 rounded-full object-cover ring-1",
+          size === "lg" ? "size-20" : "size-8",
+          className,
+        )}
+      />
+    );
+  }
   return (
     <AuroraOrb
       seed={seed}

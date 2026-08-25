@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { getFirstName } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
@@ -54,8 +55,15 @@ export async function ensureSokoBotCoworker(
 ): Promise<{ id: string; slug: string }> {
   const bot = await tx.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
-    select: { id: true, name: true, archivedAt: true },
+    select: {
+      id: true,
+      name: true,
+      archivedAt: true,
+      avatarImageUrl: true,
+      user: { select: { name: true } },
+    },
   });
+  const ownerFirstName = getFirstName(bot.user.name) ?? null;
   const vendor = await tx.vendor.upsert({
     where: { slug: SOKOSUMI_VENDOR_SLUG },
     create: { slug: SOKOSUMI_VENDOR_SLUG, name: "Sokosumi" },
@@ -64,7 +72,11 @@ export async function ensureSokoBotCoworker(
   });
   const data = {
     name: bot.name?.trim() || SOKO_BOT_DEFAULT_NAME,
-    caption: "Personal assistant",
+    // Teammates can talk to it, so the roster says whose assistant it is.
+    caption: ownerFirstName
+      ? `${ownerFirstName}'s personal assistant`
+      : "Personal assistant",
+    image: bot.avatarImageUrl,
     description:
       "Your personal project manager: delegates Tasks to Coworkers and hires Agents.",
     baseURL: `soko-bot://${bot.id}`,

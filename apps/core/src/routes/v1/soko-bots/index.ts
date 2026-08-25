@@ -23,9 +23,12 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
+  claimSokoBotAvatarRequestSchema,
   createSokoBotRequestSchema,
   createSokoBotScheduleRequestSchema,
+  listSokoBotAvatarsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
+  sokoBotAvatarSchema,
   sokoBotMemorySchema,
   sokoBotPendingDecisionSchema,
   sokoBotScheduleSchema,
@@ -36,6 +39,10 @@ import {
   startSokoBotTurnResponseSchema,
   updateSokoBotScheduleRequestSchema,
 } from "@/schemas/soko-bot.schema";
+import {
+  claimAvatar,
+  listAvailableAvatars,
+} from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
   SokoBotBusyError,
@@ -73,6 +80,16 @@ function mapBot(
     coworker: bot.coworker ?? null,
     memoryRevisions: undefined,
   };
+}
+
+type TurnWithAttribution = Awaited<
+  ReturnType<typeof sokoBotControlPlane.listTurns>
+>["turns"][number];
+
+/** Flatten the mention → message → room chain into `chatRoom`. */
+function mapTurn<T extends Partial<TurnWithAttribution>>(turn: T) {
+  const room = turn.chatMention?.message?.room ?? null;
+  return { ...turn, chatMention: undefined, chatRoom: room };
 }
 
 function mapControlPlaneError(error: unknown): never {
@@ -262,7 +279,7 @@ app.openapi(listTurnsRoute, async (c) => {
   );
   return ok(
     c,
-    z.array(sokoBotTurnSchema).parse(turns),
+    z.array(sokoBotTurnSchema).parse(turns.map(mapTurn)),
     createPaginationMeta(turns, count, take, hasMore, cursor),
   );
 });
@@ -295,7 +312,7 @@ app.openapi(getTurnRoute, async (c) => {
       auth.userId,
       c.req.valid("param").turnId,
     );
-    return ok(c, sokoBotTurnSchema.parse(turn));
+    return ok(c, sokoBotTurnSchema.parse(mapTurn(turn)));
   } catch (error) {
     mapControlPlaneError(error);
   }
@@ -508,6 +525,63 @@ app.openapi(resolveDecisionRoute, async (c) => {
   } catch (error) {
     mapControlPlaneError(error);
   }
+});
+
+const listAvatarsRoute = createRoute({
+  method: "get",
+  path: "/avatars",
+  operationId: "listSokoBotAvatars",
+  tags: ["Soko Bots"],
+  request: { query: listSokoBotAvatarsQuerySchema },
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(sokoBotAvatarSchema),
+      "Unclaimed mascot avatars to pick from",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+  },
+});
+
+app.openapi(listAvatarsRoute, async (c) => {
+  requireUserAuthContext(c.var.authContext);
+  const { take, exclude } = c.req.valid("query");
+  const excludeIds = exclude
+    ? exclude
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : [];
+  const avatars = await listAvailableAvatars(take, { excludeIds });
+  return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
+});
+
+const claimAvatarRoute = createRoute({
+  method: "post",
+  path: "/me/avatar",
+  operationId: "claimMySokoBotAvatar",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: claimSokoBotAvatarRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotSchema, "Bot with the new avatar"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(claimAvatarRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const bot = await sokoBotControlPlane.getForUser(auth.userId);
+  if (!bot) throw notFound("Create a Soko Bot first");
+  await claimAvatar(bot.id, c.req.valid("json").avatarId);
+  const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
+  return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
 });
 
 export default app;

@@ -5207,7 +5207,8 @@
         "submit": "Create Soko Bot",
         "submitting": "Creating…",
         "created": "Soko Bot created.",
-        "error": "Could not create the Soko Bot."
+        "error": "Could not create the Soko Bot.",
+        "avatarLabel": "Picture"
       },
       "Autonomy": {
         "label": "Autonomy",
@@ -5298,7 +5299,11 @@
         "stillWorkingLong": "Taking longer than usual. Coordinating work can take a minute.",
         "cancelling": "Stopping…",
         "kind": {
-          "scheduled": "Scheduled"
+          "scheduled": "Scheduled",
+          "askedBy": "Asked by {name}",
+          "teammate": "a teammate",
+          "inDirect": "in your direct chat",
+          "inRoom": "in #{room}"
         },
         "thinkingMessages": {
           "0": "Thinking",
@@ -5437,6 +5442,18 @@
         "activityTitle": "Recent activity",
         "activityDescription": "The last turns from chat and schedules, with what they did.",
         "activityEmpty": "No turns yet. Open the chat and ask for something."
+      },
+      "Avatar": {
+        "title": "Picture",
+        "description": "A unique mascot from the collection. No two assistants share one.",
+        "save": "Use this picture",
+        "saving": "Saving…",
+        "saved": "Picture updated.",
+        "saveError": "Could not update the picture.",
+        "current": "Current picture",
+        "hint": "Pick one, or ask for other options.",
+        "showOthers": "Show others",
+        "loadError": "Could not load pictures."
       }
     }
   },

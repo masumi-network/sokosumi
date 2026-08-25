@@ -5207,7 +5207,8 @@
         "submit": "Soko Bot erstellen",
         "submitting": "Wird erstellt…",
         "created": "Soko Bot erstellt.",
-        "error": "Der Soko Bot konnte nicht erstellt werden."
+        "error": "Der Soko Bot konnte nicht erstellt werden.",
+        "avatarLabel": "Bild"
       },
       "Autonomy": {
         "label": "Autonomie",
@@ -5298,7 +5299,11 @@
         "stillWorkingLong": "Dauert länger als üblich. Arbeit zu koordinieren kann eine Minute brauchen.",
         "cancelling": "Wird gestoppt…",
         "kind": {
-          "scheduled": "Geplant"
+          "scheduled": "Geplant",
+          "askedBy": "Gefragt von {name}",
+          "teammate": "einem Teammitglied",
+          "inDirect": "im Direktchat",
+          "inRoom": "in #{room}"
         },
         "thinkingMessages": {
           "0": "Denkt nach",
@@ -5437,6 +5442,18 @@
         "activityTitle": "Letzte Aktivität",
         "activityDescription": "Die letzten Durchläufe aus Chat und Zeitplänen, mit dem, was sie getan haben.",
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas."
+      },
+      "Avatar": {
+        "title": "Bild",
+        "description": "Ein einzigartiges Maskottchen aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
+        "save": "Dieses Bild verwenden",
+        "saving": "Wird gespeichert…",
+        "saved": "Bild aktualisiert.",
+        "saveError": "Das Bild konnte nicht aktualisiert werden.",
+        "current": "Aktuelles Bild",
+        "hint": "Wähle eines oder lass dir andere zeigen.",
+        "showOthers": "Andere zeigen",
+        "loadError": "Bilder konnten nicht geladen werden."
       }
     }
   },

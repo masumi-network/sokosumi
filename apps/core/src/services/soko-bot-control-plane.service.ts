@@ -40,6 +40,7 @@ import {
   getSokoBotTokenService,
 } from "@/lib/soko-bot/factory";
 import type { SokoBotTokenService } from "@/lib/soko-bot/request-token";
+import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
@@ -94,6 +95,7 @@ export interface CreateSokoBotInput {
   userId: string;
   name: string;
   avatarSeed?: string | null;
+  avatarId?: string | null;
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
@@ -107,7 +109,12 @@ export interface StartSokoBotTurnInput {
   message: string;
   source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY";
   /** Set when a chat-room mention started the turn; the reply lands there. */
-  chat?: { mentionId: string; responseMessageId: string };
+  chat?: {
+    mentionId: string;
+    responseMessageId: string;
+    /** Teammate who asked; turns they trigger are read-only. */
+    requestedByUserId?: string | null;
+  };
   scheduleReservation?: {
     runId: string;
     attempt: number;
@@ -491,6 +498,18 @@ function safeEventProjection(type: string, data: Record<string, unknown>) {
   }
   return { summary: type.replaceAll(".", " "), payload: undefined };
 }
+
+/** Who asked and where, for chat-started turns (console attribution). */
+const TURN_CHAT_ATTRIBUTION_INCLUDE = {
+  requestedBy: { select: { id: true, name: true, image: true } },
+  chatMention: {
+    select: {
+      message: {
+        select: { room: { select: { id: true, name: true, kind: true } } },
+      },
+    },
+  },
+} as const;
 
 export class SokoBotControlPlane {
   constructor(
@@ -1012,6 +1031,7 @@ export class SokoBotControlPlane {
           });
         }
         await ensureSokoBotCoworker(updated.id, tx);
+        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1038,6 +1058,7 @@ export class SokoBotControlPlane {
         },
       });
       await ensureSokoBotCoworker(bot.id, tx);
+      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
   }
@@ -1087,6 +1108,7 @@ export class SokoBotControlPlane {
         ? { cursor: { id: options.cursor }, skip: 1 }
         : undefined),
       include: {
+        ...TURN_CHAT_ATTRIBUTION_INCLUDE,
         events: { orderBy: { sequence: "asc" } },
         delegations: true,
         pendingDecisions: {
@@ -1121,6 +1143,7 @@ export class SokoBotControlPlane {
         },
         toolCalls: { orderBy: { createdAt: "asc" } },
         contextSnapshot: { select: { packet: true } },
+        ...TURN_CHAT_ATTRIBUTION_INCLUDE,
       },
     });
     if (!turn) throw new SokoBotNotFoundError("Soko Bot turn not found");
@@ -1579,10 +1602,22 @@ export class SokoBotControlPlane {
         "Soko Bot classifier unavailable for scheduled turn",
       );
     }
-    const capabilities = [
-      ...SOKO_BOT_ROUTE_CAPABILITIES[classification.classification.route],
-      ...SOKO_BOT_SCRATCH_CAPABILITIES,
-    ] as readonly SokoBotCapability[];
+    const requestedByTeammate =
+      !!input.chat?.requestedByUserId &&
+      input.chat.requestedByUserId !== input.userId;
+    // A teammate may ask the owner's bot questions but never spend the
+    // owner's credits or create work in their name: read-only ceiling.
+    const capabilities = (
+      requestedByTeammate
+        ? [
+            ...SOKO_BOT_ROUTE_CAPABILITIES.CLARIFY,
+            ...SOKO_BOT_SCRATCH_CAPABILITIES,
+          ]
+        : [
+            ...SOKO_BOT_ROUTE_CAPABILITIES[classification.classification.route],
+            ...SOKO_BOT_SCRATCH_CAPABILITIES,
+          ]
+    ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();
     const leaseExpiresAt = new Date(Date.now() + TURN_LEASE_MS);
@@ -1659,6 +1694,9 @@ export class SokoBotControlPlane {
             userMessage: message,
             chatMentionId: input.chat?.mentionId,
             chatResponseMessageId: input.chat?.responseMessageId,
+            requestedByUserId: requestedByTeammate
+              ? input.chat?.requestedByUserId
+              : null,
             classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,

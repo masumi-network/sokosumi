@@ -16,6 +16,7 @@ import {
 import {
   type SokoBot,
   SokoBotAutonomyLevel,
+  SokoBotAvatar,
   type SokoBotMemory,
   type SokoBotPendingDecision,
   type SokoBotSchedule,
@@ -40,6 +41,12 @@ const autonomySchema = z.enum([
 const createSokoBotSchema = z.object({
   name: z.string().trim().min(1).max(80),
   autonomyLevel: autonomySchema,
+  avatarId: z.string().uuid().nullable().optional(),
+});
+
+const avatarListSchema = z.object({
+  take: z.number().int().min(1).max(12).default(6),
+  excludeIds: z.array(z.string().uuid()).max(60).default([]),
 });
 
 const startTurnSchema = z.object({
@@ -267,6 +274,47 @@ export const resolveSokoBotDecisionAction = withSession<
     });
     revalidate();
     return toActionResult(ok(decision));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface ListAvatarsParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+/** Unclaimed mascot avatars for the picker; pass shown ids to get a fresh set. */
+export const listSokoBotAvatarsAction = withSession<
+  ListAvatarsParams,
+  ActionResultDto<SokoBotAvatar[], ActionError>
+>(async ({ input }) => {
+  const parsed = avatarListSchema.safeParse(input ?? {});
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    const avatars = await sokoBotService.listAvatars(
+      parsed.data.take,
+      parsed.data.excludeIds,
+    );
+    return toActionResult(ok(avatars));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface ClaimAvatarParams extends AuthenticatedRequest {
+  avatarId: unknown;
+}
+
+export const claimSokoBotAvatarAction = withSession<
+  ClaimAvatarParams,
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ avatarId }) => {
+  const parsed = idSchema.safeParse(avatarId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.claimAvatar(parsed.data);
+    revalidate();
+    return toActionResult(ok(bot));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

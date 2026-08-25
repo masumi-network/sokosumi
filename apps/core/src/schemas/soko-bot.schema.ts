@@ -196,6 +196,24 @@ export const sokoBotTurnSchema = z
     toolCalls: z.array(sokoBotToolCallSchema).optional(),
     /** Present on the detail route: what the model was given this turn. */
     contextSummary: sokoBotContextSummarySchema.nullable().optional(),
+    /** Teammate who asked in chat (null when the owner asked or it was scheduled). */
+    requestedBy: z
+      .object({
+        id: z.string(),
+        name: z.string().nullable(),
+        image: z.string().nullable(),
+      })
+      .nullable()
+      .optional(),
+    /** Room the turn was asked in, for chat-started turns. */
+    chatRoom: z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().nullable(),
+        kind: z.string(),
+      })
+      .nullable()
+      .optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -225,6 +243,8 @@ export const sokoBotSchema = z
     legacyMessages: z.array(sokoBotLegacyMessageSchema).optional(),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     schedules: z.array(sokoBotScheduleSchema).optional(),
+    /** Picked mascot image; null → generative orb. */
+    avatarImageUrl: z.string().nullable().optional(),
     /** Chat-facing coworker row; open a direct with it to chat with the bot. */
     coworker: z
       .object({ id: z.string(), slug: z.string() })
@@ -243,6 +263,8 @@ export const createSokoBotRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80),
     avatarSeed: z.string().max(200).nullable().optional(),
+    /** Mascot from the avatar pool to claim for this bot. */
+    avatarId: z.string().uuid().nullable().optional(),
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
     personalityStyle: z.number().int().min(0).max(100).nullable().optional(),
@@ -469,3 +491,22 @@ export const adminSokoBotActionRequestSchema = z
     }
   })
   .openapi("AdminSokoBotActionRequest");
+
+export const sokoBotAvatarSchema = z
+  .object({
+    id: z.string().uuid(),
+    imageUrl: z.string(),
+    subject: z.string(),
+    background: z.string(),
+  })
+  .openapi("SokoBotAvatar");
+
+export const listSokoBotAvatarsQuerySchema = z.object({
+  take: z.coerce.number().int().min(1).max(12).default(6),
+  /** Comma-separated avatar ids already shown; ask for a fresh set. */
+  exclude: z.string().max(1_000).optional(),
+});
+
+export const claimSokoBotAvatarRequestSchema = z
+  .object({ avatarId: z.string().uuid() })
+  .openapi("ClaimSokoBotAvatarRequest");

@@ -90,6 +90,8 @@ export function useSokoBotState(initial: SokoBotChatState) {
         events: [],
         delegations: [],
         decisions: [],
+        requestedBy: null,
+        chatRoom: null,
         optimistic: true,
       };
       optimisticRef.current.set(clientTurnId, turn);
