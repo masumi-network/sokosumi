@@ -57,6 +57,24 @@ describe("serializableTransaction", () => {
     expect(prismaTransactionMock).toHaveBeenCalledTimes(3);
   });
 
+  it("retries a raw-query SQLSTATE 40001 serialization failure", async () => {
+    prismaTransactionMock
+      .mockRejectedValueOnce(
+        Object.assign(
+          new Error(
+            "Invalid `prisma.$queryRaw()` invocation: Raw query failed. Code: `40001`. Message: `could not serialize access due to concurrent update`",
+          ),
+          { name: "PrismaClientKnownRequestError", code: "P2010" },
+        ),
+      )
+      .mockResolvedValueOnce("result");
+
+    await expect(
+      serializableTransaction(vi.fn(), "Conflict message"),
+    ).resolves.toBe("result");
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
   it("maps P2034 serialization failures to a 409 conflict", async () => {
     prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("Transaction failed"), { code: "P2034" }),

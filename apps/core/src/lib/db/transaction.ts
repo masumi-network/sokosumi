@@ -17,8 +17,8 @@ export const CONCURRENCY_CONFLICT_KIND = "concurrency_conflict";
  * writes; that is an expected, retryable outcome, so it surfaces as a 409
  * conflict with the given message instead of an unhandled 500.
  */
-const SERIALIZATION_RETRY_ATTEMPTS = 4;
-const SERIALIZATION_RETRY_BASE_MS = 40;
+const SERIALIZATION_RETRY_ATTEMPTS = 6;
+const SERIALIZATION_RETRY_BASE_MS = 50;
 
 function retryDelayMs(attempt: number): number {
   return SERIALIZATION_RETRY_BASE_MS * 2 ** attempt + Math.random() * 25;
