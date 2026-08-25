@@ -39,6 +39,15 @@ export type {
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export {
+  evaluateScenario,
+  type ScenarioCheck,
+  type ScenarioResult,
+  SOKO_BOT_SCENARIOS,
+  type SokoBotLabTurn,
+  type SokoBotScenario,
+  type SokoBotScenarioTrigger,
+} from "./scenarios.js";
+export {
   isSokoBotDecisionTarget,
   SOKO_BOT_DECISION_TARGETS,
   SOKO_BOT_TOOL_DESCRIPTIONS,
@@ -51,8 +60,10 @@ export {
   sokoBotDecisionInputSchema,
   sokoBotHireAgentInputSchema,
   sokoBotJobIdInputSchema,
+  sokoBotLinkTasksInputSchema,
   sokoBotMemoryUpdateInputSchema,
   sokoBotProvideJobInputSchema,
+  sokoBotReplyToTaskInputSchema,
   sokoBotScheduleIdInputSchema,
   sokoBotScratchPathSchema,
   sokoBotScratchReadInputSchema,

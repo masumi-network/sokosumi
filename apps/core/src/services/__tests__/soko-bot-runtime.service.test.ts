@@ -216,6 +216,12 @@ vi.mock("@/helpers/job", () => ({
   createAgentJobForUser: createAgentJobForUserMock,
 }));
 vi.mock("@/helpers/agent", () => ({ toMasumiAgent: vi.fn() }));
+vi.mock("@/helpers/task-event-charge", () => ({
+  applyGuardedTaskStatusUpdate: vi.fn(),
+}));
+vi.mock("@/helpers/task-link", () => ({
+  mapTaskLinkRelationToWriteData: vi.fn(),
+}));
 vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
@@ -838,6 +844,10 @@ describe("SokoBotRuntimeService authorization", () => {
       id: "task_1",
       name: "Launch",
       status: "READY",
+      events: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
     });
 
     const service = new SokoBotRuntimeService();
@@ -976,15 +986,13 @@ describe("SokoBotRuntimeService authorization", () => {
       id: "task_1",
       name: "password: correct-horse-battery-staple",
       status: "READY",
-      nested: {
-        credentials: {
-          api_key: { value: "opaque-nested-credential" },
-        },
-        billing: {
-          payment_token: { value: "opaque-nested-payment" },
-        },
-      },
-      oversized: "x".repeat(30_000),
+      description: `api_key: opaque-nested-credential payment_token: opaque-nested-payment ${"x".repeat(30_000)}`,
+      assignee: null,
+      project: null,
+      events: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
     };
     taskFindFirstMock.mockResolvedValue(rawResult);
 
@@ -997,7 +1005,10 @@ describe("SokoBotRuntimeService authorization", () => {
       input: { taskId: "task_1" },
     });
 
-    expect(result).toBe(rawResult);
+    expect(result).toMatchObject({
+      name: rawResult.name,
+      description: rawResult.description,
+    });
     const persisted = toolCallUpdateMock.mock.calls.at(-1)?.[0]?.data.result;
     const serialized = JSON.stringify(persisted);
     expect(Buffer.byteLength(serialized, "utf8")).toBeLessThanOrEqual(16_384);

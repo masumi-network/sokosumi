@@ -16,6 +16,7 @@ import {
 import {
   type SokoBot,
   SokoBotAvatar,
+  type SokoBotLabTaskEvent,
   type SokoBotMemory,
   type SokoBotPendingDecision,
   type SokoBotSchedule,
@@ -271,6 +272,32 @@ export const listSokoBotAvatarsAction = withSession<
 interface ClaimAvatarParams extends AuthenticatedRequest {
   avatarId: unknown;
 }
+
+const simulateTaskEventSchema = z.object({
+  taskId: z.string().uuid().optional(),
+  status: z.enum(["INPUT_REQUIRED", "FAILED", "COMPLETED"]),
+  comment: z.string().trim().min(1).max(4000),
+});
+
+interface SimulateTaskEventParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+/** Behaviour lab only: pretend a Coworker moved a delegated Task. */
+export const simulateSokoBotTaskEventAction = withSession<
+  SimulateTaskEventParams,
+  ActionResultDto<SokoBotLabTaskEvent, ActionError>
+>(async ({ input }) => {
+  const parsed = simulateTaskEventSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(
+      ok(await sokoBotService.simulateTaskEvent(parsed.data)),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 export const claimSokoBotAvatarAction = withSession<
   ClaimAvatarParams,

@@ -5,8 +5,10 @@ import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
   ResolveSokoBotDecisionRequest,
+  SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
+  SokoBotLabTaskEvent,
   SokoBotTurn,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
@@ -51,6 +53,13 @@ export const sokoBotService = {
       take,
       exclude: excludeIds.length > 0 ? excludeIds.join(",") : undefined,
     });
+    return response.data;
+  },
+
+  async simulateTaskEvent(
+    input: SimulateSokoBotTaskEventRequest,
+  ): Promise<SokoBotLabTaskEvent> {
+    const response = await coreClient.simulateMySokoBotTaskEvent(input);
     return response.data;
   },
 

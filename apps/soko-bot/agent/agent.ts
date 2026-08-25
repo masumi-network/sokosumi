@@ -110,7 +110,7 @@ const evaluationModel = mockModel(
 const sokoBotAgent: DefinedAgent<AgentDefinition> = defineAgent({
   model: isLocalEvaluationEnvironment()
     ? evaluationModel
-    : "mistral/mistral-large-3",
+    : (process.env.SOKO_BOT_AGENT_MODEL ?? "mistral/mistral-large-3"),
   modelContextWindowTokens: 128_000,
   compaction: { thresholdPercent: 0.7 },
   limits: {

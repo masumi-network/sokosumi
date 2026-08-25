@@ -18,11 +18,13 @@ import {
   isSokoBotCapability,
   isSokoBotDecisionTarget,
   sokoBotJobIdInputSchema as jobIdInputSchema,
+  sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
   parseSokoBotMemory,
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
   type SokoBotCapability,
   type SokoBotDecisionTarget,
   type SokoBotTurnGrantClaims,
@@ -39,6 +41,8 @@ import { verifyVercelOidcToken } from "@vercel/oidc";
 import { getEnv } from "@/config/env";
 import { toMasumiAgent } from "@/helpers/agent";
 import { createAgentJobForUser } from "@/helpers/job";
+import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
+import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { getSokoBotTokenService } from "@/lib/soko-bot/factory";
@@ -693,6 +697,229 @@ export class SokoBotRuntimeService {
     };
   }
 
+  /** Everything a project manager needs to act on a Task without opening it. */
+  private async readTask(authorized: AuthorizedSokoBotRuntime, taskId: string) {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        workspaceId: authorized.turn.workspaceId,
+        archivedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        updatedAt: true,
+        assignee: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true } },
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: {
+            status: true,
+            comment: true,
+            createdAt: true,
+            coworkerId: true,
+            userId: true,
+            orchestratorId: true,
+          },
+        },
+        files: {
+          where: { status: "READY" },
+          take: 10,
+          select: {
+            name: true,
+            fileUrl: true,
+            sourceUrl: true,
+            mimeType: true,
+          },
+        },
+        linksFrom: {
+          select: {
+            type: true,
+            note: true,
+            toTask: { select: { id: true, name: true, status: true } },
+          },
+        },
+        linksTo: {
+          select: {
+            type: true,
+            note: true,
+            fromTask: { select: { id: true, name: true, status: true } },
+          },
+        },
+      },
+    });
+    if (!task) return null;
+    const actor = (event: {
+      coworkerId: string | null;
+      userId: string | null;
+      orchestratorId: string | null;
+    }) =>
+      event.orchestratorId
+        ? "you"
+        : event.coworkerId
+          ? "coworker"
+          : event.userId
+            ? "owner"
+            : "system";
+    return {
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      description: task.description,
+      assignee: task.assignee,
+      project: task.project,
+      updatedAt: task.updatedAt,
+      events: [...task.events].reverse().map((event) => ({
+        at: event.createdAt,
+        by: actor(event),
+        status: event.status,
+        comment: event.comment,
+      })),
+      files: task.files,
+      links: [
+        ...task.linksFrom.map((link) => ({
+          relation: link.type,
+          direction: "from-this",
+          task: link.toTask,
+          note: link.note,
+        })),
+        ...task.linksTo.map((link) => ({
+          relation: link.type,
+          direction: "to-this",
+          task: link.fromTask,
+          note: link.note,
+        })),
+      ],
+    };
+  }
+
+  /** Comment on a Task, optionally resuming it (INPUT_REQUIRED/FAILED/… → READY). */
+  private async replyToTask(
+    authorized: AuthorizedSokoBotRuntime,
+    rawInput: unknown,
+    toolCallId: string,
+  ) {
+    const input = replyToTaskInputSchema.parse(rawInput);
+    const resumable: TaskStatus[] = [
+      TaskStatus.INPUT_REQUIRED,
+      TaskStatus.FAILED,
+      TaskStatus.CANCELED,
+      TaskStatus.COMPLETED,
+      TaskStatus.APPROVAL_REQUIRED,
+      TaskStatus.AWAITING_EXTERNAL,
+    ];
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(tx, authorized, false);
+      const task = await tx.task.findFirst({
+        where: {
+          id: input.taskId,
+          workspaceId: authorized.turn.workspaceId,
+          archivedAt: null,
+        },
+        select: { id: true, name: true, status: true, assigneeId: true },
+      });
+      if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      if (input.status === "READY") {
+        if (!resumable.includes(task.status)) {
+          throw new SokoBotRuntimeValidationError(
+            `Task is ${task.status}; only ${resumable.join(", ")} can be set READY`,
+          );
+        }
+        if (!task.assigneeId) {
+          throw new SokoBotRuntimeValidationError(
+            "Task has no assignee; use assign_task instead",
+          );
+        }
+      }
+      await tx.taskEvent.create({
+        data: {
+          taskId: task.id,
+          status: input.status ?? null,
+          comment: input.comment,
+          channel: Channel.SOKOSUMI,
+          orchestratorId: authorized.turn.sokoBotId,
+        },
+      });
+      if (input.status === "READY") {
+        await applyGuardedTaskStatusUpdate({
+          tx,
+          taskId: task.id,
+          expectedStatus: task.status,
+          eventStatus: TaskStatus.READY,
+        });
+      }
+      const status = input.status ?? task.status;
+      await tx.sokoBotDelegation.create({
+        data: {
+          turnId: authorized.turn.id,
+          toolCallId,
+          kind: "TASK",
+          action: "reply_to_task",
+          outcome: status,
+          lastSeenStatus: status,
+          taskId: task.id,
+        },
+      });
+      return { id: task.id, name: task.name, status, commented: true };
+    }, "Soko Bot task reply collided with another action");
+  }
+
+  private async linkTasks(
+    authorized: AuthorizedSokoBotRuntime,
+    rawInput: unknown,
+  ) {
+    const input = linkTasksInputSchema.parse(rawInput);
+    if (input.taskId === input.peerTaskId) {
+      throw new SokoBotRuntimeValidationError("A task cannot link to itself");
+    }
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(tx, authorized, false);
+      const tasks = await tx.task.findMany({
+        where: {
+          id: { in: [input.taskId, input.peerTaskId] },
+          workspaceId: authorized.turn.workspaceId,
+          archivedAt: null,
+        },
+        select: { id: true, name: true },
+      });
+      if (tasks.length !== 2) {
+        throw new SokoBotRuntimeValidationError(
+          "One of the tasks was not found",
+        );
+      }
+      const data = mapTaskLinkRelationToWriteData(
+        input.taskId,
+        input.peerTaskId,
+        input.relation,
+      );
+      const existing = await tx.taskLink.findFirst({
+        where: {
+          OR: [
+            { fromTaskId: data.fromTaskId, toTaskId: data.toTaskId },
+            { fromTaskId: data.toTaskId, toTaskId: data.fromTaskId },
+          ],
+        },
+        select: { id: true, type: true },
+      });
+      if (existing) {
+        return { linked: true, existing: true, relation: existing.type };
+      }
+      const link = await tx.taskLink.create({
+        data: { ...data, note: input.note ?? null },
+        select: { id: true, type: true },
+      });
+      return {
+        linked: true,
+        existing: false,
+        relation: link.type,
+        id: link.id,
+      };
+    }, "Soko Bot task link collided with another action");
+  }
+
   private async createDecision(
     authorized: AuthorizedSokoBotRuntime,
     toolName: SokoBotDecisionTarget,
@@ -1265,17 +1492,12 @@ export class SokoBotRuntimeService {
         return this.assignTask(authorized, input.input, input.toolCallId);
       case "get_task_status": {
         const { taskId } = taskIdInputSchema.parse(input.input);
-        return prisma.task.findFirst({
-          where: { id: taskId, workspaceId: authorized.turn.workspaceId },
-          select: {
-            id: true,
-            name: true,
-            status: true,
-            assigneeId: true,
-            updatedAt: true,
-          },
-        });
+        return this.readTask(authorized, taskId);
       }
+      case "reply_to_task":
+        return this.replyToTask(authorized, input.input, input.toolCallId);
+      case "link_tasks":
+        return this.linkTasks(authorized, input.input);
       case "find_agents": {
         const { query } = searchInputSchema.parse(input.input);
         return prisma.agent.findMany({

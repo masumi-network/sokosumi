@@ -28,7 +28,9 @@ import {
   createSokoBotScheduleRequestSchema,
   listSokoBotAvatarsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
+  simulateSokoBotTaskEventRequestSchema,
   sokoBotAvatarSchema,
+  sokoBotLabTaskEventSchema,
   sokoBotMemorySchema,
   sokoBotPendingDecisionSchema,
   sokoBotScheduleSchema,
@@ -54,6 +56,10 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import {
+  SokoBotLabError,
+  simulateSokoBotTaskEvent,
+} from "@/services/soko-bot-lab.service";
 import {
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -584,6 +590,42 @@ app.openapi(claimAvatarRoute, async (c) => {
   await ensureSokoBotCoworker(bot.id);
   const refreshed = await sokoBotControlPlane.getForUser(auth.userId);
   return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
+});
+
+const simulateTaskEventRoute = createRoute({
+  method: "post",
+  path: "/me/lab/task-event",
+  operationId: "simulateMySokoBotTaskEvent",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: simulateSokoBotTaskEventRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotLabTaskEventSchema, "Simulated event"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(simulateTaskEventRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const result = await simulateSokoBotTaskEvent({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      ...c.req.valid("json"),
+    });
+    return ok(c, sokoBotLabTaskEventSchema.parse(result));
+  } catch (error) {
+    if (error instanceof SokoBotLabError) throw notFound(error.message);
+    throw error;
+  }
 });
 
 export default app;

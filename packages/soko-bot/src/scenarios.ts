@@ -1,7 +1,3 @@
-import type { SokoBotTurnRoute } from "@/lib/clients/generated/core";
-
-import type { ChatTurnDetail } from "./chat-state";
-
 /**
  * Behaviour scenarios: fixed prompts with the reaction we expect from the
  * assistant. Run them from the console after changing the system prompt,
@@ -11,14 +7,36 @@ import type { ChatTurnDetail } from "./chat-state";
  * They are ordered: later ones build on schedules earlier ones create, so
  * "Run all" exercises create → inspect → clean up.
  */
+/** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
+export interface SokoBotLabTurn {
+  /** Owner message or event text; ids it mentions are known, not invented. */
+  userMessage?: string | null;
+  status: string;
+  route: string | null;
+  finalAnswer: string | null;
+  toolCalls: { capability: string; status: string; result: unknown }[];
+  events: { type: string; toolName: string | null }[];
+  delegations: { id: string; taskId: string | null; jobId: string | null }[];
+  decisions: { id: string; resultingEntityId: string | null }[];
+}
+
+/** Simulated Coworker activity on the newest delegated Task; the bot reacts through an EVENT turn. */
+export interface SokoBotScenarioTrigger {
+  kind: "task_event";
+  status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
+  comment: string;
+}
+
 export interface SokoBotScenario {
   id: string;
   title: string;
   /** What we want to see, in one line. */
   intent: string;
+  /** Owner message that starts the turn; empty when a trigger starts it. */
   prompt: string;
+  trigger?: SokoBotScenarioTrigger;
   expect: {
-    routes: SokoBotTurnRoute[];
+    routes: string[];
     /** Every one of these tools must be called. */
     tools?: string[];
     /** At least one of these tools must be called. */
@@ -35,6 +53,8 @@ export interface SokoBotScenario {
     noEmptyPromise?: boolean;
     /** Every UUID in the answer must appear in a tool result or delegation. */
     noInventedIds?: boolean;
+    /** Must answer the Coworker (reply_to_task) or ask the owner one question. */
+    respondsToCoworker?: boolean;
   };
 }
 
@@ -52,6 +72,72 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["hire_agent"],
       minDelegations: 1,
       noEmptyPromise: true,
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "coworker-question",
+    title: "Coworker asks a question",
+    intent:
+      "Reads the task, answers the Coworker on the Taskboard when it can, otherwise asks the owner one question.",
+    prompt: "",
+    trigger: {
+      kind: "task_event",
+      status: "INPUT_REQUIRED",
+      comment:
+        "Quick question before I continue: should the pricing comparison be in EUR or USD, and do you want Sokosumi itself included among the five marketplaces?",
+    },
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      tools: ["get_task_status"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      respondsToCoworker: true,
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "coworker-failure",
+    title: "Coworker reports a failure",
+    intent:
+      "Reads the failure reason and restarts with guidance or creates a linked follow-up instead of just apologising.",
+    prompt: "",
+    trigger: {
+      kind: "task_event",
+      status: "FAILED",
+      comment:
+        "I could not access the pricing pages of two of the marketplaces (their sites return 403 to automated access). I have complete data for the other three and partial data for these two.",
+    },
+    expect: {
+      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["get_task_status"],
+      anyTools: ["reply_to_task", "create_task"],
+      forbiddenTools: ["hire_agent"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "coworker-result",
+    title: "Coworker delivers with a recommendation",
+    intent:
+      "Reads the result and turns the recommended follow-up into a linked Task rather than only summarising.",
+    prompt: "",
+    trigger: {
+      kind: "task_event",
+      status: "COMPLETED",
+      comment:
+        "Done. Draft brief is below: five marketplaces compared on pricing, positioning and funding. Note: funding figures for two of them are estimates from press coverage; I recommend a short follow-up to verify them against Crunchbase before this goes out.",
+    },
+    expect: {
+      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["get_task_status"],
+      anyTools: ["create_task", "link_tasks"],
+      forbiddenTools: ["hire_agent"],
       noInventedIds: true,
     },
   },
@@ -140,7 +226,7 @@ export interface ScenarioResult {
   total: number;
 }
 
-function calledTools(turn: ChatTurnDetail): Set<string> {
+function calledTools(turn: SokoBotLabTurn): Set<string> {
   const names = new Set(turn.toolCalls.map((call) => call.capability));
   for (const event of turn.events) {
     if (event.type === "actions.requested" && event.toolName) {
@@ -162,7 +248,7 @@ const EMPTY_PROMISE =
 
 export function evaluateScenario(
   scenario: SokoBotScenario,
-  turn: ChatTurnDetail,
+  turn: SokoBotLabTurn,
 ): ScenarioResult {
   const { expect } = scenario;
   const tools = calledTools(turn);
@@ -237,6 +323,19 @@ export function evaluateScenario(
       actual: answer ? `${answer.slice(0, 80)}…` : "no answer",
     });
   }
+  if (expect.respondsToCoworker) {
+    const replied = tools.has("reply_to_task");
+    const asked = answer.includes("?");
+    checks.push({
+      label: "Answers the Coworker or asks the owner",
+      pass: replied || asked,
+      actual: replied
+        ? "replied on the task"
+        : asked
+          ? "asked the owner"
+          : "neither",
+    });
+  }
   if (expect.noEmptyPromise) {
     const promised = EMPTY_PROMISE.test(answer);
     const scheduled = tools.has("create_schedule");
@@ -253,6 +352,7 @@ export function evaluateScenario(
 
   if (expect.noInventedIds) {
     const known = JSON.stringify({
+      prompt: turn.userMessage ?? "",
       results: turn.toolCalls.map((call) => call.result),
       delegations: turn.delegations,
       decisions: turn.decisions,

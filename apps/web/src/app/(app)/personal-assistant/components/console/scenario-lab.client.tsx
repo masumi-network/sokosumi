@@ -1,20 +1,25 @@
 "use client";
 
-import { Check, Play, X } from "lucide-react";
-import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-
-import { formatUsd } from "@/components/soko-bot/format";
-import { Button } from "@/components/ui/button";
-import { startSokoBotTurnAction } from "@/lib/actions/soko-bot/action";
-import type { ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import {
   evaluateScenario,
   type ScenarioResult,
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
-} from "@/lib/soko-bot/scenarios";
+} from "@sokosumi/soko-bot";
+import { Check, Play, X } from "lucide-react";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { formatUsd } from "@/components/soko-bot/format";
+import { Button } from "@/components/ui/button";
+import {
+  simulateSokoBotTaskEventAction,
+  startSokoBotTurnAction,
+} from "@/lib/actions/soko-bot/action";
+import type {
+  ChatTurnDetail,
+  SokoBotChatState,
+} from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "soko-bot-lab:v1";
@@ -64,6 +69,34 @@ async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
 
 const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 
+/** The EVENT turn the sync starts for a simulated Coworker event (next cron tick). */
+async function waitForEventTurn(
+  taskId: string,
+  since: number,
+): Promise<string | null> {
+  const deadline = Date.now() + TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const response = await fetch("/api/personal-assistant/state", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (response.ok) {
+      const body = (await response.json()) as {
+        state?: SokoBotChatState | null;
+      };
+      const turn = body.state?.turns.find(
+        (t) =>
+          t.source === "EVENT" &&
+          t.userMessage.includes(taskId) &&
+          new Date(t.createdAt).getTime() >= since,
+      );
+      if (turn) return turn.id;
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+  }
+  return null;
+}
+
 async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -112,20 +145,40 @@ export function ScenarioLab({
     setRunning((current) => new Set(current).add(scenario.id));
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
     try {
-      const started = await startSokoBotTurnAction({
-        input: {
-          clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
-          message: scenario.prompt,
-        },
-      });
-      if (!started.ok) {
-        setFailures((current) => ({
-          ...current,
-          [scenario.id]: started.error.message ?? t("startError"),
-        }));
-        return;
+      let turnId: string | null;
+      if (scenario.trigger) {
+        const since = Date.now() - 5_000;
+        const simulated = await simulateSokoBotTaskEventAction({
+          input: {
+            status: scenario.trigger.status,
+            comment: scenario.trigger.comment,
+          },
+        });
+        if (!simulated.ok) {
+          setFailures((current) => ({
+            ...current,
+            [scenario.id]: simulated.error.message ?? t("startError"),
+          }));
+          return;
+        }
+        turnId = await waitForEventTurn(simulated.value.taskId, since);
+      } else {
+        const started = await startSokoBotTurnAction({
+          input: {
+            clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
+            message: scenario.prompt,
+          },
+        });
+        if (!started.ok) {
+          setFailures((current) => ({
+            ...current,
+            [scenario.id]: started.error.message ?? t("startError"),
+          }));
+          return;
+        }
+        turnId = started.value.turnId;
       }
-      const turn = await waitForTurn(started.value.turnId);
+      const turn = turnId ? await waitForTurn(turnId) : null;
       if (!turn) {
         setFailures((current) => ({
           ...current,
@@ -250,7 +303,9 @@ function ScenarioRow({
       {open ? (
         <div className="mt-3 space-y-3">
           <blockquote className="text-muted-foreground border-l-2 pl-3 text-xs leading-relaxed">
-            {scenario.prompt}
+            {scenario.trigger
+              ? `Coworker sets the newest delegated task to ${scenario.trigger.status}: “${scenario.trigger.comment}”`
+              : scenario.prompt}
           </blockquote>
           {latest ? (
             <div className="space-y-2">

@@ -4180,6 +4180,18 @@ export type ClaimSokoBotAvatarRequest = {
     avatarId: string;
 };
 
+export type SokoBotLabTaskEvent = {
+    taskId: string;
+    name: string;
+    status: string;
+};
+
+export type SimulateSokoBotTaskEventRequest = {
+    taskId?: string;
+    status: 'INPUT_REQUIRED' | 'FAILED' | 'COMPLETED';
+    comment: string;
+};
+
 export type SokoBotRuntimeError = {
     error: string;
     message: string;
@@ -28343,6 +28355,76 @@ export type ClaimMySokoBotAvatarResponses = {
 };
 
 export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
+
+export type SimulateMySokoBotTaskEventData = {
+    body?: SimulateSokoBotTaskEventRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/lab/task-event';
+};
+
+export type SimulateMySokoBotTaskEventErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SimulateMySokoBotTaskEventError = SimulateMySokoBotTaskEventErrors[keyof SimulateMySokoBotTaskEventErrors];
+
+export type SimulateMySokoBotTaskEventResponses = {
+    /**
+     * Simulated event
+     */
+    200: {
+        data: SokoBotLabTaskEvent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SimulateMySokoBotTaskEventResponse = SimulateMySokoBotTaskEventResponses[keyof SimulateMySokoBotTaskEventResponses];
 
 export type GetCoworkersData = {
     body?: never;

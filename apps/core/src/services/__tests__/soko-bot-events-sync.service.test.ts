@@ -53,7 +53,7 @@ function taskDelegation(
     id,
     kind: "TASK",
     lastSeenStatus,
-    task: { id: `task_${id}`, name: `Task ${id}`, status },
+    task: { id: `task_${id}`, name: `Task ${id}`, status, events: [] },
     job: null,
     turn,
   };
@@ -167,6 +167,7 @@ describe("SokoBotEventsSyncService", () => {
         name: "Brief",
         from: null,
         to: "COMPLETED",
+        note: null,
       },
     ]);
     expect(

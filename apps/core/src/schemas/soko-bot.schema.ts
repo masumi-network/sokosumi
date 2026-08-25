@@ -500,6 +500,24 @@ export const listSokoBotAvatarsQuerySchema = z.object({
   exclude: z.string().max(1_000).optional(),
 });
 
+export const simulateSokoBotTaskEventRequestSchema = z
+  .object({
+    /** Defaults to the newest Task the bot delegated. */
+    taskId: z.string().uuid().optional(),
+    status: z.enum(["INPUT_REQUIRED", "FAILED", "COMPLETED"]),
+    comment: z.string().trim().min(1).max(4000),
+  })
+  .strict()
+  .openapi("SimulateSokoBotTaskEventRequest");
+
+export const sokoBotLabTaskEventSchema = z
+  .object({
+    taskId: z.string().uuid(),
+    name: z.string(),
+    status: z.string(),
+  })
+  .openapi("SokoBotLabTaskEvent");
+
 export const claimSokoBotAvatarRequestSchema = z
   .object({ avatarId: z.string().uuid() })
   .openapi("ClaimSokoBotAvatarRequest");

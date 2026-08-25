@@ -31,7 +31,8 @@
     "test:watch": "vitest",
     "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts",
     "soko-bot:import-cutover": "tsx --env-file=.env scripts/import-soko-bot-cutover.mts",
-    "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts"
+    "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts",
+    "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.1",

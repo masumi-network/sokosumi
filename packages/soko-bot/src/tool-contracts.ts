@@ -54,6 +54,24 @@ export const sokoBotAssignTaskInputSchema = z
   })
   .strict();
 
+export const sokoBotReplyToTaskInputSchema = z
+  .object({
+    taskId: z.string().min(1),
+    comment: z.string().trim().min(1).max(20_000),
+    /** READY resumes a task that is waiting (INPUT_REQUIRED/FAILED/…); omit to just comment. */
+    status: z.enum(["READY"]).optional(),
+  })
+  .strict();
+
+export const sokoBotLinkTasksInputSchema = z
+  .object({
+    taskId: z.string().min(1),
+    peerTaskId: z.string().min(1),
+    relation: z.enum(["related", "blocks", "blocked_by", "parent", "child"]),
+    note: z.string().trim().max(2000).nullable().optional(),
+  })
+  .strict();
+
 export const sokoBotHireAgentInputSchema = z
   .object({
     agentId: z.string().min(1),
@@ -157,6 +175,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   update_task: sokoBotUpdateTaskInputSchema,
   assign_task: sokoBotAssignTaskInputSchema,
   get_task_status: sokoBotTaskIdInputSchema,
+  reply_to_task: sokoBotReplyToTaskInputSchema,
+  link_tasks: sokoBotLinkTasksInputSchema,
   find_agents: sokoBotSearchInputSchema,
   get_agent_input_schema: sokoBotAgentIdInputSchema,
   hire_agent: sokoBotHireAgentInputSchema,
@@ -182,7 +202,12 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Create Sokosumi Task, preferably DRAFT, for Coworker execution.",
   update_task: "Update existing Task scope or DRAFT/READY status.",
   assign_task: "Assign Task to available Coworker and optionally make READY.",
-  get_task_status: "Read current Task status.",
+  get_task_status:
+    "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
+  reply_to_task:
+    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; without status it only comments.",
+  link_tasks:
+    "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
   find_agents:
     "Find marketplace Agents when Coworker delegation is unsuitable.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",

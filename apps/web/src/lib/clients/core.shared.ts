@@ -322,6 +322,7 @@ import {
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
@@ -3603,6 +3604,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function simulateMySokoBotTaskEvent(body: {
+    taskId?: string;
+    status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
+    comment: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSimulateMySokoBotTaskEvent({ client, body }),
+      "Failed to simulate Soko Bot task event",
+    );
+  }
+
   async function listMySokoBotTurns(query?: {
     cursor?: string;
     limit?: number;
@@ -4363,6 +4376,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     archiveMySokoBot,
     listSokoBotAvatars,
     claimMySokoBotAvatar,
+    simulateMySokoBotTaskEvent,
     listMySokoBotTurns,
     getMySokoBotTurn,
     startMySokoBotTurn,

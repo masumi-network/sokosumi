@@ -14436,6 +14436,55 @@ export const ClaimSokoBotAvatarRequestSchema = {
     ]
 } as const;
 
+export const SokoBotLabTaskEventSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'taskId',
+        'name',
+        'status'
+    ]
+} as const;
+
+export const SimulateSokoBotTaskEventRequestSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'INPUT_REQUIRED',
+                'FAILED',
+                'COMPLETED'
+            ]
+        },
+        comment: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        }
+    },
+    required: [
+        'status',
+        'comment'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SokoBotRuntimeErrorSchema = {
     type: 'object',
     properties: {

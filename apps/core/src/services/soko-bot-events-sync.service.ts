@@ -41,6 +41,8 @@ interface Change {
   name: string;
   from: string | null;
   to: string;
+  /** Latest event comment: the Coworker's question, result, or failure reason. */
+  note: string | null;
 }
 
 interface BotWork {
@@ -63,13 +65,16 @@ export function buildEventMessage(changes: Change[]): string {
   const lines = changes.map((change) => {
     const label = change.kind === "TASK" ? "Task" : "Job";
     const from = change.from ? ` (was ${change.from})` : "";
-    return `- ${label} "${change.name}" (id ${change.entityId}) is now ${change.to}${from}.`;
+    const note = change.note
+      ? `\n  Latest comment: ${change.note.replace(/\s+/g, " ").trim().slice(0, 600)}`
+      : "";
+    return `- ${label} "${change.name}" (id ${change.entityId}) is now ${change.to}${from}.${note}`;
   });
   return [
     "Delegated work changed status:",
     ...lines,
     "",
-    "Check the result, decide whether follow-up work or an owner decision is needed, update memory and any related follow-up schedule, and report briefly to the owner.",
+    "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Update memory and any related schedule, then report briefly.",
   ].join("\n");
 }
 
@@ -103,7 +108,18 @@ export class SokoBotEventsSyncService {
         id: true,
         kind: true,
         lastSeenStatus: true,
-        task: { select: { id: true, name: true, status: true } },
+        task: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            events: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { comment: true },
+            },
+          },
+        },
         job: {
           select: {
             id: true,
@@ -135,6 +151,7 @@ export class SokoBotEventsSyncService {
               id: delegation.job.id,
               name: delegation.job.name ?? "Agent job",
               status: delegation.job.events[0]?.status ?? null,
+              note: null,
             }
           : null;
       if (!current?.status || current.status === delegation.lastSeenStatus) {
@@ -165,6 +182,7 @@ export class SokoBotEventsSyncService {
         name: current.name,
         from: delegation.lastSeenStatus,
         to: current.status,
+        note: current.note ?? null,
       });
     }
 
