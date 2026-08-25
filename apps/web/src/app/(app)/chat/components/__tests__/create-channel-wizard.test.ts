@@ -83,7 +83,7 @@ describe("create-channel-wizard", () => {
     };
     expect(visibility.discoverability).toBe("external");
     expect(
-      toAddPeople(visibility, { id: "room-ext", name: "partners" }),
+      toAddPeople(visibility, { id: "room-ext", name: "partners" }, "user-1"),
     ).toMatchObject({
       step: "add-people",
       roomId: "room-ext",
@@ -91,18 +91,20 @@ describe("create-channel-wizard", () => {
     });
   });
 
-  it("toAddPeople transitions after create with all mode", () => {
+  it("toAddPeople transitions after create with all mode and locks the creator on the roster", () => {
     const visibility = {
       step: "visibility" as const,
       name: "launch",
       discoverability: "public" as const,
     };
-    expect(toAddPeople(visibility, { id: "room-1", name: "launch" })).toEqual({
+    expect(
+      toAddPeople(visibility, { id: "room-1", name: "launch" }, "user-1"),
+    ).toEqual({
       step: "add-people",
       roomId: "room-1",
       roomName: "launch",
       mode: "all",
-      memberUserIds: [],
+      memberUserIds: ["user-1"],
       coworkerIds: [],
     });
   });
@@ -115,6 +117,7 @@ describe("create-channel-wizard", () => {
         discoverability: "public",
       },
       { id: "room-1", name: "launch" },
+      "user-1",
     );
     const specific = setAddPeopleMode(addPeople, "specific");
     expect(specific).toMatchObject({ step: "add-people", mode: "specific" });

@@ -21,6 +21,8 @@ export interface ParticipantCheckboxesProps {
   onMemberIdsChange: (ids: string[]) => void;
   onCoworkerIdsChange: (ids: string[]) => void;
   membersLoadFailed: boolean;
+  /** Host member who must stay on the roster (create/save caller). */
+  lockedUserId?: string;
 }
 
 export function ParticipantCheckboxes({
@@ -31,6 +33,7 @@ export function ParticipantCheckboxes({
   onMemberIdsChange,
   onCoworkerIdsChange,
   membersLoadFailed,
+  lockedUserId,
 }: ParticipantCheckboxesProps) {
   const t = useTranslations("App.Channels");
   const [participantQuery, setParticipantQuery] = useState("");
@@ -97,16 +100,25 @@ export function ParticipantCheckboxes({
               </div>
               <div className="space-y-0.5">
                 {filteredMembers.map((member) => {
-                  const checked = memberIds.includes(member.user.id);
+                  const locked = member.user.id === lockedUserId;
+                  const checked = locked || memberIds.includes(member.user.id);
                   const displayName = member.user.name || member.user.email;
 
                   return (
                     <label
                       key={member.user.id}
                       className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        "flex min-w-0 items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        locked ? "cursor-not-allowed" : "cursor-pointer",
                         checked ? "bg-muted/70" : "hover:bg-muted/50",
                       )}
+                      onClick={
+                        locked
+                          ? (event) => {
+                              event.preventDefault();
+                            }
+                          : undefined
+                      }
                     >
                       <Avatar className="size-8 shrink-0">
                         <AvatarImage
@@ -128,15 +140,22 @@ export function ParticipantCheckboxes({
                       <Checkbox
                         className="shrink-0"
                         checked={checked}
-                        onCheckedChange={(nextChecked) =>
+                        disabled={locked}
+                        title={
+                          locked ? t("Dialog.cannotRemoveSelf") : undefined
+                        }
+                        onCheckedChange={(nextChecked) => {
+                          if (locked) {
+                            return;
+                          }
                           onMemberIdsChange(
                             toggleId(
                               memberIds,
                               member.user.id,
                               nextChecked === true,
                             ),
-                          )
-                        }
+                          );
+                        }}
                       />
                     </label>
                   );
