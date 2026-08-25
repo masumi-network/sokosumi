@@ -1,4 +1,5 @@
 import { linkifyBareDomainsInMarkdown } from "@sokosumi/utils";
+import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
@@ -16,9 +17,13 @@ import {
 } from "@/lib/utils/file-preview";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
+function isInternalAppPath(href: string | undefined): href is string {
+  return Boolean(href?.startsWith("/") && !href.startsWith("//"));
+}
+
 function isSokosumiLink(href: string | undefined): boolean {
   if (!href || href.startsWith("#")) return true;
-  if (href.startsWith("/") && !href.startsWith("//")) return true;
+  if (isInternalAppPath(href)) return true;
   try {
     const url = new URL(href, "https://sokosumi.com");
     const host = url.hostname.toLowerCase();
@@ -52,13 +57,24 @@ export default function Markdown({
   const linkifiedChildren = linkifyBareDomainsInMarkdown(sanitizedChildren);
 
   const components: Components = {
-    a: ({ href, children, className, ...props }) => {
+    a: ({ href, children, className, node: _node, ...props }) => {
+      const classNames = cn(
+        "wrap-anywhere [overflow-wrap:anywhere]",
+        className,
+      );
+      if (isInternalAppPath(href)) {
+        return (
+          <Link href={href} className={classNames}>
+            {children}
+          </Link>
+        );
+      }
       const sameTab = isSokosumiLink(href);
       return (
         <a
           href={href}
           {...props}
-          className={cn("wrap-anywhere [overflow-wrap:anywhere]", className)}
+          className={classNames}
           {...(sameTab ? {} : { target: "_blank", rel: "noopener noreferrer" })}
         >
           {children}
