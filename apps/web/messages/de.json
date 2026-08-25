@@ -5239,7 +5239,7 @@
         "title": "Lern deinen Soko Bot kennen",
         "successTitle": "Das ist {name}",
         "successHint": "Chat wird geöffnet…",
-        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agents für Jobs. Gib ihm einen Namen und leg fest, wie viel er selbstständig tun darf.",
+        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agenten mit Jobs. Gib ihm einen Namen und ein Bild.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
         "submit": "Soko Bot erstellen",

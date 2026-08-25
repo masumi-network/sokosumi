@@ -58,7 +58,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
 
   const state = load.state;
   if (!state) {
-    return <CreateState userId={session.user.id} />;
+    return <CreateState />;
   }
 
   const [versions, installedSkills] = await Promise.all([

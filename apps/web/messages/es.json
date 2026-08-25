@@ -5239,7 +5239,7 @@
         "title": "Conoce a tu Soko Bot",
         "successTitle": "Conoce a {name}",
         "successHint": "Abriendo tu chat…",
-        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tasks a tus Coworkers y contrata Agents del marketplace para ejecutar Jobs. Ponle un nombre y decide cuánto puede hacer por su cuenta.",
+        "description": "Un gestor de proyectos personal dentro de Sokosumi. Responde directamente cuando puede, delega Tareas a tus Coworkers y contrata Agentes del marketplace para ejecutar Jobs. Ponle un nombre y una imagen.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
