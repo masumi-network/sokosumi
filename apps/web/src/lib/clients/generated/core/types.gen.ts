@@ -847,14 +847,14 @@ export type TaskFile = {
     updatedAt: Date;
     name: string;
     fileUrl: string | null;
+    mimeType: string | null;
+    size: number | null;
+    status: TaskFileStatus;
+    origin: TaskFileOrigin;
     /**
      * Original source URL for output files
      */
     sourceUrl: string | null;
-    status: TaskFileStatus;
-    origin: TaskFileOrigin;
-    mimeType: string | null;
-    size: number | null;
     uploader: TaskFileUploader;
 };
 
@@ -14781,6 +14781,128 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+        mentionId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Mention not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Mention is not failed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryError = PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors[keyof PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponses = {
+    /**
+     * Failed mention reset and redispatched
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponse = PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponses[keyof PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponses];
 
 export type PostChatsRoomsByIdFilesData = {
     body: CreateChatRoomFileUploadSessionRequest;

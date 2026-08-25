@@ -6,7 +6,6 @@
  * Tokens remapped to Sokosumi semantic colors.
  */
 
-import { CircleAlert } from "lucide-react";
 import {
   type ReactNode,
   useEffect,
@@ -46,35 +45,44 @@ function useLiveElapsedMs(startedAtMs: number): number {
   return Math.max(0, now - startedAtMs);
 }
 
-interface CoworkerMentionFailedStatusProps {
-  label: string;
-  className?: string;
+function ThoughtSparkle({ working }: { working: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      className="size-3 shrink-0"
+      fill={
+        working
+          ? "var(--muted-foreground)"
+          : "color-mix(in oklab, var(--muted-foreground) 70%, transparent)"
+      }
+    >
+      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+    </svg>
+  );
 }
 
-/**
- * Failed mention terminal status after the live thinking row.
- * Soft alert chip (icon + label) — success is the coworker reply itself (no chrome).
- */
-export function CoworkerMentionTerminalStatus({
+/** Settled Thought header for a failed mention shell. */
+export function CoworkerFailedThoughtSparkle({
   label,
   className,
-}: CoworkerMentionFailedStatusProps) {
+}: {
+  label: string;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
-        "border-destructive/20 bg-destructive/10 text-destructive",
-        "inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border px-2 py-1",
+        "-mx-1 flex min-h-6 w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5",
         className,
       )}
+      data-testid="coworker-thought-sparkle"
       role="status"
-      data-testid="coworker-mention-terminal"
     >
-      <CircleAlert
-        className="size-3.5 shrink-0"
-        aria-hidden
-        data-testid="coworker-mention-failed-icon"
-      />
-      <span className="truncate text-xs font-medium">{label}</span>
+      <ThoughtSparkle working={false} />
+      <span className="text-muted-foreground truncate text-xs font-medium whitespace-nowrap">
+        {label}
+      </span>
     </div>
   );
 }
@@ -142,18 +150,7 @@ export function CoworkerThoughtTrace({
           !hasBody && "cursor-default",
         )}
       >
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden
-          className="size-3 shrink-0"
-          fill={
-            working
-              ? "var(--muted-foreground)"
-              : "color-mix(in oklab, var(--muted-foreground) 70%, transparent)"
-          }
-        >
-          <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-        </svg>
+        <ThoughtSparkle working={working} />
         {working ? (
           <span className="bui-shimmer-text truncate text-xs font-medium whitespace-nowrap">
             {headerLabel}
