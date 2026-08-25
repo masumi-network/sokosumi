@@ -6,7 +6,7 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 1. Read `SKILL.md` (workflow lives there).
 2. Use `REQUIREMENT-TEMPLATE.md` for the draft body.
-3. After user approval: `LINEAR-CLI.md` if `linear` is on PATH, else `LINEAR-MCP.md` (cloud agents). CLI flags: `.agents/skills/linear-cli/`.
+3. After user approval: `LINEAR-CLI.md` if `linear` is on PATH, else `LINEAR-MCP.md`. CLI flags: `.agents/skills/linear-cli/`.
 
 ## Runtime notes
 

@@ -1,6 +1,6 @@
-# Linear MCP — Requirement Issues (cloud fallback)
+# Linear MCP — Requirement Issues (CLI fallback)
 
-Use this file **only when `linear` is not on PATH** (cloud agents). If `command -v linear` succeeds, use `LINEAR-CLI.md` instead and ignore Linear MCP.
+Use this file **only when `linear` is not on PATH**. If `command -v linear` succeeds, use `LINEAR-CLI.md` instead and ignore Linear MCP.
 
 Run **only after** the user approves the draft in chat.
 

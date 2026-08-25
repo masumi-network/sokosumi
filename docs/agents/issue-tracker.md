@@ -4,7 +4,7 @@ Issues and PRDs for this repo live in **Linear**, team **Sokosumi** (issue key `
 
 **CLI first.** When `linear` is on PATH, use it for all operations and ignore Linear MCP (`linear__*`). Command catalog: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/).
 
-**MCP fallback (cloud agents).** If `command -v linear` fails, use Linear MCP. Inspect live schemas. Requirement writes: [`skills/linear-requirement/LINEAR-MCP.md`](../../skills/linear-requirement/LINEAR-MCP.md). Do not use MCP when the CLI is present. Do not use browser, curl, or Linear REST.
+**MCP fallback.** If `command -v linear` fails, use Linear MCP. Inspect live schemas. Requirement writes: [`skills/linear-requirement/LINEAR-MCP.md`](../../skills/linear-requirement/LINEAR-MCP.md). Do not use MCP when the CLI is present. Do not use browser, curl, or Linear REST.
 
 Repo config: [`.linear.toml`](../../.linear.toml) (`workspace = "masumi"`, `team_id = "SOK"`). CLI auth: `LINEAR_API_KEY` or `linear auth login`. Never print the API key. `linear api` is the GraphQL fallback when a typed CLI command does not expose a field.
 

@@ -98,7 +98,7 @@ Do not ask for the Linear project by default.
    - On edits: revise and show the draft again. Repeat until approved.
 
 5. **Publish (only after approval)**
-   - If `command -v linear` succeeds, read `LINEAR-CLI.md` and run its health check. If `linear` is missing (cloud agents), read `LINEAR-MCP.md` and run its MCP health check.
+   - If `command -v linear` succeeds, read `LINEAR-CLI.md` and run its health check. If `linear` is missing, read `LINEAR-MCP.md` and run its MCP health check.
    - **Create** (publish target `create`): CLI `linear issue create` or MCP `save_issue` with **all** required create fields — always include project `sokosumi-6357694ddd23` when the user did not override it (do not skip it; do not use `"Sokosumi"`).
    - **Update** (publish target `update:SOK-XXX`): follow **Update existing issue** in the file you opened — merge `## Requirement`, optional title/labels (preserve non-type labels); **do not** reset `state` to create defaults.
    - After write, run post-write verify in that same file.
@@ -137,5 +137,5 @@ Decision order:
 
 - `REQUIREMENT-TEMPLATE.md` — requirement body shape.
 - `LINEAR-CLI.md` — create/update after approval when `linear` is on PATH.
-- `LINEAR-MCP.md` — create/update after approval when `linear` is missing (cloud agents).
+- `LINEAR-MCP.md` — create/update after approval when `linear` is missing.
 - `.agents/skills/linear-cli/` — CLI flags and recipes.

@@ -65,7 +65,7 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 - Use the `linear` CLI on this path. No browser automation, curl, or Linear REST.
 - `linear api` is GraphQL fallback for fields a typed command does not expose — not a substitute for create/update.
-- If `linear` is missing (cloud agents), switch to `LINEAR-MCP.md`. Do not use MCP while `linear` is on PATH.
+- If `linear` is missing, switch to `LINEAR-MCP.md`. Do not use MCP while `linear` is on PATH.
 - **Never create or update before user approval.**
 - **Never create without `--project`** — same rule as `--state` and `--priority` on create.
 - **Never pass `--assignee` on create** unless the user explicitly requested one.
@@ -74,7 +74,7 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 
 Run **before** any Linear write (after user approval):
 
-1. `command -v linear`. If it fails (cloud agents), stop this file and follow `LINEAR-MCP.md`.
+1. `command -v linear`. If it fails, stop this file and follow `LINEAR-MCP.md`.
 2. `linear team list` (proves auth; `.linear.toml` + `LINEAR_API_KEY` or `linear auth login`).
 3. If `linear` is present but `linear team list` fails, stop and tell the user to authenticate (`LINEAR_API_KEY` or `linear auth login`). Do not fall back to MCP when the binary is installed.
 
