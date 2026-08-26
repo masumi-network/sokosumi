@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { type RefObject, useLayoutEffect, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -506,5 +507,48 @@ describe("useStickToBottom", () => {
       fireResize(scroller);
     });
     expect(scroller.scrollTop).toBe(200);
+  });
+
+  it("does not pin from the initial scroller layout observer when holdOffBottom is set", () => {
+    // Child layout effects run before the parent hook's. Attach the node and
+    // seed metrics there so the first handleScrollerResize sees a real bottom
+    // while stickToBottomRef is still true and suppressPinRef is still false.
+    function BindScroller({
+      scrollerRef,
+      contentRef,
+    }: {
+      scrollerRef: RefObject<HTMLDivElement | null>;
+      contentRef: RefObject<HTMLDivElement | null>;
+    }) {
+      const nodeRef = useRef<HTMLDivElement | null>(null);
+      useLayoutEffect(() => {
+        const node = nodeRef.current;
+        if (!node) {
+          return;
+        }
+        setScrollerMetrics(node, {
+          scrollHeight: 1000,
+          clientHeight: 400,
+          scrollTop: 200,
+        });
+        scrollerRef.current = node;
+      }, [scrollerRef]);
+      return (
+        <div ref={nodeRef} data-testid="scroller">
+          <div ref={contentRef} data-testid="content" />
+        </div>
+      );
+    }
+
+    function MountHarness() {
+      const { scrollerRef, contentRef } = useStickToBottom({
+        resetKey: "thread-1",
+        holdOffBottom: true,
+      });
+      return <BindScroller scrollerRef={scrollerRef} contentRef={contentRef} />;
+    }
+
+    render(<MountHarness />);
+    expect(screen.getByTestId("scroller").scrollTop).toBe(200);
   });
 });

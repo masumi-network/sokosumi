@@ -160,7 +160,7 @@ export function useStickToBottom({
         return;
       }
       setContentMinHeight(node.clientHeight);
-      // Pin banner / composer live outside the scroller. Shrinking
+      // Latest pin sits under the header, outside the scroller. Shrinking
       // clientHeight does not grow content, so the content observer never
       // re-pins and the last message stays clipped.
       if (holdOffBottomRef.current || suppressPinRef.current) {
