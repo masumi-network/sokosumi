@@ -137,6 +137,31 @@ describe("LatestPinnedMessageBanner", () => {
     ).toBeTruthy();
   });
 
+  it("renders persist mention tokens as @all chips in the preview", async () => {
+    listPinnedMessagesAction.mockResolvedValue({
+      ok: true,
+      value: {
+        items: [
+          pinItem({
+            message: message("msg-latest", "@all:all Okay, so"),
+          }),
+        ],
+        nextCursor: null,
+        total: 1,
+      },
+    });
+
+    renderBanner();
+
+    const jump = await screen.findByRole("button", {
+      name: "Jump to pinned message from Ada",
+    });
+    expect(jump).toHaveTextContent("@all");
+    expect(jump).toHaveTextContent("Okay, so");
+    expect(jump).not.toHaveTextContent("@all:all");
+    expect(jump.querySelector(".whitespace-nowrap")).toHaveTextContent("@all");
+  });
+
   it("jumps to the latest pin on click", async () => {
     listPinnedMessagesAction.mockResolvedValue({
       ok: true,

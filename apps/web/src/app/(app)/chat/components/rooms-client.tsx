@@ -2988,6 +2988,11 @@ export function RoomsClient({
                 }}
                 onOpenAll={openPinnedPanel}
                 onIdsLoaded={handlePinnedIdsLoaded}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                channelLinks={channelLinks}
                 labels={{
                   latest: t("PinnedMessages.latest"),
                   jumpToLatest: (author) =>

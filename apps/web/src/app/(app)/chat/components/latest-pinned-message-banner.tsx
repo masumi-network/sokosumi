@@ -1,13 +1,21 @@
 "use client";
 
-import { buildQuoteSnippet } from "@sokosumi/utils";
+import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
-import type { ChatRoomPinnedMessageListItem } from "@/lib/clients/generated/core";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomPinnedMessageListItem,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { pickLatestPinnedMessage } from "./pick-latest-pinned-message";
-import { messageSender } from "./room-helpers";
+import {
+  type MentionHoverUserLookup,
+  messageSender,
+  ROOM_QUOTE_MARKDOWN_CLASSNAME,
+} from "./room-helpers";
+import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 export interface LatestPinnedMessageBannerLabels {
   latest: string;
@@ -24,15 +32,24 @@ export interface LatestPinnedMessageBannerProps {
   onJump: (messageId: string) => void;
   onOpenAll: () => void;
   onIdsLoaded: (messageIds: readonly string[]) => void;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
+  channelLinks?: readonly ChannelLinkTarget[];
 }
 
 /** Page large enough to skip a few deleted newest pins. */
 export const LATEST_PINNED_FETCH_LIMIT = 8;
 
+const EMPTY_COWORKER_MAP = new Map<string, ChatRoomCoworkerParticipant>();
+const EMPTY_USER_MAP = new Map<string, MentionHoverUserLookup>();
+const EMPTY_CHANNEL_LINKS: ChannelLinkTarget[] = [];
+
 interface LatestPinnedBannerState {
   messageId: string;
   authorName: string | null;
-  snippet: string | null;
+  content: string | null;
   total: number;
 }
 
@@ -57,7 +74,7 @@ function selectLatestPinnedBanner(
   return {
     messageId: latest.messageId,
     authorName: message ? messageSender(message).name : null,
-    snippet: message ? buildQuoteSnippet(message.content) : null,
+    content: message ? message.content : null,
     total: page.total,
   };
 }
@@ -69,6 +86,11 @@ export function LatestPinnedMessageBanner({
   onJump,
   onOpenAll,
   onIdsLoaded,
+  coworkersById = EMPTY_COWORKER_MAP,
+  coworkersBySlug = EMPTY_COWORKER_MAP,
+  usersById = EMPTY_USER_MAP,
+  usersBySlug = EMPTY_USER_MAP,
+  channelLinks = EMPTY_CHANNEL_LINKS,
 }: LatestPinnedMessageBannerProps): React.ReactElement | null {
   const query = useQuery({
     queryKey: latestPinnedMessageQueryKey(roomId, listGeneration),
@@ -114,7 +136,7 @@ export function LatestPinnedMessageBanner({
   }
 
   const authorName = pin.authorName;
-  const snippet = pin.snippet;
+  const content = pin.content;
 
   return (
     <div
@@ -135,7 +157,7 @@ export function LatestPinnedMessageBanner({
           <p className="text-primary text-xs font-medium tracking-wide">
             {labels.latest}
           </p>
-          {authorName != null && snippet != null ? (
+          {authorName != null && content != null ? (
             <button
               type="button"
               className="flex min-w-0 max-w-full cursor-pointer items-baseline gap-1.5 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
@@ -147,8 +169,17 @@ export function LatestPinnedMessageBanner({
               <span className="text-foreground shrink-0 font-medium">
                 {authorName}
               </span>
-              <span className="text-muted-foreground min-w-0 truncate">
-                {snippet}
+              <span className="text-muted-foreground min-w-0 truncate text-sm [&_p]:inline">
+                <RoomMessageMarkdown
+                  content={content}
+                  markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                  channelLinks={channelLinks}
+                  hoverInteractive={false}
+                />
               </span>
             </button>
           ) : (
