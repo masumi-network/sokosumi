@@ -9,6 +9,7 @@ import type {
   ChatRoomPinnedMessageListItem,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import { pickLatestPinnedMessage } from "./pick-latest-pinned-message";
 import {
   type MentionHoverUserLookup,
@@ -63,6 +64,10 @@ function latestPinnedMessageQueryKey(roomId: string, listGeneration: number) {
   return ["latest-pinned-message", roomId, listGeneration] as const;
 }
 
+function flattenLatestPinnedPreview(content: string): string {
+  return stripMarkdownToText(content) ?? "";
+}
+
 function selectLatestPinnedBanner(
   page: LatestPinnedMessagesPage,
 ): LatestPinnedBannerState | null {
@@ -74,7 +79,7 @@ function selectLatestPinnedBanner(
   return {
     messageId: latest.messageId,
     authorName: message ? messageSender(message).name : null,
-    content: message ? message.content : null,
+    content: message ? flattenLatestPinnedPreview(message.content) : null,
     total: page.total,
   };
 }
@@ -169,7 +174,10 @@ export function LatestPinnedMessageBanner({
               <span className="text-foreground shrink-0 font-medium">
                 {authorName}
               </span>
-              <span className="text-muted-foreground min-w-0 truncate text-sm [&_p]:inline">
+              <span
+                data-testid="latest-pinned-message-snippet"
+                className="text-muted-foreground min-w-0 truncate text-sm [&_p]:inline"
+              >
                 <RoomMessageMarkdown
                   content={content}
                   markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}

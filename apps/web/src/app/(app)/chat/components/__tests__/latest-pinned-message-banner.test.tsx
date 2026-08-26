@@ -162,6 +162,44 @@ describe("LatestPinnedMessageBanner", () => {
     expect(jump.querySelector(".whitespace-nowrap")).toHaveTextContent("@all");
   });
 
+  it("keeps a long pinned message to a single preview line", async () => {
+    listPinnedMessagesAction.mockResolvedValue({
+      ok: true,
+      value: {
+        items: [
+          pinItem({
+            message: message(
+              "msg-latest",
+              [
+                "@all:all Okay, so I have another big update for today.",
+                "",
+                "- Sokosumi, an AI platform for Marketing.",
+                "- Masumi, an Agent Wallet.",
+              ].join("\n"),
+            ),
+          }),
+        ],
+        nextCursor: null,
+        total: 1,
+      },
+    });
+
+    renderBanner();
+
+    const jump = await screen.findByRole("button", {
+      name: "Jump to pinned message from Ada",
+    });
+    const snippet = jump.querySelector(
+      "[data-testid='latest-pinned-message-snippet']",
+    );
+    expect(snippet).toBeTruthy();
+    expect(snippet).toHaveClass("truncate");
+    expect(jump.querySelector("ul, ol, li")).toBeNull();
+    expect(jump).toHaveTextContent("@all");
+    expect(jump).not.toHaveTextContent("@all:all");
+    expect(jump).toHaveTextContent("Sokosumi");
+  });
+
   it("jumps to the latest pin on click", async () => {
     listPinnedMessagesAction.mockResolvedValue({
       ok: true,
