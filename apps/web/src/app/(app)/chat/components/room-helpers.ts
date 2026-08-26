@@ -608,6 +608,135 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+export interface MentionDirectTarget {
+  kind: "human" | "coworker";
+  id: string;
+}
+
+const MENTION_CHIP_CLASSNAME = "text-primary font-medium whitespace-nowrap";
+
+export type MentionHoverUserLookup = Pick<
+  ChatRoomUserParticipant,
+  "id" | "name"
+> &
+  Partial<Pick<ChatRoomUserParticipant, "email" | "image" | "presence">>;
+
+export function mentionDirectTargetFromAttributes(
+  attributes: Record<string, unknown>,
+): MentionDirectTarget | null {
+  const kindRaw =
+    attributes["data-direct-kind"] ??
+    attributes.dataDirectKind ??
+    attributes["data-directKind"];
+  const idRaw =
+    attributes["data-direct-id"] ??
+    attributes.dataDirectId ??
+    attributes["data-directId"];
+  const kind = typeof kindRaw === "string" ? kindRaw : null;
+  const id = typeof idRaw === "string" ? idRaw : null;
+  if ((kind !== "human" && kind !== "coworker") || !id) {
+    return null;
+  }
+  return { kind, id };
+}
+
+export function parseMentionDirectChip(
+  node: Element,
+): MentionDirectTarget | null {
+  const host = node.closest("[data-direct-kind]");
+  if (!(host instanceof HTMLElement)) {
+    return null;
+  }
+  return mentionDirectTargetFromAttributes({
+    "data-direct-kind": host.dataset.directKind,
+    "data-direct-id": host.dataset.directId,
+  });
+}
+
+function humanPresence(value: unknown): ChatRoomPresence {
+  if (value === "online" || value === "afk" || value === "offline") {
+    return value;
+  }
+  return "offline";
+}
+
+export function chatParticipantProfileForDirectTarget(
+  target: MentionDirectTarget,
+  lookups: {
+    coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+    usersById?: Map<string, MentionHoverUserLookup>;
+  },
+): ChatParticipantHoverProfile | null {
+  if (target.kind === "coworker") {
+    const coworker = lookups.coworkersById.get(target.id);
+    if (!coworker) {
+      return null;
+    }
+    return {
+      kind: "coworker",
+      id: coworker.id,
+      name: coworker.name,
+      slug: coworker.slug,
+      caption: coworker.caption,
+      image: coworker.image,
+      presence: coworker.presence,
+    };
+  }
+  const user = lookups.usersById?.get(target.id);
+  if (!user) {
+    return null;
+  }
+  return {
+    kind: "human",
+    id: user.id,
+    name: user.name,
+    email: user.email ?? "",
+    image: user.image ?? null,
+    presence: humanPresence(user.presence),
+  };
+}
+
+export function resolveMentionDirectTarget({
+  mentionId,
+  mentionSlug,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+}: {
+  mentionId: string;
+  mentionSlug: string;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
+}): MentionDirectTarget | null {
+  if (isRoomMentionAllId(mentionId)) {
+    return null;
+  }
+  const coworker =
+    coworkersById.get(mentionId) ?? coworkersBySlug.get(mentionSlug);
+  if (coworker) {
+    return { kind: "coworker", id: coworker.id };
+  }
+  const user = usersById?.get(mentionId) ?? usersBySlug?.get(mentionSlug);
+  if (!user) {
+    return null;
+  }
+  return { kind: "human", id: user.id };
+}
+
+function mentionChipHtml(
+  displayName: string,
+  target: MentionDirectTarget | null,
+): string {
+  const label = escapeHtml(`@${displayName}`);
+  if (target) {
+    return `<span class="${MENTION_CHIP_CLASSNAME}" data-direct-kind="${escapeHtml(target.kind)}" data-direct-id="${escapeHtml(target.id)}">${label}</span>`;
+  }
+  return `<span class="${MENTION_CHIP_CLASSNAME}">${label}</span>`;
+}
+
 export function formatRoomMarkdownMentions({
   content,
   coworkersById,
@@ -618,8 +747,8 @@ export function formatRoomMarkdownMentions({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -632,13 +761,24 @@ export function formatRoomMarkdownMentions({
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
     }
+    const coworker =
+      coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
+    const user = usersById?.get(match.id) ?? usersBySlug?.get(match.slug);
     const displayName = isRoomMentionAllId(match.id)
       ? ROOM_MENTION_ALL_ID
-      : ((coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug))
-          ?.name ??
-        (usersById?.get(match.id) ?? usersBySlug?.get(match.slug))?.name);
+      : (coworker?.name ?? user?.name);
     if (displayName) {
-      formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+      formatted += mentionChipHtml(
+        displayName,
+        resolveMentionDirectTarget({
+          mentionId: match.id,
+          mentionSlug: match.slug,
+          coworkersById,
+          coworkersBySlug,
+          usersById,
+          usersBySlug,
+        }),
+      );
     } else {
       formatted += content.slice(match.start, match.end);
     }
@@ -727,8 +867,8 @@ export function formatRoomMarkdownContent({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
 }): string {
   return linkifyChannelLinksInMarkdown(
