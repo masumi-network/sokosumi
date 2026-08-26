@@ -10,7 +10,7 @@ import {
   toMasumiPaymentNodeAmounts,
 } from "../utils/payment-amounts.js";
 import { createX402PaymentMethods } from "./masumi-payment-x402.js";
-import { extractNodeErrorMessage } from "./node-error.js";
+import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   getRailReadiness,
@@ -98,9 +98,20 @@ export interface PurchaseFailure {
  */
 const RETRYABLE_INFRASTRUCTURE_STATUSES = new Set([401, 403, 404, 408, 429]);
 
+/**
+ * Payment-node usage-limited API-key debit. The same POST succeeds after a
+ * top-up, so this is not a payload refusal. Distinct from x402's
+ * "Buyer has insufficient funds. Missing:".
+ */
+const PAYMENT_NODE_USAGE_CREDITS_EXHAUSTED = "Insufficient funds";
+
 function classifyPurchaseFailureKind(
   status: number | undefined,
+  nodeMessage: string | null,
 ): PurchaseFailure["kind"] {
+  if (nodeMessage === PAYMENT_NODE_USAGE_CREDITS_EXHAUSTED) {
+    return "ambiguous";
+  }
   return status !== undefined &&
     status >= 400 &&
     status < 500 &&
@@ -481,7 +492,10 @@ export function createPaymentClient(
           console.error("Failed to create purchase request", response.error);
           const status = response.response?.status;
           return err({
-            kind: classifyPurchaseFailureKind(status),
+            kind: classifyPurchaseFailureKind(
+              status,
+              readNodeErrorMessage(response.error),
+            ),
             message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
             status,
           });
@@ -544,7 +558,10 @@ export function createPaymentClient(
           // The event is already charged when this error surfaces. Carry the
           // node's status and reason into compensation and alerting.
           return err({
-            kind: classifyPurchaseFailureKind(status),
+            kind: classifyPurchaseFailureKind(
+              status,
+              readNodeErrorMessage(response.error),
+            ),
             message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
             status,
           });
