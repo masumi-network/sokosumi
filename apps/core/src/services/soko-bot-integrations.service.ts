@@ -248,7 +248,7 @@ export async function listSokoBotIntegrations(
     ).map((provider) => ({
       provider: provider.id,
       name: provider.name,
-      logoUrl: null,
+      logoUrl: provider.logoUrl || logos.get(provider.id) || null,
       kinds: provider.kinds,
       status: "DISCONNECTED",
       connectedAt: null,
