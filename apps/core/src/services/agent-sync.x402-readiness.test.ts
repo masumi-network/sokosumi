@@ -29,6 +29,8 @@ const {
       | "preview"
       | "development"
       | undefined,
+    VERCEL_URL: undefined as string | undefined,
+    VERCEL_BRANCH_URL: undefined as string | undefined,
   },
   getX402AvailableNetworksMock: vi.fn(),
   getX402AdminPurchasingWalletsMock: vi.fn(),
@@ -89,6 +91,8 @@ describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     envState.VERCEL_ENV = undefined;
+    envState.VERCEL_URL = undefined;
+    envState.VERCEL_BRANCH_URL = undefined;
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -515,11 +519,40 @@ describe("syncX402BuySideReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
+  it("does not page Sentry for check failures on preview.sokosumi.com when VERCEL_ENV is production", async () => {
+    // CORE-37 still paged on release 7d2b330 (includes #3908) from
+    // sokosumi-core-mainnet-*.preview.sokosumi.com with Sentry
+    // environment=production. VERCEL_ENV alone is not enough; the
+    // deployment URL suffix must mute too.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL =
+      "https://sokosumi-core-mainnet-e99rlf2xt.preview.sokosumi.com";
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+    getX402BudgetsMock.mockResolvedValue(
+      err("x402 budgets 401: Unauthorized, admin access required"),
+    );
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(syncMetadataCreateManyMock).toHaveBeenCalledTimes(1);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[sync/agents] x402 buy-side readiness check failed:",
+      expect.stringContaining("admin access required"),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
   it("does not page Sentry for empty ready pairs on Vercel preview", async () => {
     // SOK-860 / CORE-37 gated captureException for check failures on
     // preview. Empty-pair captureMessage still paged CORE-39 on
     // sokosumi-core-mainnet-*.preview.sokosumi.com when the node check
-    // succeeded but composed to []. Same VERCEL_ENV gate; keep warn +
+    // succeeded but composed to []. Same preview gate; keep warn +
     // cache write so fail-closed listing stays.
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
@@ -544,6 +577,33 @@ describe("syncX402BuySideReadiness", () => {
     );
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not page Sentry for empty ready pairs on preview.sokosumi.com when VERCEL_ENV is production", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL =
+      "https://sokosumi-core-mainnet-e99rlf2xt.preview.sokosumi.com";
+    getX402BudgetsMock.mockResolvedValue(ok([]));
+    getX402AdminPurchasingWalletsMock.mockResolvedValue(ok([]));
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ cursorId: "[]" }),
+      }),
     );
 
     consoleWarnSpy.mockRestore();

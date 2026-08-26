@@ -31,6 +31,46 @@ import {
 const MAX_CHECK_ERROR_ITEM_LENGTH = 200;
 const MAX_CHECK_ERROR_TOTAL_LENGTH = 2_000;
 
+const PREVIEW_SOKOSUMI_HOST_SUFFIX = ".preview.sokosumi.com";
+
+/**
+ * Whether this deploy should skip x402 readiness Sentry pages.
+ *
+ * Prefer `VERCEL_ENV === "preview"`. Also treat `VERCEL_URL` /
+ * `VERCEL_BRANCH_URL` on `*.preview.sokosumi.com` as preview: CORE-37 kept
+ * paging on release `7d2b330` (includes the VERCEL_ENV-only gate from
+ * #3908) from `sokosumi-core-mainnet-*.preview.sokosumi.com`, so that env
+ * alone is not reliable on this project's preview hosts. Live mainnet does
+ * not serve on the preview suffix (#3908 Sentry scan).
+ */
+export function isX402ReadinessPreviewDeploy(): boolean {
+  const env = getEnv();
+  if (env.VERCEL_ENV === "preview") {
+    return true;
+  }
+  for (const candidate of [env.VERCEL_URL, env.VERCEL_BRANCH_URL]) {
+    if (!candidate) {
+      continue;
+    }
+    try {
+      const href =
+        candidate.startsWith("https://") || candidate.startsWith("http://")
+          ? candidate
+          : `https://${candidate}`;
+      const { hostname } = new URL(href);
+      if (
+        hostname === "preview.sokosumi.com" ||
+        hostname.endsWith(PREVIEW_SOKOSUMI_HOST_SUFFIX)
+      ) {
+        return true;
+      }
+    } catch {
+      // Malformed deployment URL: treat as non-preview.
+    }
+  }
+  return false;
+}
+
 /**
  * Exported for tests only: the total cap is unreachable through the public
  * entry point without fabricating dozens of erring wallet balance fetches
@@ -223,14 +263,15 @@ export async function syncX402BuySideReadiness(
       // recorded: silence would otherwise be indistinguishable from a
       // healthy deployment that simply has no x402 agents.
       //
-      // Preview deploys (VERCEL_ENV === "preview") still warn and write the
-      // failure marker so fail-closed listing/pay behavior is unchanged, but
-      // they must not page Sentry — preview mainnet crons with a non-admin
-      // PAYMENT_API_KEY were flooding CORE-37 while live mainnet was fine.
-      // Use VERCEL_ENV, not SENTRY_ENVIRONMENT (mainnet project sets the
-      // latter to "production" on preview hosts too).
+      // Preview deploys still warn and write the failure marker so
+      // fail-closed listing/pay behavior is unchanged, but they must not
+      // page Sentry — preview mainnet crons with a non-admin PAYMENT_API_KEY
+      // were flooding CORE-37 while live mainnet was fine. Detect via
+      // {@link isX402ReadinessPreviewDeploy} (VERCEL_ENV alone missed hosts
+      // that still paged after #3908). Do not use SENTRY_ENVIRONMENT
+      // (mainnet project sets that to "production" on preview hosts too).
       if (
-        getEnv().VERCEL_ENV !== "preview" &&
+        !isX402ReadinessPreviewDeploy() &&
         (marker.count > 0 || hasNeverBeenRecorded)
       ) {
         Sentry.captureException(
@@ -334,11 +375,10 @@ export async function syncX402BuySideReadiness(
     // marks them non-payable until a priced ready pair returns.
     // Page only on the transition so a lasting outage does not spam.
     // Preview skips the page for the same reason as the check-failure path
-    // above (CORE-37 / CORE-39): mainnet preview crons set
-    // SENTRY_ENVIRONMENT=production while VERCEL_ENV=preview, and an empty
-    // compose is normal when preview lacks funded Purchasing wallets.
-    // Warn + cache write stay so fail-closed listing is unchanged.
-    if (readinessChanged && getEnv().VERCEL_ENV !== "preview") {
+    // above (CORE-37 / CORE-39): empty compose is normal when preview lacks
+    // funded Purchasing wallets. Warn + cache write stay so fail-closed
+    // listing is unchanged.
+    if (readinessChanged && !isX402ReadinessPreviewDeploy()) {
       Sentry.captureMessage(
         // The likeliest new cause is an operator one, not an outage: a chain
         // whose `defaultAssetDecimals` is still null publishes no scale, and
