@@ -15,6 +15,7 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getComposio } from "@/clients/composio.client";
+import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 export class SokoBotIntegrationError extends Error {
@@ -485,6 +486,57 @@ export async function runIntegrationTool(
   return execute(integration, slug, args);
 }
 
+async function executeViaRest(
+  integration: ActiveIntegration,
+  slug: string,
+  args: Record<string, unknown>,
+): Promise<{
+  successful: boolean;
+  error: string | null;
+  data: Record<string, unknown>;
+}> {
+  const env = getEnv();
+  const base = (
+    env.COMPOSIO_API_BASE_URL ?? "https://backend.composio.dev"
+  ).replace(/\/$/, "");
+  const response = await fetch(
+    `${base}/api/v3/tools/execute/${encodeURIComponent(slug)}`,
+    {
+      method: "POST",
+      headers: {
+        "x-api-key": env.COMPOSIO_API_KEY ?? "",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: composioEntityId(integration.sokoBotId),
+        connected_account_id: integration.composioAccountId,
+        arguments: args,
+        version: "latest",
+      }),
+    },
+  );
+  const body = (await response.json().catch(() => ({}))) as {
+    successful?: boolean;
+    error?: string | { message?: string } | null;
+    data?: Record<string, unknown>;
+  };
+  if (!response.ok) {
+    const message =
+      typeof body.error === "string"
+        ? body.error
+        : (body.error?.message ?? `HTTP ${response.status}`);
+    throw new SokoBotIntegrationError(`Composio (${slug}): ${message}`);
+  }
+  return {
+    successful: body.successful ?? false,
+    error:
+      typeof body.error === "string"
+        ? body.error
+        : (body.error?.message ?? null),
+    data: body.data ?? {},
+  };
+}
+
 /**
  * Lab seam: `SOKO_BOT_INTEGRATION_FIXTURES=record` writes every Composio
  * tool response to disk; `replay` answers from disk and refuses calls that
@@ -557,15 +609,11 @@ async function execute(
       );
     }
   }
-  const composio = requireComposio();
+  requireComposio();
+  // The SDK refuses `version: "latest"` for manual execution; the REST API
+  // accepts it, so call it directly with the same key.
   const result = await withComposio(slug, () =>
-    composio.tools.execute(slug, {
-      userId: composioEntityId(integration.sokoBotId),
-      connectedAccountId: integration.composioAccountId,
-      arguments: args,
-      // Composio refuses manual execution without a toolkit version.
-      version: "latest",
-    }),
+    executeViaRest(integration, slug, args),
   );
   if (!result.successful) {
     throw new SokoBotIntegrationError(
