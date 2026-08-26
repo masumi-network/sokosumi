@@ -1180,6 +1180,7 @@ function DrivePageWorkspace({
       toast.success(t("copyToFilesSuccess"));
       setCopyDialogOpen(false);
       setTaskFileToCopy(null);
+      await refreshDriveItems();
     } catch (err) {
       console.error("Failed to copy file", err);
       if (isDuplicateResourceError(err)) {
