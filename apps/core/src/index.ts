@@ -115,6 +115,8 @@ app.get("/llms.txt", async (c) => {
 });
 
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
+// robots.txt lives on mainApp so crawlers still get Disallow during maintenance.
+mainApp.get("/robots.txt", (c) => c.text("User-Agent: *\nDisallow: /\n"));
 mainApp.route("/", app);
 
 serve(
