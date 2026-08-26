@@ -29,6 +29,7 @@ export function getAblyRealtimeClient(): Ably.Realtime {
     authParams: {
       clientInstanceId,
     },
+    echoMessages: false,
   });
   setGlobalAblyRealtimeClient(realtimeClient);
   return realtimeClient;
