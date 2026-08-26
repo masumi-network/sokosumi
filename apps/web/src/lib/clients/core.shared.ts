@@ -338,6 +338,7 @@ import {
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
   searchSokoBotSkills as coreSearchSokoBotSkills,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
@@ -3662,6 +3663,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function searchSokoBotIntegrationCatalog(query: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSearchSokoBotIntegrationCatalog({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search integrations",
+    );
+  }
+
   async function connectMySokoBotIntegration(
     provider: string,
     body: { returnUrl: string },
@@ -4554,6 +4568,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listMySokoBotLabRuns,
     getMySokoBotStats,
     listMySokoBotIntegrations,
+    searchSokoBotIntegrationCatalog,
     connectMySokoBotIntegration,
     finalizeMySokoBotIntegration,
     disconnectMySokoBotIntegration,

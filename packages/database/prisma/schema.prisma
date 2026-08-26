@@ -1644,8 +1644,11 @@ model SokoBotIntegration {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  /// Provider id from @sokosumi/soko-bot integrations (Composio toolkit slug).
+  /// Composio toolkit slug (any toolkit; known ones get mail/calendar ingest).
   provider          String
+  /// Display name and logo as Composio lists the toolkit.
+  name              String?
+  logoUrl           String?
   /// Composio connected_account id.
   composioAccountId String                   @unique
   status            SokoBotIntegrationStatus @default(PENDING)

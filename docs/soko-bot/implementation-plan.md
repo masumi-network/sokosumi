@@ -913,3 +913,19 @@ Tasks you follow"), each with up to 5 new comments.
   the tool refuses beyond that with a plain message.
 - The bot's own events never wake it; status-only drift on delegated Tasks
   stays with the existing delegation sync so it is not reported twice.
+
+### Any Composio toolkit (2026-08-26)
+
+Integrations are no longer limited to the three built-in providers. The
+console's "Connected accounts" section searches Composio's toolkit catalog
+(`GET /v1/soko-bots/integrations/catalog?query=`, cached per Core instance
+for an hour, filtered locally) and any toolkit can be connected; its name
+and logo are stored on `soko_bot_integration`. Mail providers (Gmail,
+Outlook) keep the dedicated read-only inbox/calendar path and the ingest
+cron; every other toolkit is exposed to the bot generically through
+`list_integration_tools` (tool slugs + input schemas from
+`tools.getRawComposioTools`) and `run_integration_tool` (`tools.execute` as
+the connected account). `run_integration_tool` refuses mail toolkits and
+tools whose slug does not belong to the provider. The `connected-tools`
+skill sets the rules: discover before acting, prefer reads, writes only on
+an explicit ask, no deletes/bulk edits.

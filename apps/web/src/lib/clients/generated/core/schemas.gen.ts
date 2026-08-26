@@ -14601,6 +14601,12 @@ export const SokoBotIntegrationSchema = {
         name: {
             type: 'string'
         },
+        logoUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         kinds: {
             type: 'array',
             items: {
@@ -14645,11 +14651,53 @@ export const SokoBotIntegrationSchema = {
     required: [
         'provider',
         'name',
+        'logoUrl',
         'kinds',
         'status',
         'connectedAt',
         'lastIngestAt',
         'lastError'
+    ]
+} as const;
+
+export const SokoBotIntegrationCatalogEntrySchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        logoUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kinds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'email',
+                    'calendar'
+                ]
+            }
+        }
+    },
+    required: [
+        'provider',
+        'name',
+        'description',
+        'logoUrl',
+        'kinds'
     ]
 } as const;
 

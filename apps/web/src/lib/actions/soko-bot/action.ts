@@ -13,6 +13,7 @@ import {
   CoreApiRequestError,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
+import type { SokoBotIntegrationCatalogEntry } from "@/lib/clients/generated/core";
 import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
@@ -468,6 +469,25 @@ const providerSchema = z
   .string()
   .trim()
   .regex(/^[a-z0-9_-]{1,40}$/);
+
+export const searchSokoBotIntegrationCatalogAction = withSession<
+  AuthenticatedRequest & { query: unknown },
+  ActionResultDto<SokoBotIntegrationCatalogEntry[], ActionError>
+>(async ({ query }) => {
+  const parsed = z
+    .string()
+    .trim()
+    .max(100)
+    .safeParse(query ?? "");
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(
+      ok(await sokoBotService.searchIntegrationCatalog(parsed.data)),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 export const connectSokoBotIntegrationAction = withSession<
   IntegrationParams & { returnUrl: unknown },

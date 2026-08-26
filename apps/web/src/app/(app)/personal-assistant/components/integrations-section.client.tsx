@@ -1,16 +1,21 @@
 "use client";
 
-import { Calendar, Mail } from "lucide-react";
+import { Calendar, Mail, Plug, Search } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   connectSokoBotIntegrationAction,
   disconnectSokoBotIntegrationAction,
+  searchSokoBotIntegrationCatalogAction,
 } from "@/lib/actions/soko-bot/action";
-import type { SokoBotIntegrations } from "@/lib/clients/generated/core";
+import type {
+  SokoBotIntegrationCatalogEntry,
+  SokoBotIntegrations,
+} from "@/lib/clients/generated/core";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +34,32 @@ export function IntegrationsSection({
   const format = useFormatter();
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<
+    SokoBotIntegrationCatalogEntry[] | null
+  >(null);
+  const [searching, setSearching] = useState(false);
+
+  function search(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSearching(true);
+    startTransition(async () => {
+      const result = await searchSokoBotIntegrationCatalogAction({ query });
+      setSearching(false);
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("searchError"));
+        return;
+      }
+      const connected = new Set(
+        initial.integrations
+          .filter((i) => i.status !== "DISCONNECTED")
+          .map((i) => i.provider),
+      );
+      setResults(
+        result.value.filter((entry) => !connected.has(entry.provider)),
+      );
+    });
+  }
 
   function connect(provider: string) {
     setBusy(provider);
@@ -65,57 +96,124 @@ export function IntegrationsSection({
   }
 
   return (
-    <ul className="divide-y rounded-md border">
-      {initial.integrations.map((integration) => (
-        <li
-          key={integration.provider}
-          className="flex items-center gap-3 px-3 py-3"
-        >
-          <span className="bg-muted text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-md">
-            {integration.kinds.includes("email") ? (
-              <Mail aria-hidden className="size-4" />
-            ) : (
-              <Calendar aria-hidden className="size-4" />
-            )}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
-              <span className="truncate text-sm font-medium">
-                {integration.name}
+    <div className="space-y-3">
+      <ul className="divide-y rounded-md border">
+        {initial.integrations.map((integration) => (
+          <li
+            key={integration.provider}
+            className="flex items-center gap-3 px-3 py-3"
+          >
+            <span className="bg-muted text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
+              {integration.logoUrl ? (
+                <img
+                  src={integration.logoUrl}
+                  alt=""
+                  className="size-5 object-contain"
+                />
+              ) : integration.kinds.includes("email") ? (
+                <Mail aria-hidden className="size-4" />
+              ) : integration.kinds.includes("calendar") ? (
+                <Calendar aria-hidden className="size-4" />
+              ) : (
+                <Plug aria-hidden className="size-4" />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium">
+                  {integration.name}
+                </span>
+                <StatusDot status={integration.status} />
               </span>
-              <StatusDot status={integration.status} />
+              <span className="text-muted-foreground block truncate text-xs">
+                {describe(integration, t, format)}
+              </span>
             </span>
-            <span className="text-muted-foreground block truncate text-xs">
-              {describe(integration, t, format)}
-            </span>
-          </span>
-          {integration.status === "ACTIVE" ||
-          integration.status === "PENDING" ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={busy === integration.provider}
-              onClick={() => disconnect(integration.provider)}
-            >
-              {t("disconnect")}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy === integration.provider}
-              onClick={() => connect(integration.provider)}
-            >
-              {integration.status === "DISCONNECTED"
-                ? t("connect")
-                : t("reconnect")}
-            </Button>
-          )}
-        </li>
-      ))}
-    </ul>
+            {integration.status === "ACTIVE" ||
+            integration.status === "PENDING" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={busy === integration.provider}
+                onClick={() => disconnect(integration.provider)}
+              >
+                {t("disconnect")}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={busy === integration.provider}
+                onClick={() => connect(integration.provider)}
+              >
+                {integration.status === "DISCONNECTED"
+                  ? t("connect")
+                  : t("reconnect")}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={search} className="flex items-center gap-2">
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
+        />
+        <Button type="submit" size="sm" variant="outline" disabled={searching}>
+          <Search aria-hidden className="size-3.5" />
+          {t("search")}
+        </Button>
+      </form>
+      {results ? (
+        results.length === 0 ? (
+          <p className="text-muted-foreground text-xs">{t("noResults")}</p>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {results.map((entry) => (
+              <li
+                key={entry.provider}
+                className="flex items-center gap-3 px-3 py-2"
+              >
+                {entry.logoUrl ? (
+                  <img
+                    src={entry.logoUrl}
+                    alt=""
+                    className="size-6 shrink-0 rounded object-contain"
+                  />
+                ) : (
+                  <span className="bg-muted text-muted-foreground inline-flex size-6 shrink-0 items-center justify-center rounded">
+                    <Plug aria-hidden className="size-3.5" />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {entry.name}
+                  </span>
+                  {entry.description ? (
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {entry.description}
+                    </span>
+                  ) : null}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy === entry.provider}
+                  onClick={() => connect(entry.provider)}
+                >
+                  {t("connect")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+    </div>
   );
 }
 
@@ -141,7 +239,9 @@ function describe(
         ? integration.kinds.includes("calendar")
           ? t("kindsMailCalendar")
           : t("kindsMail")
-        : t("kindsCalendar");
+        : integration.kinds.includes("calendar")
+          ? t("kindsCalendar")
+          : t("kindsGeneric");
   }
 }
 

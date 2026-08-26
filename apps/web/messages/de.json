@@ -5266,7 +5266,7 @@
       },
       "Integrations": {
         "title": "Verbundene Konten",
-        "description": "Mail und Kalender, die er für dich liest. Er sendet oder ändert nie etwas.",
+        "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
         "connect": "Verbinden",
         "reconnect": "Neu verbinden",
         "disconnect": "Trennen",
@@ -5278,6 +5278,11 @@
         "failed": "Verbindung fehlgeschlagen. Neu verbinden, um es erneut zu versuchen.",
         "connectedNotChecked": "Verbunden · erste Prüfung in maximal 15 Minuten",
         "lastChecked": "Verbunden · geprüft {when}",
+        "search": "Suchen",
+        "searchPlaceholder": "Weitere App hinzufügen (Slack, Notion, Linear, …)",
+        "searchError": "Suche fehlgeschlagen.",
+        "noResults": "Nichts gefunden.",
+        "kindsGeneric": "Nutzbar über seine Tools",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
         "kindsMailCalendar": "Liest Posteingang und Kalender"

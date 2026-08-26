@@ -35,6 +35,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "search_inbox",
   "read_email",
   "list_calendar_events",
+  "list_integration_tools",
+  "run_integration_tool",
   "scratch_read",
   "scratch_write",
   "scratch_list",
@@ -52,6 +54,8 @@ const DIRECT_READ_CAPABILITIES = [
   "search_inbox",
   "read_email",
   "list_calendar_events",
+  "list_integration_tools",
+  "run_integration_tool",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */

@@ -1,6 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
+  isSokoBotEmailProvider,
   SOKO_BOT_INTEGRATION_PROVIDERS,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
@@ -40,12 +41,82 @@ function requireComposio() {
   return composio;
 }
 
-function requireProvider(id: string): SokoBotIntegrationProvider {
-  const provider = getSokoBotIntegrationProvider(id);
-  if (!provider) {
+const SLUG_PATTERN = /^[a-z0-9_-]{1,64}$/;
+
+/** Known providers carry ingest kinds; any other Composio toolkit is generic. */
+function resolveProvider(id: string): SokoBotIntegrationProvider {
+  const slug = id.trim().toLowerCase();
+  const known = getSokoBotIntegrationProvider(slug);
+  if (known) return known;
+  if (!SLUG_PATTERN.test(slug)) {
     throw new SokoBotIntegrationError("Unknown provider", "UNKNOWN_PROVIDER");
   }
-  return provider;
+  return { id: slug, name: slug, kinds: [], tools: {} };
+}
+
+export interface SokoBotIntegrationCatalogEntry {
+  provider: string;
+  name: string;
+  description: string | null;
+  logoUrl: string | null;
+  kinds: readonly string[];
+}
+
+const CATALOG_TTL_MS = 60 * 60 * 1_000;
+let catalogCache: {
+  at: number;
+  entries: SokoBotIntegrationCatalogEntry[];
+} | null = null;
+
+/** Composio's toolkit catalog by usage, cached for an hour and filtered locally. */
+export async function searchSokoBotIntegrationCatalog(
+  query: string,
+  limit = 20,
+): Promise<SokoBotIntegrationCatalogEntry[]> {
+  const composio = requireComposio();
+  if (!catalogCache || Date.now() - catalogCache.at > CATALOG_TTL_MS) {
+    const toolkits = await composio.toolkits.get({
+      sortBy: "usage",
+      limit: 500,
+    });
+    catalogCache = {
+      at: Date.now(),
+      entries: toolkits.map((toolkit) => ({
+        provider: toolkit.slug.toLowerCase(),
+        name: toolkit.name,
+        description: toolkit.meta?.description ?? null,
+        logoUrl: toolkit.meta?.logo ?? null,
+        kinds:
+          getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
+          [],
+      })),
+    };
+  }
+  const needle = query.trim().toLowerCase();
+  const entries = needle
+    ? catalogCache.entries.filter(
+        (entry) =>
+          entry.provider.includes(needle) ||
+          entry.name.toLowerCase().includes(needle) ||
+          (entry.description?.toLowerCase().includes(needle) ?? false),
+      )
+    : catalogCache.entries;
+  return entries.slice(0, limit);
+}
+
+async function lookupToolkit(
+  slug: string,
+): Promise<{ name: string; logoUrl: string | null }> {
+  const composio = requireComposio();
+  try {
+    const toolkit = await composio.toolkits.get(slug);
+    return { name: toolkit.name, logoUrl: toolkit.meta?.logo ?? null };
+  } catch {
+    return {
+      name: getSokoBotIntegrationProvider(slug)?.name ?? slug,
+      logoUrl: null,
+    };
+  }
 }
 
 async function requireBot(userId: string, workspaceId: string) {
@@ -61,6 +132,8 @@ async function requireBot(userId: string, workspaceId: string) {
 const INTEGRATION_SELECT = {
   id: true,
   provider: true,
+  name: true,
+  logoUrl: true,
   status: true,
   connectedAt: true,
   lastIngestAt: true,
@@ -70,6 +143,7 @@ const INTEGRATION_SELECT = {
 export interface SokoBotIntegrationView {
   provider: string;
   name: string;
+  logoUrl: string | null;
   kinds: readonly string[];
   status: "DISCONNECTED" | "PENDING" | "ACTIVE" | "FAILED" | "REVOKED";
   connectedAt: Date | null;
@@ -87,20 +161,37 @@ export async function listSokoBotIntegrations(
     where: { sokoBotId: bot.id },
     select: INTEGRATION_SELECT,
   });
+  const connected: SokoBotIntegrationView[] = rows.map((row) => {
+    const known = getSokoBotIntegrationProvider(row.provider);
+    return {
+      provider: row.provider,
+      name: row.name ?? known?.name ?? row.provider,
+      logoUrl: row.logoUrl,
+      kinds: known?.kinds ?? [],
+      status: row.status,
+      connectedAt: row.connectedAt,
+      lastIngestAt: row.lastIngestAt,
+      lastError: row.lastError,
+    };
+  });
+  // Mail and calendar providers are always offered; everything else comes
+  // from the catalog search.
+  const featured: SokoBotIntegrationView[] =
+    SOKO_BOT_INTEGRATION_PROVIDERS.filter(
+      (provider) => !rows.some((row) => row.provider === provider.id),
+    ).map((provider) => ({
+      provider: provider.id,
+      name: provider.name,
+      logoUrl: null,
+      kinds: provider.kinds,
+      status: "DISCONNECTED",
+      connectedAt: null,
+      lastIngestAt: null,
+      lastError: null,
+    }));
   return {
     configured: getComposio() !== null,
-    integrations: SOKO_BOT_INTEGRATION_PROVIDERS.map((provider) => {
-      const row = rows.find((r) => r.provider === provider.id);
-      return {
-        provider: provider.id,
-        name: provider.name,
-        kinds: provider.kinds,
-        status: row?.status ?? "DISCONNECTED",
-        connectedAt: row?.connectedAt ?? null,
-        lastIngestAt: row?.lastIngestAt ?? null,
-        lastError: row?.lastError ?? null,
-      };
-    }),
+    integrations: [...connected, ...featured],
   };
 }
 
@@ -127,9 +218,10 @@ export async function connectSokoBotIntegration(input: {
   provider: string;
   returnUrl: string;
 }): Promise<{ redirectUrl: string }> {
-  const provider = requireProvider(input.provider);
+  const provider = resolveProvider(input.provider);
   const bot = await requireBot(input.userId, input.workspaceId);
   const composio = requireComposio();
+  const toolkit = await lookupToolkit(provider.id);
   const authConfigId = await ensureAuthConfigId(provider.id);
   const request = await composio.connectedAccounts.link(
     composioEntityId(bot.id),
@@ -150,11 +242,15 @@ export async function connectSokoBotIntegration(input: {
     create: {
       sokoBotId: bot.id,
       provider: provider.id,
+      name: toolkit.name,
+      logoUrl: toolkit.logoUrl,
       composioAccountId: request.id,
       status: "PENDING",
     },
     update: {
       composioAccountId: request.id,
+      name: toolkit.name,
+      logoUrl: toolkit.logoUrl,
       status: "PENDING",
       lastError: null,
     },
@@ -171,7 +267,7 @@ export async function finalizeSokoBotIntegration(input: {
   workspaceId: string;
   provider: string;
 }): Promise<SokoBotIntegrationView["status"]> {
-  const provider = requireProvider(input.provider);
+  const provider = resolveProvider(input.provider);
   const bot = await requireBot(input.userId, input.workspaceId);
   const row = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
@@ -207,7 +303,7 @@ export async function disconnectSokoBotIntegration(input: {
   workspaceId: string;
   provider: string;
 }): Promise<void> {
-  const provider = requireProvider(input.provider);
+  const provider = resolveProvider(input.provider);
   const bot = await requireBot(input.userId, input.workspaceId);
   const row = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
@@ -237,7 +333,7 @@ interface ActiveIntegration {
 
 export async function activeIntegrationsForBot(
   sokoBotId: string,
-  kind?: "email" | "calendar",
+  kind?: "email" | "calendar" | "generic",
   providerId?: string,
 ): Promise<ActiveIntegration[]> {
   const rows = await prisma.sokoBotIntegration.findMany({
@@ -255,11 +351,61 @@ export async function activeIntegrationsForBot(
     },
   });
   return rows.flatMap((row) => {
-    const provider = getSokoBotIntegrationProvider(row.provider);
-    if (!provider) return [];
-    if (kind && !provider.kinds.includes(kind)) return [];
+    const provider = resolveProvider(row.provider);
+    if (kind === "generic") {
+      if (isSokoBotEmailProvider(provider.id)) return [];
+    } else if (kind && !provider.kinds.includes(kind)) {
+      return [];
+    }
     return [{ ...row, provider }];
   });
+}
+
+export interface SokoBotIntegrationTool {
+  slug: string;
+  name: string;
+  description: string | null;
+  inputSchema: unknown;
+}
+
+/** Tool descriptors of one toolkit, optionally narrowed by intent words. */
+export async function listIntegrationTools(
+  integration: ActiveIntegration,
+  options: { query?: string; limit: number },
+): Promise<SokoBotIntegrationTool[]> {
+  const composio = requireComposio();
+  const tools = await composio.tools.getRawComposioTools({
+    toolkits: [integration.provider.id],
+    search: options.query?.trim() || undefined,
+    limit: options.limit,
+  });
+  return tools.map((tool) => ({
+    slug: tool.slug,
+    name: tool.name,
+    description: tool.description ?? null,
+    inputSchema: tool.inputParameters ?? null,
+  }));
+}
+
+/** Runs one toolkit tool as the connected account; mailboxes are refused. */
+export async function runIntegrationTool(
+  integration: ActiveIntegration,
+  tool: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  if (isSokoBotEmailProvider(integration.provider.id)) {
+    throw new SokoBotIntegrationError(
+      "Mailboxes are read through search_inbox and read_email only",
+    );
+  }
+  const slug = tool.trim().toUpperCase();
+  const prefix = `${integration.provider.id.toUpperCase()}_`;
+  if (!slug.startsWith(prefix)) {
+    throw new SokoBotIntegrationError(
+      `Tool ${tool} does not belong to ${integration.provider.name}`,
+    );
+  }
+  return execute(integration, slug, args);
 }
 
 async function execute(

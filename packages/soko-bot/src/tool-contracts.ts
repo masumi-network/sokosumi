@@ -203,7 +203,25 @@ export const sokoBotListCalendarEventsInputSchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
 });
 
+export const sokoBotListIntegrationToolsInputSchema = z.object({
+  /** Connected provider id (Composio toolkit slug), e.g. "slack", "notion", "linear". */
+  provider: z.string(),
+  /** Words from what you want to do; narrows the list. */
+  query: z.string().max(200).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+export const sokoBotRunIntegrationToolInputSchema = z.object({
+  provider: z.string(),
+  /** Tool slug exactly as list_integration_tools returned it. */
+  tool: z.string(),
+  /** Arguments matching the tool's input schema. */
+  arguments: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
+  list_integration_tools: sokoBotListIntegrationToolsInputSchema,
+  run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
   read_email: sokoBotReadEmailInputSchema,
@@ -235,6 +253,10 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
 } as const satisfies Record<SokoBotCapability, z.ZodType>;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
+  list_integration_tools:
+    "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead.",
+  run_integration_tool:
+    "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:

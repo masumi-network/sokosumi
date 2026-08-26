@@ -745,6 +745,7 @@ export const sokoBotIntegrationSchema = z
   .object({
     provider: z.string(),
     name: z.string(),
+    logoUrl: z.string().nullable(),
     kinds: z.array(z.enum(["email", "calendar"])),
     status: z.enum(["DISCONNECTED", "PENDING", "ACTIVE", "FAILED", "REVOKED"]),
     connectedAt: z.coerce.date().nullable(),
@@ -760,6 +761,16 @@ export const sokoBotIntegrationsSchema = z
     integrations: z.array(sokoBotIntegrationSchema),
   })
   .openapi("SokoBotIntegrations");
+
+export const sokoBotIntegrationCatalogEntrySchema = z
+  .object({
+    provider: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    logoUrl: z.string().nullable(),
+    kinds: z.array(z.enum(["email", "calendar"])),
+  })
+  .openapi("SokoBotIntegrationCatalogEntry");
 
 export const connectSokoBotIntegrationRequestSchema = z
   .object({ returnUrl: z.string().url() })

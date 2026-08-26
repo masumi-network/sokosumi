@@ -34,7 +34,9 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotListCalendarEventsInputSchema,
+  sokoBotListIntegrationToolsInputSchema,
   sokoBotReadEmailInputSchema,
+  sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
@@ -60,7 +62,9 @@ import {
   fetchCalendarEvents,
   fetchInboxMessage,
   fetchInboxMessages,
+  listIntegrationTools,
   listSokoBotIntegrations,
+  runIntegrationTool,
 } from "@/services/soko-bot-integrations.service";
 import {
   createSokoBotSchedule,
@@ -1847,6 +1851,45 @@ export class SokoBotRuntimeService {
           );
         }
         return fetchInboxMessage(integration, parsed.messageId);
+      }
+      case "list_integration_tools": {
+        const parsed = sokoBotListIntegrationToolsInputSchema.parse(
+          input.input,
+        );
+        const [integration] = await activeIntegrationsForBot(
+          authorized.turn.sokoBotId,
+          "generic",
+          parsed.provider.toLowerCase(),
+        );
+        if (!integration) {
+          throw new SokoBotRuntimeValidationError(
+            `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
+          );
+        }
+        return {
+          tools: await listIntegrationTools(integration, {
+            query: parsed.query,
+            limit: parsed.limit ?? 20,
+          }),
+        };
+      }
+      case "run_integration_tool": {
+        const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
+        const [integration] = await activeIntegrationsForBot(
+          authorized.turn.sokoBotId,
+          "generic",
+          parsed.provider.toLowerCase(),
+        );
+        if (!integration) {
+          throw new SokoBotRuntimeValidationError(
+            `No connected account for provider ${parsed.provider}`,
+          );
+        }
+        return runIntegrationTool(
+          integration,
+          parsed.tool,
+          parsed.arguments ?? {},
+        );
       }
       case "list_calendar_events": {
         const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);

@@ -11,6 +11,7 @@ export const v1: SokoBotVersion = {
     "coworker-coordination",
     "personal-inbox",
     "taskboard-collaboration",
+    "connected-tools",
   ],
   systemPrompt: `# Identity
 

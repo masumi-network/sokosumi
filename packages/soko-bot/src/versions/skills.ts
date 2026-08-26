@@ -72,6 +72,22 @@ You are a member of the team on the Taskboard: Tasks can be assigned to you, and
 - A question addressed to a Coworker is theirs to answer; only step in when they are stuck (FAILED/INPUT_REQUIRED) or the answer is in your memory.
 `,
   },
+  {
+    id: "connected-tools",
+    name: "Connected tools",
+    description:
+      "Uses the owner's connected accounts (Slack, Notion, Linear, GitHub, …) through their tools; mailboxes stay read-only.",
+    content: `# Connected tools
+
+\`list_integrations\` shows which accounts the owner connected. Anything that is not a mailbox is a toolbox you can use on the owner's behalf.
+
+- Discover before acting: \`list_integration_tools\` with the provider and a few words of intent, read the input schema, then \`run_integration_tool\` with arguments that match it. Never invent ids, channel names, or page ids — look them up with a list/search tool first.
+- Prefer reading over writing. Writes that others will see (posting a message, creating an issue or page, sending anything) need a clear ask from the owner in this conversation or in the Task; say what you did afterwards, with the link or id the tool returned.
+- Never delete, archive, or bulk-edit unless the owner explicitly asked for exactly that.
+- Mailboxes (Gmail, Outlook) are read-only through \`search_inbox\` / \`read_email\`; there is no sending.
+- When a tool fails, read the error, fix the arguments once, then report plainly instead of retrying blindly.
+`,
+  },
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

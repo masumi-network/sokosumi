@@ -12,6 +12,7 @@ import type {
   SokoBotAvatar,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
+  SokoBotIntegrationCatalogEntry,
   SokoBotIntegrations,
   SokoBotLabRun,
   SokoBotLabTaskEvent,
@@ -84,6 +85,13 @@ export const sokoBotService = {
 
   async listIntegrations(): Promise<SokoBotIntegrations> {
     const response = await coreClient.listMySokoBotIntegrations();
+    return response.data;
+  },
+
+  async searchIntegrationCatalog(
+    query: string,
+  ): Promise<SokoBotIntegrationCatalogEntry[]> {
+    const response = await coreClient.searchSokoBotIntegrationCatalog(query);
     return response.data;
   },
 

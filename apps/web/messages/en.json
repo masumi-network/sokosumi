@@ -5266,7 +5266,7 @@
       },
       "Integrations": {
         "title": "Connected accounts",
-        "description": "Mail and calendars it reads for you. It never sends or changes anything.",
+        "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
@@ -5278,6 +5278,11 @@
         "failed": "Connection failed. Reconnect to try again.",
         "connectedNotChecked": "Connected · first check runs within 15 minutes",
         "lastChecked": "Connected · checked {when}",
+        "search": "Search",
+        "searchPlaceholder": "Add another app (Slack, Notion, Linear, …)",
+        "searchError": "Search failed.",
+        "noResults": "Nothing found.",
+        "kindsGeneric": "Usable through its tools",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
         "kindsMailCalendar": "Reads your inbox and calendar"

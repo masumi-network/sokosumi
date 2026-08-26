@@ -5266,7 +5266,7 @@
       },
       "Integrations": {
         "title": "Cuentas conectadas",
-        "description": "Correo y calendarios que lee por ti. Nunca envía ni cambia nada.",
+        "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
         "connect": "Conectar",
         "reconnect": "Reconectar",
         "disconnect": "Desconectar",
@@ -5278,6 +5278,11 @@
         "failed": "La conexión falló. Reconecta para intentarlo de nuevo.",
         "connectedNotChecked": "Conectado · primera comprobación en menos de 15 minutos",
         "lastChecked": "Conectado · comprobado {when}",
+        "search": "Buscar",
+        "searchPlaceholder": "Añadir otra app (Slack, Notion, Linear, …)",
+        "searchError": "La búsqueda falló.",
+        "noResults": "No se encontró nada.",
+        "kindsGeneric": "Utilizable a través de sus herramientas",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
         "kindsMailCalendar": "Lee tu bandeja de entrada y calendario"

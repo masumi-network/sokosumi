@@ -4217,11 +4217,20 @@ export type SokoBotIntegrations = {
 export type SokoBotIntegration = {
     provider: string;
     name: string;
+    logoUrl: string | null;
     kinds: Array<'email' | 'calendar'>;
     status: 'DISCONNECTED' | 'PENDING' | 'ACTIVE' | 'FAILED' | 'REVOKED';
     connectedAt: Date | null;
     lastIngestAt: Date | null;
     lastError: string | null;
+};
+
+export type SokoBotIntegrationCatalogEntry = {
+    provider: string;
+    name: string;
+    description: string | null;
+    logoUrl: string | null;
+    kinds: Array<'email' | 'calendar'>;
 };
 
 export type ConnectSokoBotIntegrationResponse = {
@@ -28628,6 +28637,78 @@ export type ListMySokoBotIntegrationsResponses = {
 };
 
 export type ListMySokoBotIntegrationsResponse = ListMySokoBotIntegrationsResponses[keyof ListMySokoBotIntegrationsResponses];
+
+export type SearchSokoBotIntegrationCatalogData = {
+    body?: never;
+    path?: never;
+    query?: {
+        query?: string;
+    };
+    url: '/soko-bots/integrations/catalog';
+};
+
+export type SearchSokoBotIntegrationCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchSokoBotIntegrationCatalogError = SearchSokoBotIntegrationCatalogErrors[keyof SearchSokoBotIntegrationCatalogErrors];
+
+export type SearchSokoBotIntegrationCatalogResponses = {
+    /**
+     * Composio toolkits matching the search
+     */
+    200: {
+        data: Array<SokoBotIntegrationCatalogEntry>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchSokoBotIntegrationCatalogResponse = SearchSokoBotIntegrationCatalogResponses[keyof SearchSokoBotIntegrationCatalogResponses];
 
 export type ConnectMySokoBotIntegrationData = {
     body?: ConnectSokoBotIntegrationRequest;

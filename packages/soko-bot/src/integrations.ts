@@ -47,6 +47,11 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
     },
   ];
 
+/** Toolkits whose mail is ingested and read through the dedicated inbox tools only. */
+export function isSokoBotEmailProvider(id: string): boolean {
+  return getSokoBotIntegrationProvider(id)?.kinds.includes("email") ?? false;
+}
+
 export function getSokoBotIntegrationProvider(
   id: string,
 ): SokoBotIntegrationProvider | null {

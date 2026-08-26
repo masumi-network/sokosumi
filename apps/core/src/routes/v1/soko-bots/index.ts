@@ -48,6 +48,7 @@ import {
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
   sokoBotInstalledSkillSchema,
+  sokoBotIntegrationCatalogEntrySchema,
   sokoBotIntegrationsSchema,
   sokoBotLabRunSchema,
   sokoBotLabTaskEventSchema,
@@ -92,6 +93,7 @@ import {
   finalizeSokoBotIntegration,
   listSokoBotIntegrations,
   SokoBotIntegrationError,
+  searchSokoBotIntegrationCatalog,
 } from "@/services/soko-bot-integrations.service";
 import {
   SokoBotLabError,
@@ -667,6 +669,39 @@ app.openapi(listIntegrationsRoute, async (c) => {
       workspace.workspaceId,
     );
     return ok(c, sokoBotIntegrationsSchema.parse(result));
+  } catch (error) {
+    mapIntegrationError(error);
+  }
+});
+
+const integrationCatalogRoute = createRoute({
+  method: "get",
+  path: "/integrations/catalog",
+  operationId: "searchSokoBotIntegrationCatalog",
+  tags: ["Soko Bots"],
+  request: {
+    query: z.object({
+      query: z.string().max(100).optional(),
+    }),
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(sokoBotIntegrationCatalogEntrySchema),
+      "Composio toolkits matching the search",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(integrationCatalogRoute, async (c) => {
+  requireUserAuthContext(c.var.authContext);
+  try {
+    const entries = await searchSokoBotIntegrationCatalog(
+      c.req.valid("query").query ?? "",
+    );
+    return ok(c, z.array(sokoBotIntegrationCatalogEntrySchema).parse(entries));
   } catch (error) {
     mapIntegrationError(error);
   }
