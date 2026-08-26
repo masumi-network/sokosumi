@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Mail, Plug, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -113,66 +113,35 @@ export function IntegrationsSection({
   }
 
   return (
-    <div className="space-y-3">
-      <ul className="divide-y rounded-md border">
+    <div className="space-y-4">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {initial.integrations.map((integration) => (
-          <li
-            key={integration.provider}
-            className="flex items-center gap-3 px-3 py-3"
-          >
-            <span className="bg-muted text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
-              {integration.logoUrl ? (
-                <img
-                  src={integration.logoUrl}
-                  alt=""
-                  className="size-5 object-contain"
-                />
-              ) : integration.kinds.includes("email") ? (
-                <Mail aria-hidden className="size-4" />
-              ) : integration.kinds.includes("calendar") ? (
-                <Calendar aria-hidden className="size-4" />
-              ) : (
-                <Plug aria-hidden className="size-4" />
-              )}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <span className="truncate text-sm font-medium">
-                  {integration.name}
-                </span>
-                <StatusDot status={integration.status} />
-              </span>
-              <span className="text-muted-foreground block truncate text-xs">
-                {describe(integration, t, format)}
-              </span>
-            </span>
-            {integration.status === "ACTIVE" ||
-            integration.status === "PENDING" ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={busy === integration.provider}
-                onClick={() => disconnect(integration.provider)}
-              >
-                {t("disconnect")}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={busy === integration.provider}
-                onClick={() => connect(integration.provider)}
-              >
-                {integration.status === "DISCONNECTED"
-                  ? t("connect")
-                  : t("reconnect")}
-              </Button>
-            )}
+          <li key={integration.provider}>
+            <Tile
+              name={integration.name}
+              logoUrl={integration.logoUrl}
+              caption={describe(integration, t, format)}
+              status={integration.status}
+              busy={busy === integration.provider}
+              actionLabel={
+                integration.status === "ACTIVE" ||
+                integration.status === "PENDING"
+                  ? t("disconnect")
+                  : integration.status === "DISCONNECTED"
+                    ? t("connect")
+                    : t("reconnect")
+              }
+              onAction={() =>
+                integration.status === "ACTIVE" ||
+                integration.status === "PENDING"
+                  ? disconnect(integration.provider)
+                  : connect(integration.provider)
+              }
+            />
           </li>
         ))}
       </ul>
+
       {shown.length === 0 ? (
         results ? (
           <p className="text-muted-foreground text-xs">{t("noResults")}</p>
@@ -182,34 +151,18 @@ export function IntegrationsSection({
           <p className="text-muted-foreground text-xs">
             {results ? t("resultsTitle") : t("popularTitle")}
           </p>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {shown.map((entry) => (
               <li key={entry.provider}>
-                <button
-                  type="button"
-                  disabled={busy === entry.provider}
-                  onClick={() => connect(entry.provider)}
-                  title={entry.description ?? entry.name}
-                  className="group hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-ring flex w-full flex-col items-center gap-2 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
-                >
-                  {entry.logoUrl ? (
-                    <img
-                      src={entry.logoUrl}
-                      alt=""
-                      className="size-8 rounded object-contain"
-                    />
-                  ) : (
-                    <span className="bg-primary/10 text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
-                      {entry.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="w-full truncate text-xs font-medium">
-                    {entry.name}
-                  </span>
-                  <span className="text-primary text-[0.6875rem] opacity-0 transition-opacity group-hover:opacity-100">
-                    {t("connect")}
-                  </span>
-                </button>
+                <Tile
+                  name={entry.name}
+                  logoUrl={entry.logoUrl}
+                  caption={entry.description}
+                  status="DISCONNECTED"
+                  busy={busy === entry.provider}
+                  actionLabel={t("connect")}
+                  onAction={() => connect(entry.provider)}
+                />
               </li>
             ))}
           </ul>
@@ -244,6 +197,57 @@ export function IntegrationsSection({
   );
 }
 
+/** One app: logo, name, one-line state, and its action on hover/focus. */
+function Tile({
+  name,
+  logoUrl,
+  caption,
+  status,
+  busy,
+  actionLabel,
+  onAction,
+}: {
+  name: string;
+  logoUrl: string | null;
+  caption: string | null;
+  status: Integration["status"];
+  busy: boolean;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  const active = status === "ACTIVE";
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onAction}
+      title={caption ?? name}
+      className={cn(
+        "group focus-visible:ring-ring relative flex h-full w-full flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
+        active
+          ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
+          : "hover:border-primary/40 hover:bg-primary/5",
+      )}
+    >
+      <StatusDot status={status} className="absolute top-2 right-2" />
+      {logoUrl ? (
+        <img src={logoUrl} alt="" className="size-8 rounded object-contain" />
+      ) : (
+        <span className="bg-primary/10 text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <span className="w-full truncate text-xs font-medium">{name}</span>
+      <span className="text-muted-foreground line-clamp-1 w-full text-[0.6875rem] group-hover:hidden group-focus-visible:hidden">
+        {caption ?? "\u00a0"}
+      </span>
+      <span className="text-primary hidden w-full truncate text-[0.6875rem] group-hover:block group-focus-visible:block">
+        {actionLabel}
+      </span>
+    </button>
+  );
+}
+
 function describe(
   integration: Integration,
   t: ReturnType<typeof useTranslations<"App.SokoBot.Integrations">>,
@@ -272,17 +276,24 @@ function describe(
   }
 }
 
-function StatusDot({ status }: { status: Integration["status"] }) {
+function StatusDot({
+  status,
+  className,
+}: {
+  status: Integration["status"];
+  className?: string;
+}) {
+  if (status === "DISCONNECTED") return null;
   return (
     <span
       aria-hidden
       className={cn(
         "inline-block size-1.5 shrink-0 rounded-full",
+        className,
         status === "ACTIVE" && "bg-semantic-success",
         status === "PENDING" && "bg-semantic-warning",
         (status === "FAILED" || status === "REVOKED") &&
           "bg-semantic-destructive",
-        status === "DISCONNECTED" && "bg-border",
       )}
     />
   );

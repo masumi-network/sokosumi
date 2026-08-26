@@ -130,6 +130,36 @@ export async function searchSokoBotIntegrationCatalog(
   return entries.slice(0, limit);
 }
 
+let featuredLogos: { at: number; logos: Map<string, string> } | null = null;
+
+/** Toolkit logos by slug: the cached catalog plus direct lookups for the featured providers. */
+async function catalogLogos(): Promise<Map<string, string>> {
+  const entries = await searchSokoBotIntegrationCatalog("", 500).catch(
+    () => [] as SokoBotIntegrationCatalogEntry[],
+  );
+  const logos = new Map(
+    entries.flatMap((entry) =>
+      entry.logoUrl ? [[entry.provider, entry.logoUrl] as const] : [],
+    ),
+  );
+  const composio = getComposio();
+  if (!composio) return logos;
+  if (!featuredLogos || Date.now() - featuredLogos.at > CATALOG_TTL_MS) {
+    const found = new Map<string, string>();
+    await Promise.all(
+      SOKO_BOT_INTEGRATION_PROVIDERS.map(async (provider) => {
+        const toolkit = await composio.toolkits
+          .get(provider.id)
+          .catch(() => null);
+        if (toolkit?.meta?.logo) found.set(provider.id, toolkit.meta.logo);
+      }),
+    );
+    featuredLogos = { at: Date.now(), logos: found };
+  }
+  for (const [slug, logo] of featuredLogos.logos) logos.set(slug, logo);
+  return logos;
+}
+
 function curatedCatalog(
   query: string,
   limit: number,
@@ -208,12 +238,13 @@ export async function listSokoBotIntegrations(
     where: { sokoBotId: bot.id },
     select: INTEGRATION_SELECT,
   });
+  const logos = await catalogLogos();
   const connected: SokoBotIntegrationView[] = rows.map((row) => {
     const known = getSokoBotIntegrationProvider(row.provider);
     return {
       provider: row.provider,
       name: row.name ?? known?.name ?? row.provider,
-      logoUrl: row.logoUrl,
+      logoUrl: row.logoUrl ?? logos.get(row.provider) ?? null,
       kinds: known?.kinds ?? [],
       status: row.status,
       connectedAt: row.connectedAt,
