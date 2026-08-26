@@ -467,10 +467,6 @@ describe("PATCH /chats/rooms/{id}", () => {
   });
 
   it("rejects a Channel slug on PATCH", async () => {
-    const existing = channelRoom();
-    roomFindFirstMock.mockResolvedValueOnce(existing);
-    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
-
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
       method: "PATCH",
@@ -486,6 +482,7 @@ describe("PATCH /chats/rooms/{id}", () => {
         message: "Channel slug cannot be changed",
       }),
     );
+    expect(roomFindFirstMock).not.toHaveBeenCalled();
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 

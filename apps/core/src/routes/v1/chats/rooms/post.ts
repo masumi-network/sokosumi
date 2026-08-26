@@ -119,6 +119,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const organizationId = requireActiveOrganizationId(userContext);
+    const slug = requireSanitizedChannelSlug(body.slug);
 
     try {
       const room = await prisma.$transaction(async (tx) => {
@@ -152,7 +153,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId,
           tx,
         );
-        const slug = requireSanitizedChannelSlug(body.slug);
 
         return tx.chatRoom.create({
           data: {
@@ -366,186 +366,179 @@ async function createOrGetDirectRoom(params: {
   const requestedCoworkerIds = shape.coworkerIds;
   const activeOrganizationId = params.organizationId;
 
-  // Holds the key computed inside the transaction so the retry below can
-  // reuse it; a plain `let` would be narrowed to `never` by control flow
+  // Holds the key computed inside the transaction so a directKey race
+  // can reuse it; a plain `let` would be narrowed to `never` by control flow
   // analysis because the assignment happens inside the callback.
   const directKeyRef: { current: string | null } = { current: null };
   const createOrganizationIdRef: { current: string | null } = {
     current: activeOrganizationId,
   };
 
-  const maxAttempts = 3;
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      const result = await prisma.$transaction(async (tx) => {
-        if (activeOrganizationId) {
-          if (shape.kind === "human-direct") {
-            await resolveMemberOrganizationById({
-              id: activeOrganizationId,
-              userId: currentUserId,
-              tx,
-            });
-          } else {
-            // Coworker 1:1 owner is the human on the room (user actor or
-            // originated target). A missing owner is a bad target, not
-            // "you are not a member".
-            await validateOrganizationUserIds(
-              activeOrganizationId,
-              [currentUserId],
-              tx,
-            );
-          }
-        }
-
-        if (shape.kind === "coworker-1to1") {
-          const workspaceId = await resolveWorkspaceIdForChatRoom({
-            organizationId: activeOrganizationId,
-            personalUserId: currentUserId,
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      if (activeOrganizationId) {
+        if (shape.kind === "human-direct") {
+          await resolveMemberOrganizationById({
+            id: activeOrganizationId,
+            userId: currentUserId,
             tx,
           });
-          const coworkerIds = await validateChatCoworkerIds(
-            requestedCoworkerIds,
-            workspaceId,
+        } else {
+          // Coworker 1:1 owner is the human on the room (user actor or
+          // originated target). A missing owner is a bad target, not
+          // "you are not a member".
+          await validateOrganizationUserIds(
+            activeOrganizationId,
+            [currentUserId],
             tx,
           );
-          const directKey = buildDirectParticipantRoomKey({
-            currentUserId,
-            memberUserIds: [],
-            coworkerIds,
-          });
-          directKeyRef.current = directKey;
-          createOrganizationIdRef.current = activeOrganizationId;
-
-          const existing = await findOrRestoreDirectByKey(tx, {
-            organizationId: activeOrganizationId,
-            directKey,
-          });
-          if (existing) {
-            return { room: existing, created: false };
-          }
-
-          return createDirectRoomRecord({
-            tx,
-            currentUserId,
-            organizationId: activeOrganizationId,
-            directKey,
-            memberUserIds: [],
-            coworkerIds,
-          });
         }
+      }
 
-        const isGroup = requestedMemberUserIds.length > 1;
-        const orgTeammateIds = activeOrganizationId
-          ? await filterOrganizationUserIds(
-              activeOrganizationId,
-              requestedMemberUserIds,
-              tx,
-            )
-          : [];
-        const targetsAreOrgTeammates =
-          activeOrganizationId != null &&
-          orgTeammateIds.length === requestedMemberUserIds.length;
-
-        if (isGroup && !activeOrganizationId) {
-          throw badRequest("Switch to an organization to message a teammate.");
-        }
-        if (isGroup && !targetsAreOrgTeammates) {
-          throw badRequest(
-            "Room human members must belong to the organization",
-          );
-        }
-
-        const memberUserIds = requestedMemberUserIds;
+      if (shape.kind === "coworker-1to1") {
+        const workspaceId = await resolveWorkspaceIdForChatRoom({
+          organizationId: activeOrganizationId,
+          personalUserId: currentUserId,
+          tx,
+        });
+        const coworkerIds = await validateChatCoworkerIds(
+          requestedCoworkerIds,
+          workspaceId,
+          tx,
+        );
         const directKey = buildDirectParticipantRoomKey({
           currentUserId,
-          memberUserIds,
-          coworkerIds: [],
+          memberUserIds: [],
+          coworkerIds,
         });
         directKeyRef.current = directKey;
+        createOrganizationIdRef.current = activeOrganizationId;
 
-        const existing = await findLiveDirectByParticipantKey(
-          tx,
+        const existing = await findOrRestoreDirectByKey(tx, {
+          organizationId: activeOrganizationId,
           directKey,
-          targetsAreOrgTeammates ? activeOrganizationId : null,
-        );
+        });
         if (existing) {
           return { room: existing, created: false };
         }
 
-        if (!targetsAreOrgTeammates) {
-          const peerUserId = memberUserIds[0];
-          if (!peerUserId) {
-            throw badRequest("Choose a direct message target");
-          }
-          const shareChannel = await usersShareExternalChannel(
-            currentUserId,
-            peerUserId,
-            tx,
-          );
-          if (!shareChannel) {
-            throw badRequest(
-              "You can only message people you share an external channel with.",
-            );
-          }
-        }
-
-        const organizationId = targetsAreOrgTeammates
-          ? activeOrganizationId
-          : null;
-        createOrganizationIdRef.current = organizationId;
-
         return createDirectRoomRecord({
           tx,
           currentUserId,
-          organizationId,
+          organizationId: activeOrganizationId,
           directKey,
-          memberUserIds,
-          coworkerIds: [],
+          memberUserIds: [],
+          coworkerIds,
         });
-      });
-
-      return {
-        room: await serializeDirectRoomForViewer(
-          result.room,
-          viewerUserId,
-          activeOrganizationId,
-        ),
-        created: result.created,
-      };
-    } catch (error) {
-      // directKey race: another request won the create — return that room.
-      if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
-        const existing =
-          shape.kind === "coworker-1to1"
-            ? await findOrRestoreDirectByKey(prisma, {
-                organizationId: createOrganizationIdRef.current,
-                directKey: directKeyRef.current,
-              })
-            : await findLiveDirectByParticipantKey(
-                prisma,
-                directKeyRef.current,
-                createOrganizationIdRef.current,
-              );
-
-        if (existing) {
-          return {
-            room: await serializeDirectRoomForViewer(
-              existing,
-              viewerUserId,
-              activeOrganizationId,
-            ),
-            created: false,
-          };
-        }
-
-        throw conflict("Direct room already exists");
       }
 
-      throw error;
-    }
-  }
+      const isGroup = requestedMemberUserIds.length > 1;
+      const orgTeammateIds = activeOrganizationId
+        ? await filterOrganizationUserIds(
+            activeOrganizationId,
+            requestedMemberUserIds,
+            tx,
+          )
+        : [];
+      const targetsAreOrgTeammates =
+        activeOrganizationId != null &&
+        orgTeammateIds.length === requestedMemberUserIds.length;
 
-  throw conflict("Direct room already exists");
+      if (isGroup && !activeOrganizationId) {
+        throw badRequest("Switch to an organization to message a teammate.");
+      }
+      if (isGroup && !targetsAreOrgTeammates) {
+        throw badRequest("Room human members must belong to the organization");
+      }
+
+      const memberUserIds = requestedMemberUserIds;
+      const directKey = buildDirectParticipantRoomKey({
+        currentUserId,
+        memberUserIds,
+        coworkerIds: [],
+      });
+      directKeyRef.current = directKey;
+
+      const existing = await findLiveDirectByParticipantKey(
+        tx,
+        directKey,
+        targetsAreOrgTeammates ? activeOrganizationId : null,
+      );
+      if (existing) {
+        return { room: existing, created: false };
+      }
+
+      if (!targetsAreOrgTeammates) {
+        const peerUserId = memberUserIds[0];
+        if (!peerUserId) {
+          throw badRequest("Choose a direct message target");
+        }
+        const shareChannel = await usersShareExternalChannel(
+          currentUserId,
+          peerUserId,
+          tx,
+        );
+        if (!shareChannel) {
+          throw badRequest(
+            "You can only message people you share an external channel with.",
+          );
+        }
+      }
+
+      const organizationId = targetsAreOrgTeammates
+        ? activeOrganizationId
+        : null;
+      createOrganizationIdRef.current = organizationId;
+
+      return createDirectRoomRecord({
+        tx,
+        currentUserId,
+        organizationId,
+        directKey,
+        memberUserIds,
+        coworkerIds: [],
+      });
+    });
+
+    return {
+      room: await serializeDirectRoomForViewer(
+        result.room,
+        viewerUserId,
+        activeOrganizationId,
+      ),
+      created: result.created,
+    };
+  } catch (error) {
+    // directKey race: another request won the create — return that room.
+    if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
+      const existing =
+        shape.kind === "coworker-1to1"
+          ? await findOrRestoreDirectByKey(prisma, {
+              organizationId: createOrganizationIdRef.current,
+              directKey: directKeyRef.current,
+            })
+          : await findLiveDirectByParticipantKey(
+              prisma,
+              directKeyRef.current,
+              createOrganizationIdRef.current,
+            );
+
+      if (existing) {
+        return {
+          room: await serializeDirectRoomForViewer(
+            existing,
+            viewerUserId,
+            activeOrganizationId,
+          ),
+          created: false,
+        };
+      }
+
+      throw conflict("Direct room already exists");
+    }
+
+    throw error;
+  }
 }
 
 async function createDirectRoomRecord(params: {

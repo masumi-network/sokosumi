@@ -82,6 +82,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
+    if (body.slug !== undefined) {
+      throw badRequest("Channel slug cannot be changed");
+    }
+
     // Serializable so a concurrent leave cannot commit under a stale roster
     // snapshot that would re-create the leaver's membership (SSI → 409
     // concurrency_conflict). Leave still uses FOR UPDATE on the room row.
@@ -177,10 +181,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               "Cannot change discoverability while shareable invite links exist. Revoke or wait for them to expire first.",
             );
           }
-        }
-
-        if (body.slug !== undefined) {
-          throw badRequest("Channel slug cannot be changed");
         }
 
         const updateData: {

@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CHANNEL_SLUG_MAX_LENGTH, CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -386,13 +386,36 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Team Soko",
-        slug: "a".repeat(81),
+        slug: "a".repeat(CHANNEL_SLUG_MAX_LENGTH + 1),
       }),
     });
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Channel slug is invalid");
     expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a Channel slug of exactly 80 characters", async () => {
+    const slug = "a".repeat(CHANNEL_SLUG_MAX_LENGTH);
+    roomCreateMock.mockResolvedValue(channelRoom({ slug }));
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ slug }),
+      }),
+    );
   });
 
   it("rejects a Channel slug that is empty after sanitize", async () => {
