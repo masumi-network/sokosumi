@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
-    "vercel-build": "pnpm run build && pnpm --filter @sokosumi/database prisma:migrate:deploy",
+    "vercel-build": "pnpm run build && pnpm --filter @sokosumi/database exec prisma db execute --file prisma/recover-failed-migration.sql && pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "start": "node dist/index.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
