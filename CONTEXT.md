@@ -26,6 +26,20 @@ _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), assistant (Hermes)
 
+### Developers
+
+**Coworker developer**:
+A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
+_Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
+
+**Agent developer**:
+A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
+_Avoid_: Coworker developer (when meaning this)
+
+**Developer CLI**:
+The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
+_Avoid_: Treating `/developer` as deprecated, a second CLI per persona
+
 ### Task payments
 
 **Task payment claim**:
@@ -91,6 +105,10 @@ _Avoid_: Room (all chats are rooms), conversation
 **Channel slug**:
 The unique handle for a Channel in its organization (`#team-soko`). The create UI collects the handle first; the display name is derived from it (`team-soko` → `Team Soko`) and can be edited before submit. After create the slug is stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
 _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s identity (that is `id`), vanity URL, requiring the slug to match the name, regenerating the slug on rename
+
+**Channel topic**:
+An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
+_Avoid_: Description, purpose, bio, treating a Direct as having a topic
 
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.

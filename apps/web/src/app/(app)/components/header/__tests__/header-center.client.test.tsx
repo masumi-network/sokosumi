@@ -55,7 +55,28 @@ describe("HeaderCenter", () => {
     expect(roomSlotClasses).not.toContain("hidden");
 
     expect(breadcrumbs).toHaveAttribute("data-hide-on-mobile-room", "true");
-    expect(breadcrumbClasses).toContain("sm:flex");
-    expect(breadcrumbClasses).toContain("max-md:hidden");
+    expect(breadcrumbClasses).not.toContain("sm:flex");
+    expect(breadcrumbClasses).toContain("md:flex");
+    expect(breadcrumbClasses).not.toContain("max-md:hidden");
+  });
+
+  it("does not let breadcrumbs claim sm while the room slot is still visible below md", () => {
+    mockPathname = "/chat/rooms/room-1";
+    render(
+      <HeaderCenter>
+        <span>Chat</span>
+        <span>Everyone</span>
+      </HeaderCenter>,
+    );
+
+    const roomSlot = screen.getByTestId("header-room-slot");
+    const breadcrumbs = screen.getByTestId("header-breadcrumbs");
+    const roomSlotClasses = roomSlot.className.split(/\s+/);
+    const breadcrumbClasses = breadcrumbs.className.split(/\s+/);
+
+    expect(roomSlotClasses).toContain("flex");
+    expect(roomSlotClasses).toContain("md:hidden");
+    expect(breadcrumbClasses).not.toContain("sm:flex");
+    expect(breadcrumbClasses).toContain("md:flex");
   });
 });

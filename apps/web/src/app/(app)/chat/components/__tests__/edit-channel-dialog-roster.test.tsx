@@ -139,7 +139,11 @@ describe("EditChannelDialog host roster payload", () => {
         canArchive
         canLeave
         canInviteGuests={false}
-      />,
+      >
+        <button type="button" aria-label="editChannel">
+          edit
+        </button>
+      </EditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));
@@ -175,7 +179,11 @@ describe("EditChannelDialog host roster payload", () => {
         canArchive
         canLeave
         canInviteGuests={false}
-      />,
+      >
+        <button type="button" aria-label="editChannel">
+          edit
+        </button>
+      </EditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));

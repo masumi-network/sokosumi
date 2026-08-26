@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
   editRoomMessageAction,
+  getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
@@ -30,6 +31,7 @@ import {
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { highlightRoomMessageElement } from "@/app/chat/components/room-helpers";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
@@ -85,6 +87,10 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
+import {
+  performRoomSearchJump,
+  waitForSearchJumpPaint,
+} from "@/app/chat/utils/room-search-jump";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
@@ -334,8 +340,7 @@ interface RoomHeaderChromeProps {
   room: ChatRoom;
   displayName: string;
   isDirectRoom: boolean;
-  topLevelRoomMessages: ChatRoomMessage[];
-  onOpenThread: (message: ChatRoomMessage) => boolean | Promise<boolean>;
+  onJumpToMessage: (hit: ChatRoomMessage) => void;
   threadListOpen: boolean;
   onToggleThreadList: () => void;
   rosterOpen: boolean;
@@ -357,8 +362,7 @@ function RoomHeaderChrome({
   room,
   displayName,
   isDirectRoom,
-  topLevelRoomMessages,
-  onOpenThread,
+  onJumpToMessage,
   threadListOpen,
   onToggleThreadList,
   rosterOpen,
@@ -375,43 +379,79 @@ function RoomHeaderChrome({
   showParticipants,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
+  const trimmedTopic = room.topic?.trim() ?? "";
+  const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
 
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
-      <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
         {isDirectRoom ? (
-          <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+          <>
+            <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+            <p
+              className="text-foreground min-w-0 truncate text-sm"
+              data-testid="room-open-title"
+            >
+              {displayName}
+            </p>
+          </>
         ) : (
-          <ChannelDiscoverabilityIcon
-            className="text-muted-foreground"
-            discoverability={room.discoverability}
-          />
+          <>
+            <EditChannelDialog
+              channel={room}
+              members={organizationMembers}
+              coworkers={coworkers}
+              currentUserId={currentUserId}
+              canEditMembers={canEditMembers}
+              canManageSettings={canManageSettings}
+              canArchive={canArchive}
+              canLeave={canLeave}
+              canInviteGuests={canInviteGuests}
+              membersLoadFailed={membersLoadFailed}
+            >
+              <button
+                type="button"
+                className={cn(
+                  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2",
+                  channelTopic && "shrink-0",
+                )}
+                title={t("editChannel")}
+                data-testid="room-open-title"
+              >
+                <ChannelDiscoverabilityIcon
+                  className="text-muted-foreground"
+                  discoverability={room.discoverability}
+                />
+                <span className="min-w-0 truncate">{displayName}</span>
+              </button>
+            </EditChannelDialog>
+            {channelTopic ? (
+              <p
+                className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
+                title={channelTopic}
+                data-testid="room-open-topic"
+              >
+                {channelTopic}
+              </p>
+            ) : null}
+          </>
         )}
-        <p
-          className="text-foreground min-w-0 truncate text-sm"
-          data-testid="room-open-title"
-        >
-          {displayName}
-        </p>
-        <div className="shrink-0">
-          <RoomSearchPanel
-            key={room.id}
-            roomId={room.id}
-            loadedMessages={topLevelRoomMessages}
-            onOpenThread={onOpenThread}
-            labels={{
-              open: t("RoomSearch.open"),
-              placeholder: t("RoomSearch.placeholder"),
-              idle: t("RoomSearch.idle"),
-              empty: t("RoomSearch.empty"),
-              loading: t("RoomSearch.loading"),
-              error: t("RoomSearch.error"),
-              replyBadge: t("RoomSearch.replyBadge"),
-            }}
-          />
-        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+        <RoomSearchPanel
+          key={room.id}
+          roomId={room.id}
+          onJumpToMessage={onJumpToMessage}
+          labels={{
+            open: t("RoomSearch.open"),
+            placeholder: t("RoomSearch.placeholder"),
+            idle: t("RoomSearch.idle"),
+            empty: t("RoomSearch.empty"),
+            loading: t("RoomSearch.loading"),
+            error: t("RoomSearch.error"),
+            replyBadge: t("RoomSearch.replyBadge"),
+          }}
+        />
         <UnreadThreadsPanel
           key={`unread-threads-${room.id}`}
           isOpen={threadListOpen}
@@ -427,20 +467,6 @@ function RoomHeaderChrome({
             onToggleRoster={onToggleRoster}
           />
         ) : null}
-        {isDirectRoom ? null : (
-          <EditChannelDialog
-            channel={room}
-            members={organizationMembers}
-            coworkers={coworkers}
-            currentUserId={currentUserId}
-            canEditMembers={canEditMembers}
-            canManageSettings={canManageSettings}
-            canArchive={canArchive}
-            canLeave={canLeave}
-            canInviteGuests={canInviteGuests}
-            membersLoadFailed={membersLoadFailed}
-          />
-        )}
       </div>
     </div>
   );
@@ -530,11 +556,17 @@ export function RoomsClient({
   const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
+  const historicalTimelineRef = useRef(false);
+  const historicalThreadRef = useRef(false);
+  const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
+    historicalTimelineRef.current = false;
+    historicalThreadRef.current = false;
+    setSearchHoldOffBottom(false);
     if (messagesPromise != null) {
       setMessagesState([]);
       setOlderNextCursor(null);
@@ -579,6 +611,11 @@ export function RoomsClient({
     : messageLoadFailedState;
 
   const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
+    if (historicalTimelineRef.current) {
+      setDeferredHistoryPending(false);
+      setMessageLoadFailedState(false);
+      return;
+    }
     setMessagesState((current) => mergeRoomMessages(current, page.messages));
     setOlderNextCursor(page.nextCursor);
     setMessageLoadFailedState(page.failed);
@@ -640,8 +677,11 @@ export function RoomsClient({
     scrollToBottom,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
+    suppressStickToBottom,
+    releaseStickToBottomSuppress,
   } = useStickToBottom({
     resetKey: selectedRoomId,
+    holdOffBottom: searchHoldOffBottom,
   });
   // When history lands, pin live edge in layout (same frame as skeleton →
   // messages) so the list does not paint mid-jump then scroll.
@@ -650,6 +690,9 @@ export function RoomsClient({
     const wasPending = wasHistoryPendingRef.current;
     wasHistoryPendingRef.current = messagesPending;
     if (!wasPending || messagesPending) {
+      return;
+    }
+    if (historicalTimelineRef.current) {
       return;
     }
     scrollToBottom();
@@ -884,10 +927,12 @@ export function RoomsClient({
       if (!isStillSelectedRoom(roomId)) {
         return false;
       }
-      setMessagesState((current) =>
-        mergeRoomMessages(current, roomResult.value.messages),
-      );
-      if (threadResult?.ok && threadParentId) {
+      if (!historicalTimelineRef.current) {
+        setMessagesState((current) =>
+          mergeRoomMessages(current, roomResult.value.messages),
+        );
+      }
+      if (threadResult?.ok && threadParentId && !historicalThreadRef.current) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
         );
@@ -1072,14 +1117,20 @@ export function RoomsClient({
         event.eventType === "delete" && message.deletedAt == null;
 
       if (route.mergeIntoRoomTimeline) {
-        applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
-          filterTopLevelChatRoomMessages(
+        applyMessagesFlashingOutboundConfirms(setMessagesState, (current) => {
+          if (
+            historicalTimelineRef.current &&
+            !current.some((row) => row.id === message.id)
+          ) {
+            return current;
+          }
+          return filterTopLevelChatRoomMessages(
             applyFullChatRoomMessageEvent(current, {
               eventType: event.eventType,
               message,
             }),
-          ),
-        );
+          );
+        });
       }
       setThreadParentMessage((current) => {
         if (current?.id !== message.id) {
@@ -1089,12 +1140,18 @@ export function RoomsClient({
       });
 
       if (route.mergeIntoOpenThread) {
-        applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
-          applyFullChatRoomMessageEvent(current, {
+        applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) => {
+          if (
+            historicalThreadRef.current &&
+            !current.some((row) => row.id === message.id)
+          ) {
+            return current;
+          }
+          return applyFullChatRoomMessageEvent(current, {
             eventType: event.eventType,
             message,
-          }),
-        );
+          });
+        });
         // Look first, then room re-sync — mark-read effect can race if it
         // runs before look lands; open path uses the same order.
         // Use the ref (not openThreadParentId) so this []-deps handler stays
@@ -1382,11 +1439,14 @@ export function RoomsClient({
     // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
     // merge so client-loaded older pages are not wiped by the latest page.
     if (isChannelSwitch) {
+      historicalTimelineRef.current = false;
       setMessagesState(messages);
       setOlderNextCursor(messagesNextCursor);
       setMessageLoadFailedState(messageLoadFailed);
-    } else {
+    } else if (!historicalTimelineRef.current) {
       setMessagesState((current) => mergeRoomMessages(current, messages));
+      setMessageLoadFailedState(messageLoadFailed);
+    } else {
       setMessageLoadFailedState(messageLoadFailed);
     }
     setThreadParentMessage((current) =>
@@ -1488,7 +1548,7 @@ export function RoomsClient({
       if (cancelled) {
         return;
       }
-      if (result.ok) {
+      if (result.ok && !historicalTimelineRef.current) {
         setMessagesState((current) =>
           mergeRoomMessages(current, result.value.messages),
         );
@@ -1542,9 +1602,11 @@ export function RoomsClient({
     if (selectedRoomIdRef.current !== roomId || !result.ok) {
       return;
     }
-    setMessagesState((current) =>
-      mergeRoomMessages(current, result.value.messages),
-    );
+    if (!historicalTimelineRef.current) {
+      setMessagesState((current) =>
+        mergeRoomMessages(current, result.value.messages),
+      );
+    }
     setThreadParentMessage((current) =>
       current
         ? (result.value.messages.find((message) => message.id === current.id) ??
@@ -1554,7 +1616,8 @@ export function RoomsClient({
     if (
       threadResult?.ok &&
       threadParentId != null &&
-      threadParentMessageIdRef.current === threadParentId
+      threadParentMessageIdRef.current === threadParentId &&
+      !historicalThreadRef.current
     ) {
       setThreadMessages((current) =>
         mergeRoomMessages(current, threadResult.value.messages),
@@ -1636,12 +1699,12 @@ export function RoomsClient({
       if (cancelled) {
         return;
       }
-      if (threadResult.ok) {
+      if (threadResult.ok && !historicalThreadRef.current) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
         );
       }
-      if (roomResult.ok) {
+      if (roomResult.ok && !historicalTimelineRef.current) {
         setMessagesState((current) =>
           mergeRoomMessages(current, roomResult.value.messages),
         );
@@ -1798,6 +1861,71 @@ export function RoomsClient({
     return loadThreadMessages(parentMessage);
   }
 
+  async function handleSearchJump(hit: ChatRoomMessage) {
+    const roomId = selectedRoom?.id;
+    if (!roomId) {
+      return;
+    }
+    await performRoomSearchJump(hit, {
+      holdOffBottom: () => {
+        suppressStickToBottom();
+        setSearchHoldOffBottom(true);
+      },
+      releaseHoldOffBottom: () => {
+        releaseStickToBottomSuppress();
+        setSearchHoldOffBottom(false);
+      },
+      highlight: highlightRoomMessageElement,
+      afterRender: waitForSearchJumpPaint,
+      loadAroundInRoom: async (aroundId) => {
+        const result = await listRoomMessagesAction(roomId, {
+          around: aroundId,
+        });
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return false;
+        }
+        historicalTimelineRef.current = true;
+        setMessagesState(result.value.messages);
+        setOlderNextCursor(result.value.nextCursor);
+        return true;
+      },
+      findLoadedParent: (parentId) =>
+        topLevelRoomMessages.find((message) => message.id === parentId) ??
+        (threadParentMessage?.id === parentId
+          ? threadParentMessage
+          : undefined),
+      loadParent: async (parentId) => {
+        const result = await getRoomThreadAction(roomId, parentId);
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return null;
+        }
+        return result.value.parentMessage;
+      },
+      openThread: handleOpenThreadFromMessage,
+      loadAroundInThread: async (parentId, aroundId) => {
+        const result = await listThreadMessagesAction(roomId, parentId, {
+          around: aroundId,
+        });
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return false;
+        }
+        historicalThreadRef.current = true;
+        setThreadMessages(result.value.messages);
+        setThreadOlderNextCursor(result.value.nextCursor);
+        return true;
+      },
+    });
+  }
+
   async function handleOpenThreadFromList(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -1807,6 +1935,8 @@ export function RoomsClient({
 
   function closeThreadSidePanel() {
     threadLoadGenerationRef.current += 1;
+    historicalThreadRef.current = false;
+    setSearchHoldOffBottom(false);
     setIsThreadLoading(false);
     setThreadParentMessage(null);
     setThreadMessages([]);
@@ -1844,6 +1974,7 @@ export function RoomsClient({
     // Reply list is wiped below — drop thread outbound jobs so a switch or
     // reopen cannot keep orphan retries after the shells are gone (ADR: no outbox).
     clearClassicOutboundQueue(classicThreadRefs);
+    historicalThreadRef.current = false;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
@@ -2285,6 +2416,18 @@ export function RoomsClient({
       if (!selectedRoom) return { ok: false };
       const roomId = selectedRoom.id;
 
+      if (historicalTimelineRef.current) {
+        const live = await listRoomMessagesAction(roomId);
+        if (!live.ok) {
+          toast.error(live.error.message);
+        } else if (isStillSelectedRoom(roomId)) {
+          historicalTimelineRef.current = false;
+          setSearchHoldOffBottom(false);
+          setMessagesState(live.value.messages);
+          setOlderNextCursor(live.value.nextCursor);
+        }
+      }
+
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
@@ -2371,6 +2514,18 @@ export function RoomsClient({
       const roomId = selectedRoom.id;
       const parentMessageId = threadParentMessage.id;
 
+      if (historicalThreadRef.current) {
+        const live = await listThreadMessagesAction(roomId, parentMessageId);
+        if (!live.ok) {
+          toast.error(live.error.message);
+        } else if (isStillSelectedRoom(roomId)) {
+          historicalThreadRef.current = false;
+          setSearchHoldOffBottom(false);
+          setThreadMessages(live.value.messages);
+          setThreadOlderNextCursor(live.value.nextCursor);
+        }
+      }
+
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
         const started = sendStreamMessage(request.content, {
           parentMessageId,
@@ -2446,8 +2601,7 @@ export function RoomsClient({
         room={selectedRoom}
         displayName={selectedRoomDisplayName}
         isDirectRoom={isDirectRoom}
-        topLevelRoomMessages={topLevelRoomMessages}
-        onOpenThread={handleOpenThreadFromMessage}
+        onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
         onToggleThreadList={() => {
           setRosterOpen(false);
@@ -2569,6 +2723,8 @@ export function RoomsClient({
                       coworkersBySlug={coworkersBySlug}
                       usersById={usersById}
                       usersBySlug={usersBySlug}
+                      mentions={mentionRecords}
+                      channels={channelOptions}
                       channelLinks={channelLinks}
                       currentUserId={currentUserId}
                       canOpenHumanDirect={canOpenHumanDirect}
@@ -2694,6 +2850,10 @@ export function RoomsClient({
               roomId={selectedRoom.id}
               draftKey={composeDraftKey.room(selectedRoom.id)}
               mentions={mentionRecords}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
               channels={channelOptions}
               channelLinks={channelLinks}
               placeholder={
@@ -2717,12 +2877,17 @@ export function RoomsClient({
               focusOnMount={!messagesPending}
               onBeforeSend={handleChannelBeforeSend}
               onSend={handleChannelSend}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={handleOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectKey}
             />
           }
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
                 parentMessage={threadParentMessage}
+                holdOffBottom={searchHoldOffBottom}
                 replies={displayThreadMessages}
                 isLoading={isThreadLoading}
                 olderNextCursor={threadOlderNextCursor}

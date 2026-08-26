@@ -3,7 +3,7 @@
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
@@ -76,6 +76,7 @@ export function ThreadPanel({
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
+  holdOffBottom = false,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -122,6 +123,7 @@ export function ThreadPanel({
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
+  holdOffBottom?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -131,9 +133,17 @@ export function ThreadPanel({
     contentMinHeight,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
+    suppressStickToBottom,
   } = useStickToBottom({
     resetKey: parentMessage.id,
+    holdOffBottom,
   });
+
+  useEffect(() => {
+    if (holdOffBottom) {
+      suppressStickToBottom();
+    }
+  }, [holdOffBottom, suppressStickToBottom]);
 
   function handleQuote(message: ChatRoomMessage) {
     onQuote?.(message);
@@ -251,6 +261,8 @@ export function ThreadPanel({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                mentions={mentionRecords}
+                channels={channelOptions}
                 channelLinks={channelLinks}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={onOpenDirectMessage}
@@ -304,6 +316,8 @@ export function ThreadPanel({
                           coworkersBySlug={coworkersBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
+                          mentions={mentionRecords}
+                          channels={channelOptions}
                           channelLinks={channelLinks}
                           canOpenHumanDirect={canOpenHumanDirect}
                           onOpenDirectMessage={onOpenDirectMessage}
@@ -344,6 +358,10 @@ export function ThreadPanel({
           roomId={roomId}
           draftKey={draftKey}
           mentions={mentionRecords}
+          usersById={usersById}
+          usersBySlug={usersBySlug}
+          coworkersById={coworkersById}
+          coworkersBySlug={coworkersBySlug}
           channels={channelOptions}
           channelLinks={channelLinks}
           placeholder={t("Thread.replyPlaceholder")}
@@ -356,6 +374,10 @@ export function ThreadPanel({
           onChromeResize={scrollToBottomIfPinned}
           onBeforeSend={onBeforeSendReply}
           onSend={handleSendReply}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </RoomFileDropZone>
     </aside>

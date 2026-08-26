@@ -13814,6 +13814,10 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Reading-order window of replies centred on this reply. Must belong to this thread. Cannot be combined with cursor.
+         */
+        around?: string;
     };
     url: '/chats/rooms/{id}/threads/{parentMessageId}/messages';
 };
@@ -13851,6 +13855,20 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
      * Thread not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -14408,6 +14426,10 @@ export type GetChatsRoomsByIdMessagesData = {
          * Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages.
          */
         q?: string;
+        /**
+         * Reading-order window of top-level messages centred on this message, or on its parent if it is a reply. Cannot be combined with q or cursor.
+         */
+        around?: string;
     };
     url: '/chats/rooms/{id}/messages';
 };
@@ -14445,6 +14467,20 @@ export type GetChatsRoomsByIdMessagesErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
