@@ -82,6 +82,24 @@ async function loadTurn(
   };
 }
 
+/**
+ * The taskboard and event syncs wake the bot about Tasks the lab itself
+ * creates; a scenario started while such a turn runs is refused as busy.
+ * Wait for the bot to settle before each scenario.
+ */
+async function waitForIdle(sokoBotId: string, timeoutMs = 180_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: sokoBotId },
+      select: { status: true },
+    });
+    if (bot?.status === "IDLE") return;
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  throw new Error("Soko Bot did not become idle in time");
+}
+
 async function waitForTurn(turnId: string) {
   const deadline = Date.now() + TURN_TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -169,6 +187,7 @@ for (const versionId of versionIds) {
   for (const scenario of scenarios) {
     const startedAt = Date.now();
     try {
+      await waitForIdle(owner.bot.id);
       const turnId = await startScenario(scenario, owner);
       await waitForTurn(turnId);
       const turn = await loadTurn(turnId);
