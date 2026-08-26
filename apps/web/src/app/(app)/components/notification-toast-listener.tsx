@@ -3,11 +3,13 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffectEvent } from "react";
 import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { authClient } from "@/lib/auth/auth.client";
@@ -15,11 +17,18 @@ import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
   shouldShowBrowserNotification,
-  showBrowserNotification,
 } from "@/lib/utils/browser-notification";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
+import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
+import {
+  answerShowsNotificationsQuery,
+  getNotificationServiceWorker,
+  showNotification,
+  subscribeNotificationClicks,
+  toNotificationTarget,
+} from "@/lib/utils/notification-service-worker";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
 interface NotificationToastListenerProps {
@@ -105,7 +114,42 @@ export function NotificationToastListener({
   const router = useRouter();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
 
-  useNotificationRealtime({
+  function openNotification(target: NotificationTarget, isRead: boolean) {
+    void (async () => {
+      if (!isRead) {
+        void markRead(target.id).catch(() => {
+          // Still open the link when mark-read fails.
+        });
+      }
+
+      const sessionResponse = await authClient.getSession();
+      const activeOrganizationId =
+        sessionResponse.data?.session.activeOrganizationId ?? null;
+
+      await handleNotificationNavigation(
+        target,
+        activeOrganizationId,
+        router,
+        handleSelectWorkspace,
+        tDetail,
+      );
+    })();
+  }
+
+  /**
+   * `handleSelectWorkspace` is a new function on every render, so subscribing
+   * on each change would tear the worker's message listener down and back up
+   * constantly, and a click landing in that gap would be lost. This keeps one
+   * stable identity that always runs the current render's callback.
+   */
+  const openClickedNotification = useEffectEvent(
+    (target: NotificationTarget) => {
+      // A banner the reader clicks was unread when it was rendered.
+      openNotification(target, false);
+    },
+  );
+
+  const { isReceivingNotifications } = useNotificationRealtime({
     userId,
     onNotification: (notification) => {
       const isDocumentFocused =
@@ -131,45 +175,22 @@ export function NotificationToastListener({
         notification.messageParams ?? {},
       );
 
-      const openNotification = () => {
-        void (async () => {
-          if (!notification.isRead) {
-            void markRead(notification.id).catch(() => {
-              // Still open the link when mark-read fails.
-            });
-          }
-
-          const sessionResponse = await authClient.getSession();
-          const activeOrganizationId =
-            sessionResponse.data?.session.activeOrganizationId ?? null;
-
-          await handleNotificationNavigation(
-            notification,
-            activeOrganizationId,
-            router,
-            handleSelectWorkspace,
-            tDetail,
-          );
-        })();
-      };
-
       if (showBrowser) {
-        const browserNotification = showBrowserNotification({
-          id: notification.id,
+        // The worker is the only thing that renders an OS banner (ADR-0018),
+        // so a push carrying this same notification replaces this banner by
+        // tag rather than stacking a second one beside it.
+        void showNotification({
           title: t("browserNotificationTitle"),
           body: message,
-          icon: new URL(
-            "/images/app-icons/apple-icon-180.png",
-            window.location.origin,
-          ).href,
-          onClick: openNotification,
+          target: toNotificationTarget(notification),
+        }).then((shown) => {
+          if (!shown) {
+            console.error(
+              "Browser notification gate passed but OS notification was not shown",
+              { id: notification.id },
+            );
+          }
         });
-        if (browserNotification == null) {
-          console.error(
-            "Browser notification gate passed but OS notification was not shown",
-            { id: notification.id },
-          );
-        }
         return;
       }
 
@@ -178,7 +199,12 @@ export function NotificationToastListener({
           <PendingAccessNotificationToast
             notification={notification}
             message={message}
-            onOpen={openNotification}
+            onOpen={() =>
+              openNotification(
+                toNotificationTarget(notification),
+                notification.isRead,
+              )
+            }
           />
         ),
         {
@@ -193,6 +219,34 @@ export function NotificationToastListener({
     onError: (error) => {
       console.error("Notification browser alert error:", error);
     },
+  });
+
+  /**
+   * The worker asks before it skips a banner. Answering yes while the channel
+   * is detached would drop the notification twice over: no banner from the
+   * worker, and no in-app update either.
+   */
+  const showsNotifications = useEffectEvent(() => isReceivingNotifications());
+
+  // Install the worker ahead of the first banner. A reader who never turns
+  // push on still renders through it, so waiting for an install at banner time
+  // would cost them the banner's timing.
+  useMountEffect(() => {
+    if (getBrowserNotificationPermission() === "granted") {
+      void getNotificationServiceWorker();
+    }
+
+    const unsubscribeClicks = subscribeNotificationClicks((target) => {
+      openClickedNotification(target);
+    });
+    const stopAnswering = answerShowsNotificationsQuery(() =>
+      showsNotifications(),
+    );
+
+    return () => {
+      unsubscribeClicks();
+      stopAnswering();
+    };
   });
 
   return null;

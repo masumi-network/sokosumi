@@ -28,6 +28,10 @@ const EXCLUDED_PATHS = [
   "/manifest.webmanifest",
   "/favicon.ico",
   "/apple-touch-icon",
+  // The push service worker. The browser re-fetches it to check for updates,
+  // and a redirect fails a worker script fetch, so a reader whose session
+  // cookie expired would keep the worker version they installed.
+  "/ably-push-sw.js",
   "/maintenance",
 ];
 

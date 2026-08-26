@@ -40,9 +40,18 @@ export function useNotificationRealtime({
     [onNotification, onError],
   );
 
-  useChannel(
+  const { channel } = useChannel(
     makeUserNotificationsChannelName(userId),
     NOTIFICATION_CREATED_EVENT_NAME,
     handleMessage,
   );
+
+  return {
+    /**
+     * Whether this page is receiving notifications at the moment it is asked.
+     * A detached channel means the app shows nothing for the notification,
+     * however much of the app is on screen.
+     */
+    isReceivingNotifications: () => channel.state === "attached",
+  };
 }
