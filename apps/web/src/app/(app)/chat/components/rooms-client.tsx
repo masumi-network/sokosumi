@@ -2393,18 +2393,21 @@ export function RoomsClient({
       if (!selectedRoom) return { ok: false };
       const roomId = selectedRoom.id;
 
+      if (historicalTimelineRef.current) {
+        const live = await listRoomMessagesAction(roomId);
+        if (!live.ok) {
+          toast.error(live.error.message);
+        } else if (isStillSelectedRoom(roomId)) {
+          historicalTimelineRef.current = false;
+          setSearchHoldOffBottom(false);
+          setMessagesState(live.value.messages);
+          setOlderNextCursor(live.value.nextCursor);
+        }
+      }
+
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        if (historicalTimelineRef.current) {
-          historicalTimelineRef.current = false;
-          setSearchHoldOffBottom(false);
-          const live = await listRoomMessagesAction(roomId);
-          if (live.ok && isStillSelectedRoom(roomId)) {
-            setMessagesState(live.value.messages);
-            setOlderNextCursor(live.value.nextCursor);
-          }
-        }
         const started = sendStreamMessage(request.content, {
           quote: request.quote,
         });
@@ -2449,15 +2452,6 @@ export function RoomsClient({
             : null,
       });
 
-      if (historicalTimelineRef.current) {
-        historicalTimelineRef.current = false;
-        setSearchHoldOffBottom(false);
-        const live = await listRoomMessagesAction(roomId);
-        if (live.ok && isStillSelectedRoom(roomId)) {
-          setMessagesState(live.value.messages);
-          setOlderNextCursor(live.value.nextCursor);
-        }
-      }
       setMessagesState((current) => appendMessage(current, pending));
       pinToBottomAfterOwnSend();
 
@@ -2496,6 +2490,18 @@ export function RoomsClient({
       if (!selectedRoom || !threadParentMessage) return { ok: false };
       const roomId = selectedRoom.id;
       const parentMessageId = threadParentMessage.id;
+
+      if (historicalThreadRef.current) {
+        const live = await listThreadMessagesAction(roomId, parentMessageId);
+        if (!live.ok) {
+          toast.error(live.error.message);
+        } else if (isStillSelectedRoom(roomId)) {
+          historicalThreadRef.current = false;
+          setSearchHoldOffBottom(false);
+          setThreadMessages(live.value.messages);
+          setThreadOlderNextCursor(live.value.nextCursor);
+        }
+      }
 
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
         const started = sendStreamMessage(request.content, {
@@ -2541,15 +2547,6 @@ export function RoomsClient({
             : null,
       });
 
-      if (historicalThreadRef.current) {
-        historicalThreadRef.current = false;
-        setSearchHoldOffBottom(false);
-        const live = await listThreadMessagesAction(roomId, parentMessageId);
-        if (live.ok && isStillSelectedRoom(roomId)) {
-          setThreadMessages(live.value.messages);
-          setThreadOlderNextCursor(live.value.nextCursor);
-        }
-      }
       setThreadMessages((current) => appendMessage(current, pending));
 
       enqueueClassicThreadJob({

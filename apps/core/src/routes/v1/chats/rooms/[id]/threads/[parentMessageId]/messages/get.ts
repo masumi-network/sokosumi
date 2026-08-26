@@ -24,7 +24,10 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserMembership,
 } from "../../../../helpers";
-import { listChatRoomMessagesAround } from "../../../../message-window-around";
+import {
+  aroundWindowPaginationMeta,
+  listChatRoomMessagesAround,
+} from "../../../../message-window-around";
 
 const paramsSchema = z.object({
   id: z
@@ -131,12 +134,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           center: target,
           take,
         });
-      const paginationMeta = {
-        cursor: null,
-        limit: take,
-        total: count,
-        nextCursor: hasMoreOlder ? (messages[0]?.id ?? null) : null,
-      };
+      const paginationMeta = aroundWindowPaginationMeta(
+        messages,
+        take,
+        count,
+        hasMoreOlder,
+      );
       return ok(
         c,
         z

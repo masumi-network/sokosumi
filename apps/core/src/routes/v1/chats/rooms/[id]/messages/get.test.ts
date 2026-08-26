@@ -121,6 +121,9 @@ function message() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  messageFindFirstMock.mockReset();
+  messageFindManyMock.mockReset();
+  messageCountMock.mockReset();
   roomFindFirstMock.mockResolvedValue({
     id: ROOM_ID,
     organizationId: ORG_ID,

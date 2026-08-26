@@ -72,8 +72,7 @@ export async function listChatRoomMessagesAround({
   const [olderPlus, newer, count] = await Promise.all([
     db.chatRoomMessage.findMany({
       where: {
-        ...scope,
-        ...createdAtIdSide(center.createdAt, center.id, "older"),
+        AND: [scope, createdAtIdSide(center.createdAt, center.id, "older")],
       },
       take: takePlusOne,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -81,8 +80,7 @@ export async function listChatRoomMessagesAround({
     }),
     db.chatRoomMessage.findMany({
       where: {
-        ...scope,
-        ...createdAtIdSide(center.createdAt, center.id, "newer"),
+        AND: [scope, createdAtIdSide(center.createdAt, center.id, "newer")],
       },
       take,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -104,11 +102,26 @@ export async function listChatRoomMessagesAround({
     messages[0] != null &&
     assembled[0] != null &&
     messages[0].id !== assembled[0].id;
-  const hasMoreOlder =
-    droppedOlder ||
-    (assembled[0]?.id === center.id
-      ? olderClosest.length > 0 || hasMoreOlderFromFetch
-      : hasMoreOlderFromFetch);
+  const hasMoreOlder = droppedOlder || hasMoreOlderFromFetch;
 
   return { messages, hasMoreOlder, count };
+}
+
+export function aroundWindowPaginationMeta(
+  messages: ReadonlyArray<{ id: string }>,
+  take: number,
+  count: number,
+  hasMoreOlder: boolean,
+): {
+  cursor: null;
+  limit: number;
+  total: number;
+  nextCursor: string | null;
+} {
+  return {
+    cursor: null,
+    limit: take,
+    total: count,
+    nextCursor: hasMoreOlder ? (messages[0]?.id ?? null) : null,
+  };
 }
