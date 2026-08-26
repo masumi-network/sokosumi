@@ -261,6 +261,8 @@ export function ThreadPanel({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                mentions={mentionRecords}
+                channels={channelOptions}
                 channelLinks={channelLinks}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={onOpenDirectMessage}
@@ -314,6 +316,8 @@ export function ThreadPanel({
                           coworkersBySlug={coworkersBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
+                          mentions={mentionRecords}
+                          channels={channelOptions}
                           channelLinks={channelLinks}
                           canOpenHumanDirect={canOpenHumanDirect}
                           onOpenDirectMessage={onOpenDirectMessage}
@@ -354,6 +358,10 @@ export function ThreadPanel({
           roomId={roomId}
           draftKey={draftKey}
           mentions={mentionRecords}
+          usersById={usersById}
+          usersBySlug={usersBySlug}
+          coworkersById={coworkersById}
+          coworkersBySlug={coworkersBySlug}
           channels={channelOptions}
           channelLinks={channelLinks}
           placeholder={t("Thread.replyPlaceholder")}

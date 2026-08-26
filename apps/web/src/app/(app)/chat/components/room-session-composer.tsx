@@ -19,6 +19,10 @@ import {
 } from "@/app/chat/utils/compose-draft-storage";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomUserParticipant,
+} from "@/lib/clients/generated/core";
 
 import {
   RoomComposer,
@@ -56,6 +60,10 @@ interface RoomSessionComposerProps {
   roomId: string;
   draftKey: string;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   placeholder: string;
@@ -86,6 +94,10 @@ export function RoomSessionComposer({
   roomId,
   draftKey,
   mentions,
+  usersById,
+  usersBySlug,
+  coworkersById,
+  coworkersBySlug,
   channels,
   channelLinks,
   placeholder,
@@ -204,6 +216,10 @@ export function RoomSessionComposer({
       value={composerValue}
       onValueChange={setComposerValue}
       mentions={mentions}
+      usersById={usersById}
+      usersBySlug={usersBySlug}
+      coworkersById={coworkersById}
+      coworkersBySlug={coworkersBySlug}
       channels={channels}
       channelLinks={channelLinks}
       onSelectedKeysChange={setMentionedIds}

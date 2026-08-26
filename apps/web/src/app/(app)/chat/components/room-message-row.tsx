@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
-  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -62,6 +61,11 @@ import {
   type RoomMessageFilesSegment,
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
+import {
+  ComposerWysiwygEditor,
+  type ComposerWysiwygEditorHandle,
+} from "@/components/chat/composer-wysiwyg-editor";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import {
   AlertDialog,
@@ -83,6 +87,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import {
   Sheet,
   SheetContent,
@@ -90,13 +95,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -114,10 +119,12 @@ import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
+  composerMentionDisplayNames,
   formatMessageTime,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
+  type RoomMentionParticipant,
   scrollToRoomMessageElement,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
@@ -1431,6 +1438,12 @@ function MessageEditComposer({
   onSave,
   onCancel,
   isSaving,
+  mentions = {},
+  usersById,
+  usersBySlug,
+  coworkersById,
+  coworkersBySlug,
+  channels = [],
 }: {
   value: string;
   originalContent: string;
@@ -1438,48 +1451,45 @@ function MessageEditComposer({
   onSave: (content: string) => void;
   onCancel: () => void;
   isSaving: boolean;
+  mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  channels?: readonly ComposerChannelOption[];
 }) {
   const t = useTranslations("App.Channels");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+  const liveRef = useRef(value);
+  liveRef.current = value;
 
-  // autoFocus leaves the caret at 0; place it at the end so editing continues
-  // from the natural end of the message (Slack/Discord-style).
-  useLayoutEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.focus();
-    const end = el.value.length;
-    el.setSelectionRange(end, end);
-  }, []);
+  const mentionDisplay = useMemo(
+    () =>
+      composerMentionDisplayNames({
+        usersById,
+        usersBySlug,
+        coworkersById,
+        coworkersBySlug,
+        mentionCatalog: mentions,
+      }),
+    [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
+  );
 
-  // Live DOM via currentTarget: parent draft can lag the last keystroke's
-  // onChange. Enter with no real change (or empty) exits edit mode — no-op
-  // after preventDefault felt like a broken keyboard.
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
-    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
-      return;
-    }
+  useMountEffect(() => {
+    editorRef.current?.focusAtEnd();
+  });
 
-    if (event.key === "Escape") {
-      event.preventDefault();
-      if (!isSaving) onCancel();
-      return;
-    }
+  function liveMarkdown(): string {
+    return editorRef.current?.getMarkdown() ?? liveRef.current;
+  }
 
-    if (event.key !== "Enter") return;
-    // Shift+Enter → newline (default)
-    if (event.shiftKey) return;
-    // Alt+Enter ignored (leave default / no save)
-    if (event.altKey) return;
-
-    event.preventDefault();
+  function handleCommit() {
     if (isSaving) return;
-
-    const live = event.currentTarget.value;
-    const liveTrimmed = live.trim();
+    const markdown = liveMarkdown();
+    const liveTrimmed = markdown.trim();
     const originalTrimmed = originalContent.trim();
     if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
-      onSave(live);
+      onSave(markdown);
       return;
     }
     onCancel();
@@ -1487,25 +1497,39 @@ function MessageEditComposer({
 
   return (
     <div className="pt-0.5">
-      <Textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-        disabled={isSaving}
-        className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
-        aria-label={t("Edit.composerAria")}
-        onKeyDown={handleKeyDown}
-        onBlur={() => {
-          if (isSaving) return;
-          // Live DOM (same race as Enter): prop can lag a just-typed character.
-          const live = textareaRef.current?.value ?? value;
-          if (live.trim() === originalContent.trim()) {
-            onCancel();
-          }
-        }}
-      />
+      <div
+        className={cn(
+          "border-input focus-within:border-ring focus-within:ring-ring/50 dark:bg-input/30 rounded-md border bg-transparent focus-within:ring-[3px]",
+          isSaving && "pointer-events-none opacity-50",
+        )}
+      >
+        <ComposerWysiwygEditor
+          ref={editorRef}
+          value={value}
+          onChange={(next) => {
+            liveRef.current = next;
+            onChange(next);
+          }}
+          mentions={mentions}
+          mentionDisplayByKey={mentionDisplay.byKey}
+          mentionDisplayBySlug={mentionDisplay.bySlug}
+          channels={channels}
+          disabled={isSaving}
+          ariaLabel={t("Edit.composerAria")}
+          modifierEnterSubmits
+          onSubmitShortcut={handleCommit}
+          onEscape={() => {
+            if (!isSaving) onCancel();
+          }}
+          onBlur={() => {
+            if (isSaving) return;
+            if (liveMarkdown().trim() === originalContent.trim()) {
+              onCancel();
+            }
+          }}
+          className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
+        />
+      </div>
     </div>
   );
 }
@@ -1875,6 +1899,8 @@ export function ChatMessageRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  mentions = {},
+  channels = [],
   showThreadButton = true,
   showQuoteButton = true,
   showPinButton = false,
@@ -1912,6 +1938,8 @@ export function ChatMessageRow({
   /** Optional content uses the live editor value (avoids stale draft on Enter). */
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channels?: readonly ComposerChannelOption[];
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
   showPinButton?: boolean;
@@ -2165,6 +2193,12 @@ export function ChatMessageRow({
                   onSave={onSaveEdit}
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
+                  mentions={mentions}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  channels={channels}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
                 <>

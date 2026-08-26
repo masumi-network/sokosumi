@@ -2859,6 +2859,8 @@ export function RoomsClient({
                       coworkersBySlug={coworkersBySlug}
                       usersById={usersById}
                       usersBySlug={usersBySlug}
+                      mentions={mentionRecords}
+                      channels={channelOptions}
                       channelLinks={channelLinks}
                       currentUserId={currentUserId}
                       canOpenHumanDirect={canOpenHumanDirect}
@@ -2992,6 +2994,10 @@ export function RoomsClient({
               roomId={selectedRoom.id}
               draftKey={composeDraftKey.room(selectedRoom.id)}
               mentions={mentionRecords}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
               channels={channelOptions}
               channelLinks={channelLinks}
               placeholder={

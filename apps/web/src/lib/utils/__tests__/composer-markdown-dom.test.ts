@@ -36,6 +36,59 @@ describe("markdownToHtml", () => {
     expect(html).toContain("#general");
     expect(html).not.toContain("[#general]");
   });
+
+  it("leaves unknown mention persist tokens as raw text when wrapping is off", () => {
+    const html = markdownToHtml("ping @missing:ghost hey", undefined, {
+      wrapUnknownMentions: false,
+    });
+    expect(html).toContain("ping @missing:ghost hey");
+    expect(html).not.toContain("data-mention-key");
+  });
+
+  it("wraps unknown mention persist tokens by default", () => {
+    const html = markdownToHtml("ping @missing:ghost hey");
+    expect(html).toContain("data-mention-key");
+    expect(html).not.toContain("@missing:ghost");
+  });
+
+  it("wraps persisted internal mention placeholders as chips", () => {
+    const html = markdownToHtml("@@MENTION1@@");
+    expect(html).toContain("data-mention-key");
+    expect(html).not.toContain("@@MENTION1@@");
+  });
+
+  it("still wraps @@MENTION salvage tokens when unknown wrapping is off", () => {
+    const html = markdownToHtml("@@MENTION1@@", undefined, {
+      wrapUnknownMentions: false,
+    });
+    expect(html).toContain('data-mention-key="unknown-mention-1"');
+    expect(html).not.toContain("@@MENTION1@@");
+  });
+
+  it("wraps known mention persist tokens as display-name chips", () => {
+    const html = markdownToHtml(
+      "ping @user_1:alice-smith hey",
+      (mentionKey, mentionSlug) =>
+        mentionKey === "user_1"
+          ? { displayName: "Alice Smith", isKnown: true }
+          : { displayName: mentionSlug, isKnown: false },
+    );
+    expect(html).toContain("@Alice Smith");
+    expect(html).toContain('data-mention-key="user_1"');
+    expect(html).not.toContain("@user_1:alice-smith");
+  });
+
+  it("round-trips known mention chips back to persist tokens", () => {
+    const source = "ping @user_1:alice-smith hey";
+    const html = markdownToHtml(source, (mentionKey, mentionSlug) =>
+      mentionKey === "user_1"
+        ? { displayName: "Alice Smith", isKnown: true }
+        : { displayName: mentionSlug, isKnown: false },
+    );
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    expect(htmlToMarkdown(root)).toBe(source);
+  });
 });
 
 describe("htmlToMarkdown", () => {
