@@ -430,6 +430,12 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+        },
+        taskScheduleQuarantine: {
+          upsert: mockTaskScheduleQuarantineUpsert,
+        },
       }),
     );
     mockFindFirst.mockResolvedValue({
@@ -461,6 +467,18 @@ describe("taskSchedulesSyncService", () => {
       lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
     });
     expect(update.data.nextRunAt).toEqual(new Date("2026-06-11T09:00:00.000Z"));
+    expect(mockTaskScheduleOccurrenceCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        seriesTaskId: "template-v2",
+        releasedTaskId: "clone-v2",
+        epochId: "123e4567-e89b-42d3-a456-426614174001",
+        originalScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
+        state: "RELEASED",
+        sourceAccuracy: "EXACT",
+        timeAccuracy: "EXACT",
+      }),
+    });
   });
 
   it("stops recurring catch-up when the sync deadline is reached", async () => {
