@@ -1342,6 +1342,18 @@ function DrivePageWorkspace({
     fileInputRef.current?.click();
   }
 
+  const driveTasksFilterLabels = {
+    title: t("filterTitle"),
+    searchPlaceholder: t("filterSearchPlaceholder"),
+    emptyResults: t("filterEmptyResults"),
+    all: t("filterAll"),
+    coworkerLabel: t("filterCoworkerLabel"),
+    projectLabel: t("filterProjectLabel"),
+    taskLabel: t("filterTaskLabel"),
+    noProjectLabel: t("noProject"),
+    loadMore: t("loadMore"),
+  };
+
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
@@ -1360,23 +1372,15 @@ function DrivePageWorkspace({
                   />
                 </div>
               </div>
-              <DriveTasksFilters
-                activeOrganizationId={activeOrganizationId}
-                assigneeId={assigneeIdParam}
-                projectId={projectIdParam}
-                taskId={taskIdParam}
-                labels={{
-                  title: t("filterTitle"),
-                  searchPlaceholder: t("filterSearchPlaceholder"),
-                  emptyResults: t("filterEmptyResults"),
-                  all: t("filterAll"),
-                  coworkerLabel: t("filterCoworkerLabel"),
-                  projectLabel: t("filterProjectLabel"),
-                  taskLabel: t("filterTaskLabel"),
-                  noProjectLabel: t("noProject"),
-                  loadMore: t("loadMore"),
-                }}
-              />
+              <div className="hidden md:block">
+                <DriveTasksFilters
+                  activeOrganizationId={activeOrganizationId}
+                  assigneeId={assigneeIdParam}
+                  projectId={projectIdParam}
+                  taskId={taskIdParam}
+                  labels={driveTasksFilterLabels}
+                />
+              </div>
             </>
           )}
           {!isTasksView && (
@@ -1502,6 +1506,13 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
+          <DriveTasksFilters
+            activeOrganizationId={activeOrganizationId}
+            assigneeId={assigneeIdParam}
+            projectId={projectIdParam}
+            taskId={taskIdParam}
+            labels={driveTasksFilterLabels}
+          />
         </div>
       )}
 
