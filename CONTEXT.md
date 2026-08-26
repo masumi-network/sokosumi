@@ -26,6 +26,20 @@ _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), assistant (Hermes)
 
+### Developers
+
+**Coworker developer**:
+A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
+_Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
+
+**Agent developer**:
+A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
+_Avoid_: Coworker developer (when meaning this)
+
+**Developer CLI**:
+The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
+_Avoid_: Treating `/developer` as deprecated, a second CLI per persona
+
 ### Task payments
 
 **Task payment claim**:
