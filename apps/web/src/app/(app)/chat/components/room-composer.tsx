@@ -45,7 +45,6 @@ import {
 } from "@/components/chat/room-message-composer";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
-import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
@@ -69,12 +68,13 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
-  formatRoomMarkdownContent,
+  type ChatParticipantHoverProfile,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
 } from "./room-helpers";
+import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
@@ -170,11 +170,19 @@ function PendingQuotePreview({
   onDismiss,
   mentions,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   quote: PendingRoomQuote;
   onDismiss: () => void;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
@@ -203,16 +211,19 @@ function PendingQuotePreview({
           ) : null}
           {quote.snippet.trim() ? (
             <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
-              <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-                {formatRoomMarkdownContent({
-                  content: quote.snippet,
-                  coworkersById,
-                  coworkersBySlug,
-                  usersById,
-                  usersBySlug,
-                  channelLinks,
-                })}
-              </Markdown>
+              <RoomMessageMarkdown
+                content={quote.snippet}
+                markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
+              />
             </div>
           ) : null}
         </div>
@@ -253,6 +264,10 @@ export function RoomComposer({
   onClearPendingQuote,
   onChromeResize,
   focusOnMount = false,
+  currentUserId,
+  canOpenHumanDirect = false,
+  onOpenDirectMessage,
+  openingDirectParticipantKey = null,
 }: {
   ref?: Ref<RoomComposerHandle>;
   /** When set, attaches mint via room chat file endpoint. */
@@ -283,6 +298,10 @@ export function RoomComposer({
   onChromeResize?: () => void;
   /** Focus the editor after mount (room/thread open). */
   focusOnMount?: boolean;
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
@@ -513,8 +532,12 @@ export function RoomComposer({
               <PendingQuotePreview
                 quote={pendingQuote}
                 onDismiss={onClearPendingQuote}
-                mentions={composerMentions}
+                mentions={mentions}
                 channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
               />
             ) : null}
             {formatToolbarOpen ? (
