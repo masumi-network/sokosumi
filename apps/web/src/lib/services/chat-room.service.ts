@@ -307,6 +307,7 @@ export const chatRoomService = (() => {
   ): Promise<{
     items: ChatRoomPinnedMessageListItem[];
     nextCursor: string | null;
+    total: number;
   }> {
     const response = await coreClient.getChatRoomPinnedMessages(roomId, {
       cursor: options?.cursor,
@@ -315,6 +316,7 @@ export const chatRoomService = (() => {
     return {
       items: response.data,
       nextCursor: response.meta?.pagination?.nextCursor ?? null,
+      total: response.meta?.pagination?.total ?? response.data.length,
     };
   }
 

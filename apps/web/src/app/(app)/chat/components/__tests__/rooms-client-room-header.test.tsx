@@ -1,8 +1,10 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { listPinnedMessagesAction } from "@/app/chat/actions";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -114,6 +116,10 @@ vi.mock("@/app/chat/actions", () => ({
   deleteRoomMessageAction: vi.fn(),
   editRoomMessageAction: vi.fn(),
   listRoomMessagesAction: vi.fn(),
+  listPinnedMessagesAction: vi.fn(async () => ({
+    ok: true as const,
+    value: { items: [], nextCursor: null, total: 0 },
+  })),
   listThreadMessagesAction: vi.fn(),
   markThreadReadAction: vi.fn(),
   retryRoomMentionAction: vi.fn(),
@@ -299,7 +305,18 @@ function roomClientProps(room: ChatRoom) {
 }
 
 function renderRoom(room: ChatRoom) {
-  return render(<RoomsClient {...roomClientProps(room)} />);
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RoomsClient {...roomClientProps(room)} />
+    </QueryClientProvider>,
+  );
 }
 
 describe("RoomsClient room header chrome", () => {
@@ -457,5 +474,70 @@ describe("RoomsClient room header chrome", () => {
     renderRoom(groupDirectRoom());
     expect(await screen.findByTestId("room-roster-trigger")).toBeTruthy();
     expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
+  });
+
+  it("highlights the latest pinned message under the Channel header", async () => {
+    vi.mocked(listPinnedMessagesAction).mockResolvedValue({
+      ok: true,
+      value: {
+        items: [
+          {
+            messageId: "msg-latest-pin",
+            pinnedAt: new Date("2026-08-26T15:00:00.000Z"),
+            pinnedBy: { id: "user-1", name: "Ada" },
+            message: {
+              id: "msg-latest-pin",
+              roomId: "room-channel",
+              parentMessageId: null,
+              content: "Don't freeze Friday",
+              createdAt: new Date("2026-08-26T14:00:00.000Z"),
+              editedAt: null,
+              deletedAt: null,
+              mentions: [],
+              reactions: [],
+              threadReplyCount: 0,
+              threadLastReplyAt: null,
+              metadata: null,
+              quote: null,
+              membership: null,
+              unfurls: null,
+              sender: {
+                type: "user",
+                user: {
+                  id: "user-1",
+                  name: "Ada",
+                  email: "ada@example.com",
+                  image: null,
+                  presence: "offline",
+                },
+              },
+            },
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+      },
+    });
+
+    const { container } = renderRoom({
+      ...channelRoom(),
+      pinnedMessageCount: 2,
+    });
+
+    const banner = await screen.findByTestId("latest-pinned-message");
+    const header = container.querySelector("header");
+    expect(header?.nextElementSibling).toBe(banner);
+    expect(banner).toHaveTextContent("PinnedMessages.latest");
+    expect(banner).toHaveTextContent("Ada");
+    expect(banner).toHaveTextContent("Don't freeze Friday");
+    expect(banner).toHaveTextContent("PinnedMessages.count");
+    expect(screen.getByTestId("room-open-title")).not.toContainElement(banner);
+  });
+
+  it("does not show a latest pin on Directs", async () => {
+    renderRoom({ ...humanDirectRoom(), pinnedMessageCount: 3 });
+    await screen.findByTestId("room-open-title");
+    expect(screen.queryByTestId("latest-pinned-message")).toBeNull();
+    expect(screen.queryByTestId("latest-pinned-message-loading")).toBeNull();
   });
 });
