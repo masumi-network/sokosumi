@@ -978,3 +978,38 @@ object, calendar times were reported in UTC, a mail-ingest turn created a
 READY Task from a CI notification (self-started turns now force DRAFT).
 Replay results 2026-08-26: v11 4/4 checks (delta 5/5/5/5); v1 3/4 — it
 keeps claiming nudges that failed on READY Tasks.
+
+## Beta controls (2026-08-26)
+
+Default version is **v11** (Gemini 3.6 Flash, EU-pinned); the migration moved
+every bot that was on `v1`/null. Owner-facing controls live in the console's
+Settings card:
+
+- **Pause everything it starts on its own** (`SokoBot.proactivePaused`) —
+  stops rhythms, mail ingest and nudge turns. Chat and Tasks assigned to the
+  bot keep working, because a handover is the owner's request, not the bot's
+  idea.
+- **Daily limit** (`proactiveDailyLimit`, default 20) — self-started turns
+  (SCHEDULE / EVENT / INGEST) per *local* day. Lab turns (`clientTurnId`
+  `lab:…`) are excluded.
+- **Timezone** (`ingestTimezone`) — drives the stand-up hour, the weekly
+  wrap and "today"; changing it retimes the built-in schedules
+  (`retimeSystemSchedules`).
+
+All three are enforced by `proactiveGate()` in
+`soko-bot-proactive.service.ts`, called by the ingest sync, the taskboard
+sync (follow-up turns only) and the schedules sync (system rhythms only).
+`SOKO_BOT_PROACTIVE_PAUSED=true` is the platform-wide kill switch.
+
+**Feedback and judging.** Self-started messages carry a 👍/👎 in chat
+(`POST /soko-bots/me/turns/{id}/feedback` → `SokoBotTurn.ownerFeedback`),
+and the admin quality overview shows sent / acted-on / thumbs. Turns the bot
+started itself are judged with `SOKO_BOT_PROACTIVE_JUDGE_RUBRIC`, which
+grades silence as success and any unbacked "nudged/created/scheduled" claim
+as a 1.
+
+**Connection failures** are visible: a failing Composio call writes
+`lastError`/`lastErrorAt` on the integration (auth errors flip it to
+FAILED), the console tile turns red with *Reconnect*, and packets carry an
+"Unavailable" section so the bot says "mail could not be read" instead of
+"no new mail".
