@@ -219,6 +219,7 @@ export interface SokoBotActionContext {
     workspaceId: string;
     eveSessionId: string | null;
     versionId?: string | null;
+    source?: string | null;
   };
   classificationConfidence: number;
   hasNegatedMutationIntent: boolean;
@@ -493,6 +494,7 @@ export class SokoBotRuntimeService {
         classification: true,
         userMessage: true,
         versionId: true,
+        source: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         sokoBot: {
@@ -987,7 +989,7 @@ export class SokoBotRuntimeService {
       if (input.status === "READY") {
         if (!resumable.includes(task.status)) {
           throw new SokoBotRuntimeValidationError(
-            `Task is ${task.status}; only ${resumable.join(", ")} can be set READY`,
+            `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
           );
         }
         if (!task.assigneeId) {
@@ -1156,7 +1158,16 @@ export class SokoBotRuntimeService {
     toolCallId: string,
     approved = false,
   ) {
-    const input = taskCreateInputSchema.parse(rawInput);
+    const parsedInput = taskCreateInputSchema.parse(rawInput);
+    // Self-started turns (mail ingest, rhythms) may draft work but never
+    // start it: the owner promotes drafts.
+    const selfStarted =
+      authorized.turn.source === "INGEST" ||
+      authorized.turn.source === "SCHEDULE";
+    const input =
+      selfStarted && parsedInput.status === "READY"
+        ? { ...parsedInput, status: "DRAFT" as const }
+        : parsedInput;
     return serializableTransaction(async (tx) => {
       const workspace = await this.requireMutationAuthority(
         tx,
@@ -1911,11 +1922,33 @@ export class SokoBotRuntimeService {
             fetchCalendarEvents(integration, { from, to, limit }),
           ),
         );
+        const tzRow = await prisma.sokoBot.findUnique({
+          where: { id: authorized.turn.sokoBotId },
+          select: { ingestTimezone: true },
+        });
+        const timeZone = tzRow?.ingestTimezone ?? "UTC";
+        const local = (iso: string | null) =>
+          iso
+            ? new Intl.DateTimeFormat("en-GB", {
+                timeZone,
+                weekday: "short",
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              }).format(new Date(iso))
+            : null;
         return {
+          timeZone,
           events: results
             .flat()
             .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-            .slice(0, limit),
+            .slice(0, limit)
+            .map((event) => ({
+              ...event,
+              startsAtLocal: local(event.startsAt),
+              endsAtLocal: local(event.endsAt),
+            })),
         };
       }
       case "create_schedule":

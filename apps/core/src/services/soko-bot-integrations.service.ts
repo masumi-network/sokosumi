@@ -697,7 +697,14 @@ function normaliseMessage(
     from: fromText,
     to: addressList(pick(raw, "to", "toRecipients")),
     subject: str(pick(raw, "subject")),
-    snippet: str(pick(raw, "preview", "snippet", "bodyPreview")).slice(0, 400),
+    snippet: (
+      str(pick(pick(raw, "preview"), "body")) ||
+      str(pick(raw, "preview", "snippet", "bodyPreview")) ||
+      str(pick(raw, "messageText"))
+    )
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 400),
     receivedAt: isoOrEmpty(
       pick(raw, "messageTimestamp", "receivedDateTime", "internalDate", "date"),
     ),
