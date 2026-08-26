@@ -2,6 +2,7 @@ import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { requireDriveStoreMatchesActiveWorkspace } from "@/helpers/drive-file-access";
 import { badRequest, forbidden } from "@/helpers/error";
+import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import prisma from "@/lib/db/prisma";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -38,7 +39,7 @@ export async function resolveDriveTasksWorkspace(
 
   if (scope === "me") {
     requireDriveStoreMatchesActiveWorkspace(userContext, "user", userId);
-    const workspace = await workspaceRepository.resolveWorkspaceForContext(
+    const workspace = await resolveWorkspaceForContextOrNotFound(
       userId,
       null,
       prisma,

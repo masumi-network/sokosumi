@@ -49,9 +49,14 @@ const {
   putMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: workspaceRepositoryMock,
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: workspaceRepositoryMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -903,6 +908,22 @@ describe("Drive Tasks Routes", () => {
         expect(json.error?.message ?? json.message).toContain(
           "Drive Tasks requires workspace context",
         );
+      });
+
+      it("returns 404 when personal workspace is missing for scope=me", async () => {
+        const { PersonalWorkspaceMissingError } = await import(
+          "@sokosumi/database/repositories"
+        );
+        workspaceRepositoryMock.resolveWorkspaceForContext.mockRejectedValueOnce(
+          new PersonalWorkspaceMissingError(),
+        );
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(404);
+        const json = await res.json();
+        expect(json.kind).toBe("personal_workspace_missing");
       });
     });
   });
