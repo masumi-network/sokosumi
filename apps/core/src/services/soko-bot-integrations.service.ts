@@ -563,6 +563,8 @@ async function execute(
       userId: composioEntityId(integration.sokoBotId),
       connectedAccountId: integration.composioAccountId,
       arguments: args,
+      // Composio refuses manual execution without a toolkit version.
+      version: "latest",
     }),
   );
   if (!result.successful) {

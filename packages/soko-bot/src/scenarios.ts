@@ -447,8 +447,13 @@ export function evaluateScenario(
     });
   }
   if (expect.draftsOnly) {
+    // Resuming a Coworker's own Task (reply_to_task READY) is follow-up,
+    // not new work; only Tasks the bot created or assigned count.
     const ready = turn.delegations.filter(
-      (d) => d.outcome === "READY" || d.action === "assign_task",
+      (d) =>
+        d.action === "assign_task" ||
+        ((d.action === "create_task" || d.action === "update_task") &&
+          d.outcome === "READY"),
     );
     checks.push({
       label: "Created Tasks stay DRAFT",
