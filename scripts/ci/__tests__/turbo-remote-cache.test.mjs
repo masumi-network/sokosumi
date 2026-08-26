@@ -74,15 +74,8 @@ describe("turbo.json env contract", () => {
     const turbo = JSON.parse(await readRepoFile("turbo.json"));
 
     assert.equal("envMode" in turbo, false);
-    for (const name of HASHED_ENV) {
-      assert.ok(turbo.globalEnv.includes(name), `globalEnv missing ${name}`);
-    }
-    for (const name of PASSTHROUGH_ENV) {
-      assert.ok(
-        turbo.globalPassThroughEnv.includes(name),
-        `globalPassThroughEnv missing ${name}`,
-      );
-    }
+    assert.deepEqual(turbo.globalEnv, HASHED_ENV);
+    assert.deepEqual(turbo.globalPassThroughEnv, PASSTHROUGH_ENV);
     assert.equal(
       [...turbo.globalEnv, ...turbo.globalPassThroughEnv].some((name) =>
         name.startsWith("NEXT_PUBLIC_"),
