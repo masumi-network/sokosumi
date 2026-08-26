@@ -957,3 +957,24 @@ console's "How it works" card), `dueFollowUps` (ISO dates in memory follow-ups).
   self-started packet; persona rule: raise once, then resolve or move.
 - **Metric.** Admin quality overview shows proactive messages sent vs. acted
   on (owner chat turn within 24h).
+
+## Integration lab: record and replay (2026-08-26)
+
+Four scenarios exercise the connected accounts (`inbox-summary`,
+`calendar-prep`, `standup-with-inbox`, `mail-delta`); the first two are
+owner prompts where the bot must call `search_inbox` / `list_calendar_events`
+itself, the last two inject the real ingest packets (`trigger.kind =
+"ingest"`). The Composio seam in `soko-bot-integrations.service.ts` records
+every tool response to `apps/core/fixtures/soko-bot-integrations/` (git-
+ignored: real mail) when `SOKO_BOT_INTEGRATION_FIXTURES=record`, and
+answers from those files with `=replay` (unrecorded id lookups fail
+loudly; time-windowed list calls fall back to the newest recording).
+Because the bot's tool calls execute in the Core process, the mode must be
+set in Core's `.env`; the lab runner's `--record/--replay` only covers the
+packets it builds itself. Composio manual execution needs a toolkit
+version: Core calls the REST endpoint with `version: "latest"` (the SDK
+refuses that value). First runs found and fixed: Gmail `preview` is an
+object, calendar times were reported in UTC, a mail-ingest turn created a
+READY Task from a CI notification (self-started turns now force DRAFT).
+Replay results 2026-08-26: v11 4/4 checks (delta 5/5/5/5); v1 3/4 — it
+keeps claiming nudges that failed on READY Tasks.

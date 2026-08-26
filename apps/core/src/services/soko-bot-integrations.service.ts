@@ -595,8 +595,14 @@ async function execute(
       };
       return recorded.data;
     } catch {
-      // Fall back to any recording of the same tool before failing loudly.
-      const siblings = await fs.readdir(fixtureDir()).catch(() => []);
+      // Time-windowed list calls may fall back to any recording of the same
+      // tool; id lookups must not, or replay would hand back the wrong item.
+      const windowed =
+        Object.keys(args).some((key) => TIME_ARGS.has(key)) ||
+        (typeof args.query === "string" && /after:\d+/.test(args.query));
+      const siblings = windowed
+        ? await fs.readdir(fixtureDir()).catch(() => [])
+        : [];
       const sibling = siblings.find((name) => name.startsWith(`${slug}.`));
       if (sibling) {
         const recorded = JSON.parse(
