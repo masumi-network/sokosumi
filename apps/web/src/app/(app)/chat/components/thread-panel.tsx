@@ -3,7 +3,7 @@
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
@@ -76,6 +76,7 @@ export function ThreadPanel({
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
+  holdOffBottom = false,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -122,6 +123,7 @@ export function ThreadPanel({
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
+  holdOffBottom?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -131,9 +133,16 @@ export function ThreadPanel({
     contentMinHeight,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
+    suppressStickToBottom,
   } = useStickToBottom({
     resetKey: parentMessage.id,
   });
+
+  useEffect(() => {
+    if (holdOffBottom) {
+      suppressStickToBottom();
+    }
+  }, [holdOffBottom, suppressStickToBottom]);
 
   function handleQuote(message: ChatRoomMessage) {
     onQuote?.(message);

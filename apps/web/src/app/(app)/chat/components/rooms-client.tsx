@@ -535,6 +535,7 @@ export function RoomsClient({
     useState(selectedRoomId);
   const historicalTimelineRef = useRef(false);
   const historicalThreadRef = useRef(false);
+  const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
@@ -542,6 +543,7 @@ export function RoomsClient({
     setSyncedHistoryRoomId(selectedRoomId);
     historicalTimelineRef.current = false;
     historicalThreadRef.current = false;
+    setSearchHoldOffBottom(false);
     if (messagesPromise != null) {
       setMessagesState([]);
       setOlderNextCursor(null);
@@ -647,6 +649,7 @@ export function RoomsClient({
     scrollToBottom,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
+    suppressStickToBottom,
   } = useStickToBottom({
     resetKey: selectedRoomId,
   });
@@ -1829,6 +1832,10 @@ export function RoomsClient({
       return;
     }
     await performRoomSearchJump(hit, {
+      holdOffBottom: () => {
+        suppressStickToBottom();
+        setSearchHoldOffBottom(true);
+      },
       highlight: highlightRoomMessageElement,
       afterRender: waitForSearchJumpPaint,
       loadAroundInRoom: async (aroundId) => {
@@ -2418,6 +2425,7 @@ export function RoomsClient({
 
       if (historicalTimelineRef.current) {
         historicalTimelineRef.current = false;
+        setSearchHoldOffBottom(false);
         const live = await listRoomMessagesAction(roomId);
         if (live.ok && isStillSelectedRoom(roomId)) {
           setMessagesState(live.value.messages);
@@ -2509,6 +2517,7 @@ export function RoomsClient({
 
       if (historicalThreadRef.current) {
         historicalThreadRef.current = false;
+        setSearchHoldOffBottom(false);
         const live = await listThreadMessagesAction(roomId, parentMessageId);
         if (live.ok && isStillSelectedRoom(roomId)) {
           setThreadMessages(live.value.messages);
@@ -2822,6 +2831,7 @@ export function RoomsClient({
             threadParentMessage ? (
               <ThreadPanel
                 parentMessage={threadParentMessage}
+                holdOffBottom={searchHoldOffBottom}
                 replies={displayThreadMessages}
                 isLoading={isThreadLoading}
                 olderNextCursor={threadOlderNextCursor}

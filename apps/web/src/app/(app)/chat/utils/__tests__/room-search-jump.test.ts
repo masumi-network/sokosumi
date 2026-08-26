@@ -29,6 +29,7 @@ function message(overrides: Partial<ChatRoomMessage> = {}): ChatRoomMessage {
 
 function deps(overrides: Partial<Parameters<typeof performRoomSearchJump>[1]>) {
   return {
+    holdOffBottom: vi.fn(),
     highlight: vi.fn(() => false),
     afterRender: vi.fn(async () => {}),
     loadAroundInRoom: vi.fn(async () => false),
@@ -47,8 +48,32 @@ describe("performRoomSearchJump", () => {
 
     await performRoomSearchJump(hit, jump);
 
+    expect(jump.holdOffBottom).toHaveBeenCalled();
     expect(jump.highlight).toHaveBeenCalledWith(hit.id);
     expect(jump.loadAroundInRoom).not.toHaveBeenCalled();
+  });
+
+  it("holds the live edge off before loading an around window", async () => {
+    const hit = message();
+    const order: string[] = [];
+    const jump = deps({
+      holdOffBottom: vi.fn(() => {
+        order.push("hold");
+      }),
+      highlight: vi
+        .fn(() => false)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(true),
+      loadAroundInRoom: vi.fn(async () => {
+        order.push("around");
+        return true;
+      }),
+    });
+
+    await performRoomSearchJump(hit, jump);
+
+    expect(order).toEqual(["hold", "around"]);
+    expect(jump.highlight).toHaveBeenLastCalledWith(hit.id);
   });
 
   it("loads around a top-level hit that is not rendered, then highlights", async () => {

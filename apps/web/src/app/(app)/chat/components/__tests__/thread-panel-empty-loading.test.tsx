@@ -40,6 +40,7 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     contentRef: { current: null },
     contentMinHeight: null,
     pinToBottomAfterOwnSend: () => undefined,
+    suppressStickToBottom: () => undefined,
     scrollToBottomIfPinned: () => undefined,
   }),
 }));

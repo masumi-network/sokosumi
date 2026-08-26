@@ -33,6 +33,9 @@ export function useStickToBottom({
   // Sticky flag measured on scroll *before* growth. Measuring after a
   // ResizeObserver jump can make a pinned user look scrolled-up for a frame.
   const stickToBottomRef = useRef(true);
+  // Search jump: keep the live-edge pin from yanking the viewport back to
+  // the newest row while we land on an older hit.
+  const suppressPinRef = useRef(false);
   // Last observed scroller scrollHeight so ResizeObserver can recover when a
   // growth-driven scroll event clears the sticky flag mid-frame.
   const lastScrollHeightRef = useRef(0);
@@ -45,8 +48,14 @@ export function useStickToBottom({
     if (!el) {
       return;
     }
+    suppressPinRef.current = false;
     el.scrollTop = el.scrollHeight;
     stickToBottomRef.current = true;
+  }, []);
+
+  const suppressStickToBottom = useCallback(() => {
+    stickToBottomRef.current = false;
+    suppressPinRef.current = true;
   }, []);
 
   /**
@@ -67,6 +76,7 @@ export function useStickToBottom({
   }, [scrollToBottom]);
 
   useEffect(() => {
+    suppressPinRef.current = false;
     stickToBottomRef.current = true;
     const frame = requestAnimationFrame(() => {
       scrollToBottom();
@@ -88,6 +98,10 @@ export function useStickToBottom({
       const nextHeight = scroller.scrollHeight;
       const growth = nextHeight - previousHeight;
       lastScrollHeightRef.current = nextHeight;
+
+      if (suppressPinRef.current) {
+        return;
+      }
 
       if (stickToBottomRef.current) {
         scroller.scrollTop = scroller.scrollHeight;
@@ -142,6 +156,10 @@ export function useStickToBottom({
       if (!node) {
         return;
       }
+      if (suppressPinRef.current) {
+        stickToBottomRef.current = false;
+        return;
+      }
       stickToBottomRef.current = distanceFromBottom(node) < nearBottomPx;
     }
 
@@ -158,5 +176,6 @@ export function useStickToBottom({
     scrollToBottom,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
+    suppressStickToBottom,
   };
 }

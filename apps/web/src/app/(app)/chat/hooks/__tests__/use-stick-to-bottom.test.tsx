@@ -65,6 +65,7 @@ function Harness({ resetKey }: { resetKey: string | null }) {
     contentRef,
     scrollToBottomIfPinned,
     pinToBottomAfterOwnSend,
+    suppressStickToBottom,
     contentMinHeight,
   } = useStickToBottom({
     resetKey,
@@ -88,6 +89,9 @@ function Harness({ resetKey }: { resetKey: string | null }) {
       </button>
       <button type="button" onClick={() => pinToBottomAfterOwnSend()}>
         own-send-pin
+      </button>
+      <button type="button" onClick={() => suppressStickToBottom()}>
+        suppress-stick
       </button>
     </div>
   );
@@ -177,6 +181,31 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(1000 + STICK_TO_BOTTOM_NEAR_PX + 50);
+  });
+
+  it("does not recover-pin on content growth while suppressed", () => {
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 600,
+    });
+    act(() => {
+      screen.getByRole("button", { name: "suppress-stick" }).click();
+    });
+
+    const scrollTopBefore = scroller.scrollTop;
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1800,
+      clientHeight: 400,
+      scrollTop: scrollTopBefore,
+    });
+    act(() => {
+      fireResize();
+    });
+
+    expect(scroller.scrollTop).toBe(scrollTopBefore);
   });
 
   it("scrollToBottomIfPinned no-ops when unpinned", () => {
