@@ -48,6 +48,8 @@ vi.mock("@/lib/db/prisma", () => ({
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_ID = "550e8400-e29b-41d4-a716-446655440001";
 const REPLY_ID = "550e8400-e29b-41d4-a716-446655440002";
+const OLDER_REPLY_ID = "550e8400-e29b-41d4-a716-446655440003";
+const NEWER_REPLY_ID = "550e8400-e29b-41d4-a716-446655440004";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
 
@@ -103,6 +105,9 @@ function replyMessage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  messageFindFirstMock.mockReset();
+  messageFindManyMock.mockReset();
+  messageCountMock.mockReset();
   roomFindFirstMock.mockResolvedValue({
     id: ROOM_ID,
     organizationId: ORG_ID,
@@ -167,5 +172,71 @@ describe("GET /chats/rooms/{id}/threads/{parentMessageId}/messages", () => {
     expect(response.status).toBe(404);
     expect(messageFindManyMock).not.toHaveBeenCalled();
     expect(messageCountMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects around combined with cursor", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/${PARENT_ID}/messages?around=${REPLY_ID}&cursor=${OLDER_REPLY_ID}`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(messageFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the around reply is not in this thread", async () => {
+    messageFindFirstMock
+      .mockResolvedValueOnce({ id: PARENT_ID })
+      .mockResolvedValueOnce(null);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/${PARENT_ID}/messages?around=${REPLY_ID}`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(messageFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a reading-order window centred on around", async () => {
+    const center = {
+      ...replyMessage(),
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+    };
+    const older = {
+      ...replyMessage(),
+      id: OLDER_REPLY_ID,
+      content: "Older reply",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    const newer = {
+      ...replyMessage(),
+      id: NEWER_REPLY_ID,
+      content: "Newer reply",
+      createdAt: new Date("2026-01-03T00:00:00.000Z"),
+    };
+    messageFindFirstMock
+      .mockResolvedValueOnce({ id: PARENT_ID })
+      .mockResolvedValueOnce(center);
+    messageFindManyMock.mockImplementation(
+      async (args: { orderBy?: Array<{ createdAt?: string }> }) => {
+        const createdAtOrder = args.orderBy?.[0]?.createdAt;
+        if (createdAtOrder === "desc") {
+          return [older];
+        }
+        return [newer];
+      },
+    );
+    messageCountMock.mockResolvedValue(3);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/${PARENT_ID}/messages?around=${REPLY_ID}&limit=3`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.map((row: { id: string }) => row.id)).toEqual([
+      OLDER_REPLY_ID,
+      REPLY_ID,
+      NEWER_REPLY_ID,
+    ]);
   });
 });
