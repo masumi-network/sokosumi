@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -16,6 +16,7 @@ const {
   prismaTaskFileFindUniqueMock,
   prismaTaskFileCountMock,
   prismaTaskFindManyMock,
+  prismaTaskGroupByMock,
   prismaTaskCountMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
@@ -35,6 +36,7 @@ const {
   prismaTaskFileFindUniqueMock: vi.fn(),
   prismaTaskFileCountMock: vi.fn(),
   prismaTaskFindManyMock: vi.fn(),
+  prismaTaskGroupByMock: vi.fn(),
   prismaTaskCountMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
@@ -47,9 +49,14 @@ const {
   putMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  workspaceRepository: workspaceRepositoryMock,
-}));
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: workspaceRepositoryMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -61,6 +68,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     task: {
       findMany: prismaTaskFindManyMock,
+      groupBy: prismaTaskGroupByMock,
       count: prismaTaskCountMock,
     },
     project: {
@@ -200,6 +208,7 @@ function createFoldersApp(
 describe("Drive Tasks Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
       id: "ws_personal",
       userId: "user_123",
@@ -335,8 +344,173 @@ describe("Drive Tasks Routes", () => {
               taskId,
               ...DRIVE_TASK_FILE_WHERE,
             },
+            take: expect.any(Number),
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
           }),
         );
+      });
+
+      it("does not double-skip when paginating with a cursor", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        const files = [
+          {
+            id: "tf_1",
+            name: "file1.txt",
+            fileUrl: "https://example.com/file1.txt",
+            size: BigInt(1024),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-25T14:00:00.000Z"),
+          },
+          {
+            id: "tf_2",
+            name: "file2.txt",
+            fileUrl: "https://example.com/file2.txt",
+            size: BigInt(2048),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+        ];
+
+        prismaTaskFileFindFirstMock.mockResolvedValue({ id: "tf_1" });
+        prismaTaskFileFindManyMock.mockResolvedValue([files[1]]);
+        prismaTaskFileCountMock.mockResolvedValue(2);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&cursor=tf_1&limit=1",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({ id: "tf_2" });
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            take: 2,
+            skip: 1,
+            cursor: { id: "tf_1" },
+          }),
+        );
+      });
+
+      it("returns 400 for an invalid pagination cursor", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+        prismaTaskFileFindFirstMock.mockResolvedValue(null);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
+        expect(prismaTaskFileFindManyMock).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("Search: task-file rows", () => {
+      it("searches by task name, description, and file name", async () => {
+        const matchingFile = {
+          id: "tf_search",
+          name: "mockup.pdf",
+          fileUrl: "https://example.com/mockup.pdf",
+          size: BigInt(1024),
+          mimeType: "application/pdf",
+          updatedAt: new Date("2026-08-24T12:00:00.000Z"),
+          task: {
+            id: "tsk_search",
+            name: "Design mockups",
+            projectId: "prj_search",
+            project: { name: "Q4 Campaign" },
+          },
+        };
+
+        prismaTaskFileFindManyMock.mockResolvedValue([matchingFile]);
+        prismaTaskFileCountMock.mockResolvedValue(1);
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me&q=mockup");
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({
+          type: "task-file",
+          id: "tf_search",
+          name: "mockup.pdf",
+          taskId: "tsk_search",
+          taskName: "Design mockups",
+          projectId: "prj_search",
+          projectName: "Q4 Campaign",
+        });
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: expect.arrayContaining([
+                expect.objectContaining({
+                  name: { contains: "mockup", mode: "insensitive" },
+                }),
+              ]),
+            }),
+          }),
+        );
+      });
+
+      it("paginates search results without double-skipping rows", async () => {
+        const files = [
+          {
+            id: "tf_1",
+            name: "mockup-a.pdf",
+            fileUrl: "https://example.com/a.pdf",
+            size: BigInt(1024),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-08-24T14:00:00.000Z"),
+            task: {
+              id: "tsk_1",
+              name: "Design A",
+              projectId: "prj_1",
+              project: { name: "Campaign" },
+            },
+          },
+          {
+            id: "tf_2",
+            name: "mockup-b.pdf",
+            fileUrl: "https://example.com/b.pdf",
+            size: BigInt(1024),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-08-24T12:00:00.000Z"),
+            task: {
+              id: "tsk_2",
+              name: "Design B",
+              projectId: "prj_1",
+              project: { name: "Campaign" },
+            },
+          },
+        ];
+
+        prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaTaskFileCountMock.mockResolvedValue(2);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&q=mockup&cursor=tf_1&limit=1",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({ id: "tf_2" });
+      });
+
+      it("returns 400 for an invalid search pagination cursor", async () => {
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&q=mockup&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
       });
     });
 
@@ -430,6 +604,18 @@ describe("Drive Tasks Routes", () => {
           }),
         );
       });
+
+      it("returns 400 for an invalid pagination cursor", async () => {
+        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&projectId=550e8400-e29b-41d4-a716-446655440000&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
+      });
     });
 
     describe("Level 1: Project + no-project rows", () => {
@@ -447,7 +633,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFindManyMock.mockResolvedValue([{ projectId: "prj_1" }]);
+        prismaTaskGroupByMock.mockResolvedValue([{ projectId: "prj_1" }]);
         prismaProjectFindManyMock.mockResolvedValue(projects);
         prismaTaskCountMock.mockResolvedValue(1);
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -476,7 +662,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFindManyMock.mockResolvedValue([{ projectId: "prj_1" }]);
+        prismaTaskGroupByMock.mockResolvedValue([{ projectId: "prj_1" }]);
         prismaProjectFindManyMock.mockResolvedValue(projects);
         prismaTaskCountMock.mockResolvedValue(1);
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -489,6 +675,71 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json.data).toHaveLength(1);
+      });
+
+      it("returns 400 for an invalid pagination cursor", async () => {
+        prismaTaskGroupByMock.mockResolvedValue([]);
+        prismaProjectFindManyMock.mockResolvedValue([]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
+      });
+
+      it("sorts projects by the latest READY file across all tasks", async () => {
+        const projects = [
+          {
+            id: "prj_1",
+            name: "Project 1",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T10:00:00.000Z") }],
+              },
+              {
+                files: [{ updatedAt: new Date("2026-03-25T16:00:00.000Z") }],
+              },
+            ],
+          },
+          {
+            id: "prj_2",
+            name: "Project 2",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T14:00:00.000Z") }],
+              },
+            ],
+          },
+        ];
+
+        prismaTaskGroupByMock.mockResolvedValue([
+          { projectId: "prj_1" },
+          { projectId: "prj_2" },
+        ]);
+        prismaProjectFindManyMock.mockResolvedValue(projects);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data.map((item: { id: string }) => item.id)).toEqual([
+          "prj_1",
+          "prj_2",
+        ]);
+        expect(prismaProjectFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            include: expect.objectContaining({
+              tasks: expect.not.objectContaining({
+                take: 1,
+              }),
+            }),
+          }),
+        );
       });
 
       it("shows transferred task project (Task.workspaceId matches, Project.workspaceId does not)", async () => {
@@ -504,7 +755,7 @@ describe("Drive Tasks Routes", () => {
         });
 
         // Task with projectId pointing to a project whose workspaceId is different
-        prismaTaskFindManyMock.mockResolvedValue([
+        prismaTaskGroupByMock.mockResolvedValue([
           { projectId: "prj_transferred" },
         ]);
 
@@ -539,19 +790,16 @@ describe("Drive Tasks Routes", () => {
           name: "Transferred Project",
         });
 
-        // Assert distinct is NOT used (relation filter + distinct can throw)
-        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
-          expect.not.objectContaining({
-            distinct: expect.anything(),
+        expect(prismaTaskGroupByMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            by: ["projectId"],
           }),
         );
       });
 
       it("shows fallback name when project row is missing but tasks exist", async () => {
         // Task references a projectId but the Project row was deleted
-        prismaTaskFindManyMock.mockResolvedValue([
-          { projectId: "prj_deleted" },
-        ]);
+        prismaTaskGroupByMock.mockResolvedValue([{ projectId: "prj_deleted" }]);
 
         // Project row not found
         prismaProjectFindManyMock.mockResolvedValue([]);
@@ -571,7 +819,7 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("includes no-project row when tasks with projectId: null have files", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]); // No project tasks
+        prismaTaskGroupByMock.mockResolvedValue([]); // No project tasks
         prismaProjectFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(1); // One no-project task
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -638,7 +886,7 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("lists for a coworker with workspace context", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaTaskGroupByMock.mockResolvedValue([]);
         prismaProjectFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(0);
 
@@ -660,6 +908,22 @@ describe("Drive Tasks Routes", () => {
         expect(json.error?.message ?? json.message).toContain(
           "Drive Tasks requires workspace context",
         );
+      });
+
+      it("returns 404 when personal workspace is missing for scope=me", async () => {
+        const { PersonalWorkspaceMissingError } = await import(
+          "@sokosumi/database/repositories"
+        );
+        workspaceRepositoryMock.resolveWorkspaceForContext.mockRejectedValueOnce(
+          new PersonalWorkspaceMissingError(),
+        );
+
+        const app = createDriveTasksApp();
+        const res = await app.request("http://localhost/?scope=me");
+
+        expect(res.status).toBe(404);
+        const json = await res.json();
+        expect(json.kind).toBe("personal_workspace_missing");
       });
     });
   });
@@ -716,6 +980,12 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(201);
+      expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+        "https://blob.example/tasks/tsk_1/document.pdf",
+        expect.objectContaining({
+          maxResponseBytes: expect.any(Number),
+        }),
+      );
       expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceContext: {
@@ -742,6 +1012,41 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(404);
+    });
+
+    it("returns 403 before validating TaskFile status when task read is denied", async () => {
+      const taskFile = {
+        id: "tf_123",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+      requireTaskReadForRouteVarsMock.mockRejectedValue(
+        forbidden("You can only access tasks assigned to your coworker"),
+      );
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(403);
+      expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceContext: {
+            workspaceId: "ws_personal",
+            userId: "user_123",
+            organizationId: null,
+          },
+        }),
+        "tsk_1",
+      );
+      expect(prismaTaskFileFindUniqueMock).toHaveBeenCalledTimes(1);
     });
 
     it("returns 400 when TaskFile is PENDING", async () => {
@@ -896,6 +1201,58 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(409);
+    });
+
+    it("returns 503 when source blob exceeds the Drive upload size limit", async () => {
+      const { FILE_UPLOAD_MAX_SIZE_BYTES } = await import("@sokosumi/utils");
+      const taskFile = {
+        id: "tf_123",
+        name: "document.pdf",
+        fileUrl: "https://blob.example/tasks/tsk_1/document.pdf",
+        size: BigInt(FILE_UPLOAD_MAX_SIZE_BYTES + 1),
+        mimeType: "application/pdf",
+        status: "READY",
+        origin: "TASK_OUTPUT",
+        task: { id: "tsk_1" },
+      };
+
+      prismaTaskFileFindUniqueMock.mockResolvedValue(taskFile);
+      requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+      requireUserDriveFileUploadAccessMock.mockResolvedValue(undefined);
+
+      const BlobNotFoundError = (await import("@vercel/blob"))
+        .BlobNotFoundError;
+      headMock.mockRejectedValue(new BlobNotFoundError());
+      listMock.mockResolvedValue({
+        blobs: [],
+        hasMore: false,
+        cursor: undefined,
+      });
+
+      ssrfSafeFetchMock.mockRejectedValue(
+        new Error(
+          `Response body exceeds maxResponseBytes (${FILE_UPLOAD_MAX_SIZE_BYTES})`,
+        ),
+      );
+
+      const app = createDriveTasksApp();
+      const res = await app.request("http://localhost/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskFileId: "tf_123",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(503);
+      expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+        "https://blob.example/tasks/tsk_1/document.pdf",
+        expect.objectContaining({
+          maxResponseBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+        }),
+      );
+      expect(putMock).not.toHaveBeenCalled();
     });
   });
 

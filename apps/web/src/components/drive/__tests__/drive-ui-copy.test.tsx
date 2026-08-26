@@ -17,6 +17,9 @@ const expected = {
     fromDrive: "From Files",
     uploadFile: "Upload from device",
     menu: "Files",
+    copyToFilesAction: "Copy to Files",
+    copyToFilesDialogTitle: "Copy to Files?",
+    copyToFilesDialogDescription: "Copy report.pdf to My Files.",
   },
   de: {
     breadcrumb: "Dateien",
@@ -25,6 +28,9 @@ const expected = {
     fromDrive: "Aus Dateien",
     uploadFile: "Vom Gerät hochladen",
     menu: "Dateien",
+    copyToFilesAction: "In Dateien kopieren",
+    copyToFilesDialogTitle: "In Dateien kopieren?",
+    copyToFilesDialogDescription: "report.pdf nach Meine Dateien kopieren.",
   },
   es: {
     breadcrumb: "Archivos",
@@ -33,6 +39,9 @@ const expected = {
     fromDrive: "Desde Archivos",
     uploadFile: "Subir desde el dispositivo",
     menu: "Archivos",
+    copyToFilesAction: "Copiar a Archivos",
+    copyToFilesDialogTitle: "¿Copiar a Archivos?",
+    copyToFilesDialogDescription: "Copiar report.pdf a Mis archivos.",
   },
 } as const;
 
@@ -65,6 +74,14 @@ describe("Drive UI copy", () => {
       expect(drive("selectTitle")).toBe(want.selectTitle);
       expect(drive("fromDrive")).toBe(want.fromDrive);
       expect(drive("uploadFile")).toBe(want.uploadFile);
+      expect(drive("copyToFilesAction")).toBe(want.copyToFilesAction);
+      expect(drive("copyToFilesDialogTitle")).toBe(want.copyToFilesDialogTitle);
+      expect(
+        drive("copyToFilesDialogDescription", {
+          fileName: "report.pdf",
+          workspace: want.myDrive,
+        }),
+      ).toBe(want.copyToFilesDialogDescription);
     },
   );
 

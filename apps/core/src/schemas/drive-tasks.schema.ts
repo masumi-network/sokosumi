@@ -96,6 +96,22 @@ export const driveTasksTaskFileItemSchema = z
       example: "2026-08-18T10:00:00.000Z",
       description: "TaskFile updatedAt",
     }),
+    taskId: z.string().optional().openapi({
+      example: "tsk_xyz789",
+      description: "Parent task ID (search results only)",
+    }),
+    taskName: z.string().optional().openapi({
+      example: "Design mockups",
+      description: "Parent task name (search results only)",
+    }),
+    projectId: z.string().nullable().optional().openapi({
+      example: "prj_abc123",
+      description: "Parent project ID, or null (search results only)",
+    }),
+    projectName: z.string().nullable().optional().openapi({
+      example: "Q4 Campaign",
+      description: "Parent project name, or null (search results only)",
+    }),
   })
   .openapi("DriveTasksTaskFileItem");
 

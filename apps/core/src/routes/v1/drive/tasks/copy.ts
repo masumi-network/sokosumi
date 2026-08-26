@@ -3,6 +3,7 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 import {
   buildOrganizationDriveFilePathname,
   buildUserDriveFilePathname,
+  FILE_UPLOAD_MAX_SIZE_BYTES,
   sanitizeDriveFileName,
 } from "@sokosumi/utils";
 import {
@@ -79,7 +80,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    // Find TaskFile
+    // Resolve task id before validation so ACL runs before status/origin leaks.
+    const taskFileRef = await prisma.taskFile.findUnique({
+      where: { id: body.taskFileId },
+      select: {
+        task: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!taskFileRef) {
+      throw notFound("TaskFile not found");
+    }
+
+    const taskId = taskFileRef.task.id;
+
+    c.set(
+      "workspaceContext",
+      await resolveDriveTasksWorkspace({
+        userContext,
+        scope: body.scope,
+        organizationId: body.organizationId,
+      }),
+    );
+    await requireTaskReadForRouteVars(c.var, taskId);
+
     const taskFile = await prisma.taskFile.findUnique({
       where: { id: body.taskFileId },
       include: {
@@ -107,20 +133,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Cannot copy TaskFile without a file URL");
     }
 
-    const taskId = taskFile.task.id;
     const sourceUrl = taskFile.fileUrl;
     const fileName = taskFile.name;
     const mimeType = taskFile.mimeType;
-
-    c.set(
-      "workspaceContext",
-      await resolveDriveTasksWorkspace({
-        userContext,
-        scope: body.scope,
-        organizationId: body.organizationId,
-      }),
-    );
-    await requireTaskReadForRouteVars(c.var, taskId);
 
     // Determine destination pathname
     let destPathname: string;
@@ -177,13 +192,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Copy blob: fetch source then put to dest
     let sourceBlob: ArrayBuffer;
     try {
-      const fetchResult = await ssrfSafeFetch(sourceUrl);
+      const fetchResult = await ssrfSafeFetch(sourceUrl, {
+        maxResponseBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+      });
       if (!fetchResult.ok) {
         throw serviceUnavailable(
           `Failed to fetch source blob: ${fetchResult.status}`,
         );
       }
       sourceBlob = await fetchResult.arrayBuffer();
+      if (sourceBlob.byteLength > FILE_UPLOAD_MAX_SIZE_BYTES) {
+        throw serviceUnavailable(
+          `Source blob ${sourceBlob.byteLength} exceeds maximum ${FILE_UPLOAD_MAX_SIZE_BYTES} bytes`,
+        );
+      }
     } catch (error) {
       throw serviceUnavailable(
         `Failed to fetch source blob: ${error instanceof Error ? error.message : String(error)}`,
