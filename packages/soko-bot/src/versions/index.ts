@@ -34,7 +34,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v11,
   v12,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v1";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v11";
 
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };

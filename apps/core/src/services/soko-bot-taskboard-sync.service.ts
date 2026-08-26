@@ -8,6 +8,7 @@ import {
   ensureSystemSchedules,
   findAttentionItems,
   followUpsBlock,
+  proactiveGate,
   stampNudges,
 } from "@/services/soko-bot-proactive.service";
 
@@ -341,6 +342,13 @@ export class SokoBotTaskboardSyncService {
     });
     const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
     if (updates.length === 0 && attention.length === 0) return false;
+    // Assigned work always goes through; pure follow-up/nudge turns respect
+    // the owner's pause and daily cap.
+    const mustWork = updates.some((u) => u.work);
+    if (!mustWork) {
+      const gate = await proactiveGate(bot.id, now);
+      if (!gate.ok) return false;
+    }
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
     const message = [
       ...(batch.length > 0 ? [buildTaskboardMessage(batch), ""] : []),

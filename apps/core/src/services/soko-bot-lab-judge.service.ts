@@ -1,6 +1,7 @@
 import {
   type ScenarioCheck,
   SOKO_BOT_JUDGE_RUBRIC,
+  SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
   SOKO_BOT_SCENARIOS,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
@@ -175,14 +176,17 @@ export async function judgeTurnQuality(turnId: string): Promise<void> {
   if (!getEnv().SOKO_BOT_TURN_JUDGE_ENABLED) return;
   const { turn, transcript } = await loadTranscript(turnId);
   if (turn.status !== "COMPLETED" && turn.status !== "FAILED") return;
+  const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
   const verdict = await askJudge({
     scenario: {
-      id: "live-turn",
-      title: "Live turn",
-      intent:
-        "An ordinary turn from the owner, a schedule, or a coworker event. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
-      rubric:
-        "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
+      id: proactive ? "live-proactive-turn" : "live-turn",
+      title: proactive ? "Self-started turn" : "Live turn",
+      intent: proactive
+        ? "A turn the bot started on its own; its answer reaches the owner's chat unattended. Judge whether the owner is better off for receiving it."
+        : "An ordinary turn from the owner. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
+      rubric: proactive
+        ? SOKO_BOT_PROACTIVE_JUDGE_RUBRIC
+        : "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
       ownerMessageOrTrigger: transcript.runtimeInput,
     },
     turn: transcript,

@@ -61,11 +61,13 @@ import {
   sokoBotSkillSearchResultSchema,
   sokoBotStateSchema,
   sokoBotTeamSchema,
+  sokoBotTurnFeedbackRequestSchema,
   sokoBotTurnSchema,
   sokoBotVersionSchema,
   startSokoBotTurnRequestSchema,
   startSokoBotTurnResponseSchema,
   updateSokoBotBoardFollowingRequestSchema,
+  updateSokoBotProactiveRequestSchema,
   updateSokoBotScheduleRequestSchema,
   updateSokoBotVersionRequestSchema,
 } from "@/schemas/soko-bot.schema";
@@ -104,6 +106,7 @@ import {
   judgeSokoBotLabTurn,
   SokoBotLabJudgeError,
 } from "@/services/soko-bot-lab-judge.service";
+import { retimeSystemSchedules } from "@/services/soko-bot-proactive.service";
 import {
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -921,6 +924,98 @@ app.openapi(listVersionsRoute, async (c) => {
       systemPrompt: composeSystemPrompt(version),
     })),
   );
+});
+
+const updateProactiveRoute = createRoute({
+  method: "put",
+  path: "/me/proactive",
+  operationId: "updateMySokoBotProactive",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: updateSokoBotProactiveRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotSchema, "Bot with the new settings"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+app.openapi(updateProactiveRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const body = c.req.valid("json");
+  if (body.timezone) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: body.timezone });
+    } catch {
+      throw unprocessableEntity("Unknown timezone");
+    }
+  }
+  const bot = await prisma.sokoBot.findFirst({
+    where: {
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      archivedAt: null,
+    },
+    select: { id: true },
+  });
+  if (!bot) throw notFound("Create a Soko Bot first");
+  await prisma.sokoBot.update({
+    where: { id: bot.id },
+    data: {
+      ...(body.paused !== undefined ? { proactivePaused: body.paused } : {}),
+      ...(body.dailyLimit !== undefined
+        ? { proactiveDailyLimit: body.dailyLimit }
+        : {}),
+      ...(body.timezone ? { ingestTimezone: body.timezone } : {}),
+    },
+  });
+  if (body.timezone) await retimeSystemSchedules(bot.id, body.timezone);
+  const refreshed = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
+  return ok(c, sokoBotSchema.parse(mapBot(refreshed)));
+});
+
+const turnFeedbackRoute = createRoute({
+  method: "post",
+  path: "/me/turns/{id}/feedback",
+  operationId: "sendMySokoBotTurnFeedback",
+  tags: ["Soko Bots"],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+    body: {
+      content: {
+        "application/json": { schema: sokoBotTurnFeedbackRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ useful: z.boolean() }),
+      "Feedback stored",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(turnFeedbackRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const { useful } = c.req.valid("json");
+  const updated = await prisma.sokoBotTurn.updateMany({
+    where: { id: c.req.valid("param").id, userId: auth.userId },
+    data: { ownerFeedback: useful ? 1 : -1, ownerFeedbackAt: new Date() },
+  });
+  if (updated.count === 0) throw notFound("Turn not found");
+  return ok(c, { useful });
 });
 
 const updateBoardFollowingRoute = createRoute({

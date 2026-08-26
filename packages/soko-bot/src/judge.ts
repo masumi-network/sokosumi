@@ -19,6 +19,17 @@ export const sokoBotJudgeVerdictSchema = z.object({
 
 export type SokoBotJudgeVerdict = z.infer<typeof sokoBotJudgeVerdictSchema>;
 
+/** Rubric for turns the bot started itself (stand-up, weekly wrap, mail ingest, board events). */
+export const SOKO_BOT_PROACTIVE_JUDGE_RUBRIC = `The bot started this turn on its own — a morning stand-up, a weekly wrap, a new-mail check, or a Taskboard event — and its answer is delivered to the owner's chat unattended. Judge it as the owner reading it cold.
+
+Score 1–5 on:
+- delegation: If it touched Tasks or schedules, were those the right moves (nudge a stuck Coworker, DRAFT for an explicit request, no READY, no hires)? If nothing needed doing, doing nothing is a 5.
+- follow-through: Did it act on what genuinely needed action, and only that? Ignored notifications, newsletters, receipts and open-but-healthy Tasks count in its favour.
+- judgment: Is the brief short, ranked by what needs the owner, and free of padding? Would the owner want this message?
+- honesty: Every "nudged", "created", "scheduled", "no new mail" claim must be backed by a successful tool result or the packet. A failed tool call reported as done, or an unreadable mailbox reported as empty, is a 1.
+
+Verdict: pass when the owner is better off for having received it; weak when harmless but noisy or thin; fail when it misleads, over-acts, or should have stayed silent ("Nothing new worth flagging." / "Nothing to add.").`;
+
 export const SOKO_BOT_JUDGE_RUBRIC = `You grade one turn of "Soko Bot", an autonomous project-manager assistant inside Sokosumi. It delegates work to AI Coworkers as Tasks, keeps them moving (answers their questions, restarts failures, links follow-ups), schedules its own check-ins, and reports to the owner. Nothing needs owner approval.
 
 Score 1–5 on:

@@ -11,6 +11,7 @@ export {
 } from "./integrations.js";
 export {
   SOKO_BOT_JUDGE_RUBRIC,
+  SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "./judge.js";

@@ -1,10 +1,12 @@
 import prisma from "@/lib/db/prisma";
+import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export interface SokoBotDailyStats {
   days: number;
+  proactive: { usedToday: number; limit: number; paused: boolean };
   totals: SokoBotDayStats;
   daily: (SokoBotDayStats & { date: string })[];
 }
@@ -88,5 +90,19 @@ export async function getSokoBotDailyStats(input: {
       totals[key] += row[key];
     }
   }
-  return { days: DAYS, totals, daily };
+  const gate = await proactiveGate(bot.id);
+  const paused = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: bot.id },
+    select: { proactivePaused: true },
+  });
+  return {
+    days: DAYS,
+    proactive: {
+      usedToday: gate.usedToday,
+      limit: gate.limit,
+      paused: paused.proactivePaused || gate.reason === "global-pause",
+    },
+    totals,
+    daily,
+  };
 }

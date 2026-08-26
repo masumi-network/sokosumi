@@ -6,6 +6,7 @@ import {
   type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 
+import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import {
@@ -22,6 +23,65 @@ const UNHANDLED_FAILURE_MS = 1 * HOUR_MS;
 const MAX_ATTENTION = 6;
 /** Older than this and it is history, not something to nudge about. */
 const ATTENTION_MAX_AGE_MS = 7 * 24 * HOUR_MS;
+
+/** Start of the bot's current local day, for the daily proactive cap. */
+export function localDayStart(now: Date, timeZone: string): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  const minutesIntoDay = (get("hour") % 24) * 60 + get("minute");
+  return new Date(now.getTime() - minutesIntoDay * 60_000);
+}
+
+export interface ProactiveGate {
+  ok: boolean;
+  reason?: "paused" | "global-pause" | "daily-limit";
+  usedToday: number;
+  limit: number;
+}
+
+/**
+ * Whether the bot may start another turn on its own right now: not paused
+ * by the owner or the platform, and under its daily cap of self-started
+ * turns (SCHEDULE, EVENT, INGEST) for its local day.
+ */
+export async function proactiveGate(
+  sokoBotId: string,
+  now = new Date(),
+): Promise<ProactiveGate> {
+  const bot = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: sokoBotId },
+    select: {
+      proactivePaused: true,
+      proactiveDailyLimit: true,
+      ingestTimezone: true,
+    },
+  });
+  const usedToday = await prisma.sokoBotTurn.count({
+    where: {
+      sokoBotId,
+      source: { in: ["SCHEDULE", "EVENT", "INGEST"] },
+      createdAt: { gte: localDayStart(now, bot.ingestTimezone) },
+    },
+  });
+  const limit = bot.proactiveDailyLimit;
+  if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
+    return { ok: false, reason: "global-pause", usedToday, limit };
+  }
+  if (bot.proactivePaused)
+    return { ok: false, reason: "paused", usedToday, limit };
+  if (usedToday >= limit)
+    return { ok: false, reason: "daily-limit", usedToday, limit };
+  return { ok: true, usedToday, limit };
+}
 
 /** Creates the built-in rhythms a bot is missing; idempotent per (bot, key). */
 export async function ensureSystemSchedules(bot: {
@@ -57,6 +117,28 @@ export async function ensureSystemSchedules(bot: {
         },
       })
       .catch(() => undefined); // raced by another tick: the unique key holds
+  }
+}
+
+/** Moves the built-in rhythms to a new timezone and recomputes their next run. */
+export async function retimeSystemSchedules(
+  sokoBotId: string,
+  timeZone: string,
+): Promise<void> {
+  const rows = await prisma.sokoBotSchedule.findMany({
+    where: { sokoBotId, systemKey: { not: null } },
+    select: { id: true, cronExpression: true },
+  });
+  for (const row of rows) {
+    const nextRunAt = computeNextRunWithMinimumInterval(
+      { cron: row.cronExpression, timezone: timeZone },
+      60_000,
+    );
+    if (!nextRunAt) continue;
+    await prisma.sokoBotSchedule.update({
+      where: { id: row.id },
+      data: { timezone: timeZone, nextRunAt },
+    });
   }
 }
 

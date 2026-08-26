@@ -1670,6 +1670,7 @@ model SokoBotIntegration {
   /// Provider-specific ingest position (e.g. newest seen email timestamp).
   cursor            Json?
   lastIngestAt      DateTime?
+  lastErrorAt       DateTime?
 
   @@unique([sokoBotId, provider])
   @@index([status])
@@ -1759,6 +1760,10 @@ model SokoBot {
   ingestTimezone String    @default("Europe/Berlin")
   /// Follow every open Task on the workspace board, not only its own.
   followWholeBoard Boolean @default(false)
+  /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
+  proactivePaused Boolean @default(false)
+  /// Max self-started turns per local day; beyond it the syncs skip the bot.
+  proactiveDailyLimit Int @default(20)
   /// Last morning briefing sent; one per local day.
   lastBriefingAt DateTime?
 
@@ -1888,6 +1893,9 @@ model SokoBotTurn {
   /// Version the turn ran with; null for turns before versions existed.
   versionId    String?
   /// Judge model's overall 1–5 score for this turn (see soko-bot-lab-judge.service).
+  /// Owner thumbs on a proactive message: 1 useful, -1 not.
+  ownerFeedback   Int?
+  ownerFeedbackAt DateTime?
   qualityScore   Int?
   qualityVerdict Json?
   qualityModel   String?

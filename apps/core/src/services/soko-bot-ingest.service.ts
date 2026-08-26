@@ -13,6 +13,7 @@ import {
   fetchCalendarEvents,
   fetchInboxMessages,
 } from "@/services/soko-bot-integrations.service";
+import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 /** New mail is checked at most this often per bot. */
@@ -242,10 +243,22 @@ export class SokoBotIngestSyncService {
       const since =
         cursorDate(integration.cursor, "newestSeenAt") ??
         new Date(now.getTime() - INITIAL_LOOKBACK_MS);
-      const messages = await fetchInboxMessages(integration, {
-        since,
-        limit: MAX_MAIL_PER_PACKET,
-      });
+      let messages: SokoBotInboxMessage[];
+      try {
+        messages = await fetchInboxMessages(integration, {
+          since,
+          limit: MAX_MAIL_PER_PACKET,
+        });
+      } catch (error) {
+        // Surfaced on the console tile by the integrations service; the
+        // bot must not treat an unreadable mailbox as an empty one.
+        console.error("Soko Bot ingest mail fetch failed", {
+          sokoBotId: bot.id,
+          provider: integration.provider.id,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+        continue;
+      }
       const fresh = messages.filter(
         (message) =>
           !message.receivedAt || new Date(message.receivedAt) > since,
@@ -303,6 +316,11 @@ export class SokoBotIngestSyncService {
     }
 
     const kind = briefing ? "briefing" : "delta";
+    const gate = await proactiveGate(bot.id, now);
+    if (!gate.ok) {
+      await stamp();
+      return "skipped";
+    }
     const started = await sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId: bot.workspaceId,

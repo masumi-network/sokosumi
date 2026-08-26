@@ -204,6 +204,13 @@ export class SokoBotSchedulesSyncService {
         enabled: true,
         nextRunAt: { lte: new Date() },
         sokoBot: { archivedAt: null, status: { not: "PAUSED" } },
+        // Built-in rhythms honour the owner's and the platform's proactive pause.
+        OR: [
+          { systemKey: null },
+          ...(getEnv().SOKO_BOT_PROACTIVE_PAUSED
+            ? []
+            : [{ sokoBot: { proactivePaused: false } }]),
+        ],
       },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });

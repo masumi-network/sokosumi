@@ -251,6 +251,9 @@ export const sokoBotSchema = z
     avatarImageUrl: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
+    ingestTimezone: z.string().optional(),
+    proactivePaused: z.boolean().optional(),
+    proactiveDailyLimit: z.number().int().optional(),
     /** Chat-facing coworker row; open a direct with it to chat with the bot. */
     coworker: z
       .object({ id: z.string(), slug: z.string() })
@@ -527,6 +530,20 @@ export const sokoBotVersionSchema = z
   })
   .openapi("SokoBotVersion");
 
+export const updateSokoBotProactiveRequestSchema = z
+  .object({
+    paused: z.boolean().optional(),
+    dailyLimit: z.number().int().min(1).max(200).optional(),
+    timezone: z.string().min(1).max(64).optional(),
+  })
+  .strict()
+  .openapi("UpdateSokoBotProactiveRequest");
+
+export const sokoBotTurnFeedbackRequestSchema = z
+  .object({ useful: z.boolean() })
+  .strict()
+  .openapi("SokoBotTurnFeedbackRequest");
+
 export const updateSokoBotBoardFollowingRequestSchema = z
   .object({ enabled: z.boolean() })
   .strict()
@@ -607,6 +624,8 @@ export const adminSokoBotQualitySchema = z
     proactive: z.object({
       sent: z.number().int(),
       actedOn: z.number().int(),
+      thumbsUp: z.number().int(),
+      thumbsDown: z.number().int(),
     }),
     daily: z.array(
       z.object({
@@ -749,6 +768,12 @@ const sokoBotDayStatsFields = {
 export const sokoBotDailyStatsSchema = z
   .object({
     days: z.number().int(),
+    /** Self-started turns today against the owner's cap. */
+    proactive: z.object({
+      usedToday: z.number().int(),
+      limit: z.number().int(),
+      paused: z.boolean(),
+    }),
     totals: z.object(sokoBotDayStatsFields),
     daily: z.array(z.object({ date: z.string(), ...sokoBotDayStatsFields })),
   })
@@ -764,6 +789,7 @@ export const sokoBotIntegrationSchema = z
     connectedAt: z.coerce.date().nullable(),
     lastIngestAt: z.coerce.date().nullable(),
     lastError: z.string().nullable(),
+    lastErrorAt: z.coerce.date().nullable().optional(),
   })
   .openapi("SokoBotIntegration");
 

@@ -8,7 +8,12 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 export interface SokoBotQualityOverview {
   overall: { turns: number; judged: number; avgScore: number | null };
   /** Self-started turns that reached the owner, and how many they acted on within a day. */
-  proactive: { sent: number; actedOn: number };
+  proactive: {
+    sent: number;
+    actedOn: number;
+    thumbsUp: number;
+    thumbsDown: number;
+  };
   daily: { date: string; turns: number; avgScore: number | null }[];
   versions: {
     versionId: string;
@@ -44,6 +49,7 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
         source: true,
         sokoBotId: true,
         finalAnswer: true,
+        ownerFeedback: true,
       },
     }),
     prisma.sokoBotLabRun.findMany({
@@ -144,7 +150,12 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
       judged: judged.length,
       avgScore: avg(judged),
     },
-    proactive: { sent: proactiveTurns.length, actedOn },
+    proactive: {
+      sent: proactiveTurns.length,
+      actedOn,
+      thumbsUp: proactiveTurns.filter((t) => t.ownerFeedback === 1).length,
+      thumbsDown: proactiveTurns.filter((t) => t.ownerFeedback === -1).length,
+    },
     daily,
     versions: versions.sort((a, b) => a.versionId.localeCompare(b.versionId)),
   };

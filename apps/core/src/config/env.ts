@@ -118,6 +118,11 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
+  /** Platform-wide kill switch for everything Soko Bots start on their own. */
+  SOKO_BOT_PROACTIVE_PAUSED: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
   /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
