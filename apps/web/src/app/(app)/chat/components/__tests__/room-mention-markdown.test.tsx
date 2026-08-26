@@ -79,4 +79,23 @@ describe("RoomMessageMarkdown mention hover", () => {
 
     expect(screen.getByRole("button", { name: "Elena" })).toBe(chip);
   });
+
+  it("survives a blank-to-nonblank rerender", () => {
+    const maps = {
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+    };
+    const { rerender } = render(
+      <RoomMessageMarkdown content="   " {...maps} />,
+    );
+
+    rerender(
+      <RoomMessageMarkdown
+        content={`@${coworker.id}:${coworker.slug} please look`}
+        {...maps}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Elena" })).toBeInTheDocument();
+  });
 });

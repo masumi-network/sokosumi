@@ -108,10 +108,6 @@ export function RoomMessageMarkdown({
   openingDirectParticipantKey?: string | null;
   hoverInteractive?: boolean;
 }) {
-  if (!content.trim()) {
-    return null;
-  }
-
   const lookups: RoomMentionHoverLookups = {
     coworkersById,
     usersById,
@@ -132,6 +128,10 @@ export function RoomMessageMarkdown({
     }),
     [],
   );
+
+  if (!content.trim()) {
+    return null;
+  }
 
   return (
     <Markdown className={markdownClassName} components={components}>

@@ -1,10 +1,9 @@
 import { render } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
-
-import { RoomComposer } from "@/app/chat/components/room-composer";
-import type { RoomMentionParticipant } from "@/app/chat/components/room-helpers";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import { RoomComposer } from "../room-composer";
+import type { RoomMentionParticipant } from "../room-helpers";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
