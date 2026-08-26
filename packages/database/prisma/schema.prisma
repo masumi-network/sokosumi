@@ -56,6 +56,7 @@ model User {
 
   // Notifications
   notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
+  pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
 
   // UTM Attribution
   utmAttribution UTMAttribution?
