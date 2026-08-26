@@ -124,6 +124,7 @@ describe("publishNotificationEvent", () => {
       data: notification,
       extras: {
         push: {
+          notification: { ttl: 3600 },
           data: {
             id: notification.id,
             kind: notification.kind,
@@ -135,10 +136,12 @@ describe("publishNotificationEvent", () => {
         },
       },
     });
-    // ADR-0018: the service worker renders text, so Core ships no display part.
-    expect(publishMock.mock.calls[0]?.[0]?.extras?.push).not.toHaveProperty(
-      "notification",
-    );
+    // ADR-0018: the notification part carries the ttl transport knob only.
+    // The service worker renders text, so Core ships no display strings.
+    const pushExtras = publishMock.mock.calls[0]?.[0]?.extras?.push;
+    expect(pushExtras?.notification).toEqual({ ttl: 3600 });
+    expect(pushExtras?.notification).not.toHaveProperty("title");
+    expect(pushExtras?.notification).not.toHaveProperty("body");
   });
 
   it("keeps every push data value a string", async () => {
