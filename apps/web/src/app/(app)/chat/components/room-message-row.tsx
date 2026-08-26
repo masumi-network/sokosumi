@@ -1,6 +1,10 @@
 "use client";
 
-import { type ChannelLinkTarget, getExtensionFromUrl } from "@sokosumi/utils";
+import {
+  type ChannelLinkTarget,
+  getExtensionFromUrl,
+  unfurlCardHasPreviewContent,
+} from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
@@ -330,16 +334,13 @@ function MessageQuoteBlock({
 function MessageUnfurlImage({
   imageUrl,
   title,
+  onError,
 }: {
   imageUrl: string;
   title: string;
+  onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return null;
-  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -347,9 +348,7 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className="mt-2 h-auto max-h-48 max-w-full rounded-md"
-      onError={() => {
-        setFailed(true);
-      }}
+      onError={onError}
     />
   );
 }
@@ -364,10 +363,18 @@ function MessageUnfurlCard({
   onRemove?: (url: string) => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
+  const [imageFailed, setImageFailed] = useState(false);
   const siteLabel = unfurl.siteName?.trim() || null;
+  const description = unfurl.description?.trim() || null;
+  const imageUrl = unfurl.imageUrl?.trim() || null;
+  const showImage = Boolean(imageUrl) && !imageFailed;
+
+  if (!description && !showImage) {
+    return null;
+  }
 
   return (
-    <div className="group relative mt-1.5 inline-block w-fit max-w-full">
+    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
       <a
         href={unfurl.url}
         target="_blank"
@@ -384,13 +391,19 @@ function MessageUnfurlCard({
         <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
           {unfurl.title}
         </div>
-        {unfurl.description?.trim() ? (
+        {description ? (
           <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
-            {unfurl.description}
+            {description}
           </div>
         ) : null}
-        {unfurl.imageUrl ? (
-          <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
+        {showImage && imageUrl ? (
+          <MessageUnfurlImage
+            imageUrl={imageUrl}
+            title={unfurl.title}
+            onError={() => {
+              setImageFailed(true);
+            }}
+          />
         ) : null}
       </a>
       {canRemove && onRemove ? (
@@ -398,7 +411,7 @@ function MessageUnfurlCard({
           type="button"
           variant="secondary"
           size="icon"
-          className="border-border absolute top-1 right-1 z-10 size-6 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:pointer-events-auto [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:opacity-100"
+          className="border-border absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
           aria-label={t("remove", { title: unfurl.title })}
           onClick={(event) => {
             event.preventDefault();
@@ -422,15 +435,19 @@ function MessageUnfurlList({
   canRemove: boolean;
   onRemove?: (url: string) => void;
 }) {
-  if (!unfurls || unfurls.length === 0) {
+  const visible = unfurls?.filter(unfurlCardHasPreviewContent) ?? [];
+  if (visible.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-1" data-testid="room-message-unfurls">
-      {unfurls.map((unfurl) => (
+    <div
+      className={cn("space-y-1", canRemove && "pr-3")}
+      data-testid="room-message-unfurls"
+    >
+      {visible.map((unfurl) => (
         <MessageUnfurlCard
-          key={unfurl.url}
+          key={`${unfurl.url}:${unfurl.imageUrl ?? ""}`}
           unfurl={unfurl}
           canRemove={canRemove}
           onRemove={onRemove}
