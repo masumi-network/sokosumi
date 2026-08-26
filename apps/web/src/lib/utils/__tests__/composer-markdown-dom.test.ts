@@ -57,6 +57,14 @@ describe("markdownToHtml", () => {
     expect(html).not.toContain("@@MENTION1@@");
   });
 
+  it("still wraps @@MENTION salvage tokens when unknown wrapping is off", () => {
+    const html = markdownToHtml("@@MENTION1@@", undefined, {
+      wrapUnknownMentions: false,
+    });
+    expect(html).toContain('data-mention-key="unknown-mention-1"');
+    expect(html).not.toContain("@@MENTION1@@");
+  });
+
   it("wraps known mention persist tokens as display-name chips", () => {
     const html = markdownToHtml(
       "ping @user_1:alice-smith hey",

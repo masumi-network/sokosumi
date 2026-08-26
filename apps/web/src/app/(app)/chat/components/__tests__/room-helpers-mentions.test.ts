@@ -7,6 +7,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import {
   buildRoomAllMentionRecord,
+  composerMentionDisplayNames,
   formatRoomMarkdownContent,
   formatRoomMarkdownMentions,
   membershipVisibleChannelLinks,
@@ -533,5 +534,31 @@ describe("partitionRoomMentionSuggestions", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]?.id).toBe("people");
     expect(groups[0]?.items).toEqual([unknown]);
+  });
+});
+
+describe("composerMentionDisplayNames", () => {
+  it("lets roster names win over catalog for the same id", () => {
+    const { byKey, bySlug } = composerMentionDisplayNames({
+      usersById: new Map([["u1", { name: "Andreas Osberghaus" }]]),
+      usersBySlug: new Map([
+        ["andreas-osberghaus", { name: "Andreas Osberghaus" }],
+      ]),
+      mentionCatalog: {
+        u1: { value: "Andreas", slug: "andreas" },
+      },
+    });
+
+    expect(byKey.get("u1")).toBe("Andreas Osberghaus");
+    expect(bySlug.get("andreas-osberghaus")).toBe("Andreas Osberghaus");
+  });
+
+  it("keeps catalog-only entries such as @all", () => {
+    const { byKey, bySlug } = composerMentionDisplayNames({
+      mentionCatalog: { all: { value: "Everyone", slug: "all" } },
+    });
+
+    expect(byKey.get("all")).toBe("Everyone");
+    expect(bySlug.get("all")).toBe("Everyone");
   });
 });

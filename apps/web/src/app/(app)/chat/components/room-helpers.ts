@@ -99,6 +99,15 @@ export function composerMentionDisplayNames({
   const byKey = new Map<string, string>();
   const bySlug = new Map<string, string>();
 
+  // Catalog first (@all and picker labels), then roster overwrites so
+  // hydrate chips match posted quotes. Same win order as quote preview.
+  for (const [key, entry] of Object.entries(mentionCatalog ?? {})) {
+    if (!entry.value) continue;
+    byKey.set(key, entry.value);
+    if (entry.slug) {
+      bySlug.set(entry.slug, entry.value);
+    }
+  }
   for (const [id, user] of usersById ?? []) {
     byKey.set(id, user.name);
   }
@@ -110,13 +119,6 @@ export function composerMentionDisplayNames({
   }
   for (const [slug, coworker] of coworkersBySlug ?? []) {
     bySlug.set(slug, coworker.name);
-  }
-  for (const [key, entry] of Object.entries(mentionCatalog ?? {})) {
-    if (!entry.value) continue;
-    byKey.set(key, entry.value);
-    if (entry.slug) {
-      bySlug.set(entry.slug, entry.value);
-    }
   }
 
   return { byKey, bySlug };

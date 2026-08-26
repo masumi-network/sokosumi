@@ -24,6 +24,23 @@ import {
 import { parseMentions } from "@/lib/utils/mention-parser";
 
 const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
+const INTERNAL_MENTION_PLACEHOLDER_PREFIX = "unknown-mention-";
+
+function internalMentionPlaceholderKey(index: string): string {
+  return `${INTERNAL_MENTION_PLACEHOLDER_PREFIX}${index}`;
+}
+
+function internalMentionPlaceholderToken(index: string): string {
+  const key = internalMentionPlaceholderKey(index);
+  return `@${key}:${key}`;
+}
+
+function isInternalMentionPlaceholderId(id: string): boolean {
+  if (!id.startsWith(INTERNAL_MENTION_PLACEHOLDER_PREFIX)) {
+    return false;
+  }
+  return /^\d+$/.test(id.slice(INTERNAL_MENTION_PLACEHOLDER_PREFIX.length));
+}
 
 export interface MentionDisplayResolution {
   displayName: string;
@@ -49,7 +66,7 @@ function normalizePersistedInternalMentions(text: string): string {
   return text.replace(
     PERSISTED_INTERNAL_MENTION_REGEX,
     (_match, mentionIndex: string) =>
-      `@unknown-mention-${mentionIndex}:unknown-mention-${mentionIndex}`,
+      internalMentionPlaceholderToken(mentionIndex),
   );
 }
 
@@ -158,7 +175,7 @@ export function markdownToHtml(
         mention.id,
         mention.slug,
       );
-      const isInternalPlaceholder = /^unknown-mention-\d+$/.test(mention.id);
+      const isInternalPlaceholder = isInternalMentionPlaceholderId(mention.id);
       if (
         !isKnown &&
         !isInternalPlaceholder &&
