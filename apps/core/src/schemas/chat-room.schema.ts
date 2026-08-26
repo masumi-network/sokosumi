@@ -139,7 +139,7 @@ export const chatRoomSchema = z
     }),
     starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user starred (sidebar Pin) this room. Null when not starred. Product UI stays Pin.",
+        "When the current user starred this room. Null when not starred.",
       example: "2026-08-02T12:00:00.000Z",
     }),
     pinnedMessageCount: z.number().int().min(0).default(0).openapi({

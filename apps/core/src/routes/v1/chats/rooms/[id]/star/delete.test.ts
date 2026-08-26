@@ -124,7 +124,7 @@ beforeEach(() => {
 });
 
 describe("DELETE /chats/rooms/{id}/star", () => {
-  it("clears membership starredAt and returns unpinned room", async () => {
+  it("clears membership starredAt and returns unstarred room", async () => {
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/star`,
       { method: "DELETE" },

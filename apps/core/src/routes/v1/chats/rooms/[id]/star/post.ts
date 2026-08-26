@@ -35,7 +35,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/star",
     description:
-      "Star (sidebar Pin) an organization chat room for the current user. Cannot star a muted room.",
+      "Star an organization chat room for the current user. Cannot star a muted room.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -80,7 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
         if (membership?.mutedAt != null) {
           throw unprocessableEntity(
-            "Cannot pin a muted room. Unmute it first.",
+            "Cannot star a muted room. Unmute it first.",
           );
         }
         throw notFound("Room not found");

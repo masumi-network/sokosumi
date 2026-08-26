@@ -1562,7 +1562,7 @@ export type ChatRoom = {
      */
     unreadMentionCount: number;
     /**
-     * When the current user starred (sidebar Pin) this room. Null when not starred. Product UI stays Pin.
+     * When the current user starred this room. Null when not starred.
      */
     starredAt: Date | null;
     /**
@@ -14224,7 +14224,7 @@ export type DeleteChatsRoomsByIdStarError = DeleteChatsRoomsByIdStarErrors[keyof
 
 export type DeleteChatsRoomsByIdStarResponses = {
     /**
-     * Chat room unpinned
+     * Chat room unstarred
      */
     200: {
         data: ChatRoom;

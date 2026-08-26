@@ -782,7 +782,7 @@ export const postChatsRoomsByIdThreadsByParentMessageIdRead = <ThrowOnError exte
 });
 
 /**
- * Clear the sidebar Pin (star) of an organization chat room for the current user.
+ * Unstar an organization chat room for the current user.
  */
 export const deleteChatsRoomsByIdStar = <ThrowOnError extends boolean = false>(options: Options<DeleteChatsRoomsByIdStarData, ThrowOnError>): RequestResult<DeleteChatsRoomsByIdStarResponses, DeleteChatsRoomsByIdStarErrors, ThrowOnError> => (options.client ?? client).delete<DeleteChatsRoomsByIdStarResponses, DeleteChatsRoomsByIdStarErrors, ThrowOnError>({
     responseTransformer: deleteChatsRoomsByIdStarResponseTransformer,
@@ -791,7 +791,7 @@ export const deleteChatsRoomsByIdStar = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Star (sidebar Pin) an organization chat room for the current user. Cannot star a muted room.
+ * Star an organization chat room for the current user. Cannot star a muted room.
  */
 export const postChatsRoomsByIdStar = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdStarData, ThrowOnError>): RequestResult<PostChatsRoomsByIdStarResponses, PostChatsRoomsByIdStarErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdStarResponses, PostChatsRoomsByIdStarErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdStarResponseTransformer,
@@ -809,7 +809,7 @@ export const deleteChatsRoomsByIdMute = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Mute an organization chat room for the current user. Cannot mute a pinned room.
+ * Mute an organization chat room for the current user. Cannot mute a starred room.
  */
 export const postChatsRoomsByIdMute = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMuteData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMuteResponses, PostChatsRoomsByIdMuteErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMuteResponses, PostChatsRoomsByIdMuteErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMuteResponseTransformer,

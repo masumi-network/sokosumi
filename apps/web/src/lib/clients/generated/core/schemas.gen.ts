@@ -5494,7 +5494,7 @@ export const ChatRoomSchema = {
             ],
             format: 'date-time',
             example: '2026-08-02T12:00:00.000Z',
-            description: 'When the current user starred (sidebar Pin) this room. Null when not starred. Product UI stays Pin.'
+            description: 'When the current user starred this room. Null when not starred.'
         },
         pinnedMessageCount: {
             type: 'integer',

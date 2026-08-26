@@ -33,14 +33,13 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
     path: "/{id}/star",
-    description:
-      "Clear the sidebar Pin (star) of an organization chat room for the current user.",
+    description: "Unstar an organization chat room for the current user.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Chat room unpinned"),
+      200: jsonSuccessResponse(chatRoomSchema, "Chat room unstarred"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
