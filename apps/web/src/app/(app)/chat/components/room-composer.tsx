@@ -538,7 +538,7 @@ export function RoomComposer({
               <PendingQuotePreview
                 quote={pendingQuote}
                 onDismiss={onClearPendingQuote}
-                mentions={composerMentions}
+                mentions={mentions}
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}

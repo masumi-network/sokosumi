@@ -161,6 +161,22 @@ describe("formatRoomMarkdownMentions", () => {
     expect(formatted).not.toContain("text-primary");
   });
 
+  it("leaves a departed roster mention unstyled", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${human.id}:alice-smith please look`,
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+      currentUserId: "user_self",
+      canOpenHumanDirect: true,
+    });
+
+    expect(formatted).toBe(`@${human.id}:alice-smith please look`);
+    expect(formatted).not.toContain("data-direct-kind");
+    expect(formatted).not.toContain("text-primary");
+  });
+
   it("does not highlight bare @words or email local-parts", () => {
     const formatted = formatRoomMarkdownMentions({
       content: "ping @nobody and alice@example.com",
