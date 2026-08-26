@@ -63,12 +63,14 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
     return <CreateState />;
   }
 
-  const [versions, installedSkills, stats, integrations] = await Promise.all([
-    sokoBotService.listVersions().catch(() => []),
-    sokoBotService.listSkills().catch(() => []),
-    sokoBotService.getStats().catch(() => null),
-    sokoBotService.listIntegrations().catch(() => null),
-  ]);
+  const [versions, installedSkills, stats, integrations, catalog] =
+    await Promise.all([
+      sokoBotService.listVersions().catch(() => []),
+      sokoBotService.listSkills().catch(() => []),
+      sokoBotService.getStats().catch(() => null),
+      sokoBotService.listIntegrations().catch(() => null),
+      sokoBotService.searchIntegrationCatalog("").catch(() => []),
+    ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;
   const isAdmin = hasAdminRole(
@@ -82,6 +84,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       installedSkills={installedSkills}
       stats={stats}
       integrations={integrations}
+      catalog={catalog}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}

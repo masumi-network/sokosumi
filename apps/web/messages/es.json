@@ -5283,6 +5283,10 @@
         "searchError": "La búsqueda falló.",
         "noResults": "No se encontró nada.",
         "kindsGeneric": "Utilizable a través de sus herramientas",
+        "popularTitle": "Apps populares — haz clic para conectar",
+        "resultsTitle": "Resultados",
+        "showMore": "Mostrar {count} más",
+        "showFewer": "Mostrar menos",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
         "kindsMailCalendar": "Lee tu bandeja de entrada y calendario"

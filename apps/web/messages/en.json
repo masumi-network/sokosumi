@@ -5283,6 +5283,10 @@
         "searchError": "Search failed.",
         "noResults": "Nothing found.",
         "kindsGeneric": "Usable through its tools",
+        "popularTitle": "Popular apps — click to connect",
+        "resultsTitle": "Search results",
+        "showMore": "Show {count} more",
+        "showFewer": "Show fewer",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
         "kindsMailCalendar": "Reads your inbox and calendar"

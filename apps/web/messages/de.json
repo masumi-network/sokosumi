@@ -5283,6 +5283,10 @@
         "searchError": "Suche fehlgeschlagen.",
         "noResults": "Nichts gefunden.",
         "kindsGeneric": "Nutzbar über seine Tools",
+        "popularTitle": "Beliebte Apps — klicken zum Verbinden",
+        "resultsTitle": "Suchergebnisse",
+        "showMore": "{count} weitere anzeigen",
+        "showFewer": "Weniger anzeigen",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
         "kindsMailCalendar": "Liest Posteingang und Kalender"

@@ -34,15 +34,26 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
 
   return (
     <div className="space-y-4">
-      <dl className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-        {totals.map((total) => (
-          <div key={total.key} className="min-w-0">
-            <dt className="text-muted-foreground truncate text-xs">
+      <dl className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {totals.map((total, index) => (
+          <div
+            key={total.key}
+            className={cn(
+              "min-w-0 rounded-lg px-3 py-2.5",
+              index === 0
+                ? "bg-primary/10 text-primary"
+                : "bg-muted/50 text-foreground",
+            )}
+          >
+            <dt
+              className={cn(
+                "truncate text-xs",
+                index === 0 ? "text-primary/80" : "text-muted-foreground",
+              )}
+            >
               {t(total.key)}
             </dt>
-            <dd className="text-foreground text-xl font-light tabular-nums">
-              {total.value}
-            </dd>
+            <dd className="text-2xl font-light tabular-nums">{total.value}</dd>
           </div>
         ))}
       </dl>
