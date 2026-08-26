@@ -166,12 +166,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    if (sniffedContentType !== declaredContentType) {
-      throw badRequest(
-        `File content type (${sniffedContentType}) does not match declared type (${declaredContentType}).`,
-      );
-    }
-
+    // Browser File.type often follows the extension (JPEG bytes named .png
+    // arrive as image/png). Sniffed bytes are the source of truth; both
+    // values are already constrained to the coworker image allowlist.
     const publicUrl = await uploadCoworkerImage({
       coworkerId: id,
       bytes,
