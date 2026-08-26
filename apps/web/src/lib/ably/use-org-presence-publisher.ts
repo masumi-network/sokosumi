@@ -10,6 +10,10 @@ import { useEffect, useRef } from "react";
 
 import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 import { safeDetachChannel } from "./safe-detach-channel";
+import {
+  ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
+  shouldPublishOrgPresenceUpdate,
+} from "./should-publish-org-presence";
 
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -18,8 +22,7 @@ const ACTIVITY_EVENTS = [
   "touchstart",
 ] as const;
 
-/** Throttle presence.update while active; enter/leave still immediate. */
-const PRESENCE_UPDATE_MIN_INTERVAL_MS = 30_000;
+/** Local recheck only; unchanged payloads still do not publish. */
 const PRESENCE_IDLE_TICK_MS = 30_000;
 
 function buildPresenceData(
@@ -32,6 +35,9 @@ function buildPresenceData(
 /**
  * Enter Ably Presence on every org channel granted on the token (ADR-0003).
  * Updates lastActiveAt / visible from browser activity and visibility.
+ * Unchanged idle presence does not publish; activity refreshes lastActiveAt
+ * on a ~4 min throttle. A 30s local tick only rechecks; it is not an Ably
+ * message. Visibility, enter, and reconnect force publish.
  * Owns channel attach/detach for presence channels (map only subscribes).
  */
 export function useOrgPresencePublisher(): void {
@@ -39,7 +45,7 @@ export function useOrgPresencePublisher(): void {
   const channelsRef = useRef(new Map<string, Ably.RealtimeChannel>());
   const lastActiveAtRef = useRef(Date.now());
   const lastPublishedAtRef = useRef(0);
-  const lastPublishedVisibleRef = useRef<boolean | null>(null);
+  const lastPublishedRef = useRef<ChatPresenceMemberData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,10 +63,14 @@ export function useOrgPresencePublisher(): void {
       const lastActiveAt = lastActiveAtRef.current;
       const data = buildPresenceData(lastActiveAt, visible);
 
-      const shouldPublish =
-        force ||
-        lastPublishedVisibleRef.current !== visible ||
-        now - lastPublishedAtRef.current >= PRESENCE_UPDATE_MIN_INTERVAL_MS;
+      const shouldPublish = shouldPublishOrgPresenceUpdate({
+        force,
+        next: data,
+        lastPublished: lastPublishedRef.current,
+        lastPublishedAt: lastPublishedAtRef.current,
+        now,
+        minIntervalMs: ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
+      });
 
       if (!shouldPublish || channels.size === 0) {
         return;
@@ -95,9 +105,9 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      if (results.some(Boolean)) {
-        lastPublishedAtRef.current = Date.now();
-        lastPublishedVisibleRef.current = visible;
+      if (results.length > 0 && results.every(Boolean)) {
+        lastPublishedAtRef.current = now;
+        lastPublishedRef.current = data;
       }
     }
 
