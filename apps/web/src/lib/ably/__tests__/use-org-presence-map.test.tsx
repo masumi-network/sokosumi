@@ -129,6 +129,73 @@ describe("useOrgPresenceMap", () => {
     });
   });
 
+  it("includes self from presence.get without an echoed enter", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("active_org"));
+    channelFor("presence:org_active_org").presence.get.mockResolvedValue([
+      {
+        clientId: "user_self:instanceA1",
+        data: { lastActiveAt: Date.now(), visible: true },
+      },
+    ]);
+
+    const { result } = renderHook(() => useOrgPresenceMap("active_org"));
+
+    await waitFor(() => {
+      expect(result.current.get("user_self")).toBe("online");
+    });
+  });
+
+  it("classifies self as AFK from presence.get when the tab is hidden", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("active_org"));
+    channelFor("presence:org_active_org").presence.get.mockResolvedValue([
+      {
+        clientId: "user_self:instanceA1",
+        data: { lastActiveAt: Date.now(), visible: false },
+      },
+    ]);
+
+    const { result } = renderHook(() => useOrgPresenceMap("active_org"));
+
+    await waitFor(() => {
+      expect(result.current.get("user_self")).toBe("afk");
+    });
+  });
+
+  it("maps own enter and update into the roster without echo", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("active_org"));
+
+    const { result } = renderHook(() => useOrgPresenceMap("active_org"));
+    const channel = channelFor("presence:org_active_org");
+
+    await waitFor(() => {
+      expect(channel.presence.subscribe).toHaveBeenCalled();
+    });
+
+    function handlerFor(action: "enter" | "update") {
+      return channel.presence.subscribe.mock.calls.find(
+        (args) => args[0] === action,
+      )?.[1] as
+        | ((message: { clientId: string; data: object }) => void)
+        | undefined;
+    }
+
+    handlerFor("enter")?.({
+      clientId: "user_self:instanceA1",
+      data: { lastActiveAt: Date.now(), visible: true },
+    });
+    await waitFor(() => {
+      expect(result.current.get("user_self")).toBe("online");
+    });
+
+    handlerFor("update")?.({
+      clientId: "user_self:instanceA1",
+      data: { lastActiveAt: Date.now(), visible: false },
+    });
+    await waitFor(() => {
+      expect(result.current.get("user_self")).toBe("afk");
+    });
+  });
+
   it("does not attach when authorize fails", async () => {
     authorizeMock.mockRejectedValue(new Error("token refresh failed"));
 
