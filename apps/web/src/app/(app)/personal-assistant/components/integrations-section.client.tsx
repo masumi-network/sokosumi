@@ -124,16 +124,14 @@ export function IntegrationsSection({
               status={integration.status}
               busy={busy === integration.provider}
               actionLabel={
-                integration.status === "ACTIVE" ||
-                integration.status === "PENDING"
+                integration.status === "ACTIVE"
                   ? t("disconnect")
                   : integration.status === "DISCONNECTED"
                     ? t("connect")
                     : t("reconnect")
               }
               onAction={() =>
-                integration.status === "ACTIVE" ||
-                integration.status === "PENDING"
+                integration.status === "ACTIVE"
                   ? disconnect(integration.provider)
                   : connect(integration.provider)
               }
