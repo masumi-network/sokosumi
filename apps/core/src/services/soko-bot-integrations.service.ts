@@ -595,14 +595,13 @@ async function execute(
       };
       return recorded.data;
     } catch {
-      // Time-windowed list calls may fall back to any recording of the same
-      // tool; id lookups must not, or replay would hand back the wrong item.
-      const windowed =
-        Object.keys(args).some((key) => TIME_ARGS.has(key)) ||
-        (typeof args.query === "string" && /after:\d+/.test(args.query));
-      const siblings = windowed
-        ? await fs.readdir(fixtureDir()).catch(() => [])
-        : [];
+      // A listing may fall back to any recording of the same tool — the bot
+      // phrases queries freely — but fetching one id must not, or replay
+      // would hand back a different message than the one asked for.
+      const strict = slug === integration.provider.tools.getMessage;
+      const siblings = strict
+        ? []
+        : await fs.readdir(fixtureDir()).catch(() => []);
       const sibling = siblings.find((name) => name.startsWith(`${slug}.`));
       if (sibling) {
         const recorded = JSON.parse(
