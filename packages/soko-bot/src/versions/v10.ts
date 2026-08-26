@@ -7,7 +7,7 @@ export const v10: SokoBotVersion = {
   name: "v10 · Claude Sonnet 5, EU",
   createdAt: "2026-08-26",
   summary:
-    "Experiment: v1 prompt and skills on Claude Sonnet 5 pinned to EU inference (ZDR, no training; $2/$10 per M). Expected ceiling for tool discipline.",
+    "Experiment: v1 prompt and skills on Claude Sonnet 5 pinned to EU inference (ZDR, no training; $2/$10 per M). Expected ceiling for tool discipline. Lab 2026-08-26: 4/9 checks — asks or investigates instead of creating the Task on delegation prompts; strong on manage-work turns. ~$0.07/turn, slowest.",
   model: "anthropic/claude-sonnet-5",
   inferenceRegion: "eu",
 };

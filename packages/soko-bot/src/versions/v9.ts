@@ -7,7 +7,7 @@ export const v9: SokoBotVersion = {
   name: "v9 · Claude Haiku 4.5, EU",
   createdAt: "2026-08-26",
   summary:
-    "Experiment: v1 prompt and skills on Claude Haiku 4.5 pinned to EU inference on the AI Gateway (ZDR, no training; $1/$5 per M).",
+    "Experiment: v1 prompt and skills on Claude Haiku 4.5 pinned to EU inference on the AI Gateway (ZDR, no training; $1/$5 per M). Lab 2026-08-26: 6/9 checks, judge pass on hire, clarify, stop-checkins; misses follow-up closure on coworker events. ~$0.01/turn, ~20s.",
   model: "anthropic/claude-haiku-4.5",
   inferenceRegion: "eu",
 };
