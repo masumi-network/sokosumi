@@ -20,7 +20,8 @@ The live trees are the directories below. Package **exports** (not a cached file
 sokosumi/
 ├── apps/
 │   ├── web/                   # Next.js web app — live tree `src/`
-│   └── core/                  # Hono API — live tree `src/`
+│   ├── core/                  # Hono API — live tree `src/`
+│   └── cli/                   # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
 │   ├── masumi/                # @sokosumi/masumi — `src/`; exports in package.json
