@@ -39,8 +39,8 @@ function createUser(
 ): AdminUserOverviewItem {
   return {
     id: "user-1",
-    name: "Kevin Harris",
-    email: "homesafesa@gmail.com",
+    name: "Ada Lovelace",
+    email: "ada@example.com",
     createdAt: new Date("2026-08-22T00:00:00.000Z"),
     credits: 0,
     subscriptionPlan: "free",
