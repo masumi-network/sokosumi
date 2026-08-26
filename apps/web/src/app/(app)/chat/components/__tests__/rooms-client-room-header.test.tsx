@@ -338,6 +338,9 @@ describe("RoomsClient room header chrome", () => {
     expect(title).toHaveAttribute("title", "editChannel");
     expect(topic).toHaveAttribute("title", "Weekly launch planning");
     expect(title.parentElement).toContainElement(topic);
+    expect(title).not.toHaveClass("shrink-0");
+    expect(topic).not.toHaveClass("hidden");
+    expect(topic).toHaveClass("min-w-16");
   });
 
   it("hides a blank Channel topic", () => {
