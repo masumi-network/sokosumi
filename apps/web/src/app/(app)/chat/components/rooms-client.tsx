@@ -379,10 +379,12 @@ function RoomHeaderChrome({
   showParticipants,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
+  const trimmedTopic = room.topic?.trim() ?? "";
+  const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
 
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
-      <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
         {isDirectRoom ? (
           <>
             <MessageCircle className="text-muted-foreground size-4 shrink-0" />
@@ -394,31 +396,45 @@ function RoomHeaderChrome({
             </p>
           </>
         ) : (
-          <EditChannelDialog
-            channel={room}
-            members={organizationMembers}
-            coworkers={coworkers}
-            currentUserId={currentUserId}
-            canEditMembers={canEditMembers}
-            canManageSettings={canManageSettings}
-            canArchive={canArchive}
-            canLeave={canLeave}
-            canInviteGuests={canInviteGuests}
-            membersLoadFailed={membersLoadFailed}
-          >
-            <button
-              type="button"
-              className="text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2"
-              title={t("editChannel")}
-              data-testid="room-open-title"
+          <>
+            <EditChannelDialog
+              channel={room}
+              members={organizationMembers}
+              coworkers={coworkers}
+              currentUserId={currentUserId}
+              canEditMembers={canEditMembers}
+              canManageSettings={canManageSettings}
+              canArchive={canArchive}
+              canLeave={canLeave}
+              canInviteGuests={canInviteGuests}
+              membersLoadFailed={membersLoadFailed}
             >
-              <ChannelDiscoverabilityIcon
-                className="text-muted-foreground"
-                discoverability={room.discoverability}
-              />
-              <span className="min-w-0 truncate">{displayName}</span>
-            </button>
-          </EditChannelDialog>
+              <button
+                type="button"
+                className={cn(
+                  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2",
+                  channelTopic && "shrink-0",
+                )}
+                title={t("editChannel")}
+                data-testid="room-open-title"
+              >
+                <ChannelDiscoverabilityIcon
+                  className="text-muted-foreground"
+                  discoverability={room.discoverability}
+                />
+                <span className="min-w-0 truncate">{displayName}</span>
+              </button>
+            </EditChannelDialog>
+            {channelTopic ? (
+              <p
+                className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
+                title={channelTopic}
+                data-testid="room-open-topic"
+              >
+                {channelTopic}
+              </p>
+            ) : null}
+          </>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">

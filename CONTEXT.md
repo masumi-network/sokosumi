@@ -106,6 +106,10 @@ _Avoid_: Room (all chats are rooms), conversation
 The unique handle for a Channel in its organization (`#team-soko`). The create UI collects the handle first; the display name is derived from it (`team-soko` → `Team Soko`) and can be edited before submit. After create the slug is stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
 _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s identity (that is `id`), vanity URL, requiring the slug to match the name, regenerating the slug on rename
 
+**Channel topic**:
+An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
+_Avoid_: Description, purpose, bio, treating a Direct as having a topic
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel
