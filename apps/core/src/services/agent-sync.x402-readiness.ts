@@ -333,7 +333,12 @@ export async function syncX402BuySideReadiness(
     // Authenticated callers may still discover dynamic agents, but the listing
     // marks them non-payable until a priced ready pair returns.
     // Page only on the transition so a lasting outage does not spam.
-    if (readinessChanged) {
+    // Preview skips the page for the same reason as the check-failure path
+    // above (CORE-37 / CORE-39): mainnet preview crons set
+    // SENTRY_ENVIRONMENT=production while VERCEL_ENV=preview, and an empty
+    // compose is normal when preview lacks funded Purchasing wallets.
+    // Warn + cache write stay so fail-closed listing is unchanged.
+    if (readinessChanged && getEnv().VERCEL_ENV !== "preview") {
       Sentry.captureMessage(
         // The likeliest new cause is an operator one, not an outage: a chain
         // whose `defaultAssetDecimals` is still null publishes no scale, and
