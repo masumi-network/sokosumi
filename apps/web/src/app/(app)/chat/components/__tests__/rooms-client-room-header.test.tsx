@@ -323,6 +323,37 @@ describe("RoomsClient room header chrome", () => {
     expect(title.parentElement).not.toContainElement(search);
     expect(screen.getByRole("button", { name: "general" })).toBe(title);
     expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+  });
+
+  it("shows a Channel topic beside the title, not inside the edit trigger", () => {
+    renderRoom({ ...channelRoom(), topic: "Weekly launch planning" });
+
+    const title = screen.getByTestId("room-open-title");
+    const topic = screen.getByTestId("room-open-topic");
+
+    expect(topic).toHaveTextContent("Weekly launch planning");
+    expect(title).not.toContainElement(topic);
+    expect(title).toHaveAccessibleName("general");
+    expect(title).toHaveAttribute("title", "editChannel");
+    expect(topic).toHaveAttribute("title", "Weekly launch planning");
+    expect(title.parentElement).toContainElement(topic);
+  });
+
+  it("hides a blank Channel topic", () => {
+    renderRoom({ ...channelRoom(), topic: "   " });
+
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-title")).toHaveAccessibleName(
+      "general",
+    );
+  });
+
+  it("does not show a topic on Directs", () => {
+    renderRoom({ ...humanDirectRoom(), topic: "Should stay hidden" });
+
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
   });
 
   it("keeps Direct titles static and still puts search with the right actions", () => {
