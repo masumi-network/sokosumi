@@ -18,7 +18,7 @@ const observerCallbacksByTarget = new Map<
   Set<ResizeObserverCallback>
 >();
 
-class ResizeObserverMock {
+class ResizeObserverMock implements ResizeObserver {
   private readonly callback: ResizeObserverCallback;
   private readonly observed = new Set<Element>();
 
@@ -27,7 +27,7 @@ class ResizeObserverMock {
     observerCallbacks.add(callback);
   }
 
-  observe(target: Element) {
+  observe(target: Element, _options?: ResizeObserverOptions) {
     this.observed.add(target);
     let set = observerCallbacksByTarget.get(target);
     if (!set) {
@@ -133,8 +133,7 @@ describe("useStickToBottom", () => {
   beforeEach(() => {
     observerCallbacks.clear();
     observerCallbacksByTarget.clear();
-    global.ResizeObserver =
-      ResizeObserverMock as unknown as typeof global.ResizeObserver;
+    global.ResizeObserver = ResizeObserverMock;
   });
 
   afterEach(() => {
