@@ -10,6 +10,10 @@ import { useEffect, useRef } from "react";
 
 import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 import { safeDetachChannel } from "./safe-detach-channel";
+import {
+  ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
+  shouldPublishOrgPresenceUpdate,
+} from "./should-publish-org-presence";
 
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -17,10 +21,6 @@ const ACTIVITY_EVENTS = [
   "wheel",
   "touchstart",
 ] as const;
-
-/** Throttle presence.update while active; enter/leave still immediate. */
-const PRESENCE_UPDATE_MIN_INTERVAL_MS = 30_000;
-const PRESENCE_IDLE_TICK_MS = 30_000;
 
 function buildPresenceData(
   lastActiveAt: number,
@@ -32,6 +32,8 @@ function buildPresenceData(
 /**
  * Enter Ably Presence on every org channel granted on the token (ADR-0003).
  * Updates lastActiveAt / visible from browser activity and visibility.
+ * Unchanged idle presence does not publish; activity refreshes lastActiveAt
+ * on a ~4 min throttle. Visibility, enter, and reconnect force publish.
  * Owns channel attach/detach for presence channels (map only subscribes).
  */
 export function useOrgPresencePublisher(): void {
@@ -39,7 +41,7 @@ export function useOrgPresencePublisher(): void {
   const channelsRef = useRef(new Map<string, Ably.RealtimeChannel>());
   const lastActiveAtRef = useRef(Date.now());
   const lastPublishedAtRef = useRef(0);
-  const lastPublishedVisibleRef = useRef<boolean | null>(null);
+  const lastPublishedRef = useRef<ChatPresenceMemberData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,10 +59,14 @@ export function useOrgPresencePublisher(): void {
       const lastActiveAt = lastActiveAtRef.current;
       const data = buildPresenceData(lastActiveAt, visible);
 
-      const shouldPublish =
-        force ||
-        lastPublishedVisibleRef.current !== visible ||
-        now - lastPublishedAtRef.current >= PRESENCE_UPDATE_MIN_INTERVAL_MS;
+      const shouldPublish = shouldPublishOrgPresenceUpdate({
+        force,
+        next: data,
+        lastPublished: lastPublishedRef.current,
+        lastPublishedAt: lastPublishedAtRef.current,
+        now,
+        minIntervalMs: ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
+      });
 
       if (!shouldPublish || channels.size === 0) {
         return;
@@ -97,7 +103,7 @@ export function useOrgPresencePublisher(): void {
 
       if (results.some(Boolean)) {
         lastPublishedAtRef.current = Date.now();
-        lastPublishedVisibleRef.current = visible;
+        lastPublishedRef.current = data;
       }
     }
 
@@ -192,7 +198,7 @@ export function useOrgPresencePublisher(): void {
 
     const intervalId = window.setInterval(() => {
       void publishPresence(false);
-    }, PRESENCE_IDLE_TICK_MS);
+    }, ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS);
 
     const onConnected = () => {
       void syncChannels();

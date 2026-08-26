@@ -4,7 +4,7 @@ Chat roster dots mean **reachable** (live client connection), not auth-session f
 
 **Why not session-idle:** Better Auth session rows rarely update while the user is active (cookie cache, no activity heartbeats). Classifying `now - session.updatedAt` made teammates look **offline** despite being in the app. Idle grace alone cannot fix a dead signal.
 
-**Why not Core HTTP heartbeat as source of truth:** Extra store, fan-out, and auth surface. We already use Ably for chat realtime; client enter/update/leave matches industry connection-presence and ~30s freshness.
+**Why not Core HTTP heartbeat as source of truth:** Extra store, fan-out, and auth surface. We already use Ably for chat realtime; client enter/update/leave matches industry connection-presence. Active clients refresh `lastActiveAt` on a ~4 min throttle (inside the 5 min Online window); unchanged idle presence does not publish.
 
 **Shape (product + wire):**
 - **Online** = connected + recent activity; **AFK** = connected but idle (~5m) or tab hidden; **Offline** = no live connection (disconnect grace later, ~30–60s).
