@@ -64,11 +64,12 @@ describe("sanitizeMarkdown", () => {
 
   it("keeps mention Direct chip identity on spans", () => {
     const sanitized = sanitizeMarkdown(
-      '<span class="text-primary font-medium" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
+      '<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
     );
 
     expect(sanitized).toContain('data-direct-kind="coworker"');
     expect(sanitized).toContain('data-direct-id="cow_1"');
+    expect(sanitized).toContain("whitespace-nowrap");
     expect(sanitized).toContain("@Elena");
   });
 

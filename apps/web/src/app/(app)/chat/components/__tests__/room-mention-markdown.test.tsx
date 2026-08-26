@@ -58,4 +58,25 @@ describe("RoomMessageMarkdown mention hover", () => {
     expect(card).toHaveTextContent("AI coworker");
     expect(card).toHaveTextContent("Message");
   });
+
+  it("keeps the mention chip mounted when parent lookups change", () => {
+    const props = {
+      content: `@${coworker.id}:${coworker.slug} please look`,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+    };
+    const { rerender } = render(
+      <RoomMessageMarkdown {...props} openingDirectParticipantKey={null} />,
+    );
+    const chip = screen.getByRole("button", { name: "Elena" });
+
+    rerender(
+      <RoomMessageMarkdown
+        {...props}
+        openingDirectParticipantKey="coworker:cow_1"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Elena" })).toBe(chip);
+  });
 });

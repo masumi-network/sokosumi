@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChannelLinkTarget } from "@sokosumi/utils";
-import type { ReactNode } from "react";
+import { type MutableRefObject, type ReactNode, useMemo, useRef } from "react";
 import type { Components } from "react-markdown";
 
 import Markdown from "@/components/markdown";
@@ -31,14 +31,15 @@ function RoomMentionHoverSpan({
   node,
   children,
   className,
-  lookups,
+  lookupsRef,
   ...props
 }: {
   node?: unknown;
   children?: ReactNode;
   className?: string;
-  lookups: RoomMentionHoverLookups;
+  lookupsRef: MutableRefObject<RoomMentionHoverLookups>;
 } & Record<string, unknown>) {
+  const lookups = lookupsRef.current;
   const nodeProperties =
     node && typeof node === "object" && "properties" in node
       ? ((node as { properties?: Record<string, unknown> }).properties ?? {})
@@ -72,6 +73,8 @@ function RoomMentionHoverSpan({
       }
       isDirectActionBusy={lookups.openingDirectParticipantKey != null}
       interactive={lookups.interactive ?? true}
+      openDelay={100}
+      closeDelay={300}
     >
       {span}
     </ChatParticipantHoverCard>
@@ -118,10 +121,17 @@ export function RoomMessageMarkdown({
     openingDirectParticipantKey,
     interactive: hoverInteractive,
   };
+  const lookupsRef = useRef(lookups);
+  lookupsRef.current = lookups;
 
-  const components: Components = {
-    span: (props) => <RoomMentionHoverSpan {...props} lookups={lookups} />,
-  };
+  const components = useMemo<Components>(
+    () => ({
+      span: (props) => (
+        <RoomMentionHoverSpan {...props} lookupsRef={lookupsRef} />
+      ),
+    }),
+    [],
+  );
 
   return (
     <Markdown className={markdownClassName} components={components}>

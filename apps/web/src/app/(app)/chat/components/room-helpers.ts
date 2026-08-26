@@ -580,7 +580,7 @@ export interface MentionDirectTarget {
   id: string;
 }
 
-const MENTION_CHIP_CLASSNAME = "text-primary font-medium";
+const MENTION_CHIP_CLASSNAME = "text-primary font-medium whitespace-nowrap";
 
 export type MentionHoverUserLookup = Pick<
   ChatRoomUserParticipant,

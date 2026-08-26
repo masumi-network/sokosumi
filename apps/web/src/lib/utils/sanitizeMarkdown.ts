@@ -97,7 +97,7 @@ export function sanitizeMarkdown(markdown: string): string {
     },
     allowedClasses: {
       mark: ["bg-primary/50", "text-foreground", "rounded-sm", "px-0.5"],
-      span: ["text-primary", "font-medium"],
+      span: ["text-primary", "font-medium", "whitespace-nowrap"],
     },
   });
 

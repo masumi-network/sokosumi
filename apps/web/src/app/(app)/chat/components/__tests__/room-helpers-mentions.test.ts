@@ -52,7 +52,7 @@ function mention(
 }
 
 function hoverChip(kind: "human" | "coworker", id: string, label: string) {
-  return `<span class="text-primary font-medium" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
+  return `<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
 }
 
 describe("formatRoomMarkdownMentions", () => {
@@ -108,7 +108,9 @@ describe("formatRoomMarkdownMentions", () => {
 
     expect(formatted).toContain("@Elena");
     expect(formatted).toContain("@Alice Smith");
-    expect(formatted).toContain('class="text-primary font-medium"');
+    expect(formatted).toContain(
+      'class="text-primary font-medium whitespace-nowrap"',
+    );
   });
 
   it("leaves unknown mention tokens unstyled", () => {
