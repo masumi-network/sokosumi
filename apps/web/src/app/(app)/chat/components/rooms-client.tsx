@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
   editRoomMessageAction,
+  getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
@@ -30,6 +31,7 @@ import {
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { highlightRoomMessageElement } from "@/app/chat/components/room-helpers";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
@@ -85,6 +87,10 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
+import {
+  performRoomSearchJump,
+  waitForSearchJumpPaint,
+} from "@/app/chat/utils/room-search-jump";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
@@ -334,8 +340,7 @@ interface RoomHeaderChromeProps {
   room: ChatRoom;
   displayName: string;
   isDirectRoom: boolean;
-  topLevelRoomMessages: ChatRoomMessage[];
-  onOpenThread: (message: ChatRoomMessage) => boolean | Promise<boolean>;
+  onJumpToMessage: (hit: ChatRoomMessage) => void;
   threadListOpen: boolean;
   onToggleThreadList: () => void;
   rosterOpen: boolean;
@@ -357,8 +362,7 @@ function RoomHeaderChrome({
   room,
   displayName,
   isDirectRoom,
-  topLevelRoomMessages,
-  onOpenThread,
+  onJumpToMessage,
   threadListOpen,
   onToggleThreadList,
   rosterOpen,
@@ -397,8 +401,7 @@ function RoomHeaderChrome({
           <RoomSearchPanel
             key={room.id}
             roomId={room.id}
-            loadedMessages={topLevelRoomMessages}
-            onOpenThread={onOpenThread}
+            onJumpToMessage={onJumpToMessage}
             labels={{
               open: t("RoomSearch.open"),
               placeholder: t("RoomSearch.placeholder"),
@@ -530,11 +533,15 @@ export function RoomsClient({
   const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
+  const historicalTimelineRef = useRef(false);
+  const historicalThreadRef = useRef(false);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
+    historicalTimelineRef.current = false;
+    historicalThreadRef.current = false;
     if (messagesPromise != null) {
       setMessagesState([]);
       setOlderNextCursor(null);
@@ -1071,7 +1078,10 @@ export function RoomsClient({
       const isHardDelete =
         event.eventType === "delete" && message.deletedAt == null;
 
-      if (route.mergeIntoRoomTimeline) {
+      if (
+        route.mergeIntoRoomTimeline &&
+        !(historicalTimelineRef.current && event.eventType === "create")
+      ) {
         applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
           filterTopLevelChatRoomMessages(
             applyFullChatRoomMessageEvent(current, {
@@ -1088,7 +1098,10 @@ export function RoomsClient({
         return isHardDelete ? null : message;
       });
 
-      if (route.mergeIntoOpenThread) {
+      if (
+        route.mergeIntoOpenThread &&
+        !(historicalThreadRef.current && event.eventType === "create")
+      ) {
         applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
           applyFullChatRoomMessageEvent(current, {
             eventType: event.eventType,
@@ -1488,7 +1501,7 @@ export function RoomsClient({
       if (cancelled) {
         return;
       }
-      if (result.ok) {
+      if (result.ok && !historicalTimelineRef.current) {
         setMessagesState((current) =>
           mergeRoomMessages(current, result.value.messages),
         );
@@ -1542,9 +1555,11 @@ export function RoomsClient({
     if (selectedRoomIdRef.current !== roomId || !result.ok) {
       return;
     }
-    setMessagesState((current) =>
-      mergeRoomMessages(current, result.value.messages),
-    );
+    if (!historicalTimelineRef.current) {
+      setMessagesState((current) =>
+        mergeRoomMessages(current, result.value.messages),
+      );
+    }
     setThreadParentMessage((current) =>
       current
         ? (result.value.messages.find((message) => message.id === current.id) ??
@@ -1554,7 +1569,8 @@ export function RoomsClient({
     if (
       threadResult?.ok &&
       threadParentId != null &&
-      threadParentMessageIdRef.current === threadParentId
+      threadParentMessageIdRef.current === threadParentId &&
+      !historicalThreadRef.current
     ) {
       setThreadMessages((current) =>
         mergeRoomMessages(current, threadResult.value.messages),
@@ -1636,12 +1652,12 @@ export function RoomsClient({
       if (cancelled) {
         return;
       }
-      if (threadResult.ok) {
+      if (threadResult.ok && !historicalThreadRef.current) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
         );
       }
-      if (roomResult.ok) {
+      if (roomResult.ok && !historicalTimelineRef.current) {
         setMessagesState((current) =>
           mergeRoomMessages(current, roomResult.value.messages),
         );
@@ -1798,6 +1814,67 @@ export function RoomsClient({
     return loadThreadMessages(parentMessage);
   }
 
+  async function handleSearchJump(hit: ChatRoomMessage) {
+    const roomId = selectedRoom?.id;
+    if (!roomId) {
+      return;
+    }
+    await performRoomSearchJump(hit, {
+      highlight: highlightRoomMessageElement,
+      afterRender: waitForSearchJumpPaint,
+      loadAroundInRoom: async (aroundId) => {
+        const result = await listRoomMessagesAction(roomId, {
+          around: aroundId,
+        });
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return false;
+        }
+        historicalTimelineRef.current = true;
+        setMessagesState(result.value.messages);
+        setOlderNextCursor(result.value.nextCursor);
+        return true;
+      },
+      findLoadedParent: (parentId) =>
+        topLevelRoomMessages.find((message) => message.id === parentId) ??
+        (threadParentMessage?.id === parentId
+          ? threadParentMessage
+          : undefined),
+      loadParent: async (parentId) => {
+        const result = await getRoomThreadAction(roomId, parentId);
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return null;
+        }
+        if (!result.value) {
+          toast.error("Could not load thread.");
+          return null;
+        }
+        return result.value.parentMessage;
+      },
+      openThread: handleOpenThreadFromMessage,
+      loadAroundInThread: async (parentId, aroundId) => {
+        const result = await listThreadMessagesAction(roomId, parentId, {
+          around: aroundId,
+        });
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return false;
+        }
+        historicalThreadRef.current = true;
+        setThreadMessages(result.value.messages);
+        setThreadOlderNextCursor(result.value.nextCursor);
+        return true;
+      },
+    });
+  }
+
   async function handleOpenThreadFromList(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -1807,6 +1884,7 @@ export function RoomsClient({
 
   function closeThreadSidePanel() {
     threadLoadGenerationRef.current += 1;
+    historicalThreadRef.current = false;
     setIsThreadLoading(false);
     setThreadParentMessage(null);
     setThreadMessages([]);
@@ -1844,6 +1922,7 @@ export function RoomsClient({
     // Reply list is wiped below — drop thread outbound jobs so a switch or
     // reopen cannot keep orphan retries after the shells are gone (ADR: no outbox).
     clearClassicOutboundQueue(classicThreadRefs);
+    historicalThreadRef.current = false;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
@@ -2446,8 +2525,7 @@ export function RoomsClient({
         room={selectedRoom}
         displayName={selectedRoomDisplayName}
         isDirectRoom={isDirectRoom}
-        topLevelRoomMessages={topLevelRoomMessages}
-        onOpenThread={handleOpenThreadFromMessage}
+        onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
         onToggleThreadList={() => {
           setRosterOpen(false);

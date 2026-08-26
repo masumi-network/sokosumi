@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -24,6 +24,7 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserMembership,
 } from "../../../../helpers";
+import { listChatRoomMessagesAround } from "../../../../message-window-around";
 
 const paramsSchema = z.object({
   id: z
@@ -42,6 +43,19 @@ const paramsSchema = z.object({
     }),
 });
 
+const querySchema = cursorPaginationQuerySchema.extend({
+  around: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "around", in: "query" },
+      description:
+        "Reading-order window of replies centred on this reply. Must belong to this thread. Cannot be combined with cursor.",
+      example: "550e8400-e29b-41d4-a716-446655440002",
+    }),
+});
+
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
@@ -51,7 +65,7 @@ const route = withGlobalHeaderParameters(
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
-      query: cursorPaginationQuerySchema,
+      query: querySchema,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
@@ -73,6 +87,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
+    const aroundId = queryParams.around;
+    if (aroundId && cursor) {
+      throw unprocessableEntity("around cannot be combined with cursor");
+    }
 
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
 
@@ -92,6 +110,44 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       roomId: id,
       parentMessageId: parent.id,
     };
+
+    if (aroundId) {
+      const target = await prisma.chatRoomMessage.findFirst({
+        where: {
+          id: aroundId,
+          roomId: id,
+          parentMessageId: parent.id,
+        },
+        include: chatRoomMessageInclude,
+      });
+      if (!target) {
+        throw notFound("Message not found");
+      }
+      const { messages, hasMoreOlder, count } =
+        await listChatRoomMessagesAround({
+          tx: prisma,
+          scope: where,
+          center: target,
+          take,
+        });
+      const paginationMeta = {
+        cursor: null,
+        limit: take,
+        total: count,
+        nextCursor: hasMoreOlder ? (messages[0]?.id ?? null) : null,
+      };
+      return ok(
+        c,
+        z
+          .array(chatRoomMessageSchema)
+          .parse(
+            messages.map((message) =>
+              mapChatRoomMessage(message, userContext.userId),
+            ),
+          ),
+        paginationMeta,
+      );
+    }
 
     const [messages, count] = await Promise.all([
       prisma.chatRoomMessage.findMany({

@@ -263,6 +263,27 @@ export function scrollToRoomMessageElement(messageId: string): boolean {
   return true;
 }
 
+const ROOM_MESSAGE_HIGHLIGHT_MS = 1500;
+const ROOM_MESSAGE_HIGHLIGHT_CLASS = "bg-accent/50";
+
+/** Scroll into view and apply a short-lived highlight when the node exists. */
+export function highlightRoomMessageElement(messageId: string): boolean {
+  if (!scrollToRoomMessageElement(messageId)) {
+    return false;
+  }
+  const target = document.querySelector<HTMLElement>(
+    `[data-message-id="${CSS.escape(messageId)}"]`,
+  );
+  if (!target) {
+    return false;
+  }
+  target.classList.add(ROOM_MESSAGE_HIGHLIGHT_CLASS);
+  window.setTimeout(() => {
+    target.classList.remove(ROOM_MESSAGE_HIGHLIGHT_CLASS);
+  }, ROOM_MESSAGE_HIGHLIGHT_MS);
+  return true;
+}
+
 export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
   if (message.sender.type === "user") {
     const user = message.sender.user;

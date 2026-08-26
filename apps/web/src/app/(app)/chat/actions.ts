@@ -690,7 +690,7 @@ export async function sendRoomMessageAction(
 
 export async function listRoomMessagesAction(
   roomId: string,
-  options?: { cursor?: string },
+  options?: { cursor?: string; around?: string },
 ): Promise<
   RoomActionResult<{
     messages: ChatRoomMessage[];
@@ -700,6 +700,7 @@ export async function listRoomMessagesAction(
   try {
     const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,
+      around: options?.around,
     });
     return roomOk(page);
   } catch (error) {
@@ -710,7 +711,7 @@ export async function listRoomMessagesAction(
 export async function listThreadMessagesAction(
   roomId: string,
   parentMessageId: string,
-  options?: { cursor?: string },
+  options?: { cursor?: string; around?: string },
 ): Promise<
   RoomActionResult<{
     messages: ChatRoomMessage[];
@@ -721,9 +722,21 @@ export async function listThreadMessagesAction(
     const page = await chatRoomService.listThreadMessages(
       roomId,
       parentMessageId,
-      { cursor: options?.cursor },
+      { cursor: options?.cursor, around: options?.around },
     );
     return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, "Could not load thread.");
+  }
+}
+
+export async function getRoomThreadAction(
+  roomId: string,
+  parentMessageId: string,
+): Promise<RoomActionResult<ChatRoomThread | null>> {
+  try {
+    const thread = await chatRoomService.getThread(roomId, parentMessageId);
+    return roomOk(thread);
   } catch (error) {
     return roomCatch(error, "Could not load thread.");
   }
