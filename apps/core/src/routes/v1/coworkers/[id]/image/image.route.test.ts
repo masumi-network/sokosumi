@@ -226,8 +226,12 @@ describe("POST /coworkers/{id}/image", () => {
     expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when magic bytes conflict with the declared type", async () => {
-    findFirstMock.mockResolvedValue({ id: COWORKER_ID, image: null });
+  it("uploads using sniffed bytes when the browser MIME disagrees but both are allowed", async () => {
+    findFirstMock
+      .mockResolvedValueOnce({ id: COWORKER_ID, image: null })
+      .mockResolvedValueOnce(baseCoworker({ image: NEW_IMAGE }));
+    uploadCoworkerImageMock.mockResolvedValue(NEW_IMAGE);
+    updateManyMock.mockResolvedValue({ count: 1 });
 
     const app = createApp();
     const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
@@ -242,8 +246,14 @@ describe("POST /coworkers/{id}/image", () => {
       body: form,
     });
 
-    expect(response.status).toBe(400);
-    expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(uploadCoworkerImageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkerId: COWORKER_ID,
+        contentType: "image/jpeg",
+        filename: "logo.png",
+      }),
+    );
   });
 
   it("returns 403 for non-admin user without membership access", async () => {
