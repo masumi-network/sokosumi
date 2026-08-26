@@ -5079,6 +5079,7 @@
         "topicPlaceholder": "What this channel is for",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "cannotRemoveSelf": "No puedes quitarte a ti mismo",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",
@@ -5197,7 +5198,8 @@
       },
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",
-        "imageAlt": "Imagen de vista previa de {title}"
+        "imageAlt": "Imagen de vista previa de {title}",
+        "remove": "Quitar vista previa del enlace: {title}"
       },
       "Message": {
         "delete": "Eliminar",
@@ -5249,22 +5251,26 @@
       "CreateWizard": {
         "title": "Crear un canal",
         "nameLabel": "Nombre",
-        "namePlaceholder": "p. ej. welcome",
-        "nameHelp": "Los canales son lugares para conversar sobre un tema. Usa un nombre claro que todos reconozcan.",
-        "nameRequired": "El nombre del canal es obligatorio.",
+        "namePlaceholder": "p. ej. Welcome",
+        "nameHelp": "Se muestra en la barra lateral. Parte del identificador; puedes cambiarlo aquí.",
+        "slugLabel": "Identificador",
+        "slugPlaceholder": "welcome",
+        "slugHelp": "Único entre canales. No se puede cambiar después de crear.",
+        "slugTaken": "Este identificador de canal ya existe. Explora los canales para encontrarlo.",
+        "slugInvalid": "Introduce un identificador válido.",
+        "slugChecking": "Comprobando identificador…",
+        "slugCheckFailed": "No se pudo comprobar este identificador. Inténtalo de nuevo.",
+        "handleChrome": "# {slug}",
+        "topicLabel": "Tema",
+        "topicPlaceholder": "¿De qué trata este canal?",
         "next": "Siguiente",
         "back": "Atrás",
         "create": "Crear",
-        "stepOf": "Paso {current} de {total}",
-        "visibilitySubtitle": "# {name}",
-        "addPeopleTitle": "Añadir personas a #{name}",
+        "addPeopleTitle": "Añadir personas a {name}",
         "addAll": "Añadir a los {count} miembros de {organization}",
         "addSpecific": "Añadir personas concretas",
         "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal.",
-        "add": "Añadir",
-        "skip": "Omitir por ahora",
-        "creating": "Creando…",
-        "adding": "Añadiendo…"
+        "creating": "Creando…"
       },
       "RoomRoster": {
         "open": "Miembros",

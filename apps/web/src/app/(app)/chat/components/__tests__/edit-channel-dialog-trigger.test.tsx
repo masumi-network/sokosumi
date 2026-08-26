@@ -50,6 +50,7 @@ describe("EditChannelDialog trigger", () => {
         channel={channel()}
         members={[]}
         coworkers={[]}
+        currentUserId="user-1"
         canEditMembers={false}
         canManageSettings={false}
         canArchive={false}

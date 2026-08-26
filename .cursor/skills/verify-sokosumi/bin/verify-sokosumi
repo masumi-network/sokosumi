@@ -382,10 +382,29 @@ function web_host() {
 
 function assert_authed_url() {
   # $1 = url from agent-browser get url
+  # Credential login briefly lands on /auth/callback/signin before Welcome `/`.
+  # That path contains the substring "signin" but is post-auth progress — allow it.
   local url="$1"
+  if [[ "$url" == *"/auth/callback/"* ]]; then
+    return 0
+  fi
   if [[ "$url" == *"/signin"* ]] || [[ "$url" == *"/login"* ]] || [[ "$url" == *"/signup"* ]]; then
     return 1
   fi
+  return 0
+}
+
+function wait_leave_auth_callback() {
+  # After Enter-submit, SocialAuthCallback may sit on /auth/callback/signin for
+  # a beat before router.replace to Welcome `/` (or returnUrl). Poll briefly.
+  local url i
+  for i in 1 2 3 4 5 6 7 8; do
+    url="$(agent-browser get url 2>/dev/null || true)"
+    if [[ "$url" != *"/auth/callback/"* ]]; then
+      return 0
+    fi
+    sleep 0.5
+  done
   return 0
 }
 
@@ -532,7 +551,9 @@ function sign_in_ui() {
   agent-browser press Enter
   # Do not wait --load networkidle here: post-login lands on Welcome / (or
   # returnUrl); Ably can hang that wait on chat-adjacent shells.
+  # First hop is often /auth/callback/signin — wait for replace off that path.
   agent-browser wait 1000 >/dev/null || sleep 1
+  wait_leave_auth_callback
 
   url="$(agent-browser get url 2>/dev/null || true)"
   echo "sign-in ui: after submit → $url"

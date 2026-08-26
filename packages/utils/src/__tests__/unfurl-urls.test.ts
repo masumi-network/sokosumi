@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractBareHttpUrls,
   selectUnfurlCandidateUrls,
+  unfurlCardHasPreviewContent,
 } from "../unfurl-urls.js";
 
 describe("extractBareHttpUrls", () => {
@@ -77,5 +78,37 @@ describe("selectUnfurlCandidateUrls", () => {
     expect(selectUnfurlCandidateUrls("https://cdn.example/shot.png")).toEqual(
       [],
     );
+  });
+});
+
+describe("unfurlCardHasPreviewContent", () => {
+  it("is false for title-only cards", () => {
+    expect(
+      unfurlCardHasPreviewContent({
+        imageUrl: null,
+        description: null,
+      }),
+    ).toBe(false);
+    expect(
+      unfurlCardHasPreviewContent({
+        imageUrl: "  ",
+        description: "  ",
+      }),
+    ).toBe(false);
+  });
+
+  it("is true when an image or description is present", () => {
+    expect(
+      unfurlCardHasPreviewContent({
+        imageUrl: "https://cdn.example/i.png",
+        description: null,
+      }),
+    ).toBe(true);
+    expect(
+      unfurlCardHasPreviewContent({
+        imageUrl: null,
+        description: "A short summary",
+      }),
+    ).toBe(true);
   });
 });
