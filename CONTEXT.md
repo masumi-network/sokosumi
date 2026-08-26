@@ -89,7 +89,7 @@ A named, organization-owned chat room people join by membership, not by particip
 _Avoid_: Room (all chats are rooms), conversation
 
 **Channel slug**:
-The unique handle for a Channel in its organization. Auto-generated from the Channel name (`Team Soko` → `team-soko`) in the create UI, editable there, and then stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
+The unique handle for a Channel in its organization (`#team-soko`). The create UI collects the handle first; the display name is derived from it (`team-soko` → `Team Soko`) and can be edited before submit. After create the slug is stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
 _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s identity (that is `id`), vanity URL, requiring the slug to match the name, regenerating the slug on rename
 
 **External channel**:

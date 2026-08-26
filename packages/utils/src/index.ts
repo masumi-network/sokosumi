@@ -30,6 +30,12 @@ export type {
   SessionUser,
 } from "./better-auth-types.js";
 export {
+  CHANNEL_SLUG_MAX_LENGTH,
+  channelNameFromSlug,
+  liveSanitizeChannelSlug,
+  sanitizeChannelSlug,
+} from "./channel-slug.js";
+export {
   CHAT_MEMBERSHIP_REVOKE_REASONS,
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
   type ChatMembershipRevokeReason,

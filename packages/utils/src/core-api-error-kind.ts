@@ -23,6 +23,7 @@ export const CORE_API_ERROR_KINDS = {
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
+  CHANNEL_SLUG_TAKEN: "channel_slug_taken",
 } as const;
 
 export type CoreApiErrorKind =
