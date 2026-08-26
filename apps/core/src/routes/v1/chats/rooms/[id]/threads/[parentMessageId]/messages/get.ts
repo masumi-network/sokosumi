@@ -75,6 +75,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Thread not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -125,7 +126,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       const { messages, hasMoreOlder, count } =
         await listChatRoomMessagesAround({
-          tx: prisma,
+          db: prisma,
           scope: where,
           center: target,
           take,

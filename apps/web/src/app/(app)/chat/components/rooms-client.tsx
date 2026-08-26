@@ -1078,18 +1078,21 @@ export function RoomsClient({
       const isHardDelete =
         event.eventType === "delete" && message.deletedAt == null;
 
-      if (
-        route.mergeIntoRoomTimeline &&
-        !(historicalTimelineRef.current && event.eventType === "create")
-      ) {
-        applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
-          filterTopLevelChatRoomMessages(
+      if (route.mergeIntoRoomTimeline) {
+        applyMessagesFlashingOutboundConfirms(setMessagesState, (current) => {
+          if (
+            historicalTimelineRef.current &&
+            !current.some((row) => row.id === message.id)
+          ) {
+            return current;
+          }
+          return filterTopLevelChatRoomMessages(
             applyFullChatRoomMessageEvent(current, {
               eventType: event.eventType,
               message,
             }),
-          ),
-        );
+          );
+        });
       }
       setThreadParentMessage((current) => {
         if (current?.id !== message.id) {
@@ -1098,16 +1101,19 @@ export function RoomsClient({
         return isHardDelete ? null : message;
       });
 
-      if (
-        route.mergeIntoOpenThread &&
-        !(historicalThreadRef.current && event.eventType === "create")
-      ) {
-        applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
-          applyFullChatRoomMessageEvent(current, {
+      if (route.mergeIntoOpenThread) {
+        applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) => {
+          if (
+            historicalThreadRef.current &&
+            !current.some((row) => row.id === message.id)
+          ) {
+            return current;
+          }
+          return applyFullChatRoomMessageEvent(current, {
             eventType: event.eventType,
             message,
-          }),
-        );
+          });
+        });
         // Look first, then room re-sync — mark-read effect can race if it
         // runs before look lands; open path uses the same order.
         // Use the ref (not openThreadParentId) so this []-deps handler stays
@@ -1395,11 +1401,14 @@ export function RoomsClient({
     // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
     // merge so client-loaded older pages are not wiped by the latest page.
     if (isChannelSwitch) {
+      historicalTimelineRef.current = false;
       setMessagesState(messages);
       setOlderNextCursor(messagesNextCursor);
       setMessageLoadFailedState(messageLoadFailed);
-    } else {
+    } else if (!historicalTimelineRef.current) {
       setMessagesState((current) => mergeRoomMessages(current, messages));
+      setMessageLoadFailedState(messageLoadFailed);
+    } else {
       setMessageLoadFailedState(messageLoadFailed);
     }
     setThreadParentMessage((current) =>
@@ -1847,10 +1856,6 @@ export function RoomsClient({
         const result = await getRoomThreadAction(roomId, parentId);
         if (!result.ok) {
           toast.error(result.error.message);
-          return null;
-        }
-        if (!result.value) {
-          toast.error("Could not load thread.");
           return null;
         }
         return result.value.parentMessage;
@@ -2411,6 +2416,14 @@ export function RoomsClient({
             : null,
       });
 
+      if (historicalTimelineRef.current) {
+        historicalTimelineRef.current = false;
+        const live = await listRoomMessagesAction(roomId);
+        if (live.ok && isStillSelectedRoom(roomId)) {
+          setMessagesState(live.value.messages);
+          setOlderNextCursor(live.value.nextCursor);
+        }
+      }
       setMessagesState((current) => appendMessage(current, pending));
       pinToBottomAfterOwnSend();
 
@@ -2494,6 +2507,14 @@ export function RoomsClient({
             : null,
       });
 
+      if (historicalThreadRef.current) {
+        historicalThreadRef.current = false;
+        const live = await listThreadMessagesAction(roomId, parentMessageId);
+        if (live.ok && isStillSelectedRoom(roomId)) {
+          setThreadMessages(live.value.messages);
+          setThreadOlderNextCursor(live.value.nextCursor);
+        }
+      }
       setThreadMessages((current) => appendMessage(current, pending));
 
       enqueueClassicThreadJob({

@@ -733,9 +733,12 @@ export async function listThreadMessagesAction(
 export async function getRoomThreadAction(
   roomId: string,
   parentMessageId: string,
-): Promise<RoomActionResult<ChatRoomThread | null>> {
+): Promise<RoomActionResult<ChatRoomThread>> {
   try {
     const thread = await chatRoomService.getThread(roomId, parentMessageId);
+    if (!thread) {
+      return roomFail("Could not load thread.");
+    }
     return roomOk(thread);
   } catch (error) {
     return roomCatch(error, "Could not load thread.");

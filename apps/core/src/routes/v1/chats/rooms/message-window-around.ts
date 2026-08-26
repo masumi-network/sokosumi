@@ -6,8 +6,15 @@ type ChatRoomMessageWithSender = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
 }>;
 
+interface ChatRoomMessageReadClient {
+  chatRoomMessage: {
+    findMany: Prisma.TransactionClient["chatRoomMessage"]["findMany"];
+    count: Prisma.TransactionClient["chatRoomMessage"]["count"];
+  };
+}
+
 interface ListChatRoomMessagesAroundOptions {
-  tx: Prisma.TransactionClient;
+  db: ChatRoomMessageReadClient;
   scope: Prisma.ChatRoomMessageWhereInput;
   center: ChatRoomMessageWithSender;
   take: number;
@@ -52,7 +59,7 @@ function trimCentered<T>(
  * `hasMoreOlder` is true when Load older from this window would return rows.
  */
 export async function listChatRoomMessagesAround({
-  tx,
+  db,
   scope,
   center,
   take,
@@ -63,7 +70,7 @@ export async function listChatRoomMessagesAround({
 }> {
   const takePlusOne = take + 1;
   const [olderPlus, newer, count] = await Promise.all([
-    tx.chatRoomMessage.findMany({
+    db.chatRoomMessage.findMany({
       where: {
         ...scope,
         ...createdAtIdSide(center.createdAt, center.id, "older"),
@@ -72,7 +79,7 @@ export async function listChatRoomMessagesAround({
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: chatRoomMessageInclude,
     }),
-    tx.chatRoomMessage.findMany({
+    db.chatRoomMessage.findMany({
       where: {
         ...scope,
         ...createdAtIdSide(center.createdAt, center.id, "newer"),
@@ -81,7 +88,7 @@ export async function listChatRoomMessagesAround({
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       include: chatRoomMessageInclude,
     }),
-    tx.chatRoomMessage.count({ where: scope }),
+    db.chatRoomMessage.count({ where: scope }),
   ]);
 
   const hasMoreOlderFromFetch = olderPlus.length === takePlusOne;
