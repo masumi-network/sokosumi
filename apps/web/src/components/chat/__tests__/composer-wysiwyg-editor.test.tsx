@@ -1285,6 +1285,20 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).not.toContain("b0user");
   });
 
+  it("leaves unknown persist tokens raw on hydrate", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="ping @missing:ghost hey"
+        onChange={() => undefined}
+        mentions={{}}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    expect(editor.querySelector("[data-mention-key]")).toBeNull();
+    expect(editor).toHaveTextContent("ping @missing:ghost hey");
+  });
+
   it("does not list roster-only names in the mention picker", () => {
     render(
       <ComposerWysiwygEditor

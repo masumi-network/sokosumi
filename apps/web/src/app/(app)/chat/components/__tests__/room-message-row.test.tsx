@@ -1684,6 +1684,42 @@ describe("ChatMessageRow", () => {
     expect(chip).not.toBeNull();
     expect(chip).toHaveTextContent("@Andreas Osberghaus");
     expect(editor.textContent).not.toContain("b0user");
+    expect(editor.closest(".border-input")).not.toBeNull();
+  });
+
+  it("saves persist @id:slug after editing a chipped User mention", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({
+        content: "@b0user:andreas-osberghaus please look",
+      }),
+      currentUserId: "b0user",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "@b0user:andreas-osberghaus please look",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+      usersById: new Map([
+        ["b0user", { id: "b0user", name: "Andreas Osberghaus" }],
+      ]),
+    });
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    await user.keyboard(" again{Enter}");
+
+    expect(onSaveEdit).toHaveBeenCalledWith(
+      "@b0user:andreas-osberghaus please look again",
+    );
   });
 
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {

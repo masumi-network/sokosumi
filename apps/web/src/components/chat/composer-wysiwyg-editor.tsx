@@ -465,6 +465,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         name: channel.name,
         slug: channel.slug,
       })),
+      wrapUnknownMentions: false,
     });
     const isFocused = editor.contains(document.activeElement);
     const editorLooksEmpty = isComposerEditorDomEmpty(editor);

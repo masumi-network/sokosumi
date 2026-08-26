@@ -37,6 +37,12 @@ export type ResolveMentionDisplay = (
 
 export interface MarkdownToHtmlOptions {
   channelLinks?: readonly ChannelLinkIdentity[];
+  /**
+   * When false, unknown `@id:slug` tokens stay raw (chat transcript rule).
+   * Default true so task/other composers still chip unknowns.
+   * Internal `@@MENTION@@` salvage placeholders always wrap.
+   */
+  wrapUnknownMentions?: boolean;
 }
 
 function normalizePersistedInternalMentions(text: string): string {
@@ -153,7 +159,11 @@ export function markdownToHtml(
         mention.slug,
       );
       const isInternalPlaceholder = /^unknown-mention-\d+$/.test(mention.id);
-      if (!isKnown && !isInternalPlaceholder) {
+      if (
+        !isKnown &&
+        !isInternalPlaceholder &&
+        options.wrapUnknownMentions === false
+      ) {
         rebuilt += rawMentionToken;
         lastIndex = mention.end;
         continue;

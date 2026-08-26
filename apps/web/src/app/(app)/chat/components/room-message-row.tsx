@@ -1357,32 +1357,39 @@ function MessageEditComposer({
 
   return (
     <div className="pt-0.5">
-      <ComposerWysiwygEditor
-        ref={editorRef}
-        value={value}
-        onChange={(next) => {
-          liveRef.current = next;
-          onChange(next);
-        }}
-        mentions={mentions}
-        mentionDisplayByKey={mentionDisplay.byKey}
-        mentionDisplayBySlug={mentionDisplay.bySlug}
-        channels={channels}
-        disabled={isSaving}
-        ariaLabel={t("Edit.composerAria")}
-        modifierEnterSubmits
-        onSubmitShortcut={handleCommit}
-        onEscape={() => {
-          if (!isSaving) onCancel();
-        }}
-        onBlur={() => {
-          if (isSaving) return;
-          if (liveMarkdown().trim() === originalContent.trim()) {
-            onCancel();
-          }
-        }}
-        className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
-      />
+      <div
+        className={cn(
+          "border-input focus-within:border-ring focus-within:ring-ring/50 dark:bg-input/30 rounded-md border bg-transparent focus-within:ring-[3px]",
+          isSaving && "pointer-events-none opacity-50",
+        )}
+      >
+        <ComposerWysiwygEditor
+          ref={editorRef}
+          value={value}
+          onChange={(next) => {
+            liveRef.current = next;
+            onChange(next);
+          }}
+          mentions={mentions}
+          mentionDisplayByKey={mentionDisplay.byKey}
+          mentionDisplayBySlug={mentionDisplay.bySlug}
+          channels={channels}
+          disabled={isSaving}
+          ariaLabel={t("Edit.composerAria")}
+          modifierEnterSubmits
+          onSubmitShortcut={handleCommit}
+          onEscape={() => {
+            if (!isSaving) onCancel();
+          }}
+          onBlur={() => {
+            if (isSaving) return;
+            if (liveMarkdown().trim() === originalContent.trim()) {
+              onCancel();
+            }
+          }}
+          className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
+        />
+      </div>
     </div>
   );
 }
