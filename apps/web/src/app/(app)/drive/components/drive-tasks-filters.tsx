@@ -309,6 +309,8 @@ export function DriveTasksFilters({
     loadMoreProjectsAbortRef.current?.abort();
     const controller = new AbortController();
     loadMoreProjectsAbortRef.current = controller;
+    const assigneeIdAtRequest = assigneeId;
+    const activeOrganizationIdAtRequest = activeOrganizationId;
     const cursorAtRequest = projectsNextCursor;
 
     setProjectsLoadingMore(true);
@@ -322,7 +324,11 @@ export function DriveTasksFilters({
         cursor: cursorAtRequest,
         signal: controller.signal,
       });
-      if (controller.signal.aborted) {
+      if (
+        controller.signal.aborted ||
+        assigneeId !== assigneeIdAtRequest ||
+        activeOrganizationId !== activeOrganizationIdAtRequest
+      ) {
         return;
       }
       const nextPage = mapDriveTasksToProjectOptions(
@@ -338,7 +344,11 @@ export function DriveTasksFilters({
         // Leave the current list intact when pagination fails.
       }
     } finally {
-      if (!controller.signal.aborted) {
+      if (
+        !controller.signal.aborted &&
+        assigneeId === assigneeIdAtRequest &&
+        activeOrganizationId === activeOrganizationIdAtRequest
+      ) {
         setProjectsLoadingMore(false);
       }
     }

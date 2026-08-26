@@ -39,6 +39,9 @@ const DRIVE_TASK_FILE_WHERE = {
 /** Stable sort key when a row has no READY task-output files yet. */
 const NO_DRIVE_TASK_FILE_SORT_EPOCH = new Date(0).toISOString();
 
+/** Cap in-memory sort/paginate fetches for large workspaces. */
+const MAX_TASKS_FOR_SORT = 10000;
+
 const query = z
   .object({
     scope: driveFileScopeSchema.openapi({
@@ -78,6 +81,15 @@ const query = z
         param: { name: "assigneeId", in: "query" },
         description: "Filter tasks by assignee coworker ID",
         example: "cow_123",
+      }),
+    q: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        description:
+          "Search tasks and files by task name, task description, or file name (case-insensitive substring). Returns matching task-file rows.",
+        example: "mockup",
       }),
   })
   .extend(cursorPaginationQuerySchema.shape)
@@ -122,8 +134,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { scope, organizationId, projectId, taskId, assigneeId } =
+    const { scope, organizationId, projectId, taskId, assigneeId, q } =
       queryParams;
+    const searchQuery = q?.trim();
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     if (isCoworkerAuthContext(authContext)) {
@@ -165,6 +178,120 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       baseTaskWhere.AND = [listAccessFilter];
+    }
+
+    if (searchQuery) {
+      const taskFileWhere: Prisma.TaskFileWhereInput = {
+        ...DRIVE_TASK_FILE_WHERE,
+        OR: [
+          {
+            name: { contains: searchQuery, mode: "insensitive" },
+            task: baseTaskWhere,
+          },
+          {
+            task: {
+              AND: [
+                baseTaskWhere,
+                {
+                  OR: [
+                    { name: { contains: searchQuery, mode: "insensitive" } },
+                    {
+                      description: {
+                        contains: searchQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const [matchingFiles, totalCount] = await Promise.all([
+        prisma.taskFile.findMany({
+          where: taskFileWhere,
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: MAX_TASKS_FOR_SORT,
+          include: {
+            task: {
+              select: {
+                id: true,
+                name: true,
+                projectId: true,
+                project: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.taskFile.count({ where: taskFileWhere }),
+      ]);
+
+      let startIndex = 0;
+      if (cursor) {
+        const cursorIndex = matchingFiles.findIndex(
+          (file) => file.id === cursor,
+        );
+        if (cursorIndex < 0) {
+          throw badRequest("Invalid pagination cursor");
+        }
+        startIndex = cursorIndex + 1;
+      }
+
+      const pagedFiles = matchingFiles.slice(startIndex, startIndex + take);
+      const hasMore = startIndex + take < matchingFiles.length;
+
+      const items: DriveTasksListItem[] = pagedFiles
+        .map((file) => {
+          if (!file.fileUrl) {
+            return null;
+          }
+
+          return {
+            type: "task-file" as const,
+            id: file.id,
+            name: file.name,
+            fileUrl: file.fileUrl,
+            size: file.size ? Number(file.size) : null,
+            mimeType: file.mimeType,
+            updatedAt: file.updatedAt.toISOString(),
+            taskId: file.task.id,
+            taskName: file.task.name,
+            projectId: file.task.projectId,
+            projectName: file.task.project?.name ?? null,
+          };
+        })
+        .filter(
+          (
+            item,
+          ): item is {
+            type: "task-file";
+            id: string;
+            name: string;
+            fileUrl: string;
+            size: number | null;
+            mimeType: string | null;
+            updatedAt: string;
+            taskId: string;
+            taskName: string;
+            projectId: string | null;
+            projectName: string | null;
+          } => item !== null,
+        );
+
+      const paginationMeta = createPaginationMeta(
+        pagedFiles,
+        totalCount,
+        take,
+        hasMore,
+        cursor,
+      );
+      return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
     // Determine level
@@ -256,7 +383,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // Fetch all tasks (up to a reasonable limit for sorting)
       // Cursor pagination requires knowing position in sorted order
-      const MAX_TASKS_FOR_SORT = 10000;
       const [allTasks, count] = await Promise.all([
         prisma.task.findMany({
           where: tasksWhere,
@@ -319,23 +445,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Key project rows by tasks in the Drive workspace, not by Project.workspaceId
     // (transferred tasks may have Task.workspaceId !== Project.workspaceId)
 
-    // Find non-null projectIds from tasks matching baseTaskWhere
-    const tasksWithProjects = await prisma.task.findMany({
+    const projectIdGroups = await prisma.task.groupBy({
+      by: ["projectId"],
       where: {
         ...baseTaskWhere,
         projectId: { not: null },
       },
-      select: { projectId: true },
     });
 
-    // Unique in memory
-    const projectIds = Array.from(
-      new Set(
-        tasksWithProjects
-          .map((t) => t.projectId)
-          .filter((id): id is string => id !== null),
-      ),
-    );
+    const projectIds = projectIdGroups
+      .map((group) => group.projectId)
+      .filter((id): id is string => id !== null);
 
     // Fetch all projects by id + no-project count
     const MAX_PROJECTS_FOR_SORT = 10000;

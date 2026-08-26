@@ -8067,6 +8067,32 @@ export const DriveTasksTaskFileItemSchema = {
             format: 'date-time',
             example: '2026-08-18T10:00:00.000Z',
             description: 'TaskFile updatedAt'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_xyz789',
+            description: 'Parent task ID (search results only)'
+        },
+        taskName: {
+            type: 'string',
+            example: 'Design mockups',
+            description: 'Parent task name (search results only)'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null (search results only)'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Q4 Campaign',
+            description: 'Parent project name, or null (search results only)'
         }
     },
     required: [

@@ -168,6 +168,28 @@ describe("fetchDriveTasksPage", () => {
     );
   });
 
+  it("passes q search filter to query", async () => {
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: [],
+        meta: { pagination: { nextCursor: null } },
+      },
+    });
+
+    await fetchDriveTasksPage({
+      scope: "me",
+      q: "mockup",
+    });
+
+    expect(getDriveTasksMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          q: "mockup",
+        }),
+      }),
+    );
+  });
+
   it("returns one page and nextCursor without auto-fetching", async () => {
     const page1Items: DriveTasksListItem[] = [
       {

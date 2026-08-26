@@ -461,6 +461,15 @@ function DrivePageWorkspace({
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
+  const previousIsTasksViewRef = useRef(isTasksView);
+  if (previousIsTasksViewRef.current !== isTasksView) {
+    previousIsTasksViewRef.current = isTasksView;
+    debouncedSetSearchQuery.cancel();
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+  }
+  const isTasksSearchActive =
+    isTasksView && debouncedSearchQuery.trim().length > 0;
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
@@ -532,11 +541,13 @@ function DrivePageWorkspace({
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
-        ...(taskIdParam
-          ? { taskId: taskIdParam }
-          : projectIdParam
-            ? { projectId: projectIdParam }
-            : {}),
+        ...(isTasksSearchActive
+          ? { q: debouncedSearchQuery.trim() }
+          : taskIdParam
+            ? { taskId: taskIdParam }
+            : projectIdParam
+              ? { projectId: projectIdParam }
+              : {}),
         ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
         signal: controller.signal,
       });
@@ -575,6 +586,8 @@ function DrivePageWorkspace({
     }
   }, [
     isTasksView,
+    isTasksSearchActive,
+    debouncedSearchQuery,
     scope,
     activeOrganizationId,
     projectIdParam,
@@ -602,6 +615,7 @@ function DrivePageWorkspace({
       projectId: projectIdParam,
       taskId: taskIdParam,
       assigneeId: assigneeIdParam,
+      searchQuery: debouncedSearchQuery.trim(),
       cursor: tasksNextCursor,
     };
 
@@ -612,11 +626,13 @@ function DrivePageWorkspace({
         ...(queryAtRequest.scope === "org" && queryAtRequest.organizationId
           ? { organizationId: queryAtRequest.organizationId }
           : {}),
-        ...(queryAtRequest.taskId
-          ? { taskId: queryAtRequest.taskId }
-          : queryAtRequest.projectId
-            ? { projectId: queryAtRequest.projectId }
-            : {}),
+        ...(queryAtRequest.searchQuery
+          ? { q: queryAtRequest.searchQuery }
+          : queryAtRequest.taskId
+            ? { taskId: queryAtRequest.taskId }
+            : queryAtRequest.projectId
+              ? { projectId: queryAtRequest.projectId }
+              : {}),
         ...(queryAtRequest.assigneeId
           ? { assigneeId: queryAtRequest.assigneeId }
           : {}),
@@ -630,7 +646,8 @@ function DrivePageWorkspace({
         activeOrganizationId === queryAtRequest.organizationId &&
         projectIdParam === queryAtRequest.projectId &&
         taskIdParam === queryAtRequest.taskId &&
-        assigneeIdParam === queryAtRequest.assigneeId;
+        assigneeIdParam === queryAtRequest.assigneeId &&
+        debouncedSearchQuery.trim() === queryAtRequest.searchQuery;
 
       if (controller.signal.aborted || !queryStillMatches) {
         return;
@@ -675,6 +692,7 @@ function DrivePageWorkspace({
     projectIdParam,
     taskIdParam,
     assigneeIdParam,
+    debouncedSearchQuery,
     t,
   ]);
 
@@ -1162,6 +1180,7 @@ function DrivePageWorkspace({
       toast.success(t("copyToFilesSuccess"));
       setCopyDialogOpen(false);
       setTaskFileToCopy(null);
+      await refreshDriveItems();
     } catch (err) {
       console.error("Failed to copy file", err);
       if (isDuplicateResourceError(err)) {
@@ -1321,23 +1340,37 @@ function DrivePageWorkspace({
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div className="flex items-center justify-end gap-4">
           {isTasksView && (
-            <DriveTasksFilters
-              activeOrganizationId={activeOrganizationId}
-              assigneeId={assigneeIdParam}
-              projectId={projectIdParam}
-              taskId={taskIdParam}
-              labels={{
-                title: t("filterTitle"),
-                searchPlaceholder: t("filterSearchPlaceholder"),
-                emptyResults: t("filterEmptyResults"),
-                all: t("filterAll"),
-                coworkerLabel: t("filterCoworkerLabel"),
-                projectLabel: t("filterProjectLabel"),
-                taskLabel: t("filterTaskLabel"),
-                noProjectLabel: t("noProject"),
-                loadMore: t("loadMore"),
-              }}
-            />
+            <>
+              <div className="hidden items-center gap-2 md:flex">
+                <div className="relative">
+                  <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                  <Input
+                    type="text"
+                    placeholder={t("tasksSearchPlaceholder")}
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="w-64 pl-8"
+                  />
+                </div>
+              </div>
+              <DriveTasksFilters
+                activeOrganizationId={activeOrganizationId}
+                assigneeId={assigneeIdParam}
+                projectId={projectIdParam}
+                taskId={taskIdParam}
+                labels={{
+                  title: t("filterTitle"),
+                  searchPlaceholder: t("filterSearchPlaceholder"),
+                  emptyResults: t("filterEmptyResults"),
+                  all: t("filterAll"),
+                  coworkerLabel: t("filterCoworkerLabel"),
+                  projectLabel: t("filterProjectLabel"),
+                  taskLabel: t("filterTaskLabel"),
+                  noProjectLabel: t("noProject"),
+                  loadMore: t("loadMore"),
+                }}
+              />
+            </>
           )}
           {!isTasksView && (
             <div className="hidden items-center gap-2 md:flex">
@@ -1450,6 +1483,21 @@ function DrivePageWorkspace({
         </nav>
       </div>
 
+      {isTasksView && (
+        <div className="mb-6 flex items-center gap-2 md:hidden">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={t("tasksSearchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+        </div>
+      )}
+
       {!isTasksView && (
         <div className="mb-6 flex items-center gap-2 md:hidden">
           <div className="relative flex-1">
@@ -1486,14 +1534,18 @@ function DrivePageWorkspace({
           <div className="max-w-sm">
             <h2 className="text-foreground text-lg font-semibold">
               {isTasksView
-                ? t("tasksEmptyTitle")
+                ? searchQuery
+                  ? t("tasksNoMatchTitle")
+                  : t("tasksEmptyTitle")
                 : searchQuery
                   ? t("noMatchTitle")
                   : t("emptyTitle")}
             </h2>
             <p className="text-muted-foreground mt-2 text-sm">
               {isTasksView
-                ? t("tasksEmptyDescription")
+                ? searchQuery
+                  ? t("tasksNoMatchDescription")
+                  : t("tasksEmptyDescription")
                 : searchQuery
                   ? t("noMatchDescription")
                   : t("emptyDescription")}
@@ -1713,6 +1765,16 @@ function DrivePageWorkspace({
                   item.name,
                 );
                 const isPreviewable = isImage || documentKind !== null;
+                const searchContext =
+                  item.taskName != null
+                    ? [
+                        item.taskName,
+                        item.projectName ??
+                          (item.projectId === null ? t("noProject") : null),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : null;
 
                 return (
                   <article
@@ -1734,6 +1796,11 @@ function DrivePageWorkspace({
                           isImage={isImage}
                           documentKind={documentKind}
                         />
+                        {searchContext ? (
+                          <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                            {searchContext}
+                          </p>
+                        ) : null}
                         <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
                           <span>
                             {item.size ? formatBytes(item.size) : "—"}
