@@ -70,6 +70,8 @@ export async function proactiveGate(
       sokoBotId,
       source: { in: ["SCHEDULE", "EVENT", "INGEST"] },
       createdAt: { gte: localDayStart(now, bot.ingestTimezone) },
+      // Behaviour-lab turns are ours, not the owner's budget.
+      clientTurnId: { not: { startsWith: "lab:" } },
     },
   });
   const limit = bot.proactiveDailyLimit;
