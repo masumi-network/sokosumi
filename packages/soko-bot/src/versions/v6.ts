@@ -7,7 +7,7 @@ export const v6: SokoBotVersion = {
   name: "v6 · Large 3, plan-then-act",
   createdAt: "2026-08-26",
   summary:
-    "Experiment: v1 plus a fixed four-step turn procedure (read packet → decide tools → call → report). Tests whether an explicit procedure cuts invented ids and skipped tool calls.",
+    "Experiment: v1 plus a fixed four-step turn procedure. Lab 2026-08-26 (before the persona fix): 4/9; over-acts on coworker questions (creates and assigns extra Tasks) and skipped tools on delegation. No gain over v1.",
   systemPrompt: `${v1.systemPrompt}
 # Turn procedure
 

@@ -5,7 +5,7 @@ export const v1: SokoBotVersion = {
   name: "v1 · Large 3 baseline",
   createdAt: "2026-08-25",
   summary:
-    "Mistral Large 3 with the full operating contract, schedules, event turns, and the coworker-coordination skill.",
+    "Mistral Large 3 with the full operating contract and all four skills. Lab 2026-08-26 after the persona fix: 6/9 checks, judge pass on delegation, launch plan, coworker failure; still the default.",
   model: "mistral/mistral-large-3",
   skills: [
     "coworker-coordination",

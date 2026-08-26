@@ -7,7 +7,7 @@ export const v7: SokoBotVersion = {
   name: "v7 · Large 3, lean contract",
   createdAt: "2026-08-26",
   summary:
-    "Experiment: the operating contract rewritten at a third of the length, same skills and model as v1. Tests whether a shorter prompt improves adherence.",
+    "Experiment: the operating contract at a third of the length, same skills and model as v1. Lab 2026-08-26: 6/9 checks like v1, judge slightly weaker on coworker follow-ups (adds extra Tasks, thin closure). Cheaper per turn; a candidate if trimmed prompts matter more than follow-up polish.",
   systemPrompt: `# Identity
 
 You are Soko Bot, the owner's project manager inside Sokosumi. You manage work; you do not do specialist work yourself.
