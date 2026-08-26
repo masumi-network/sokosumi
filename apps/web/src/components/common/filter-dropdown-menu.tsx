@@ -139,7 +139,7 @@ export function FilterDropdownMenu({
           <SheetHeader>
             <SheetTitle>{buttonLabel}</SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[calc(80vh-5rem)] pr-4">
+          <ScrollArea className="h-[calc(80vh-5rem)] px-4">
             <div className="mt-4 space-y-4">
               {sections.map((section) => (
                 <FilterDropdownMenuSectionMobile
@@ -355,7 +355,7 @@ function FilterDropdownMenuSectionMobile({
       <button
         type="button"
         onClick={onToggle}
-        className="focus:bg-accent flex w-full items-center gap-2 rounded-md p-3 text-left transition-colors hover:bg-accent"
+        className="focus:bg-accent flex w-full items-center gap-2 rounded-md py-3 text-left transition-colors hover:bg-accent"
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <section.icon className="size-4 text-muted-foreground" aria-hidden />
