@@ -41,21 +41,6 @@ Required Core production environment:
 - current EdDSA private signing key/id plus previous public keys for rotation.
 - `SOKO_BOT_CREDITS_PER_USD` and `SOKO_BOT_MIN_TURN_CREDITS`.
 
-Required Vercel Connect setup for account integrations:
-
-- Create separate Google and Microsoft connectors for preprod and production;
-  link each connector only to its matching Core Vercel project/environment.
-- Set `SOKO_BOT_GOOGLE_CONNECTOR_UID` to the Google connector UID (normally
-  `oauth/<name>`) and `SOKO_BOT_MICROSOFT_CONNECTOR_UID` to the Microsoft UID
-  (`microsoft/<name>`) on Core. Omitting one leaves that provider unavailable.
-- Google needs delegated `gmail.readonly` and `calendar.readonly`; Microsoft
-  needs delegated `Mail.Read` and `Calendars.Read`. Do not grant write scopes.
-- Core receives `VERCEL_OIDC_TOKEN` automatically on Vercel. Local connector
-  testing requires linking the Core project and refreshing the development
-  OIDC token with `vercel env pull` before it expires.
-- Provider tokens and refresh tokens stay in Vercel Connect. Do not copy them
-  into Core environment variables or persist them in Postgres.
-
 Core startup treats `NODE_ENV=production` or
 `VERCEL_ENV=preview|production` as deployed. When Soko Bot is enabled there,
 environment validation rejects the in-memory adapter, non-HTTPS runtime URLs,

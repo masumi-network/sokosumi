@@ -1633,9 +1633,9 @@ enum SokoBotIntegrationStatus {
   REVOKED
 }
 
-/// One external account authorized for a Soko Bot through Vercel Connect.
-/// Provider tokens stay in Vercel; only connection state and sync position
-/// live here.
+/// One connected external account (Gmail, Outlook, Google Calendar, …) of
+/// a Soko Bot, brokered by Composio. Tokens live in Composio; only the
+/// account reference and our sync position live here.
 model SokoBotIntegration {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -1644,11 +1644,13 @@ model SokoBotIntegration {
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  /// Provider id from @sokosumi/soko-bot integrations.
-  provider    String
-  status      SokoBotIntegrationStatus @default(PENDING)
-  connectedAt DateTime?
-  lastError   String?
+  /// Provider id from @sokosumi/soko-bot integrations (Composio toolkit slug).
+  provider          String
+  /// Composio connected_account id.
+  composioAccountId String                   @unique
+  status            SokoBotIntegrationStatus @default(PENDING)
+  connectedAt       DateTime?
+  lastError         String?
   /// Provider-specific ingest position (e.g. newest seen email timestamp).
   cursor            Json?
   lastIngestAt      DateTime?

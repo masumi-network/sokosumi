@@ -118,9 +118,9 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
-  /** Vercel Connect connector UIDs linked to this Core project/environment. */
-  SOKO_BOT_GOOGLE_CONNECTOR_UID: z.string().min(1).optional(),
-  SOKO_BOT_MICROSOFT_CONNECTOR_UID: z.string().min(1).optional(),
+  /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
+  COMPOSIO_API_KEY: z.string().min(1).optional(),
+  COMPOSIO_API_BASE_URL: z.url().optional(),
   SOKO_BOT_RUNTIME_ADAPTER: z.enum(["in-memory", "eve"]).default("eve"),
   SOKO_BOT_RUNTIME_BASE_URL: z.url().default("http://localhost:2000"),
   SOKO_BOT_RUNTIME_VERSION: z.string().min(1).default("0.38.3"),

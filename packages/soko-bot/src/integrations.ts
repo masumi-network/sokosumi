@@ -1,33 +1,48 @@
+/**
+ * External accounts a Soko Bot can connect through Composio. Tool slugs are
+ * Composio's; if a slug changes upstream this is the only place to fix it.
+ */
 export type SokoBotIntegrationKind = "email" | "calendar";
 
 export interface SokoBotIntegrationProvider {
-  id: "google" | "microsoft";
+  /** Stable id stored on the integration row; equals the Composio toolkit slug. */
+  id: string;
   name: string;
+  /** What the bot ingests from it. */
   kinds: readonly SokoBotIntegrationKind[];
-  scopes: {
-    email: readonly string[];
-    calendar: readonly string[];
+  /** Composio tool slugs per operation. */
+  tools: {
+    listMessages?: string;
+    getMessage?: string;
+    listEvents?: string;
   };
 }
 
 export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider[] =
   [
     {
-      id: "google",
-      name: "Google",
-      kinds: ["email", "calendar"],
-      scopes: {
-        email: ["https://www.googleapis.com/auth/gmail.readonly"],
-        calendar: ["https://www.googleapis.com/auth/calendar.readonly"],
+      id: "gmail",
+      name: "Gmail",
+      kinds: ["email"],
+      tools: {
+        listMessages: "GMAIL_FETCH_EMAILS",
+        getMessage: "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID",
       },
     },
     {
-      id: "microsoft",
-      name: "Microsoft",
+      id: "googlecalendar",
+      name: "Google Calendar",
+      kinds: ["calendar"],
+      tools: { listEvents: "GOOGLECALENDAR_EVENTS_LIST" },
+    },
+    {
+      id: "outlook",
+      name: "Outlook",
       kinds: ["email", "calendar"],
-      scopes: {
-        email: ["Mail.Read"],
-        calendar: ["Calendars.Read"],
+      tools: {
+        listMessages: "OUTLOOK_OUTLOOK_LIST_MESSAGES",
+        getMessage: "OUTLOOK_OUTLOOK_GET_MESSAGE",
+        listEvents: "OUTLOOK_OUTLOOK_CALENDAR_LIST_EVENTS",
       },
     },
   ];

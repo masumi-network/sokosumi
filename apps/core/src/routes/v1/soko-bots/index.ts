@@ -1,3 +1,4 @@
+import { ComposioError } from "@composio/core";
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   composeSystemPrompt,
@@ -30,6 +31,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   claimSokoBotAvatarRequestSchema,
+  connectSokoBotIntegrationRequestSchema,
   connectSokoBotIntegrationResponseSchema,
   createSokoBotRequestSchema,
   createSokoBotScheduleRequestSchema,
@@ -629,6 +631,9 @@ app.openapi(listAvatarsRoute, async (c) => {
 const providerParamSchema = z.object({ provider: z.string().min(1) });
 
 function mapIntegrationError(error: unknown): never {
+  if (error instanceof ComposioError) {
+    throw unprocessableEntity(`Composio: ${error.message}`);
+  }
   if (error instanceof SokoBotIntegrationError) {
     if (error.kind === "NOT_CONFIGURED" || error.kind === "NOT_FOUND")
       throw notFound(error.message);
@@ -674,6 +679,11 @@ const connectIntegrationRoute = createRoute({
   tags: ["Soko Bots"],
   request: {
     params: providerParamSchema,
+    body: {
+      content: {
+        "application/json": { schema: connectSokoBotIntegrationRequestSchema },
+      },
+    },
   },
   responses: {
     200: jsonSuccessResponse(
@@ -694,6 +704,7 @@ app.openapi(connectIntegrationRoute, async (c) => {
       userId: auth.userId,
       workspaceId: workspace.workspaceId,
       provider: c.req.valid("param").provider,
+      returnUrl: c.req.valid("json").returnUrl,
     });
     return ok(c, connectSokoBotIntegrationResponseSchema.parse(result));
   } catch (error) {
@@ -746,7 +757,6 @@ const disconnectIntegrationRoute = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 

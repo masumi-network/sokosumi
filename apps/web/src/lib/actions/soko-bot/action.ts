@@ -470,14 +470,16 @@ const providerSchema = z
   .regex(/^[a-z0-9_-]{1,40}$/);
 
 export const connectSokoBotIntegrationAction = withSession<
-  IntegrationParams,
+  IntegrationParams & { returnUrl: unknown },
   ActionResultDto<{ redirectUrl: string }, ActionError>
->(async ({ provider }) => {
+>(async ({ provider, returnUrl }) => {
   const parsed = providerSchema.safeParse(provider);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
+  const parsedUrl = z.string().url().safeParse(returnUrl);
+  if (!parsed.success || !parsedUrl.success)
+    return toActionResult(err(invalidInput()));
   try {
     return toActionResult(
-      ok(await sokoBotService.connectIntegration(parsed.data)),
+      ok(await sokoBotService.connectIntegration(parsed.data, parsedUrl.data)),
     );
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));

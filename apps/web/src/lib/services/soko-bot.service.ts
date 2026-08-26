@@ -87,8 +87,13 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async connectIntegration(provider: string): Promise<{ redirectUrl: string }> {
-    const response = await coreClient.connectMySokoBotIntegration(provider);
+  async connectIntegration(
+    provider: string,
+    returnUrl: string,
+  ): Promise<{ redirectUrl: string }> {
+    const response = await coreClient.connectMySokoBotIntegration(provider, {
+      returnUrl,
+    });
     return response.data;
   },
 

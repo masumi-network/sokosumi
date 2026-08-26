@@ -5266,7 +5266,7 @@
       },
       "Integrations": {
         "title": "Verbundene Konten",
-        "description": "Mail und Kalender aus Konten, die du autorisierst. Er sendet oder ändert nie etwas.",
+        "description": "Mail und Kalender, die er für dich liest. Er sendet oder ändert nie etwas.",
         "connect": "Verbinden",
         "reconnect": "Neu verbinden",
         "disconnect": "Trennen",
@@ -5274,7 +5274,6 @@
         "connectError": "Verbindung konnte nicht gestartet werden.",
         "disconnectError": "Trennen fehlgeschlagen.",
         "unavailable": "Integrationen sind in dieser Umgebung nicht aktiviert.",
-        "providerUnavailable": "Dieser Anbieter ist in dieser Umgebung nicht eingerichtet.",
         "pending": "Warte, bis du die Anmeldung abschließt…",
         "failed": "Verbindung fehlgeschlagen. Neu verbinden, um es erneut zu versuchen.",
         "connectedNotChecked": "Verbunden · erste Prüfung in maximal 15 Minuten",

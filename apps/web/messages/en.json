@@ -5266,7 +5266,7 @@
       },
       "Integrations": {
         "title": "Connected accounts",
-        "description": "Mail and calendars from accounts you authorize. It never sends or changes anything.",
+        "description": "Mail and calendars it reads for you. It never sends or changes anything.",
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
@@ -5274,7 +5274,6 @@
         "connectError": "Could not start the connection.",
         "disconnectError": "Could not disconnect.",
         "unavailable": "Integrations are not enabled on this environment.",
-        "providerUnavailable": "This provider is not configured on this environment.",
         "pending": "Waiting for you to finish signing in…",
         "failed": "Connection failed. Reconnect to try again.",
         "connectedNotChecked": "Connected · first check runs within 15 minutes",

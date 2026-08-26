@@ -746,7 +746,6 @@ export const sokoBotIntegrationSchema = z
     provider: z.string(),
     name: z.string(),
     kinds: z.array(z.enum(["email", "calendar"])),
-    available: z.boolean(),
     status: z.enum(["DISCONNECTED", "PENDING", "ACTIVE", "FAILED", "REVOKED"]),
     connectedAt: z.coerce.date().nullable(),
     lastIngestAt: z.coerce.date().nullable(),
@@ -756,11 +755,15 @@ export const sokoBotIntegrationSchema = z
 
 export const sokoBotIntegrationsSchema = z
   .object({
-    /** False when no Vercel Connect connector is configured. */
+    /** False when Composio is not configured on this environment. */
     configured: z.boolean(),
     integrations: z.array(sokoBotIntegrationSchema),
   })
   .openapi("SokoBotIntegrations");
+
+export const connectSokoBotIntegrationRequestSchema = z
+  .object({ returnUrl: z.string().url() })
+  .openapi("ConnectSokoBotIntegrationRequest");
 
 export const connectSokoBotIntegrationResponseSchema = z
   .object({ redirectUrl: z.string().url() })

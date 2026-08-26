@@ -4218,7 +4218,6 @@ export type SokoBotIntegration = {
     provider: string;
     name: string;
     kinds: Array<'email' | 'calendar'>;
-    available: boolean;
     status: 'DISCONNECTED' | 'PENDING' | 'ACTIVE' | 'FAILED' | 'REVOKED';
     connectedAt: Date | null;
     lastIngestAt: Date | null;
@@ -4227,6 +4226,10 @@ export type SokoBotIntegration = {
 
 export type ConnectSokoBotIntegrationResponse = {
     redirectUrl: string;
+};
+
+export type ConnectSokoBotIntegrationRequest = {
+    returnUrl: string;
 };
 
 export type FinalizeSokoBotIntegrationResponse = {
@@ -28627,7 +28630,7 @@ export type ListMySokoBotIntegrationsResponses = {
 export type ListMySokoBotIntegrationsResponse = ListMySokoBotIntegrationsResponses[keyof ListMySokoBotIntegrationsResponses];
 
 export type ConnectMySokoBotIntegrationData = {
-    body?: never;
+    body?: ConnectSokoBotIntegrationRequest;
     path: {
         provider: string;
     };
@@ -28798,20 +28801,6 @@ export type DisconnectMySokoBotIntegrationErrors = {
      * Not Found
      */
     404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
         error: string;
         message: string;
         kind?: string;

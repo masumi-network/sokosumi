@@ -829,24 +829,25 @@ request's workspace context, so console, skills, schedules, lab and the team
 page are all per workspace. Coworker visibility uses `sokoBot.workspaceId`
 directly. The lab runner accepts `--workspace <id>`.
 
-## Integrations via Vercel Connect (2026-08-26)
+## Integrations via Composio (2026-08-26)
 
-Each Soko Bot can authorize Google (Gmail + Calendar) and Microsoft (Outlook
-mail + calendar) through Vercel Connect. Provider ids and minimum read scopes
-live in `packages/soko-bot/src/integrations.ts`.
+Each Soko Bot can connect external accounts through Composio; the first
+providers are Gmail, Outlook (mail + calendar) and Google Calendar. The
+registry — provider ids, Composio toolkit and tool slugs — is
+`packages/soko-bot/src/integrations.ts`; nothing else hard-codes slugs.
 
-**Identity and storage.** Vercel Connect's user subject is
-`soko-bot:<botId>`, so grants belong to one bot and never cross workspaces.
-Vercel stores provider credentials and refresh tokens. Sokosumi stores only
-connection status and an ingest cursor in `soko_bot_integration`; runtime
-access tokens are requested when needed and never persisted.
+**Identity and storage.** Composio's `userId` is `sokobot:<botId>`, so
+accounts belong to one bot and never cross workspaces. Sokosumi stores only
+the `connected_account` id, status and an ingest cursor
+(`soko_bot_integration`); tokens stay in Composio. Auth configs are
+Composio-managed and created lazily per toolkit (`ensureAuthConfigId`).
 
 **Connect flow.** `POST /v1/soko-bots/me/integrations/{provider}/connect`
-calls `startAuthorization` with the bot subject, read scopes, and return URL.
-After the owner completes consent, Vercel returns to
-`/personal-assistant/integrations/return?provider=…`; web calls `…/finalize`,
-which force-refreshes a scoped token and marks the row ACTIVE / FAILED.
-Disconnect calls `revokeToken` before deleting the row.
+(`connectedAccounts.link` with a `callbackUrl`) → owner completes OAuth →
+Composio returns to `/personal-assistant/integrations/return?provider=…` →
+web calls `…/finalize`, which reads the account status from Composio and
+marks the row ACTIVE / FAILED. Disconnect deletes the account in Composio and
+the row.
 
 **Read-only by design.** The bot gets `list_integrations`, `search_inbox`,
 `read_email`, `list_calendar_events` (in `DIRECT_READ_CAPABILITIES`, so on
@@ -872,12 +873,13 @@ says so explicitly.
   room with the bot (`deliverSokoBotTurnToDirectRoom`), so briefings show
   up where the owner talks to it.
 
-**Provider calls.** Core requests the narrow mail or calendar token through
-`@vercel/connect` and then calls Gmail, Google Calendar, or Microsoft Graph
-directly. A provider `401` clears only that SDK cache entry and retries once
-with a force refresh. Candidates after live connector verification: Slack and
-Linear/Notion as ingest sources, owner-set briefing time and timezone in the
-console, and write actions behind explicit owner confirmation.
+**Not yet done / next.** Composio tool slugs and response shapes were
+written from the docs, not verified live (the local `COMPOSIO_API_KEY` is
+invalid) — first run with a real key will tell if any slug or field name
+needs adjusting in `integrations.ts` / the normalisers. Candidates after
+that: Slack and Linear/Notion as ingest sources, owner-set briefing time and
+timezone in the console, write actions (draft replies, create events)
+behind explicit owner confirmation.
 
 ## Soko Bots on the Taskboard (2026-08-26)
 

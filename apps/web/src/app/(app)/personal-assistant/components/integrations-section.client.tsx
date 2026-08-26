@@ -11,11 +11,15 @@ import {
   disconnectSokoBotIntegrationAction,
 } from "@/lib/actions/soko-bot/action";
 import type { SokoBotIntegrations } from "@/lib/clients/generated/core";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 type Integration = SokoBotIntegrations["integrations"][number];
 
-/** Connected accounts used for read-only mail and calendar access. */
+/**
+ * Connected accounts (Gmail, Outlook, Google Calendar). Connect sends the
+ * owner through Composio's OAuth and back to the return page.
+ */
 export function IntegrationsSection({
   initial,
 }: {
@@ -29,7 +33,11 @@ export function IntegrationsSection({
   function connect(provider: string) {
     setBusy(provider);
     startTransition(async () => {
-      const result = await connectSokoBotIntegrationAction({ provider });
+      const returnUrl = `${window.location.origin}${SOKO_BOT_ROUTE}/integrations/return?provider=${encodeURIComponent(provider)}`;
+      const result = await connectSokoBotIntegrationAction({
+        provider,
+        returnUrl,
+      });
       if (!result.ok) {
         setBusy(null);
         toast.error(result.error.message ?? t("connectError"));
@@ -87,7 +95,7 @@ export function IntegrationsSection({
               type="button"
               size="sm"
               variant="ghost"
-              disabled={busy === integration.provider || !integration.available}
+              disabled={busy === integration.provider}
               onClick={() => disconnect(integration.provider)}
             >
               {t("disconnect")}
@@ -97,7 +105,7 @@ export function IntegrationsSection({
               type="button"
               size="sm"
               variant="outline"
-              disabled={busy === integration.provider || !integration.available}
+              disabled={busy === integration.provider}
               onClick={() => connect(integration.provider)}
             >
               {integration.status === "DISCONNECTED"
@@ -116,9 +124,6 @@ function describe(
   t: ReturnType<typeof useTranslations<"App.SokoBot.Integrations">>,
   format: ReturnType<typeof useFormatter>,
 ): string {
-  if (!integration.available && integration.status === "DISCONNECTED") {
-    return t("providerUnavailable");
-  }
   switch (integration.status) {
     case "ACTIVE":
       return integration.lastIngestAt
