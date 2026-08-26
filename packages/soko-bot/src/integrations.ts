@@ -52,6 +52,40 @@ export function isSokoBotEmailProvider(id: string): boolean {
   return getSokoBotIntegrationProvider(id)?.kinds.includes("email") ?? false;
 }
 
+/**
+ * Popular Composio toolkits, shown as browsable tiles even before the live
+ * catalog is reachable. Slugs are Composio toolkit slugs.
+ */
+export const SOKO_BOT_POPULAR_TOOLKITS: readonly {
+  id: string;
+  name: string;
+}[] = [
+  { id: "slack", name: "Slack" },
+  { id: "notion", name: "Notion" },
+  { id: "linear", name: "Linear" },
+  { id: "github", name: "GitHub" },
+  { id: "googledrive", name: "Google Drive" },
+  { id: "googlesheets", name: "Google Sheets" },
+  { id: "googledocs", name: "Google Docs" },
+  { id: "hubspot", name: "HubSpot" },
+  { id: "salesforce", name: "Salesforce" },
+  { id: "jira", name: "Jira" },
+  { id: "asana", name: "Asana" },
+  { id: "trello", name: "Trello" },
+  { id: "clickup", name: "ClickUp" },
+  { id: "todoist", name: "Todoist" },
+  { id: "dropbox", name: "Dropbox" },
+  { id: "onedrive", name: "OneDrive" },
+  { id: "microsoft_teams", name: "Microsoft Teams" },
+  { id: "discord", name: "Discord" },
+  { id: "zoom", name: "Zoom" },
+  { id: "calendly", name: "Calendly" },
+  { id: "stripe", name: "Stripe" },
+  { id: "shopify", name: "Shopify" },
+  { id: "airtable", name: "Airtable" },
+  { id: "figma", name: "Figma" },
+];
+
 export function getSokoBotIntegrationProvider(
   id: string,
 ): SokoBotIntegrationProvider | null {

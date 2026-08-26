@@ -199,8 +199,8 @@ export function IntegrationsSection({
                       className="size-8 rounded object-contain"
                     />
                   ) : (
-                    <span className="bg-muted text-muted-foreground inline-flex size-8 items-center justify-center rounded">
-                      <Plug aria-hidden className="size-4" />
+                    <span className="bg-primary/10 text-primary inline-flex size-8 items-center justify-center rounded text-sm font-medium">
+                      {entry.name.slice(0, 1).toUpperCase()}
                     </span>
                   )}
                   <span className="w-full truncate text-xs font-medium">

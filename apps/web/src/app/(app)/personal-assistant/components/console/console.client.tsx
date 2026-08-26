@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  Activity,
-  BarChart3,
-  Brain,
-  CalendarClock,
-  ImageIcon,
-  MessageSquare,
-  Plug,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -54,14 +43,12 @@ import { DailyStats } from "./daily-stats";
 function Section({
   title,
   description,
-  icon,
   aside,
   children,
   className,
 }: {
   title: string;
   description?: string;
-  icon?: ReactNode;
   aside?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -69,18 +56,11 @@ function Section({
   return (
     <section className={cn("bg-background rounded-xl border", className)}>
       <header className="flex items-start justify-between gap-3 border-b px-4 py-3">
-        <div className="flex min-w-0 items-start gap-3">
-          {icon ? (
-            <span className="bg-primary/10 text-primary inline-flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4">
-              {icon}
-            </span>
+        <div className="min-w-0 space-y-0.5">
+          <h2 className="text-sm font-semibold leading-5">{title}</h2>
+          {description ? (
+            <p className="text-muted-foreground text-xs">{description}</p>
           ) : null}
-          <div className="min-w-0 space-y-0.5">
-            <h2 className="text-sm font-semibold leading-5">{title}</h2>
-            {description ? (
-              <p className="text-muted-foreground text-xs">{description}</p>
-            ) : null}
-          </div>
         </div>
         {aside ? <div className="shrink-0">{aside}</div> : null}
       </header>
@@ -167,16 +147,9 @@ export function SokoBotConsole({
     <AssistantSeedContext.Provider value={seed}>
       <AssistantImageContext.Provider value={bot.avatarImageUrl}>
         <div className="w-full space-y-6 px-4 py-4 lg:px-6">
-          <header className="from-primary/12 via-primary/5 border-primary/15 relative flex flex-wrap items-center gap-5 overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent px-5 py-5 md:px-6">
-            <div
-              aria-hidden
-              className="bg-primary/15 pointer-events-none absolute -top-16 -right-16 size-56 rounded-full blur-3xl"
-            />
-            <AssistantAvatar
-              size="lg"
-              className="ring-primary/30 shadow-primary/20 ring-4 shadow-lg"
-            />
-            <div className="relative min-w-0 flex-1 space-y-1">
+          <header className="flex flex-wrap items-center gap-5 py-2">
+            <AssistantAvatar size="lg" className="ring-primary/25 ring-4" />
+            <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-foreground truncate text-2xl font-light md:text-3xl">
                   {botName}
@@ -198,7 +171,7 @@ export function SokoBotConsole({
                 ) : null}
               </p>
             </div>
-            <div className="relative flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {adminHref ? (
                 <Button variant="outline" asChild>
                   <Link href={adminHref}>
@@ -225,7 +198,6 @@ export function SokoBotConsole({
               {stats ? (
                 <Section
                   title={t("Console.Stats.title")}
-                  icon={<BarChart3 aria-hidden />}
                   description={t("Console.Stats.description", {
                     days: stats.days,
                   })}
@@ -235,7 +207,6 @@ export function SokoBotConsole({
               ) : null}
               <Section
                 title={t("Console.activityTitle")}
-                icon={<Activity aria-hidden />}
                 description={t("Console.activityDescription")}
               >
                 {turns.length === 0 ? (
@@ -254,7 +225,6 @@ export function SokoBotConsole({
               </Section>
               <Section
                 title={t("Console.skillsTitle")}
-                icon={<Sparkles aria-hidden />}
                 description={t("Console.skillsDescription")}
               >
                 <SkillsSection
@@ -268,7 +238,6 @@ export function SokoBotConsole({
               {integrations ? (
                 <Section
                   title={t("Integrations.title")}
-                  icon={<Plug aria-hidden />}
                   description={t("Integrations.description")}
                 >
                   <IntegrationsSection
@@ -279,7 +248,6 @@ export function SokoBotConsole({
               ) : null}
               <Section
                 title={t("Schedules.title")}
-                icon={<CalendarClock aria-hidden />}
                 description={t("Schedules.description")}
                 aside={
                   <span className="text-muted-foreground text-xs tabular-nums">
@@ -346,7 +314,6 @@ export function SokoBotConsole({
 
               <Section
                 title={t("Memory.title")}
-                icon={<Brain aria-hidden />}
                 description={t("Memory.description")}
                 aside={<ResetMemoryButton />}
               >
@@ -374,7 +341,6 @@ export function SokoBotConsole({
 
               <Section
                 title={t("Avatar.title")}
-                icon={<ImageIcon aria-hidden />}
                 description={t("Avatar.description")}
                 aside={
                   pickedAvatar ? (
@@ -398,7 +364,6 @@ export function SokoBotConsole({
 
               <Section
                 title={t("Settings.title")}
-                icon={<Settings aria-hidden />}
                 description={t("Chat.chips.settingsDescription")}
               >
                 <div className="space-y-2">

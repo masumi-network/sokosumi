@@ -3,6 +3,7 @@ import {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
   SOKO_BOT_INTEGRATION_PROVIDERS,
+  SOKO_BOT_POPULAR_TOOLKITS,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
   type SokoBotInboxMessageDetail,
@@ -28,6 +29,28 @@ export class SokoBotIntegrationError extends Error {
 /** Composio "user id": one identity per bot so accounts never cross bots. */
 export function composioEntityId(sokoBotId: string): string {
   return `sokobot:${sokoBotId}`;
+}
+
+/** Any failure talking to Composio surfaces with its message instead of a 500. */
+async function withComposio<T>(what: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof SokoBotIntegrationError) throw error;
+    const raw = error instanceof Error ? error.message : String(error);
+    // The SDK embeds the API's JSON body; keep only its message.
+    const json = raw.match(/\{.*\}$/s);
+    let message = raw;
+    if (json) {
+      try {
+        const parsed = JSON.parse(json[0]) as { error?: { message?: string } };
+        if (parsed.error?.message) message = parsed.error.message;
+      } catch {
+        // Not JSON after all; keep the raw text.
+      }
+    }
+    throw new SokoBotIntegrationError(`Composio (${what}): ${message}`);
+  }
 }
 
 function requireComposio() {
@@ -73,12 +96,13 @@ export async function searchSokoBotIntegrationCatalog(
   query: string,
   limit = 20,
 ): Promise<SokoBotIntegrationCatalogEntry[]> {
-  const composio = requireComposio();
+  const composio = getComposio();
+  if (!composio) return curatedCatalog(query, limit);
   if (!catalogCache || Date.now() - catalogCache.at > CATALOG_TTL_MS) {
-    const toolkits = await composio.toolkits.get({
-      sortBy: "usage",
-      limit: 500,
-    });
+    const toolkits = await composio.toolkits
+      .get({ sortBy: "usage", limit: 500 })
+      .catch(() => null);
+    if (!toolkits) return curatedCatalog(query, limit);
     catalogCache = {
       at: Date.now(),
       entries: toolkits.map((toolkit) => ({
@@ -102,6 +126,27 @@ export async function searchSokoBotIntegrationCatalog(
       )
     : catalogCache.entries;
   return entries.slice(0, limit);
+}
+
+function curatedCatalog(
+  query: string,
+  limit: number,
+): SokoBotIntegrationCatalogEntry[] {
+  const needle = query.trim().toLowerCase();
+  return SOKO_BOT_POPULAR_TOOLKITS.filter(
+    (toolkit) =>
+      !needle ||
+      toolkit.id.includes(needle) ||
+      toolkit.name.toLowerCase().includes(needle),
+  )
+    .slice(0, limit)
+    .map((toolkit) => ({
+      provider: toolkit.id,
+      name: toolkit.name,
+      description: null,
+      logoUrl: null,
+      kinds: [],
+    }));
 }
 
 async function lookupToolkit(
@@ -222,11 +267,14 @@ export async function connectSokoBotIntegration(input: {
   const bot = await requireBot(input.userId, input.workspaceId);
   const composio = requireComposio();
   const toolkit = await lookupToolkit(provider.id);
-  const authConfigId = await ensureAuthConfigId(provider.id);
-  const request = await composio.connectedAccounts.link(
-    composioEntityId(bot.id),
-    authConfigId,
-    { callbackUrl: input.returnUrl, allowMultiple: false },
+  const authConfigId = await withComposio("auth config", () =>
+    ensureAuthConfigId(provider.id),
+  );
+  const request = await withComposio("start OAuth", () =>
+    composio.connectedAccounts.link(composioEntityId(bot.id), authConfigId, {
+      callbackUrl: input.returnUrl,
+      allowMultiple: false,
+    }),
   );
   const previous = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
@@ -275,7 +323,9 @@ export async function finalizeSokoBotIntegration(input: {
   });
   if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
   const composio = requireComposio();
-  const account = await composio.connectedAccounts.get(row.composioAccountId);
+  const account = await withComposio("account status", () =>
+    composio.connectedAccounts.get(row.composioAccountId),
+  );
   const status =
     account.status === "ACTIVE"
       ? "ACTIVE"
@@ -374,11 +424,13 @@ export async function listIntegrationTools(
   options: { query?: string; limit: number },
 ): Promise<SokoBotIntegrationTool[]> {
   const composio = requireComposio();
-  const tools = await composio.tools.getRawComposioTools({
-    toolkits: [integration.provider.id],
-    search: options.query?.trim() || undefined,
-    limit: options.limit,
-  });
+  const tools = await withComposio("list tools", () =>
+    composio.tools.getRawComposioTools({
+      toolkits: [integration.provider.id],
+      search: options.query?.trim() || undefined,
+      limit: options.limit,
+    }),
+  );
   return tools.map((tool) => ({
     slug: tool.slug,
     name: tool.name,
@@ -414,11 +466,13 @@ async function execute(
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const composio = requireComposio();
-  const result = await composio.tools.execute(slug, {
-    userId: composioEntityId(integration.sokoBotId),
-    connectedAccountId: integration.composioAccountId,
-    arguments: args,
-  });
+  const result = await withComposio(slug, () =>
+    composio.tools.execute(slug, {
+      userId: composioEntityId(integration.sokoBotId),
+      connectedAccountId: integration.composioAccountId,
+      arguments: args,
+    }),
+  );
   if (!result.successful) {
     throw new SokoBotIntegrationError(
       `${integration.provider.name}: ${result.error ?? "request failed"}`,
