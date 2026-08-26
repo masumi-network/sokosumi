@@ -210,9 +210,13 @@ export function SokoBotConsole({
                 ) : null}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
               {adminHref ? (
-                <Button variant="outline" asChild>
+                <Button
+                  variant="outline"
+                  asChild
+                  className="flex-1 sm:flex-none"
+                >
                   <Link href={adminHref}>
                     <ShieldCheck aria-hidden className="size-4" />
                     {t("Console.adminView")}
@@ -221,6 +225,7 @@ export function SokoBotConsole({
               ) : null}
               <Button
                 type="button"
+                className="flex-1 sm:flex-none"
                 onClick={openChat}
                 disabled={!bot.coworkerId || isOpeningChat}
               >
