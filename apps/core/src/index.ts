@@ -102,6 +102,8 @@ async function getLlmsMarkdown(): Promise<string> {
   return await llmsMarkdownPromise;
 }
 
+app.get("/robots.txt", (c) => c.text("User-Agent: *\nDisallow: /\n"));
+
 /**
  * Register a route to serve the Markdown for LLMs
  *

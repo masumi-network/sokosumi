@@ -126,6 +126,18 @@ describe("core index", () => {
     serveMock.mockImplementation(() => undefined);
   });
 
+  it("serves robots.txt that disallows all crawlers", async () => {
+    const fetchHandler = await loadFetchHandler();
+
+    const response = await fetchHandler(
+      new Request("http://localhost/robots.txt"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toMatch(/text\/plain/);
+    expect(await response.text()).toBe("User-Agent: *\nDisallow: /\n");
+  });
+
   it("does not generate llms markdown during startup and still serves docs routes", async () => {
     createMarkdownFromOpenApiMock.mockResolvedValue("# llms");
 
