@@ -23,6 +23,7 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
+  removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
@@ -339,6 +340,7 @@ interface RoomHeaderChromeProps {
   onToggleThreadList: () => void;
   rosterOpen: boolean;
   onToggleRoster: () => void;
+  currentUserId: string;
   organizationMembers: Member[];
   coworkers: Coworker[];
   canEditMembers: boolean;
@@ -361,6 +363,7 @@ function RoomHeaderChrome({
   onToggleThreadList,
   rosterOpen,
   onToggleRoster,
+  currentUserId,
   organizationMembers,
   coworkers,
   canEditMembers,
@@ -429,6 +432,7 @@ function RoomHeaderChrome({
             channel={room}
             members={organizationMembers}
             coworkers={coworkers}
+            currentUserId={currentUserId}
             canEditMembers={canEditMembers}
             canManageSettings={canManageSettings}
             canArchive={canArchive}
@@ -2006,6 +2010,28 @@ export function RoomsClient({
     });
   }
 
+  function handleRemoveUnfurl(message: ChatRoomMessage, url: string) {
+    if (!selectedRoom) {
+      return;
+    }
+    const roomId = selectedRoom.id;
+    void (async () => {
+      const result = await removeRoomMessageUnfurlAction(
+        roomId,
+        message.id,
+        url,
+      );
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
+      mergeUpdatedMessage(result.value);
+    })();
+  }
+
   function handleDeleteMessage(message: ChatRoomMessage) {
     if (!selectedRoom) return;
     const roomId = selectedRoom.id;
@@ -2441,6 +2467,7 @@ export function RoomsClient({
         }}
         rosterOpen={rosterOpen}
         onToggleRoster={handleToggleRoster}
+        currentUserId={currentUserId}
         organizationMembers={organizationMembers}
         coworkers={coworkers}
         canEditMembers={canEditSelectedRoomMembers}
@@ -2564,6 +2591,9 @@ export function RoomsClient({
                       }
                       onDelete={
                         isOutboundLocal ? undefined : handleDeleteMessage
+                      }
+                      onRemoveUnfurl={
+                        isOutboundLocal ? undefined : handleRemoveUnfurl
                       }
                       onRetryOutbound={handleRetryOutbound}
                       onRetryMention={
@@ -2728,6 +2758,7 @@ export function RoomsClient({
                 openingDirectParticipantKey={openingDirectKey}
                 onStartEdit={handleStartEdit}
                 onDelete={handleDeleteMessage}
+                onRemoveUnfurl={handleRemoveUnfurl}
                 editSession={editSession}
                 onEditDraftChange={handleEditDraftChange}
                 onCancelEdit={handleCancelEdit}
@@ -2823,6 +2854,7 @@ export function RoomsClient({
                 open={isCreateChannelRequested}
                 members={organizationMembers}
                 coworkers={coworkers}
+                currentUserId={currentUserId}
                 organizationName={activeOrganization?.name ?? ""}
                 membersLoadFailed={membersLoadFailed}
                 canCreateExternal={isOrgOwnerOrAdmin}

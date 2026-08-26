@@ -1,4 +1,4 @@
-import type { SocialProviderId } from "@/lib/schemas/auth";
+import type { AuthMethodId } from "@/lib/schemas/auth";
 
 import { fireEvent } from "./utils";
 
@@ -15,7 +15,7 @@ export const fireGTMEvent = {
     });
   },
 
-  signUp(provider: SocialProviderId) {
+  signUp(provider: AuthMethodId) {
     fireEvent({
       event: "sign_up",
       provider,
@@ -40,7 +40,7 @@ export const fireGTMEvent = {
     });
   },
 
-  signIn(provider: SocialProviderId) {
+  signIn(provider: AuthMethodId) {
     fireEvent({
       event: "login",
       provider,
@@ -53,9 +53,14 @@ export const fireGTMEvent = {
     });
   },
 
-  beginCheckout() {
+  /**
+   * Fire BEFORE the hard navigation to Stripe: the push must be in the
+   * dataLayer before `window.location.href` changes.
+   */
+  beginCheckout(params?: { plan?: string; seats?: number }) {
     fireEvent({
       event: "begin_checkout",
+      ...params,
     });
   },
 

@@ -53,6 +53,34 @@ describe("parseOpenGraphFields", () => {
 });
 
 describe("toUnfurlCard", () => {
+  it("returns null when title exists but image and description are missing", () => {
+    expect(
+      toUnfurlCard(
+        {
+          title: "Sign In | Sentry",
+          description: null,
+          image: null,
+          siteName: "Sentry",
+        },
+        "https://masumi.sentry.io",
+        "https://masumi.sentry.io",
+      ),
+    ).toBeNull();
+
+    expect(
+      toUnfurlCard(
+        {
+          title: "Resend",
+          description: "  ",
+          image: null,
+          siteName: "Resend",
+        },
+        "https://resend.com",
+        "https://resend.com",
+      ),
+    ).toBeNull();
+  });
+
   it("requires a non-empty title", () => {
     expect(
       toUnfurlCard(
@@ -105,7 +133,7 @@ describe("toUnfurlCard", () => {
       toUnfurlCard(
         {
           title: "T",
-          description: null,
+          description: "D",
           image: "data:image/png;base64,xxx",
           siteName: null,
         },
@@ -115,9 +143,51 @@ describe("toUnfurlCard", () => {
     ).toEqual({
       url: "https://example.com/page",
       title: "T",
-      description: null,
+      description: "D",
       imageUrl: null,
       siteName: "example.com",
+    });
+  });
+
+  it("keeps a card with a description and no image", () => {
+    expect(
+      toUnfurlCard(
+        {
+          title: "Resend",
+          description: "Email for developers",
+          image: null,
+          siteName: "Resend",
+        },
+        "https://resend.com",
+        "https://resend.com",
+      ),
+    ).toEqual({
+      url: "https://resend.com",
+      title: "Resend",
+      description: "Email for developers",
+      imageUrl: null,
+      siteName: "Resend",
+    });
+  });
+
+  it("keeps a card with an image and no description", () => {
+    expect(
+      toUnfurlCard(
+        {
+          title: "Watch",
+          description: null,
+          image: "https://cdn.example/thumb.jpg",
+          siteName: "YouTube",
+        },
+        "https://youtube.com/watch?v=1",
+        "https://youtube.com/watch?v=1",
+      ),
+    ).toEqual({
+      url: "https://youtube.com/watch?v=1",
+      title: "Watch",
+      description: null,
+      imageUrl: "https://cdn.example/thumb.jpg",
+      siteName: "YouTube",
     });
   });
 
@@ -126,7 +196,7 @@ describe("toUnfurlCard", () => {
       toUnfurlCard(
         {
           title: "Example Domain",
-          description: null,
+          description: "Example description",
           image: null,
           siteName: null,
         },
@@ -139,7 +209,7 @@ describe("toUnfurlCard", () => {
       toUnfurlCard(
         {
           title: "T",
-          description: null,
+          description: "D",
           image: null,
           siteName: "  ",
         },

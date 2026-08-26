@@ -657,7 +657,7 @@ export function membershipVisibleChannelOptions(
 ): ComposerChannelOption[] {
   const options: ComposerChannelOption[] = [];
   for (const room of rooms) {
-    if (room.kind !== "channel") continue;
+    if (room.kind !== "channel" || !room.slug) continue;
     options.push({
       id: room.id,
       name: room.name,
@@ -673,7 +673,7 @@ export function membershipVisibleChannelLinks(
 ): ChannelLinkTarget[] {
   const links: ChannelLinkTarget[] = [];
   for (const room of rooms) {
-    if (room.kind !== "channel") continue;
+    if (room.kind !== "channel" || !room.slug) continue;
     links.push({
       name: room.name,
       slug: room.slug,

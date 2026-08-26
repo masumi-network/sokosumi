@@ -30,7 +30,6 @@ import {
   mapChatRoomMessage,
   markAllChatRoomThreadsRead,
   mergeChatRoomMessageMetadata,
-  mergeUnfurlsIntoMessageMetadata,
   requireArchivedChatRoomUserAccess,
   requireChatRoomUserAccess,
   requireChatRoomUserMembership,
@@ -449,56 +448,6 @@ describe("mergeChatRoomMessageMetadata", () => {
 
   it("returns null when empty and no quote", () => {
     expect(mergeChatRoomMessageMetadata(null, null)).toBeNull();
-  });
-});
-
-describe("mergeUnfurlsIntoMessageMetadata", () => {
-  const card = {
-    url: "https://example.com",
-    title: "Example",
-    description: "Desc",
-    imageUrl: "https://cdn.example/i.png",
-    siteName: "Ex",
-  };
-
-  it("sets unfurls without wiping quote or membership", () => {
-    expect(
-      mergeUnfurlsIntoMessageMetadata(
-        {
-          quote: { messageId: "q1", authorName: "A", snippet: "s" },
-          membership: {
-            action: "joined",
-            subject: { type: "user", id: "u1", name: "U" },
-          },
-        },
-        [card],
-      ),
-    ).toEqual({
-      quote: { messageId: "q1", authorName: "A", snippet: "s" },
-      membership: {
-        action: "joined",
-        subject: { type: "user", id: "u1", name: "U" },
-      },
-      unfurls: [card],
-    });
-  });
-
-  it("removes unfurls key on empty scrape while preserving quote", () => {
-    expect(
-      mergeUnfurlsIntoMessageMetadata(
-        {
-          quote: { messageId: "q1", authorName: "A", snippet: "s" },
-          unfurls: [card],
-        },
-        [],
-      ),
-    ).toEqual({
-      quote: { messageId: "q1", authorName: "A", snippet: "s" },
-    });
-  });
-
-  it("returns null when clearing the only key", () => {
-    expect(mergeUnfurlsIntoMessageMetadata({ unfurls: [card] }, [])).toBeNull();
   });
 });
 
@@ -1164,6 +1113,64 @@ describe("mapChatRoomMessage unfurls", () => {
     });
 
     expect(mapped.unfurls).toBeNull();
+  });
+
+  it("omits unfurls whose URLs were removed by the author", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "https://ably.com https://resend.com",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: {
+        unfurls: [
+          {
+            url: "https://ably.com",
+            title: "Ably",
+            description: null,
+            imageUrl: null,
+            siteName: "Ably",
+          },
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: null,
+            imageUrl: null,
+            siteName: "Resend",
+          },
+        ],
+        removedUnfurlUrls: ["https://ably.com"],
+      },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.unfurls).toEqual([
+      {
+        url: "https://resend.com",
+        title: "Resend",
+        description: null,
+        imageUrl: null,
+        siteName: "Resend",
+      },
+    ]);
+    expect(mapped.metadata).not.toHaveProperty("removedUnfurlUrls");
+    expect(mapped.metadata?.unfurls).toEqual(mapped.unfurls);
   });
 });
 

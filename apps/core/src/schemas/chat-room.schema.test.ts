@@ -78,6 +78,17 @@ describe("chatRoomSchema", () => {
     expect(parsed.peerInActiveOrganization).toBe(false);
   });
 
+  it("allows a null slug on Directs", () => {
+    const parsed = chatRoomSchema.parse({
+      ...baseRoom,
+      kind: "direct",
+      slug: null,
+      discoverability: null,
+      directKey: "user_123:user_456",
+    });
+    expect(parsed.slug).toBeNull();
+  });
+
   it("fails without myAccess", () => {
     const { myAccess: _myAccess, ...without } = baseRoom;
     expect(() => chatRoomSchema.parse(without)).toThrow();
@@ -131,6 +142,17 @@ describe("createChatRoomRequestSchema", () => {
     expect(parsed).toMatchObject({
       kind: "channel",
       discoverability: "external",
+    });
+  });
+
+  it("accepts channel create with a slug and no name", () => {
+    const parsed = createChatRoomRequestSchema.parse({
+      kind: "channel",
+      slug: "team-soko",
+    });
+    expect(parsed).toMatchObject({
+      kind: "channel",
+      slug: "team-soko",
     });
   });
 });

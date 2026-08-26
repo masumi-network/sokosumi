@@ -5079,6 +5079,7 @@
         "topicPlaceholder": "What this channel is for",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
+        "cannotRemoveSelf": "Du kannst dich nicht selbst entfernen",
         "humans": "Humans",
         "coworkers": "AI coworkers",
         "cancel": "Cancel",
@@ -5197,7 +5198,8 @@
       },
       "Unfurl": {
         "openLink": "Linkvorschau öffnen: {title}",
-        "imageAlt": "Vorschaubild für {title}"
+        "imageAlt": "Vorschaubild für {title}",
+        "remove": "Linkvorschau entfernen: {title}"
       },
       "Message": {
         "delete": "Löschen",
@@ -5249,22 +5251,26 @@
       "CreateWizard": {
         "title": "Kanal erstellen",
         "nameLabel": "Name",
-        "namePlaceholder": "z. B. welcome",
-        "nameHelp": "Kanäle sind Orte für Gespräche zu einem Thema. Wähle einen klaren Namen, den alle erkennen.",
-        "nameRequired": "Kanalname ist erforderlich.",
+        "namePlaceholder": "z. B. Welcome",
+        "nameHelp": "Erscheint in der Seitenleiste. Startet vom Handle; du kannst ihn hier ändern.",
+        "slugLabel": "Handle",
+        "slugPlaceholder": "welcome",
+        "slugHelp": "Eindeutig unter Kanälen. Nach dem Erstellen nicht mehr änderbar.",
+        "slugTaken": "Dieses Kanal-Handle existiert bereits. Durchsuche die Kanäle, um es zu finden.",
+        "slugInvalid": "Gib ein gültiges Handle ein.",
+        "slugChecking": "Handle wird geprüft…",
+        "slugCheckFailed": "Dieses Handle konnte nicht geprüft werden. Versuche es erneut.",
+        "handleChrome": "# {slug}",
+        "topicLabel": "Thema",
+        "topicPlaceholder": "Worum geht es in diesem Kanal?",
         "next": "Weiter",
         "back": "Zurück",
         "create": "Erstellen",
-        "stepOf": "Schritt {current} von {total}",
-        "visibilitySubtitle": "# {name}",
-        "addPeopleTitle": "Personen zu #{name} hinzufügen",
+        "addPeopleTitle": "Personen zu {name} hinzufügen",
         "addAll": "Alle {count} Mitglieder von {organization} hinzufügen",
         "addSpecific": "Bestimmte Personen hinzufügen",
         "addSpecificHelp": "Wähle Personen und KI-Coworker aus, die diesem Kanal beitreten sollen.",
-        "add": "Hinzufügen",
-        "skip": "Vorerst überspringen",
-        "creating": "Wird erstellt…",
-        "adding": "Wird hinzugefügt…"
+        "creating": "Wird erstellt…"
       },
       "RoomRoster": {
         "open": "Mitglieder",

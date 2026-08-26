@@ -69,6 +69,7 @@ export function EditChannelDialog({
   channel,
   members,
   coworkers,
+  currentUserId,
   canEditMembers,
   canManageSettings,
   canArchive,
@@ -79,6 +80,7 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
+  currentUserId: string;
   /** Any active channel member may rewrite the roster. */
   canEditMembers: boolean;
   /** Organization owner/admin — name/topic/discoverability. */
@@ -141,6 +143,9 @@ export function EditChannelDialog({
     if (!canSubmit) return;
     startTransition(async () => {
       // Roster-only body when the caller cannot change settings (R3).
+      const memberUserIds = memberIds.includes(currentUserId)
+        ? memberIds
+        : [currentUserId, ...memberIds];
       const result = await updateRoomAction(
         channel.id,
         canManageSettings
@@ -148,11 +153,11 @@ export function EditChannelDialog({
               name,
               topic,
               discoverability,
-              memberUserIds: memberIds,
+              memberUserIds,
               coworkerIds,
             }
           : {
-              memberUserIds: memberIds,
+              memberUserIds,
               coworkerIds,
             },
       );
@@ -321,6 +326,7 @@ export function EditChannelDialog({
                     coworkers={coworkers}
                     memberIds={memberIds}
                     coworkerIds={coworkerIds}
+                    lockedUserId={currentUserId}
                     onMemberIdsChange={setMemberIds}
                     onCoworkerIdsChange={setCoworkerIds}
                     membersLoadFailed={membersLoadFailed}
