@@ -1,4 +1,4 @@
--- Channel slug is a Channel-only handle (ADR 0015). Directs persist null.
+-- Channel slug is a Channel-only handle (ADR 0016). Directs persist null.
 -- Occupancy is the Channel unique index, including private and archived rows.
 
 DROP INDEX "chat_room_organizationId_slug_key";
