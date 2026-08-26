@@ -380,38 +380,59 @@ function RoomHeaderChrome({
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
       <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
         {isDirectRoom ? (
-          <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+          <>
+            <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+            <p
+              className="text-foreground min-w-0 truncate text-sm"
+              data-testid="room-open-title"
+            >
+              {displayName}
+            </p>
+          </>
         ) : (
-          <ChannelDiscoverabilityIcon
-            className="text-muted-foreground"
-            discoverability={room.discoverability}
-          />
+          <EditChannelDialog
+            channel={room}
+            members={organizationMembers}
+            coworkers={coworkers}
+            currentUserId={currentUserId}
+            canEditMembers={canEditMembers}
+            canManageSettings={canManageSettings}
+            canArchive={canArchive}
+            canLeave={canLeave}
+            canInviteGuests={canInviteGuests}
+            membersLoadFailed={membersLoadFailed}
+          >
+            <button
+              type="button"
+              className="text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2"
+              title={t("editChannel")}
+              data-testid="room-open-title"
+            >
+              <ChannelDiscoverabilityIcon
+                className="text-muted-foreground"
+                discoverability={room.discoverability}
+              />
+              <span className="min-w-0 truncate">{displayName}</span>
+            </button>
+          </EditChannelDialog>
         )}
-        <p
-          className="text-foreground min-w-0 truncate text-sm"
-          data-testid="room-open-title"
-        >
-          {displayName}
-        </p>
-        <div className="shrink-0">
-          <RoomSearchPanel
-            key={room.id}
-            roomId={room.id}
-            loadedMessages={topLevelRoomMessages}
-            onOpenThread={onOpenThread}
-            labels={{
-              open: t("RoomSearch.open"),
-              placeholder: t("RoomSearch.placeholder"),
-              idle: t("RoomSearch.idle"),
-              empty: t("RoomSearch.empty"),
-              loading: t("RoomSearch.loading"),
-              error: t("RoomSearch.error"),
-              replyBadge: t("RoomSearch.replyBadge"),
-            }}
-          />
-        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+        <RoomSearchPanel
+          key={room.id}
+          roomId={room.id}
+          loadedMessages={topLevelRoomMessages}
+          onOpenThread={onOpenThread}
+          labels={{
+            open: t("RoomSearch.open"),
+            placeholder: t("RoomSearch.placeholder"),
+            idle: t("RoomSearch.idle"),
+            empty: t("RoomSearch.empty"),
+            loading: t("RoomSearch.loading"),
+            error: t("RoomSearch.error"),
+            replyBadge: t("RoomSearch.replyBadge"),
+          }}
+        />
         <UnreadThreadsPanel
           key={`unread-threads-${room.id}`}
           isOpen={threadListOpen}
@@ -427,20 +448,6 @@ function RoomHeaderChrome({
             onToggleRoster={onToggleRoster}
           />
         ) : null}
-        {isDirectRoom ? null : (
-          <EditChannelDialog
-            channel={room}
-            members={organizationMembers}
-            coworkers={coworkers}
-            currentUserId={currentUserId}
-            canEditMembers={canEditMembers}
-            canManageSettings={canManageSettings}
-            canArchive={canArchive}
-            canLeave={canLeave}
-            canInviteGuests={canInviteGuests}
-            membersLoadFailed={membersLoadFailed}
-          />
-        )}
       </div>
     </div>
   );
