@@ -74,7 +74,13 @@ function resolveProvider(id: string): SokoBotIntegrationProvider {
   if (!SLUG_PATTERN.test(slug)) {
     throw new SokoBotIntegrationError("Unknown provider", "UNKNOWN_PROVIDER");
   }
-  return { id: slug, name: slug, kinds: [], tools: {} };
+  return {
+    id: slug,
+    name: slug,
+    kinds: [],
+    tools: {},
+    logoUrl: `https://logos.composio.dev/api/${slug}`,
+  };
 }
 
 export interface SokoBotIntegrationCatalogEntry {
@@ -130,34 +136,16 @@ export async function searchSokoBotIntegrationCatalog(
   return entries.slice(0, limit);
 }
 
-let featuredLogos: { at: number; logos: Map<string, string> } | null = null;
-
-/** Toolkit logos by slug: the cached catalog plus direct lookups for the featured providers. */
+/** Toolkit logos by slug from the cached catalog; empty when unreachable. */
 async function catalogLogos(): Promise<Map<string, string>> {
   const entries = await searchSokoBotIntegrationCatalog("", 500).catch(
     () => [] as SokoBotIntegrationCatalogEntry[],
   );
-  const logos = new Map(
+  return new Map(
     entries.flatMap((entry) =>
       entry.logoUrl ? [[entry.provider, entry.logoUrl] as const] : [],
     ),
   );
-  const composio = getComposio();
-  if (!composio) return logos;
-  if (!featuredLogos || Date.now() - featuredLogos.at > CATALOG_TTL_MS) {
-    const found = new Map<string, string>();
-    await Promise.all(
-      SOKO_BOT_INTEGRATION_PROVIDERS.map(async (provider) => {
-        const toolkit = await composio.toolkits
-          .get(provider.id)
-          .catch(() => null);
-        if (toolkit?.meta?.logo) found.set(provider.id, toolkit.meta.logo);
-      }),
-    );
-    featuredLogos = { at: Date.now(), logos: found };
-  }
-  for (const [slug, logo] of featuredLogos.logos) logos.set(slug, logo);
-  return logos;
 }
 
 function curatedCatalog(
@@ -244,7 +232,7 @@ export async function listSokoBotIntegrations(
     return {
       provider: row.provider,
       name: row.name ?? known?.name ?? row.provider,
-      logoUrl: row.logoUrl ?? logos.get(row.provider) ?? null,
+      logoUrl: row.logoUrl ?? known?.logoUrl ?? logos.get(row.provider) ?? null,
       kinds: known?.kinds ?? [],
       status: row.status,
       connectedAt: row.connectedAt,

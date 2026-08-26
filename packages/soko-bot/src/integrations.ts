@@ -10,6 +10,7 @@ export interface SokoBotIntegrationProvider {
   name: string;
   /** What the bot ingests from it. */
   kinds: readonly SokoBotIntegrationKind[];
+  logoUrl: string;
   /** Composio tool slugs per operation. */
   tools: {
     listMessages?: string;
@@ -22,6 +23,7 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
   [
     {
       id: "gmail",
+      logoUrl: "https://logos.composio.dev/api/gmail",
       name: "Gmail",
       kinds: ["email"],
       tools: {
@@ -31,12 +33,14 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
     },
     {
       id: "googlecalendar",
+      logoUrl: "https://logos.composio.dev/api/googlecalendar",
       name: "Google Calendar",
       kinds: ["calendar"],
       tools: { listEvents: "GOOGLECALENDAR_EVENTS_LIST" },
     },
     {
       id: "outlook",
+      logoUrl: "https://logos.composio.dev/api/outlook",
       name: "Outlook",
       kinds: ["email", "calendar"],
       tools: {
