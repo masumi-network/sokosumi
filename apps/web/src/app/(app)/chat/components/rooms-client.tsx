@@ -404,7 +404,7 @@ function RoomHeaderChrome({
           >
             <button
               type="button"
-              className="text-foreground [@media(hover:hover)]:hover:bg-accent flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2"
               title={t("editChannel")}
               data-testid="room-open-title"
             >
