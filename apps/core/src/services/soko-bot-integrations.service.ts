@@ -105,15 +105,17 @@ export async function searchSokoBotIntegrationCatalog(
     if (!toolkits) return curatedCatalog(query, limit);
     catalogCache = {
       at: Date.now(),
-      entries: toolkits.map((toolkit) => ({
-        provider: toolkit.slug.toLowerCase(),
-        name: toolkit.name,
-        description: toolkit.meta?.description ?? null,
-        logoUrl: toolkit.meta?.logo ?? null,
-        kinds:
-          getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
-          [],
-      })),
+      entries: toolkits
+        .filter((toolkit) => toolkit.slug.toLowerCase() !== "composio")
+        .map((toolkit) => ({
+          provider: toolkit.slug.toLowerCase(),
+          name: toolkit.name,
+          description: toolkit.meta?.description ?? null,
+          logoUrl: toolkit.meta?.logo ?? null,
+          kinds:
+            getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
+            [],
+        })),
     };
   }
   const needle = query.trim().toLowerCase();
