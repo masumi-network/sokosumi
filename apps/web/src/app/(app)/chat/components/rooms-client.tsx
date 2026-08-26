@@ -2855,6 +2855,10 @@ export function RoomsClient({
               focusOnMount={!messagesPending}
               onBeforeSend={handleChannelBeforeSend}
               onSend={handleChannelSend}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={handleOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectKey}
             />
           }
           mainEnd={
