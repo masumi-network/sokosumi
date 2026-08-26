@@ -33,23 +33,27 @@ function buildPresenceData(
 }
 
 /**
- * Enter Ably Presence on every org channel granted on the token (ADR-0003).
- * Updates lastActiveAt / visible from browser activity and visibility.
- * Unchanged idle presence does not publish; activity refreshes lastActiveAt
- * on a ~4 min throttle. A 30s local tick only rechecks; it is not an Ably
- * message. Visibility, enter, and reconnect force publish.
+ * Enter Ably Presence only on the active organization (ADR-0003). Other orgs
+ * on the token stay offline. Updates lastActiveAt / visible from browser
+ * activity and visibility. Unchanged idle presence does not publish; activity
+ * refreshes lastActiveAt on a ~4 min throttle. A 30s local tick only rechecks;
+ * it is not an Ably message. Visibility, enter, and reconnect force publish.
  * Owns channel attach/detach for presence channels (map only subscribes).
  */
-export function useOrgPresencePublisher(): void {
+export function useOrgPresencePublisher(organizationId: string | null): void {
   const ably = useAbly();
-  const channelsRef = useRef(new Map<string, Ably.RealtimeChannel>());
   const lastActiveAtRef = useRef(Date.now());
   const lastPublishedAtRef = useRef(0);
   const lastPublishedRef = useRef<ChatPresenceMemberData | null>(null);
 
   useEffect(() => {
+    if (organizationId == null) {
+      return;
+    }
+
+    const activeOrganizationId = organizationId;
     let cancelled = false;
-    const channels = channelsRef.current;
+    const channels = new Map<string, Ably.RealtimeChannel>();
     /** Coalesce mount + connected so authorize never overlaps. */
     let syncInFlight = false;
     let syncQueued = false;
@@ -128,11 +132,12 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      const organizationIds =
+      const grantedIds =
         organizationIdsFromAblyCapability(tokenDetails?.capability) ?? [];
-      const nextNames = new Set(
-        organizationIds.map((id) => makeOrgPresenceChannelName(id)),
-      );
+      const nextNames = new Set<string>();
+      if (grantedIds.includes(activeOrganizationId)) {
+        nextNames.add(makeOrgPresenceChannelName(activeOrganizationId));
+      }
 
       for (const [name, channel] of channels) {
         if (cancelled) {
@@ -153,10 +158,13 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      // Ensure every granted org channel is tracked, then force enter/update on
-      // all of them. Skipping already-tracked channels leaves self offline after
-      // hard reconnect (Ably only auto-restores presence on resume).
+      // Ensure the active org channel is tracked, then force enter/update.
+      // Skipping an already-tracked channel leaves self offline after hard
+      // reconnect (Ably only auto-restores presence on resume).
       for (const name of nextNames) {
+        if (cancelled) {
+          return;
+        }
         if (!channels.has(name)) {
           channels.set(name, ably.channels.get(name));
         }
@@ -226,5 +234,5 @@ export function useOrgPresencePublisher(): void {
       }
       channels.clear();
     };
-  }, [ably]);
+  }, [ably, organizationId]);
 }
