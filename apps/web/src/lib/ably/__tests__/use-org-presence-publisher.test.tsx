@@ -2,7 +2,7 @@ import type { ChatPresenceMemberData } from "@sokosumi/utils";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS } from "../should-publish-org-presence";
+import { ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS } from "@/lib/ably/should-publish-org-presence";
 
 const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
   () => {
@@ -39,7 +39,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
-import { useOrgPresencePublisher } from "../use-org-presence-publisher";
+import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);

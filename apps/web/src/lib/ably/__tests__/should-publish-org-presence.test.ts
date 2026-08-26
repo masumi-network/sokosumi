@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
   shouldPublishOrgPresenceUpdate,
-} from "../should-publish-org-presence";
+} from "@/lib/ably/should-publish-org-presence";
 
 const MIN_INTERVAL_MS = 240_000;
 
