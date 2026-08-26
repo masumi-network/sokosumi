@@ -26,6 +26,11 @@ describe("liveSanitizeChannelSlug", () => {
     expect(liveSanitizeChannelSlug("-team")).toBe("team");
     expect(liveSanitizeChannelSlug(" team")).toBe("team");
   });
+
+  it("drops punctuation instead of turning it into a hyphen", () => {
+    expect(liveSanitizeChannelSlug("team.")).toBe("team");
+    expect(liveSanitizeChannelSlug("team.soko")).toBe("teamsoko");
+  });
 });
 
 describe("channelNameFromSlug", () => {

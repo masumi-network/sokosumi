@@ -16,16 +16,19 @@ export function sanitizeChannelSlug(raw: string): string {
 }
 
 /**
- * Live handle input: spaces and junk become `-`, trailing `-` is kept
- * so the user can type `team-soko`. Leading `-` is stripped. Canonical
- * stored slugs still go through `sanitizeChannelSlug`.
+ * Live handle input: spaces become `-`, typed `-` is kept, other
+ * characters are dropped (`.` does not become `-`). Trailing `-` stays
+ * so the user can type `team-soko`. Canonical stored slugs still go
+ * through `sanitizeChannelSlug`.
  */
 export function liveSanitizeChannelSlug(raw: string): string {
   return raw
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/ /g, "-")
+    .replace(/[^a-z0-9-]+/g, "")
+    .replace(/-+/g, "-")
     .replace(/^-+/g, "");
 }
 
