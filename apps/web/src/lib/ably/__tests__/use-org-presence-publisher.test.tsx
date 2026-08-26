@@ -107,7 +107,7 @@ describe("useOrgPresencePublisher", () => {
   });
 
   it("enters presence once and does not heartbeat an unchanged idle payload", async () => {
-    renderHook(() => useOrgPresencePublisher());
+    renderHook(() => useOrgPresencePublisher("org_1"));
     await flushEffects();
 
     const presence = channelFor("presence:org_org_1").presence;
@@ -126,7 +126,7 @@ describe("useOrgPresencePublisher", () => {
   });
 
   it("does not publish activity inside the min interval, then flushes lastActiveAt", async () => {
-    renderHook(() => useOrgPresencePublisher());
+    renderHook(() => useOrgPresencePublisher("org_1"));
     await flushEffects();
 
     const presence = channelFor("presence:org_org_1").presence;
@@ -168,7 +168,7 @@ describe("useOrgPresencePublisher", () => {
       return channel;
     });
 
-    renderHook(() => useOrgPresencePublisher());
+    renderHook(() => useOrgPresencePublisher("org_1"));
     await flushEffects();
 
     const presence = channelFor("presence:org_org_1").presence;
@@ -206,7 +206,7 @@ describe("useOrgPresencePublisher", () => {
   });
 
   it("publishes immediately when visibility changes", async () => {
-    renderHook(() => useOrgPresencePublisher());
+    renderHook(() => useOrgPresencePublisher("org_1"));
     await flushEffects();
 
     const presence = channelFor("presence:org_org_1").presence;
@@ -223,21 +223,18 @@ describe("useOrgPresencePublisher", () => {
     });
   });
 
-  it("retries a failed org on the next local tick instead of treating partial success as done", async () => {
+  it("retries a failed active org on the next local tick instead of treating a failed enter as done", async () => {
     const errorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    authorizeMock.mockResolvedValue(tokenWithOrgs("org_1", "org_2"));
-    const failedOrg = channelFor("presence:org_org_2");
+    const failedOrg = channelFor("presence:org_org_1");
     failedOrg.presence.update.mockRejectedValue(new Error("channel denied"));
     failedOrg.presence.enter.mockRejectedValue(new Error("channel denied"));
 
     try {
-      renderHook(() => useOrgPresencePublisher());
+      renderHook(() => useOrgPresencePublisher("org_1"));
       await flushEffects();
 
-      const okOrg = channelFor("presence:org_org_1").presence;
-      expect(okOrg.update).toHaveBeenCalledTimes(1);
       expect(failedOrg.presence.update).toHaveBeenCalledTimes(1);
 
       await act(async () => {
@@ -249,8 +246,26 @@ describe("useOrgPresencePublisher", () => {
     }
   });
 
+  it("enters only the active organization even when the token grants more", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("org_1", "org_2"));
+    renderHook(() => useOrgPresencePublisher("org_1"));
+    await flushEffects();
+
+    expect(getMock).toHaveBeenCalledWith("presence:org_org_1");
+    expect(
+      channelFor("presence:org_org_1").presence.update,
+    ).toHaveBeenCalledTimes(1);
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_2");
+    expect(
+      channelFor("presence:org_org_2").presence.update,
+    ).not.toHaveBeenCalled();
+    expect(
+      channelFor("presence:org_org_2").presence.enter,
+    ).not.toHaveBeenCalled();
+  });
+
   it("force-publishes on reconnect even when the payload is unchanged", async () => {
-    renderHook(() => useOrgPresencePublisher());
+    renderHook(() => useOrgPresencePublisher("org_1"));
     await flushEffects();
 
     const presence = channelFor("presence:org_org_1").presence;
@@ -262,5 +277,146 @@ describe("useOrgPresencePublisher", () => {
       await Promise.resolve();
     });
     expect(presence.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves the previous organization and enters the next on workspace switch", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("org_1", "org_2"));
+    const { rerender } = renderHook(
+      ({ organizationId }: { organizationId: string | null }) =>
+        useOrgPresencePublisher(organizationId),
+      { initialProps: { organizationId: "org_1" } },
+    );
+    await flushEffects();
+
+    const org1 = channelFor("presence:org_org_1");
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_2");
+
+    rerender({ organizationId: "org_2" });
+    await flushEffects();
+
+    expect(org1.presence.leave).toHaveBeenCalled();
+    expect(org1.detach).toHaveBeenCalled();
+    expect(getMock).toHaveBeenCalledWith("presence:org_org_2");
+    expect(
+      channelFor("presence:org_org_2").presence.update,
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not enter presence in a personal workspace and leaves on switch", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("org_1"));
+    const { rerender } = renderHook<void, { organizationId: string | null }>(
+      ({ organizationId }) => useOrgPresencePublisher(organizationId),
+      { initialProps: { organizationId: null } },
+    );
+    await flushEffects();
+
+    expect(getMock).not.toHaveBeenCalled();
+    expect(authorizeMock).not.toHaveBeenCalled();
+
+    rerender({ organizationId: "org_1" });
+    await flushEffects();
+    const org1 = channelFor("presence:org_org_1");
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    rerender({ organizationId: null });
+    await flushEffects();
+    expect(org1.presence.leave).toHaveBeenCalled();
+  });
+
+  it("waits for leave to settle before re-entering the same organization", async () => {
+    let resolveLeave: () => void = () => undefined;
+    getMock.mockImplementation((name: string) => {
+      const channel = channelFor(name);
+      channel.presence.leave.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveLeave = resolve;
+          }),
+      );
+      return channel;
+    });
+
+    const { rerender } = renderHook<void, { organizationId: string | null }>(
+      ({ organizationId }) => useOrgPresencePublisher(organizationId),
+      { initialProps: { organizationId: "org_1" } },
+    );
+    await flushEffects();
+
+    const org1 = channelFor("presence:org_org_1");
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    rerender({ organizationId: null });
+    await flushEffects();
+    expect(org1.presence.leave).toHaveBeenCalledTimes(1);
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    rerender({ organizationId: "org_1" });
+    await flushEffects();
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveLeave();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(org1.presence.update.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("does not enter the previous organization if authorize resolves after a workspace switch", async () => {
+    const authResolvers: Array<(value: unknown) => void> = [];
+    authorizeMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          authResolvers.push(resolve);
+        }),
+    );
+
+    const { rerender } = renderHook<void, { organizationId: string | null }>(
+      ({ organizationId }) => useOrgPresencePublisher(organizationId),
+      { initialProps: { organizationId: "org_1" } },
+    );
+    await flushEffects();
+    expect(authResolvers).toHaveLength(1);
+    expect(getMock).not.toHaveBeenCalled();
+
+    rerender({ organizationId: "org_2" });
+    await flushEffects();
+
+    await act(async () => {
+      authResolvers[0]?.(tokenWithOrgs("org_1", "org_2"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_1");
+    expect(
+      channelFor("presence:org_org_1").presence.update,
+    ).not.toHaveBeenCalled();
+    expect(
+      channelFor("presence:org_org_1").presence.enter,
+    ).not.toHaveBeenCalled();
+    expect(getMock).toHaveBeenCalledWith("presence:org_org_2");
+    expect(channelFor("presence:org_org_2").presence.update).toHaveBeenCalled();
+
+    await act(async () => {
+      authResolvers[1]?.(tokenWithOrgs("org_1", "org_2"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_1");
+  });
+
+  it("does not enter the active organization when it is not granted on the token", async () => {
+    authorizeMock.mockResolvedValue(tokenWithOrgs("org_2"));
+    renderHook(() => useOrgPresencePublisher("org_1"));
+    await flushEffects();
+
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_1");
+    expect(
+      channelFor("presence:org_org_1").presence.update,
+    ).not.toHaveBeenCalled();
+    expect(
+      channelFor("presence:org_org_1").presence.enter,
+    ).not.toHaveBeenCalled();
   });
 });

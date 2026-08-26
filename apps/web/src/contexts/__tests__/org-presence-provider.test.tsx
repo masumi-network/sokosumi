@@ -26,6 +26,7 @@ import {
   OrgPresenceProvider,
   useMemberPresence,
 } from "@/contexts/org-presence-provider";
+import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
 
 function PresenceProbe({
   userId,
@@ -41,6 +42,27 @@ function PresenceProbe({
 describe("OrgPresenceProvider", () => {
   beforeEach(() => {
     lazyAblyProviderMock.mockClear();
+    vi.mocked(useOrgPresencePublisher).mockClear();
+  });
+
+  it("passes the active organization to the presence publisher", () => {
+    render(
+      <OrgPresenceProvider organizationId="org_1">
+        <div />
+      </OrgPresenceProvider>,
+    );
+
+    expect(useOrgPresencePublisher).toHaveBeenCalledWith("org_1");
+  });
+
+  it("passes null to the presence publisher for a personal workspace", () => {
+    render(
+      <OrgPresenceProvider organizationId={null}>
+        <div />
+      </OrgPresenceProvider>,
+    );
+
+    expect(useOrgPresencePublisher).toHaveBeenCalledWith(null);
   });
 
   it("keeps paint-critical children outside the LazyAbly island", () => {
