@@ -22,7 +22,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Weekday mornings: today's meetings, mail that needs you, and what is stuck on the board.",
     prompt:
-      "Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today's calendar with times and who with, 2) mail that needs them, 3) the board — Tasks waiting on someone, stuck or failed, and what you will do about each (nudge the Coworker with reply_to_task, ask the owner one question, or reschedule), 4) follow-ups due from memory. Do the nudges in this turn, then post the brief. Skip empty sections.",
+      'Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) mail that needs them, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory. "Open on the board" is context only — never nudge or comment on those. Skip empty sections.',
   },
   {
     key: "weekly-wrap",
