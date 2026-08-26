@@ -67,6 +67,8 @@ interface FilterDropdownMenuProps {
 
 const ALL_FILTER_VALUE = "__all__";
 
+export const FILTER_DROPDOWN_OPTION_LABEL_CLASS = "min-w-0 flex-1 truncate";
+
 export function FilterDropdownMenu({
   buttonLabel,
   searchPlaceholder,
@@ -211,7 +213,7 @@ function FilterDropdownMenuSectionItem({
             />
             <span className="truncate">{section.label}</span>
           </div>
-          <span className="max-w-28 truncate text-right text-xs text-muted-foreground">
+          <span className="min-w-0 max-w-28 truncate text-right text-xs text-muted-foreground">
             {selectedOption?.label ?? section.allLabel}
           </span>
         </div>
@@ -236,13 +238,16 @@ function FilterDropdownMenuSectionItem({
                   key={option.value}
                   value={option.value}
                   keywords={filterKeywords}
+                  className="min-w-0"
                   onSelect={() => {
                     section.onChange(isAllOption ? null : option.value);
                     onSelect();
                   }}
                 >
                   <FilterDropdownMenuOptionAvatar option={option} />
-                  <span className="flex-1 truncate">{option.label}</span>
+                  <span className={FILTER_DROPDOWN_OPTION_LABEL_CLASS}>
+                    {option.label}
+                  </span>
                   <Check
                     className={cn(
                       "size-4",
@@ -361,7 +366,7 @@ function FilterDropdownMenuSectionMobile({
           <section.icon className="size-4 text-muted-foreground" aria-hidden />
           <span className="truncate font-medium">{section.label}</span>
         </div>
-        <span className="max-w-28 truncate text-right text-xs text-muted-foreground">
+        <span className="min-w-0 max-w-28 truncate text-right text-xs text-muted-foreground">
           {selectedOption?.label ?? section.allLabel}
         </span>
       </button>
@@ -389,13 +394,16 @@ function FilterDropdownMenuSectionMobile({
                     key={option.value}
                     value={option.value}
                     keywords={filterKeywords}
+                    className="min-w-0"
                     onSelect={() => {
                       section.onChange(isAllOption ? null : option.value);
                       onSelect();
                     }}
                   >
                     <FilterDropdownMenuOptionAvatar option={option} />
-                    <span className="flex-1 truncate">{option.label}</span>
+                    <span className={FILTER_DROPDOWN_OPTION_LABEL_CLASS}>
+                      {option.label}
+                    </span>
                     <Check
                       className={cn(
                         "size-4",
