@@ -1285,6 +1285,46 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).not.toContain("b0user");
   });
 
+  it("hydrates roster display names over picker catalog labels", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="@u1:andreas hello"
+        onChange={() => undefined}
+        mentions={{
+          u1: { value: "Andreas", slug: "andreas" },
+        }}
+        mentionDisplayByKey={new Map([["u1", "Andreas Osberghaus"]])}
+        mentionDisplayBySlug={
+          new Map([["andreas-osberghaus", "Andreas Osberghaus"]])
+        }
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-mention-key='u1']");
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+  });
+
+  it("does not preventDefault Escape when onEscape is omitted", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="hello"
+        onChange={() => undefined}
+        mentions={{}}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    editor.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it("leaves unknown persist tokens raw on hydrate", () => {
     render(
       <ComposerWysiwygEditor

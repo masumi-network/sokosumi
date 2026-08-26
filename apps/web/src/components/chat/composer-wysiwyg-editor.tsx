@@ -289,12 +289,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const resolveMentionDisplay = useCallback(
     (mentionKey: string, mentionSlug: string) => {
       const displayName =
-        keyToValue.get(mentionKey) ??
         mentionDisplayByKey?.get(mentionKey) ??
-        slugToValue.get(mentionSlug) ??
+        keyToValue.get(mentionKey) ??
         mentionDisplayBySlug?.get(mentionSlug) ??
-        slugToValue.get(slugifyMentionValue(mentionKey)) ??
-        mentionDisplayBySlug?.get(slugifyMentionValue(mentionKey));
+        slugToValue.get(mentionSlug) ??
+        mentionDisplayBySlug?.get(slugifyMentionValue(mentionKey)) ??
+        slugToValue.get(slugifyMentionValue(mentionKey));
 
       if (displayName) {
         return { displayName, isKnown: true };
@@ -1122,9 +1122,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
         return;
       }
 
-      if (!hasModifier && key === "escape") {
+      if (!hasModifier && key === "escape" && onEscape) {
         event.preventDefault();
-        onEscape?.();
+        onEscape();
         return;
       }
 
