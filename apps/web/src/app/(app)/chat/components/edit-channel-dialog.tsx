@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type FormEvent,
-  type ReactNode,
+  type ReactElement,
   useEffect,
   useState,
   useTransition,
@@ -98,7 +98,8 @@ export function EditChannelDialog({
    */
   canInviteGuests?: boolean;
   membersLoadFailed?: boolean;
-  children: ReactNode;
+  /** Single element for DialogTrigger asChild; must accept merged props and ref. */
+  children: ReactElement;
 }) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
