@@ -120,7 +120,7 @@ async function BotNode({ member }: { member: Member }) {
 async function PersonNode({ member }: { member: Member }) {
   const t = await getTranslations("App.SokoBots");
   return (
-    <li className="flex w-64 flex-col">
+    <li className="flex w-full flex-col sm:w-64">
       <div
         className={cn(
           "bg-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
