@@ -157,6 +157,20 @@ export function SokoBotConsole({
                   {botName}
                 </h1>
                 <SokoBotStatusBadge status={bot.status} />
+                {version ? (
+                  <span
+                    className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs tabular-nums"
+                    title={`${version.name} · ${version.model}\n${version.summary}`}
+                  >
+                    <span className="text-foreground font-medium">
+                      {version.id}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <span className="max-w-[16rem] truncate">
+                      {version.model.replace(/^mistral\//, "")}
+                    </span>
+                  </span>
+                ) : null}
               </div>
               <p className="text-muted-foreground text-sm">
                 {t("Console.tagline")}
