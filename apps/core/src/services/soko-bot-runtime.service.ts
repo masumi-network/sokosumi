@@ -573,7 +573,7 @@ export class SokoBotRuntimeService {
               status: { not: "PAUSED" },
             },
           },
-          select: { eveSessionId: true, id: true },
+          select: { eveSessionId: true, id: true, source: true },
         });
         if (!attachable) {
           throw new SokoBotRuntimeAuthorizationError(
@@ -2495,6 +2495,7 @@ export class SokoBotRuntimeService {
             userId,
             workspaceId: decision.workspaceId,
             eveSessionId: decision.turn.eveSessionId,
+            source: decision.turn.source,
           },
           classificationConfidence: 1,
           hasNegatedMutationIntent: false,
