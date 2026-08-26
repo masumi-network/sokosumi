@@ -49,12 +49,10 @@ interface PinnedMessagesPanelProps {
 }
 
 export function PinnedMessagesHeaderButton({
-  count,
   isOpen,
   onToggle,
   openLabel,
 }: {
-  count: number;
   isOpen: boolean;
   onToggle: () => void;
   openLabel: string;
@@ -67,15 +65,9 @@ export function PinnedMessagesHeaderButton({
       aria-label={openLabel}
       aria-expanded={isOpen}
       data-testid="pinned-messages-trigger"
-      className="relative overflow-visible"
       onClick={onToggle}
     >
       <Pin className="size-4" />
-      {count > 0 ? (
-        <span className="bg-primary text-primary-foreground absolute top-1 right-1 flex size-4 min-w-4 items-center justify-center rounded-full text-xs leading-none">
-          {count}
-        </span>
-      ) : null}
     </Button>
   );
 }

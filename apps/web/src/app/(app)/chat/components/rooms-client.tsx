@@ -354,7 +354,6 @@ interface RoomHeaderChromeProps {
   threadListOpen: boolean;
   onToggleThreadList: () => void;
   pinnedOpen: boolean;
-  pinnedCount: number;
   onTogglePinned: () => void;
   rosterOpen: boolean;
   onToggleRoster: () => void;
@@ -379,7 +378,6 @@ function RoomHeaderChrome({
   threadListOpen,
   onToggleThreadList,
   pinnedOpen,
-  pinnedCount,
   onTogglePinned,
   rosterOpen,
   onToggleRoster,
@@ -440,7 +438,6 @@ function RoomHeaderChrome({
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
         {isDirectRoom ? null : (
           <PinnedMessagesHeaderButton
-            count={pinnedCount}
             isOpen={pinnedOpen}
             onToggle={onTogglePinned}
             openLabel={t("PinnedMessages.open")}
@@ -639,7 +636,6 @@ export function RoomsClient({
 
   const [threadListOpen, setThreadListOpen] = useState(false);
   const [pinnedOpen, setPinnedOpen] = useState(false);
-  const [pinnedCount, setPinnedCount] = useState(0);
   const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
   const [pinnedMessageIds, setPinnedMessageIds] = useState<Set<string>>(
     () => new Set(),
@@ -856,13 +852,11 @@ export function RoomsClient({
   useEffect(() => {
     if (!selectedRoom || selectedRoom.kind !== "channel") {
       setPinnedOpen(false);
-      setPinnedCount(0);
       setPinnedMessageIds(new Set());
       return;
     }
-    setPinnedCount(selectedRoom.pinnedMessageCount ?? 0);
     setPinnedMessageIds(new Set());
-  }, [selectedRoom?.id, selectedRoom?.kind, selectedRoom?.pinnedMessageCount]);
+  }, [selectedRoom?.id, selectedRoom?.kind]);
 
   async function handleOpenDirectMessage(
     profile: ChatParticipantHoverProfile,
@@ -1017,11 +1011,7 @@ export function RoomsClient({
       if (selectedRoomIdRef.current !== event.roomId) {
         return;
       }
-      applyPinnedMutation(
-        event.messageId,
-        event.pinnedMessageCount,
-        event.action === "pin",
-      );
+      applyPinnedMutation(event.messageId, event.action === "pin");
     },
     [],
   );
@@ -2025,11 +2015,7 @@ export function RoomsClient({
     setPinnedOpen(true);
   }
 
-  function applyPinnedMutation(
-    messageId: string,
-    count: number,
-    pinned: boolean,
-  ) {
+  function applyPinnedMutation(messageId: string, pinned: boolean) {
     setPinnedMessageIds((current) => {
       const next = new Set(current);
       if (pinned) {
@@ -2039,7 +2025,6 @@ export function RoomsClient({
       }
       return next;
     });
-    setPinnedCount(count);
     setPinnedListGeneration((generation) => generation + 1);
   }
 
@@ -2056,11 +2041,7 @@ export function RoomsClient({
       toast.error(result.error.message);
       return;
     }
-    applyPinnedMutation(
-      message.id,
-      result.value.pinnedMessageCount,
-      !alreadyPinned,
-    );
+    applyPinnedMutation(message.id, !alreadyPinned);
   }
 
   async function handleJumpToPinnedMessage(messageId: string) {
@@ -2738,7 +2719,6 @@ export function RoomsClient({
         onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
         pinnedOpen={pinnedOpen}
-        pinnedCount={pinnedCount}
         onTogglePinned={handleTogglePinned}
         onToggleThreadList={() => {
           setRosterOpen(false);
@@ -3132,11 +3112,7 @@ export function RoomsClient({
                     toast.error(result.error.message);
                     return false;
                   }
-                  applyPinnedMutation(
-                    messageId,
-                    result.value.pinnedMessageCount,
-                    false,
-                  );
+                  applyPinnedMutation(messageId, false);
                   return true;
                 }}
                 labels={{
