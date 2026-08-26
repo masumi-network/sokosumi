@@ -5260,6 +5260,7 @@
         "slugTaken": "This handle is already taken. Choose another.",
         "slugInvalid": "Enter a valid handle.",
         "slugChecking": "Checking handle…",
+        "slugCheckFailed": "Could not check this handle. Try again.",
         "next": "Next",
         "back": "Back",
         "create": "Create",

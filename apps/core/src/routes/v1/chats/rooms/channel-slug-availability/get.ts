@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { sanitizeChannelSlug } from "@sokosumi/utils";
+import { CHANNEL_SLUG_MAX_LENGTH, sanitizeChannelSlug } from "@sokosumi/utils";
 
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -54,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const organizationId = requireActiveOrganizationId(userContext);
     const { slug: rawSlug } = c.req.valid("query");
     const slug = sanitizeChannelSlug(rawSlug);
-    if (!slug) {
+    if (!slug || slug.length > CHANNEL_SLUG_MAX_LENGTH) {
       throw badRequest("Channel slug is invalid");
     }
 

@@ -215,7 +215,7 @@ export const createChatRoomRequestSchema = z
       }),
       slug: z.string().optional().openapi({
         description:
-          "Required Channel slug. Core sanitizes with kebab rules and rejects missing or empty-after-sanitize values. Unique among Channels in the organization.",
+          "Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.",
         example: "launch-room",
       }),
       topic: z.string().trim().max(200).optional().openapi({

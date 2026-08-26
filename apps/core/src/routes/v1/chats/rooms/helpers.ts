@@ -1,6 +1,7 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   buildRoomQuoteSnippetParts,
+  CHANNEL_SLUG_MAX_LENGTH,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 
@@ -1290,7 +1291,7 @@ export function requireSanitizedChannelSlug(raw: string | undefined): string {
     throw badRequest("Channel slug is required");
   }
   const slug = sanitizeChannelSlug(raw);
-  if (!slug) {
+  if (!slug || slug.length > CHANNEL_SLUG_MAX_LENGTH) {
     throw badRequest("Channel slug is invalid");
   }
   return slug;

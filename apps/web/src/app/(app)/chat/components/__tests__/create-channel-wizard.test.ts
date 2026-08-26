@@ -129,6 +129,26 @@ describe("create-channel-wizard", () => {
     });
   });
 
+  it("clamps a dirty slug to 80 characters after sanitize", () => {
+    const named = setName(createInitialWizard(), "Engineering");
+    const long = setSlug(named, `a${"b".repeat(90)}`);
+    expect(long).toEqual({
+      step: "name",
+      name: "Engineering",
+      slug: `a${"b".repeat(79)}`,
+      slugDirty: true,
+    });
+  });
+
+  it("cannot continue when availability check failed", () => {
+    expect(
+      canAdvanceFromName(
+        { step: "name", name: "ok", slug: "ok", slugDirty: false },
+        "error",
+      ),
+    ).toBe(false);
+  });
+
   it("live-sanitizes typed slug keystrokes", () => {
     const named = setName(createInitialWizard(), "Engineering");
     expect(setSlug(named, " Team Soko ")).toEqual({

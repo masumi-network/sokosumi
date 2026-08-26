@@ -29,6 +29,7 @@ import {
   advanceNameToVisibility,
   backToName,
   CHANNEL_NAME_MAX,
+  CHANNEL_SLUG_MAX,
   type ChannelSlugCheckState,
   type CreateChannelWizard,
   canAdvanceFromName,
@@ -119,7 +120,7 @@ export function CreateChannelDialog({
         return;
       }
       if (!result.ok) {
-        setAvailability("unknown");
+        setAvailability("error");
         return;
       }
       setAvailability(result.value.status);
@@ -136,9 +137,11 @@ export function CreateChannelDialog({
       toast.error(
         availability === "taken"
           ? t("slugTaken")
-          : wizard.step === "name" && wizard.slug.length === 0
-            ? t("slugInvalid")
-            : t("nameRequired"),
+          : availability === "error"
+            ? t("slugCheckFailed")
+            : wizard.step === "name" && wizard.slug.length === 0
+              ? t("slugInvalid")
+              : t("nameRequired"),
       );
       return;
     }
@@ -323,16 +326,19 @@ export function CreateChannelDialog({
                   className="pl-7"
                   autoComplete="off"
                   spellCheck={false}
+                  maxLength={CHANNEL_SLUG_MAX}
                 />
               </div>
               <p className="text-muted-foreground text-xs">
                 {availability === "taken"
                   ? t("slugTaken")
-                  : availability === "unknown"
-                    ? t("slugChecking")
-                    : availability === "invalid" && wizard.slugDirty
-                      ? t("slugInvalid")
-                      : t("slugHelp")}
+                  : availability === "error"
+                    ? t("slugCheckFailed")
+                    : availability === "unknown"
+                      ? t("slugChecking")
+                      : availability === "invalid" && wizard.slugDirty
+                        ? t("slugInvalid")
+                        : t("slugHelp")}
               </p>
             </div>
           </div>

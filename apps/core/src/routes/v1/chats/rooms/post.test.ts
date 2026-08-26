@@ -378,6 +378,23 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a Channel slug longer than 80 after sanitize", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug: "a".repeat(81),
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe("Channel slug is invalid");
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a Channel slug that is empty after sanitize", async () => {
     const app = createApp(userAuthContext);
     const response = await app.request("/", {

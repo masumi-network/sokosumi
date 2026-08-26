@@ -29,7 +29,10 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
-export { sanitizeChannelSlug } from "./channel-slug.js";
+export {
+  CHANNEL_SLUG_MAX_LENGTH,
+  sanitizeChannelSlug,
+} from "./channel-slug.js";
 export {
   CHAT_MEMBERSHIP_REVOKE_REASONS,
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,

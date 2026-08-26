@@ -1,3 +1,6 @@
+/** Max length of a sanitized Channel slug. Matches Channel name max. */
+export const CHANNEL_SLUG_MAX_LENGTH = 80;
+
 /**
  * Channel-handle kebab rules shared by Core and the create UI.
  * Empty after sanitize is invalid — callers must reject, not invent a fallback.

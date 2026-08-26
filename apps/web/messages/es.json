@@ -5260,6 +5260,7 @@
         "slugTaken": "Este identificador ya está en uso. Elige otro.",
         "slugInvalid": "Introduce un identificador válido.",
         "slugChecking": "Comprobando identificador…",
+        "slugCheckFailed": "No se pudo comprobar este identificador. Inténtalo de nuevo.",
         "next": "Siguiente",
         "back": "Atrás",
         "create": "Crear",

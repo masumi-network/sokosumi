@@ -1,4 +1,4 @@
-# ADR 0015: Channel slug is a channel-only handle
+# ADR 0016: Channel slug is a channel-only handle
 
 - Status: Accepted
 - Date: 2026-08-25

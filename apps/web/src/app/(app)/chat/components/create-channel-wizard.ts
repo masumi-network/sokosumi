@@ -1,10 +1,16 @@
-import { sanitizeChannelSlug } from "@sokosumi/utils";
+import { CHANNEL_SLUG_MAX_LENGTH, sanitizeChannelSlug } from "@sokosumi/utils";
 
 export const CHANNEL_NAME_MAX = 80;
+export const CHANNEL_SLUG_MAX = CHANNEL_SLUG_MAX_LENGTH;
 
 export type Discoverability = "public" | "private" | "external";
 export type AddPeopleMode = "all" | "specific";
-export type ChannelSlugCheckState = "free" | "taken" | "unknown" | "invalid";
+export type ChannelSlugCheckState =
+  | "free"
+  | "taken"
+  | "unknown"
+  | "invalid"
+  | "error";
 
 interface CreateChannelNameFields {
   name: string;
@@ -60,7 +66,7 @@ export function setSlug(
   }
   return {
     ...wizard,
-    slug: sanitizeChannelSlug(raw),
+    slug: sanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX),
     slugDirty: true,
   };
 }

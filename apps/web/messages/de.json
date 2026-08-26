@@ -5260,6 +5260,7 @@
         "slugTaken": "Dieses Handle ist bereits vergeben. Wähle ein anderes.",
         "slugInvalid": "Gib ein gültiges Handle ein.",
         "slugChecking": "Handle wird geprüft…",
+        "slugCheckFailed": "Dieses Handle konnte nicht geprüft werden. Versuche es erneut.",
         "next": "Weiter",
         "back": "Zurück",
         "create": "Erstellen",
