@@ -232,9 +232,6 @@ export function SokoBotConsole({
                   initialInstalled={installedSkills}
                 />
               </Section>
-            </div>
-
-            <aside className="space-y-6">
               {integrations ? (
                 <Section
                   title={t("Integrations.title")}
@@ -246,6 +243,9 @@ export function SokoBotConsole({
                   />
                 </Section>
               ) : null}
+            </div>
+
+            <aside className="space-y-6">
               <Section
                 title={t("Schedules.title")}
                 description={t("Schedules.description")}
