@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-export {};
-
 const createClientMock = vi.fn();
 const getMock = vi.fn();
 const patchMock = vi.fn();

@@ -14,17 +14,19 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
 
-interface EmailPreferencesProps {
+import { PushNotificationSetting } from "./push-notification-setting";
+
+interface NotificationPreferencesProps {
   notificationsOptIn: boolean;
   marketingOptIn: boolean;
 }
 
 type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 
-export function EmailPreferences({
+export function NotificationPreferences({
   notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
-}: EmailPreferencesProps) {
+}: NotificationPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
   const [notificationsOptIn, setNotificationsOptIn] = useState(
     initialNotificationsOptIn,
@@ -132,6 +134,7 @@ export function EmailPreferences({
             aria-label={t("marketingEmailsAriaLabel")}
           />
         </div>
+        <PushNotificationSetting />
       </CardContent>
     </Card>
   );
