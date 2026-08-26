@@ -5270,7 +5270,6 @@
         "addAll": "Añadir a los {count} miembros de {organization}",
         "addSpecific": "Añadir personas concretas",
         "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal.",
-        "skip": "Omitir por ahora",
         "creating": "Creando…"
       },
       "RoomRoster": {

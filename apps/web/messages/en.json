@@ -5270,7 +5270,6 @@
         "addAll": "Add all {count} members of {organization}",
         "addSpecific": "Add specific people",
         "addSpecificHelp": "Select people and AI coworkers to add to this channel.",
-        "skip": "Skip for now",
         "creating": "Creating…"
       },
       "RoomRoster": {

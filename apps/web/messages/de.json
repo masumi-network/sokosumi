@@ -5270,7 +5270,6 @@
         "addAll": "Alle {count} Mitglieder von {organization} hinzufügen",
         "addSpecific": "Bestimmte Personen hinzufügen",
         "addSpecificHelp": "Wähle Personen und KI-Coworker aus, die diesem Kanal beitreten sollen.",
-        "skip": "Vorerst überspringen",
         "creating": "Wird erstellt…"
       },
       "RoomRoster": {

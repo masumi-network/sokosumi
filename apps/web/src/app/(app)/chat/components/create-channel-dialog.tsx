@@ -200,13 +200,6 @@ export function CreateChannelDialog({
     });
   }
 
-  function handleSkip() {
-    submitCreate({
-      memberUserIds: [],
-      coworkerIds: [],
-    });
-  }
-
   const isCreateStep = wizard.step === "create";
 
   return (
@@ -481,27 +474,17 @@ export function CreateChannelDialog({
             >
               {t("back")}
             </Button>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={isPending}
-                onClick={handleSkip}
-              >
-                {t("skip")}
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={isPending}
-                onClick={handleCreate}
-              >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : null}
-                {isPending ? t("creating") : t("create")}
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={isPending}
+              onClick={handleCreate}
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {isPending ? t("creating") : t("create")}
+            </Button>
           </DialogFooter>
         ) : null}
       </DialogContent>
