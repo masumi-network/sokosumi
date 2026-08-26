@@ -2,6 +2,7 @@ import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
+  channelNameFromSlug,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 
@@ -1295,6 +1296,17 @@ export function requireSanitizedChannelSlug(raw: string | undefined): string {
     throw badRequest("Channel slug is invalid");
   }
   return slug;
+}
+
+export function resolveChannelName(
+  raw: string | undefined,
+  slug: string,
+): string {
+  const trimmed = raw?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  return channelNameFromSlug(slug);
 }
 
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {

@@ -5733,13 +5733,13 @@ export const CreateChatRoomRequestSchema = {
                 },
                 name: {
                     type: 'string',
-                    minLength: 1,
                     maxLength: 80,
+                    description: 'Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).',
                     example: 'Launch Room'
                 },
                 slug: {
                     type: 'string',
-                    description: 'Required Channel slug. Core sanitizes with kebab rules and rejects missing or empty-after-sanitize values. Unique among Channels in the organization.',
+                    description: 'Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.',
                     example: 'launch-room'
                 },
                 topic: {
@@ -5785,8 +5785,7 @@ export const CreateChatRoomRequestSchema = {
                 }
             },
             required: [
-                'kind',
-                'name'
+                'kind'
             ]
         },
         {

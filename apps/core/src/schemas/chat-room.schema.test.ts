@@ -144,6 +144,17 @@ describe("createChatRoomRequestSchema", () => {
       discoverability: "external",
     });
   });
+
+  it("accepts channel create with a slug and no name", () => {
+    const parsed = createChatRoomRequestSchema.parse({
+      kind: "channel",
+      slug: "team-soko",
+    });
+    expect(parsed).toMatchObject({
+      kind: "channel",
+      slug: "team-soko",
+    });
+  });
 });
 
 describe("chat room invitation schemas", () => {

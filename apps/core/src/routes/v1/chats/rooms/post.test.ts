@@ -362,6 +362,59 @@ describe("POST /chats/rooms", () => {
     );
   });
 
+  it("derives the Channel name from the slug when name is omitted", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ name: "Team Soko", slug: "team-soko" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        slug: "team-soko",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Team Soko",
+          slug: "team-soko",
+        }),
+      }),
+    );
+  });
+
+  it("derives the Channel name from the slug when name is blank", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ name: "Welcome", slug: "welcome" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "   ",
+        slug: "welcome",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Welcome",
+          slug: "welcome",
+        }),
+      }),
+    );
+  });
+
   it("rejects channel create without a slug", async () => {
     const app = createApp(userAuthContext);
     const response = await app.request("/", {

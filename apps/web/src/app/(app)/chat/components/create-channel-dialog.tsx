@@ -23,25 +23,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
-  advanceNameToVisibility,
-  backToName,
   CHANNEL_NAME_MAX,
   CHANNEL_SLUG_MAX,
+  CHANNEL_TOPIC_MAX,
   type ChannelSlugCheckState,
   type CreateChannelWizard,
-  canAdvanceFromName,
+  canCreateChannel,
   createChannelSubmitFields,
   createInitialWizard,
   type Discoverability,
   remainingNameChars,
+  remainingTopicChars,
   setAddPeopleMode,
   setDiscoverability,
   setName,
   setSlug,
   setSpecificMembers,
+  setTopic,
   toAddPeople,
 } from "./create-channel-wizard";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
@@ -80,7 +82,7 @@ export function CreateChannelDialog({
   const [isPending, startTransition] = useTransition();
 
   const slugFieldError =
-    wizard.step === "name"
+    wizard.step === "create"
       ? availability === "taken"
         ? t("slugTaken")
         : availability === "error"
@@ -89,7 +91,6 @@ export function CreateChannelDialog({
             ? t("slugInvalid")
             : null
       : null;
-  const createStepNumber = wizard.step === "visibility" ? 2 : 1;
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
 
@@ -112,20 +113,20 @@ export function CreateChannelDialog({
     clearCreateQuery();
   }
 
-  const nameStepSlug = wizard.step === "name" ? wizard.slug : "";
+  const createStepSlug = wizard.step === "create" ? wizard.slug : "";
 
   useEffect(() => {
-    if (wizard.step !== "name") {
+    if (wizard.step !== "create") {
       return;
     }
-    if (!nameStepSlug) {
+    if (!createStepSlug) {
       setAvailability("invalid");
       return;
     }
     setAvailability("unknown");
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      const result = await checkChannelSlugAvailabilityAction(nameStepSlug);
+      const result = await checkChannelSlugAvailabilityAction(createStepSlug);
       if (cancelled) {
         return;
       }
@@ -139,38 +140,26 @@ export function CreateChannelDialog({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [wizard.step, nameStepSlug]);
-
-  function handleNameNext() {
-    const next = advanceNameToVisibility(wizard, availability);
-    if (!next) {
-      toast.error(
-        availability === "taken"
-          ? t("slugTaken")
-          : availability === "error"
-            ? t("slugCheckFailed")
-            : wizard.step === "name" && wizard.slug.length === 0
-              ? t("slugInvalid")
-              : t("nameRequired"),
-      );
-      return;
-    }
-    setWizard(next);
-  }
+  }, [wizard.step, createStepSlug]);
 
   function handleCreate() {
-    if (wizard.step !== "visibility" || isPending) {
+    if (
+      wizard.step !== "create" ||
+      isPending ||
+      !canCreateChannel(wizard, availability)
+    ) {
       return;
     }
     const fields = createChannelSubmitFields(wizard);
     if (!fields) {
       return;
     }
-    const { name, slug, discoverability } = fields;
+    const { name, slug, topic, discoverability } = fields;
     startTransition(async () => {
       const result = await createChannelAction({
         name,
         slug,
+        topic,
         discoverability,
       });
       if (!result.ok) {
@@ -251,15 +240,15 @@ export function CreateChannelDialog({
     });
   }
 
-  const isCreateStep = wizard.step === "name" || wizard.step === "visibility";
+  const isCreateStep = wizard.step === "create";
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="max-h-[calc(100svh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
-        {...(wizard.step !== "visibility"
-          ? { "aria-describedby": undefined }
-          : {})}
+        {...(wizard.step === "create" && wizard.slug
+          ? {}
+          : { "aria-describedby": undefined })}
       >
         <DialogHeader className={cn(isCreateStep && "gap-1.5")}>
           <DialogTitle>
@@ -267,44 +256,15 @@ export function CreateChannelDialog({
               ? t("addPeopleTitle", { name: wizard.roomName })
               : t("title")}
           </DialogTitle>
-          {wizard.step === "visibility" ? (
+          {wizard.step === "create" && wizard.slug ? (
             <DialogDescription className="text-muted-foreground text-xs font-normal">
-              {t("visibilitySubtitle", { name: wizard.name })}
+              {t("handleChrome", { slug: wizard.slug })}
             </DialogDescription>
           ) : null}
         </DialogHeader>
 
-        {wizard.step === "name" ? (
+        {wizard.step === "create" ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
-              <div className="relative">
-                <Input
-                  id="create-channel-name"
-                  value={wizard.name}
-                  onChange={(event) =>
-                    setWizard(setName(wizard, event.target.value))
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleNameNext();
-                    }
-                  }}
-                  placeholder={t("namePlaceholder")}
-                  className="pr-10 pl-7"
-                  autoFocus
-                  maxLength={CHANNEL_NAME_MAX}
-                />
-                <span
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
-                  aria-hidden
-                >
-                  {remainingNameChars(wizard.name)}
-                </span>
-              </div>
-              <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
               <div className="relative">
@@ -323,13 +283,14 @@ export function CreateChannelDialog({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      handleNameNext();
+                      handleCreate();
                     }
                   }}
                   placeholder={t("slugPlaceholder")}
                   className="pl-7"
                   autoComplete="off"
                   spellCheck={false}
+                  autoFocus
                   maxLength={CHANNEL_SLUG_MAX}
                   aria-invalid={slugFieldError !== null}
                   aria-describedby="create-channel-slug-status"
@@ -349,65 +310,110 @@ export function CreateChannelDialog({
                     : t("slugHelp"))}
               </p>
             </div>
-          </div>
-        ) : null}
-
-        {wizard.step === "visibility" ? (
-          <div className="space-y-2">
-            <Label>{tVisibility("label")}</Label>
-            <RadioGroup
-              value={wizard.discoverability}
-              onValueChange={(value) => {
-                if (!isDiscoverability(value)) {
-                  return;
-                }
-                if (value === "external" && !canCreateExternal) {
-                  return;
-                }
-                setWizard(setDiscoverability(wizard, value));
-              }}
-              className="flex flex-wrap gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="public" id="create-channel-public" />
-                <Label
-                  htmlFor="create-channel-public"
-                  className="cursor-pointer font-normal"
+            <div className="space-y-2">
+              <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
+              <div className="relative">
+                <Input
+                  id="create-channel-name"
+                  value={wizard.name}
+                  onChange={(event) =>
+                    setWizard(setName(wizard, event.target.value))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleCreate();
+                    }
+                  }}
+                  placeholder={t("namePlaceholder")}
+                  className="pr-10"
+                  maxLength={CHANNEL_NAME_MAX}
+                />
+                <span
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
+                  aria-hidden
                 >
-                  {tVisibility("public")}
-                </Label>
+                  {remainingNameChars(wizard.name)}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="private" id="create-channel-private" />
-                <Label
-                  htmlFor="create-channel-private"
-                  className="cursor-pointer font-normal"
+              <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-channel-topic">{t("topicLabel")}</Label>
+              <div className="relative">
+                <Textarea
+                  id="create-channel-topic"
+                  value={wizard.topic}
+                  onChange={(event) =>
+                    setWizard(setTopic(wizard, event.target.value))
+                  }
+                  placeholder={t("topicPlaceholder")}
+                  maxLength={CHANNEL_TOPIC_MAX}
+                />
+                <span
+                  className="text-muted-foreground pointer-events-none absolute right-3 bottom-2 text-xs tabular-nums"
+                  aria-hidden
                 >
-                  {tVisibility("private")}
-                </Label>
+                  {remainingTopicChars(wizard.topic)}
+                </span>
               </div>
-              {canCreateExternal ? (
+            </div>
+            <div className="space-y-2">
+              <Label>{tVisibility("label")}</Label>
+              <RadioGroup
+                value={wizard.discoverability}
+                onValueChange={(value) => {
+                  if (!isDiscoverability(value)) {
+                    return;
+                  }
+                  if (value === "external" && !canCreateExternal) {
+                    return;
+                  }
+                  setWizard(setDiscoverability(wizard, value));
+                }}
+                className="flex flex-wrap gap-4"
+              >
                 <div className="flex items-center gap-2">
-                  <RadioGroupItem
-                    value="external"
-                    id="create-channel-external"
-                  />
+                  <RadioGroupItem value="public" id="create-channel-public" />
                   <Label
-                    htmlFor="create-channel-external"
+                    htmlFor="create-channel-public"
                     className="cursor-pointer font-normal"
                   >
-                    {tVisibility("external")}
+                    {tVisibility("public")}
                   </Label>
                 </div>
-              ) : null}
-            </RadioGroup>
-            <p className="text-muted-foreground text-xs">
-              {wizard.discoverability === "public"
-                ? tVisibility("publicHelp")
-                : wizard.discoverability === "private"
-                  ? tVisibility("privateHelp")
-                  : tVisibility("externalHelp")}
-            </p>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="private" id="create-channel-private" />
+                  <Label
+                    htmlFor="create-channel-private"
+                    className="cursor-pointer font-normal"
+                  >
+                    {tVisibility("private")}
+                  </Label>
+                </div>
+                {canCreateExternal ? (
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value="external"
+                      id="create-channel-external"
+                    />
+                    <Label
+                      htmlFor="create-channel-external"
+                      className="cursor-pointer font-normal"
+                    >
+                      {tVisibility("external")}
+                    </Label>
+                  </div>
+                ) : null}
+              </RadioGroup>
+              <p className="text-muted-foreground text-xs">
+                {wizard.discoverability === "public"
+                  ? tVisibility("publicHelp")
+                  : wizard.discoverability === "private"
+                    ? tVisibility("privateHelp")
+                    : tVisibility("externalHelp")}
+              </p>
+            </div>
           </div>
         ) : null}
 
@@ -488,41 +494,18 @@ export function CreateChannelDialog({
         ) : null}
 
         {isCreateStep ? (
-          <DialogFooter className="gap-2 sm:justify-between">
-            <p className="text-muted-foreground self-center text-sm">
-              {t("stepOf", { current: createStepNumber, total: 2 })}
-            </p>
-            <div className="flex gap-2">
-              {wizard.step === "visibility" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={() => setWizard(backToName(wizard))}
-                >
-                  {t("back")}
-                </Button>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={isPending || !canCreateChannel(wizard, availability)}
+              onClick={handleCreate}
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
               ) : null}
-              <Button
-                type="button"
-                variant="primary"
-                disabled={
-                  isPending ||
-                  (wizard.step === "name" &&
-                    !canAdvanceFromName(wizard, availability))
-                }
-                onClick={wizard.step === "name" ? handleNameNext : handleCreate}
-              >
-                {wizard.step === "visibility" && isPending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : null}
-                {wizard.step === "name"
-                  ? t("next")
-                  : isPending
-                    ? t("creating")
-                    : t("create")}
-              </Button>
-            </div>
+              {isPending ? t("creating") : t("create")}
+            </Button>
           </DialogFooter>
         ) : null}
 

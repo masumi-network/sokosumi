@@ -210,7 +210,9 @@ export const createChatRoomRequestSchema = z
         description:
           "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).",
       }),
-      name: z.string().trim().min(1).max(80).openapi({
+      name: z.string().trim().max(80).optional().openapi({
+        description:
+          "Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).",
         example: "Launch Room",
       }),
       slug: z.string().optional().openapi({

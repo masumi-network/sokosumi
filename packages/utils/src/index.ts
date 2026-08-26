@@ -31,6 +31,7 @@ export type {
 } from "./better-auth-types.js";
 export {
   CHANNEL_SLUG_MAX_LENGTH,
+  channelNameFromSlug,
   sanitizeChannelSlug,
 } from "./channel-slug.js";
 export {

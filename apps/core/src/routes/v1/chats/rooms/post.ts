@@ -37,6 +37,7 @@ import {
   normalizeUniqueStrings,
   requireActiveOrganizationId,
   requireSanitizedChannelSlug,
+  resolveChannelName,
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
   validateChatCoworkerIds,
@@ -120,6 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const organizationId = requireActiveOrganizationId(userContext);
     const slug = requireSanitizedChannelSlug(body.slug);
+    const name = resolveChannelName(body.name, slug);
 
     try {
       const room = await prisma.$transaction(async (tx) => {
@@ -158,7 +160,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             organizationId,
             createdByUserId: userContext.userId,
-            name: body.name,
+            name,
             slug,
             topic: body.topic?.trim() || null,
             discoverability: body.discoverability,

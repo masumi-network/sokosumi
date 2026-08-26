@@ -1,28 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
-  advanceNameToVisibility,
-  backToName,
   CHANNEL_NAME_MAX,
-  canAdvanceFromName,
+  CHANNEL_TOPIC_MAX,
+  canCreateChannel,
   createChannelSubmitFields,
   createInitialWizard,
   remainingNameChars,
+  remainingTopicChars,
   sanitizeChannelNameInput,
   setAddPeopleMode,
   setDiscoverability,
   setName,
   setSlug,
   setSpecificMembers,
+  setTopic,
   toAddPeople,
 } from "../create-channel-wizard";
 
 describe("create-channel-wizard", () => {
-  it("createInitialWizard starts on name with empty slug following the name", () => {
+  it("createInitialWizard starts on create with an empty handle and public visibility", () => {
     expect(createInitialWizard()).toEqual({
-      step: "name",
-      name: "",
+      step: "create",
       slug: "",
       slugDirty: false,
+      name: "",
+      nameDirty: false,
+      topic: "",
+      discoverability: "public",
     });
   });
 
@@ -34,244 +38,141 @@ describe("create-channel-wizard", () => {
     ).toBe("a".repeat(CHANNEL_NAME_MAX));
   });
 
-  it("canAdvanceFromName requires a name, a sanitized slug, and free availability", () => {
-    expect(
-      canAdvanceFromName(
-        { step: "name", name: "", slug: "", slugDirty: false },
-        "free",
-      ),
-    ).toBe(false);
-    expect(
-      canAdvanceFromName(
-        { step: "name", name: "   ", slug: "", slugDirty: false },
-        "free",
-      ),
-    ).toBe(false);
-    expect(
-      canAdvanceFromName(
-        { step: "name", name: "ok", slug: "ok", slugDirty: false },
-        "free",
-      ),
-    ).toBe(true);
-    expect(
-      canAdvanceFromName(
-        { step: "name", name: "ok", slug: "ok", slugDirty: false },
-        "taken",
-      ),
-    ).toBe(false);
-    expect(
-      canAdvanceFromName(
-        { step: "name", name: "ok", slug: "ok", slugDirty: false },
-        "unknown",
-      ),
-    ).toBe(false);
-    expect(
-      canAdvanceFromName(
-        { step: "name", name: "ok", slug: "", slugDirty: true },
-        "invalid",
-      ),
-    ).toBe(false);
-    expect(
-      canAdvanceFromName(
-        {
-          step: "name",
-          name: "a".repeat(CHANNEL_NAME_MAX),
-          slug: "a".repeat(CHANNEL_NAME_MAX),
-          slugDirty: false,
-        },
-        "free",
-      ),
-    ).toBe(true);
-    expect(
-      canAdvanceFromName(
-        {
-          step: "visibility",
-          name: "ok",
-          slug: "ok",
-          slugDirty: false,
-          discoverability: "public",
-        },
-        "free",
-      ),
-    ).toBe(false);
-  });
-
-  it("prefills slug from the name and follows until the slug is edited", () => {
-    const named = setName(createInitialWizard(), "Team Soko");
-    expect(named).toEqual({
-      step: "name",
-      name: "Team Soko",
+  it("prefills name from the handle and follows until the name is edited", () => {
+    const handled = setSlug(createInitialWizard(), "team-soko");
+    expect(handled).toEqual({
+      step: "create",
       slug: "team-soko",
-      slugDirty: false,
-    });
-    expect(setName(named, "Engineering")).toEqual({
-      step: "name",
-      name: "Engineering",
-      slug: "engineering",
-      slugDirty: false,
-    });
-  });
-
-  it("stops following the name after the slug is edited", () => {
-    const named = setName(createInitialWizard(), "Team Soko");
-    const custom = setSlug(named, "soko");
-    expect(custom).toEqual({
-      step: "name",
+      slugDirty: true,
       name: "Team Soko",
-      slug: "soko",
-      slugDirty: true,
+      nameDirty: false,
+      topic: "",
+      discoverability: "public",
     });
-    expect(setName(custom, "Engineering")).toEqual({
-      step: "name",
-      name: "Engineering",
-      slug: "soko",
+    expect(setSlug(handled, "welcome")).toEqual({
+      step: "create",
+      slug: "welcome",
       slugDirty: true,
-    });
-  });
-
-  it("clamps a dirty slug to 80 characters after sanitize", () => {
-    const named = setName(createInitialWizard(), "Engineering");
-    const long = setSlug(named, `a${"b".repeat(90)}`);
-    expect(long).toEqual({
-      step: "name",
-      name: "Engineering",
-      slug: `a${"b".repeat(79)}`,
-      slugDirty: true,
+      name: "Welcome",
+      nameDirty: false,
+      topic: "",
+      discoverability: "public",
     });
   });
 
-  it("cannot continue when availability check failed", () => {
+  it("stops following the handle after the name is edited", () => {
+    const handled = setSlug(createInitialWizard(), "team-soko");
+    const custom = setName(handled, "Launch");
+    expect(custom).toEqual({
+      step: "create",
+      slug: "team-soko",
+      slugDirty: true,
+      name: "Launch",
+      nameDirty: true,
+      topic: "",
+      discoverability: "public",
+    });
+    expect(setSlug(custom, "welcome")).toEqual({
+      step: "create",
+      slug: "welcome",
+      slugDirty: true,
+      name: "Launch",
+      nameDirty: true,
+      topic: "",
+      discoverability: "public",
+    });
+  });
+
+  it("canCreateChannel requires a name, a sanitized slug, and free availability", () => {
+    const empty = createInitialWizard();
+    expect(canCreateChannel(empty, "free")).toBe(false);
+    expect(canCreateChannel(setSlug(empty, "welcome"), "free")).toBe(true);
     expect(
-      canAdvanceFromName(
-        { step: "name", name: "ok", slug: "ok", slugDirty: false },
-        "error",
-      ),
+      canCreateChannel(setName(setSlug(empty, "welcome"), "   "), "free"),
     ).toBe(false);
+    expect(canCreateChannel(setSlug(empty, "welcome"), "taken")).toBe(false);
+    expect(canCreateChannel(setSlug(empty, "welcome"), "unknown")).toBe(false);
+    expect(canCreateChannel(setSlug(empty, "welcome"), "error")).toBe(false);
+    expect(canCreateChannel(setSlug(empty, "---"), "invalid")).toBe(false);
   });
 
   it("live-sanitizes typed slug keystrokes", () => {
-    const named = setName(createInitialWizard(), "Engineering");
-    expect(setSlug(named, " Team Soko ")).toEqual({
-      step: "name",
-      name: "Engineering",
+    expect(setSlug(createInitialWizard(), " Team Soko ")).toEqual({
+      step: "create",
       slug: "team-soko",
       slugDirty: true,
-    });
-  });
-
-  it("cannot continue when the slug is empty after sanitize", () => {
-    const wizard = setSlug(setName(createInitialWizard(), "Team Soko"), "---");
-    expect(wizard).toMatchObject({ step: "name", slug: "" });
-    expect(canAdvanceFromName(wizard, "invalid")).toBe(false);
-    expect(advanceNameToVisibility(wizard, "invalid")).toBeNull();
-  });
-
-  it("advanceNameToVisibility trims name, keeps slug, and defaults to public", () => {
-    expect(
-      advanceNameToVisibility(
-        { step: "name", name: "  launch  ", slug: "launch", slugDirty: false },
-        "free",
-      ),
-    ).toEqual({
-      step: "visibility",
-      name: "launch",
-      slug: "launch",
-      slugDirty: false,
+      name: "Team Soko",
+      nameDirty: false,
+      topic: "",
       discoverability: "public",
     });
+  });
+
+  it("createChannelSubmitFields sends name, slug, optional topic, and visibility", () => {
+    const wizard = setDiscoverability(
+      setTopic(setSlug(createInitialWizard(), "team-soko"), "Ship it"),
+      "private",
+    );
+    expect(createChannelSubmitFields(wizard)).toEqual({
+      name: "Team Soko",
+      slug: "team-soko",
+      topic: "Ship it",
+      discoverability: "private",
+    });
+    expect(createChannelSubmitFields(createInitialWizard())).toBeNull();
     expect(
-      advanceNameToVisibility(
-        { step: "name", name: "  ", slug: "", slugDirty: false },
-        "free",
+      createChannelSubmitFields(
+        setName(setSlug(createInitialWizard(), "ok"), ""),
       ),
     ).toBeNull();
   });
 
-  it("createChannelSubmitFields sends the visible slug", () => {
+  it("omits a blank topic from submit fields", () => {
     expect(
-      createChannelSubmitFields({
-        step: "visibility",
-        name: "Team Soko",
-        slug: "soko",
-        slugDirty: true,
-        discoverability: "private",
-      }),
+      createChannelSubmitFields(
+        setTopic(setSlug(createInitialWizard(), "welcome"), "  "),
+      ),
     ).toEqual({
-      name: "Team Soko",
-      slug: "soko",
-      discoverability: "private",
+      name: "Welcome",
+      slug: "welcome",
+      discoverability: "public",
     });
-    expect(
-      createChannelSubmitFields({
-        step: "name",
-        name: "Team Soko",
-        slug: "soko",
-        slugDirty: true,
-      }),
-    ).toBeNull();
   });
 
-  it("setDiscoverability and backToName only apply on visibility", () => {
-    const visibility = {
-      step: "visibility" as const,
-      name: "launch",
-      slug: "launch",
-      slugDirty: false,
-      discoverability: "public" as const,
-    };
-    expect(setDiscoverability(visibility, "private")).toEqual({
-      ...visibility,
+  it("clamps topic length", () => {
+    const topic = `a`.repeat(CHANNEL_TOPIC_MAX + 8);
+    expect(setTopic(createInitialWizard(), topic)).toMatchObject({
+      topic: "a".repeat(CHANNEL_TOPIC_MAX),
+    });
+  });
+
+  it("setDiscoverability only applies on create", () => {
+    const create = setSlug(createInitialWizard(), "launch");
+    expect(setDiscoverability(create, "private")).toEqual({
+      ...create,
       discoverability: "private",
     });
-    expect(setDiscoverability(visibility, "external")).toEqual({
-      ...visibility,
+    expect(setDiscoverability(create, "external")).toEqual({
+      ...create,
       discoverability: "external",
     });
-    expect(backToName(visibility)).toEqual({
-      step: "name",
-      name: "launch",
-      slug: "launch",
-      slugDirty: false,
-    });
 
-    const nameStep = createInitialWizard();
-    expect(setDiscoverability(nameStep, "private")).toBe(nameStep);
-    expect(setDiscoverability(nameStep, "external")).toBe(nameStep);
-    expect(backToName(nameStep)).toBe(nameStep);
-  });
-
-  it("supports external discoverability through create flow", () => {
-    const visibility = {
-      step: "visibility" as const,
-      name: "partners",
-      slug: "partners",
-      slugDirty: false,
-      discoverability: "external" as const,
-    };
-    expect(visibility.discoverability).toBe("external");
-    expect(
-      toAddPeople(visibility, { id: "room-ext", name: "partners" }, "user-1"),
-    ).toMatchObject({
-      step: "add-people",
-      roomId: "room-ext",
-      roomName: "partners",
-    });
+    const addPeople = toAddPeople(
+      create,
+      { id: "room-1", name: "Launch" },
+      "user-1",
+    );
+    expect(setDiscoverability(addPeople, "private")).toBe(addPeople);
   });
 
   it("toAddPeople transitions after create with all mode and locks the creator on the roster", () => {
-    const visibility = {
-      step: "visibility" as const,
-      name: "launch",
-      slug: "launch",
-      slugDirty: false,
-      discoverability: "public" as const,
-    };
+    const create = setSlug(createInitialWizard(), "launch");
     expect(
-      toAddPeople(visibility, { id: "room-1", name: "launch" }, "user-1"),
+      toAddPeople(create, { id: "room-1", name: "Launch" }, "user-1"),
     ).toEqual({
       step: "add-people",
       roomId: "room-1",
-      roomName: "launch",
+      roomName: "Launch",
       mode: "all",
       memberUserIds: ["user-1"],
       coworkerIds: [],
@@ -280,14 +181,8 @@ describe("create-channel-wizard", () => {
 
   it("setAddPeopleMode and setSpecificMembers update add-people only", () => {
     const addPeople = toAddPeople(
-      {
-        step: "visibility",
-        name: "launch",
-        slug: "launch",
-        slugDirty: false,
-        discoverability: "public",
-      },
-      { id: "room-1", name: "launch" },
+      setSlug(createInitialWizard(), "launch"),
+      { id: "room-1", name: "Launch" },
       "user-1",
     );
     const specific = setAddPeopleMode(addPeople, "specific");
@@ -302,15 +197,17 @@ describe("create-channel-wizard", () => {
       coworkerIds: ["c1"],
     });
 
-    const nameStep = createInitialWizard();
-    expect(setAddPeopleMode(nameStep, "specific")).toBe(nameStep);
+    const create = createInitialWizard();
+    expect(setAddPeopleMode(create, "specific")).toBe(create);
     expect(
-      setSpecificMembers(nameStep, { memberUserIds: ["u1"], coworkerIds: [] }),
-    ).toBe(nameStep);
+      setSpecificMembers(create, { memberUserIds: ["u1"], coworkerIds: [] }),
+    ).toBe(create);
   });
 
-  it("remainingNameChars counts against max", () => {
+  it("remaining counters count against max", () => {
     expect(remainingNameChars("")).toBe(CHANNEL_NAME_MAX);
     expect(remainingNameChars("abc")).toBe(CHANNEL_NAME_MAX - 3);
+    expect(remainingTopicChars("")).toBe(CHANNEL_TOPIC_MAX);
+    expect(remainingTopicChars("ab")).toBe(CHANNEL_TOPIC_MAX - 2);
   });
 });

@@ -14,3 +14,18 @@ export function sanitizeChannelSlug(raw: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/**
+ * Display name derived from a sanitized Channel slug.
+ * `team-soko` → `Team Soko`. Empty slug → empty name.
+ */
+export function channelNameFromSlug(slug: string): string {
+  if (!slug) {
+    return "";
+  }
+  return slug
+    .split("-")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}

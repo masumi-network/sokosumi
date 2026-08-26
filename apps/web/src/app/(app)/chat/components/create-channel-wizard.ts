@@ -1,7 +1,12 @@
-import { CHANNEL_SLUG_MAX_LENGTH, sanitizeChannelSlug } from "@sokosumi/utils";
+import {
+  CHANNEL_SLUG_MAX_LENGTH,
+  channelNameFromSlug,
+  sanitizeChannelSlug,
+} from "@sokosumi/utils";
 
 export const CHANNEL_NAME_MAX = 80;
 export const CHANNEL_SLUG_MAX = CHANNEL_SLUG_MAX_LENGTH;
+export const CHANNEL_TOPIC_MAX = 200;
 
 export type Discoverability = "public" | "private" | "external";
 export type AddPeopleMode = "all" | "specific";
@@ -12,18 +17,17 @@ export type ChannelSlugCheckState =
   | "invalid"
   | "error";
 
-interface CreateChannelNameFields {
-  name: string;
+interface CreateChannelFormFields {
   slug: string;
   slugDirty: boolean;
+  name: string;
+  nameDirty: boolean;
+  topic: string;
+  discoverability: Discoverability;
 }
 
 export type CreateChannelWizard =
-  | ({ step: "name" } & CreateChannelNameFields)
-  | ({
-      step: "visibility";
-      discoverability: Discoverability;
-    } & CreateChannelNameFields)
+  | ({ step: "create" } & CreateChannelFormFields)
   | {
       step: "add-people";
       roomId: string;
@@ -34,7 +38,15 @@ export type CreateChannelWizard =
     };
 
 export function createInitialWizard(): CreateChannelWizard {
-  return { step: "name", name: "", slug: "", slugDirty: false };
+  return {
+    step: "create",
+    slug: "",
+    slugDirty: false,
+    name: "",
+    nameDirty: false,
+    topic: "",
+    discoverability: "public",
+  };
 }
 
 export function sanitizeChannelNameInput(raw: string): string {
@@ -42,79 +54,46 @@ export function sanitizeChannelNameInput(raw: string): string {
   return withoutHash.slice(0, CHANNEL_NAME_MAX);
 }
 
-export function setName(
-  wizard: CreateChannelWizard,
-  raw: string,
-): CreateChannelWizard {
-  if (wizard.step !== "name") {
-    return wizard;
-  }
-  const name = sanitizeChannelNameInput(raw);
-  return {
-    ...wizard,
-    name,
-    slug: wizard.slugDirty ? wizard.slug : sanitizeChannelSlug(name),
-  };
-}
-
 export function setSlug(
   wizard: CreateChannelWizard,
   raw: string,
 ): CreateChannelWizard {
-  if (wizard.step !== "name") {
+  if (wizard.step !== "create") {
+    return wizard;
+  }
+  const slug = sanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX);
+  return {
+    ...wizard,
+    slug,
+    slugDirty: true,
+    name: wizard.nameDirty ? wizard.name : channelNameFromSlug(slug),
+  };
+}
+
+export function setName(
+  wizard: CreateChannelWizard,
+  raw: string,
+): CreateChannelWizard {
+  if (wizard.step !== "create") {
     return wizard;
   }
   return {
     ...wizard,
-    slug: sanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX),
-    slugDirty: true,
+    name: sanitizeChannelNameInput(raw),
+    nameDirty: true,
   };
 }
 
-export function canAdvanceFromName(
+export function setTopic(
   wizard: CreateChannelWizard,
-  availability: ChannelSlugCheckState,
-): boolean {
-  if (wizard.step !== "name") {
-    return false;
-  }
-  const length = wizard.name.trim().length;
-  return (
-    length >= 1 &&
-    length <= CHANNEL_NAME_MAX &&
-    wizard.slug.length > 0 &&
-    availability === "free"
-  );
-}
-
-export function advanceNameToVisibility(
-  wizard: CreateChannelWizard,
-  availability: ChannelSlugCheckState,
-): CreateChannelWizard | null {
-  if (!canAdvanceFromName(wizard, availability) || wizard.step !== "name") {
-    return null;
+  raw: string,
+): CreateChannelWizard {
+  if (wizard.step !== "create") {
+    return wizard;
   }
   return {
-    step: "visibility",
-    name: wizard.name.trim(),
-    slug: wizard.slug,
-    slugDirty: wizard.slugDirty,
-    discoverability: "public",
-  };
-}
-
-export function createChannelSubmitFields(wizard: CreateChannelWizard): {
-  name: string;
-  slug: string;
-  discoverability: Discoverability;
-} | null {
-  if (wizard.step !== "visibility") {
-    return null;
-  }
-  return {
-    name: wizard.name,
-    slug: wizard.slug,
-    discoverability: wizard.discoverability,
+    ...wizard,
+    topic: raw.slice(0, CHANNEL_TOPIC_MAX),
   };
 }
 
@@ -122,21 +101,47 @@ export function setDiscoverability(
   wizard: CreateChannelWizard,
   value: Discoverability,
 ): CreateChannelWizard {
-  if (wizard.step !== "visibility") {
+  if (wizard.step !== "create") {
     return wizard;
   }
   return { ...wizard, discoverability: value };
 }
 
-export function backToName(wizard: CreateChannelWizard): CreateChannelWizard {
-  if (wizard.step !== "visibility") {
-    return wizard;
+export function canCreateChannel(
+  wizard: CreateChannelWizard,
+  availability: ChannelSlugCheckState,
+): boolean {
+  if (wizard.step !== "create") {
+    return false;
   }
+  const nameLength = wizard.name.trim().length;
+  return (
+    nameLength >= 1 &&
+    nameLength <= CHANNEL_NAME_MAX &&
+    wizard.slug.length > 0 &&
+    availability === "free"
+  );
+}
+
+export function createChannelSubmitFields(wizard: CreateChannelWizard): {
+  name: string;
+  slug: string;
+  topic?: string;
+  discoverability: Discoverability;
+} | null {
+  if (wizard.step !== "create") {
+    return null;
+  }
+  const name = wizard.name.trim();
+  if (name.length === 0 || wizard.slug.length === 0) {
+    return null;
+  }
+  const topic = wizard.topic.trim();
   return {
-    step: "name",
-    name: wizard.name,
+    name,
     slug: wizard.slug,
-    slugDirty: wizard.slugDirty,
+    ...(topic.length > 0 ? { topic } : {}),
+    discoverability: wizard.discoverability,
   };
 }
 
@@ -181,4 +186,8 @@ export function setSpecificMembers(
 
 export function remainingNameChars(name: string): number {
   return CHANNEL_NAME_MAX - name.length;
+}
+
+export function remainingTopicChars(topic: string): number {
+  return CHANNEL_TOPIC_MAX - topic.length;
 }
