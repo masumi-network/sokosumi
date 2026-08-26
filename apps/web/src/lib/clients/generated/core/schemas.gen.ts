@@ -3708,6 +3708,171 @@ export const ReviewedTaskPaymentClaimActionBodySchema = {
     ]
 } as const;
 
+export const AdminTaskScheduleQuarantineActionResultSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string'
+        },
+        eventId: {
+            type: 'string'
+        },
+        action: {
+            type: 'string',
+            enum: [
+                'repaired',
+                'removed'
+            ]
+        },
+        replayed: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'taskId',
+        'eventId',
+        'action',
+        'replayed'
+    ]
+} as const;
+
+export const RepairTaskScheduleQuarantineBodySchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this operator action',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Operator reason retained in the Task audit event',
+            example: 'Corrected an invalid imported timezone'
+        },
+        schedule: {
+            $ref: '#/components/schemas/TaskScheduleInput'
+        }
+    },
+    required: [
+        'operationId',
+        'reason',
+        'schedule'
+    ]
+} as const;
+
+export const TaskScheduleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'When the one-time schedule should run'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1,
+                    description: 'Cron expression for recurring runs',
+                    example: '0 9 * * *'
+                },
+                timezone: {
+                    type: 'string',
+                    default: 'UTC',
+                    description: 'IANA timezone for the cron expression',
+                    example: 'America/New_York'
+                },
+                endsMode: {
+                    type: 'string',
+                    enum: [
+                        'never',
+                        'on',
+                        'after'
+                    ],
+                    default: 'never',
+                    example: 'never'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59.000Z',
+                    description: 'End date when endsMode is on'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Remaining occurrences when endsMode is after',
+                    example: 10
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
+                    example: 2
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
+    ]
+} as const;
+
+export const RemoveTaskScheduleQuarantineBodySchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this operator action',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Operator reason retained in the Task audit event',
+            example: 'Corrected an invalid imported timezone'
+        }
+    },
+    required: [
+        'operationId',
+        'reason'
+    ]
+} as const;
+
 export const AdminTaskX402PaymentSchema = {
     type: 'object',
     properties: {
@@ -15739,93 +15904,6 @@ export const PutTaskScheduleRequestSchema = {
                 'schedule'
             ]
         },
-        {
-            type: 'object',
-            properties: {
-                mode: {
-                    type: 'string',
-                    enum: [
-                        'once'
-                    ]
-                },
-                runAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-06-24T09:00:00.000Z',
-                    description: 'When the one-time schedule should run'
-                }
-            },
-            required: [
-                'mode',
-                'runAt'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                mode: {
-                    type: 'string',
-                    enum: [
-                        'recurring'
-                    ]
-                },
-                expr: {
-                    type: 'string',
-                    minLength: 1,
-                    description: 'Cron expression for recurring runs',
-                    example: '0 9 * * *'
-                },
-                timezone: {
-                    type: 'string',
-                    default: 'UTC',
-                    description: 'IANA timezone for the cron expression',
-                    example: 'America/New_York'
-                },
-                endsMode: {
-                    type: 'string',
-                    enum: [
-                        'never',
-                        'on',
-                        'after'
-                    ],
-                    default: 'never',
-                    example: 'never'
-                },
-                endsOn: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-12-31T23:59:59.000Z',
-                    description: 'End date when endsMode is on'
-                },
-                occurrences: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    description: 'Remaining occurrences when endsMode is after',
-                    example: 10
-                },
-                intervalDays: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
-                    example: 2
-                },
-                anchorAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-06-24T09:00:00.000Z',
-                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
-                }
-            },
-            required: [
-                'mode',
-                'expr'
-            ]
-        }
-    ]
-} as const;
-
-export const TaskScheduleInputSchema = {
-    oneOf: [
         {
             type: 'object',
             properties: {

@@ -20,11 +20,17 @@ const {
   taskUpdateMock,
   requireTaskCollaborationMock,
   hasAssignedOrganizationSeatMock,
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
+  quarantineFindUniqueMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
+  quarantineFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -40,6 +46,11 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
       hasAssignedOrganizationSeatMock(...args),
   };
 });
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -140,19 +151,20 @@ describe("PUT /tasks/{id}/schedule", () => {
       ownerId: "user_123",
       workspaceId: WORKSPACE_ID,
       organizationId: "org_123",
+      projectId: null,
     });
-    prismaTransactionMock.mockImplementation(async (callback: unknown) => {
-      if (typeof callback !== "function") {
-        return undefined;
-      }
-      return await (
-        callback as (tx: {
-          task: { update: typeof taskUpdateMock };
-        }) => Promise<unknown>
-      )({
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
+    quarantineFindUniqueMock.mockResolvedValue(null);
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
         task: { update: taskUpdateMock },
-      });
-    });
+        taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
+      }),
+    );
+    taskUpdateMock.mockImplementation(async ({ data }) =>
+      createTaskResult(data.metadata, data.nextRunAt),
+    );
   });
 
   it("returns 403 when the member has no assigned organization seat", async () => {
@@ -237,5 +249,48 @@ describe("PUT /tasks/{id}/schedule", () => {
       mode: "once",
       runAt: "2099-09-24T09:00:00.000Z",
     });
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      WORKSPACE_ID,
+      [null],
+    );
+  });
+
+  it("returns a conflict when the Task Calendar source cannot be locked", async () => {
+    lockCalendarScopeMock.mockResolvedValue(false);
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite a quarantined schedule", async () => {
+    quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
-import { badRequest, forbidden } from "@/helpers/error";
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
@@ -10,6 +12,7 @@ import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   buildTaskScheduleMetadata,
   computeScheduleNextRun,
+  isSchedulableTaskStatus,
   validateScheduleInput,
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
@@ -28,12 +31,6 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
-
-const SCHEDULABLE_STATUSES: TaskStatus[] = [
-  TaskStatus.DRAFT,
-  TaskStatus.READY,
-  TaskStatus.QUEUED,
-];
 
 const route = createRoute({
   method: "put",
@@ -56,6 +53,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -83,41 +81,60 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    if (!SCHEDULABLE_STATUSES.includes(existingTask.status)) {
-      throw forbidden("You can only schedule draft, ready, or queued tasks");
-    }
-
-    const nextStatus =
-      existingTask.status !== TaskStatus.QUEUED
-        ? TaskStatus.QUEUED
-        : existingTask.status;
-
-    if (nextStatus === TaskStatus.QUEUED) {
-      validateTaskAssigneeAssignment({
-        status: TaskStatus.QUEUED,
-        assigneeId: existingTask.assigneeId,
-      });
-    }
-
     const task = await prisma.$transaction(async (tx) => {
-      const taskInTx = await requireTaskCollaboration(authContext, id, tx);
+      const locked = await lockCalendarScope(tx, existingTask.workspaceId, [
+        existingTask.projectId,
+      ]);
+      if (!locked) {
+        throw conflict("Task Calendar source changed during schedule update");
+      }
+      if (!(await lockTaskRows(tx, [id]))) {
+        throw conflict("Task changed during schedule update");
+      }
 
+      const currentTask = await requireTaskCollaboration(authContext, id, tx);
+      if (
+        currentTask.workspaceId !== existingTask.workspaceId ||
+        currentTask.projectId !== existingTask.projectId
+      ) {
+        throw conflict("Task Calendar source changed during schedule update");
+      }
+      if (!isSchedulableTaskStatus(currentTask.status)) {
+        throw forbidden("You can only schedule draft, ready, or queued tasks");
+      }
       await requireAssignedOrganizationSeat(
         userContext.userId,
-        taskInTx.organizationId,
+        currentTask.organizationId,
         tx,
       );
+      const quarantine = await tx.taskScheduleQuarantine.findUnique({
+        where: { taskId: id },
+        select: { id: true },
+      });
+      if (quarantine) {
+        throw conflict(
+          "This schedule is quarantined and requires operator repair",
+          { kind: CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED },
+        );
+      }
+
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.QUEUED,
+        assigneeId: currentTask.assigneeId,
+      });
 
       return tx.task.update({
         where: { id },
         data: {
           metadata: JSON.stringify(metadata),
           nextRunAt,
-          ...(nextStatus !== existingTask.status ? { status: nextStatus } : {}),
+          ...(currentTask.status !== TaskStatus.QUEUED
+            ? { status: TaskStatus.QUEUED }
+            : {}),
         },
         include: buildTaskIncludeForViewer(
           authContext,
-          existingTask.workspaceId,
+          currentTask.workspaceId,
         ),
       });
     });

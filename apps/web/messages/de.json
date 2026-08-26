@@ -5825,7 +5825,9 @@
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
-        "canceled": "{taskName} wurde abgebrochen"
+        "canceled": "{taskName} wurde abgebrochen",
+        "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
+        "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",

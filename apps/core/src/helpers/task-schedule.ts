@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/database";
 import {
   hasReachedTaskScheduleReleaseTarget,
   type TaskScheduleMetadata,
@@ -12,6 +13,16 @@ import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const LEGACY_INTERVAL_DAYS_CRON_PATTERN = /^(\d+) (\d+) \*\/(\d+) \* \*$/;
+
+const SCHEDULABLE_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.DRAFT,
+  TaskStatus.READY,
+  TaskStatus.QUEUED,
+]);
+
+export function isSchedulableTaskStatus(status: TaskStatus): boolean {
+  return SCHEDULABLE_TASK_STATUSES.has(status);
+}
 
 export function inferLegacyIntervalDaysFromCron(expr: string): number | null {
   const match = LEGACY_INTERVAL_DAYS_CRON_PATTERN.exec(expr.trim());
