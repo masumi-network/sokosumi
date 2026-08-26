@@ -22,6 +22,9 @@ const ACTIVITY_EVENTS = [
   "touchstart",
 ] as const;
 
+/** Local recheck only; unchanged payloads still do not publish. */
+const PRESENCE_IDLE_TICK_MS = 30_000;
+
 function buildPresenceData(
   lastActiveAt: number,
   visible: boolean,
@@ -33,7 +36,8 @@ function buildPresenceData(
  * Enter Ably Presence on every org channel granted on the token (ADR-0003).
  * Updates lastActiveAt / visible from browser activity and visibility.
  * Unchanged idle presence does not publish; activity refreshes lastActiveAt
- * on a ~4 min throttle. Visibility, enter, and reconnect force publish.
+ * on a ~4 min throttle. A 30s local tick only rechecks; it is not an Ably
+ * message. Visibility, enter, and reconnect force publish.
  * Owns channel attach/detach for presence channels (map only subscribes).
  */
 export function useOrgPresencePublisher(): void {
@@ -102,7 +106,7 @@ export function useOrgPresencePublisher(): void {
       }
 
       if (results.some(Boolean)) {
-        lastPublishedAtRef.current = Date.now();
+        lastPublishedAtRef.current = now;
         lastPublishedRef.current = data;
       }
     }
@@ -198,7 +202,7 @@ export function useOrgPresencePublisher(): void {
 
     const intervalId = window.setInterval(() => {
       void publishPresence(false);
-    }, ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS);
+    }, PRESENCE_IDLE_TICK_MS);
 
     const onConnected = () => {
       void syncChannels();

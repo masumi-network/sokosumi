@@ -155,6 +155,56 @@ describe("useOrgPresencePublisher", () => {
     expect(flushed.lastActiveAt).toBeGreaterThan(firstPayload.lastActiveAt);
   });
 
+  it("flushes lastActiveAt on the first 4-min tick after a delayed enter update", async () => {
+    let resolveEnterUpdate: () => void = () => undefined;
+    getMock.mockImplementation((name: string) => {
+      const channel = channelFor(name);
+      channel.presence.update.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveEnterUpdate = resolve;
+          }),
+      );
+      return channel;
+    });
+
+    renderHook(() => useOrgPresencePublisher());
+    await flushEffects();
+
+    const presence = channelFor("presence:org_org_1").presence;
+    expect(presence.update).toHaveBeenCalledTimes(1);
+    const firstPayload = presence.update.mock.calls[0]?.[0] as
+      | ChatPresenceMemberData
+      | undefined;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+      resolveEnterUpdate();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("pointerdown"));
+      await Promise.resolve();
+    });
+    expect(presence.update).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS - 5_000,
+      );
+    });
+    expect(presence.update).toHaveBeenCalledTimes(2);
+    const flushed = presence.update.mock.calls[1]?.[0] as
+      | ChatPresenceMemberData
+      | undefined;
+    if (firstPayload == null || flushed == null) {
+      throw new Error("expected presence payloads");
+    }
+    expect(flushed.lastActiveAt).toBeGreaterThan(firstPayload.lastActiveAt);
+  });
+
   it("publishes immediately when visibility changes", async () => {
     renderHook(() => useOrgPresencePublisher());
     await flushEffects();
