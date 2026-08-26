@@ -8,7 +8,7 @@ interface ReturnPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-/** Composio sends the owner back here after OAuth; settle the state and go home. */
+/** Settle the Vercel Connect authorization and return to the assistant. */
 export default async function IntegrationReturnPage({
   searchParams,
 }: ReturnPageProps) {

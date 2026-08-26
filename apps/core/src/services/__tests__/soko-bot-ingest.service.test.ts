@@ -45,7 +45,7 @@ describe("soko-bot ingest", () => {
       timeZone: "Europe/Berlin",
       mail: [
         {
-          provider: "gmail",
+          provider: "google",
           id: "m1",
           threadId: null,
           from: "Ana <ana@example.com>",
@@ -59,7 +59,7 @@ describe("soko-bot ingest", () => {
       ],
       events: [
         {
-          provider: "googlecalendar",
+          provider: "google",
           id: "e1",
           title: "Standup",
           startsAt: "2026-08-26T07:00:00Z",
@@ -75,9 +75,9 @@ describe("soko-bot ingest", () => {
     });
     expect(message).toContain("Morning briefing");
     expect(message).toContain("Standup");
-    expect(message).toContain("[googlecalendar:e1]");
+    expect(message).toContain("[google:e1]");
     expect(message).toContain(
-      "**Contract draft** — Can you review by Friday? [gmail:m1]",
+      "**Contract draft** — Can you review by Friday? [google:m1]",
     );
   });
 

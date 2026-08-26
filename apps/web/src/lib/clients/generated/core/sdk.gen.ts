@@ -2367,11 +2367,7 @@ export const listMySokoBotIntegrations = <ThrowOnError extends boolean = false>(
 export const connectMySokoBotIntegration = <ThrowOnError extends boolean = false>(options: Options<ConnectMySokoBotIntegrationData, ThrowOnError>): RequestResult<ConnectMySokoBotIntegrationResponses, ConnectMySokoBotIntegrationErrors, ThrowOnError> => (options.client ?? client).post<ConnectMySokoBotIntegrationResponses, ConnectMySokoBotIntegrationErrors, ThrowOnError>({
     responseTransformer: connectMySokoBotIntegrationResponseTransformer,
     url: '/soko-bots/me/integrations/{provider}/connect',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
+    ...options
 });
 
 export const finalizeMySokoBotIntegration = <ThrowOnError extends boolean = false>(options: Options<FinalizeMySokoBotIntegrationData, ThrowOnError>): RequestResult<FinalizeMySokoBotIntegrationResponses, FinalizeMySokoBotIntegrationErrors, ThrowOnError> => (options.client ?? client).post<FinalizeMySokoBotIntegrationResponses, FinalizeMySokoBotIntegrationErrors, ThrowOnError>({

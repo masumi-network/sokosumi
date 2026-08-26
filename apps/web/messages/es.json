@@ -5266,7 +5266,7 @@
       },
       "Integrations": {
         "title": "Cuentas conectadas",
-        "description": "Correo y calendarios que lee por ti. Nunca envía ni cambia nada.",
+        "description": "Correo y calendarios de las cuentas que autorizas. Nunca envía ni cambia nada.",
         "connect": "Conectar",
         "reconnect": "Reconectar",
         "disconnect": "Desconectar",
@@ -5274,6 +5274,7 @@
         "connectError": "No se pudo iniciar la conexión.",
         "disconnectError": "No se pudo desconectar.",
         "unavailable": "Las integraciones no están habilitadas en este entorno.",
+        "providerUnavailable": "Este proveedor no está configurado en este entorno.",
         "pending": "Esperando a que termines de iniciar sesión…",
         "failed": "La conexión falló. Reconecta para intentarlo de nuevo.",
         "connectedNotChecked": "Conectado · primera comprobación en menos de 15 minutos",

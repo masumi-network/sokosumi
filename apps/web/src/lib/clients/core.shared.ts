@@ -3662,17 +3662,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function connectMySokoBotIntegration(
-    provider: string,
-    body: { returnUrl: string },
-  ) {
+  async function connectMySokoBotIntegration(provider: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreConnectMySokoBotIntegration({
           client,
           path: { provider },
-          body,
         }),
       "Failed to start the integration",
     );

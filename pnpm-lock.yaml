@@ -69,9 +69,6 @@ importers:
       '@better-auth/utils':
         specifier: 0.4.2
         version: 0.4.2
-      '@composio/core':
-        specifier: 0.17.0
-        version: 0.17.0(ws@8.21.0)(zod@4.4.3)
       '@hono/node-server':
         specifier: 2.1.1
         version: 2.1.1(hono@4.13.3)
@@ -120,6 +117,9 @@ importers:
       '@vercel/blob':
         specifier: 2.8.0
         version: 2.8.0
+      '@vercel/connect':
+        specifier: 1.0.0
+        version: 1.0.0(4881546e04a126092b67a89184dfead2)
       '@vercel/functions':
         specifier: 3.9.5
         version: 3.9.5(ws@8.21.0)
@@ -1177,19 +1177,6 @@ packages:
 
   '@chevrotain/types@11.1.2':
     resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
-
-  '@composio/client@0.1.0-alpha.76':
-    resolution: {integrity: sha512-MXC5JGRVdiQ4EgLricy9o/mqBa1+1T7wHFZ6Q4ZJkrjzZqOMvxTgy21Zlb5J/1oGkB2bg9UDzpH8PkXCp/D4zA==}
-
-  '@composio/core@0.17.0':
-    resolution: {integrity: sha512-HJzpKWgise3piltWorEHt07nrjUR3gPZnBmrFgnJXx5+6AiKn79YGBYLytdtuMscElLt/7pHOIxfcaYpiGkJ7A==}
-    peerDependencies:
-      zod: 4.4.3
-
-  '@composio/json-schema-to-zod@0.3.0':
-    resolution: {integrity: sha512-Lgz5QlclPsd9mo8FGn/12h3cwTpN6A9aYvucO1umjnuvyetb6nC//nHEu9TDU+BN5Sa0n+qmUUv4Tzd4wI4xeA==}
-    peerDependencies:
-      zod: 4.4.3
 
   '@date-fns/tz@1.5.0':
     resolution: {integrity: sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg==}
@@ -5224,6 +5211,29 @@ packages:
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
 
+  '@vercel/connect@1.0.0':
+    resolution: {integrity: sha512-otk4ElH9v+uimUwTz7ecjFn6vPsHJcFUzTNlL7VHrTcwKPw8PV17bgtquQExMoFPihlN44oF+fD2oIMnlM75nw==}
+    peerDependencies:
+      '@ai-sdk/mcp': ^1 || ^2
+      '@auth/core': '>=0.37.0'
+      '@chat-adapter/slack': ^4.0.0
+      ai: ^6 || ^7.0.0-beta.0
+      better-auth: '>=1.5.0'
+      eve: '>=0.13.7'
+    peerDependenciesMeta:
+      '@ai-sdk/mcp':
+        optional: true
+      '@auth/core':
+        optional: true
+      '@chat-adapter/slack':
+        optional: true
+      ai:
+        optional: true
+      better-auth:
+        optional: true
+      eve:
+        optional: true
+
   '@vercel/functions@3.9.5':
     resolution: {integrity: sha512-EUfqlb7AzoEh7URlMNAO4jbJiLWz9grDBHvfjKTDvEP9c8y3DqX3SWPvfaQkUjtkm3b83flhaUUMuewdHa+qmw==}
     engines: {node: '>= 20'}
@@ -7186,9 +7196,6 @@ packages:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
 
-  is-fs-case-sensitive@2.0.0:
-    resolution: {integrity: sha512-JoCsyGITdYPM+pUbeMQ4IiEuQ4wjPdeWORlG7n644isewbcxiQIr+9gmF5k7UabTP/jLBRkbgydEamR7JZBKHA==}
-
   is-fullwidth-code-point@3.0.0:
     resolution: {integrity: sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==}
     engines: {node: '>=8'}
@@ -8238,27 +8245,6 @@ packages:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
 
-  openai@7.5.0:
-    resolution: {integrity: sha512-ZbDBz8FSB8Mv8fFYIUvzTFMdV5vl93/octp1MdtK2lfYepSpfv/ewmeugpKz/cwGtFSx+YuUM4NwpZ2P55YiPA==}
-    engines: {node: '>=22.0.0'}
-    peerDependencies:
-      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
-      '@smithy/hash-node': '>=4.3.0 <5'
-      '@smithy/signature-v4': '>=5.4.0 <6'
-      ws: 8.21.0
-      zod: 4.4.3
-    peerDependenciesMeta:
-      '@aws-sdk/credential-provider-node':
-        optional: true
-      '@smithy/hash-node':
-        optional: true
-      '@smithy/signature-v4':
-        optional: true
-      ws:
-        optional: true
-      zod:
-        optional: true
-
   openapi3-ts@4.6.1:
     resolution: {integrity: sha512-XW9MOldkhoICNeXVzzmXzmOW5G73ppOEGmh7fLCqHjgfdEYCGGN+00MlVCeUZgovjjfC56j9tvtDt1zGabNjjA==}
 
@@ -8575,9 +8561,6 @@ packages:
 
   pure-rand@6.1.0:
     resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
-
-  pusher-js@8.6.0:
-    resolution: {integrity: sha512-wShJPfCS/kYkCBVzVW67wa9cnQIgHTszEK2XHNrFkOgGruuGw081aERAxfRjfdFU+WcIt8x6dvbwkTW4iZuQ8Q==}
 
   pvtsutils@1.3.6:
     resolution: {integrity: sha512-PLgQXQ6H2FWCaeRak8vvk1GW462lMxB5s3Jm673N82zI4vqtVUPuZdffdZbPDFRoU8kAhItWFtPCWiPpp4/EDg==}
@@ -9623,9 +9606,6 @@ packages:
   tw-animate-css@1.4.0:
     resolution: {integrity: sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ==}
 
-  tweetnacl@1.0.3:
-    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
-
   type-fest@0.7.1:
     resolution: {integrity: sha512-Ne2YiiGN8bmrmJJEuTWTLJR32nh/JdL1+PSicowtNb0WFpn59GK8/lfD61bVtzguz7b3PBt74nxpv/Pw5po5Rg==}
     engines: {node: '>=8'}
@@ -10233,11 +10213,6 @@ packages:
   zeptomatch@2.1.0:
     resolution: {integrity: sha512-KiGErG2J0G82LSpniV0CtIzjlJ10E04j02VOudJsPyPwNZgGnRKQy7I1R7GMyg/QswnE4l7ohSGrQbQbjXPPDA==}
 
-  zod-to-json-schema@3.25.2:
-    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
-    peerDependencies:
-      zod: 4.4.3
-
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
@@ -10670,30 +10645,6 @@ snapshots:
   '@braintree/sanitize-url@7.1.2': {}
 
   '@chevrotain/types@11.1.2': {}
-
-  '@composio/client@0.1.0-alpha.76': {}
-
-  '@composio/core@0.17.0(ws@8.21.0)(zod@4.4.3)':
-    dependencies:
-      '@composio/client': 0.1.0-alpha.76
-      '@composio/json-schema-to-zod': 0.3.0(zod@4.4.3)
-      '@types/json-schema': 7.0.15
-      is-fs-case-sensitive: 2.0.0
-      openai: 7.5.0(ws@8.21.0)(zod@4.4.3)
-      picocolors: 1.1.1
-      pusher-js: 8.6.0
-      semver: 7.8.5
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    transitivePeerDependencies:
-      - '@aws-sdk/credential-provider-node'
-      - '@smithy/hash-node'
-      - '@smithy/signature-v4'
-      - ws
-
-  '@composio/json-schema-to-zod@0.3.0(zod@4.4.3)':
-    dependencies:
-      zod: 4.4.3
 
   '@date-fns/tz@1.5.0': {}
 
@@ -14591,6 +14542,15 @@ snapshots:
     dependencies:
       execa: 5.1.1
 
+  '@vercel/connect@1.0.0(4881546e04a126092b67a89184dfead2)':
+    dependencies:
+      '@vercel/oidc': 3.8.5
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.36(zod@4.4.3)
+      ai: 7.0.77(zod@4.4.3)
+      better-auth: 1.7.1(@opentelemetry/api@1.9.1)(@prisma/client@7.9.1(prisma@7.9.1(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(typescript@7.0.2))(mysql2@3.15.3)(next@16.3.2(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(prisma@7.9.1(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(happy-dom@20.11.6)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0)))(vue@3.5.41(typescript@7.0.2))
+      eve: 0.38.3(@electric-sql/pglite@0.4.3)(@opentelemetry/api@1.9.1)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(ai@7.0.77(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@6.0.0(supports-color@8.1.1))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0))
+
   '@vercel/functions@3.9.5(ws@8.21.0)':
     dependencies:
       '@vercel/oidc': 3.8.5
@@ -16111,10 +16071,58 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.9
 
+  eve@0.38.3(@electric-sql/pglite@0.4.3)(@opentelemetry/api@1.9.1)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(ai@7.0.77(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@6.0.0(supports-color@8.1.1))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0)):
+    dependencies:
+      ai: 7.0.77(zod@4.4.3)
+      nitro: 3.0.260610-beta(@electric-sql/pglite@0.4.3)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@6.0.0(supports-color@8.1.1))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0))
+      undici: 8.9.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@netlify/runtime'
+      - '@planetscale/database'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vercel/queue'
+      - aws4fetch
+      - better-sqlite3
+      - chokidar
+      - dotenv
+      - drizzle-orm
+      - giget
+      - idb-keyval
+      - ioredis
+      - jiti
+      - lru-cache
+      - miniflare
+      - mongodb
+      - mysql2
+      - rollup
+      - sqlite3
+      - uploadthing
+      - vite
+      - wrangler
+      - xml2js
+      - zephyr-agent
+    optional: true
+
   eve@0.38.3(@electric-sql/pglite@0.4.3)(@opentelemetry/api@1.9.1)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(ai@7.0.77(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(jiti@2.7.0)(lru-cache@11.5.2)(microsandbox@0.6.9)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.77(zod@4.4.3)
-      nitro: 3.0.260610-beta(@electric-sql/pglite@0.4.3)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0))
+      nitro: 3.0.260610-beta(@electric-sql/pglite@0.4.3)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@6.0.0(supports-color@8.1.1))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0))
       undici: 8.9.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
@@ -16769,8 +16777,6 @@ snapshots:
       is-plain-object: 2.0.4
 
   is-extglob@2.1.1: {}
-
-  is-fs-case-sensitive@2.0.0: {}
 
   is-fullwidth-code-point@3.0.0: {}
 
@@ -17928,7 +17934,7 @@ snapshots:
 
   nf3@0.3.24: {}
 
-  nitro@3.0.260610-beta(@electric-sql/pglite@0.4.3)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0)):
+  nitro@3.0.260610-beta(@electric-sql/pglite@0.4.3)(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@6.0.0(supports-color@8.1.1))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.15.3)(rollup@4.62.4)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.12(srvx@0.11.22)
@@ -17943,7 +17949,7 @@ snapshots:
       rolldown: 1.2.5
       srvx: 0.11.22
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.4.3)(mysql2@3.15.3))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.4.3)(mysql2@3.15.3))(ioredis@6.0.0(supports-color@8.1.1))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       dotenv: 17.4.2
       giget: 3.3.0
@@ -18073,11 +18079,6 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
-
-  openai@7.5.0(ws@8.21.0)(zod@4.4.3):
-    optionalDependencies:
-      ws: 8.21.0
-      zod: 4.4.3
 
   openapi3-ts@4.6.1:
     dependencies:
@@ -18406,10 +18407,6 @@ snapshots:
       - utf-8-validate
 
   pure-rand@6.1.0: {}
-
-  pusher-js@8.6.0:
-    dependencies:
-      tweetnacl: 1.0.3
 
   pvtsutils@1.3.6:
     dependencies:
@@ -19748,8 +19745,6 @@ snapshots:
 
   tw-animate-css@1.4.0: {}
 
-  tweetnacl@1.0.3: {}
-
   type-fest@0.7.1: {}
 
   type-fest@1.4.0: {}
@@ -19856,12 +19851,13 @@ snapshots:
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
 
-  unstorage@2.0.0-alpha.7(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.4.3)(mysql2@3.15.3))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3):
+  unstorage@2.0.0-alpha.7(@vercel/blob@2.8.0)(@vercel/functions@3.9.5(ws@8.21.0))(chokidar@5.0.0)(db0@0.3.4(@electric-sql/pglite@0.4.3)(mysql2@3.15.3))(ioredis@6.0.0(supports-color@8.1.1))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3):
     optionalDependencies:
       '@vercel/blob': 2.8.0
       '@vercel/functions': 3.9.5(ws@8.21.0)
       chokidar: 5.0.0
       db0: 0.3.4(@electric-sql/pglite@0.4.3)(mysql2@3.15.3)
+      ioredis: 6.0.0(supports-color@8.1.1)
       lru-cache: 11.5.2
       ofetch: 2.0.0-alpha.3
 
@@ -20215,10 +20211,6 @@ snapshots:
     dependencies:
       grammex: 3.1.12
       graphmatch: 1.1.1
-
-  zod-to-json-schema@3.25.2(zod@4.4.3):
-    dependencies:
-      zod: 4.4.3
 
   zod@4.4.3: {}
 

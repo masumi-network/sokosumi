@@ -14611,6 +14611,9 @@ export const SokoBotIntegrationSchema = {
                 ]
             }
         },
+        available: {
+            type: 'boolean'
+        },
         status: {
             type: 'string',
             enum: [
@@ -14646,6 +14649,7 @@ export const SokoBotIntegrationSchema = {
         'provider',
         'name',
         'kinds',
+        'available',
         'status',
         'connectedAt',
         'lastIngestAt',
@@ -14663,19 +14667,6 @@ export const ConnectSokoBotIntegrationResponseSchema = {
     },
     required: [
         'redirectUrl'
-    ]
-} as const;
-
-export const ConnectSokoBotIntegrationRequestSchema = {
-    type: 'object',
-    properties: {
-        returnUrl: {
-            type: 'string',
-            format: 'uri'
-        }
-    },
-    required: [
-        'returnUrl'
     ]
 } as const;
 
