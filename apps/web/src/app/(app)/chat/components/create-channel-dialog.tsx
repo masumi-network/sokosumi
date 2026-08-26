@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import {
   checkChannelSlugAvailabilityAction,
   createChannelAction,
-  updateRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
+  backToCreate,
   CHANNEL_NAME_MAX,
   CHANNEL_SLUG_MAX,
   CHANNEL_TOPIC_MAX,
@@ -106,10 +106,6 @@ export function CreateChannelDialog({
     if (nextOpen || isPending) {
       return;
     }
-    if (wizard.step === "add-people") {
-      navigateToRoom(wizard.roomId);
-      return;
-    }
     clearCreateQuery();
   }
 
@@ -142,7 +138,7 @@ export function CreateChannelDialog({
     };
   }, [wizard.step, createStepSlug]);
 
-  function handleCreate() {
+  function handleAdvanceToPeople() {
     if (
       wizard.step !== "create" ||
       isPending ||
@@ -150,93 +146,64 @@ export function CreateChannelDialog({
     ) {
       return;
     }
-    const fields = createChannelSubmitFields(wizard);
-    if (!fields) {
-      return;
-    }
-    const { name, slug, topic, discoverability } = fields;
-    startTransition(async () => {
-      const result = await createChannelAction({
-        name,
-        slug,
-        topic,
-        discoverability,
-      });
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      notifyOrganizationChatRoomsChanged(result.value);
-      setWizard(
-        toAddPeople(
-          wizard,
-          { id: result.value.id, name: result.value.name },
-          currentUserId,
-        ),
-      );
-    });
+    setWizard(toAddPeople(wizard, currentUserId));
   }
 
-  function finishAddPeople(options: {
+  function submitCreate(roster: {
     memberUserIds: string[];
     coworkerIds: string[];
-    skipUpdate: boolean;
   }) {
     if (wizard.step !== "add-people" || isPending) {
       return;
     }
-    const roomId = wizard.roomId;
-    if (options.skipUpdate) {
-      navigateToRoom(roomId);
+    const fields = createChannelSubmitFields(wizard, roster);
+    if (!fields) {
       return;
     }
     startTransition(async () => {
-      const result = await updateRoomAction(roomId, {
-        memberUserIds: options.memberUserIds,
-        coworkerIds: options.coworkerIds,
+      const result = await createChannelAction({
+        name: fields.name,
+        slug: fields.slug,
+        topic: fields.topic,
+        discoverability: fields.discoverability,
+        memberUserIds: fields.memberUserIds,
+        coworkerIds: fields.coworkerIds,
       });
       if (!result.ok) {
         toast.error(result.error.message);
         return;
       }
       notifyOrganizationChatRoomsChanged(result.value);
-      navigateToRoom(roomId);
+      navigateToRoom(result.value.id);
     });
   }
 
-  function handleAddPeople() {
+  function handleCreate() {
     if (wizard.step !== "add-people") {
       return;
     }
     if (wizard.mode === "all") {
-      finishAddPeople({
+      submitCreate({
         memberUserIds: allMemberUserIds.includes(currentUserId)
           ? allMemberUserIds
           : [currentUserId, ...allMemberUserIds],
         coworkerIds: [],
-        skipUpdate: false,
       });
       return;
     }
     const memberUserIds = wizard.memberUserIds.includes(currentUserId)
       ? wizard.memberUserIds
       : [currentUserId, ...wizard.memberUserIds];
-    const extraHumans = memberUserIds.filter((id) => id !== currentUserId);
-    finishAddPeople({
+    submitCreate({
       memberUserIds,
       coworkerIds: wizard.coworkerIds,
-      skipUpdate: extraHumans.length === 0 && wizard.coworkerIds.length === 0,
     });
   }
 
   function handleSkip() {
-    if (wizard.step !== "add-people") {
-      return;
-    }
-    finishAddPeople({
+    submitCreate({
       memberUserIds: [],
       coworkerIds: [],
-      skipUpdate: true,
     });
   }
 
@@ -246,17 +213,15 @@ export function CreateChannelDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="max-h-[calc(100svh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
-        {...(wizard.step === "create" && wizard.slug
-          ? {}
-          : { "aria-describedby": undefined })}
+        {...(wizard.slug ? {} : { "aria-describedby": undefined })}
       >
         <DialogHeader className={cn(isCreateStep && "gap-1.5")}>
           <DialogTitle>
             {wizard.step === "add-people"
-              ? t("addPeopleTitle", { name: wizard.roomName })
+              ? t("addPeopleTitle", { name: wizard.name })
               : t("title")}
           </DialogTitle>
-          {wizard.step === "create" && wizard.slug ? (
+          {wizard.slug ? (
             <DialogDescription className="text-muted-foreground text-xs font-normal">
               {t("handleChrome", { slug: wizard.slug })}
             </DialogDescription>
@@ -283,7 +248,7 @@ export function CreateChannelDialog({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      handleCreate();
+                      handleAdvanceToPeople();
                     }
                   }}
                   placeholder={t("slugPlaceholder")}
@@ -322,7 +287,7 @@ export function CreateChannelDialog({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      handleCreate();
+                      handleAdvanceToPeople();
                     }
                   }}
                   placeholder={t("namePlaceholder")}
@@ -499,12 +464,9 @@ export function CreateChannelDialog({
               type="button"
               variant="primary"
               disabled={isPending || !canCreateChannel(wizard, availability)}
-              onClick={handleCreate}
+              onClick={handleAdvanceToPeople}
             >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : null}
-              {isPending ? t("creating") : t("create")}
+              {t("next")}
             </Button>
           </DialogFooter>
         ) : null}
@@ -515,21 +477,31 @@ export function CreateChannelDialog({
               type="button"
               variant="ghost"
               disabled={isPending}
-              onClick={handleSkip}
+              onClick={() => setWizard(backToCreate(wizard))}
             >
-              {t("skip")}
+              {t("back")}
             </Button>
-            <Button
-              type="button"
-              variant="primary"
-              disabled={isPending}
-              onClick={handleAddPeople}
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : null}
-              {isPending ? t("adding") : t("add")}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isPending}
+                onClick={handleSkip}
+              >
+                {t("skip")}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={isPending}
+                onClick={handleCreate}
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : null}
+                {isPending ? t("creating") : t("create")}
+              </Button>
+            </div>
           </DialogFooter>
         ) : null}
       </DialogContent>

@@ -5263,15 +5263,15 @@
         "handleChrome": "# {slug}",
         "topicLabel": "Tema",
         "topicPlaceholder": "¿De qué trata este canal?",
+        "next": "Siguiente",
+        "back": "Atrás",
         "create": "Crear",
         "addPeopleTitle": "Añadir personas a #{name}",
         "addAll": "Añadir a los {count} miembros de {organization}",
         "addSpecific": "Añadir personas concretas",
         "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal.",
-        "add": "Añadir",
         "skip": "Omitir por ahora",
-        "creating": "Creando…",
-        "adding": "Añadiendo…"
+        "creating": "Creando…"
       },
       "RoomRoster": {
         "open": "Miembros",

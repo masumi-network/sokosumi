@@ -28,14 +28,12 @@ interface CreateChannelFormFields {
 
 export type CreateChannelWizard =
   | ({ step: "create" } & CreateChannelFormFields)
-  | {
+  | ({
       step: "add-people";
-      roomId: string;
-      roomName: string;
       mode: AddPeopleMode;
       memberUserIds: string[];
       coworkerIds: string[];
-    };
+    } & CreateChannelFormFields);
 
 export function createInitialWizard(): CreateChannelWizard {
   return {
@@ -123,13 +121,18 @@ export function canCreateChannel(
   );
 }
 
-export function createChannelSubmitFields(wizard: CreateChannelWizard): {
+export function createChannelSubmitFields(
+  wizard: CreateChannelWizard,
+  roster: { memberUserIds: string[]; coworkerIds: string[] },
+): {
   name: string;
   slug: string;
   topic?: string;
   discoverability: Discoverability;
+  memberUserIds: string[];
+  coworkerIds: string[];
 } | null {
-  if (wizard.step !== "create") {
+  if (wizard.step !== "add-people") {
     return null;
   }
   const name = wizard.name.trim();
@@ -142,21 +145,39 @@ export function createChannelSubmitFields(wizard: CreateChannelWizard): {
     slug: wizard.slug,
     ...(topic.length > 0 ? { topic } : {}),
     discoverability: wizard.discoverability,
+    memberUserIds: roster.memberUserIds,
+    coworkerIds: roster.coworkerIds,
   };
 }
 
 export function toAddPeople(
   wizard: CreateChannelWizard,
-  room: { id: string; name: string },
   currentUserId: string,
 ): CreateChannelWizard {
+  if (wizard.step !== "create") {
+    return wizard;
+  }
   return {
+    ...wizard,
     step: "add-people",
-    roomId: room.id,
-    roomName: room.name,
     mode: "all",
     memberUserIds: [currentUserId],
     coworkerIds: [],
+  };
+}
+
+export function backToCreate(wizard: CreateChannelWizard): CreateChannelWizard {
+  if (wizard.step !== "add-people") {
+    return wizard;
+  }
+  return {
+    step: "create",
+    slug: wizard.slug,
+    slugDirty: wizard.slugDirty,
+    name: wizard.name,
+    nameDirty: wizard.nameDirty,
+    topic: wizard.topic,
+    discoverability: wizard.discoverability,
   };
 }
 

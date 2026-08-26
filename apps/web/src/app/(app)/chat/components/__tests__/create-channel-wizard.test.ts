@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  backToCreate,
   CHANNEL_NAME_MAX,
   CHANNEL_TOPIC_MAX,
   canCreateChannel,
@@ -108,34 +109,49 @@ describe("create-channel-wizard", () => {
     });
   });
 
-  it("createChannelSubmitFields sends name, slug, optional topic, and visibility", () => {
-    const wizard = setDiscoverability(
+  it("createChannelSubmitFields sends form fields and roster only on add-people", () => {
+    const details = setDiscoverability(
       setTopic(setSlug(createInitialWizard(), "team-soko"), "Ship it"),
       "private",
     );
-    expect(createChannelSubmitFields(wizard)).toEqual({
+    expect(
+      createChannelSubmitFields(details, {
+        memberUserIds: ["user-1"],
+        coworkerIds: [],
+      }),
+    ).toBeNull();
+
+    const people = toAddPeople(details, "user-1");
+    expect(
+      createChannelSubmitFields(people, {
+        memberUserIds: ["user-1", "user-2"],
+        coworkerIds: ["c1"],
+      }),
+    ).toEqual({
       name: "Team Soko",
       slug: "team-soko",
       topic: "Ship it",
       discoverability: "private",
+      memberUserIds: ["user-1", "user-2"],
+      coworkerIds: ["c1"],
     });
-    expect(createChannelSubmitFields(createInitialWizard())).toBeNull();
-    expect(
-      createChannelSubmitFields(
-        setName(setSlug(createInitialWizard(), "ok"), ""),
-      ),
-    ).toBeNull();
   });
 
   it("omits a blank topic from submit fields", () => {
     expect(
       createChannelSubmitFields(
-        setTopic(setSlug(createInitialWizard(), "welcome"), "  "),
+        toAddPeople(
+          setTopic(setSlug(createInitialWizard(), "welcome"), "  "),
+          "user-1",
+        ),
+        { memberUserIds: [], coworkerIds: [] },
       ),
     ).toEqual({
       name: "Welcome",
       slug: "welcome",
       discoverability: "public",
+      memberUserIds: [],
+      coworkerIds: [],
     });
   });
 
@@ -157,32 +173,49 @@ describe("create-channel-wizard", () => {
       discoverability: "external",
     });
 
-    const addPeople = toAddPeople(
-      create,
-      { id: "room-1", name: "Launch" },
-      "user-1",
-    );
+    const addPeople = toAddPeople(create, "user-1");
     expect(setDiscoverability(addPeople, "private")).toBe(addPeople);
   });
 
-  it("toAddPeople transitions after create with all mode and locks the creator on the roster", () => {
+  it("toAddPeople keeps form fields and does not create a room", () => {
     const create = setSlug(createInitialWizard(), "launch");
-    expect(
-      toAddPeople(create, { id: "room-1", name: "Launch" }, "user-1"),
-    ).toEqual({
+    expect(toAddPeople(create, "user-1")).toEqual({
       step: "add-people",
-      roomId: "room-1",
-      roomName: "Launch",
+      slug: "launch",
+      slugDirty: true,
+      name: "Launch",
+      nameDirty: false,
+      topic: "",
+      discoverability: "public",
       mode: "all",
       memberUserIds: ["user-1"],
       coworkerIds: [],
     });
+    expect(toAddPeople(createInitialWizard(), "user-1").step).toBe(
+      "add-people",
+    );
+  });
+
+  it("backToCreate restores the form without dropping handle or name", () => {
+    const people = toAddPeople(
+      setSlug(createInitialWizard(), "launch"),
+      "user-1",
+    );
+    expect(backToCreate(people)).toEqual({
+      step: "create",
+      slug: "launch",
+      slugDirty: true,
+      name: "Launch",
+      nameDirty: false,
+      topic: "",
+      discoverability: "public",
+    });
+    expect(backToCreate(createInitialWizard())).toEqual(createInitialWizard());
   });
 
   it("setAddPeopleMode and setSpecificMembers update add-people only", () => {
     const addPeople = toAddPeople(
       setSlug(createInitialWizard(), "launch"),
-      { id: "room-1", name: "Launch" },
       "user-1",
     );
     const specific = setAddPeopleMode(addPeople, "specific");

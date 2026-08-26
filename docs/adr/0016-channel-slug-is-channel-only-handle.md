@@ -11,7 +11,7 @@
 
 - Partial unique `(organizationId, slug) WHERE kind = 'channel'`.
 - CHECK: Channel requires slug; Direct requires slug null. Drop the personal-creator slug unique index.
-- Channel create sends slug. Name is optional: omit/blank → derive title-case words from the slug. Taken → conflict, not “Room already exists” and not a suffix.
+- Channel create sends slug. Name is optional: omit/blank → derive title-case words from the slug. Taken → conflict, not “Room already exists” and not a suffix. The create wizard POSTs once after the member step so abandoning the dialog does not leave a Channel.
 - Availability is a Core check against that unique index, not the membership-visible list.
 - `#` Channel links and discoverable search stay Channel-only. Routing stays `/chat/rooms/{id}`.
 
