@@ -138,6 +138,25 @@ describe("core index", () => {
     expect(await response.text()).toBe("User-Agent: *\nDisallow: /\n");
   });
 
+  it("still serves robots.txt during maintenance", async () => {
+    getEnvMock.mockReturnValue({
+      NODE_ENV: "development",
+      PORT: 8787,
+      MAINTENANCE_MODE: true,
+    });
+
+    const fetchHandler = await loadFetchHandler();
+
+    const robotsResponse = await fetchHandler(
+      new Request("http://localhost/robots.txt"),
+    );
+    expect(robotsResponse.status).toBe(200);
+    expect(await robotsResponse.text()).toBe("User-Agent: *\nDisallow: /\n");
+
+    const otherResponse = await fetchHandler(new Request("http://localhost/"));
+    expect(otherResponse.status).toBe(503);
+  });
+
   it("does not generate llms markdown during startup and still serves docs routes", async () => {
     createMarkdownFromOpenApiMock.mockResolvedValue("# llms");
 
