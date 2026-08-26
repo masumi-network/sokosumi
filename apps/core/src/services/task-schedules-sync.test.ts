@@ -400,6 +400,69 @@ describe("taskSchedulesSyncService", () => {
     });
   });
 
+  it("processes version 2 recurring metadata without downgrading it", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+    const metadata = JSON.stringify({
+      version: 2,
+      epochId: "123e4567-e89b-42d3-a456-426614174001",
+      mode: "recurring",
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "never",
+      epochReleaseCount: 0,
+      anchorAt: "2026-06-01T09:00:00.000Z",
+    });
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-v2" }])
+      .mockResolvedValueOnce([]);
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+      }),
+    );
+    mockFindFirst.mockResolvedValue({
+      id: "template-v2",
+      ownerId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata,
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    mockTaskCreate.mockResolvedValue({ id: "clone-v2" });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result.cloned).toBe(1);
+    const update = mockTaskUpdateMany.mock.calls.at(-1)?.[0];
+    expect(JSON.parse(update.data.metadata)).toMatchObject({
+      version: 2,
+      epochReleaseCount: 1,
+      lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
+    });
+    expect(update.data.nextRunAt).toEqual(new Date("2026-06-11T09:00:00.000Z"));
+  });
+
   it("stops recurring catch-up when the sync deadline is reached", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
