@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ListFilter, type LucideIcon } from "lucide-react";
+import { Check, ChevronLeft, ListFilter, type LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import AgentIcon from "@/components/agents/agent-icon";
 
@@ -135,28 +135,33 @@ export function FilterDropdownMenu({
       </Button>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="h-[80vh] w-full">
+        <SheetContent
+          side="bottom"
+          className="inset-x-0 left-0 right-0 h-[80vh] w-full max-w-[100dvw] translate-x-0"
+        >
           <SheetHeader>
             <SheetTitle>{buttonLabel}</SheetTitle>
           </SheetHeader>
           <ScrollArea className="h-[calc(80vh-5rem)] px-4">
-            <div className="mt-4 space-y-4">
-              {sections.map((section) => (
-                <FilterDropdownMenuSectionMobile
-                  key={section.id}
-                  section={section}
-                  searchPlaceholder={searchPlaceholder}
-                  emptyResultsLabel={emptyResultsLabel}
-                  expanded={expandedSection === section.id}
-                  onToggle={() =>
-                    setExpandedSection(
-                      expandedSection === section.id ? null : section.id,
-                    )
-                  }
-                  onSelect={handleClose}
-                />
-              ))}
-            </div>
+            {expandedSection ? (
+              <FilterDropdownMenuSectionPanel
+                section={sections.find((s) => s.id === expandedSection)!}
+                searchPlaceholder={searchPlaceholder}
+                emptyResultsLabel={emptyResultsLabel}
+                onBack={() => setExpandedSection(null)}
+                onSelect={handleClose}
+              />
+            ) : (
+              <div className="mt-4 space-y-4">
+                {sections.map((section) => (
+                  <FilterDropdownMenuSectionMobile
+                    key={section.id}
+                    section={section}
+                    onToggle={() => setExpandedSection(section.id)}
+                  />
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </SheetContent>
       </Sheet>
@@ -316,26 +321,53 @@ function FilterDropdownMenuOptionAvatar({
 
 interface FilterDropdownMenuSectionMobileProps {
   section: FilterDropdownMenuSection;
-  searchPlaceholder: string;
-  emptyResultsLabel: string;
-  expanded: boolean;
   onToggle: () => void;
-  onSelect: () => void;
 }
 
 function FilterDropdownMenuSectionMobile({
   section,
-  searchPlaceholder,
-  emptyResultsLabel,
-  expanded,
   onToggle,
-  onSelect,
 }: FilterDropdownMenuSectionMobileProps) {
   const selectedOption = useMemo(
     () =>
       section.options.find((option) => option.value === section.value) ?? null,
     [section.options, section.value],
   );
+
+  return (
+    <div className="border-b pb-4 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="focus:bg-accent flex w-full items-center gap-2 rounded-md px-3 py-3 text-left transition-colors hover:bg-accent"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <section.icon className="size-4 text-muted-foreground" aria-hidden />
+          <span className="truncate font-medium">{section.label}</span>
+        </div>
+        <span className="max-w-28 truncate text-right text-xs text-muted-foreground">
+          {selectedOption?.label ?? section.allLabel}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+interface FilterDropdownMenuSectionPanelProps {
+  section: FilterDropdownMenuSection;
+  searchPlaceholder: string;
+  emptyResultsLabel: string;
+  onBack: () => void;
+  onSelect: () => void;
+}
+
+function FilterDropdownMenuSectionPanel({
+  section,
+  searchPlaceholder,
+  emptyResultsLabel,
+  onBack,
+  onSelect,
+}: FilterDropdownMenuSectionPanelProps) {
   const optionItems = useMemo(() => {
     if (!section.allLabel) {
       return section.options;
@@ -351,79 +383,76 @@ function FilterDropdownMenuSectionMobile({
   }, [section.allLabel, section.options]);
 
   return (
-    <div className="min-w-0 border-b pb-4 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="focus:bg-accent flex w-full items-center gap-2 rounded-md px-3 py-3 text-left transition-colors hover:bg-accent"
-      >
+    <div className="mt-4">
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="focus:bg-accent -ml-2 flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent"
+          aria-label="Back"
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+        </button>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <section.icon className="size-4 text-muted-foreground" aria-hidden />
-          <span className="truncate font-medium">{section.label}</span>
+          <h3 className="truncate font-medium">{section.label}</h3>
         </div>
-        <span className="max-w-28 truncate text-right text-xs text-muted-foreground">
-          {selectedOption?.label ?? section.allLabel}
-        </span>
-      </button>
-      {expanded ? (
-        <div className="mt-2 min-w-0 overflow-x-clip rounded-md border bg-card p-2">
-          <Command
-            className="**:data-[slot=command-list]:max-h-[40vh]"
-            shouldFilter
-          >
-            <CommandInput autoFocus placeholder={searchPlaceholder} />
-            <CommandList>
-              <CommandEmpty>{emptyResultsLabel}</CommandEmpty>
-              {optionItems.map((option) => {
-                const isAllOption = option.value === ALL_FILTER_VALUE;
-                const isSelected = isAllOption
-                  ? section.value === null
-                  : option.value === section.value;
-                const filterKeywords = [
-                  option.label,
-                  ...(option.searchKeywords ?? []),
-                ];
+      </div>
+      <Command
+        className="**:data-[slot=command-list]:max-h-[50vh]"
+        shouldFilter
+      >
+        <CommandInput placeholder={searchPlaceholder} />
+        <CommandList>
+          <CommandEmpty>{emptyResultsLabel}</CommandEmpty>
+          {optionItems.map((option) => {
+            const isAllOption = option.value === ALL_FILTER_VALUE;
+            const isSelected = isAllOption
+              ? section.value === null
+              : option.value === section.value;
+            const filterKeywords = [
+              option.label,
+              ...(option.searchKeywords ?? []),
+            ];
 
-                return (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    keywords={filterKeywords}
-                    onSelect={() => {
-                      section.onChange(isAllOption ? null : option.value);
-                      onSelect();
-                    }}
-                  >
-                    <FilterDropdownMenuOptionAvatar option={option} />
-                    <span className="flex-1 truncate">{option.label}</span>
-                    <Check
-                      className={cn(
-                        "size-4",
-                        isSelected ? "opacity-100" : "opacity-0",
-                      )}
-                      aria-hidden
-                    />
-                  </CommandItem>
-                );
-              })}
-              {section.pagination?.nextCursor ? (
-                <CommandItem
-                  key={`${section.id}-load-more`}
-                  value={`${section.id}-load-more`}
-                  forceMount
-                  onSelect={() => {
-                    section.pagination?.onLoadMore();
-                  }}
-                  disabled={section.pagination.isLoadingMore}
-                  className="text-muted-foreground justify-center text-xs"
-                >
-                  {section.pagination.loadMoreLabel}
-                </CommandItem>
-              ) : null}
-            </CommandList>
-          </Command>
-        </div>
-      ) : null}
+            return (
+              <CommandItem
+                key={option.value}
+                value={option.value}
+                keywords={filterKeywords}
+                onSelect={() => {
+                  section.onChange(isAllOption ? null : option.value);
+                  onSelect();
+                }}
+              >
+                <FilterDropdownMenuOptionAvatar option={option} />
+                <span className="flex-1 truncate">{option.label}</span>
+                <Check
+                  className={cn(
+                    "size-4",
+                    isSelected ? "opacity-100" : "opacity-0",
+                  )}
+                  aria-hidden
+                />
+              </CommandItem>
+            );
+          })}
+          {section.pagination?.nextCursor ? (
+            <CommandItem
+              key={`${section.id}-load-more`}
+              value={`${section.id}-load-more`}
+              forceMount
+              onSelect={() => {
+                section.pagination?.onLoadMore();
+              }}
+              disabled={section.pagination.isLoadingMore}
+              className="text-muted-foreground justify-center text-xs"
+            >
+              {section.pagination.loadMoreLabel}
+            </CommandItem>
+          ) : null}
+        </CommandList>
+      </Command>
     </div>
   );
 }
