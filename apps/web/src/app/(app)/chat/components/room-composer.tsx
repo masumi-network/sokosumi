@@ -69,7 +69,9 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
+  type ChatParticipantHoverProfile,
   formatRoomMarkdownContent,
+  handleSentMentionDirectClick,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -170,11 +172,17 @@ function PendingQuotePreview({
   onDismiss,
   mentions,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
 }: {
   quote: PendingRoomQuote;
   onDismiss: () => void;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
@@ -202,7 +210,16 @@ function PendingQuotePreview({
             />
           ) : null}
           {quote.snippet.trim() ? (
-            <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
+            <div
+              className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5"
+              onClick={(event) => {
+                handleSentMentionDirectClick(event, {
+                  coworkersById,
+                  usersById,
+                  onOpenDirect: onOpenDirectMessage,
+                });
+              }}
+            >
               <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
                 {formatRoomMarkdownContent({
                   content: quote.snippet,
@@ -210,6 +227,8 @@ function PendingQuotePreview({
                   coworkersBySlug,
                   usersById,
                   usersBySlug,
+                  currentUserId,
+                  canOpenHumanDirect,
                   channelLinks,
                 })}
               </Markdown>
@@ -253,6 +272,9 @@ export function RoomComposer({
   onClearPendingQuote,
   onChromeResize,
   focusOnMount = false,
+  currentUserId,
+  canOpenHumanDirect = false,
+  onOpenDirectMessage,
 }: {
   ref?: Ref<RoomComposerHandle>;
   /** When set, attaches mint via room chat file endpoint. */
@@ -283,6 +305,9 @@ export function RoomComposer({
   onChromeResize?: () => void;
   /** Focus the editor after mount (room/thread open). */
   focusOnMount?: boolean;
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
 }) {
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
@@ -515,6 +540,9 @@ export function RoomComposer({
                 onDismiss={onClearPendingQuote}
                 mentions={composerMentions}
                 channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
               />
             ) : null}
             {formatToolbarOpen ? (

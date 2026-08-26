@@ -356,6 +356,9 @@ export function ThreadPanel({
           onChromeResize={scrollToBottomIfPinned}
           onBeforeSend={onBeforeSendReply}
           onSend={handleSendReply}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirectMessage={onOpenDirectMessage}
         />
       </RoomFileDropZone>
     </aside>

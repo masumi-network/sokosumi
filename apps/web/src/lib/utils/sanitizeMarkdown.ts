@@ -93,11 +93,11 @@ export function sanitizeMarkdown(markdown: string): string {
       audio: ["src", "controls", "loop", "muted", "width", "height"],
       source: ["src"],
       mark: ["class"],
-      span: ["class"],
+      span: ["class", "data-direct-kind", "data-direct-id"],
     },
     allowedClasses: {
       mark: ["bg-primary/50", "text-foreground", "rounded-sm", "px-0.5"],
-      span: ["text-primary", "font-medium"],
+      span: ["text-primary", "font-medium", "cursor-pointer"],
     },
   });
 

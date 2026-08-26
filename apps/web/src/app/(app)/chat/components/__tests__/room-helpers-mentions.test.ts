@@ -12,6 +12,7 @@ import {
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
+  parseMentionDirectChip,
   partitionRoomMentionSuggestions,
   ROOM_MENTION_ALL_ID,
   ROOM_MENTION_ALL_SLUG,
@@ -50,7 +51,88 @@ function mention(
   };
 }
 
+function directChip(kind: "human" | "coworker", id: string, label: string) {
+  return `<span class="text-primary font-medium cursor-pointer" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
+}
+
 describe("formatRoomMarkdownMentions", () => {
+  it("makes a resolved coworker chip a Direct target", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${coworker.id}:${coworker.slug} please look`,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toBe(
+      `${directChip("coworker", coworker.id, "Elena")} please look`,
+    );
+  });
+
+  it("makes a resolved human chip a Direct target when human Directs are allowed", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${human.id}:alice-smith please look`,
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map([[human.id, human]]),
+      usersBySlug: new Map([["alice-smith", human]]),
+      currentUserId: "user_self",
+      canOpenHumanDirect: true,
+    });
+
+    expect(formatted).toBe(
+      `${directChip("human", human.id, "Alice Smith")} please look`,
+    );
+  });
+
+  it("keeps a self mention as an inert chip", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${human.id}:alice-smith please look`,
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map([[human.id, human]]),
+      usersBySlug: new Map([["alice-smith", human]]),
+      currentUserId: human.id,
+      canOpenHumanDirect: true,
+    });
+
+    expect(formatted).toBe(
+      `<span class="text-primary font-medium">@Alice Smith</span> please look`,
+    );
+    expect(formatted).not.toContain("data-direct-kind");
+  });
+
+  it("keeps a human mention inert when human Directs are gated off", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${human.id}:alice-smith please look`,
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map([[human.id, human]]),
+      usersBySlug: new Map([["alice-smith", human]]),
+      currentUserId: "user_self",
+      canOpenHumanDirect: false,
+    });
+
+    expect(formatted).toBe(
+      `<span class="text-primary font-medium">@Alice Smith</span> please look`,
+    );
+    expect(formatted).not.toContain("data-direct-kind");
+  });
+
+  it("still makes a coworker chip a Direct target when human Directs are gated off", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${coworker.id}:${coworker.slug}`,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+      canOpenHumanDirect: false,
+    });
+
+    expect(formatted).toBe(directChip("coworker", coworker.id, "Elena"));
+  });
+
   it("renders coworker and human mention chips from tokens", () => {
     const content = `@${coworker.id}:${coworker.slug} please ping @${human.id}:alice-smith`;
     const formatted = formatRoomMarkdownMentions({
@@ -102,9 +184,7 @@ describe("formatRoomMarkdownMentions", () => {
       usersBySlug: new Map(),
     });
 
-    expect(formatted).toContain(
-      '<span class="text-primary font-medium">@Elena</span>',
-    );
+    expect(formatted).toContain(directChip("coworker", coworker.id, "Elena"));
     expect(formatted).toContain("and @nobody please");
     expect(formatted.match(/text-primary/g)).toHaveLength(1);
   });
@@ -116,10 +196,12 @@ describe("formatRoomMarkdownMentions", () => {
       coworkersBySlug: new Map(),
       usersById: new Map(),
       usersBySlug: new Map(),
+      canOpenHumanDirect: true,
     });
 
     expect(formatted).toContain(">@all</span>");
     expect(formatted).not.toContain("@all:all");
+    expect(formatted).not.toContain("data-direct-kind");
   });
 
   it("renders bare @all as an @all chip", () => {
@@ -132,6 +214,38 @@ describe("formatRoomMarkdownMentions", () => {
     });
 
     expect(formatted).toContain(">@all</span>");
+  });
+});
+
+describe("parseMentionDirectChip", () => {
+  it("reads kind and id from a formatted Direct chip", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${coworker.id}:${coworker.slug}`,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+    const root = document.createElement("div");
+    root.innerHTML = formatted;
+    const chip = root.querySelector("[data-direct-kind]");
+    expect(chip).not.toBeNull();
+    expect(parseMentionDirectChip(chip as Element)).toEqual({
+      kind: "coworker",
+      id: coworker.id,
+    });
+  });
+
+  it("rejects inert mention chips and Channel links", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<span class="text-primary font-medium">@all</span> <a href="/chat/rooms/room-1">#general</a>';
+    const allChip = root.querySelector("span");
+    const channelLink = root.querySelector("a");
+    expect(allChip).not.toBeNull();
+    expect(channelLink).not.toBeNull();
+    expect(parseMentionDirectChip(allChip as Element)).toBeNull();
+    expect(parseMentionDirectChip(channelLink as Element)).toBeNull();
   });
 });
 
@@ -152,9 +266,7 @@ describe("formatRoomMarkdownContent", () => {
       ],
     });
 
-    expect(formatted).toContain(
-      '<span class="text-primary font-medium">@Elena</span>',
-    );
+    expect(formatted).toContain(directChip("coworker", coworker.id, "Elena"));
     expect(formatted).toContain("[#general](/chat/rooms/room-general)");
   });
 });
