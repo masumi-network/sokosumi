@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
@@ -304,7 +305,18 @@ function roomClientProps(room: ChatRoom) {
 }
 
 function renderRoom(room: ChatRoom) {
-  return render(<RoomsClient {...roomClientProps(room)} />);
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RoomsClient {...roomClientProps(room)} />
+    </QueryClientProvider>,
+  );
 }
 
 describe("RoomsClient room header chrome", () => {

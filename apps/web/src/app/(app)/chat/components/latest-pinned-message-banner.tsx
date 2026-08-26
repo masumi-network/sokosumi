@@ -1,9 +1,10 @@
 "use client";
 
 import { buildQuoteSnippet } from "@sokosumi/utils";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
+import type { ChatRoomPinnedMessageListItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { pickLatestPinnedMessage } from "./pick-latest-pinned-message";
 import { messageSender } from "./room-helpers";
@@ -35,6 +36,32 @@ interface LatestPinnedBannerState {
   total: number;
 }
 
+interface LatestPinnedMessagesPage {
+  items: ChatRoomPinnedMessageListItem[];
+  nextCursor: string | null;
+  total: number;
+}
+
+function latestPinnedMessageQueryKey(roomId: string, listGeneration: number) {
+  return ["latest-pinned-message", roomId, listGeneration] as const;
+}
+
+function selectLatestPinnedBanner(
+  page: LatestPinnedMessagesPage,
+): LatestPinnedBannerState | null {
+  const latest = pickLatestPinnedMessage(page.items);
+  if (!latest) {
+    return null;
+  }
+  const message = latest.message;
+  return {
+    messageId: latest.messageId,
+    authorName: message ? messageSender(message).name : null,
+    snippet: message ? buildQuoteSnippet(message.content) : null,
+    total: page.total,
+  };
+}
+
 export function LatestPinnedMessageBanner({
   roomId,
   listGeneration,
@@ -43,68 +70,30 @@ export function LatestPinnedMessageBanner({
   onOpenAll,
   onIdsLoaded,
 }: LatestPinnedMessageBannerProps): React.ReactElement | null {
-  const [isLoading, setIsLoading] = useState(true);
-  const [pin, setPin] = useState<LatestPinnedBannerState | null>(null);
-  const loadedRoomIdRef = useRef<string | null>(null);
-  const pinRef = useRef(pin);
-  pinRef.current = pin;
-
-  useEffect(() => {
-    let cancelled = false;
-    if (loadedRoomIdRef.current !== roomId) {
-      pinRef.current = null;
-      setPin(null);
-    }
-    setIsLoading(true);
-    void listPinnedMessagesAction(roomId, {
-      limit: LATEST_PINNED_FETCH_LIMIT,
-    })
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-        if (!result.ok) {
-          loadedRoomIdRef.current = roomId;
-          if (pinRef.current == null) {
-            setPin(null);
-          }
-          setIsLoading(false);
-          return;
-        }
-        const latest = pickLatestPinnedMessage(result.value.items);
-        onIdsLoaded(result.value.items.map((item) => item.messageId));
-        if (!latest) {
-          loadedRoomIdRef.current = roomId;
-          setPin(null);
-          setIsLoading(false);
-          return;
-        }
-        const message = latest.message;
-        loadedRoomIdRef.current = roomId;
-        setPin({
-          messageId: latest.messageId,
-          authorName: message ? messageSender(message).name : null,
-          snippet: message ? buildQuoteSnippet(message.content) : null,
-          total: result.value.total,
-        });
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        loadedRoomIdRef.current = roomId;
-        if (pinRef.current == null) {
-          setPin(null);
-        }
-        setIsLoading(false);
+  const query = useQuery({
+    queryKey: latestPinnedMessageQueryKey(roomId, listGeneration),
+    queryFn: async () => {
+      const result = await listPinnedMessagesAction(roomId, {
+        limit: LATEST_PINNED_FETCH_LIMIT,
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [listGeneration, onIdsLoaded, roomId]);
+      if (!result.ok) {
+        throw new Error(result.error.message ?? undefined);
+      }
+      onIdsLoaded(result.value.items.map((item) => item.messageId));
+      return result.value;
+    },
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery?.queryKey[1] !== roomId) {
+        return undefined;
+      }
+      return keepPreviousData(previousData);
+    },
+    select: selectLatestPinnedBanner,
+  });
 
-  if (isLoading && pin == null) {
+  const pin = query.data;
+
+  if (query.isPending && pin === undefined) {
     return (
       <div
         className="border-border bg-muted/40 flex h-11 shrink-0 items-stretch border-b"
@@ -120,7 +109,7 @@ export function LatestPinnedMessageBanner({
     );
   }
 
-  if (!pin) {
+  if (pin == null) {
     return null;
   }
 

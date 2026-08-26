@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ChatRoomMessage,
@@ -67,12 +69,28 @@ const labels = {
   couldNotLoad: "Message could not be loaded",
 };
 
+function createBannerQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+}
+
 function renderBanner(
   overrides: Partial<Parameters<typeof LatestPinnedMessageBanner>[0]> = {},
 ) {
   const onJump = vi.fn();
   const onOpenAll = vi.fn();
   const onIdsLoaded = vi.fn();
+  const queryClient = createBannerQueryClient();
+  function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  }
   const result = render(
     <LatestPinnedMessageBanner
       roomId="room-channel"
@@ -83,6 +101,7 @@ function renderBanner(
       onIdsLoaded={onIdsLoaded}
       {...overrides}
     />,
+    { wrapper: Wrapper },
   );
   return { ...result, onJump, onOpenAll, onIdsLoaded };
 }
@@ -196,7 +215,7 @@ describe("LatestPinnedMessageBanner", () => {
     });
   });
 
-  it("keeps the current pin when a later refetch fails", async () => {
+  it("hides the banner when a later same-room fetch fails", async () => {
     listPinnedMessagesAction
       .mockResolvedValueOnce({
         ok: true,
@@ -224,9 +243,9 @@ describe("LatestPinnedMessageBanner", () => {
     await waitFor(() => {
       expect(listPinnedMessagesAction).toHaveBeenCalledTimes(2);
     });
-    expect(screen.getByTestId("latest-pinned-message")).toHaveTextContent(
-      "Don't freeze Friday",
-    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("latest-pinned-message")).toBeNull();
+    });
   });
 
   it("does not keep the previous room's pin when the next room fails to load", async () => {
