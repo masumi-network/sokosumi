@@ -22,6 +22,7 @@ import type {
   AdminUserOverviewItem,
   AdminUserOverviewPage,
 } from "@/lib/services/admin-user.service";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface UserListProps {
   initialPage: AdminUserOverviewPage;
@@ -145,7 +146,7 @@ export function UserList({ initialPage }: UserListProps) {
                     </span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatter.number(user.credits)}
+                    {formatter.number(formatCreditsForDisplay(user.credits))}
                   </TableCell>
                   <TableCell>
                     {user.subscriptionPlan ? (
