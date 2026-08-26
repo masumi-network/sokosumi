@@ -130,16 +130,16 @@ describe("CreateDirectDialog", () => {
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 
-  it("uses a shrink-wrapped roster scrollport so the scrollbar tracks the list", async () => {
+  it("scrolls the roster in its own overflow pane, not the dialog", async () => {
     const user = userEvent.setup();
     render(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByRole("button", { name: /Francis/ });
 
-    expect(
-      document.querySelector("[data-scroll-area-shrink-content]"),
-    ).toBeTruthy();
+    const scrollport = screen.getByTestId("direct-roster-scrollport");
+    expect(scrollport).toHaveClass("overflow-y-auto");
+    expect(scrollport.contains(screen.getByText("Francis"))).toBe(true);
   });
 
   it("closes without routing when dismissed", async () => {

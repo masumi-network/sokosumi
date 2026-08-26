@@ -24,7 +24,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { getInitials } from "@/lib/utils/text";
 import {
   CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
@@ -264,7 +263,10 @@ export function CreateDirectDialog() {
                 autoComplete="off"
               />
             </div>
-            <ScrollArea className="h-[min(16rem,40svh)] min-h-0" shrinkContent>
+            <div
+              data-testid="direct-roster-scrollport"
+              className="max-h-[min(16rem,40svh)] overflow-y-auto overscroll-contain"
+            >
               {roster.membersLoadFailed ? (
                 <MembersRosterLoadFailed className="m-1 px-3 py-6" />
               ) : null}
@@ -280,7 +282,7 @@ export function CreateDirectDialog() {
                   {t("Draft.noResults")}
                 </p>
               )}
-            </ScrollArea>
+            </div>
           </div>
         )}
         <DialogFooter className="shrink-0">
