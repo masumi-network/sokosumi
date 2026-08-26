@@ -19,7 +19,8 @@ This is a **single-context** repo: one shared domain language (jobs, agents, cre
 ├── docs/adr/                  ← created lazily; system-wide decisions
 ├── apps/
 │   ├── web/
-│   └── core/
+│   ├── core/
+│   └── cli/                   ← Developer CLI; product intent in VISION.md
 └── packages/
 ```
 
