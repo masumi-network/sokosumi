@@ -3,6 +3,8 @@ name: Preview deploy
 on:
   issue_comment:
     types: [created]
+  pull_request:
+    types: [opened]
 
 permissions:
   contents: read
@@ -10,12 +12,39 @@ permissions:
   issues: write
 
 jobs:
-  preview:
+  comment:
     name: Comment preview
     if: >
+      github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
       contains(github.event.comment.body, '/deploy')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Deploy preview
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ci/vercel-deploy.mjs preview
+
+  opened:
+    name: Opened preview
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

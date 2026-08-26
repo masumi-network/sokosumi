@@ -11,6 +11,8 @@ import {
   pickPreviewUrl,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
+  runPreviewDeployOpened,
+  runPreviewFromGithubEvent,
   runProductionDeploy,
   usageMessage,
   VERCEL_PROJECTS,
@@ -573,6 +575,188 @@ describe("pollDeploymentUntilSettled", () => {
   });
 });
 
+describe("runPreviewDeployOpened", () => {
+  function sameRepoPullRequest(overrides = {}) {
+    return {
+      user: { type: "User", login: "alice" },
+      head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
+      base: { repo: { id: 99 } },
+      ...overrides,
+    };
+  }
+
+  it("deploys web and core on both networks at the PR HEAD", async () => {
+    const urls = [];
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: sameRepoPullRequest(),
+      repoId: 99,
+      createDeployment: async (input) => {
+        created.push(input);
+        return {
+          id: `dpl_${input.target.name}`,
+          readyState: "READY",
+        };
+      },
+      pollDeployment: async (deployment) => deployment,
+      fetchImpl: async (url) => {
+        urls.push(String(url));
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 4);
+    assert.deepEqual(
+      created.map((item) => `${item.target.network}:${item.target.app}`),
+      ["mainnet:web", "mainnet:core", "preprod:web", "preprod:core"],
+    );
+    assert.ok(created.every((item) => item.sha === "deadbeef"));
+    assert.ok(created.every((item) => item.ref === "feat/x"));
+    assert.ok(created.every((item) => item.repoId === 99));
+    assert.ok(created.every((item) => item.deploymentTarget === undefined));
+    assert.deepEqual(urls, []);
+  });
+
+  it("ignores pull requests opened by bots", async () => {
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: sameRepoPullRequest({
+        user: { type: "Bot", login: "cursor[bot]" },
+      }),
+      repoId: 99,
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: "dpl", readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+    });
+    assert.equal(result.kind, "ignore");
+    assert.deepEqual(created, []);
+  });
+
+  it("refuses fork pull requests without commenting", async () => {
+    const urls = [];
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: {
+        user: { type: "User", login: "alice" },
+        head: { sha: "abc", ref: "feat", repo: { id: 2, fork: true } },
+        base: { repo: { id: 1 } },
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: "dpl", readyState: "READY" };
+      },
+      fetchImpl: async (url) => {
+        urls.push(String(url));
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    });
+    assert.equal(result.kind, "fork");
+    assert.deepEqual(created, []);
+    assert.deepEqual(urls, []);
+  });
+
+  it("throws when a preview deployment is not READY and does not comment", async () => {
+    const urls = [];
+    await assert.rejects(
+      () =>
+        runPreviewDeployOpened({
+          pullRequest: sameRepoPullRequest(),
+          repoId: 99,
+          createDeployment: async (input) => ({
+            id: `dpl_${input.target.name}`,
+            readyState: input.target.app === "core" ? "ERROR" : "READY",
+          }),
+          pollDeployment: async (deployment) => deployment,
+          fetchImpl: async (url) => {
+            urls.push(String(url));
+            throw new Error(`unexpected fetch ${url}`);
+          },
+        }),
+      /sokosumi-core-mainnet \(ERROR\)/,
+    );
+    assert.deepEqual(urls, []);
+  });
+});
+
+describe("runPreviewFromGithubEvent", () => {
+  it("routes pull_request opened events to the opened deploy", async () => {
+    const created = [];
+    const result = await runPreviewFromGithubEvent({
+      eventName: "pull_request",
+      event: {
+        action: "opened",
+        pull_request: {
+          user: { type: "User", login: "alice" },
+          head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+          base: { repo: { id: 99 } },
+        },
+        repository: { id: 99 },
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.name}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 4);
+  });
+
+  it("ignores pull_request events that are not opened", async () => {
+    const created = [];
+    for (const action of ["synchronize", "ready_for_review", "reopened"]) {
+      const result = await runPreviewFromGithubEvent({
+        eventName: "pull_request",
+        event: {
+          action,
+          pull_request: {
+            user: { type: "User", login: "alice" },
+            head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+            base: { repo: { id: 99 } },
+          },
+          repository: { id: 99 },
+        },
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: "dpl", readyState: "READY" };
+        },
+      });
+      assert.equal(result.kind, "ignore", action);
+    }
+    assert.deepEqual(created, []);
+  });
+
+  it("routes issue_comment events to the comment deploy", async () => {
+    const created = [];
+    const result = await runPreviewFromGithubEvent({
+      eventName: "issue_comment",
+      event: {
+        comment: { body: "/deploy mainnet", user: { login: "alice" }, id: 1 },
+        issue: { pull_request: {}, number: 12 },
+        repository: { id: 99 },
+      },
+      isPullRequest: true,
+      commentAuthor: "alice",
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+        base: { repo: { id: 99 } },
+      }),
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.app}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+      postComment: async () => {},
+      addReaction: async () => {},
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+  });
+});
+
 describe("runProductionDeploy", () => {
   it("deploys web and core on both networks as production", async () => {
     const created = [];
@@ -636,14 +820,27 @@ describe("git preview policy", () => {
     }
   });
 
-  it("runs comment-gated deploys from the default branch", async () => {
+  it("runs comment-gated deploys and one opened-PR deploy from Actions", async () => {
     const workflow = await readFile(
       path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
       "utf8",
     );
     assert.match(workflow, /issue_comment:/);
     assert.match(workflow, /types:\s*\[created\]/);
-    assert.doesNotMatch(workflow, /pull_request:/);
+    assert.match(workflow, /pull_request:/);
+    assert.match(workflow, /types:\s*\[opened\]/);
+    assert.doesNotMatch(workflow, /ready_for_review/);
+    assert.doesNotMatch(workflow, /synchronize/);
+    assert.match(workflow, /github\.event_name == 'issue_comment'/);
+    assert.match(workflow, /github\.event_name == 'pull_request'/);
+    assert.match(
+      workflow,
+      /github\.event\.pull_request\.user\.type\s*!=\s*'Bot'/,
+    );
+    assert.match(
+      workflow,
+      /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+    );
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
     assert.match(workflow, /persist-credentials:\s*false/);
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
