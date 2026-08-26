@@ -324,6 +324,45 @@ describe("useOrgPresencePublisher", () => {
     expect(org1.presence.leave).toHaveBeenCalled();
   });
 
+  it("waits for leave to settle before re-entering the same organization", async () => {
+    let resolveLeave: () => void = () => undefined;
+    getMock.mockImplementation((name: string) => {
+      const channel = channelFor(name);
+      channel.presence.leave.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveLeave = resolve;
+          }),
+      );
+      return channel;
+    });
+
+    const { rerender } = renderHook<void, { organizationId: string | null }>(
+      ({ organizationId }) => useOrgPresencePublisher(organizationId),
+      { initialProps: { organizationId: "org_1" } },
+    );
+    await flushEffects();
+
+    const org1 = channelFor("presence:org_org_1");
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    rerender({ organizationId: null });
+    await flushEffects();
+    expect(org1.presence.leave).toHaveBeenCalledTimes(1);
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    rerender({ organizationId: "org_1" });
+    await flushEffects();
+    expect(org1.presence.update).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveLeave();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(org1.presence.update).toHaveBeenCalledTimes(2);
+  });
+
   it("does not enter the active organization when it is not granted on the token", async () => {
     authorizeMock.mockResolvedValue(tokenWithOrgs("org_2"));
     renderHook(() => useOrgPresencePublisher("org_1"));

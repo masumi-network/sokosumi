@@ -13,4 +13,4 @@ Chat roster dots mean **reachable** (live client connection), not auth-session f
 - App shell owns the Ably connection for always-on presence; room message channel subs stay chat-scoped.
 - UI: `presence.get()` for first paint + live presence events; **do not** use `Session.updatedAt` for green dots. Last seen (members table) stays a separate concept.
 
-**Rejected:** session-touch hacks; room-scoped “in channel” as Online; chat-page-only connection (breaks app-global reachable); pure offline/online without AFK for v1 product labels (hybrid kept).
+**Rejected:** session-touch hacks; room-scoped “in channel” as Online; chat-page-only connection (breaks app-shell presence — you would look Offline off the chat page); pure offline/online without AFK for v1 product labels (hybrid kept).

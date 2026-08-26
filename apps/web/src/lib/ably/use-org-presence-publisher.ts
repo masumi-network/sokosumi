@@ -45,13 +45,13 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
   const lastActiveAtRef = useRef(Date.now());
   const lastPublishedAtRef = useRef(0);
   const lastPublishedRef = useRef<ChatPresenceMemberData | null>(null);
+  const organizationIdRef = useRef(organizationId);
+  organizationIdRef.current = organizationId;
+  const syncRef = useRef<() => void>(() => undefined);
 
+  // Workspace switch must leave-then-enter on the same effect. Remounting
+  // fire-and-forgets leave and can wipe a later re-enter of the same channel.
   useEffect(() => {
-    if (organizationId == null) {
-      return;
-    }
-
-    const activeOrganizationId = organizationId;
     let cancelled = false;
     const channels = new Map<string, Ably.RealtimeChannel>();
     /** Coalesce mount + connected so authorize never overlaps. */
@@ -119,24 +119,27 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
       if (cancelled) {
         return;
       }
-      let tokenDetails: Ably.TokenDetails | null = null;
-      try {
-        tokenDetails = await ably.auth.authorize();
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Ably authorize for presence failed:", error);
-        }
-        return;
-      }
-      if (cancelled) {
-        return;
-      }
-
-      const grantedIds =
-        organizationIdsFromAblyCapability(tokenDetails?.capability) ?? [];
+      const activeOrganizationId = organizationIdRef.current;
       const nextNames = new Set<string>();
-      if (grantedIds.includes(activeOrganizationId)) {
-        nextNames.add(makeOrgPresenceChannelName(activeOrganizationId));
+      if (activeOrganizationId != null) {
+        let tokenDetails: Ably.TokenDetails | null = null;
+        try {
+          tokenDetails = await ably.auth.authorize();
+        } catch (error) {
+          if (!cancelled) {
+            console.error("Ably authorize for presence failed:", error);
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+        if (tokenDetails != null) {
+          const grantedIds =
+            organizationIdsFromAblyCapability(tokenDetails.capability) ?? [];
+          if (grantedIds.includes(activeOrganizationId)) {
+            nextNames.add(makeOrgPresenceChannelName(activeOrganizationId));
+          }
+        }
       }
 
       for (const [name, channel] of channels) {
@@ -200,7 +203,9 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
       void publishPresence(true);
     }
 
-    void syncChannels();
+    syncRef.current = () => {
+      void syncChannels();
+    };
 
     for (const event of ACTIVITY_EVENTS) {
       window.addEventListener(event, handleActivity, { passive: true });
@@ -220,6 +225,7 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
     return () => {
       cancelled = true;
       syncQueued = false;
+      syncRef.current = () => undefined;
       for (const event of ACTIVITY_EVENTS) {
         window.removeEventListener(event, handleActivity);
       }
@@ -234,5 +240,9 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
       }
       channels.clear();
     };
+  }, [ably]);
+
+  useEffect(() => {
+    syncRef.current();
   }, [ably, organizationId]);
 }
