@@ -67,7 +67,7 @@ interface FilterDropdownMenuProps {
 
 const ALL_FILTER_VALUE = "__all__";
 
-export const FILTER_DROPDOWN_OPTION_LABEL_CLASS = "min-w-0 flex-1 truncate";
+export const FILTER_DROPDOWN_OPTION_LABEL_CLASS = "min-w-0 w-0 flex-1 truncate";
 
 export function FilterDropdownMenu({
   buttonLabel,
@@ -137,12 +137,18 @@ export function FilterDropdownMenu({
       </Button>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="h-[80vh] overflow-x-hidden">
+        <SheetContent
+          side="bottom"
+          className="h-[80vh] w-full max-w-[100vw] overflow-x-hidden"
+        >
           <SheetHeader>
             <SheetTitle>{buttonLabel}</SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[calc(80vh-5rem)] px-4">
-            <div className="mt-4 space-y-4">
+          <ScrollArea
+            shrinkContent
+            className="h-[calc(80vh-5rem)] min-w-0 w-full px-4"
+          >
+            <div className="mt-4 w-full min-w-0 space-y-4">
               {sections.map((section) => (
                 <FilterDropdownMenuSectionMobile
                   key={section.id}
@@ -250,7 +256,7 @@ function FilterDropdownMenuSectionItem({
                   </span>
                   <Check
                     className={cn(
-                      "size-4",
+                      "size-4 shrink-0",
                       isSelected ? "opacity-100" : "opacity-0",
                     )}
                     aria-hidden
@@ -360,20 +366,23 @@ function FilterDropdownMenuSectionMobile({
       <button
         type="button"
         onClick={onToggle}
-        className="focus:bg-accent flex w-full items-center gap-2 rounded-md px-3 py-3 text-left transition-colors hover:bg-accent"
+        className="focus:bg-accent flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-3 text-left transition-colors hover:bg-accent"
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <section.icon className="size-4 text-muted-foreground" aria-hidden />
+        <div className="flex min-w-0 w-0 flex-1 items-center gap-2">
+          <section.icon
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
           <span className="truncate font-medium">{section.label}</span>
         </div>
-        <span className="min-w-0 max-w-28 truncate text-right text-xs text-muted-foreground">
+        <span className="min-w-0 max-w-28 shrink-0 truncate text-right text-xs text-muted-foreground">
           {selectedOption?.label ?? section.allLabel}
         </span>
       </button>
       {expanded ? (
-        <div className="mt-2 min-w-0 overflow-x-hidden rounded-md border bg-card p-2">
+        <div className="mt-2 w-full min-w-0 overflow-hidden rounded-md border bg-card p-2">
           <Command
-            className="**:data-[slot=command-list]:max-h-[40vh]"
+            className="min-w-0 w-full overflow-hidden **:data-[slot=command-list]:max-h-[40vh]"
             shouldFilter
           >
             <CommandInput autoFocus placeholder={searchPlaceholder} />
@@ -394,7 +403,7 @@ function FilterDropdownMenuSectionMobile({
                     key={option.value}
                     value={option.value}
                     keywords={filterKeywords}
-                    className="min-w-0"
+                    className="min-w-0 overflow-hidden"
                     onSelect={() => {
                       section.onChange(isAllOption ? null : option.value);
                       onSelect();
