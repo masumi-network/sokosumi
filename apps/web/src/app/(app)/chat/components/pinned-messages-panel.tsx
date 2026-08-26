@@ -103,21 +103,30 @@ export function PinnedMessagesPanel({
     setIsLoading(true);
     setError(null);
     setNextCursor(null);
-    void listPinnedMessagesAction(roomId).then((result) => {
-      if (cancelled) {
-        return;
-      }
-      if (!result.ok) {
+    void listPinnedMessagesAction(roomId)
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        if (!result.ok) {
+          setError(labels.error);
+          setItems([]);
+          setIsLoading(false);
+          return;
+        }
+        setItems(result.value.items);
+        setNextCursor(result.value.nextCursor);
+        onIdsLoaded(result.value.items.map((item) => item.messageId));
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
         setError(labels.error);
         setItems([]);
         setIsLoading(false);
-        return;
-      }
-      setItems(result.value.items);
-      setNextCursor(result.value.nextCursor);
-      onIdsLoaded(result.value.items.map((item) => item.messageId));
-      setIsLoading(false);
-    });
+      });
     return () => {
       cancelled = true;
     };
@@ -248,17 +257,22 @@ export function PinnedMessagesPanel({
             onClick={() => {
               void (async () => {
                 setIsLoadingOlder(true);
-                const result = await listPinnedMessagesAction(roomId, {
-                  cursor: nextCursor,
-                });
-                setIsLoadingOlder(false);
-                if (!result.ok) {
+                try {
+                  const result = await listPinnedMessagesAction(roomId, {
+                    cursor: nextCursor,
+                  });
+                  if (!result.ok) {
+                    setError(labels.error);
+                    return;
+                  }
+                  setItems((current) => [...current, ...result.value.items]);
+                  setNextCursor(result.value.nextCursor);
+                  onIdsLoaded(result.value.items.map((item) => item.messageId));
+                } catch {
                   setError(labels.error);
-                  return;
+                } finally {
+                  setIsLoadingOlder(false);
                 }
-                setItems((current) => [...current, ...result.value.items]);
-                setNextCursor(result.value.nextCursor);
-                onIdsLoaded(result.value.items.map((item) => item.messageId));
               })();
             }}
           >
