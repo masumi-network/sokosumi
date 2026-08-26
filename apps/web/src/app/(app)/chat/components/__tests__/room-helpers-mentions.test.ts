@@ -172,7 +172,7 @@ describe("membershipVisibleChannelLinks", () => {
         {
           id: "d1",
           name: "Alice",
-          slug: "alice-bob",
+          slug: null,
           kind: "direct",
         },
       ]),

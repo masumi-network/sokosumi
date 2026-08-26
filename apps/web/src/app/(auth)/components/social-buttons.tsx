@@ -26,11 +26,11 @@ import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
-  getAbsoluteAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { cn } from "@/lib/utils";
 
 export type SocialButtonProviderId = "google" | "microsoft";
@@ -85,7 +85,7 @@ export default function SocialButtons({
     magicLinkEmail.trim() === magicLinkSentTo;
 
   const finishPasskeySignIn = useCallback(async () => {
-    await waitForAuthSession({
+    const session = await waitForAuthSession({
       context: "login",
       getSession: createAuthSessionGetter(() => authClient.getSession()),
       logWarning: (message) => {
@@ -93,6 +93,9 @@ export default function SocialButtons({
       },
     });
 
+    if (session) {
+      fireGTMEvent.signIn("passkey");
+    }
     router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   }, [effectiveReturnUrl, router]);
 
@@ -190,9 +193,15 @@ export default function SocialButtons({
     setIsRequestingMagicLink(true);
 
     try {
+      // The link lands on the callback page (full page load), which fires the
+      // `login` GTM event and then forwards to the return URL.
       const result = await authClient.signIn.magicLink({
         email: trimmedEmail,
-        callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
+        callbackURL: buildAuthCallbackUrl(
+          "/auth/callback/signin",
+          "magic-link",
+          effectiveReturnUrl,
+        ),
       });
 
       if (result.error) {

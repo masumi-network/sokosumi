@@ -363,7 +363,7 @@ describe("waitForAuthSession", () => {
     const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    await waitForAuthSession({
+    const session = await waitForAuthSession({
       context: "login",
       waitForMs,
       getSession,
@@ -372,6 +372,7 @@ describe("waitForAuthSession", () => {
       retryDelayMs: 20,
     });
 
+    expect(session).toEqual({ userId: "user_1" });
     expect(waitForMs).toHaveBeenCalledTimes(1);
     expect(waitForMs).toHaveBeenCalledWith(10);
     expect(getSession).toHaveBeenCalledTimes(1);
@@ -386,7 +387,7 @@ describe("waitForAuthSession", () => {
       .mockResolvedValueOnce({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    await waitForAuthSession({
+    const session = await waitForAuthSession({
       context: "signup",
       waitForMs,
       getSession,
@@ -395,6 +396,7 @@ describe("waitForAuthSession", () => {
       retryDelayMs: 20,
     });
 
+    expect(session).toEqual({ userId: "user_1" });
     expect(waitForMs).toHaveBeenCalledTimes(2);
     expect(waitForMs).toHaveBeenNthCalledWith(1, 10);
     expect(waitForMs).toHaveBeenNthCalledWith(2, 20);
@@ -410,7 +412,7 @@ describe("waitForAuthSession", () => {
     const getSession = vi.fn().mockResolvedValue(null);
     const logWarning = vi.fn();
 
-    await waitForAuthSession({
+    const session = await waitForAuthSession({
       context: "login",
       waitForMs,
       getSession,
@@ -419,6 +421,7 @@ describe("waitForAuthSession", () => {
       retryDelayMs: 20,
     });
 
+    expect(session).toBeNull();
     expect(logWarning).toHaveBeenCalledTimes(2);
     expect(logWarning).toHaveBeenNthCalledWith(
       1,
@@ -428,6 +431,26 @@ describe("waitForAuthSession", () => {
       2,
       "Session not established after login, proceeding with redirect anyway",
     );
+  });
+
+  it("treats a hung getSession as missing and continues", async () => {
+    const waitForMs = vi.fn(async () => undefined);
+    const getSession = vi.fn(() => new Promise(() => {}));
+    const logWarning = vi.fn();
+
+    const session = await waitForAuthSession({
+      context: "login",
+      waitForMs,
+      getSession,
+      logWarning,
+      initialDelayMs: 0,
+      retryDelayMs: 0,
+      sessionTimeoutMs: 20,
+    });
+
+    expect(session).toBeNull();
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(logWarning).toHaveBeenCalledTimes(2);
   });
 });
 

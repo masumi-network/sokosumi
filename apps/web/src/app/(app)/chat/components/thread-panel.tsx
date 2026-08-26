@@ -60,6 +60,7 @@ export function ThreadPanel({
   openingDirectParticipantKey = null,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
@@ -105,6 +106,7 @@ export function ThreadPanel({
   openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
@@ -168,6 +170,7 @@ export function ThreadPanel({
       currentUserId,
       onStartEdit,
       onDelete,
+      onRemoveUnfurl,
       isEditing,
       editDraft: isEditing && editSession ? editSession.draft : "",
       onEditDraftChange,

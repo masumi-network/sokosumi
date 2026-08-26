@@ -9,6 +9,7 @@ const upgradeOrganizationSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionEnterprisePlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
+const beginCheckoutMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -37,6 +38,12 @@ vi.mock("@/lib/actions/subscription", () => ({
     updateOrganizationSubscriptionSeatsMock(...args),
   upgradeOrganizationSubscription: (...args: unknown[]) =>
     upgradeOrganizationSubscriptionMock(...args),
+}));
+
+vi.mock("@/lib/gtm-events", () => ({
+  fireGTMEvent: {
+    beginCheckout: (...args: unknown[]) => beginCheckoutMock(...args),
+  },
 }));
 
 vi.mock("../subscription-plan-card", () => ({
@@ -274,6 +281,10 @@ describe("OrganizationSubscriptionSection", () => {
         seats: 2,
       });
     });
+    expect(beginCheckoutMock).toHaveBeenCalledWith({
+      plan: "standard",
+      seats: 2,
+    });
   });
 
   it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
@@ -314,5 +325,6 @@ describe("OrganizationSubscriptionSection", () => {
       expect(toast.success).toHaveBeenCalledWith("statusSuccess");
       expect(refreshMock).toHaveBeenCalled();
     });
+    expect(beginCheckoutMock).not.toHaveBeenCalled();
   });
 });

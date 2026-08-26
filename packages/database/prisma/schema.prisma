@@ -2298,7 +2298,8 @@ model ChatRoom {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   name                   String
-  slug                   String
+  /// Channel handle. Required for channels (CHECK); null for Directs.
+  slug                   String?
   kind                   String    @default("channel")
   directKey              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
@@ -2320,9 +2321,9 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for (organizationId, slug|directKey) and personal directKey is
-  // enforced with partial unique indexes in the SQL migration — Prisma cannot
-  // express WHERE organizationId IS NOT NULL / IS NULL partial uniques.
+  // Uniqueness for Channel (organizationId, slug) WHERE kind = 'channel',
+  // org/personal directKey, and Channel/Direct slug CHECK are enforced in SQL
+  // migrations — Prisma cannot express those partial uniques.
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])

@@ -4,6 +4,7 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
+  ChannelSlugAvailability,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -239,6 +240,13 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function getChannelSlugAvailability(
+    slug: string,
+  ): Promise<ChannelSlugAvailability> {
+    const response = await coreClient.getChannelSlugAvailability({ slug });
+    return response.data;
+  }
+
   async function updateRoom(
     id: string,
     body: UpdateChatRoomRequest,
@@ -420,6 +428,19 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function removeUnfurl(
+    roomId: string,
+    messageId: string,
+    url: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.removeChatRoomMessageUnfurl(
+      roomId,
+      messageId,
+      { url },
+    );
+    return response.data;
+  }
+
   async function editMessage(
     roomId: string,
     messageId: string,
@@ -442,6 +463,7 @@ export const chatRoomService = (() => {
     deleteMessage,
     deleteRoom,
     editMessage,
+    getChannelSlugAvailability,
     getInvitation,
     getRoom,
     joinRoom,
@@ -462,6 +484,7 @@ export const chatRoomService = (() => {
     markThreadRead,
     markUnread,
     pinRoom,
+    removeUnfurl,
     resolveRoomGuestInviteLink,
     restoreRoom,
     revokeRoomGuestInviteLink,
