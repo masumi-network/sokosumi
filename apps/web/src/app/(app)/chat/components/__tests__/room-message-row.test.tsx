@@ -150,6 +150,8 @@ function renderRow({
   isContinuation = false,
   isFirstOfDay = false,
   onQuote,
+  onPin,
+  showPinButton,
   currentUserId,
   onStartEdit,
   onDelete,
@@ -172,6 +174,8 @@ function renderRow({
   isFirstOfDay?: boolean;
   reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
+  showPinButton?: boolean;
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
@@ -196,6 +200,8 @@ function renderRow({
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
+      onPin={onPin}
+      showPinButton={showPinButton}
       onStartEdit={onStartEdit}
       onDelete={onDelete}
       onRemoveUnfurl={onRemoveUnfurl}
@@ -495,6 +501,26 @@ describe("ChatMessageRow", () => {
         name: "Copy.action",
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows Pin message on the hover action pill", () => {
+    const onPin = vi.fn();
+    renderRow({
+      message: userMessage({ content: "Pin me" }),
+      onPin,
+      showPinButton: true,
+    });
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    fireEvent.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "PinnedMessages.pin",
+      }),
+    );
+    expect(onPin).toHaveBeenCalledTimes(1);
   });
 
   it("shows Copy on the hover action pill", () => {

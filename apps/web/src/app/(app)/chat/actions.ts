@@ -20,6 +20,8 @@ import type {
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomMessage,
+  ChatRoomPinnedMessageListItem,
+  ChatRoomPinnedMessageMutation,
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
@@ -814,6 +816,72 @@ export async function retryRoomMentionAction(
     return roomOk(message);
   } catch (error) {
     return roomCatch(error, "Could not retry mention.");
+  }
+}
+
+export async function pinRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail("Message is required.");
+  }
+
+  try {
+    const result = await chatRoomService.pinMessage(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, "Could not pin message.");
+  }
+}
+
+export async function listPinnedMessagesAction(
+  roomId: string,
+  options?: { cursor?: string },
+): Promise<
+  RoomActionResult<{
+    items: ChatRoomPinnedMessageListItem[];
+    nextCursor: string | null;
+  }>
+> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+
+  try {
+    const page = await chatRoomService.listPinnedMessages(cleanRoomId, {
+      cursor: options?.cursor,
+    });
+    return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, "Could not load pinned messages.");
+  }
+}
+
+export async function unpinRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail("Message is required.");
+  }
+
+  try {
+    const result = await chatRoomService.unpinMessage(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, "Could not unpin message.");
   }
 }
 

@@ -71,6 +71,11 @@ export {
   type ChatRoomMessageEventType,
 } from "./chat-room-message-event-type.js";
 export {
+  CHAT_ROOM_PINNED_MESSAGE_ACTIONS,
+  CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+  type ChatRoomPinnedMessageAction,
+} from "./chat-room-pinned-message-event.js";
+export {
   buildQuoteSnippet,
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,

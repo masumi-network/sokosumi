@@ -94,7 +94,7 @@ function externalChannel(): ChatRoom {
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",

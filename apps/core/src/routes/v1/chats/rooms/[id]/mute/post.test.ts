@@ -41,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -124,7 +125,7 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([
     {
       roomId: ROOM_ID,
-      pinnedAt: null,
+      starredAt: null,
       mutedAt: new Date("2026-08-03T12:00:00.000Z"),
     },
   ]);
@@ -144,7 +145,7 @@ describe("POST /chats/rooms/{id}/mute", () => {
         where: {
           roomId: ROOM_ID,
           userId: USER_ID,
-          pinnedAt: null,
+          starredAt: null,
         },
         data: { mutedAt: expect.any(Date) },
       }),
@@ -161,7 +162,7 @@ describe("POST /chats/rooms/{id}/mute", () => {
   it("rejects mute when the room is pinned", async () => {
     membershipUpdateManyMock.mockResolvedValue({ count: 0 });
     membershipFindUniqueMock.mockResolvedValue({
-      pinnedAt: new Date("2026-08-03T10:00:00.000Z"),
+      starredAt: new Date("2026-08-03T10:00:00.000Z"),
     });
 
     const response = await createApp(userAuthContext).request(

@@ -5188,6 +5188,18 @@
         "cancel": "Cancel",
         "save": "Save"
       },
+      "PinnedMessages": {
+        "open": "Pinned messages",
+        "title": "Pinned Messages",
+        "close": "Close pinned messages",
+        "empty": "No pinned messages yet",
+        "loading": "Loading pinned messages…",
+        "error": "Could not load pinned messages",
+        "couldNotLoad": "Message could not be loaded",
+        "pin": "Pin message",
+        "unpin": "Unpin message",
+        "count": "{count, plural, =0 {Pinned} one {# pinned} other {# pinned}}"
+      },
       "Quote": {
         "action": "Quote",
         "dismiss": "Remove quote",

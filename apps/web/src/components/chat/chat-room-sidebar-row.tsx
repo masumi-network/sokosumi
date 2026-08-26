@@ -102,7 +102,7 @@ export function ChatRoomSidebarRow({
   const [isPending, startTransition] = useTransition();
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const isPinned = room.pinnedAt != null;
+  const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
   const canLeave = room.kind === "channel" && room.userMembers.length > 1;
   const { bold, badgeCount } = resolveRoomAttention({
@@ -257,13 +257,13 @@ export function ChatRoomSidebarRow({
                 if (isPinned) {
                   runRoomAction(unpinOrganizationChatRoomAction, {
                     ...room,
-                    pinnedAt: null,
+                    starredAt: null,
                   });
                   return;
                 }
                 runRoomAction(pinOrganizationChatRoomAction, {
                   ...room,
-                  pinnedAt: new Date(),
+                  starredAt: new Date(),
                 });
               }}
             >

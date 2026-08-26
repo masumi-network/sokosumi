@@ -4,6 +4,7 @@ import {
   publishChatRoomMessageRealtime,
   publishChatRoomMessageRealtimeById,
 } from "@/helpers/chat-room-message-realtime";
+import { publishChatRoomPinnedMessageRealtime } from "@/helpers/chat-room-pinned-message-realtime";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -67,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id, messageId } = c.req.valid("param");
 
-    const { message, newlySoftDeleted } = await prisma.$transaction(
+    const { message, newlySoftDeleted, unpinned } = await prisma.$transaction(
       async (tx) => {
         await requireChatRoomUserMembership(id, userContext.userId, tx);
 
@@ -98,7 +99,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               error: "Source message was deleted",
             },
           });
-          return { message: existing, newlySoftDeleted: false };
+          return {
+            message: existing,
+            newlySoftDeleted: false,
+            unpinned: null,
+          };
         }
 
         // Conditional write so concurrent DELETEs cannot both claim the
@@ -138,7 +143,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw notFound("Message not found");
         }
 
-        return { message: updated, newlySoftDeleted };
+        const pinDelete = newlySoftDeleted
+          ? await tx.chatRoomPinnedMessage.deleteMany({
+              where: { roomId: id, messageId },
+            })
+          : { count: 0 };
+        const pinnedMessageCount = newlySoftDeleted
+          ? await tx.chatRoomPinnedMessage.count({ where: { roomId: id } })
+          : 0;
+
+        return {
+          message: updated,
+          newlySoftDeleted,
+          unpinned: pinDelete.count > 0 ? { pinnedMessageCount } : null,
+        };
       },
     );
 
@@ -154,6 +172,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
     await Promise.all(publishes);
+
+    if (unpinned) {
+      await publishChatRoomPinnedMessageRealtime({
+        action: "unpin",
+        roomId: id,
+        messageId,
+        pinnedMessageCount: unpinned.pinnedMessageCount,
+      });
+    }
 
     return ok(
       c,

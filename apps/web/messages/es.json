@@ -5188,6 +5188,18 @@
         "cancel": "Cancelar",
         "save": "Guardar"
       },
+      "PinnedMessages": {
+        "open": "Mensajes fijados",
+        "title": "Mensajes fijados",
+        "close": "Cerrar mensajes fijados",
+        "empty": "Aún no hay mensajes fijados",
+        "loading": "Cargando mensajes fijados…",
+        "error": "No se pudieron cargar los mensajes fijados",
+        "couldNotLoad": "No se pudo cargar el mensaje",
+        "pin": "Fijar mensaje",
+        "unpin": "Desfijar mensaje",
+        "count": "{count, plural, =0 {Fijados} one {# fijado} other {# fijados}}"
+      },
       "Quote": {
         "action": "Citar",
         "dismiss": "Quitar cita",

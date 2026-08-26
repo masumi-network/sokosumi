@@ -48,7 +48,7 @@ describe("chatRoomSchema", () => {
     updatedAt: "2026-08-02T12:00:00.000Z",
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "guest" as const,

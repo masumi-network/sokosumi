@@ -137,10 +137,15 @@ export const chatRoomSchema = z
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
       example: 1,
     }),
-    pinnedAt: dateTimeSchema.nullable().openapi({
+    starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user pinned this room in their sidebar. Null when unpinned.",
+        "When the current user starred (sidebar Pin) this room. Null when not starred. Product UI stays Pin.",
       example: "2026-08-02T12:00:00.000Z",
+    }),
+    pinnedMessageCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Number of Pinned messages on this Channel. Always 0 for Directs.",
+      example: 1,
     }),
     mutedAt: dateTimeSchema.nullable().openapi({
       description:
@@ -166,6 +171,19 @@ export const chatRoomSchema = z
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
   })
   .openapi("ChatRoom");
+
+export const chatRoomPinnedMessageMutationSchema = z
+  .object({
+    messageId: z.string().uuid().openapi({
+      description: "Pinned or unpinned message id.",
+      example: "550e8400-e29b-41d4-a716-446655440001",
+    }),
+    pinnedMessageCount: z.number().int().min(0).openapi({
+      description: "Current number of Pinned messages on this Channel.",
+      example: 1,
+    }),
+  })
+  .openapi("ChatRoomPinnedMessageMutation");
 
 const roomMemberUserIdsSchema = z
   .array(z.string().min(1))
@@ -446,6 +464,22 @@ export const chatRoomMessageSchema = z
     }),
   })
   .openapi("ChatRoomMessage");
+
+export const chatRoomPinnedMessageListItemSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    pinnedAt: dateTimeSchema,
+    pinnedBy: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+      })
+      .nullable(),
+    // Do not chain `.nullable()` onto chatRoomMessageSchema — that poisons
+    // the OpenAPI ChatRoomMessage component with null.
+    message: z.union([chatRoomMessageSchema, z.null()]),
+  })
+  .openapi("ChatRoomPinnedMessageListItem");
 
 export const createChatRoomMessageRequestSchema = z
   .object({

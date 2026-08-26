@@ -8,13 +8,14 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountUnpinChatRoom from "./delete";
+import mountPinChatRoom from "./post";
 
 const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  membershipUpdateMock,
+  membershipUpdateManyMock,
+  membershipFindUniqueMock,
   unreadQueryMock,
   mentionGroupByMock,
   membershipFindManyMock,
@@ -24,7 +25,8 @@ const {
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  membershipUpdateMock: vi.fn(),
+  membershipUpdateManyMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
   unreadQueryMock: vi.fn(),
   mentionGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -39,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -50,7 +53,10 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
-  chatRoomUserMember: { update: membershipUpdateMock },
+  chatRoomUserMember: {
+    updateMany: membershipUpdateManyMock,
+    findUnique: membershipFindUniqueMock,
+  },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -61,14 +67,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_unpin_chat_room");
+    c.set("requestId", "req_pin_chat_room");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountUnpinChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  mountPinChatRoom(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -113,37 +119,73 @@ beforeEach(() => {
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  membershipUpdateMock.mockResolvedValue({});
+  membershipUpdateManyMock.mockResolvedValue({ count: 1 });
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([
-    { roomId: ROOM_ID, pinnedAt: null },
+    {
+      roomId: ROOM_ID,
+      starredAt: new Date("2026-08-02T12:00:00.000Z"),
+      mutedAt: null,
+    },
   ]);
   readStateFindManyMock.mockResolvedValue([]);
 });
 
-describe("DELETE /chats/rooms/{id}/pin", () => {
-  it("clears membership pinnedAt and returns unpinned room", async () => {
+describe("POST /chats/rooms/{id}/star", () => {
+  it("sets membership starredAt and returns pinned room", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/pin`,
-      { method: "DELETE" },
+      `/${ROOM_ID}/star`,
+      { method: "POST" },
     );
 
     expect(response.status).toBe(200);
-    expect(membershipUpdateMock).toHaveBeenCalledWith(
+    expect(membershipUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          roomId_userId: { roomId: ROOM_ID, userId: USER_ID },
+          roomId: ROOM_ID,
+          userId: USER_ID,
+          mutedAt: null,
         },
-        data: { pinnedAt: null },
+        data: { starredAt: expect.any(Date) },
       }),
     );
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
-      pinnedAt: null,
+      starredAt: "2026-08-02T12:00:00.000Z",
       markedUnread: false,
     });
+  });
+
+  it("rejects pin when the room is muted", async () => {
+    membershipUpdateManyMock.mockResolvedValue({ count: 0 });
+    membershipFindUniqueMock.mockResolvedValue({
+      mutedAt: new Date("2026-08-03T10:00:00.000Z"),
+    });
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/star`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.message).toBe("Cannot pin a muted room. Unmute it first.");
+  });
+
+  it("404s when membership disappears after access check", async () => {
+    membershipUpdateManyMock.mockResolvedValue({ count: 0 });
+    membershipFindUniqueMock.mockResolvedValue(null);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/star`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.message).toBe("Room not found");
   });
 });

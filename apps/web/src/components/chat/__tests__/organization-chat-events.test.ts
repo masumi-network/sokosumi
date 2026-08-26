@@ -21,7 +21,7 @@ function makeRoom(id = "room-1"): ChatRoom {
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",

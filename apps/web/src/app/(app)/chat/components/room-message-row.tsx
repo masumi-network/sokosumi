@@ -11,6 +11,8 @@ import {
   Copy,
   MessageCircle,
   Pencil,
+  Pin,
+  PinOff,
   Quote,
   Trash2,
   X,
@@ -508,7 +510,7 @@ function ChannelMarkdownSegment({
   );
 }
 
-function ChannelMessageText({
+export function ChannelMessageText({
   content,
   coworkersById,
   coworkersBySlug,
@@ -773,11 +775,14 @@ function MessageActionControls({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showPinButton,
+  isPinned,
   showCopyButton,
   showEditButton,
   showDeleteButton,
@@ -787,11 +792,14 @@ function MessageActionControls({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showPinButton: boolean;
+  isPinned: boolean;
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
@@ -841,6 +849,28 @@ function MessageActionControls({
           }}
         >
           <Quote className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+      {showPinButton && onPin ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+          aria-label={
+            isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")
+          }
+          onClick={() => {
+            onPin(message);
+            onAfterAction?.();
+          }}
+        >
+          {isPinned ? (
+            <PinOff className="size-4" aria-hidden />
+          ) : (
+            <Pin className="size-4" aria-hidden />
+          )}
         </Button>
       ) : null}
       {showCopyButton && onCopy ? (
@@ -903,11 +933,14 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showPinButton,
+  isPinned,
   showCopyButton,
   showEditButton,
   showDeleteButton,
@@ -916,11 +949,14 @@ function MessageActions({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showPinButton: boolean;
+  isPinned: boolean;
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
@@ -938,11 +974,14 @@ function MessageActions({
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
+        onPin={onPin}
         onCopy={onCopy}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
+        showPinButton={showPinButton}
+        isPinned={isPinned}
         showCopyButton={showCopyButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
@@ -1083,11 +1122,14 @@ function TouchMessageActionsSheet({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showPinButton,
+  isPinned,
   showCopyButton,
   showEditButton,
   showDeleteButton,
@@ -1098,11 +1140,14 @@ function TouchMessageActionsSheet({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showPinButton: boolean;
+  isPinned: boolean;
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
@@ -1233,6 +1278,25 @@ function TouchMessageActionsSheet({
             >
               <Quote className="size-4 shrink-0" aria-hidden />
               {t("Quote.action")}
+            </Button>
+          ) : null}
+          {showPinButton && onPin ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onPin(message);
+                });
+              }}
+            >
+              {isPinned ? (
+                <PinOff className="size-4 shrink-0" aria-hidden />
+              ) : (
+                <Pin className="size-4 shrink-0" aria-hidden />
+              )}
+              {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
             </Button>
           ) : null}
           {showCopyButton && onCopy ? (
@@ -1721,6 +1785,7 @@ export function ChatMessageRow({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onStartEdit,
   onDelete,
   onRemoveUnfurl,
@@ -1736,6 +1801,8 @@ export function ChatMessageRow({
   isSavingEdit = false,
   showThreadButton = true,
   showQuoteButton = true,
+  showPinButton = false,
+  isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
   reserveHoverActionGutter = true,
@@ -1753,6 +1820,7 @@ export function ChatMessageRow({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
@@ -1770,6 +1838,8 @@ export function ChatMessageRow({
   isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
+  showPinButton?: boolean;
+  isPinned?: boolean;
   /** Slack-style continuation: omit avatar / name / wall-clock (group header time is enough). */
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
@@ -1820,6 +1890,13 @@ export function ChatMessageRow({
   const canQuote =
     showQuoteButton &&
     Boolean(onQuote) &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    !isDeleted;
+  const canPin =
+    showPinButton &&
+    Boolean(onPin) &&
+    message.parentMessageId == null &&
     !isStreamOverlay &&
     !isOutboundLocal &&
     !isDeleted;
@@ -2110,11 +2187,14 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onPin={onPin}
             onCopy={handleCopy}
             onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showPinButton={canPin}
+            isPinned={isPinned}
             showCopyButton={canCopy}
             showEditButton={canEdit}
             showDeleteButton={canDelete}
@@ -2135,11 +2215,14 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onPin={onPin}
             onCopy={handleCopy}
             onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showPinButton={canPin}
+            isPinned={isPinned}
             showCopyButton={canCopy}
             showEditButton={canEdit}
             showDeleteButton={canDelete}

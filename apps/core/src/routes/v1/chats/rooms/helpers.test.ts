@@ -1206,7 +1206,7 @@ function createRoomMembership(
     roomId: ROOM_ID,
     userId,
     access,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     user: {

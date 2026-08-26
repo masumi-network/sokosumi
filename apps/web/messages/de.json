@@ -5188,6 +5188,18 @@
         "cancel": "Abbrechen",
         "save": "Speichern"
       },
+      "PinnedMessages": {
+        "open": "Angeheftete Nachrichten",
+        "title": "Angeheftete Nachrichten",
+        "close": "Angeheftete Nachrichten schließen",
+        "empty": "Noch keine angehefteten Nachrichten",
+        "loading": "Angeheftete Nachrichten werden geladen…",
+        "error": "Angeheftete Nachrichten konnten nicht geladen werden",
+        "couldNotLoad": "Nachricht konnte nicht geladen werden",
+        "pin": "Nachricht anheften",
+        "unpin": "Nachricht lösen",
+        "count": "{count, plural, =0 {Angeheftet} one {# angeheftet} other {# angeheftet}}"
+      },
       "Quote": {
         "action": "Zitieren",
         "dismiss": "Zitat entfernen",

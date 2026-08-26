@@ -142,6 +142,16 @@ _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room m
 When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore prior room memberships. Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
 
+### Chat pins
+
+**Pinned room**:
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin and the pin icon. Distinct from a Pinned message.
+_Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
+
+**Pinned message**:
+A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
+_Avoid_: Announcement (a use of this), pinned room, thread pin
+
 ### Chat presence
 
 **Presence**:
