@@ -66,13 +66,21 @@ interface PublishNotificationEventInput {
 /**
  * The closed-app push payload the service worker receives. Data only, by
  * design: the worker renders title, body, and destination, so Core ships no
- * display strings (ADR-0018). Derived from the event shape so the two cannot
- * drift.
+ * display strings (ADR-0018).
+ *
+ * Flat, and every value a string: Ably documents push `data` as a
+ * string-to-string map, and FCM's HTTP v1 API rejects nested JSON outright.
+ * The plain string fields stay tied to the event shape so the two cannot
+ * drift; the two structured fields are JSON-encoded for the worker to parse.
  */
 type NotificationPushData = Pick<
   NotificationEventData,
-  "id" | "kind" | "referenceId" | "messageKey" | "messageParams" | "metadata"
->;
+  "id" | "kind" | "referenceId" | "messageKey"
+> & {
+  messageParams: string;
+  /** Omitted, not null, when the notification carries no metadata. */
+  metadata?: string;
+};
 
 function toNotificationPushData(
   notification: NotificationEventData,
@@ -82,8 +90,10 @@ function toNotificationPushData(
     kind: notification.kind,
     referenceId: notification.referenceId,
     messageKey: notification.messageKey,
-    messageParams: notification.messageParams,
-    metadata: notification.metadata,
+    messageParams: JSON.stringify(notification.messageParams),
+    ...(notification.metadata !== null && {
+      metadata: JSON.stringify(notification.metadata),
+    }),
   };
 }
 

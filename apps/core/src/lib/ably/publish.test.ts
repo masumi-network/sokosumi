@@ -129,8 +129,8 @@ describe("publishNotificationEvent", () => {
             kind: notification.kind,
             referenceId: notification.referenceId,
             messageKey: notification.messageKey,
-            messageParams: notification.messageParams,
-            metadata: notification.metadata,
+            messageParams: JSON.stringify(notification.messageParams),
+            metadata: JSON.stringify(notification.metadata),
           },
         },
       },
@@ -138,6 +138,43 @@ describe("publishNotificationEvent", () => {
     // ADR-0018: the service worker renders text, so Core ships no display part.
     expect(publishMock.mock.calls[0]?.[0]?.extras?.push).not.toHaveProperty(
       "notification",
+    );
+  });
+
+  it("keeps every push data value a string", async () => {
+    // Ably documents push data as a string-to-string map and FCM rejects
+    // nested JSON, so no value may be an object, array, number, or null.
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification,
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(pushData).toBeDefined();
+    expect(Object.keys(pushData ?? {})).toHaveLength(6);
+    for (const value of Object.values(pushData ?? {})) {
+      expect(typeof value).toBe("string");
+    }
+  });
+
+  it("omits metadata rather than sending null when there is none", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: { ...notification, metadata: null },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(pushData).not.toHaveProperty("metadata");
+    expect(pushData?.messageParams).toBe(
+      JSON.stringify(notification.messageParams),
     );
   });
 });
