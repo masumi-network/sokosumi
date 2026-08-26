@@ -154,7 +154,7 @@ function FilterDropdownMenuSectionItem({
           </span>
         </div>
       </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="w-72 p-0">
+      <DropdownMenuSubContent className="w-72 p-0" collisionPadding={16}>
         <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>
           <CommandInput autoFocus placeholder={searchPlaceholder} />
           <CommandList>
