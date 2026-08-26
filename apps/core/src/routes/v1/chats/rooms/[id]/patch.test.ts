@@ -82,6 +82,9 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomReadState: {
       findMany: readStateFindManyMock,
     },
+    chatRoomPinnedMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

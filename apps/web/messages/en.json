@@ -5004,6 +5004,7 @@
       },
       "Actions": {
         "more": "Message actions",
+        "overflow": "More",
         "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",
@@ -5187,6 +5188,22 @@
         "linkPlaceholder": "https://",
         "cancel": "Cancel",
         "save": "Save"
+      },
+      "PinnedMessages": {
+        "open": "Pinned messages",
+        "title": "Pinned Messages",
+        "close": "Close pinned messages",
+        "empty": "No pinned messages yet",
+        "loading": "Loading pinned messages…",
+        "error": "Could not load pinned messages",
+        "couldNotLoad": "Message could not be loaded",
+        "pin": "Pin message",
+        "unpin": "Unpin message",
+        "messageRequired": "Message is required.",
+        "roomRequired": "Room is required.",
+        "pinError": "Could not pin message.",
+        "unpinError": "Could not unpin message.",
+        "count": "{count, plural, =0 {Pinned} one {# pinned} other {# pinned}}"
       },
       "Quote": {
         "action": "Quote",

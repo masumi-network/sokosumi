@@ -3,6 +3,7 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
@@ -20,6 +21,8 @@ import type {
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomMessage,
+  ChatRoomPinnedMessageListItem,
+  ChatRoomPinnedMessageMutation,
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
@@ -814,6 +817,75 @@ export async function retryRoomMentionAction(
     return roomOk(message);
   } catch (error) {
     return roomCatch(error, "Could not retry mention.");
+  }
+}
+
+export async function pinRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("messageRequired"));
+  }
+
+  try {
+    const result = await chatRoomService.pinMessage(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, t("pinError"));
+  }
+}
+
+export async function listPinnedMessagesAction(
+  roomId: string,
+  options?: { cursor?: string },
+): Promise<
+  RoomActionResult<{
+    items: ChatRoomPinnedMessageListItem[];
+    nextCursor: string | null;
+  }>
+> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail(t("roomRequired"));
+  }
+
+  try {
+    const page = await chatRoomService.listPinnedMessages(cleanRoomId, {
+      cursor: options?.cursor,
+    });
+    return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, t("error"));
+  }
+}
+
+export async function unpinRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("messageRequired"));
+  }
+
+  try {
+    const result = await chatRoomService.unpinMessage(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, t("unpinError"));
   }
 }
 

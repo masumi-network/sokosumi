@@ -17,6 +17,7 @@ const {
   memberFindManyMock,
   queryRawUnsafeMock,
   notificationGroupByMock,
+  pinGroupByMock,
   membershipFindManyMock,
   readStateFindManyMock,
   prismaTransactionMock,
@@ -27,6 +28,7 @@ const {
   memberFindManyMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
+  pinGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -46,6 +48,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     notification: {
       groupBy: notificationGroupByMock,
+    },
+    chatRoomPinnedMessage: {
+      groupBy: pinGroupByMock,
     },
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
@@ -162,6 +167,7 @@ beforeEach(() => {
   notificationGroupByMock.mockResolvedValue([
     { referenceId: ROOM_ID, _count: { _all: 1 } },
   ]);
+  pinGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
 });
@@ -188,7 +194,7 @@ describe("GET /chats/rooms/{id}", () => {
       organizationName: "Acme Corp",
       unreadCount: 2,
       unreadMentionCount: 1,
-      pinnedAt: null,
+      starredAt: null,
       markedUnread: false,
     });
   });

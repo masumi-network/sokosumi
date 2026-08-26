@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
   makeChatRoomChannelName,
   makeUserChatControlChannelName,
 } from "@sokosumi/utils";
@@ -10,7 +11,9 @@ import { useEffect, useMemo, useRef } from "react";
 
 import {
   type ChatRoomMessageEventData,
+  type ChatRoomPinnedMessageEventData,
   chatRoomMessageEventDataSchema,
+  chatRoomPinnedMessageEventDataSchema,
 } from "@/lib/ably";
 
 import {
@@ -29,6 +32,7 @@ interface UseChatRoomRealtimeOptions {
   roomIds: readonly string[];
   currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
+  onPinnedMessage?: (event: ChatRoomPinnedMessageEventData) => void;
   onError?: (error: Error) => void;
   /** After local detach + re-auth queue (SOK-746 membership-visible UI). */
   onMembershipRevoked?: (event: ChatMembershipRevokedEvent) => void;
@@ -50,12 +54,15 @@ export function useChatRoomRealtime({
   roomIds,
   currentUserId,
   onMessage,
+  onPinnedMessage,
   onError,
   onMembershipRevoked,
 }: UseChatRoomRealtimeOptions) {
   const ably = useAbly();
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+  const onPinnedMessageRef = useRef(onPinnedMessage);
+  onPinnedMessageRef.current = onPinnedMessage;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const onMembershipRevokedRef = useRef(onMembershipRevoked);
@@ -64,6 +71,19 @@ export function useChatRoomRealtime({
   currentUserIdRef.current = currentUserId;
 
   /** Stable handler so incremental unsub targets the same function reference. */
+  const handlePinnedMessageRef = useRef((message: Ably.Message) => {
+    const parsed = chatRoomPinnedMessageEventDataSchema.safeParse(message.data);
+    if (!parsed.success) {
+      console.error(
+        "Failed to parse chat_room_pinned_message event",
+        message,
+        parsed.error,
+      );
+      return;
+    }
+    onPinnedMessageRef.current?.(parsed.data);
+  });
+
   const handleMessageRef = useRef((message: Ably.Message) => {
     const parsedResult = chatRoomMessageEventDataSchema.safeParse(message.data);
     if (!parsedResult.success) {
@@ -106,6 +126,7 @@ export function useChatRoomRealtime({
     }
 
     const handleMessage = handleMessageRef.current;
+    const handlePinnedMessage = handlePinnedMessageRef.current;
     /** Coalesce focus+visibility+revoke so two applies never interleave. */
     let syncInFlight = false;
     let syncQueued = false;
@@ -118,6 +139,10 @@ export function useChatRoomRealtime({
         return;
       }
       channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+      channel.unsubscribe(
+        CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+        handlePinnedMessage,
+      );
       safeDetachChannel(channel);
       attached.delete(roomId);
     }
@@ -182,6 +207,10 @@ export function useChatRoomRealtime({
           continue;
         }
         channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        channel.unsubscribe(
+          CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+          handlePinnedMessage,
+        );
         safeDetachChannel(channel);
         attached.delete(roomId);
       }
@@ -192,6 +221,10 @@ export function useChatRoomRealtime({
         }
         const channel = ably.channels.get(makeChatRoomChannelName(roomId));
         channel.subscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        channel.subscribe(
+          CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+          handlePinnedMessage,
+        );
         attached.set(roomId, channel);
       }
     }
@@ -272,9 +305,14 @@ export function useChatRoomRealtime({
     return () => {
       syncGenerationRef.current += 1;
       const handleMessage = handleMessageRef.current;
+      const handlePinnedMessage = handlePinnedMessageRef.current;
       const attached = channelsRef.current;
       for (const channel of attached.values()) {
         channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        channel.unsubscribe(
+          CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+          handlePinnedMessage,
+        );
         safeDetachChannel(channel);
       }
       attached.clear();

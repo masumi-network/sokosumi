@@ -39,6 +39,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -117,15 +118,15 @@ beforeEach(() => {
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([
-    { roomId: ROOM_ID, pinnedAt: null },
+    { roomId: ROOM_ID, starredAt: null },
   ]);
   readStateFindManyMock.mockResolvedValue([]);
 });
 
-describe("DELETE /chats/rooms/{id}/pin", () => {
-  it("clears membership pinnedAt and returns unpinned room", async () => {
+describe("DELETE /chats/rooms/{id}/star", () => {
+  it("clears membership starredAt and returns unstarred room", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/pin`,
+      `/${ROOM_ID}/star`,
       { method: "DELETE" },
     );
 
@@ -135,14 +136,14 @@ describe("DELETE /chats/rooms/{id}/pin", () => {
         where: {
           roomId_userId: { roomId: ROOM_ID, userId: USER_ID },
         },
-        data: { pinnedAt: null },
+        data: { starredAt: null },
       }),
     );
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
-      pinnedAt: null,
+      starredAt: null,
       markedUnread: false,
     });
   });

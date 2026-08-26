@@ -41,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -124,17 +125,17 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([
     {
       roomId: ROOM_ID,
-      pinnedAt: new Date("2026-08-02T12:00:00.000Z"),
+      starredAt: new Date("2026-08-02T12:00:00.000Z"),
       mutedAt: null,
     },
   ]);
   readStateFindManyMock.mockResolvedValue([]);
 });
 
-describe("POST /chats/rooms/{id}/pin", () => {
-  it("sets membership pinnedAt and returns pinned room", async () => {
+describe("POST /chats/rooms/{id}/star", () => {
+  it("sets membership starredAt and returns starred room", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/pin`,
+      `/${ROOM_ID}/star`,
       { method: "POST" },
     );
 
@@ -146,32 +147,32 @@ describe("POST /chats/rooms/{id}/pin", () => {
           userId: USER_ID,
           mutedAt: null,
         },
-        data: { pinnedAt: expect.any(Date) },
+        data: { starredAt: expect.any(Date) },
       }),
     );
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
-      pinnedAt: "2026-08-02T12:00:00.000Z",
+      starredAt: "2026-08-02T12:00:00.000Z",
       markedUnread: false,
     });
   });
 
-  it("rejects pin when the room is muted", async () => {
+  it("rejects star when the room is muted", async () => {
     membershipUpdateManyMock.mockResolvedValue({ count: 0 });
     membershipFindUniqueMock.mockResolvedValue({
       mutedAt: new Date("2026-08-03T10:00:00.000Z"),
     });
 
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/pin`,
+      `/${ROOM_ID}/star`,
       { method: "POST" },
     );
 
     expect(response.status).toBe(422);
     const body = await response.json();
-    expect(body.message).toBe("Cannot pin a muted room. Unmute it first.");
+    expect(body.message).toBe("Cannot star a muted room. Unmute it first.");
   });
 
   it("404s when membership disappears after access check", async () => {
@@ -179,7 +180,7 @@ describe("POST /chats/rooms/{id}/pin", () => {
     membershipFindUniqueMock.mockResolvedValue(null);
 
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/pin`,
+      `/${ROOM_ID}/star`,
       { method: "POST" },
     );
 

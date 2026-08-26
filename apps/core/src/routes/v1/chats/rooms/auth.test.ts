@@ -59,6 +59,9 @@ const {
       notification: {
         groupBy: vi.fn().mockResolvedValue([]),
       },
+      chatRoomPinnedMessage: {
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     },
   };
 });

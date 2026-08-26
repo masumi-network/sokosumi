@@ -53,6 +53,9 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomReadState: {
       findMany: readStateFindManyMock,
     },
+    chatRoomPinnedMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
     member: {
       findMany: memberFindManyMock,
     },
@@ -1491,7 +1494,7 @@ describe("POST /chats/rooms", () => {
       membershipFindManyMock.mockResolvedValue([
         {
           roomId: ROOM_ID,
-          pinnedAt: new Date("2025-01-01T00:00:00.000Z"),
+          starredAt: new Date("2025-01-01T00:00:00.000Z"),
           mutedAt: new Date("2025-01-02T00:00:00.000Z"),
         },
       ]);
@@ -1508,7 +1511,7 @@ describe("POST /chats/rooms", () => {
 
       expect(response.status).toBe(201);
       const body = await response.json();
-      expect(body.data.pinnedAt).toBeNull();
+      expect(body.data.starredAt).toBeNull();
       expect(body.data.mutedAt).toBeNull();
       expect(body.data.markedUnread).toBe(false);
     });

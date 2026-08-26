@@ -24,14 +24,19 @@ import {
   listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
+  pinRoomMessageAction,
   removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
+  unpinRoomMessageAction,
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
-import { highlightRoomMessageElement } from "@/app/chat/components/room-helpers";
+import {
+  PinnedMessagesHeaderButton,
+  PinnedMessagesPanel,
+} from "@/app/chat/components/pinned-messages-panel";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
@@ -112,6 +117,7 @@ import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
   type ChatRoomMessageEventData,
+  type ChatRoomPinnedMessageEventData,
   chatRoomMessageIdEnvelopeAction,
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
@@ -149,6 +155,7 @@ import {
   getRoomDisplayName,
   getRoomParticipantPreviews,
   hasPendingCoworkerMention,
+  highlightRoomMessageElement,
   isMessageContinuation,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
@@ -226,11 +233,13 @@ function RoomMessageRealtimeBridge({
   currentUserId,
   selectedRoomId,
   onMessage,
+  onPinnedMessage,
 }: {
   roomIds: readonly string[];
   currentUserId: string;
   selectedRoomId: string | null;
   onMessage: (event: ChatRoomMessageEventData) => void;
+  onPinnedMessage: (event: ChatRoomPinnedMessageEventData) => void;
 }) {
   const router = useRouter();
   const selectedRoomIdRef = useRef(selectedRoomId);
@@ -259,6 +268,7 @@ function RoomMessageRealtimeBridge({
     roomIds,
     currentUserId,
     onMessage,
+    onPinnedMessage,
     onMembershipRevoked: handleMembershipRevoked,
     onError: (error) => {
       console.error("Ably chat room message error:", error);
@@ -343,6 +353,8 @@ interface RoomHeaderChromeProps {
   onJumpToMessage: (hit: ChatRoomMessage) => void;
   threadListOpen: boolean;
   onToggleThreadList: () => void;
+  pinnedOpen: boolean;
+  onTogglePinned: () => void;
   rosterOpen: boolean;
   onToggleRoster: () => void;
   currentUserId: string;
@@ -365,6 +377,8 @@ function RoomHeaderChrome({
   onJumpToMessage,
   threadListOpen,
   onToggleThreadList,
+  pinnedOpen,
+  onTogglePinned,
   rosterOpen,
   onToggleRoster,
   currentUserId,
@@ -437,29 +451,38 @@ function RoomHeaderChrome({
           </>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-        <RoomSearchPanel
-          key={room.id}
-          roomId={room.id}
-          onJumpToMessage={onJumpToMessage}
-          labels={{
-            open: t("RoomSearch.open"),
-            placeholder: t("RoomSearch.placeholder"),
-            idle: t("RoomSearch.idle"),
-            empty: t("RoomSearch.empty"),
-            loading: t("RoomSearch.loading"),
-            error: t("RoomSearch.error"),
-            replyBadge: t("RoomSearch.replyBadge"),
-          }}
-        />
-        <UnreadThreadsPanel
-          key={`unread-threads-${room.id}`}
-          isOpen={threadListOpen}
-          onToggle={onToggleThreadList}
-          labels={{
-            open: t("UnreadThreads.open"),
-          }}
-        />
+      <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-center">
+          <RoomSearchPanel
+            key={room.id}
+            roomId={room.id}
+            onJumpToMessage={onJumpToMessage}
+            labels={{
+              open: t("RoomSearch.open"),
+              placeholder: t("RoomSearch.placeholder"),
+              idle: t("RoomSearch.idle"),
+              empty: t("RoomSearch.empty"),
+              loading: t("RoomSearch.loading"),
+              error: t("RoomSearch.error"),
+              replyBadge: t("RoomSearch.replyBadge"),
+            }}
+          />
+          {isDirectRoom ? null : (
+            <PinnedMessagesHeaderButton
+              isOpen={pinnedOpen}
+              onToggle={onTogglePinned}
+              openLabel={t("PinnedMessages.open")}
+            />
+          )}
+          <UnreadThreadsPanel
+            key={`unread-threads-${room.id}`}
+            isOpen={threadListOpen}
+            onToggle={onToggleThreadList}
+            labels={{
+              open: t("UnreadThreads.open"),
+            }}
+          />
+        </div>
         {showParticipants && shouldShowRoomRosterControl(room) ? (
           <RoomParticipantStack
             room={room}
@@ -630,6 +653,20 @@ export function RoomsClient({
   );
 
   const [threadListOpen, setThreadListOpen] = useState(false);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
+  const [pinnedMessageIds, setPinnedMessageIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const handlePinnedIdsLoaded = useCallback((messageIds: readonly string[]) => {
+    setPinnedMessageIds((current) => {
+      const next = new Set(current);
+      for (const messageId of messageIds) {
+        next.add(messageId);
+      }
+      return next;
+    });
+  }, []);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
@@ -830,6 +867,15 @@ export function RoomsClient({
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
 
+  useEffect(() => {
+    if (!selectedRoom || selectedRoom.kind !== "channel") {
+      setPinnedOpen(false);
+      setPinnedMessageIds(new Set());
+      return;
+    }
+    setPinnedMessageIds(new Set());
+  }, [selectedRoom?.id, selectedRoom?.kind]);
+
   async function handleOpenDirectMessage(
     profile: ChatParticipantHoverProfile,
   ): Promise<void> {
@@ -977,6 +1023,16 @@ export function RoomsClient({
   const threadParentMessageIdRef = useRef<string | null>(null);
   threadParentMessageIdRef.current = threadParentMessage?.id ?? null;
   const refreshLatestRef = useRef<() => Promise<void>>(async () => {});
+
+  const handlePinnedMessageRealtime = useCallback(
+    (event: ChatRoomPinnedMessageEventData) => {
+      if (selectedRoomIdRef.current !== event.roomId) {
+        return;
+      }
+      applyPinnedMutation(event.messageId, event.action === "pin");
+    },
+    [],
+  );
 
   const handleChatRoomRealtimeMessage = useCallback(
     (event: ChatRoomMessageEventData) => {
@@ -1960,7 +2016,84 @@ export function RoomsClient({
       closeThreadSidePanel();
     }
     setThreadListOpen(false);
+    setPinnedOpen(false);
     setRosterOpen(true);
+  }
+
+  function handleTogglePinned() {
+    if (pinnedOpen) {
+      setPinnedOpen(false);
+      return;
+    }
+    if (threadParentMessage) {
+      closeThreadSidePanel();
+    }
+    setThreadListOpen(false);
+    setRosterOpen(false);
+    setPinnedOpen(true);
+  }
+
+  function applyPinnedMutation(messageId: string, pinned: boolean) {
+    setPinnedMessageIds((current) => {
+      const next = new Set(current);
+      if (pinned) {
+        next.add(messageId);
+      } else {
+        next.delete(messageId);
+      }
+      return next;
+    });
+    setPinnedListGeneration((generation) => generation + 1);
+  }
+
+  async function handlePinMessage(message: ChatRoomMessage) {
+    const roomId = selectedRoom?.id;
+    if (!roomId) {
+      return;
+    }
+    const alreadyPinned = pinnedMessageIds.has(message.id);
+    const result = alreadyPinned
+      ? await unpinRoomMessageAction(roomId, message.id)
+      : await pinRoomMessageAction(roomId, message.id);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    applyPinnedMutation(message.id, !alreadyPinned);
+  }
+
+  async function handleJumpToPinnedMessage(messageId: string) {
+    const roomId = selectedRoom?.id;
+    if (!roomId) {
+      return;
+    }
+    if (highlightRoomMessageElement(messageId)) {
+      return;
+    }
+    suppressStickToBottom();
+    setSearchHoldOffBottom(true);
+    const result = await listRoomMessagesAction(roomId, {
+      around: messageId,
+    });
+    if (!result.ok) {
+      toast.error(result.error.message);
+      releaseStickToBottomSuppress();
+      setSearchHoldOffBottom(false);
+      return;
+    }
+    if (!isStillSelectedRoom(roomId)) {
+      releaseStickToBottomSuppress();
+      setSearchHoldOffBottom(false);
+      return;
+    }
+    setMessagesState((current) =>
+      mergeRoomMessages(current, result.value.messages),
+    );
+    setOlderNextCursor(result.value.nextCursor);
+    await waitForSearchJumpPaint();
+    highlightRoomMessageElement(messageId);
+    releaseStickToBottomSuppress();
+    setSearchHoldOffBottom(false);
   }
 
   async function loadThreadMessages(
@@ -2603,8 +2736,11 @@ export function RoomsClient({
         isDirectRoom={isDirectRoom}
         onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
+        pinnedOpen={pinnedOpen}
+        onTogglePinned={handleTogglePinned}
         onToggleThreadList={() => {
           setRosterOpen(false);
+          setPinnedOpen(false);
           if (threadParentMessage) {
             threadLoadGenerationRef.current += 1;
             setIsThreadLoading(false);
@@ -2742,6 +2878,13 @@ export function RoomsClient({
                           : undefined
                       }
                       onQuote={isOutboundLocal ? undefined : handleQuoteMessage}
+                      onPin={
+                        !isDirectRoom && !isOutboundLocal
+                          ? handlePinMessage
+                          : undefined
+                      }
+                      showPinButton={!isDirectRoom && !isOutboundLocal}
+                      isPinned={pinnedMessageIds.has(message.id)}
                       onStartEdit={
                         isOutboundLocal ? undefined : handleStartEdit
                       }
@@ -2813,6 +2956,7 @@ export function RoomsClient({
                   currentUserId={currentUserId}
                   selectedRoomId={selectedRoomId}
                   onMessage={handleChatRoomRealtimeMessage}
+                  onPinnedMessage={handlePinnedMessageRealtime}
                 />
               </LazyAblyProvider>
             ) : null
@@ -2961,6 +3105,49 @@ export function RoomsClient({
                     t("UnreadThreads.unreadReplies", { count }),
                   replies: (count) => t("Thread.replyCount", { count }),
                   close: t("UnreadThreads.close"),
+                }}
+              />
+            ) : pinnedOpen && selectedRoom.kind === "channel" ? (
+              <PinnedMessagesPanel
+                roomId={selectedRoom.id}
+                listGeneration={pinnedListGeneration}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={handleOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectKey}
+                onIdsLoaded={handlePinnedIdsLoaded}
+                onClose={() => {
+                  setPinnedOpen(false);
+                }}
+                onJump={(messageId) => {
+                  void handleJumpToPinnedMessage(messageId);
+                }}
+                onUnpin={async (messageId) => {
+                  const result = await unpinRoomMessageAction(
+                    selectedRoom.id,
+                    messageId,
+                  );
+                  if (!result.ok) {
+                    toast.error(result.error.message);
+                    return false;
+                  }
+                  applyPinnedMutation(messageId, false);
+                  return true;
+                }}
+                labels={{
+                  title: t("PinnedMessages.title"),
+                  close: t("PinnedMessages.close"),
+                  empty: t("PinnedMessages.empty"),
+                  loading: t("PinnedMessages.loading"),
+                  error: t("PinnedMessages.error"),
+                  couldNotLoad: t("PinnedMessages.couldNotLoad"),
+                  unpin: t("PinnedMessages.unpin"),
+                  loadOlder: t("loadOlder"),
                 }}
               />
             ) : showRoomRosterControl && rosterOpen ? (

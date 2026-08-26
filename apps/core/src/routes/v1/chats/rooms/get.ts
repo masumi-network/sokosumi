@@ -27,6 +27,7 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   chatRoomInclude,
   getChatRoomLastMessageAts,
+  getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
@@ -201,6 +202,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       unreadMentionCounts,
       lastMessageAts,
       sidebarFlags,
+      pinnedMessageCounts,
       peerInActiveOrganizationFlags,
       organizations,
     ] = await Promise.all([
@@ -208,6 +210,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
       getChatRoomLastMessageAts(roomIds, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
+      getChatRoomPinnedMessageCounts(roomIds, prisma),
       getPeerInActiveOrganizationFlags(rooms, userId, organizationId, prisma),
       organizationIds.length > 0
         ? prisma.organization.findMany({
@@ -240,7 +243,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             unreadCount: unreadCounts.get(room.id) ?? 0,
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             lastActivityAt: lastMessageAts.get(room.id) ?? room.updatedAt,
-            pinnedAt: flags?.pinnedAt ?? null,
+            starredAt: flags?.starredAt ?? null,
+            pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
             mutedAt: flags?.mutedAt ?? null,
             markedUnread: flags?.markedUnread ?? false,
             organizationName: room.organizationId

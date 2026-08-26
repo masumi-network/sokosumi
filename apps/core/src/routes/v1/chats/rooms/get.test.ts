@@ -16,6 +16,7 @@ const {
   memberFindUniqueMock,
   memberFindManyMock,
   messageGroupByMock,
+  pinGroupByMock,
   notificationGroupByMock,
   membershipFindManyMock,
   readStateFindManyMock,
@@ -29,6 +30,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   messageGroupByMock: vi.fn(),
+  pinGroupByMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
@@ -52,6 +54,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       groupBy: messageGroupByMock,
+    },
+    chatRoomPinnedMessage: {
+      groupBy: pinGroupByMock,
     },
     notification: {
       groupBy: notificationGroupByMock,
@@ -113,7 +118,7 @@ function guestRoomRow() {
         roomId: GUEST_ROOM_ID,
         userId: USER_ID,
         access: "guest",
-        pinnedAt: null,
+        starredAt: null,
         mutedAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         user: {
@@ -150,7 +155,7 @@ function personalDirectRow() {
         roomId: PERSONAL_DIRECT_ID,
         userId: USER_ID,
         access: "member",
-        pinnedAt: null,
+        starredAt: null,
         mutedAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         user: {
@@ -166,7 +171,7 @@ function personalDirectRow() {
         roomId: PERSONAL_DIRECT_ID,
         userId: PEER_USER_ID,
         access: "member",
-        pinnedAt: null,
+        starredAt: null,
         mutedAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         user: {
@@ -191,6 +196,7 @@ beforeEach(() => {
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
   messageGroupByMock.mockResolvedValue([]);
+  pinGroupByMock.mockResolvedValue([]);
   notificationGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);

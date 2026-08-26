@@ -14,6 +14,8 @@ const {
   messageFindFirstMock,
   messageUpdateManyMock,
   mentionUpdateManyMock,
+  pinDeleteManyMock,
+  pinCountMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -22,6 +24,8 @@ const {
   messageFindFirstMock: vi.fn(),
   messageUpdateManyMock: vi.fn(),
   mentionUpdateManyMock: vi.fn(),
+  pinDeleteManyMock: vi.fn(),
+  pinCountMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -42,6 +46,10 @@ const {
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
+}));
+
+vi.mock("@/helpers/chat-room-pinned-message-realtime", () => ({
+  publishChatRoomPinnedMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -65,6 +73,10 @@ const tx = {
   },
   chatRoomMention: {
     updateMany: mentionUpdateManyMock,
+  },
+  chatRoomPinnedMessage: {
+    deleteMany: pinDeleteManyMock,
+    count: pinCountMock,
   },
 };
 
@@ -149,6 +161,8 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
       .mockResolvedValueOnce(tombstone);
     messageUpdateManyMock.mockResolvedValue({ count: 1 });
     mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+    pinDeleteManyMock.mockResolvedValue({ count: 0 });
+    pinCountMock.mockResolvedValue(0);
   });
 
   it("soft-deletes the author message and returns a tombstone", async () => {
@@ -184,6 +198,9 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
         status: "failed",
         error: "Source message was deleted",
       },
+    });
+    expect(pinDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, messageId: MESSAGE_ID },
     });
   });
 

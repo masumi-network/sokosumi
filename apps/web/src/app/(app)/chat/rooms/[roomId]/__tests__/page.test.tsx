@@ -88,7 +88,7 @@ function room(
     coworkerMembers: [],
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: overrides.myAccess ?? "member",

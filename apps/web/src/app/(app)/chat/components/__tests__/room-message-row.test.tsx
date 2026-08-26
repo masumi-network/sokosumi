@@ -157,6 +157,8 @@ function renderRow({
   isContinuation = false,
   isFirstOfDay = false,
   onQuote,
+  onPin,
+  showPinButton,
   currentUserId,
   onStartEdit,
   onDelete,
@@ -180,6 +182,8 @@ function renderRow({
   isFirstOfDay?: boolean;
   reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
+  showPinButton?: boolean;
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
@@ -206,6 +210,8 @@ function renderRow({
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
+      onPin={onPin}
+      showPinButton={showPinButton}
       onStartEdit={onStartEdit}
       onDelete={onDelete}
       onRemoveUnfurl={onRemoveUnfurl}
@@ -507,7 +513,34 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Copy on the hover action pill", () => {
+  it("shows Pin message on the hover action pill", async () => {
+    const user = userEvent.setup();
+    const onPin = vi.fn();
+    renderRow({
+      message: userMessage({ content: "Pin me" }),
+      onPin,
+      showPinButton: true,
+    });
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "PinnedMessages.pin",
+      }),
+    );
+    expect(onPin).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Copy on the hover action pill", async () => {
+    const user = userEvent.setup();
     copyMock.mockClear();
     renderRow({
       message: userMessage({ content: "Hover copy body" }),
@@ -518,10 +551,14 @@ describe("ChatMessageRow", () => {
       '[data-message-actions="hover"]',
     );
     expect(hoverActions).toBeTruthy();
-    const hoverCopy = within(hoverActions as HTMLElement).getByRole("button", {
-      name: "Copy.action",
-    });
-    fireEvent.click(hoverCopy);
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy.action" }),
+    );
     expect(copyMock).toHaveBeenCalledWith(
       "Hover copy body",
       expect.objectContaining({
