@@ -81,6 +81,8 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     scrollToBottom: vi.fn(),
     pinToBottomAfterOwnSend: vi.fn(),
     scrollToBottomIfPinned: vi.fn(),
+    suppressStickToBottom: vi.fn(),
+    releaseStickToBottomSuppress: vi.fn(),
   }),
 }));
 
@@ -172,17 +174,22 @@ vi.mock("../edit-channel-dialog", () => ({
     membersLoadFailed,
     members,
     coworkers,
+    children,
   }: {
     membersLoadFailed?: boolean;
     members?: unknown[];
     coworkers?: unknown[];
+    children?: ReactNode;
   }) => (
-    <div
-      data-testid="edit-channel-dialog-probe"
-      data-members-load-failed={String(Boolean(membersLoadFailed))}
-      data-members-count={String(members?.length ?? 0)}
-      data-coworkers-count={String(coworkers?.length ?? 0)}
-    />
+    <>
+      {children}
+      <div
+        data-testid="edit-channel-dialog-probe"
+        data-members-load-failed={String(Boolean(membersLoadFailed))}
+        data-members-count={String(members?.length ?? 0)}
+        data-coworkers-count={String(coworkers?.length ?? 0)}
+      />
+    </>
   ),
 }));
 

@@ -2,10 +2,7 @@
 
 import { Loader2, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import {
-  messageSender,
-  scrollToRoomMessageElement,
-} from "@/app/chat/components/room-helpers";
+import { messageSender } from "@/app/chat/components/room-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,8 +17,6 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 const SEARCH_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
-const HIGHLIGHT_MS = 1500;
-const HIGHLIGHT_CLASS = "bg-accent/50";
 
 export interface RoomSearchPanelLabels {
   open: string;
@@ -36,32 +31,13 @@ export interface RoomSearchPanelLabels {
 interface RoomSearchPanelProps {
   roomId: string;
   labels: RoomSearchPanelLabels;
-  loadedMessages: ChatRoomMessage[];
-  onOpenThread: (parent: ChatRoomMessage) => void;
-}
-
-function highlightRoomMessageElement(messageId: string): boolean {
-  if (!scrollToRoomMessageElement(messageId)) {
-    return false;
-  }
-  const target = document.querySelector<HTMLElement>(
-    `[data-message-id="${CSS.escape(messageId)}"]`,
-  );
-  if (!target) {
-    return false;
-  }
-  target.classList.add(HIGHLIGHT_CLASS);
-  window.setTimeout(() => {
-    target.classList.remove(HIGHLIGHT_CLASS);
-  }, HIGHLIGHT_MS);
-  return true;
+  onJumpToMessage: (hit: ChatRoomMessage) => void;
 }
 
 export function RoomSearchPanel({
   roomId,
   labels,
-  loadedMessages,
-  onOpenThread,
+  onJumpToMessage,
 }: RoomSearchPanelProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -133,21 +109,7 @@ export function RoomSearchPanel({
   }
 
   function handleSelect(hit: ChatRoomMessage) {
-    if (hit.parentMessageId) {
-      const parent = loadedMessages.find(
-        (message) => message.id === hit.parentMessageId,
-      );
-      if (parent) {
-        onOpenThread(parent);
-        window.setTimeout(() => {
-          highlightRoomMessageElement(hit.id);
-        }, 0);
-        handleOpenChange(false);
-        return;
-      }
-    }
-
-    highlightRoomMessageElement(hit.id);
+    onJumpToMessage(hit);
     handleOpenChange(false);
   }
 
@@ -169,7 +131,7 @@ export function RoomSearchPanel({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        align="start"
+        align="end"
         className="w-[min(100vw-2rem,24rem)] p-0"
         data-testid="room-search-panel"
       >

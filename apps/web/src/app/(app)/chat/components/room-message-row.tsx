@@ -60,7 +60,6 @@ import {
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import Markdown from "@/components/markdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -107,12 +106,12 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatMessageTime,
-  formatRoomMarkdownContent,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   scrollToRoomMessageElement,
 } from "./room-helpers";
+import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -264,6 +263,10 @@ function MessageQuoteBlock({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -271,6 +274,10 @@ function MessageQuoteBlock({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -300,16 +307,20 @@ function MessageQuoteBlock({
               expanded ? null : "line-clamp-4",
             )}
           >
-            <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-              {formatRoomMarkdownContent({
-                content: quote.snippet,
-                coworkersById,
-                coworkersBySlug,
-                usersById,
-                usersBySlug,
-                channelLinks,
-              })}
-            </Markdown>
+            <RoomMessageMarkdown
+              content={quote.snippet}
+              markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              channelLinks={channelLinks}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectParticipantKey}
+              hoverInteractive={false}
+            />
           </div>
         ) : null}
         {attachment ? (
@@ -464,6 +475,10 @@ function ChannelMarkdownSegment({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -471,22 +486,25 @@ function ChannelMarkdownSegment({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
-  if (!content.trim()) {
-    return null;
-  }
-
   return (
-    <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
-      {formatRoomMarkdownContent({
-        content,
-        coworkersById,
-        coworkersBySlug,
-        usersById,
-        usersBySlug,
-        channelLinks,
-      })}
-    </Markdown>
+    <RoomMessageMarkdown
+      content={content}
+      markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
+      coworkersById={coworkersById}
+      coworkersBySlug={coworkersBySlug}
+      usersById={usersById}
+      usersBySlug={usersBySlug}
+      channelLinks={channelLinks}
+      currentUserId={currentUserId}
+      canOpenHumanDirect={canOpenHumanDirect}
+      onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
+    />
   );
 }
 
@@ -497,6 +515,10 @@ function ChannelMessageText({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -504,6 +526,10 @@ function ChannelMessageText({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -516,6 +542,10 @@ function ChannelMessageText({
         usersById={usersById}
         usersBySlug={usersBySlug}
         channelLinks={channelLinks}
+        currentUserId={currentUserId}
+        canOpenHumanDirect={canOpenHumanDirect}
+        onOpenDirectMessage={onOpenDirectMessage}
+        openingDirectParticipantKey={openingDirectParticipantKey}
       />
     );
   }
@@ -534,6 +564,10 @@ function ChannelMessageText({
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
               />
             );
           case "files": {
@@ -576,6 +610,10 @@ function ChannelMessageBody({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   messageId: string;
   content: string;
@@ -584,6 +622,10 @@ function ChannelMessageBody({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -626,6 +668,10 @@ function ChannelMessageBody({
           usersById={usersById}
           usersBySlug={usersBySlug}
           channelLinks={channelLinks}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
@@ -1841,7 +1887,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 data-[search-landed=true]:bg-primary/20 data-[search-landed=true]:ring-2 data-[search-landed=true]:ring-primary",
         reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
@@ -1952,6 +1998,10 @@ export function ChatMessageRow({
                   usersById={usersById}
                   usersBySlug={usersBySlug}
                   channelLinks={channelLinks}
+                  currentUserId={currentUserId}
+                  canOpenHumanDirect={canOpenHumanDirect}
+                  onOpenDirectMessage={onOpenDirectMessage}
+                  openingDirectParticipantKey={openingDirectParticipantKey}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
@@ -2012,6 +2062,10 @@ export function ChatMessageRow({
                     usersById={usersById}
                     usersBySlug={usersBySlug}
                     channelLinks={channelLinks}
+                    currentUserId={currentUserId}
+                    canOpenHumanDirect={canOpenHumanDirect}
+                    onOpenDirectMessage={onOpenDirectMessage}
+                    openingDirectParticipantKey={openingDirectParticipantKey}
                   />
                   {isContinuation && showEdited ? (
                     <span className="text-muted-foreground ml-1.5 text-xs">

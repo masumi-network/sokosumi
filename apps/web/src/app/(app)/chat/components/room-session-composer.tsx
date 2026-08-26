@@ -27,6 +27,7 @@ import {
 } from "./room-composer";
 import {
   buildRoomComposerMessageContent,
+  type ChatParticipantHoverProfile,
   isRoomComposerEmpty,
   type PendingRoomQuote,
   type RoomMentionParticipant,
@@ -74,6 +75,10 @@ interface RoomSessionComposerProps {
   /** Claim in-flight lock with clientMessageId; return false to abort clear. */
   onBeforeSend?: (clientMessageId: string) => boolean;
   onSend: (request: RoomSessionSendRequest) => Promise<RoomSessionSendResult>;
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }
 
 /** Draft state lives here so room message lists do not re-render on typing. */
@@ -95,6 +100,10 @@ export function RoomSessionComposer({
   ref,
   onBeforeSend,
   onSend,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: RoomSessionComposerProps) {
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
@@ -210,6 +219,10 @@ export function RoomSessionComposer({
       onClearPendingQuote={onClearPendingQuote}
       onChromeResize={onChromeResize}
       focusOnMount={focusOnMount}
+      currentUserId={currentUserId}
+      canOpenHumanDirect={canOpenHumanDirect}
+      onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
     />
   );
 }
