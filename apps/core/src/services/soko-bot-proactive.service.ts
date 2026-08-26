@@ -20,6 +20,8 @@ const STALE_RUNNING_MS = 24 * HOUR_MS;
 const UNANSWERED_MS = 4 * HOUR_MS;
 const UNHANDLED_FAILURE_MS = 1 * HOUR_MS;
 const MAX_ATTENTION = 6;
+/** Older than this and it is history, not something to nudge about. */
+const ATTENTION_MAX_AGE_MS = 7 * 24 * HOUR_MS;
 
 /** Creates the built-in rhythms a bot is missing; idempotent per (bot, key). */
 export async function ensureSystemSchedules(bot: {
@@ -93,6 +95,7 @@ export async function findAttentionItems(bot: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
       status: { in: ["RUNNING", "INPUT_REQUIRED", "FAILED"] },
+      updatedAt: { gte: new Date(bot.now.getTime() - ATTENTION_MAX_AGE_MS) },
       ...(bot.followWholeBoard
         ? {}
         : {
@@ -118,6 +121,7 @@ export async function findAttentionItems(bot: {
     if (task.assignee?.sokoBotId === bot.id) continue; // its own work is handled elsewhere
     const last = task.events[0];
     const age = bot.now.getTime() - (last?.createdAt ?? bot.now).getTime();
+    if (age > ATTENTION_MAX_AGE_MS) continue;
     const name = task.name ?? "Untitled task";
     const who = task.assignee?.name ?? "the assignee";
     if (task.status === "RUNNING" && age > STALE_RUNNING_MS) {
