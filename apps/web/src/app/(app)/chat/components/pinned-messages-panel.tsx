@@ -67,12 +67,12 @@ export function PinnedMessagesHeaderButton({
       aria-label={openLabel}
       aria-expanded={isOpen}
       data-testid="pinned-messages-trigger"
-      className="relative"
+      className="relative overflow-visible"
       onClick={onToggle}
     >
       <Pin className="size-4" />
       {count > 0 ? (
-        <span className="bg-primary text-primary-foreground absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4">
+        <span className="bg-primary text-primary-foreground absolute top-1 right-1 flex size-4 min-w-4 items-center justify-center rounded-full text-xs leading-none">
           {count}
         </span>
       ) : null}
