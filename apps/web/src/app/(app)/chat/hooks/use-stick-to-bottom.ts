@@ -154,16 +154,25 @@ export function useStickToBottom({
       return;
     }
 
-    function syncMinHeight() {
+    function handleScrollerResize() {
       const node = scrollerRef.current;
       if (!node) {
         return;
       }
       setContentMinHeight(node.clientHeight);
+      // Pin banner / composer live outside the scroller. Shrinking
+      // clientHeight does not grow content, so the content observer never
+      // re-pins and the last message stays clipped.
+      if (holdOffBottomRef.current || suppressPinRef.current) {
+        return;
+      }
+      if (stickToBottomRef.current) {
+        node.scrollTop = node.scrollHeight;
+      }
     }
 
-    syncMinHeight();
-    const observer = new ResizeObserver(syncMinHeight);
+    handleScrollerResize();
+    const observer = new ResizeObserver(handleScrollerResize);
     observer.observe(scroller);
     return () => observer.disconnect();
   }, [resetKey]);
