@@ -1,6 +1,9 @@
 "use client";
 
 import Ably from "ably";
+import Push from "ably/push";
+
+import { NOTIFICATION_SERVICE_WORKER_URL } from "@/lib/utils/notification-service-worker";
 
 import { getOrCreateAblyClientInstanceId } from "./ably-client-instance-id";
 
@@ -30,6 +33,11 @@ export function getAblyRealtimeClient(): Ably.Realtime {
       clientInstanceId,
     },
     echoMessages: false,
+    // Plugins are constructor-only in ably-js, so push rides the shared client
+    // rather than a second one. This module already sits behind the lazily
+    // imported Ably provider, so it stays out of the main bundle.
+    plugins: { Push },
+    pushServiceWorkerUrl: NOTIFICATION_SERVICE_WORKER_URL,
   });
   setGlobalAblyRealtimeClient(realtimeClient);
   return realtimeClient;
