@@ -33,6 +33,7 @@ import {
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { LatestPinnedMessageBanner } from "@/app/chat/components/latest-pinned-message-banner";
 import {
   PinnedMessagesHeaderButton,
   PinnedMessagesPanel,
@@ -700,6 +701,9 @@ export function RoomsClient({
     setPendingThreadQuote(null);
     setThreadListOpen(false);
     setRosterOpen(false);
+    setPinnedOpen(false);
+    setPinnedListGeneration(0);
+    setPinnedMessageIds(new Set());
     setThreadOpenedFromList(false);
     setEditSession(null);
     threadLoadGenerationRef.current += 1;
@@ -2020,17 +2024,21 @@ export function RoomsClient({
     setRosterOpen(true);
   }
 
-  function handleTogglePinned() {
-    if (pinnedOpen) {
-      setPinnedOpen(false);
-      return;
-    }
+  function openPinnedPanel() {
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
     setThreadListOpen(false);
     setRosterOpen(false);
     setPinnedOpen(true);
+  }
+
+  function handleTogglePinned() {
+    if (pinnedOpen) {
+      setPinnedOpen(false);
+      return;
+    }
+    openPinnedPanel();
   }
 
   function applyPinnedMutation(messageId: string, pinned: boolean) {
@@ -2966,6 +2974,30 @@ export function RoomsClient({
           // useEffect). First real chrome frame = title + composer together.
           desktopHeader={
             !mobileHeaderPortaled && roomHeaderChrome ? roomHeaderChrome : null
+          }
+          belowHeader={
+            selectedRoom.kind === "channel" &&
+            ((selectedRoom.pinnedMessageCount ?? 0) > 0 ||
+              pinnedListGeneration > 0 ||
+              pinnedMessageIds.size > 0) ? (
+              <LatestPinnedMessageBanner
+                roomId={selectedRoom.id}
+                listGeneration={pinnedListGeneration}
+                onJump={(messageId) => {
+                  void handleJumpToPinnedMessage(messageId);
+                }}
+                onOpenAll={openPinnedPanel}
+                onIdsLoaded={handlePinnedIdsLoaded}
+                labels={{
+                  latest: t("PinnedMessages.latest"),
+                  jumpToLatest: (author) =>
+                    t("PinnedMessages.jumpToLatest", { author }),
+                  viewAll: t("PinnedMessages.viewAll"),
+                  count: (count) => t("PinnedMessages.count", { count }),
+                  couldNotLoad: t("PinnedMessages.couldNotLoad"),
+                }}
+              />
+            ) : null
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
