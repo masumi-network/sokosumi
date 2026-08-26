@@ -18,16 +18,28 @@ export interface SokoBotLabTurn {
   finalAnswer: string | null;
   toolCalls: { capability: string; status: string; result: unknown }[];
   events: { type: string; toolName: string | null }[];
-  delegations: { id: string; taskId: string | null; jobId: string | null }[];
+  delegations: {
+    id: string;
+    taskId: string | null;
+    jobId: string | null;
+    action?: string | null;
+    outcome?: string | null;
+  }[];
   decisions: { id: string; resultingEntityId: string | null }[];
 }
 
 /** Simulated Coworker activity on the newest delegated Task; the bot reacts through an EVENT turn. */
-export interface SokoBotScenarioTrigger {
-  kind: "task_event";
-  status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
-  comment: string;
-}
+export type SokoBotScenarioTrigger =
+  | {
+      kind: "task_event";
+      status: "INPUT_REQUIRED" | "FAILED" | "COMPLETED";
+      comment: string;
+    }
+  | {
+      /** A self-started turn built from the connected accounts (needs Gmail/Calendar or recordings). */
+      kind: "ingest";
+      beat: "standup" | "delta";
+    };
 
 export interface SokoBotScenario {
   id: string;
@@ -59,6 +71,10 @@ export interface SokoBotScenario {
     noInventedIds?: boolean;
     /** Must answer the Coworker (reply_to_task) or ask the owner one question. */
     respondsToCoworker?: boolean;
+    /** The whole answer must match this regular expression (case-insensitive). */
+    answerMatches?: string;
+    /** Tasks it creates must stay DRAFT (no READY, no assignment). */
+    draftsOnly?: boolean;
   };
 }
 
@@ -217,6 +233,71 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "inbox-summary",
+    title: "Summarise recent mail",
+    intent:
+      "Reads the connected mailbox itself, summarises honestly, and says what needs the owner today.",
+    prompt:
+      "Summarise my last five emails and tell me if anything needs me today.",
+    rubric:
+      "Calls search_inbox (and read_email where a snippet is not enough) instead of answering from memory. The summary names real senders and subjects from the tool results, groups them by what needs action vs. what does not, and does not quote long passages, expose codes or sign-in links, or invent mail that was not returned. No Task is created and nothing is sent unless the owner asked.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "CLARIFY"],
+      tools: ["search_inbox"],
+      forbiddenTools: ["create_task", "hire_agent", "run_integration_tool"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "calendar-prep",
+    title: "Tomorrow's calendar and prep",
+    intent:
+      "Reads the calendar, tells the owner what is on, and drafts prep only where the owner owns the agenda.",
+    prompt:
+      "What's on my calendar tomorrow, and is there anything I should prepare?",
+    rubric:
+      "Calls list_calendar_events for the right window and lists tomorrow's events with times in the owner's timezone. For meetings the owner clearly owns or must present at, it may create a DRAFT 'Prep:' Task with concrete preparation items, never READY. If the calendar is empty it says so plainly. No invented events.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "DELEGATE_TASK", "MANAGE_WORK", "CLARIFY"],
+      tools: ["list_calendar_events"],
+      forbiddenTools: ["hire_agent", "assign_task", "run_integration_tool"],
+      draftsOnly: true,
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "standup-with-inbox",
+    title: "Morning stand-up with mail and calendar",
+    intent:
+      "The daily rhythm turn: a short brief that flags what matters, drafts a Task only for an explicit request with a deadline.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "standup" },
+    rubric:
+      "A brief under 12 lines: today's calendar with times, then mail that needs the owner, then board items and follow-ups, skipping empty sections. Newsletters, receipts and notifications are not flagged. If a mail is an explicit request to the owner with a deliverable and a date, exactly one DRAFT Task with the mail reference is created and mentioned; otherwise no Task. Nothing is set READY, hired, or sent. Every claim comes from the packet or a tool result.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["hire_agent", "assign_task", "run_integration_tool"],
+      draftsOnly: true,
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "mail-delta",
+    title: "New mail between briefings",
+    intent:
+      "Only interrupts for what matters; otherwise answers exactly `Nothing new worth flagging.`",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "delta" },
+    rubric:
+      "Judges the new mail like an assistant: at most a few lines naming only items that need the owner soon (a direct request, a deadline, a decision). Newsletters, receipts, automated notifications and FYI threads are not mentioned. When nothing needs the owner, the answer is exactly 'Nothing new worth flagging.' No Task creation unless a mail is an explicit request with a deadline, and then DRAFT only.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["hire_agent", "assign_task", "run_integration_tool"],
+      draftsOnly: true,
+      noInventedIds: true,
+    },
+  },
+  {
     id: "stop-checkins",
     rubric:
       "The bot listed schedules and deleted exactly the two the owner named (research brief check-in, weekly launch reminder), leaving everything else, and reported what was removed. Reporting a deletion that failed is a fail.",
@@ -355,6 +436,27 @@ export function evaluateScenario(
         : asked
           ? "asked the owner"
           : "neither",
+    });
+  }
+  if (expect.answerMatches) {
+    const re = new RegExp(expect.answerMatches, "i");
+    checks.push({
+      label: `Answer matches /${expect.answerMatches}/`,
+      pass: re.test(answer.trim()),
+      actual: answer.trim().slice(0, 80) || "(empty)",
+    });
+  }
+  if (expect.draftsOnly) {
+    const ready = turn.delegations.filter(
+      (d) => d.outcome === "READY" || d.action === "assign_task",
+    );
+    checks.push({
+      label: "Created Tasks stay DRAFT",
+      pass: ready.length === 0,
+      actual:
+        ready.length === 0
+          ? "drafts only"
+          : `${ready.length} set READY/assigned`,
     });
   }
   if (expect.noEmptyPromise) {

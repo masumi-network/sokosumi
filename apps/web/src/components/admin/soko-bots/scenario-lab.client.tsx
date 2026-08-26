@@ -180,7 +180,17 @@ export function ScenarioLab({
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
     try {
       let turnId: string | null;
-      if (scenario.trigger) {
+      if (scenario.trigger?.kind === "ingest") {
+        // Needs the bot's connected mail/calendar or recordings; the CLI
+        // runner (`soko-bot:lab --replay`) drives these.
+        setFailures((current) => ({
+          ...current,
+          [scenario.id]:
+            "Run from the CLI lab runner (mail/calendar scenario).",
+        }));
+        return;
+      }
+      if (scenario.trigger?.kind === "task_event") {
         const since = Date.now() - 5_000;
         const simulated = await simulateSokoBotTaskEventAction({
           input: {
@@ -420,9 +430,11 @@ function ScenarioRow({
       {open ? (
         <div className="mt-3 space-y-3">
           <blockquote className="text-muted-foreground border-l-2 pl-3 text-xs leading-relaxed">
-            {scenario.trigger
+            {scenario.trigger?.kind === "task_event"
               ? `Coworker sets the newest delegated task to ${scenario.trigger.status}: “${scenario.trigger.comment}”`
-              : scenario.prompt}
+              : scenario.trigger?.kind === "ingest"
+                ? `Self-started ${scenario.trigger.beat} turn from the connected mail and calendar.`
+                : scenario.prompt}
           </blockquote>
           {latest ? (
             <div className="space-y-2">

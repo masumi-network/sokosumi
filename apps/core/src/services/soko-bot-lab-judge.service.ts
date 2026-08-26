@@ -154,9 +154,12 @@ export async function judgeSokoBotLabTurn(input: {
       title: scenario.title,
       intent: scenario.intent,
       rubric: scenario.rubric,
-      ownerMessageOrTrigger: scenario.trigger
-        ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
-        : scenario.prompt,
+      ownerMessageOrTrigger:
+        scenario.trigger?.kind === "task_event"
+          ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
+          : scenario.trigger?.kind === "ingest"
+            ? `Self-started ${scenario.trigger.beat} turn built from the connected mail and calendar (see the packet in the prompt).`
+            : scenario.prompt,
     },
     turn: transcript,
   });

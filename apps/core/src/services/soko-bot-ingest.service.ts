@@ -131,6 +131,37 @@ export function buildIngestMessage(input: {
   return lines.join("\n").trim();
 }
 
+/** The hourly delta packet for one bot right now (mail since `hours` ago); used by the lab. */
+export async function buildIngestDeltaMessageForBot(
+  sokoBotId: string,
+  hours = 24,
+): Promise<string> {
+  const bot = await prisma.sokoBot.findUniqueOrThrow({
+    where: { id: sokoBotId },
+    select: { ingestTimezone: true },
+  });
+  const since = new Date(Date.now() - hours * HOUR_MS);
+  const mail: SokoBotInboxMessage[] = [];
+  for (const integration of await activeIntegrationsForBot(
+    sokoBotId,
+    "email",
+  )) {
+    mail.push(
+      ...(await fetchInboxMessages(integration, {
+        since,
+        limit: MAX_MAIL_PER_PACKET,
+      })),
+    );
+  }
+  mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  return buildIngestMessage({
+    kind: "delta",
+    timeZone: bot.ingestTimezone,
+    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    events: [],
+  });
+}
+
 export class SokoBotIngestSyncService {
   async syncIngest(
     input: SokoBotIngestSyncInput,

@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import type { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
@@ -481,11 +485,78 @@ export async function runIntegrationTool(
   return execute(integration, slug, args);
 }
 
+/**
+ * Lab seam: `SOKO_BOT_INTEGRATION_FIXTURES=record` writes every Composio
+ * tool response to disk; `replay` answers from disk and refuses calls that
+ * were never recorded. Keys drop time-window arguments so a recording made
+ * today still matches tomorrow's request.
+ */
+function fixtureMode(): "record" | "replay" | null {
+  const mode = process.env.SOKO_BOT_INTEGRATION_FIXTURES;
+  return mode === "record" || mode === "replay" ? mode : null;
+}
+
+function fixtureDir(): string {
+  return (
+    process.env.SOKO_BOT_INTEGRATION_FIXTURE_DIR ??
+    path.join(process.cwd(), "fixtures", "soko-bot-integrations")
+  );
+}
+
+const TIME_ARGS = new Set([
+  "timeMin",
+  "timeMax",
+  "start_datetime",
+  "end_datetime",
+  "filter",
+]);
+
+function fixtureKey(slug: string, args: Record<string, unknown>): string {
+  const stable: Record<string, unknown> = {};
+  for (const key of Object.keys(args).sort()) {
+    if (TIME_ARGS.has(key)) continue;
+    const value = args[key];
+    stable[key] =
+      key === "query" && typeof value === "string"
+        ? value.replace(/after:\d+/g, "after:*").trim()
+        : value;
+  }
+  const hash = createHash("sha1")
+    .update(JSON.stringify(stable))
+    .digest("hex")
+    .slice(0, 10);
+  return `${slug}.${hash}`;
+}
+
 async function execute(
   integration: ActiveIntegration,
   slug: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  const mode = fixtureMode();
+  const key = fixtureKey(slug, args);
+  const file = path.join(fixtureDir(), `${key}.json`);
+  if (mode === "replay") {
+    try {
+      const recorded = JSON.parse(await fs.readFile(file, "utf8")) as {
+        data: Record<string, unknown>;
+      };
+      return recorded.data;
+    } catch {
+      // Fall back to any recording of the same tool before failing loudly.
+      const siblings = await fs.readdir(fixtureDir()).catch(() => []);
+      const sibling = siblings.find((name) => name.startsWith(`${slug}.`));
+      if (sibling) {
+        const recorded = JSON.parse(
+          await fs.readFile(path.join(fixtureDir(), sibling), "utf8"),
+        ) as { data: Record<string, unknown> };
+        return recorded.data;
+      }
+      throw new SokoBotIntegrationError(
+        `No recording for ${slug} (${key}); run the lab with --record first`,
+      );
+    }
+  }
   const composio = requireComposio();
   const result = await withComposio(slug, () =>
     composio.tools.execute(slug, {
@@ -497,6 +568,17 @@ async function execute(
   if (!result.successful) {
     throw new SokoBotIntegrationError(
       `${integration.provider.name}: ${result.error ?? "request failed"}`,
+    );
+  }
+  if (mode === "record") {
+    await fs.mkdir(fixtureDir(), { recursive: true });
+    await fs.writeFile(
+      file,
+      JSON.stringify(
+        { slug, args, recordedAt: new Date().toISOString(), data: result.data },
+        null,
+        2,
+      ),
     );
   }
   return result.data;

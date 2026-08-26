@@ -12,6 +12,7 @@ import { writeFile } from "node:fs/promises";
 import {
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
+  SOKO_BOT_SYSTEM_SCHEDULES,
   SOKO_BOT_VERSIONS,
   type SokoBotLabTurn,
   type SokoBotScenario,
@@ -20,8 +21,10 @@ import {
 import prisma from "@/lib/db/prisma";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
+import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
 import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
+import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
 
 const args = process.argv.slice(2);
 function flag(name: string): string | undefined {
@@ -33,6 +36,11 @@ const only = flag("only")
   ?.split(",")
   .map((s) => s.trim());
 const userIdArg = flag("user") ?? process.env.SOKO_BOT_LAB_USER_ID;
+// Composio seam: record real responses to disk, or replay them without OAuth.
+if (args.includes("--record"))
+  process.env.SOKO_BOT_INTEGRATION_FIXTURES = "record";
+if (args.includes("--replay"))
+  process.env.SOKO_BOT_INTEGRATION_FIXTURES = "replay";
 const workspaceIdArg = flag("workspace");
 const noJudge = args.includes("--no-judge");
 const TURN_TIMEOUT_MS = 6 * 60_000;
@@ -67,7 +75,15 @@ async function loadTurn(
       costUsdMicros: true,
       toolCalls: { select: { capability: true, status: true, result: true } },
       events: { select: { type: true, toolName: true } },
-      delegations: { select: { id: true, taskId: true, jobId: true } },
+      delegations: {
+        select: {
+          id: true,
+          taskId: true,
+          jobId: true,
+          action: true,
+          outcome: true,
+        },
+      },
       pendingDecisions: { select: { id: true, resultingEntityId: true } },
       contextSnapshot: { select: { packet: true } },
     },
@@ -120,7 +136,55 @@ async function startScenario(
   scenario: SokoBotScenario,
   owner: { bot: { userId: string }; workspaceId: string },
 ): Promise<string> {
-  if (scenario.trigger) {
+  if (scenario.trigger?.kind === "ingest") {
+    const bot = await prisma.sokoBot.findFirstOrThrow({
+      where: { userId: owner.bot.userId, workspaceId: owner.workspaceId },
+      select: {
+        id: true,
+        workspaceId: true,
+        ingestTimezone: true,
+        followWholeBoard: true,
+        coworker: { select: { id: true } },
+      },
+    });
+    const message =
+      scenario.trigger.beat === "standup"
+        ? (
+            await buildSystemBeatMessage({
+              bot: {
+                id: bot.id,
+                coworkerId: bot.coworker?.id ?? null,
+                workspaceId: bot.workspaceId,
+                ingestTimezone: bot.ingestTimezone,
+                followWholeBoard: bot.followWholeBoard,
+              },
+              key: "standup",
+              prompt:
+                SOKO_BOT_SYSTEM_SCHEDULES.find((s) => s.key === "standup")
+                  ?.prompt ?? "Daily stand-up.",
+              now: new Date(),
+            })
+          ).message
+        : await buildIngestDeltaMessageForBot(bot.id);
+    const started = await sokoBotControlPlane.startTurn({
+      userId: owner.bot.userId,
+      workspaceId: owner.workspaceId,
+      clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
+      message,
+      source: scenario.trigger.beat === "standup" ? "SCHEDULE" : "INGEST",
+    });
+    if (started.reconciliationLeaseToken) {
+      await sokoBotControlPlane
+        .reconcileTurn(
+          started.turnId,
+          undefined,
+          started.reconciliationLeaseToken,
+        )
+        .catch(() => undefined);
+    }
+    return started.turnId;
+  }
+  if (scenario.trigger?.kind === "task_event") {
     const since = new Date(Date.now() - 5_000);
     const simulated = await simulateSokoBotTaskEvent({
       userId: owner.bot.userId,
