@@ -5481,6 +5481,7 @@
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
         "lastActivity": "última actividad {time}",
+        "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
         "openingChat": "Abriendo…",
         "openChatError": "No se pudo abrir el chat con tu Soko Bot.",

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
+import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
 import { SokoBotConsole } from "./components/console/console.client";
 import { CreateState } from "./components/create-state.client";
@@ -69,6 +71,9 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;
+  const isAdmin = hasAdminRole(
+    (session.user as typeof session.user & { role?: string | null }).role,
+  );
 
   return (
     <SokoBotConsole
@@ -80,6 +85,11 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}
+      adminHref={
+        isAdmin
+          ? `${ADMIN_SOKO_BOTS_ROUTE}/${encodeURIComponent(state.bot.id)}`
+          : null
+      }
     />
   );
 }

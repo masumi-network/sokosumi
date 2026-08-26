@@ -1,6 +1,7 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
@@ -78,6 +79,7 @@ export interface SokoBotConsoleProps {
   installedSkills: SokoBotInstalledSkill[];
   stats: SokoBotDailyStats | null;
   integrations: SokoBotIntegrations | null;
+  adminHref: string | null;
 }
 
 /**
@@ -94,6 +96,7 @@ export function SokoBotConsole({
   installedSkills,
   stats,
   integrations,
+  adminHref,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
@@ -165,14 +168,26 @@ export function SokoBotConsole({
                 ) : null}
               </p>
             </div>
-            <Button
-              type="button"
-              onClick={openChat}
-              disabled={!bot.coworkerId || isOpeningChat}
-            >
-              <MessageSquare aria-hidden className="size-4" />
-              {isOpeningChat ? t("Console.openingChat") : t("Console.openChat")}
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              {adminHref ? (
+                <Button variant="outline" asChild>
+                  <Link href={adminHref}>
+                    <ShieldCheck aria-hidden className="size-4" />
+                    {t("Console.adminView")}
+                  </Link>
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                onClick={openChat}
+                disabled={!bot.coworkerId || isOpeningChat}
+              >
+                <MessageSquare aria-hidden className="size-4" />
+                {isOpeningChat
+                  ? t("Console.openingChat")
+                  : t("Console.openChat")}
+              </Button>
+            </div>
           </header>
 
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">

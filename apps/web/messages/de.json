@@ -5481,6 +5481,7 @@
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
         "lastActivity": "zuletzt aktiv {time}",
+        "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
         "openingChat": "Wird geöffnet…",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
