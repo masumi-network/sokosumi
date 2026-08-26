@@ -1,6 +1,6 @@
 import { NotificationKind } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   publishChatMembershipRevoked,
@@ -65,30 +65,79 @@ describe("publishJobStatusData", () => {
 });
 
 describe("publishNotificationEvent", () => {
-  it("publishes notification event to the user channel", async () => {
-    const notification = {
-      id: "notif_123",
-      userId: "user_123",
-      kind: NotificationKind.JOB,
-      referenceId: "job_123",
-      eventId: "event_123",
-      messageKey: "Notifications.Job.completed",
-      messageParams: { agentName: "Test Agent", jobName: "Test Job" },
-      metadata: { agentId: "agent_123" },
-      isRead: false,
-      readAt: null,
-      createdAt: "2026-06-17T12:00:00.000Z",
-    };
+  const notification = {
+    id: "notif_123",
+    userId: "user_123",
+    kind: NotificationKind.JOB,
+    referenceId: "job_123",
+    eventId: "event_123",
+    messageKey: "Notifications.Job.completed",
+    messageParams: { agentName: "Test Agent", jobName: "Test Job" },
+    metadata: { agentId: "agent_123" },
+    isRead: false,
+    readAt: null,
+    createdAt: "2026-06-17T12:00:00.000Z",
+  };
 
+  beforeEach(() => {
+    // getMock is shared file-wide: clear it too, so the channel-name assertion
+    // cannot pass on a stale call from a test declared above this block.
+    publishMock.mockClear();
+    getMock.mockClear();
+  });
+
+  it("publishes notification event to the user channel", async () => {
     await publishNotificationEvent({
       userId: "user_123",
       notification,
     });
 
     expect(getMock).toHaveBeenCalledWith("notifications:all:user_user_123");
-    expect(publishMock).toHaveBeenCalledWith(
-      "notification_created",
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: notification,
+    });
+  });
+
+  it("carries no push extras unless push is requested", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
       notification,
+      push: false,
+    });
+
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: notification,
+    });
+  });
+
+  it("attaches a data-only push payload when push is requested", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification,
+      push: true,
+    });
+
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: notification,
+      extras: {
+        push: {
+          data: {
+            id: notification.id,
+            kind: notification.kind,
+            referenceId: notification.referenceId,
+            messageKey: notification.messageKey,
+            messageParams: notification.messageParams,
+            metadata: notification.metadata,
+          },
+        },
+      },
+    });
+    // ADR-0018: the service worker renders text, so Core ships no display part.
+    expect(publishMock.mock.calls[0]?.[0]?.extras?.push).not.toHaveProperty(
+      "notification",
     );
   });
 });

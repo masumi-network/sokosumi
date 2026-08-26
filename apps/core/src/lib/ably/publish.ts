@@ -59,6 +59,32 @@ interface NotificationEventData {
 interface PublishNotificationEventInput {
   userId: string;
   notification: NotificationEventData;
+  /** Also deliver as a closed-app OS banner (ADR-0017 channel-based push). */
+  push?: boolean;
+}
+
+/**
+ * The closed-app push payload the service worker receives. Data only, by
+ * design: the worker renders title, body, and destination, so Core ships no
+ * display strings (ADR-0018). Derived from the event shape so the two cannot
+ * drift.
+ */
+type NotificationPushData = Pick<
+  NotificationEventData,
+  "id" | "kind" | "referenceId" | "messageKey" | "messageParams" | "metadata"
+>;
+
+function toNotificationPushData(
+  notification: NotificationEventData,
+): NotificationPushData {
+  return {
+    id: notification.id,
+    kind: notification.kind,
+    referenceId: notification.referenceId,
+    messageKey: notification.messageKey,
+    messageParams: notification.messageParams,
+    metadata: notification.metadata,
+  };
 }
 
 export async function publishTaskEventData({
@@ -94,10 +120,17 @@ export async function publishJobStatusData({
 export async function publishNotificationEvent({
   userId,
   notification,
+  push = false,
 }: PublishNotificationEventInput) {
   const client = getRestClient();
   const channel = client.channels.get(makeUserNotificationsChannelName(userId));
-  await channel.publish("notification_created", notification);
+  await channel.publish({
+    name: "notification_created",
+    data: notification,
+    ...(push && {
+      extras: { push: { data: toNotificationPushData(notification) } },
+    }),
+  });
 }
 
 /** Patch body for high-chatter slices (SOK-737). */
