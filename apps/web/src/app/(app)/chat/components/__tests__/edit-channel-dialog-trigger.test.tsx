@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { EditChannelDialog } from "../edit-channel-dialog";
@@ -44,22 +45,32 @@ function channel(): ChatRoom {
 }
 
 describe("EditChannelDialog trigger", () => {
-  it("uses the gear icon, not sliders", () => {
+  it("opens from the provided trigger and has no settings gear", async () => {
+    const user = userEvent.setup();
     render(
       <EditChannelDialog
         channel={channel()}
         members={[]}
         coworkers={[]}
+        currentUserId="user-1"
         canEditMembers={false}
         canManageSettings={false}
         canArchive={false}
         canLeave={false}
-      />,
+      >
+        <button type="button" aria-label="editChannel" title="editChannel">
+          general
+        </button>
+      </EditChannelDialog>,
     );
 
     const trigger = screen.getByRole("button", { name: "editChannel" });
-    const icon = trigger.querySelector("svg");
-    expect(icon?.classList.contains("lucide-settings")).toBe(true);
-    expect(icon?.classList.contains("lucide-settings-2")).toBe(false);
+    expect(trigger).toHaveTextContent("general");
+    expect(document.querySelector(".lucide-settings")).toBeNull();
+
+    await user.click(trigger);
+    expect(
+      screen.getByRole("heading", { name: "Dialog.editTitle" }),
+    ).toBeTruthy();
   });
 });

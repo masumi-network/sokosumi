@@ -11,6 +11,7 @@ const HASHED_ENV = [
   "NETWORK",
   "DATABASE_URL",
   "CORE_APP_BASE_URL",
+  "MASUMI_DESIGN_MD_API_URL",
   "VERCEL_ENV",
   "VERCEL_URL",
   "VERCEL_GIT_COMMIT_REF",
@@ -23,7 +24,6 @@ const PASSTHROUGH_ENV = [
   "APP_SIGNING_SECRET",
   "RESEND_API_KEY",
   "RESEND_FROM_EMAIL",
-  "SOKOSUMI_API_URL",
   "PAYMENT_API_KEY",
   "REGISTRY_API_KEY",
   "STRIPE_SECRET_KEY",
@@ -34,11 +34,11 @@ const PASSTHROUGH_ENV = [
   "STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID",
   "STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID",
   "STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID",
-  "STRIPE_ONBOARD_PERSONAL_COUPON",
-  "STRIPE_ONBOARD_ORGANIZATION_COUPON",
   "ABLY_SUBSCRIBE_ONLY_KEY",
   "ABLY_PUBLISH_ONLY_KEY",
-  "ANTHROPIC_API_KEY",
+  "BLOB_READ_WRITE_TOKEN",
+  "BLOB_STORE_ID",
+  "MASUMI_DESIGN_MD_API_KEY",
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
   "MICROSOFT_CLIENT_ID",
@@ -74,15 +74,8 @@ describe("turbo.json env contract", () => {
     const turbo = JSON.parse(await readRepoFile("turbo.json"));
 
     assert.equal("envMode" in turbo, false);
-    for (const name of HASHED_ENV) {
-      assert.ok(turbo.globalEnv.includes(name), `globalEnv missing ${name}`);
-    }
-    for (const name of PASSTHROUGH_ENV) {
-      assert.ok(
-        turbo.globalPassThroughEnv.includes(name),
-        `globalPassThroughEnv missing ${name}`,
-      );
-    }
+    assert.deepEqual(turbo.globalEnv, HASHED_ENV);
+    assert.deepEqual(turbo.globalPassThroughEnv, PASSTHROUGH_ENV);
     assert.equal(
       [...turbo.globalEnv, ...turbo.globalPassThroughEnv].some((name) =>
         name.startsWith("NEXT_PUBLIC_"),

@@ -1,5 +1,6 @@
 "use server";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
@@ -12,6 +13,7 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getSession } from "@/lib/auth/auth.server";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
   ChatRoom,
@@ -52,6 +54,7 @@ type ChannelDiscoverability = "public" | "private" | "external";
 
 interface CreateChannelInput {
   name: string;
+  slug: string;
   topic?: string;
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
@@ -116,6 +119,28 @@ async function invalidateSidebarChatList(): Promise<void> {
   });
 }
 
+export async function checkChannelSlugAvailabilityAction(
+  slug: string,
+): Promise<RoomActionResult<{ status: "free" | "taken" }>> {
+  const activeOrganization = await userService.getActiveOrganization();
+  if (!activeOrganization) {
+    return roomFail("Select an organization first.");
+  }
+
+  const cleanSlug = cleanString(slug);
+  if (!cleanSlug) {
+    return roomFail("Channel slug is required.");
+  }
+
+  try {
+    const availability =
+      await chatRoomService.getChannelSlugAvailability(cleanSlug);
+    return roomOk(availability);
+  } catch (error) {
+    return roomCatch(error, "Could not check Channel slug.");
+  }
+}
+
 export async function createChannelAction(
   input: CreateChannelInput,
 ): Promise<RoomActionResult<ChatRoom>> {
@@ -128,11 +153,16 @@ export async function createChannelAction(
   if (!name) {
     return roomFail("Channel name is required.");
   }
+  const slug = cleanString(input.slug);
+  if (!slug) {
+    return roomFail("Channel slug is required.");
+  }
 
   try {
     const room = await chatRoomService.createRoom({
       kind: "channel",
       name,
+      slug,
       topic: cleanString(input.topic),
       discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
@@ -143,6 +173,17 @@ export async function createChannelAction(
     revalidatePath("/chat");
     return roomOk(room);
   } catch (error) {
+    if (
+      error instanceof CoreApiRequestError &&
+      error.kind === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN
+    ) {
+      return toActionResult(
+        err({
+          code: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+          message: error.message,
+        }),
+      );
+    }
     return roomCatch(error, "Could not create channel.");
   }
 }
@@ -649,7 +690,7 @@ export async function sendRoomMessageAction(
 
 export async function listRoomMessagesAction(
   roomId: string,
-  options?: { cursor?: string },
+  options?: { cursor?: string; around?: string },
 ): Promise<
   RoomActionResult<{
     messages: ChatRoomMessage[];
@@ -659,6 +700,7 @@ export async function listRoomMessagesAction(
   try {
     const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,
+      around: options?.around,
     });
     return roomOk(page);
   } catch (error) {
@@ -669,7 +711,7 @@ export async function listRoomMessagesAction(
 export async function listThreadMessagesAction(
   roomId: string,
   parentMessageId: string,
-  options?: { cursor?: string },
+  options?: { cursor?: string; around?: string },
 ): Promise<
   RoomActionResult<{
     messages: ChatRoomMessage[];
@@ -680,9 +722,24 @@ export async function listThreadMessagesAction(
     const page = await chatRoomService.listThreadMessages(
       roomId,
       parentMessageId,
-      { cursor: options?.cursor },
+      { cursor: options?.cursor, around: options?.around },
     );
     return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, "Could not load thread.");
+  }
+}
+
+export async function getRoomThreadAction(
+  roomId: string,
+  parentMessageId: string,
+): Promise<RoomActionResult<ChatRoomThread>> {
+  try {
+    const thread = await chatRoomService.getThread(roomId, parentMessageId);
+    if (!thread) {
+      return roomFail("Could not load thread.");
+    }
+    return roomOk(thread);
   } catch (error) {
     return roomCatch(error, "Could not load thread.");
   }
@@ -793,6 +850,28 @@ export async function deleteRoomMessageAction(
     return roomOk(message);
   } catch (error) {
     return roomCatch(error, "Could not delete message.");
+  }
+}
+
+export async function removeRoomMessageUnfurlAction(
+  roomId: string,
+  messageId: string,
+  url: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const cleanUrl = cleanString(url);
+  if (!cleanUrl) {
+    return roomFail("Link is required.");
+  }
+
+  try {
+    const message = await chatRoomService.removeUnfurl(
+      roomId,
+      messageId,
+      cleanUrl,
+    );
+    return roomOk(message);
+  } catch (error) {
+    return roomCatch(error, "Could not remove link preview.");
   }
 }
 

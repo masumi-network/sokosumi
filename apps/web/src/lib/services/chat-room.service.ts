@@ -4,6 +4,7 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
+  ChannelSlugAvailability,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -239,6 +240,13 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function getChannelSlugAvailability(
+    slug: string,
+  ): Promise<ChannelSlugAvailability> {
+    const response = await coreClient.getChannelSlugAvailability({ slug });
+    return response.data;
+  }
+
   async function updateRoom(
     id: string,
     body: UpdateChatRoomRequest,
@@ -308,11 +316,12 @@ export const chatRoomService = (() => {
 
   const listMessages = cache(async function listMessages(
     roomId: string,
-    options?: { cursor?: string; limit?: number },
+    options?: { cursor?: string; limit?: number; around?: string },
   ): Promise<ChatRoomMessagesPage> {
     const response = await coreClient.getChatRoomMessages(roomId, {
       limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
-      cursor: options?.cursor,
+      cursor: options?.around ? undefined : options?.cursor,
+      around: options?.around,
     });
     return {
       messages: response.data,
@@ -323,20 +332,39 @@ export const chatRoomService = (() => {
   const listThreadMessages = cache(async function listThreadMessages(
     roomId: string,
     parentMessageId: string,
-    options?: { cursor?: string; limit?: number },
+    options?: { cursor?: string; limit?: number; around?: string },
   ): Promise<ChatRoomMessagesPage> {
     const response = await coreClient.getChatRoomThreadMessages(
       roomId,
       parentMessageId,
       {
         limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
-        cursor: options?.cursor,
+        cursor: options?.around ? undefined : options?.cursor,
+        around: options?.around,
       },
     );
     return {
       messages: response.data,
       nextCursor: response.meta?.pagination?.nextCursor ?? null,
     };
+  });
+
+  const getThread = cache(async function getThread(
+    roomId: string,
+    parentMessageId: string,
+  ): Promise<ChatRoomThread | null> {
+    try {
+      const response = await coreClient.getChatRoomThread(
+        roomId,
+        parentMessageId,
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   });
 
   const listThreads = cache(async function listThreads(
@@ -420,6 +448,19 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function removeUnfurl(
+    roomId: string,
+    messageId: string,
+    url: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.removeChatRoomMessageUnfurl(
+      roomId,
+      messageId,
+      { url },
+    );
+    return response.data;
+  }
+
   async function editMessage(
     roomId: string,
     messageId: string,
@@ -442,6 +483,7 @@ export const chatRoomService = (() => {
     deleteMessage,
     deleteRoom,
     editMessage,
+    getChannelSlugAvailability,
     getInvitation,
     getRoom,
     joinRoom,
@@ -455,6 +497,7 @@ export const chatRoomService = (() => {
     listThreads,
     countUnreadThreads,
     listThreadMessages,
+    getThread,
     leaveRoom,
     removeMember,
     markRead,
@@ -462,6 +505,7 @@ export const chatRoomService = (() => {
     markThreadRead,
     markUnread,
     pinRoom,
+    removeUnfurl,
     resolveRoomGuestInviteLink,
     restoreRoom,
     revokeRoomGuestInviteLink,

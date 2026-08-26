@@ -1,6 +1,10 @@
 "use client";
 
-import { type ChannelLinkTarget, getExtensionFromUrl } from "@sokosumi/utils";
+import {
+  type ChannelLinkTarget,
+  getExtensionFromUrl,
+  unfurlCardHasPreviewContent,
+} from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
@@ -9,6 +13,7 @@ import {
   Pencil,
   Quote,
   Trash2,
+  X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -55,7 +60,6 @@ import {
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import Markdown from "@/components/markdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,12 +106,12 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatMessageTime,
-  formatRoomMarkdownContent,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   scrollToRoomMessageElement,
 } from "./room-helpers";
+import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -259,6 +263,10 @@ function MessageQuoteBlock({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -266,6 +274,10 @@ function MessageQuoteBlock({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -295,16 +307,20 @@ function MessageQuoteBlock({
               expanded ? null : "line-clamp-4",
             )}
           >
-            <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-              {formatRoomMarkdownContent({
-                content: quote.snippet,
-                coworkersById,
-                coworkersBySlug,
-                usersById,
-                usersBySlug,
-                channelLinks,
-              })}
-            </Markdown>
+            <RoomMessageMarkdown
+              content={quote.snippet}
+              markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              channelLinks={channelLinks}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectParticipantKey}
+              hoverInteractive={false}
+            />
           </div>
         ) : null}
         {attachment ? (
@@ -329,16 +345,13 @@ function MessageQuoteBlock({
 function MessageUnfurlImage({
   imageUrl,
   title,
+  onError,
 }: {
   imageUrl: string;
   title: string;
+  onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return null;
-  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -346,59 +359,110 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className="mt-2 h-auto max-h-48 max-w-full rounded-md"
-      onError={() => {
-        setFailed(true);
-      }}
+      onError={onError}
     />
   );
 }
 
-function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
+function MessageUnfurlCard({
+  unfurl,
+  canRemove,
+  onRemove,
+}: {
+  unfurl: ChatRoomMessageUnfurl;
+  canRemove: boolean;
+  onRemove?: (url: string) => void;
+}) {
   const t = useTranslations("App.Channels.Unfurl");
+  const [imageFailed, setImageFailed] = useState(false);
   const siteLabel = unfurl.siteName?.trim() || null;
+  const description = unfurl.description?.trim() || null;
+  const imageUrl = unfurl.imageUrl?.trim() || null;
+  const showImage = Boolean(imageUrl) && !imageFailed;
+
+  if (!description && !showImage) {
+    return null;
+  }
 
   return (
-    <a
-      href={unfurl.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
-      aria-label={t("openLink", { title: unfurl.title })}
-      data-testid="room-message-unfurl"
-    >
-      {siteLabel ? (
-        <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
-          {siteLabel}
+    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
+      <a
+        href={unfurl.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        aria-label={t("openLink", { title: unfurl.title })}
+        data-testid="room-message-unfurl"
+      >
+        {siteLabel ? (
+          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
+            {siteLabel}
+          </div>
+        ) : null}
+        <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
+          {unfurl.title}
         </div>
+        {description ? (
+          <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
+            {description}
+          </div>
+        ) : null}
+        {showImage && imageUrl ? (
+          <MessageUnfurlImage
+            imageUrl={imageUrl}
+            title={unfurl.title}
+            onError={() => {
+              setImageFailed(true);
+            }}
+          />
+        ) : null}
+      </a>
+      {canRemove && onRemove ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="border-border absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
+          aria-label={t("remove", { title: unfurl.title })}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemove(unfurl.url);
+          }}
+        >
+          <X className="size-3.5" aria-hidden />
+        </Button>
       ) : null}
-      <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
-        {unfurl.title}
-      </div>
-      {unfurl.description?.trim() ? (
-        <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
-          {unfurl.description}
-        </div>
-      ) : null}
-      {unfurl.imageUrl ? (
-        <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
-      ) : null}
-    </a>
+    </div>
   );
 }
 
 function MessageUnfurlList({
   unfurls,
+  canRemove,
+  onRemove,
 }: {
   unfurls: ChatRoomMessageUnfurl[] | null;
+  canRemove: boolean;
+  onRemove?: (url: string) => void;
 }) {
-  if (!unfurls || unfurls.length === 0) {
+  const visible = unfurls?.filter(unfurlCardHasPreviewContent) ?? [];
+  if (visible.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-1" data-testid="room-message-unfurls">
-      {unfurls.map((unfurl) => (
-        <MessageUnfurlCard key={unfurl.url} unfurl={unfurl} />
+    <div
+      className={cn("space-y-1", canRemove && "pr-3")}
+      data-testid="room-message-unfurls"
+    >
+      {visible.map((unfurl) => (
+        <MessageUnfurlCard
+          key={`${unfurl.url}:${unfurl.imageUrl ?? ""}`}
+          unfurl={unfurl}
+          canRemove={canRemove}
+          onRemove={onRemove}
+        />
       ))}
     </div>
   );
@@ -411,6 +475,10 @@ function ChannelMarkdownSegment({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -418,22 +486,25 @@ function ChannelMarkdownSegment({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
-  if (!content.trim()) {
-    return null;
-  }
-
   return (
-    <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
-      {formatRoomMarkdownContent({
-        content,
-        coworkersById,
-        coworkersBySlug,
-        usersById,
-        usersBySlug,
-        channelLinks,
-      })}
-    </Markdown>
+    <RoomMessageMarkdown
+      content={content}
+      markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
+      coworkersById={coworkersById}
+      coworkersBySlug={coworkersBySlug}
+      usersById={usersById}
+      usersBySlug={usersBySlug}
+      channelLinks={channelLinks}
+      currentUserId={currentUserId}
+      canOpenHumanDirect={canOpenHumanDirect}
+      onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
+    />
   );
 }
 
@@ -444,6 +515,10 @@ function ChannelMessageText({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -451,6 +526,10 @@ function ChannelMessageText({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -463,6 +542,10 @@ function ChannelMessageText({
         usersById={usersById}
         usersBySlug={usersBySlug}
         channelLinks={channelLinks}
+        currentUserId={currentUserId}
+        canOpenHumanDirect={canOpenHumanDirect}
+        onOpenDirectMessage={onOpenDirectMessage}
+        openingDirectParticipantKey={openingDirectParticipantKey}
       />
     );
   }
@@ -481,6 +564,10 @@ function ChannelMessageText({
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
               />
             );
           case "files": {
@@ -523,6 +610,10 @@ function ChannelMessageBody({
   usersById,
   usersBySlug,
   channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   messageId: string;
   content: string;
@@ -531,6 +622,10 @@ function ChannelMessageBody({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -573,6 +668,10 @@ function ChannelMessageBody({
           usersById={usersById}
           usersBySlug={usersBySlug}
           channelLinks={channelLinks}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
@@ -1624,6 +1723,7 @@ export function ChatMessageRow({
   onQuote,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
   onRetryMention,
   onRemoveOutbound,
@@ -1655,6 +1755,7 @@ export function ChatMessageRow({
   onQuote?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
@@ -1738,6 +1839,14 @@ export function ChatMessageRow({
     !isOutboundLocal &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId;
+  const canRemoveUnfurl =
+    Boolean(onRemoveUnfurl) &&
+    Boolean(currentUserId) &&
+    !isDeleted &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
   const showEdited = !isDeleted && message.editedAt != null;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -1778,7 +1887,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 data-[search-landed=true]:bg-primary/20 data-[search-landed=true]:ring-2 data-[search-landed=true]:ring-primary",
         reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
@@ -1889,6 +1998,10 @@ export function ChatMessageRow({
                   usersById={usersById}
                   usersBySlug={usersBySlug}
                   channelLinks={channelLinks}
+                  currentUserId={currentUserId}
+                  canOpenHumanDirect={canOpenHumanDirect}
+                  onOpenDirectMessage={onOpenDirectMessage}
+                  openingDirectParticipantKey={openingDirectParticipantKey}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
@@ -1949,13 +2062,25 @@ export function ChatMessageRow({
                     usersById={usersById}
                     usersBySlug={usersBySlug}
                     channelLinks={channelLinks}
+                    currentUserId={currentUserId}
+                    canOpenHumanDirect={canOpenHumanDirect}
+                    onOpenDirectMessage={onOpenDirectMessage}
+                    openingDirectParticipantKey={openingDirectParticipantKey}
                   />
                   {isContinuation && showEdited ? (
                     <span className="text-muted-foreground ml-1.5 text-xs">
                       {tChannels("Edit.edited")}
                     </span>
                   ) : null}
-                  <MessageUnfurlList unfurls={message.unfurls} />
+                  <MessageUnfurlList
+                    unfurls={message.unfurls}
+                    canRemove={canRemoveUnfurl}
+                    onRemove={
+                      onRemoveUnfurl
+                        ? (url) => onRemoveUnfurl(message, url)
+                        : undefined
+                    }
+                  />
                 </>
               )}
             </>

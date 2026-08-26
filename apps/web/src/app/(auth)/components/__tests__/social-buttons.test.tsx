@@ -30,8 +30,11 @@ interface MockWaitForAuthSessionOptions {
 }
 
 const mockWaitForAuthSession = vi.fn(
-  async (_options: MockWaitForAuthSessionOptions) => undefined,
+  async (
+    _options: MockWaitForAuthSessionOptions,
+  ): Promise<{ id: string } | null> => ({ id: "session-id" }),
 );
+const mockSignInEvent = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -96,6 +99,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 vi.mock("@/lib/actions/auth", () => ({}));
+
+vi.mock("@/lib/gtm-events", () => ({
+  fireGTMEvent: {
+    signIn: (...args: unknown[]) => mockSignInEvent(...args),
+  },
+}));
 
 vi.mock("@/lib/auth/auth.utils", async () => {
   const actual = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
@@ -173,7 +182,8 @@ describe("SocialButtons", () => {
       error: null,
     });
     mockWaitForAuthSession.mockReset();
-    mockWaitForAuthSession.mockResolvedValue(undefined);
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-id" });
+    mockSignInEvent.mockReset();
     mockIsConditionalMediationAvailable.mockReset();
     mockIsConditionalMediationAvailable.mockResolvedValue(false);
     mockSearchParams = new URLSearchParams();
@@ -333,6 +343,69 @@ describe("SocialButtons", () => {
     await waitFor(() => {
       expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
     });
+    expect(mockSignInEvent).toHaveBeenCalledWith("passkey");
+  });
+
+  it("does not fire login when passkey sign-in succeeds without a session", async () => {
+    const user = userEvent.setup();
+
+    mockWaitForAuthSession.mockResolvedValue(null);
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
+    });
+    expect(mockSignInEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not fire login when passkey sign-in fails", async () => {
+    const user = userEvent.setup();
+
+    mockPasskeySignIn.mockResolvedValue({
+      data: null,
+      error: { message: "failed", code: "FAILED" },
+    });
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("passkeyError");
+    });
+    expect(mockSignInEvent).not.toHaveBeenCalled();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+  });
+
+  it("does not fire login when passkey sign-in is cancelled", async () => {
+    const user = userEvent.setup();
+
+    mockPasskeySignIn.mockResolvedValue({
+      data: null,
+      error: { code: "AUTH_CANCELLED" },
+    });
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledWith({
+        autoFill: false,
+      });
+    });
+    expect(mockToastError).not.toHaveBeenCalled();
+    expect(mockSignInEvent).not.toHaveBeenCalled();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
   });
 
   it("passes unwrapped session data to waitForAuthSession", async () => {
@@ -476,7 +549,7 @@ describe("SocialButtons", () => {
     await waitFor(() => {
       expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
         email: "login-user@example.com",
-        callbackURL: `${window.location.origin}/`,
+        callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
       });
     });
 
@@ -538,13 +611,19 @@ describe("SocialButtons", () => {
     expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.email).toBe(
       "oauth-login-user@example.com",
     );
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
-      "/oauth/consent?",
+    const magicLinkCallbackUrl = new URL(
+      mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL,
+      "https://example.com",
     );
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
-      "client_id=test-client",
+    expect(magicLinkCallbackUrl.pathname).toBe("/auth/callback/signin");
+    expect(magicLinkCallbackUrl.searchParams.get("provider")).toBe(
+      "magic-link",
     );
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
+    const magicLinkReturnUrl =
+      magicLinkCallbackUrl.searchParams.get("returnUrl") ?? "";
+    expect(magicLinkReturnUrl).toContain("/oauth/consent?");
+    expect(magicLinkReturnUrl).toContain("client_id=test-client");
+    expect(magicLinkReturnUrl).toContain(
       "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
     );
   });

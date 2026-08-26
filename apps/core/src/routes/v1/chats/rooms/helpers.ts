@@ -1,17 +1,25 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
-import { buildRoomQuoteSnippetParts } from "@sokosumi/utils";
+import {
+  buildRoomQuoteSnippetParts,
+  CHANNEL_SLUG_MAX_LENGTH,
+  channelNameFromSlug,
+  sanitizeChannelSlug,
+} from "@sokosumi/utils";
 
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
   buildCoworkerUsableInWorkspaceWhere,
   hasNonEmptyBaseUrl,
 } from "@/helpers/access-control";
+import {
+  publicChatRoomMessageMetadata,
+  readUnfurlsFromMetadata,
+} from "@/helpers/chat-room-message-unfurl-metadata";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import prisma from "@/lib/db/prisma";
 import {
   type ChatRoomMessageQuote,
-  type ChatRoomMessageUnfurl,
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@/schemas/chat-room.schema";
 
@@ -1094,7 +1102,7 @@ export function mapChatRoomMessage(
         })),
     threadReplyCount: message._count.replies,
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
-    metadata: isDeleted ? null : metadata,
+    metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
     unfurls: isDeleted ? null : readUnfurlsFromMetadata(metadata),
@@ -1115,76 +1123,6 @@ export function mergeChatRoomMessageMetadata(
   }
 
   return Object.keys(base).length > 0 ? base : null;
-}
-
-/**
- * Replace `metadata.unfurls` from the latest scrape while preserving
- * quote / membership / other keys. Empty scrape removes the unfurls key.
- */
-export function mergeUnfurlsIntoMessageMetadata(
-  existing: unknown,
-  unfurls: readonly ChatRoomMessageUnfurl[],
-): Record<string, unknown> | null {
-  const base =
-    existing && typeof existing === "object" && !Array.isArray(existing)
-      ? { ...(existing as Record<string, unknown>) }
-      : {};
-
-  if (unfurls.length === 0) {
-    delete base.unfurls;
-  } else {
-    base.unfurls = [...unfurls];
-  }
-
-  return Object.keys(base).length > 0 ? base : null;
-}
-
-export function readUnfurlsFromMetadata(
-  metadata: Record<string, unknown> | null,
-): ChatRoomMessageUnfurl[] | null {
-  const raw = metadata?.unfurls;
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return null;
-  }
-
-  const parsed: ChatRoomMessageUnfurl[] = [];
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      continue;
-    }
-    const candidate = entry as Record<string, unknown>;
-    if (
-      typeof candidate.url !== "string" ||
-      typeof candidate.title !== "string" ||
-      candidate.title.trim().length === 0
-    ) {
-      continue;
-    }
-    if (
-      candidate.description !== null &&
-      typeof candidate.description !== "string"
-    ) {
-      continue;
-    }
-    if (candidate.imageUrl !== null && typeof candidate.imageUrl !== "string") {
-      continue;
-    }
-    if (candidate.siteName !== null && typeof candidate.siteName !== "string") {
-      continue;
-    }
-    parsed.push({
-      url: candidate.url,
-      title: candidate.title,
-      description: (candidate.description as string | null) ?? null,
-      imageUrl: (candidate.imageUrl as string | null) ?? null,
-      siteName: (candidate.siteName as string | null) ?? null,
-    });
-    if (parsed.length >= 3) {
-      break;
-    }
-  }
-
-  return parsed.length > 0 ? parsed : null;
 }
 
 function readQuoteAttachmentFromMetadata(
@@ -1346,15 +1284,29 @@ export function membershipAccessForUser(
 }
 
 export function slugifyRoomName(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return sanitizeChannelSlug(name) || "room";
+}
 
-  return slug || "room";
+export function requireSanitizedChannelSlug(raw: string | undefined): string {
+  if (raw === undefined) {
+    throw badRequest("Channel slug is required");
+  }
+  const slug = sanitizeChannelSlug(raw);
+  if (!slug || slug.length > CHANNEL_SLUG_MAX_LENGTH) {
+    throw badRequest("Channel slug is invalid");
+  }
+  return slug;
+}
+
+export function resolveChannelName(
+  raw: string | undefined,
+  slug: string,
+): string {
+  const trimmed = raw?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  return channelNameFromSlug(slug);
 }
 
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
@@ -1406,42 +1358,6 @@ export function buildDirectRoomName(names: readonly string[]): string {
   }
 
   return `${cleanNames.slice(0, 3).join(", ")} and ${cleanNames.length - 3} more`;
-}
-
-export async function buildUniqueRoomSlug(
-  organizationId: string | null,
-  name: string,
-  createdByUserId: string,
-  tx: Prisma.TransactionClient,
-): Promise<string> {
-  const baseSlug = slugifyRoomName(name);
-  const existing = await tx.chatRoom.findMany({
-    where:
-      organizationId === null
-        ? {
-            organizationId: null,
-            createdByUserId,
-            slug: { startsWith: baseSlug },
-          }
-        : {
-            organizationId,
-            slug: { startsWith: baseSlug },
-          },
-    select: { slug: true },
-  });
-  const used = new Set(existing.map((room) => room.slug));
-  if (!used.has(baseSlug)) {
-    return baseSlug;
-  }
-
-  for (let suffix = 2; suffix < 1000; suffix += 1) {
-    const candidate = `${baseSlug}-${suffix}`;
-    if (!used.has(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw badRequest("Could not create a unique room slug");
 }
 
 /**

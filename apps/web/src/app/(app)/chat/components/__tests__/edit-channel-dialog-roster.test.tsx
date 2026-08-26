@@ -133,15 +133,61 @@ describe("EditChannelDialog host roster payload", () => {
         channel={externalChannel()}
         members={[hostMember()]}
         coworkers={[soupie()]}
+        currentUserId={HOST_USER_ID}
         canEditMembers
         canManageSettings
         canArchive
         canLeave
         canInviteGuests={false}
-      />,
+      >
+        <button type="button" aria-label="editChannel">
+          edit
+        </button>
+      </EditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));
+    await user.click(screen.getByText("Soupie"));
+    await user.click(screen.getByRole("button", { name: "Dialog.save" }));
+
+    await waitFor(() => {
+      expect(updateRoomActionMock).toHaveBeenCalledWith(
+        CHANNEL_ID,
+        expect.objectContaining({
+          memberUserIds: [HOST_USER_ID],
+          coworkerIds: [COWORKER_ID],
+        }),
+      );
+    });
+  });
+
+  it("keeps the current user on the host roster when their row is clicked", async () => {
+    updateRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    const user = userEvent.setup();
+
+    render(
+      <EditChannelDialog
+        channel={externalChannel()}
+        members={[hostMember()]}
+        coworkers={[soupie()]}
+        currentUserId={HOST_USER_ID}
+        canEditMembers
+        canManageSettings
+        canArchive
+        canLeave
+        canInviteGuests={false}
+      >
+        <button type="button" aria-label="editChannel">
+          edit
+        </button>
+      </EditChannelDialog>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "editChannel" }));
+    await user.click(screen.getByText("Ada"));
     await user.click(screen.getByText("Soupie"));
     await user.click(screen.getByRole("button", { name: "Dialog.save" }));
 

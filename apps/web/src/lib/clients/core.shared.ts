@@ -20,6 +20,7 @@ import type {
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsByIdThreadsData,
+  GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetCoworkersData,
@@ -61,6 +62,7 @@ import type {
   PostChatsRoomsByIdFilesData,
   PostChatsRoomsByIdInviteLinksData,
   PostChatsRoomsByIdMessagesByMessageIdReactionsData,
+  PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
   PostJobsByIdInputsData,
@@ -150,6 +152,7 @@ import {
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
   getChatsRoomsByIdThreadsByParentMessageIdMessages as coreGetChatsRoomsByIdThreadsByParentMessageIdMessages,
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
+  getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -266,6 +269,7 @@ import {
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdMessagesByMessageIdUnfurlsRemove as corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -637,6 +641,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChannelSlugAvailability(
+    query: NonNullable<GetChatsRoomsChannelSlugAvailabilityData["query"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsChannelSlugAvailability({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to check Channel slug availability",
+    );
+  }
+
   /**
    * Creates a chat room. A `direct` room is create-or-get: Core returns the
    * existing room for the same participant set instead of a duplicate.
@@ -964,6 +983,25 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function removeChatRoomMessageUnfurl(
+    id: string,
+    messageId: string,
+    body: NonNullable<
+      PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove({
+          client,
+          path: { id, messageId },
+          body,
+        }),
+      "Failed to remove chat room message unfurl",
     );
   }
 
@@ -4357,6 +4395,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
     getChatRooms,
+    getChannelSlugAvailability,
     getDiscoverableChatRooms,
     markChatRoomRead,
     markChatRoomThreadsRead,
@@ -4367,6 +4406,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unmuteChatRoom,
     markChatRoomUnread,
     deleteChatRoomMessage,
+    removeChatRoomMessageUnfurl,
     retryChatRoomMention,
     toggleChatRoomMessageReaction,
     getHermesInstance,

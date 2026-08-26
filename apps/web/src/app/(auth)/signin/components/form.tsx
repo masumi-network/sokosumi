@@ -15,10 +15,10 @@ import { signInFormData } from "@/auth/signin/data";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient, signIn } from "@/lib/auth/auth.client";
 import {
+  buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
-  getAbsoluteAuthRedirectUrl,
   getAuthOAuthRedirect,
   normalizeAuthReturnUrl,
   waitForAuthSession,
@@ -82,7 +82,13 @@ export default function SignInForm({
       email: values.email,
       password: values.currentPassword,
       rememberMe: values.rememberMe,
-      callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
+      // Better Auth hard-redirects to callbackURL on success, before any code
+      // below runs. The callback page fires the `login` GTM event.
+      callbackURL: buildAuthCallbackUrl(
+        "/auth/callback/signin",
+        "credential",
+        effectiveReturnUrl,
+      ),
     });
 
     if (result.error) {
@@ -114,7 +120,6 @@ export default function SignInForm({
       },
     });
 
-    fireGTMEvent.signIn("credential");
     toast.success(t("success"));
     setIsLeaving(true);
     router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
