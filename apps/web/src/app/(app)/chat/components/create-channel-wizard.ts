@@ -1,6 +1,7 @@
 import {
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
+  liveSanitizeChannelSlug,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 
@@ -59,7 +60,7 @@ export function setSlug(
   if (wizard.step !== "create") {
     return wizard;
   }
-  const slug = sanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX);
+  const slug = liveSanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX);
   return {
     ...wizard,
     slug,
@@ -116,7 +117,7 @@ export function canCreateChannel(
   return (
     nameLength >= 1 &&
     nameLength <= CHANNEL_NAME_MAX &&
-    wizard.slug.length > 0 &&
+    sanitizeChannelSlug(wizard.slug).length > 0 &&
     availability === "free"
   );
 }
@@ -136,13 +137,14 @@ export function createChannelSubmitFields(
     return null;
   }
   const name = wizard.name.trim();
-  if (name.length === 0 || wizard.slug.length === 0) {
+  const slug = sanitizeChannelSlug(wizard.slug);
+  if (name.length === 0 || slug.length === 0) {
     return null;
   }
   const topic = wizard.topic.trim();
   return {
     name,
-    slug: wizard.slug,
+    slug,
     ...(topic.length > 0 ? { topic } : {}),
     discoverability: wizard.discoverability,
     memberUserIds: roster.memberUserIds,

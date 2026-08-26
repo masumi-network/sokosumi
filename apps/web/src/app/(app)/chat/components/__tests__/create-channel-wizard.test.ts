@@ -100,13 +100,20 @@ describe("create-channel-wizard", () => {
   it("live-sanitizes typed slug keystrokes", () => {
     expect(setSlug(createInitialWizard(), " Team Soko ")).toEqual({
       step: "create",
-      slug: "team-soko",
+      slug: "team-soko-",
       slugDirty: true,
       name: "Team Soko",
       nameDirty: false,
       topic: "",
       discoverability: "public",
     });
+  });
+
+  it("turns a typed space into a hyphen and keeps a typed hyphen", () => {
+    const started = setSlug(createInitialWizard(), "team");
+    expect(setSlug(started, "team ")).toMatchObject({ slug: "team-" });
+    expect(setSlug(started, "team-")).toMatchObject({ slug: "team-" });
+    expect(setSlug(started, "team-soko")).toMatchObject({ slug: "team-soko" });
   });
 
   it("createChannelSubmitFields sends form fields and roster only on add-people", () => {

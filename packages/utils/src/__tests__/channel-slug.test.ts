@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { channelNameFromSlug, sanitizeChannelSlug } from "../channel-slug.js";
+import {
+  channelNameFromSlug,
+  liveSanitizeChannelSlug,
+  sanitizeChannelSlug,
+} from "../channel-slug.js";
+
+describe("liveSanitizeChannelSlug", () => {
+  it("turns spaces into hyphens and keeps a trailing hyphen while typing", () => {
+    expect(liveSanitizeChannelSlug("team ")).toBe("team-");
+    expect(liveSanitizeChannelSlug("team soko")).toBe("team-soko");
+  });
+
+  it("keeps a hyphen the user typed", () => {
+    expect(liveSanitizeChannelSlug("team-")).toBe("team-");
+    expect(liveSanitizeChannelSlug("team-soko")).toBe("team-soko");
+  });
+
+  it("collapses runs of spaces or hyphens to one hyphen", () => {
+    expect(liveSanitizeChannelSlug("team--soko")).toBe("team-soko");
+    expect(liveSanitizeChannelSlug("team  soko")).toBe("team-soko");
+  });
+
+  it("strips leading hyphens but not trailing ones", () => {
+    expect(liveSanitizeChannelSlug("-team")).toBe("team");
+    expect(liveSanitizeChannelSlug(" team")).toBe("team");
+  });
+});
 
 describe("channelNameFromSlug", () => {
   it("title-cases kebab segments and joins with spaces", () => {

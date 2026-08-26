@@ -32,6 +32,7 @@ export type {
 export {
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
+  liveSanitizeChannelSlug,
   sanitizeChannelSlug,
 } from "./channel-slug.js";
 export {
