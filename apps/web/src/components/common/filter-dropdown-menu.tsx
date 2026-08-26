@@ -21,6 +21,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 export interface FilterDropdownMenuOption {
@@ -67,38 +74,92 @@ export function FilterDropdownMenu({
   sections,
   showActiveIndicator = false,
 }: FilterDropdownMenuProps) {
-  const [open, setOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   if (sections.length === 0) {
     return null;
   }
 
+  const handleClose = () => {
+    setDropdownOpen(false);
+    setSheetOpen(false);
+    setExpandedSection(null);
+  };
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="relative gap-2">
-          <ListFilter className="size-4" aria-hidden />
-          <span className="hidden sm:inline">{buttonLabel}</span>
-          {showActiveIndicator ? (
-            <span
-              aria-hidden
-              className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+    <>
+      {/* Desktop dropdown - hidden on mobile */}
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+        <DropdownMenuTrigger asChild className="hidden sm:flex">
+          <Button variant="outline" size="sm" className="relative gap-2">
+            <ListFilter className="size-4" aria-hidden />
+            <span>{buttonLabel}</span>
+            {showActiveIndicator ? (
+              <span
+                aria-hidden
+                className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+              />
+            ) : null}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          {sections.map((section) => (
+            <FilterDropdownMenuSectionItem
+              key={section.id}
+              section={section}
+              searchPlaceholder={searchPlaceholder}
+              emptyResultsLabel={emptyResultsLabel}
+              onSelect={handleClose}
             />
-          ) : null}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        {sections.map((section) => (
-          <FilterDropdownMenuSectionItem
-            key={section.id}
-            section={section}
-            searchPlaceholder={searchPlaceholder}
-            emptyResultsLabel={emptyResultsLabel}
-            onSelect={() => setOpen(false)}
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Mobile sheet - visible only on mobile */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="relative gap-2 sm:hidden"
+        onClick={() => setSheetOpen(true)}
+      >
+        <ListFilter className="size-4" aria-hidden />
+        {showActiveIndicator ? (
+          <span
+            aria-hidden
+            className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
           />
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        ) : null}
+      </Button>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="h-[80vh]">
+          <SheetHeader>
+            <SheetTitle>{buttonLabel}</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(80vh-5rem)] pr-4">
+            <div className="mt-4 space-y-4">
+              {sections.map((section) => (
+                <FilterDropdownMenuSectionMobile
+                  key={section.id}
+                  section={section}
+                  searchPlaceholder={searchPlaceholder}
+                  emptyResultsLabel={emptyResultsLabel}
+                  expanded={expandedSection === section.id}
+                  onToggle={() =>
+                    setExpandedSection(
+                      expandedSection === section.id ? null : section.id,
+                    )
+                  }
+                  onSelect={handleClose}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
@@ -249,5 +310,105 @@ function FilterDropdownMenuOptionAvatar({
         {fallback}
       </AvatarFallback>
     </Avatar>
+  );
+}
+
+interface FilterDropdownMenuSectionMobileProps {
+  section: FilterDropdownMenuSection;
+  searchPlaceholder: string;
+  emptyResultsLabel: string;
+  expanded: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
+}
+
+function FilterDropdownMenuSectionMobile({
+  section,
+  searchPlaceholder,
+  emptyResultsLabel,
+  expanded,
+  onToggle,
+  onSelect,
+}: FilterDropdownMenuSectionMobileProps) {
+  const selectedOption = useMemo(
+    () =>
+      section.options.find((option) => option.value === section.value) ?? null,
+    [section.options, section.value],
+  );
+  const optionItems = useMemo(() => {
+    if (!section.allLabel) {
+      return section.options;
+    }
+
+    return [
+      {
+        value: ALL_FILTER_VALUE,
+        label: section.allLabel,
+      },
+      ...section.options,
+    ];
+  }, [section.allLabel, section.options]);
+
+  return (
+    <div className="border-b pb-4 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="focus:bg-accent flex w-full items-center gap-2 rounded-md p-3 text-left transition-colors hover:bg-accent"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <section.icon className="size-4 text-muted-foreground" aria-hidden />
+          <span className="truncate font-medium">{section.label}</span>
+        </div>
+        <span className="max-w-28 truncate text-right text-xs text-muted-foreground">
+          {selectedOption?.label ?? section.allLabel}
+        </span>
+      </button>
+      {expanded ? (
+        <div className="mt-2 rounded-md border bg-card p-2">
+          <Command
+            className="**:data-[slot=command-list]:max-h-[40vh]"
+            shouldFilter
+          >
+            <CommandInput autoFocus placeholder={searchPlaceholder} />
+            <CommandList>
+              <CommandEmpty>{emptyResultsLabel}</CommandEmpty>
+              {optionItems.map((option) => {
+                const isAllOption = option.value === ALL_FILTER_VALUE;
+                const isSelected = isAllOption
+                  ? section.value === null
+                  : option.value === section.value;
+                const filterKeywords = [
+                  option.label,
+                  ...(option.searchKeywords ?? []),
+                ];
+
+                return (
+                  <CommandItem
+                    key={option.value}
+                    value={option.value}
+                    keywords={filterKeywords}
+                    onSelect={() => {
+                      section.onChange(isAllOption ? null : option.value);
+                      onSelect();
+                    }}
+                  >
+                    <FilterDropdownMenuOptionAvatar option={option} />
+                    <span className="flex-1 truncate">{option.label}</span>
+                    <Check
+                      className={cn(
+                        "size-4",
+                        isSelected ? "opacity-100" : "opacity-0",
+                      )}
+                      aria-hidden
+                    />
+                  </CommandItem>
+                );
+              })}
+            </CommandList>
+          </Command>
+        </div>
+      ) : null}
+    </div>
   );
 }
