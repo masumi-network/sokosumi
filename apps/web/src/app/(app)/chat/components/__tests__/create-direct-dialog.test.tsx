@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatRoom, Member } from "@/lib/clients/generated/core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "../create-direct-dialog";
 
 const {
@@ -9,19 +9,20 @@ const {
   createDirectRoomActionMock,
   ensureCoworkerDirectRoomActionMock,
   notifyOrganizationChatRoomsChangedMock,
-  routerPushMock,
+  assignMock,
 } = vi.hoisted(() => ({
   loadChatComposeRosterActionMock: vi.fn(),
   createDirectRoomActionMock: vi.fn(),
   ensureCoworkerDirectRoomActionMock: vi.fn(),
   notifyOrganizationChatRoomsChangedMock: vi.fn(),
-  routerPushMock: vi.fn(),
+  assignMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: routerPushMock,
+    push: vi.fn(),
     replace: vi.fn(),
+    refresh: vi.fn(),
   }),
 }));
 
@@ -65,13 +66,18 @@ function room(id: string): ChatRoom {
   return { id } as ChatRoom;
 }
 
+function coworker(id: string, name: string): Coworker {
+  return { id, name, slug: name.toLowerCase() } as Coworker;
+}
+
 describe("CreateDirectDialog", () => {
   beforeEach(() => {
+    assignMock.mockReset();
+    vi.stubGlobal("location", { assign: assignMock });
     loadChatComposeRosterActionMock.mockReset();
     createDirectRoomActionMock.mockReset();
     ensureCoworkerDirectRoomActionMock.mockReset();
     notifyOrganizationChatRoomsChangedMock.mockReset();
-    routerPushMock.mockReset();
     loadChatComposeRosterActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -88,6 +94,10 @@ describe("CreateDirectDialog", () => {
       ok: true,
       value: room("room-direct"),
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("creates a Direct without navigating away first, then opens the room", async () => {
@@ -110,7 +120,40 @@ describe("CreateDirectDialog", () => {
     expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith(
       room("room-direct"),
     );
-    expect(routerPushMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
+    expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
+  });
+
+  it("create-or-gets a coworker Direct without a first message", async () => {
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        organizationName: "",
+        hasOrganization: false,
+        canCreateExternal: false,
+        members: [],
+        coworkers: [coworker("coworker-1", "Hannah")],
+        membersLoadFailed: false,
+      },
+    });
+    ensureCoworkerDirectRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: room("room-coworker"),
+    });
+    const user = userEvent.setup();
+    render(<CreateDirectDialog />);
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await user.click(await screen.findByRole("button", { name: /Hannah/ }));
+    await user.click(screen.getByRole("button", { name: "Dialog.create" }));
+
+    await waitFor(() => {
+      expect(ensureCoworkerDirectRoomActionMock).toHaveBeenCalledWith(
+        "coworker-1",
+      );
+    });
+    expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+    expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-coworker");
   });
 
   it("ends the roster spinner when load fails", async () => {
@@ -126,7 +169,14 @@ describe("CreateDirectDialog", () => {
     await waitFor(() => {
       expect(screen.queryByText("loading")).toBeNull();
     });
-    expect(screen.getByText("Draft.empty")).toBeTruthy();
+    expect(screen.getByText("Empty.membersLoadFailedTitle")).toBeTruthy();
+    expect(screen.queryByText("NoOrganization.description")).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Empty.membersLoadFailedRetry" }),
+    );
+    await waitFor(() => {
+      expect(loadChatComposeRosterActionMock).toHaveBeenCalledTimes(2);
+    });
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 
@@ -153,7 +203,7 @@ describe("CreateDirectDialog", () => {
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: "Draft.title" })).toBeNull();
     });
-    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 });

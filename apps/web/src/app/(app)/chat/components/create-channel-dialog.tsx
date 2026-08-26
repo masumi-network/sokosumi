@@ -2,7 +2,6 @@
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Loader2, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -54,6 +53,7 @@ import {
   toAddPeople,
 } from "./create-channel-wizard";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
+import { MembersRosterLoadFailed } from "./room-draft-shared";
 
 function isDiscoverability(value: string): value is Discoverability {
   return value === "public" || value === "private" || value === "external";
@@ -63,7 +63,7 @@ export function CreateChannelDialog() {
   const t = useTranslations("App.Channels.CreateWizard");
   const tChannels = useTranslations("App.Channels");
   const tVisibility = useTranslations("App.Channels.Visibility");
-  const router = useRouter();
+  const inFlightRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [roster, setRoster] = useState<ChatComposeRoster>(
     EMPTY_CHAT_COMPOSE_ROSTER,
@@ -74,6 +74,7 @@ export function CreateChannelDialog() {
     useState<ChannelSlugCheckState>("invalid");
   const [isPending, startTransition] = useTransition();
   const [rosterLoaded, setRosterLoaded] = useState(false);
+  const [rosterError, setRosterError] = useState(false);
   const [, startRosterTransition] = useTransition();
   const rosterLoadGenerationRef = useRef(0);
 
@@ -104,10 +105,33 @@ export function CreateChannelDialog() {
     setAvailability("invalid");
     setRoster(EMPTY_CHAT_COMPOSE_ROSTER);
     setRosterLoaded(false);
+    setRosterError(false);
+  }
+
+  function loadRoster() {
+    const generation = rosterLoadGenerationRef.current + 1;
+    rosterLoadGenerationRef.current = generation;
+    setRosterLoaded(false);
+    setRosterError(false);
+    startRosterTransition(async () => {
+      const result = await loadChatComposeRosterAction();
+      if (generation !== rosterLoadGenerationRef.current) {
+        return;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
+        setRosterError(true);
+        setRosterLoaded(true);
+        return;
+      }
+      setRoster(result.value);
+      setRosterError(false);
+      setRosterLoaded(true);
+    });
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (isPending) {
+    if (inFlightRef.current || isPending) {
       return;
     }
     setOpen(nextOpen);
@@ -116,27 +140,13 @@ export function CreateChannelDialog() {
       resetDialog();
       return;
     }
-    const generation = rosterLoadGenerationRef.current + 1;
-    rosterLoadGenerationRef.current = generation;
-    startRosterTransition(async () => {
-      const result = await loadChatComposeRosterAction();
-      if (generation !== rosterLoadGenerationRef.current) {
-        return;
-      }
-      if (!result.ok) {
-        toast.error(result.error.message);
-        setRosterLoaded(true);
-        return;
-      }
-      setRoster(result.value);
-      setRosterLoaded(true);
-    });
+    loadRoster();
   }
 
   function navigateToRoom(roomId: string) {
     setOpen(false);
     resetDialog();
-    router.push(`/chat/rooms/${roomId}`);
+    window.location.assign(`/chat/rooms/${roomId}`);
   }
 
   const createStepSlug = wizard.step === "create" ? wizard.slug : "";
@@ -183,13 +193,14 @@ export function CreateChannelDialog() {
     memberUserIds: string[];
     coworkerIds: string[];
   }) {
-    if (wizard.step !== "add-people" || isPending) {
+    if (wizard.step !== "add-people" || inFlightRef.current || isPending) {
       return;
     }
     const fields = createChannelSubmitFields(wizard, roster);
     if (!fields) {
       return;
     }
+    inFlightRef.current = true;
     startTransition(async () => {
       const result = await createChannelAction({
         name: fields.name,
@@ -200,6 +211,7 @@ export function CreateChannelDialog() {
         coworkerIds: fields.coworkerIds,
       });
       if (!result.ok) {
+        inFlightRef.current = false;
         if (result.error.code === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN) {
           setAvailability("taken");
           setWizard(backToCreate(wizard));
@@ -272,13 +284,17 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {rosterLoaded && !hasOrganization ? (
+        {rosterLoaded && rosterError ? (
+          <MembersRosterLoadFailed onRetry={loadRoster} />
+        ) : null}
+
+        {rosterLoaded && !rosterError && !hasOrganization ? (
           <p className="text-muted-foreground text-sm">
             {tChannels("NoOrganization.description")}
           </p>
         ) : null}
 
-        {hasOrganization && wizard.step === "create" ? (
+        {hasOrganization && !rosterError && wizard.step === "create" ? (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
@@ -432,7 +448,7 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {hasOrganization && wizard.step === "add-people" ? (
+        {hasOrganization && !rosterError && wizard.step === "add-people" ? (
           <div className="space-y-4">
             <RadioGroup
               value={wizard.mode}
@@ -508,7 +524,7 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {hasOrganization && isCreateStep ? (
+        {hasOrganization && !rosterError && isCreateStep ? (
           <DialogFooter>
             <Button
               type="button"
@@ -521,7 +537,7 @@ export function CreateChannelDialog() {
           </DialogFooter>
         ) : null}
 
-        {hasOrganization && wizard.step === "add-people" ? (
+        {hasOrganization && !rosterError && wizard.step === "add-people" ? (
           <DialogFooter className="gap-2 sm:justify-between">
             <Button
               type="button"

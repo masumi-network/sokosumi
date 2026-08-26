@@ -57,7 +57,13 @@ export function AiCoworkerAvatarBadge({
 }
 
 /** Parity with rooms-client messageLoadFailed empty-state; reload re-fetches RSC props. */
-export function MembersRosterLoadFailed({ className }: { className?: string }) {
+export function MembersRosterLoadFailed({
+  className,
+  onRetry,
+}: {
+  className?: string;
+  onRetry?: () => void;
+}) {
   const t = useTranslations("App.Channels");
   const router = useRouter();
 
@@ -79,6 +85,10 @@ export function MembersRosterLoadFailed({ className }: { className?: string }) {
         size="sm"
         className="mt-4"
         onClick={() => {
+          if (onRetry) {
+            onRetry();
+            return;
+          }
           router.refresh();
         }}
       >

@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2, Plus, Search, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -40,8 +39,8 @@ import {
 
 export function CreateDirectDialog() {
   const t = useTranslations("App.Channels");
-  const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const inFlightRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [roster, setRoster] = useState<ChatComposeRoster>(
     EMPTY_CHAT_COMPOSE_ROSTER,
@@ -50,6 +49,7 @@ export function CreateDirectDialog() {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [rosterLoaded, setRosterLoaded] = useState(false);
+  const [rosterError, setRosterError] = useState(false);
   const [, startRosterTransition] = useTransition();
   const rosterLoadGenerationRef = useRef(0);
 
@@ -129,10 +129,33 @@ export function CreateDirectDialog() {
     setRecipientQuery("");
     setSelectedKeys([]);
     setRosterLoaded(false);
+    setRosterError(false);
+  }
+
+  function loadRoster() {
+    const generation = rosterLoadGenerationRef.current + 1;
+    rosterLoadGenerationRef.current = generation;
+    setRosterLoaded(false);
+    setRosterError(false);
+    startRosterTransition(async () => {
+      const result = await loadChatComposeRosterAction();
+      if (generation !== rosterLoadGenerationRef.current) {
+        return;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
+        setRosterError(true);
+        setRosterLoaded(true);
+        return;
+      }
+      setRoster(result.value);
+      setRosterError(false);
+      setRosterLoaded(true);
+    });
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (isPending) {
+    if (inFlightRef.current || isPending) {
       return;
     }
     setOpen(nextOpen);
@@ -141,27 +164,14 @@ export function CreateDirectDialog() {
       resetDialog();
       return;
     }
-    const generation = rosterLoadGenerationRef.current + 1;
-    rosterLoadGenerationRef.current = generation;
-    startRosterTransition(async () => {
-      const result = await loadChatComposeRosterAction();
-      if (generation !== rosterLoadGenerationRef.current) {
-        return;
-      }
-      if (!result.ok) {
-        toast.error(result.error.message);
-        setRosterLoaded(true);
-        return;
-      }
-      setRoster(result.value);
-      setRosterLoaded(true);
-    });
+    loadRoster();
   }
 
   function handleCreate() {
-    if (isPending || selectedTargets.length === 0) {
+    if (inFlightRef.current || isPending || selectedTargets.length === 0) {
       return;
     }
+    inFlightRef.current = true;
     startTransition(async () => {
       const result =
         selectedCoworkerIds.length === 1
@@ -171,16 +181,18 @@ export function CreateDirectDialog() {
             });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Draft.chooseRecipientError"));
+        inFlightRef.current = false;
         return;
       }
       if (!result.value) {
         toast.error(t("Draft.chooseRecipientError"));
+        inFlightRef.current = false;
         return;
       }
       notifyOrganizationChatRoomsChanged(result.value);
       setOpen(false);
       resetDialog();
-      router.push(`/chat/rooms/${result.value.id}`);
+      window.location.assign(`/chat/rooms/${result.value.id}`);
     });
   }
 
@@ -210,6 +222,11 @@ export function CreateDirectDialog() {
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t("loading")}
           </div>
+        ) : rosterError ? (
+          <MembersRosterLoadFailed
+            className="m-1 px-3 py-6"
+            onRetry={loadRoster}
+          />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             <div className="flex min-h-10 min-w-0 shrink-0 flex-wrap items-center gap-1.5">
