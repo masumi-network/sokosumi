@@ -41,12 +41,14 @@ interface MarkdownProps {
   children: string;
   className?: string | undefined;
   highlightTerm?: string | undefined;
+  components?: Components;
 }
 
 export default function Markdown({
   children,
   className,
   highlightTerm,
+  components: extraComponents,
 }: MarkdownProps) {
   const highlightedChildren = applyMarkdownHighlighting(children, {
     term: highlightTerm,
@@ -202,7 +204,7 @@ export default function Markdown({
           [remarkEmoji, { emoticon: true }],
         ]}
         rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
-        components={components}
+        components={{ ...components, ...extraComponents }}
       >
         {linkifiedChildren}
       </ReactMarkdown>

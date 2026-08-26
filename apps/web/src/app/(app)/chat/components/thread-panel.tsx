@@ -359,6 +359,7 @@ export function ThreadPanel({
           currentUserId={currentUserId}
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </RoomFileDropZone>
     </aside>

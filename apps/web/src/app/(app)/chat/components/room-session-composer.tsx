@@ -78,6 +78,7 @@ interface RoomSessionComposerProps {
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }
 
 /** Draft state lives here so room message lists do not re-render on typing. */
@@ -102,6 +103,7 @@ export function RoomSessionComposer({
   currentUserId,
   canOpenHumanDirect,
   onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: RoomSessionComposerProps) {
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
@@ -220,6 +222,7 @@ export function RoomSessionComposer({
       currentUserId={currentUserId}
       canOpenHumanDirect={canOpenHumanDirect}
       onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
     />
   );
 }

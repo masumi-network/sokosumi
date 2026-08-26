@@ -51,12 +51,12 @@ function mention(
   };
 }
 
-function directChip(kind: "human" | "coworker", id: string, label: string) {
-  return `<span class="text-primary font-medium cursor-pointer" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
+function hoverChip(kind: "human" | "coworker", id: string, label: string) {
+  return `<span class="text-primary font-medium" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
 }
 
 describe("formatRoomMarkdownMentions", () => {
-  it("makes a resolved coworker chip a Direct target", () => {
+  it("identifies a resolved coworker chip for hover", () => {
     const formatted = formatRoomMarkdownMentions({
       content: `@${coworker.id}:${coworker.slug} please look`,
       coworkersById: new Map([[coworker.id, coworker]]),
@@ -66,71 +66,34 @@ describe("formatRoomMarkdownMentions", () => {
     });
 
     expect(formatted).toBe(
-      `${directChip("coworker", coworker.id, "Elena")} please look`,
+      `${hoverChip("coworker", coworker.id, "Elena")} please look`,
     );
   });
 
-  it("makes a resolved human chip a Direct target when human Directs are allowed", () => {
+  it("identifies a resolved human chip for hover", () => {
     const formatted = formatRoomMarkdownMentions({
       content: `@${human.id}:alice-smith please look`,
       coworkersById: new Map(),
       coworkersBySlug: new Map(),
       usersById: new Map([[human.id, human]]),
       usersBySlug: new Map([["alice-smith", human]]),
-      currentUserId: "user_self",
-      canOpenHumanDirect: true,
     });
 
     expect(formatted).toBe(
-      `${directChip("human", human.id, "Alice Smith")} please look`,
+      `${hoverChip("human", human.id, "Alice Smith")} please look`,
     );
   });
 
-  it("keeps a self mention as an inert chip", () => {
-    const formatted = formatRoomMarkdownMentions({
-      content: `@${human.id}:alice-smith please look`,
-      coworkersById: new Map(),
-      coworkersBySlug: new Map(),
-      usersById: new Map([[human.id, human]]),
-      usersBySlug: new Map([["alice-smith", human]]),
-      currentUserId: human.id,
-      canOpenHumanDirect: true,
-    });
-
-    expect(formatted).toBe(
-      `<span class="text-primary font-medium">@Alice Smith</span> please look`,
-    );
-    expect(formatted).not.toContain("data-direct-kind");
-  });
-
-  it("keeps a human mention inert when human Directs are gated off", () => {
-    const formatted = formatRoomMarkdownMentions({
-      content: `@${human.id}:alice-smith please look`,
-      coworkersById: new Map(),
-      coworkersBySlug: new Map(),
-      usersById: new Map([[human.id, human]]),
-      usersBySlug: new Map([["alice-smith", human]]),
-      currentUserId: "user_self",
-      canOpenHumanDirect: false,
-    });
-
-    expect(formatted).toBe(
-      `<span class="text-primary font-medium">@Alice Smith</span> please look`,
-    );
-    expect(formatted).not.toContain("data-direct-kind");
-  });
-
-  it("still makes a coworker chip a Direct target when human Directs are gated off", () => {
+  it("still identifies a coworker chip when the human roster is empty", () => {
     const formatted = formatRoomMarkdownMentions({
       content: `@${coworker.id}:${coworker.slug}`,
       coworkersById: new Map([[coworker.id, coworker]]),
       coworkersBySlug: new Map([[coworker.slug, coworker]]),
       usersById: new Map(),
       usersBySlug: new Map(),
-      canOpenHumanDirect: false,
     });
 
-    expect(formatted).toBe(directChip("coworker", coworker.id, "Elena"));
+    expect(formatted).toBe(hoverChip("coworker", coworker.id, "Elena"));
   });
 
   it("renders coworker and human mention chips from tokens", () => {
@@ -168,8 +131,6 @@ describe("formatRoomMarkdownMentions", () => {
       coworkersBySlug: new Map(),
       usersById: new Map(),
       usersBySlug: new Map(),
-      currentUserId: "user_self",
-      canOpenHumanDirect: true,
     });
 
     expect(formatted).toBe(`@${human.id}:alice-smith please look`);
@@ -200,7 +161,7 @@ describe("formatRoomMarkdownMentions", () => {
       usersBySlug: new Map(),
     });
 
-    expect(formatted).toContain(directChip("coworker", coworker.id, "Elena"));
+    expect(formatted).toContain(hoverChip("coworker", coworker.id, "Elena"));
     expect(formatted).toContain("and @nobody please");
     expect(formatted.match(/text-primary/g)).toHaveLength(1);
   });
@@ -212,7 +173,6 @@ describe("formatRoomMarkdownMentions", () => {
       coworkersBySlug: new Map(),
       usersById: new Map(),
       usersBySlug: new Map(),
-      canOpenHumanDirect: true,
     });
 
     expect(formatted).toContain(">@all</span>");
@@ -282,7 +242,7 @@ describe("formatRoomMarkdownContent", () => {
       ],
     });
 
-    expect(formatted).toContain(directChip("coworker", coworker.id, "Elena"));
+    expect(formatted).toContain(hoverChip("coworker", coworker.id, "Elena"));
     expect(formatted).toContain("[#general](/chat/rooms/room-general)");
   });
 });

@@ -581,7 +581,31 @@ export interface MentionDirectTarget {
 }
 
 const MENTION_CHIP_CLASSNAME = "text-primary font-medium";
-const MENTION_DIRECT_CHIP_CLASSNAME = `${MENTION_CHIP_CLASSNAME} cursor-pointer`;
+
+export type MentionHoverUserLookup = Pick<
+  ChatRoomUserParticipant,
+  "id" | "name"
+> &
+  Partial<Pick<ChatRoomUserParticipant, "email" | "image" | "presence">>;
+
+export function mentionDirectTargetFromAttributes(
+  attributes: Record<string, unknown>,
+): MentionDirectTarget | null {
+  const kindRaw =
+    attributes["data-direct-kind"] ??
+    attributes.dataDirectKind ??
+    attributes["data-directKind"];
+  const idRaw =
+    attributes["data-direct-id"] ??
+    attributes.dataDirectId ??
+    attributes["data-directId"];
+  const kind = typeof kindRaw === "string" ? kindRaw : null;
+  const id = typeof idRaw === "string" ? idRaw : null;
+  if ((kind !== "human" && kind !== "coworker") || !id) {
+    return null;
+  }
+  return { kind, id };
+}
 
 export function parseMentionDirectChip(
   node: Element,
@@ -590,19 +614,24 @@ export function parseMentionDirectChip(
   if (!(host instanceof HTMLElement)) {
     return null;
   }
-  const kind = host.dataset.directKind;
-  const id = host.dataset.directId;
-  if ((kind !== "human" && kind !== "coworker") || !id) {
-    return null;
+  return mentionDirectTargetFromAttributes({
+    "data-direct-kind": host.dataset.directKind,
+    "data-direct-id": host.dataset.directId,
+  });
+}
+
+function humanPresence(value: unknown): ChatRoomPresence {
+  if (value === "online" || value === "afk" || value === "offline") {
+    return value;
   }
-  return { kind, id };
+  return "offline";
 }
 
 export function chatParticipantProfileForDirectTarget(
   target: MentionDirectTarget,
   lookups: {
     coworkersById: Map<string, ChatRoomCoworkerParticipant>;
-    usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+    usersById?: Map<string, MentionHoverUserLookup>;
   },
 ): ChatParticipantHoverProfile | null {
   if (target.kind === "coworker") {
@@ -628,46 +657,10 @@ export function chatParticipantProfileForDirectTarget(
     kind: "human",
     id: user.id,
     name: user.name,
-    email: "",
-    image: null,
-    presence: "offline",
+    email: user.email ?? "",
+    image: user.image ?? null,
+    presence: humanPresence(user.presence),
   };
-}
-
-export function handleSentMentionDirectClick(
-  event: {
-    target: EventTarget | null;
-    preventDefault: () => void;
-    stopPropagation: () => void;
-  },
-  options: {
-    coworkersById: Map<string, ChatRoomCoworkerParticipant>;
-    usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-    onOpenDirect?: (profile: ChatParticipantHoverProfile) => void;
-  },
-): boolean {
-  if (!(event.target instanceof Node)) {
-    return false;
-  }
-  const element =
-    event.target instanceof Element ? event.target : event.target.parentElement;
-  if (!element) {
-    return false;
-  }
-  const target = parseMentionDirectChip(element);
-  if (!target) {
-    return false;
-  }
-  event.preventDefault();
-  event.stopPropagation();
-  const profile = chatParticipantProfileForDirectTarget(target, {
-    coworkersById: options.coworkersById,
-    usersById: options.usersById,
-  });
-  if (profile) {
-    options.onOpenDirect?.(profile);
-  }
-  return true;
 }
 
 export function resolveMentionDirectTarget({
@@ -677,17 +670,13 @@ export function resolveMentionDirectTarget({
   coworkersBySlug,
   usersById,
   usersBySlug,
-  currentUserId,
-  canOpenHumanDirect,
 }: {
   mentionId: string;
   mentionSlug: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  currentUserId?: string;
-  canOpenHumanDirect?: boolean;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): MentionDirectTarget | null {
   if (isRoomMentionAllId(mentionId)) {
     return null;
@@ -697,11 +686,8 @@ export function resolveMentionDirectTarget({
   if (coworker) {
     return { kind: "coworker", id: coworker.id };
   }
-  if (!canOpenHumanDirect) {
-    return null;
-  }
   const user = usersById?.get(mentionId) ?? usersBySlug?.get(mentionSlug);
-  if (!user || user.id === currentUserId) {
+  if (!user) {
     return null;
   }
   return { kind: "human", id: user.id };
@@ -713,7 +699,7 @@ function mentionChipHtml(
 ): string {
   const label = escapeHtml(`@${displayName}`);
   if (target) {
-    return `<span class="${MENTION_DIRECT_CHIP_CLASSNAME}" data-direct-kind="${escapeHtml(target.kind)}" data-direct-id="${escapeHtml(target.id)}">${label}</span>`;
+    return `<span class="${MENTION_CHIP_CLASSNAME}" data-direct-kind="${escapeHtml(target.kind)}" data-direct-id="${escapeHtml(target.id)}">${label}</span>`;
   }
   return `<span class="${MENTION_CHIP_CLASSNAME}">${label}</span>`;
 }
@@ -724,16 +710,12 @@ export function formatRoomMarkdownMentions({
   coworkersBySlug,
   usersById,
   usersBySlug,
-  currentUserId,
-  canOpenHumanDirect,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  currentUserId?: string;
-  canOpenHumanDirect?: boolean;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): string {
   const matches = parseMentions(content);
   if (matches.length === 0) {
@@ -762,8 +744,6 @@ export function formatRoomMarkdownMentions({
           coworkersBySlug,
           usersById,
           usersBySlug,
-          currentUserId,
-          canOpenHumanDirect,
         }),
       );
     } else {
@@ -849,17 +829,13 @@ export function formatRoomMarkdownContent({
   coworkersBySlug,
   usersById,
   usersBySlug,
-  currentUserId,
-  canOpenHumanDirect,
   channelLinks = [],
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
-  currentUserId?: string;
-  canOpenHumanDirect?: boolean;
+  usersById?: Map<string, MentionHoverUserLookup>;
+  usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
 }): string {
   return linkifyChannelLinksInMarkdown(
@@ -869,8 +845,6 @@ export function formatRoomMarkdownContent({
       coworkersBySlug,
       usersById,
       usersBySlug,
-      currentUserId,
-      canOpenHumanDirect,
     }),
     channelLinks,
   );

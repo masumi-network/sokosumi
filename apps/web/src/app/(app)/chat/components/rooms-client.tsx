@@ -2720,6 +2720,7 @@ export function RoomsClient({
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirectMessage={handleOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectKey}
             />
           }
           mainEnd={

@@ -60,7 +60,6 @@ import {
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import Markdown from "@/components/markdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -107,13 +106,12 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatMessageTime,
-  formatRoomMarkdownContent,
-  handleSentMentionDirectClick,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   scrollToRoomMessageElement,
 } from "./room-helpers";
+import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -268,6 +266,7 @@ function MessageQuoteBlock({
   currentUserId,
   canOpenHumanDirect,
   onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -278,6 +277,7 @@ function MessageQuoteBlock({
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -307,28 +307,20 @@ function MessageQuoteBlock({
               expanded ? null : "line-clamp-4",
             )}
           >
-            <div
-              onClick={(event) => {
-                handleSentMentionDirectClick(event, {
-                  coworkersById,
-                  usersById,
-                  onOpenDirect: onOpenDirectMessage,
-                });
-              }}
-            >
-              <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-                {formatRoomMarkdownContent({
-                  content: quote.snippet,
-                  coworkersById,
-                  coworkersBySlug,
-                  usersById,
-                  usersBySlug,
-                  currentUserId,
-                  canOpenHumanDirect,
-                  channelLinks,
-                })}
-              </Markdown>
-            </div>
+            <RoomMessageMarkdown
+              content={quote.snippet}
+              markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              channelLinks={channelLinks}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectParticipantKey}
+              hoverInteractive={false}
+            />
           </div>
         ) : null}
         {attachment ? (
@@ -486,6 +478,7 @@ function ChannelMarkdownSegment({
   currentUserId,
   canOpenHumanDirect,
   onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -496,34 +489,22 @@ function ChannelMarkdownSegment({
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
-  if (!content.trim()) {
-    return null;
-  }
-
   return (
-    <div
-      onClick={(event) => {
-        handleSentMentionDirectClick(event, {
-          coworkersById,
-          usersById,
-          onOpenDirect: onOpenDirectMessage,
-        });
-      }}
-    >
-      <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
-        {formatRoomMarkdownContent({
-          content,
-          coworkersById,
-          coworkersBySlug,
-          usersById,
-          usersBySlug,
-          currentUserId,
-          canOpenHumanDirect,
-          channelLinks,
-        })}
-      </Markdown>
-    </div>
+    <RoomMessageMarkdown
+      content={content}
+      markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
+      coworkersById={coworkersById}
+      coworkersBySlug={coworkersBySlug}
+      usersById={usersById}
+      usersBySlug={usersBySlug}
+      channelLinks={channelLinks}
+      currentUserId={currentUserId}
+      canOpenHumanDirect={canOpenHumanDirect}
+      onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
+    />
   );
 }
 
@@ -537,6 +518,7 @@ function ChannelMessageText({
   currentUserId,
   canOpenHumanDirect,
   onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -547,6 +529,7 @@ function ChannelMessageText({
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -562,6 +545,7 @@ function ChannelMessageText({
         currentUserId={currentUserId}
         canOpenHumanDirect={canOpenHumanDirect}
         onOpenDirectMessage={onOpenDirectMessage}
+        openingDirectParticipantKey={openingDirectParticipantKey}
       />
     );
   }
@@ -583,6 +567,7 @@ function ChannelMessageText({
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
               />
             );
           case "files": {
@@ -628,6 +613,7 @@ function ChannelMessageBody({
   currentUserId,
   canOpenHumanDirect,
   onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   messageId: string;
   content: string;
@@ -639,6 +625,7 @@ function ChannelMessageBody({
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -684,6 +671,7 @@ function ChannelMessageBody({
           currentUserId={currentUserId}
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
@@ -2013,6 +2001,7 @@ export function ChatMessageRow({
                   currentUserId={currentUserId}
                   canOpenHumanDirect={canOpenHumanDirect}
                   onOpenDirectMessage={onOpenDirectMessage}
+                  openingDirectParticipantKey={openingDirectParticipantKey}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
@@ -2076,6 +2065,7 @@ export function ChatMessageRow({
                     currentUserId={currentUserId}
                     canOpenHumanDirect={canOpenHumanDirect}
                     onOpenDirectMessage={onOpenDirectMessage}
+                    openingDirectParticipantKey={openingDirectParticipantKey}
                   />
                   {isContinuation && showEdited ? (
                     <span className="text-muted-foreground ml-1.5 text-xs">
