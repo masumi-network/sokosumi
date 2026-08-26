@@ -1,5 +1,6 @@
 "use server";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
@@ -12,6 +13,7 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getSession } from "@/lib/auth/auth.server";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
   ChatRoom,
@@ -171,6 +173,17 @@ export async function createChannelAction(
     revalidatePath("/chat");
     return roomOk(room);
   } catch (error) {
+    if (
+      error instanceof CoreApiRequestError &&
+      error.kind === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN
+    ) {
+      return toActionResult(
+        err({
+          code: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+          message: error.message,
+        }),
+      );
+    }
     return roomCatch(error, "Could not create channel.");
   }
 }

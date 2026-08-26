@@ -1,5 +1,6 @@
 "use client";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -170,6 +171,11 @@ export function CreateChannelDialog({
         coworkerIds: fields.coworkerIds,
       });
       if (!result.ok) {
+        if (result.error.code === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN) {
+          setAvailability("taken");
+          setWizard(backToCreate(wizard));
+          return;
+        }
         toast.error(result.error.message);
         return;
       }
