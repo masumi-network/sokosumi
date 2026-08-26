@@ -48,7 +48,11 @@ export async function getSokoBotDailyStats(input: {
       select: { createdAt: true, source: true },
     }),
     prisma.sokoBotDelegation.findMany({
-      where: { turn: { sokoBotId: bot.id }, createdAt: { gte: since } },
+      where: {
+        turn: { sokoBotId: bot.id },
+        createdAt: { gte: since },
+        action: { in: ["create_task", "hire_agent"] },
+      },
       select: { createdAt: true, kind: true },
     }),
     prisma.sokoBotToolCall.findMany({
