@@ -90,11 +90,13 @@ async function loadTurn(
 async function waitForIdle(sokoBotId: string, timeoutMs = 180_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: sokoBotId },
-      select: { status: true },
+    const active = await prisma.sokoBotTurn.count({
+      where: {
+        sokoBotId,
+        status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+      },
     });
-    if (bot?.status === "IDLE") return;
+    if (active === 0) return;
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
   throw new Error("Soko Bot did not become idle in time");
