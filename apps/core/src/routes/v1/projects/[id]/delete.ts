@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -44,6 +45,7 @@ const route = withOrchestratorContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
     },
   }),
 );
@@ -59,6 +61,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (deleteResult.count === 0) {
+      const guardedProject = await prisma.project.findFirst({
+        where: { id, workspaceId: workspaceContext.workspaceId },
+        select: { id: true },
+      });
+      if (guardedProject) {
+        throw conflict(
+          "Remove or close scheduled work before deleting this Project",
+          {
+            kind: CORE_API_ERROR_KINDS.PROJECT_HAS_CALENDAR_HISTORY,
+          },
+        );
+      }
       throw notFound("Project not found");
     }
 

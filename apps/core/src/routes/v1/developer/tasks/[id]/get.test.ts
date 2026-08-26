@@ -134,6 +134,7 @@ function createTask() {
     status: TaskStatus.RUNNING,
     metadata: null,
     nextRunAt: null,
+    scheduleRevision: 0,
     events: [],
     jobs: [],
     workspace: {

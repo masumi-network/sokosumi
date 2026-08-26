@@ -772,6 +772,11 @@
         "login": "Login",
         "register": "Register"
       },
+      "CalendarClientUpgradeModal": {
+        "title": "Update required",
+        "description": "Sokosumi has been updated to protect scheduled work. Reload before making more Calendar changes.",
+        "reload": "Reload Sokosumi"
+      },
       "LogoutModal": {
         "title": "Do you really want to log out?",
         "description": "Log out \"{email}\" from Sokosumi.",

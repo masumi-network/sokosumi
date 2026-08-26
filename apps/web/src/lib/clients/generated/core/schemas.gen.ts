@@ -2217,6 +2217,13 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Revision used for optimistic schedule mutations',
+            example: 0
+        },
         credits: {
             type: 'number',
             example: 5
@@ -2719,6 +2726,45 @@ export const TaskEventSchema = {
                 }
             ],
             example: 'RUNNING'
+        },
+        scheduleKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'CREATED',
+                'UPDATED',
+                'REMOVED',
+                'SOURCE_CHANGED',
+                'OCCURRENCE_RESCHEDULED',
+                'OCCURRENCE_SKIPPED',
+                'OCCURRENCE_RESTORED',
+                'RELEASED',
+                null
+            ],
+            description: 'Schedule activity represented by this event',
+            example: 'OCCURRENCE_SKIPPED'
+        },
+        schedulePayload: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {},
+            description: 'Schedule activity details for audit and notifications',
+            example: {
+                occurrenceKey: 'occurrence-key'
+            }
+        },
+        scheduleOperationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Idempotency identity for the schedule mutation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
         }
     },
     required: [
@@ -13014,6 +13060,33 @@ export const ProjectSchema = {
             type: 'boolean',
             example: false
         },
+        projectRevision: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Revision used for optimistic Project mutations',
+            example: 0
+        },
+        closingAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: null,
+            description: 'Exclusive release cutoff while the Project is closing'
+        },
+        closedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: null,
+            description: 'When the Project reached its terminal closed state'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -15448,6 +15521,13 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Revision used for optimistic schedule mutations',
+            example: 0
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -15624,6 +15704,127 @@ export const TaskLinkDeletedSchema = {
 } as const;
 
 export const PutTaskScheduleRequestSchema = {
+    anyOf: [
+        {
+            type: 'object',
+            properties: {
+                operationId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Idempotency identity for this series edit',
+                    example: '123e4567-e89b-42d3-a456-426614174000'
+                },
+                expectedScheduleRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Schedule revision observed by the caller',
+                    example: 3
+                },
+                discardFutureExceptions: {
+                    type: 'boolean',
+                    enum: [
+                        true
+                    ],
+                    description: 'Confirms that future occurrence exceptions may be canceled',
+                    example: true
+                },
+                schedule: {
+                    $ref: '#/components/schemas/TaskScheduleInput'
+                }
+            },
+            required: [
+                'operationId',
+                'expectedScheduleRevision',
+                'discardFutureExceptions',
+                'schedule'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'When the one-time schedule should run'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1,
+                    description: 'Cron expression for recurring runs',
+                    example: '0 9 * * *'
+                },
+                timezone: {
+                    type: 'string',
+                    default: 'UTC',
+                    description: 'IANA timezone for the cron expression',
+                    example: 'America/New_York'
+                },
+                endsMode: {
+                    type: 'string',
+                    enum: [
+                        'never',
+                        'on',
+                        'after'
+                    ],
+                    default: 'never',
+                    example: 'never'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59.000Z',
+                    description: 'End date when endsMode is on'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Remaining occurrences when endsMode is after',
+                    example: 10
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
+                    example: 2
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
+    ]
+} as const;
+
+export const TaskScheduleInputSchema = {
     oneOf: [
         {
             type: 'object',

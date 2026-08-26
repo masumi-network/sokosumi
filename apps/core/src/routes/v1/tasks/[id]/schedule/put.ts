@@ -16,7 +16,10 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
+import {
+  getTaskScheduleInput,
+  putTaskScheduleRequestSchema,
+} from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -63,11 +66,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
+    const schedule = getTaskScheduleInput(body);
 
-    validateScheduleInput(body);
+    validateScheduleInput(schedule);
 
     const scheduledAt = new Date();
-    const metadata = buildTaskScheduleMetadata(body, scheduledAt);
+    const metadata = buildTaskScheduleMetadata(schedule, scheduledAt);
     const nextRunAt = computeScheduleNextRun(metadata);
     if (!nextRunAt) {
       throw badRequest("Unable to compute the next scheduled run");

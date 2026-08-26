@@ -600,6 +600,10 @@ export type Task = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
+    /**
+     * Revision used for optimistic schedule mutations
+     */
+    scheduleRevision?: number;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -730,6 +734,20 @@ export type TaskEvent = {
     channel: Channel;
     origin: Channel & unknown;
     status?: TaskStatus | null;
+    /**
+     * Schedule activity represented by this event
+     */
+    scheduleKind?: 'CREATED' | 'UPDATED' | 'REMOVED' | 'SOURCE_CHANGED' | 'OCCURRENCE_RESCHEDULED' | 'OCCURRENCE_SKIPPED' | 'OCCURRENCE_RESTORED' | 'RELEASED' | null;
+    /**
+     * Schedule activity details for audit and notifications
+     */
+    schedulePayload?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Idempotency identity for the schedule mutation
+     */
+    scheduleOperationId?: string | null;
 };
 
 /**
@@ -4097,6 +4115,18 @@ export type Project = {
      */
     contextMd: ProjectContextMdMetadata | null;
     contextMdUpdating: boolean;
+    /**
+     * Revision used for optimistic Project mutations
+     */
+    projectRevision?: number;
+    /**
+     * Exclusive release cutoff while the Project is closing
+     */
+    closingAt?: Date | null;
+    /**
+     * When the Project reached its terminal closed state
+     */
+    closedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -4743,6 +4773,10 @@ export type TaskListItem = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
+    /**
+     * Revision used for optimistic schedule mutations
+     */
+    scheduleRevision?: number;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -4807,6 +4841,55 @@ export type TaskLinkDeleted = {
 };
 
 export type PutTaskScheduleRequest = {
+    /**
+     * Idempotency identity for this series edit
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    /**
+     * Confirms that future occurrence exceptions may be canceled
+     */
+    discardFutureExceptions: true;
+    schedule: TaskScheduleInput;
+} | {
+    mode: 'once';
+    /**
+     * When the one-time schedule should run
+     */
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    /**
+     * Cron expression for recurring runs
+     */
+    expr: string;
+    /**
+     * IANA timezone for the cron expression
+     */
+    timezone?: string;
+    endsMode?: 'never' | 'on' | 'after';
+    /**
+     * End date when endsMode is on
+     */
+    endsOn?: Date;
+    /**
+     * Remaining occurrences when endsMode is after
+     */
+    occurrences?: number;
+    /**
+     * When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps
+     */
+    intervalDays?: number;
+    /**
+     * First run instant for intervalDays schedules (required when intervalDays > 1)
+     */
+    anchorAt?: Date;
+};
+
+export type TaskScheduleInput = {
     mode: 'once';
     /**
      * When the one-time schedule should run
@@ -29517,6 +29600,20 @@ export type DeleteProjectsByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

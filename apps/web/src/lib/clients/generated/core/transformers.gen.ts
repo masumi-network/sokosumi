@@ -1831,6 +1831,12 @@ const projectSchemaResponseTransformer = (data: any) => {
     if (data.contextMd) {
         data.contextMd = projectContextMdMetadataSchemaResponseTransformer(data.contextMd);
     }
+    if (data.closingAt) {
+        data.closingAt = new Date(data.closingAt);
+    }
+    if (data.closedAt) {
+        data.closedAt = new Date(data.closedAt);
+    }
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;

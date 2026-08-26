@@ -35,6 +35,7 @@ import {
   canArchiveParkedTaskForViewer,
   canArchiveScheduledTaskForViewer,
 } from "@/app/tasks/utils/task-read-only";
+import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -170,6 +171,7 @@ export function TaskDetailActions({
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
   const router = useRouter();
+  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isArchivePending, startArchiveTransition] = useTransition();
@@ -333,10 +335,14 @@ export function TaskDetailActions({
 
     startStatusTransition(async () => {
       try {
-        await setTaskStatusFromDrag({
+        const result = await setTaskStatusFromDrag({
           taskId,
           desiredStatus: action.target,
         });
+        if (!result.ok) {
+          showCalendarClientUpgradeModal();
+          return;
+        }
         router.refresh();
         toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
@@ -359,11 +365,15 @@ export function TaskDetailActions({
 
     startStatusTransition(async () => {
       try {
-        await setTaskStatusFromDrag({
+        const result = await setTaskStatusFromDrag({
           taskId,
           desiredStatus: TaskStatus.READY,
           comment: trimmedComment,
         });
+        if (!result.ok) {
+          showCalendarClientUpgradeModal();
+          return;
+        }
         setIsReopenDialogOpen(false);
         setReopenComment("");
         router.refresh();
@@ -975,9 +985,16 @@ export function TaskDetailActions({
                 relation: selectedCreateRelatedOption.relation,
               });
 
+              if (!result.ok) {
+                return result;
+              }
+
               return {
-                taskId: result.createdTaskId,
-                name: result.name,
+                ok: true,
+                value: {
+                  taskId: result.value.createdTaskId,
+                  name: result.value.name,
+                },
               };
             }}
             onSubmittingChange={setIsCreateRelatedDismissDisabled}

@@ -70,13 +70,41 @@ const taskScheduleRecurringInputSchema = z
     }
   });
 
-export const putTaskScheduleRequestSchema = z
+export const taskScheduleInputSchema = z
   .discriminatedUnion("mode", [
     taskScheduleOnceInputSchema,
     taskScheduleRecurringInputSchema,
   ])
+  .openapi("TaskScheduleInput");
+
+const operationAwareTaskScheduleRequestSchema = z.object({
+  operationId: z.string().uuid().openapi({
+    description: "Idempotency identity for this series edit",
+    example: "123e4567-e89b-42d3-a456-426614174000",
+  }),
+  expectedScheduleRevision: z.number().int().nonnegative().openapi({
+    description: "Schedule revision observed by the caller",
+    example: 3,
+  }),
+  discardFutureExceptions: z.literal(true).openapi({
+    description: "Confirms that future occurrence exceptions may be canceled",
+    example: true,
+  }),
+  schedule: taskScheduleInputSchema,
+});
+
+export const putTaskScheduleRequestSchema = z
+  .union([operationAwareTaskScheduleRequestSchema, taskScheduleInputSchema])
   .openapi("PutTaskScheduleRequest");
+
+export type TaskScheduleInput = z.infer<typeof taskScheduleInputSchema>;
 
 export type PutTaskScheduleRequest = z.infer<
   typeof putTaskScheduleRequestSchema
 >;
+
+export function getTaskScheduleInput(
+  request: PutTaskScheduleRequest,
+): TaskScheduleInput {
+  return "schedule" in request ? request.schedule : request;
+}

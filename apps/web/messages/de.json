@@ -756,6 +756,11 @@
         "login": "Anmelden",
         "register": "Registrieren"
       },
+      "CalendarClientUpgradeModal": {
+        "title": "Aktualisierung erforderlich",
+        "description": "Sokosumi wurde aktualisiert, um geplante Tasks zu schützen. Lade die Seite neu, bevor du weitere Kalenderänderungen vornimmst.",
+        "reload": "Sokosumi neu laden"
+      },
       "LogoutModal": {
         "title": "Möchtest du dich wirklich abmelden?",
         "description": "\"{email}\" von Sokosumi abmelden.",
