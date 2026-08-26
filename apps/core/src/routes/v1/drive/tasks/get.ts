@@ -237,11 +237,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const cursorIndex = matchingFiles.findIndex(
           (file) => file.id === cursor,
         );
-        if (cursorIndex >= 0) {
-          startIndex = cursorIndex + 1;
+        if (cursorIndex < 0) {
+          throw badRequest("Invalid pagination cursor");
         }
+        startIndex = cursorIndex + 1;
       }
-      startIndex += skip ?? 0;
 
       const pagedFiles = matchingFiles.slice(startIndex, startIndex + take);
       const hasMore = startIndex + take < matchingFiles.length;
@@ -445,23 +445,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Key project rows by tasks in the Drive workspace, not by Project.workspaceId
     // (transferred tasks may have Task.workspaceId !== Project.workspaceId)
 
-    // Find non-null projectIds from tasks matching baseTaskWhere
-    const tasksWithProjects = await prisma.task.findMany({
+    const projectIdGroups = await prisma.task.groupBy({
+      by: ["projectId"],
       where: {
         ...baseTaskWhere,
         projectId: { not: null },
       },
-      select: { projectId: true },
     });
 
-    // Unique in memory
-    const projectIds = Array.from(
-      new Set(
-        tasksWithProjects
-          .map((t) => t.projectId)
-          .filter((id): id is string => id !== null),
-      ),
-    );
+    const projectIds = projectIdGroups
+      .map((group) => group.projectId)
+      .filter((id): id is string => id !== null);
 
     // Fetch all projects by id + no-project count
     const MAX_PROJECTS_FOR_SORT = 10000;

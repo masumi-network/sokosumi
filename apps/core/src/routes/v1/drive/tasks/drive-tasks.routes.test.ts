@@ -16,6 +16,7 @@ const {
   prismaTaskFileFindUniqueMock,
   prismaTaskFileCountMock,
   prismaTaskFindManyMock,
+  prismaTaskGroupByMock,
   prismaTaskCountMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
@@ -35,6 +36,7 @@ const {
   prismaTaskFileFindUniqueMock: vi.fn(),
   prismaTaskFileCountMock: vi.fn(),
   prismaTaskFindManyMock: vi.fn(),
+  prismaTaskGroupByMock: vi.fn(),
   prismaTaskCountMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
@@ -61,6 +63,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     task: {
       findMany: prismaTaskFindManyMock,
+      groupBy: prismaTaskGroupByMock,
       count: prismaTaskCountMock,
     },
     project: {
@@ -447,6 +450,63 @@ describe("Drive Tasks Routes", () => {
           }),
         );
       });
+
+      it("paginates search results without double-skipping rows", async () => {
+        const files = [
+          {
+            id: "tf_1",
+            name: "mockup-a.pdf",
+            fileUrl: "https://example.com/a.pdf",
+            size: BigInt(1024),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-08-24T14:00:00.000Z"),
+            task: {
+              id: "tsk_1",
+              name: "Design A",
+              projectId: "prj_1",
+              project: { name: "Campaign" },
+            },
+          },
+          {
+            id: "tf_2",
+            name: "mockup-b.pdf",
+            fileUrl: "https://example.com/b.pdf",
+            size: BigInt(1024),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-08-24T12:00:00.000Z"),
+            task: {
+              id: "tsk_2",
+              name: "Design B",
+              projectId: "prj_1",
+              project: { name: "Campaign" },
+            },
+          },
+        ];
+
+        prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaTaskFileCountMock.mockResolvedValue(2);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&q=mockup&cursor=tf_1&limit=1",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.data).toHaveLength(1);
+        expect(json.data[0]).toMatchObject({ id: "tf_2" });
+      });
+
+      it("returns 400 for an invalid search pagination cursor", async () => {
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&q=mockup&cursor=missing&limit=1",
+        );
+
+        expect(res.status).toBe(400);
+      });
     });
 
     describe("Level 2: Task rows", () => {
@@ -568,7 +628,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFindManyMock.mockResolvedValue([{ projectId: "prj_1" }]);
+        prismaTaskGroupByMock.mockResolvedValue([{ projectId: "prj_1" }]);
         prismaProjectFindManyMock.mockResolvedValue(projects);
         prismaTaskCountMock.mockResolvedValue(1);
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -597,7 +657,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFindManyMock.mockResolvedValue([{ projectId: "prj_1" }]);
+        prismaTaskGroupByMock.mockResolvedValue([{ projectId: "prj_1" }]);
         prismaProjectFindManyMock.mockResolvedValue(projects);
         prismaTaskCountMock.mockResolvedValue(1);
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -613,7 +673,7 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("returns 400 for an invalid pagination cursor", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaTaskGroupByMock.mockResolvedValue([]);
         prismaProjectFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(0);
 
@@ -650,7 +710,7 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFindManyMock.mockResolvedValue([
+        prismaTaskGroupByMock.mockResolvedValue([
           { projectId: "prj_1" },
           { projectId: "prj_2" },
         ]);
@@ -690,7 +750,7 @@ describe("Drive Tasks Routes", () => {
         });
 
         // Task with projectId pointing to a project whose workspaceId is different
-        prismaTaskFindManyMock.mockResolvedValue([
+        prismaTaskGroupByMock.mockResolvedValue([
           { projectId: "prj_transferred" },
         ]);
 
@@ -725,19 +785,16 @@ describe("Drive Tasks Routes", () => {
           name: "Transferred Project",
         });
 
-        // Assert distinct is NOT used (relation filter + distinct can throw)
-        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
-          expect.not.objectContaining({
-            distinct: expect.anything(),
+        expect(prismaTaskGroupByMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            by: ["projectId"],
           }),
         );
       });
 
       it("shows fallback name when project row is missing but tasks exist", async () => {
         // Task references a projectId but the Project row was deleted
-        prismaTaskFindManyMock.mockResolvedValue([
-          { projectId: "prj_deleted" },
-        ]);
+        prismaTaskGroupByMock.mockResolvedValue([{ projectId: "prj_deleted" }]);
 
         // Project row not found
         prismaProjectFindManyMock.mockResolvedValue([]);
@@ -757,7 +814,7 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("includes no-project row when tasks with projectId: null have files", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]); // No project tasks
+        prismaTaskGroupByMock.mockResolvedValue([]); // No project tasks
         prismaProjectFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(1); // One no-project task
         prismaTaskFileFindFirstMock.mockResolvedValue({
@@ -824,7 +881,7 @@ describe("Drive Tasks Routes", () => {
       });
 
       it("lists for a coworker with workspace context", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]);
+        prismaTaskGroupByMock.mockResolvedValue([]);
         prismaProjectFindManyMock.mockResolvedValue([]);
         prismaTaskCountMock.mockResolvedValue(0);
 
