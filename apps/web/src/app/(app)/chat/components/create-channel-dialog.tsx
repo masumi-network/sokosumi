@@ -1,14 +1,16 @@
 "use client";
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
+  type ChatComposeRoster,
   checkChannelSlugAvailabilityAction,
   createChannelAction,
+  loadChatComposeRosterAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
@@ -19,13 +21,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import {
+  CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
+  EMPTY_CHAT_COMPOSE_ROSTER,
+} from "./chat-compose-dialog";
 import {
   backToCreate,
   CHANNEL_NAME_MAX,
@@ -49,39 +55,37 @@ import {
 } from "./create-channel-wizard";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
 
-interface CreateChannelDialogProps {
-  open: boolean;
-  members: Member[];
-  coworkers: Coworker[];
-  organizationName: string;
-  currentUserId: string;
-  membersLoadFailed?: boolean;
-  /** Org owner/admin only — create discoverability external. */
-  canCreateExternal?: boolean;
-}
-
 function isDiscoverability(value: string): value is Discoverability {
   return value === "public" || value === "private" || value === "external";
 }
 
-export function CreateChannelDialog({
-  open,
-  members,
-  coworkers,
-  organizationName,
-  currentUserId,
-  membersLoadFailed = false,
-  canCreateExternal = false,
-}: CreateChannelDialogProps) {
+export function CreateChannelDialog() {
   const t = useTranslations("App.Channels.CreateWizard");
+  const tChannels = useTranslations("App.Channels");
   const tVisibility = useTranslations("App.Channels.Visibility");
   const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [roster, setRoster] = useState<ChatComposeRoster>(
+    EMPTY_CHAT_COMPOSE_ROSTER,
+  );
   const [wizard, setWizard] =
     useState<CreateChannelWizard>(createInitialWizard);
   const [availability, setAvailability] =
     useState<ChannelSlugCheckState>("invalid");
   const [isPending, startTransition] = useTransition();
+  const [rosterLoaded, setRosterLoaded] = useState(false);
+  const [, startRosterTransition] = useTransition();
+  const rosterLoadGenerationRef = useRef(0);
 
+  const {
+    members,
+    coworkers,
+    organizationName,
+    currentUserId,
+    membersLoadFailed,
+    canCreateExternal,
+    hasOrganization,
+  } = roster;
   const slugFieldError =
     wizard.step === "create"
       ? availability === "taken"
@@ -95,19 +99,44 @@ export function CreateChannelDialog({
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
 
-  function navigateToRoom(roomId: string) {
-    router.replace(`/chat/rooms/${roomId}`);
-  }
-
-  function clearCreateQuery() {
-    router.replace("/");
+  function resetDialog() {
+    setWizard(createInitialWizard());
+    setAvailability("invalid");
+    setRoster(EMPTY_CHAT_COMPOSE_ROSTER);
+    setRosterLoaded(false);
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (nextOpen || isPending) {
+    if (isPending) {
       return;
     }
-    clearCreateQuery();
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      rosterLoadGenerationRef.current += 1;
+      resetDialog();
+      return;
+    }
+    const generation = rosterLoadGenerationRef.current + 1;
+    rosterLoadGenerationRef.current = generation;
+    startRosterTransition(async () => {
+      const result = await loadChatComposeRosterAction();
+      if (generation !== rosterLoadGenerationRef.current) {
+        return;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
+        setRosterLoaded(true);
+        return;
+      }
+      setRoster(result.value);
+      setRosterLoaded(true);
+    });
+  }
+
+  function navigateToRoom(roomId: string) {
+    setOpen(false);
+    resetDialog();
+    router.push(`/chat/rooms/${roomId}`);
   }
 
   const createStepSlug = wizard.step === "create" ? wizard.slug : "";
@@ -210,6 +239,15 @@ export function CreateChannelDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          aria-label={tChannels("createChannel")}
+          className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+        >
+          <Plus className="size-4 md:size-3.5" aria-hidden />
+        </button>
+      </DialogTrigger>
       <DialogContent
         className="max-h-[calc(100svh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
         {...(wizard.slug ? {} : { "aria-describedby": undefined })}
@@ -227,7 +265,20 @@ export function CreateChannelDialog({
           ) : null}
         </DialogHeader>
 
-        {wizard.step === "create" ? (
+        {!rosterLoaded ? (
+          <div className="text-muted-foreground flex items-center justify-center gap-2 py-10 text-sm">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            {tChannels("loading")}
+          </div>
+        ) : null}
+
+        {rosterLoaded && !hasOrganization ? (
+          <p className="text-muted-foreground text-sm">
+            {tChannels("NoOrganization.description")}
+          </p>
+        ) : null}
+
+        {hasOrganization && wizard.step === "create" ? (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
@@ -381,7 +432,7 @@ export function CreateChannelDialog({
           </div>
         ) : null}
 
-        {wizard.step === "add-people" ? (
+        {hasOrganization && wizard.step === "add-people" ? (
           <div className="space-y-4">
             <RadioGroup
               value={wizard.mode}
@@ -457,7 +508,7 @@ export function CreateChannelDialog({
           </div>
         ) : null}
 
-        {isCreateStep ? (
+        {hasOrganization && isCreateStep ? (
           <DialogFooter>
             <Button
               type="button"
@@ -470,7 +521,7 @@ export function CreateChannelDialog({
           </DialogFooter>
         ) : null}
 
-        {wizard.step === "add-people" ? (
+        {hasOrganization && wizard.step === "add-people" ? (
           <DialogFooter className="gap-2 sm:justify-between">
             <Button
               type="button"

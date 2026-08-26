@@ -5,6 +5,7 @@ import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
+import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import {
@@ -26,9 +27,13 @@ import type {
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  Coworker,
   DiscoverableChatRoom,
+  Member,
 } from "@/lib/clients/generated/core";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
@@ -79,17 +84,14 @@ interface CreateDirectRoomInput {
   coworkerIds?: string[];
 }
 
-interface SendNewDirectMessageInput {
-  memberUserIds?: string[];
-  coworkerIds?: string[];
-  content: string;
-  mentionedCoworkerIds?: string[];
-  mentionedUserIds?: string[];
-}
-
-interface SendNewDirectMessageResult {
-  room: ChatRoom;
-  message: ChatRoomMessage;
+export interface ChatComposeRoster {
+  currentUserId: string;
+  organizationName: string;
+  hasOrganization: boolean;
+  canCreateExternal: boolean;
+  members: Member[];
+  coworkers: Coworker[];
+  membersLoadFailed: boolean;
 }
 
 function cleanString(value: string | null | undefined): string {
@@ -119,6 +121,50 @@ async function invalidateSidebarChatList(): Promise<void> {
   invalidatePrivateSidebarChrome({
     userId: session.user.id,
     organizationId: session.session.activeOrganizationId ?? null,
+  });
+}
+
+export async function loadChatComposeRosterAction(): Promise<
+  RoomActionResult<ChatComposeRoster>
+> {
+  const session = await getSession();
+  if (!session) {
+    return roomFail("Sign in required.");
+  }
+
+  const currentUserId = session.user.id;
+  const [activeOrganization, coworkers] = await Promise.all([
+    userService.getActiveOrganization(),
+    coworkerService.listCoworkers("chat"),
+  ]);
+
+  if (!activeOrganization) {
+    return roomOk({
+      currentUserId,
+      organizationName: "",
+      hasOrganization: false,
+      canCreateExternal: false,
+      members: [],
+      coworkers,
+      membersLoadFailed: false,
+    });
+  }
+
+  const [membersPage, currentMember] = await Promise.all([
+    loadOrganizationMembers(activeOrganization.id),
+    userService.getMyMemberInOrganization(activeOrganization.id),
+  ]);
+
+  return roomOk({
+    currentUserId,
+    organizationName: activeOrganization.name,
+    hasOrganization: true,
+    canCreateExternal: Boolean(
+      currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
+    ),
+    members: membersPage.members,
+    coworkers,
+    membersLoadFailed: membersPage.failed,
   });
 }
 
@@ -256,46 +302,6 @@ export async function ensureCoworkerDirectRoomAction(
     return roomOk(room);
   } catch (error) {
     return roomCatch(error, "Could not ensure coworker direct room.");
-  }
-}
-
-export async function sendNewDirectMessageAction(
-  input: SendNewDirectMessageInput,
-): Promise<RoomActionResult<SendNewDirectMessageResult>> {
-  const activeOrganization = await userService.getActiveOrganization();
-  if (!activeOrganization) {
-    return roomFail("Select an organization first.");
-  }
-
-  const memberUserIds = cleanIds(input.memberUserIds);
-  const coworkerIds = cleanIds(input.coworkerIds);
-  const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
-  if (shapeError) {
-    return roomFail(shapeError);
-  }
-
-  const cleanContent = cleanString(input.content);
-  if (!cleanContent) {
-    return roomFail("Message is required.");
-  }
-
-  try {
-    const room = await chatRoomService.createRoom({
-      kind: "direct",
-      memberUserIds,
-      coworkerIds,
-    });
-    const message = await chatRoomService.sendMessage(room.id, {
-      content: cleanContent,
-      mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
-      mentionedUserIds: cleanIds(input.mentionedUserIds),
-    });
-    await invalidateSidebarChatList();
-    revalidatePath("/");
-    revalidatePath("/chat");
-    return roomOk({ room, message });
-  } catch (error) {
-    return roomCatch(error, "Could not start direct message.");
   }
 }
 

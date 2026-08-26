@@ -5101,22 +5101,16 @@
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
-        "breadcrumb": "New direct message",
-        "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Weitere Personen hinzufügen",
+        "searchPlaceholderReplace": "Empfänger ersetzen",
         "noResults": "No matches",
         "title": "New direct message",
         "empty": "Wähle, wen du anschreiben möchtest.",
-        "ready": "Empfänger ausgewählt",
         "chooseRecipientError": "Wähle einen Empfänger.",
         "organizationRequiredForGroup": "Wechsle zu einer Organisation, um einem Teammitglied zu schreiben.",
         "removeRecipient": "Remove {name}",
-        "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Empfänger hinzufügen, um zu starten",
-        "searchPlaceholderReplace": "Empfänger ersetzen",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
-        "groupDirectNoCoworkersError": "Gruppendirektnachrichten können keine Coworker enthalten.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
       },
       "RoomSearch": {

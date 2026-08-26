@@ -5101,22 +5101,16 @@
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
-        "breadcrumb": "New direct message",
-        "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Add more people",
         "searchPlaceholderReplace": "Replace recipient",
         "noResults": "No matches",
         "title": "New direct message",
         "empty": "Choose who to message.",
-        "ready": "Recipient selected",
         "chooseRecipientError": "Choose a recipient.",
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
-        "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Add a recipient to start",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
-        "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
       "RoomSearch": {

@@ -18,16 +18,11 @@ export const CHAT_API_PATH = "/api/chat" as const;
 /** Mobile Chats list route (mounted at bare `/chat`). */
 export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
 
-/** Welcome home (drafts/notices land here). */
+/** Welcome home (notices land here). */
 export const CHAT_WELCOME_PATH = "/" as const;
 
 /** Mobile chrome surface for pathname-driven shell/header behavior. */
-export type ChatChromeSurface =
-  | "home"
-  | "chats"
-  | "room"
-  | "draft"
-  | "other-chat";
+export type ChatChromeSurface = "home" | "chats" | "room" | "other-chat";
 
 const CHAT_ROOM_PATHNAME_RE = /^\/chat\/rooms\/[^/]+/;
 
@@ -96,22 +91,11 @@ function isWelcomeHomePathname(pathname: string | null | undefined): boolean {
   return pathname === CHAT_WELCOME_PATH;
 }
 
-function isDraftComposeQuery(searchParams: SearchParamsLike): boolean {
-  const create = readSearchParam(searchParams, "create");
-  const dm = readSearchParam(searchParams, "dm");
-  return create === "channel" || dm === "new";
-}
-
 /**
- * Draft compose or soft-land notice query — wins over the mobile list and
- * must land on Welcome (`/`).
+ * Soft-land notice query — wins over the mobile list and must land on
+ * Welcome (`/`).
  */
-export function hasChatDraftOrNoticeQuery(
-  searchParams: SearchParamsLike,
-): boolean {
-  if (isDraftComposeQuery(searchParams)) {
-    return true;
-  }
+export function hasChatNoticeQuery(searchParams: SearchParamsLike): boolean {
   return readSearchParam(searchParams, "notice") != null;
 }
 
@@ -144,11 +128,11 @@ export function pathWithSearch(
   return search.length > 0 ? `${pathname}?${search}` : pathname;
 }
 
-/** True when a Next.js searchParams record carries draft/notice keys. */
-export function hasChatDraftOrNoticeFromRecord(
+/** True when a Next.js searchParams record carries a notice key. */
+export function hasChatNoticeFromRecord(
   params: NextSearchParamsRecord,
 ): boolean {
-  return hasChatDraftOrNoticeQuery(toURLSearchParamsFromRecord(params));
+  return hasChatNoticeQuery(toURLSearchParamsFromRecord(params));
 }
 
 /**
@@ -159,26 +143,17 @@ export function hasChatDraftOrNoticeFromRecord(
  */
 export function classifyChatChromeSurface(
   pathname: string | null | undefined,
-  searchParams?: SearchParamsLike,
+  _searchParams?: SearchParamsLike,
 ): ChatChromeSurface {
   if (isChatRoomPathname(pathname)) {
     return "room";
   }
 
   if (isChatChatsPathname(pathname)) {
-    // Draft/notice normally server-redirect to Welcome; classify as draft if
-    // the query is still present (soft-nav / tests).
-    if (isDraftComposeQuery(searchParams)) {
-      return "draft";
-    }
     return "chats";
   }
 
   if (isWelcomeHomePathname(pathname)) {
-    // Compose flows share Welcome but use room-style chrome (no tab bar, back).
-    if (isDraftComposeQuery(searchParams)) {
-      return "draft";
-    }
     return "home";
   }
 

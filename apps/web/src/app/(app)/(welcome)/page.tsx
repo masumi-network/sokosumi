@@ -1,15 +1,11 @@
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
 
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
-import { RoomsClient } from "@/app/chat/components/rooms-client";
-import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { firstSearchValue } from "@/app/chat/load-room-messages";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -17,8 +13,6 @@ import { taskService } from "@/lib/services/task.service";
 
 interface WelcomePageProps {
   searchParams: Promise<{
-    create?: string | string[];
-    dm?: string | string[];
     notice?: string | string[];
   }>;
 }
@@ -30,8 +24,8 @@ interface WelcomePageProps {
  * room list is its own surface (`/chat` on mobile, the sidebar on
  * desktop) rather than something stacked underneath the welcome.
  *
- * Draft modes via query: `?create=channel`, `?dm=new`.
- * Open rooms: `/chat/rooms/[roomId]`.
+ * Open rooms: `/chat/rooms/[roomId]`. Create Channel / Start New Direct are
+ * in-place dialogs from the sidebar, not Welcome query modes.
  *
  * Instant Nav uses `(welcome)/loading.tsx` while this page streams after
  * `connection()`. Room open uses `chat/rooms/[roomId]/loading.tsx`.
@@ -41,99 +35,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  // Ordinary landing only needs session + coworkers. Draft create/DM paths
-  // load org context and channel copy below so the Instant-streamed landing
-  // stays light (heavy work only when draft query modes are active).
   const [query, session] = await Promise.all([searchParams, getSession()]);
-
-  const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
-  const isNewDirectMessage = firstSearchValue(query.dm) === "new";
   const notice = firstSearchValue(query.notice);
   const landingNotice = <ChatLandingNotice notice={notice} />;
-
-  if (isCreateChannelRequested || isNewDirectMessage) {
-    const [tChannels, activeOrganization] = await Promise.all([
-      getTranslations("App.Channels"),
-      userService.getActiveOrganization(),
-    ]);
-
-    // Channels / create stay org-only. Start New DM (`?dm=new`) also works in
-    // personal workspace: same DraftDirectMessage UI with empty members so the
-    // picker is coworkers-only (solo coworker sends via room ensure).
-    if (!activeOrganization) {
-      if (!isNewDirectMessage) {
-        return (
-          <>
-            {landingNotice}
-            <div className="min-h-full w-full px-4 py-6">
-              <div className="mx-auto max-w-3xl">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{tChannels("NoOrganization.title")}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      {tChannels("NoOrganization.description")}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </>
-        );
-      }
-
-      const coworkers = await coworkerService.listCoworkers("chat");
-
-      return (
-        <>
-          {landingNotice}
-          <RoomsClient
-            activeOrganization={null}
-            rooms={[]}
-            organizationMembers={[]}
-            currentUserId={session?.user.id ?? ""}
-            coworkers={coworkers}
-            selectedRoomId={null}
-            isCreateChannelRequested={false}
-            isNewDirectMessage
-            messageLoadFailed={false}
-            membersLoadFailed={false}
-            messages={[]}
-            messagesNextCursor={null}
-          />
-        </>
-      );
-    }
-
-    // Create/DM drafts do not need a rooms list — RoomsClient only looks up
-    // selectedRoom by id, and sidebar already owns paginated room history.
-    const [membersPage, coworkers, currentMember] = await Promise.all([
-      loadOrganizationMembers(activeOrganization.id),
-      coworkerService.listCoworkers("chat"),
-      userService.getMyMemberInOrganization(activeOrganization.id),
-    ]);
-
-    return (
-      <>
-        {landingNotice}
-        <RoomsClient
-          activeOrganization={activeOrganization}
-          rooms={[]}
-          organizationMembers={membersPage.members}
-          currentUserId={currentMember?.userId ?? ""}
-          coworkers={coworkers}
-          selectedRoomId={null}
-          isCreateChannelRequested={isCreateChannelRequested}
-          isNewDirectMessage={isNewDirectMessage}
-          messageLoadFailed={false}
-          membersLoadFailed={membersPage.failed}
-          messages={[]}
-          messagesNextCursor={null}
-        />
-      </>
-    );
-  }
 
   const activeOrganizationId = await userService.getActiveOrganizationId();
 
