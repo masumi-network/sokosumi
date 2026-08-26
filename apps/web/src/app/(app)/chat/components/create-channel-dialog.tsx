@@ -269,12 +269,6 @@ export function CreateChannelDialog({
             <div className="space-y-2">
               <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
               <div className="relative">
-                <span
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
-                  aria-hidden
-                >
-                  #
-                </span>
                 <Input
                   id="create-channel-name"
                   value={wizard.name}
@@ -288,7 +282,7 @@ export function CreateChannelDialog({
                     }
                   }}
                   placeholder={t("namePlaceholder")}
-                  className="pr-10 pl-7"
+                  className="pr-10"
                   autoFocus
                   maxLength={CHANNEL_NAME_MAX}
                 />

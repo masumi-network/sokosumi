@@ -45,7 +45,7 @@ function directRoom(overrides: {
     id: "room-1",
     organizationId: "org-1",
     name: "Direct",
-    slug: "direct",
+    slug: null,
     kind: "direct",
     directKey: "key",
     topic: null,

@@ -437,7 +437,6 @@ describe("POST /chats/rooms", () => {
   });
 
   it("does not suffix a Channel slug when another Channel already holds the base", async () => {
-    roomFindManyMock.mockResolvedValue([{ slug: "team-soko" }]);
     roomCreateMock.mockRejectedValue({
       code: "P2002",
       meta: { target: ["organizationId", "slug"] },
@@ -462,33 +461,6 @@ describe("POST /chats/rooms", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           slug: "team-soko",
-        }),
-      }),
-    );
-  });
-
-  it("does not treat a Direct slug occupant as taking a Channel slug", async () => {
-    roomFindManyMock.mockResolvedValue([{ slug: "elena" }]);
-    roomCreateMock.mockResolvedValue(
-      channelRoom({ name: "Elena", slug: "elena" }),
-    );
-
-    const app = createApp(userAuthContext);
-    const response = await app.request("/", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "channel",
-        name: "Elena",
-        slug: "elena",
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    expect(roomCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          slug: "elena",
         }),
       }),
     );
