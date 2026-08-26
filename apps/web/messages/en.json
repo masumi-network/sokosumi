@@ -5527,6 +5527,7 @@
       },
       "Skills": {
         "builtIn": "Included",
+        "addTitle": "Add a skill from skills.sh",
         "installedTitle": "Installed from skills.sh",
         "installedEmpty": "No installed skills yet.",
         "sourcePlaceholder": "owner/repo/skill or skills.sh link",
