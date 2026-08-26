@@ -435,36 +435,38 @@ function RoomHeaderChrome({
           </EditChannelDialog>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-        {isDirectRoom ? null : (
-          <PinnedMessagesHeaderButton
-            isOpen={pinnedOpen}
-            onToggle={onTogglePinned}
-            openLabel={t("PinnedMessages.open")}
+      <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-center">
+          <RoomSearchPanel
+            key={room.id}
+            roomId={room.id}
+            onJumpToMessage={onJumpToMessage}
+            labels={{
+              open: t("RoomSearch.open"),
+              placeholder: t("RoomSearch.placeholder"),
+              idle: t("RoomSearch.idle"),
+              empty: t("RoomSearch.empty"),
+              loading: t("RoomSearch.loading"),
+              error: t("RoomSearch.error"),
+              replyBadge: t("RoomSearch.replyBadge"),
+            }}
           />
-        )}
-        <RoomSearchPanel
-          key={room.id}
-          roomId={room.id}
-          onJumpToMessage={onJumpToMessage}
-          labels={{
-            open: t("RoomSearch.open"),
-            placeholder: t("RoomSearch.placeholder"),
-            idle: t("RoomSearch.idle"),
-            empty: t("RoomSearch.empty"),
-            loading: t("RoomSearch.loading"),
-            error: t("RoomSearch.error"),
-            replyBadge: t("RoomSearch.replyBadge"),
-          }}
-        />
-        <UnreadThreadsPanel
-          key={`unread-threads-${room.id}`}
-          isOpen={threadListOpen}
-          onToggle={onToggleThreadList}
-          labels={{
-            open: t("UnreadThreads.open"),
-          }}
-        />
+          {isDirectRoom ? null : (
+            <PinnedMessagesHeaderButton
+              isOpen={pinnedOpen}
+              onToggle={onTogglePinned}
+              openLabel={t("PinnedMessages.open")}
+            />
+          )}
+          <UnreadThreadsPanel
+            key={`unread-threads-${room.id}`}
+            isOpen={threadListOpen}
+            onToggle={onToggleThreadList}
+            labels={{
+              open: t("UnreadThreads.open"),
+            }}
+          />
+        </div>
         {showParticipants && shouldShowRoomRosterControl(room) ? (
           <RoomParticipantStack
             room={room}

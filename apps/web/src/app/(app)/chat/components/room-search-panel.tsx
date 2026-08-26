@@ -126,6 +126,7 @@ export function RoomSearchPanel({
           size="icon"
           aria-label={labels.open}
           data-testid="room-search-trigger"
+          className="size-8"
         >
           <Search className="size-4" />
         </Button>

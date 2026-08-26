@@ -65,6 +65,7 @@ export function PinnedMessagesHeaderButton({
       aria-label={openLabel}
       aria-expanded={isOpen}
       data-testid="pinned-messages-trigger"
+      className="size-8"
       onClick={onToggle}
     >
       <Pin className="size-4" />
