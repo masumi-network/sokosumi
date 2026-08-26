@@ -11,7 +11,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const NETWORKS = ["mainnet", "preprod"];
-const APPS = ["web", "core"];
+const APPS = ["web", "core", "sokoBot"];
 const WRITE_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 
 export const VERCEL_TEAM_ID = "team_vDNcRyOgTGZegIQbMw4QXF0n";
@@ -26,6 +26,10 @@ export const VERCEL_PROJECTS = {
       id: "prj_GrqmJbIxWe0I6aYiZHZC2hiJYLiH",
       name: "sokosumi-core-mainnet",
     },
+    sokoBot: {
+      id: "prj_zoj4noVbt0XyLkzzgXirI9EvD6vd",
+      name: "sokosumi-soko-bot-mainnet",
+    },
   },
   preprod: {
     web: {
@@ -35,6 +39,10 @@ export const VERCEL_PROJECTS = {
     core: {
       id: "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
       name: "sokosumi-core-preprod",
+    },
+    sokoBot: {
+      id: "prj_GKX9jtdK4b4WX2RMnPXKa6GyDwAF",
+      name: "sokosumi-soko-bot-preprod",
     },
   },
 };
@@ -82,7 +90,7 @@ export function usageMessage() {
     "`/deploy mainnet preprod`",
     "`/deploy all`",
     "",
-    "Deploys web + core for the named network(s) at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "Deploys web + core + the Soko Bot runtime for the named network(s) at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
   ].join("\n");
 }
 

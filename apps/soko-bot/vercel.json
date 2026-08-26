@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --filter @sokosumi/soko-bot-runtime...",
-  "buildCommand": "pnpm build"
+  "buildCommand": "pnpm build",
+  "git": {
+    "deploymentEnabled": false
+  }
 }

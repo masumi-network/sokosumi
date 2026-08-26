@@ -123,19 +123,21 @@ describe("usageMessage", () => {
 });
 
 describe("deployTargets", () => {
-  it("always deploys web and core together per network", () => {
+  it("always deploys web, core and the Soko Bot runtime together per network", () => {
     const mainnet = deployTargets(["mainnet"]);
     assert.deepEqual(
       mainnet.map((target) => `${target.network}:${target.app}`),
-      ["mainnet:web", "mainnet:core"],
+      ["mainnet:web", "mainnet:core", "mainnet:sokoBot"],
     );
     assert.equal(mainnet[0].projectId, VERCEL_PROJECTS.mainnet.web.id);
     assert.equal(mainnet[1].projectId, VERCEL_PROJECTS.mainnet.core.id);
+    assert.equal(mainnet[2].projectId, VERCEL_PROJECTS.mainnet.sokoBot.id);
 
     const both = deployTargets(["mainnet", "preprod"]);
-    assert.equal(both.length, 4);
-    assert.equal(both[2].projectId, VERCEL_PROJECTS.preprod.web.id);
-    assert.equal(both[3].projectId, VERCEL_PROJECTS.preprod.core.id);
+    assert.equal(both.length, 6);
+    assert.equal(both[3].projectId, VERCEL_PROJECTS.preprod.web.id);
+    assert.equal(both[4].projectId, VERCEL_PROJECTS.preprod.core.id);
+    assert.equal(both[5].projectId, VERCEL_PROJECTS.preprod.sokoBot.id);
   });
 });
 
@@ -367,10 +369,10 @@ describe("runPreviewDeployComment", () => {
       },
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
     assert.deepEqual(
       created.map((item) => item.target.app),
-      ["web", "core"],
+      ["web", "core", "sokoBot"],
     );
     assert.equal(created[0].sha, "deadbeef");
     assert.equal(created[0].ref, "feat/x");
@@ -606,10 +608,17 @@ describe("runPreviewDeployOpened", () => {
       },
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 4);
+    assert.equal(created.length, 6);
     assert.deepEqual(
       created.map((item) => `${item.target.network}:${item.target.app}`),
-      ["mainnet:web", "mainnet:core", "preprod:web", "preprod:core"],
+      [
+        "mainnet:web",
+        "mainnet:core",
+        "mainnet:sokoBot",
+        "preprod:web",
+        "preprod:core",
+        "preprod:sokoBot",
+      ],
     );
     assert.ok(created.every((item) => item.sha === "deadbeef"));
     assert.ok(created.every((item) => item.ref === "feat/x"));
@@ -630,7 +639,7 @@ describe("runPreviewDeployOpened", () => {
       pollDeployment: async (deployment) => deployment,
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 4);
+    assert.equal(created.length, 6);
   });
 
   it("ignores pull requests opened by bots", async () => {
@@ -717,7 +726,7 @@ describe("runPreviewFromGithubEvent", () => {
       pollDeployment: async (deployment) => deployment,
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 4);
+    assert.equal(created.length, 6);
   });
 
   it("ignores pull_request events that are not opened", async () => {
@@ -769,12 +778,12 @@ describe("runPreviewFromGithubEvent", () => {
       addReaction: async () => {},
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
   });
 });
 
 describe("runProductionDeploy", () => {
-  it("deploys web and core on both networks as production", async () => {
+  it("deploys web, core and the Soko Bot runtime on both networks as production", async () => {
     const created = [];
     const result = await runProductionDeploy({
       repoId: 99,
@@ -792,14 +801,16 @@ describe("runProductionDeploy", () => {
     });
 
     assert.equal(result.kind, "production");
-    assert.equal(created.length, 4);
+    assert.equal(created.length, 6);
     assert.deepEqual(
       created.map((item) => item.target.name),
       [
         "sokosumi-app-mainnet",
         "sokosumi-core-mainnet",
+        "sokosumi-soko-bot-mainnet",
         "sokosumi-app-preprod",
         "sokosumi-core-preprod",
+        "sokosumi-soko-bot-preprod",
       ],
     );
     assert.ok(created.every((item) => item.deploymentTarget === "production"));
@@ -863,7 +874,7 @@ describe("summarizeCliDeployResult", () => {
 
 describe("git preview policy", () => {
   it("disables all automatic git deployments", async () => {
-    for (const app of ["web", "core"]) {
+    for (const app of ["web", "core", "soko-bot"]) {
       const config = JSON.parse(
         await readFile(path.join(repoRoot, "apps", app, "vercel.json"), "utf8"),
       );
