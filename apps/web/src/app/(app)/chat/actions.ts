@@ -824,6 +824,28 @@ export async function deleteRoomMessageAction(
   }
 }
 
+export async function removeRoomMessageUnfurlAction(
+  roomId: string,
+  messageId: string,
+  url: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const cleanUrl = cleanString(url);
+  if (!cleanUrl) {
+    return roomFail("Link is required.");
+  }
+
+  try {
+    const message = await chatRoomService.removeUnfurl(
+      roomId,
+      messageId,
+      cleanUrl,
+    );
+    return roomOk(message);
+  } catch (error) {
+    return roomCatch(error, "Could not remove link preview.");
+  }
+}
+
 export async function editRoomMessageAction(
   roomId: string,
   messageId: string,

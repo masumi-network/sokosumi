@@ -334,6 +334,8 @@ export {
 export {
   extractBareHttpUrls,
   selectUnfurlCandidateUrls,
+  type UnfurlPreviewContent,
+  unfurlCardHasPreviewContent,
 } from "./unfurl-urls.js";
 export {
   buildUserMetadataWithDesignMd,

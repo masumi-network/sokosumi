@@ -428,6 +428,19 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function removeUnfurl(
+    roomId: string,
+    messageId: string,
+    url: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.removeChatRoomMessageUnfurl(
+      roomId,
+      messageId,
+      { url },
+    );
+    return response.data;
+  }
+
   async function editMessage(
     roomId: string,
     messageId: string,
@@ -471,6 +484,7 @@ export const chatRoomService = (() => {
     markThreadRead,
     markUnread,
     pinRoom,
+    removeUnfurl,
     resolveRoomGuestInviteLink,
     restoreRoom,
     revokeRoomGuestInviteLink,

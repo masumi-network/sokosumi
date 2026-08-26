@@ -17,6 +17,7 @@ import mountDeleteChatRoomMessage from "./[id]/messages/[messageId]/delete.js";
 import mountRetryChatRoomMention from "./[id]/messages/[messageId]/mentions/[mentionId]/retry/post.js";
 import mountPatchChatRoomMessage from "./[id]/messages/[messageId]/patch.js";
 import mountPostChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/post.js";
+import mountRemoveChatRoomMessageUnfurl from "./[id]/messages/[messageId]/unfurls/remove/post.js";
 import mountGetChatRoomMessages from "./[id]/messages/get.js";
 import mountPostChatRoomMessage from "./[id]/messages/post.js";
 import mountDeleteChatRoomMute from "./[id]/mute/delete.js";
@@ -84,6 +85,7 @@ mountPostChatRoomMessage(app);
 mountDeleteChatRoomMessage(app);
 mountPatchChatRoomMessage(app);
 mountPostChatRoomMessageReaction(app);
+mountRemoveChatRoomMessageUnfurl(app);
 mountRetryChatRoomMention(app);
 mountPostChatRoomFile(app);
 
