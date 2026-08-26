@@ -421,6 +421,11 @@ export class SokoBotSchedulesSyncService {
             });
             message = beat.message;
             nudgeKeys = beat.nudgeKeys;
+            // The reservation binds on the run's prompt; keep them equal.
+            await prisma.sokoBotScheduleRun.update({
+              where: { id: run.id },
+              data: { prompt: message },
+            });
           }
         }
         const started = await sokoBotControlPlane.startTurn({
