@@ -91,6 +91,7 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
     suppressStickToBottom: vi.fn(),
+    releaseStickToBottomSuppress: vi.fn(),
   }),
 }));
 

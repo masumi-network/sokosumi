@@ -18,6 +18,8 @@ interface UseStickToBottomOptions {
   /** Room id (or similar): force pin, scroll to live edge, rebind observers. */
   resetKey?: string | null;
   nearBottomPx?: number;
+  /** Search jump: do not pin on mount/reset, and ignore content-growth pins. */
+  holdOffBottom?: boolean;
 }
 
 function distanceFromBottom(el: HTMLElement): number {
@@ -27,6 +29,7 @@ function distanceFromBottom(el: HTMLElement): number {
 export function useStickToBottom({
   resetKey = null,
   nearBottomPx = STICK_TO_BOTTOM_NEAR_PX,
+  holdOffBottom = false,
 }: UseStickToBottomOptions = {}) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -39,6 +42,8 @@ export function useStickToBottom({
   // Last observed scroller scrollHeight so ResizeObserver can recover when a
   // growth-driven scroll event clears the sticky flag mid-frame.
   const lastScrollHeightRef = useRef(0);
+  const holdOffBottomRef = useRef(holdOffBottom);
+  holdOffBottomRef.current = holdOffBottom;
   // Pixel min-height so short transcripts can justify-end in the scroller
   // (kept after native overflow swap; was required for Radix display:table).
   const [contentMinHeight, setContentMinHeight] = useState<number>();
@@ -56,6 +61,10 @@ export function useStickToBottom({
   const suppressStickToBottom = useCallback(() => {
     stickToBottomRef.current = false;
     suppressPinRef.current = true;
+  }, []);
+
+  const releaseStickToBottomSuppress = useCallback(() => {
+    suppressPinRef.current = false;
   }, []);
 
   /**
@@ -76,6 +85,20 @@ export function useStickToBottom({
   }, [scrollToBottom]);
 
   useEffect(() => {
+    if (holdOffBottom) {
+      stickToBottomRef.current = false;
+      suppressPinRef.current = true;
+      return;
+    }
+    suppressPinRef.current = false;
+  }, [holdOffBottom]);
+
+  useEffect(() => {
+    if (holdOffBottomRef.current) {
+      stickToBottomRef.current = false;
+      suppressPinRef.current = true;
+      return;
+    }
     suppressPinRef.current = false;
     stickToBottomRef.current = true;
     const frame = requestAnimationFrame(() => {
@@ -177,5 +200,6 @@ export function useStickToBottom({
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
     suppressStickToBottom,
+    releaseStickToBottomSuppress,
   };
 }

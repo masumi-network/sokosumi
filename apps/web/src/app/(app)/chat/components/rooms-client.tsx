@@ -588,6 +588,11 @@ export function RoomsClient({
     : messageLoadFailedState;
 
   const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
+    if (historicalTimelineRef.current) {
+      setDeferredHistoryPending(false);
+      setMessageLoadFailedState(false);
+      return;
+    }
     setMessagesState((current) => mergeRoomMessages(current, page.messages));
     setOlderNextCursor(page.nextCursor);
     setMessageLoadFailedState(page.failed);
@@ -650,8 +655,10 @@ export function RoomsClient({
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
     suppressStickToBottom,
+    releaseStickToBottomSuppress,
   } = useStickToBottom({
     resetKey: selectedRoomId,
+    holdOffBottom: searchHoldOffBottom,
   });
   // When history lands, pin live edge in layout (same frame as skeleton →
   // messages) so the list does not paint mid-jump then scroll.
@@ -660,6 +667,9 @@ export function RoomsClient({
     const wasPending = wasHistoryPendingRef.current;
     wasHistoryPendingRef.current = messagesPending;
     if (!wasPending || messagesPending) {
+      return;
+    }
+    if (historicalTimelineRef.current) {
       return;
     }
     scrollToBottom();
@@ -894,10 +904,12 @@ export function RoomsClient({
       if (!isStillSelectedRoom(roomId)) {
         return false;
       }
-      setMessagesState((current) =>
-        mergeRoomMessages(current, roomResult.value.messages),
-      );
-      if (threadResult?.ok && threadParentId) {
+      if (!historicalTimelineRef.current) {
+        setMessagesState((current) =>
+          mergeRoomMessages(current, roomResult.value.messages),
+        );
+      }
+      if (threadResult?.ok && threadParentId && !historicalThreadRef.current) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
         );
@@ -1836,6 +1848,10 @@ export function RoomsClient({
         suppressStickToBottom();
         setSearchHoldOffBottom(true);
       },
+      releaseHoldOffBottom: () => {
+        releaseStickToBottomSuppress();
+        setSearchHoldOffBottom(false);
+      },
       highlight: highlightRoomMessageElement,
       afterRender: waitForSearchJumpPaint,
       loadAroundInRoom: async (aroundId) => {
@@ -1897,6 +1913,7 @@ export function RoomsClient({
   function closeThreadSidePanel() {
     threadLoadGenerationRef.current += 1;
     historicalThreadRef.current = false;
+    setSearchHoldOffBottom(false);
     setIsThreadLoading(false);
     setThreadParentMessage(null);
     setThreadMessages([]);
@@ -2379,6 +2396,15 @@ export function RoomsClient({
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
+        if (historicalTimelineRef.current) {
+          historicalTimelineRef.current = false;
+          setSearchHoldOffBottom(false);
+          const live = await listRoomMessagesAction(roomId);
+          if (live.ok && isStillSelectedRoom(roomId)) {
+            setMessagesState(live.value.messages);
+            setOlderNextCursor(live.value.nextCursor);
+          }
+        }
         const started = sendStreamMessage(request.content, {
           quote: request.quote,
         });

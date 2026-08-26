@@ -2,6 +2,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 export interface RoomSearchJumpDeps {
   holdOffBottom: () => void;
+  releaseHoldOffBottom: () => void;
   highlight: (messageId: string) => boolean;
   afterRender: (messageId: string) => Promise<void>;
   loadAroundInRoom: (aroundId: string) => Promise<boolean>;
@@ -17,8 +18,10 @@ export interface RoomSearchJumpDeps {
 export async function waitForSearchJumpPaint(
   messageId?: string,
 ): Promise<void> {
-  const deadline = Date.now() + 1500;
-  while (Date.now() < deadline) {
+  if (typeof requestAnimationFrame === "undefined") {
+    return;
+  }
+  for (let frame = 0; frame < 3; frame += 1) {
     if (
       messageId &&
       typeof document !== "undefined" &&
@@ -26,22 +29,11 @@ export async function waitForSearchJumpPaint(
     ) {
       return;
     }
-    if (typeof requestAnimationFrame === "undefined") {
-      return;
-    }
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => {
         resolve();
       });
     });
-    if (!messageId) {
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => {
-          resolve();
-        });
-      });
-      return;
-    }
   }
 }
 
@@ -60,6 +52,7 @@ export async function performRoomSearchJump(
     await deps.openThread(parent);
     await deps.afterRender(hit.id);
     if (deps.highlight(hit.id)) {
+      deps.releaseHoldOffBottom();
       return;
     }
     const loaded = await deps.loadAroundInThread(parent.id, hit.id);
@@ -72,6 +65,7 @@ export async function performRoomSearchJump(
   }
 
   if (deps.highlight(hit.id)) {
+    deps.releaseHoldOffBottom();
     return;
   }
   const loaded = await deps.loadAroundInRoom(hit.id);

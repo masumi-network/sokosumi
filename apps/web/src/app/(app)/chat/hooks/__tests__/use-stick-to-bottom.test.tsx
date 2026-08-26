@@ -59,7 +59,13 @@ function setScrollerMetrics(
   el.scrollTop = scrollTop;
 }
 
-function Harness({ resetKey }: { resetKey: string | null }) {
+function Harness({
+  resetKey,
+  holdOffBottom = false,
+}: {
+  resetKey: string | null;
+  holdOffBottom?: boolean;
+}) {
   const {
     scrollerRef,
     contentRef,
@@ -69,6 +75,7 @@ function Harness({ resetKey }: { resetKey: string | null }) {
     contentMinHeight,
   } = useStickToBottom({
     resetKey,
+    holdOffBottom,
   });
 
   return (
@@ -181,6 +188,43 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(1000 + STICK_TO_BOTTOM_NEAR_PX + 50);
+  });
+
+  it("does not pin on mount rAF or content growth when holdOffBottom is set", () => {
+    const rafQueue: FrameRequestCallback[] = [];
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => {
+        rafQueue.push(cb);
+        return rafQueue.length;
+      });
+
+    render(<Harness resetKey="thread-1" holdOffBottom />);
+    const scroller = screen.getByTestId("scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 200,
+    });
+
+    act(() => {
+      for (const cb of rafQueue.splice(0)) {
+        cb(0);
+      }
+    });
+    expect(scroller.scrollTop).toBe(200);
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1800,
+      clientHeight: 400,
+      scrollTop: 200,
+    });
+    act(() => {
+      fireResize();
+    });
+    expect(scroller.scrollTop).toBe(200);
+
+    rafSpy.mockRestore();
   });
 
   it("does not recover-pin on content growth while suppressed", () => {

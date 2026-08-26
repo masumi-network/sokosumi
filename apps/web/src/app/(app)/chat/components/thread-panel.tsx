@@ -136,6 +136,7 @@ export function ThreadPanel({
     suppressStickToBottom,
   } = useStickToBottom({
     resetKey: parentMessage.id,
+    holdOffBottom,
   });
 
   useEffect(() => {
