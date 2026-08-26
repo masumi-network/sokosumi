@@ -2,3 +2,6 @@ reviews:
   review_status: false
   auto_review:
     enabled: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
