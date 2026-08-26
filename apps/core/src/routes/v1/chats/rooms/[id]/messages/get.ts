@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -28,6 +29,10 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserMembership,
 } from "../../helpers";
+import {
+  aroundWindowPaginationMeta,
+  listChatRoomMessagesAround,
+} from "../../message-window-around";
 
 const paramsSchema = z.object({
   id: z
@@ -52,6 +57,16 @@ const querySchema = cursorPaginationQuerySchema.extend({
         "Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages.",
       example: "budget",
     }),
+  around: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "around", in: "query" },
+      description:
+        "Reading-order window of top-level messages centred on this message, or on its parent if it is a reply. Cannot be combined with q or cursor.",
+      example: "550e8400-e29b-41d4-a716-446655440001",
+    }),
 });
 
 const route = withGlobalHeaderParameters(
@@ -72,6 +87,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -84,6 +100,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
+    const searchQuery = queryParams.q;
+    const aroundId = queryParams.around;
+    if (aroundId && (searchQuery || cursor)) {
+      throw unprocessableEntity("around cannot be combined with q or cursor");
+    }
 
     // Avoid interactive transaction on this read-only path — room page loads
     // messages in parallel with room + members (SOKOSUMI-Q9). Membership gate
@@ -91,7 +112,56 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // the default client is fine; Promise.all inside interactive txs is not
     // (#2559).
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
-    const searchQuery = queryParams.q;
+
+    if (aroundId) {
+      const target = await prisma.chatRoomMessage.findFirst({
+        where: { id: aroundId, roomId: id },
+        include: chatRoomMessageInclude,
+      });
+      if (!target) {
+        throw notFound("Message not found");
+      }
+      let center = target;
+      if (target.parentMessageId) {
+        const parent = await prisma.chatRoomMessage.findFirst({
+          where: {
+            id: target.parentMessageId,
+            roomId: id,
+            parentMessageId: null,
+          },
+          include: chatRoomMessageInclude,
+        });
+        if (!parent) {
+          throw notFound("Message not found");
+        }
+        center = parent;
+      }
+      const { messages, hasMoreOlder, count } =
+        await listChatRoomMessagesAround({
+          db: prisma,
+          scope: { roomId: id, parentMessageId: null },
+          center,
+          take,
+        });
+      const paginationMeta = aroundWindowPaginationMeta(
+        messages,
+        take,
+        count,
+        hasMoreOlder,
+      );
+      return ok(
+        c,
+        z
+          .array(chatRoomMessageSchema)
+          .parse(
+            messages.map((message) =>
+              mapChatRoomMessage(message, userContext.userId),
+            ),
+          ),
+        paginationMeta,
+      );
+    }
+
     const where = searchQuery
       ? {
           roomId: id,
@@ -131,7 +201,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       hasMore,
       cursor,
     );
-    const orderedMessages = [...pageMessages].reverse();
+    // Search keeps newest-first so the hit you want is at the top. The live
+    // timeline still reverses into oldest-first reading order.
+    const orderedMessages = searchQuery
+      ? pageMessages
+      : [...pageMessages].reverse();
 
     // Polls hit this route; kick abandoned `sent` mentions so reclaim can run
     // after a killed waitUntil left them non-terminal. Skip on search — not a

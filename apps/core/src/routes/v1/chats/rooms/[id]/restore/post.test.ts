@@ -42,6 +42,7 @@ const tx = {
   member: { findUnique: memberFindUniqueMock },
   chatRoomUserMember: { findMany: membershipFindManyMock },
   chatRoomReadState: { findMany: readStateFindManyMock },
+  chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   $queryRaw: queryRawMock,
 };
 

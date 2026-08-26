@@ -18,6 +18,7 @@ import type {
   GetCategoriesData,
   GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
+  GetChatsRoomsByIdPinnedMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsByIdThreadsData,
   GetChatsRoomsChannelSlugAvailabilityData,
@@ -108,8 +109,9 @@ import {
   deleteChatsRoomsByIdMembersByUserId as coreDeleteChatsRoomsByIdMembersByUserId,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
+  deleteChatsRoomsByIdMessagesByMessageIdPin as coreDeleteChatsRoomsByIdMessagesByMessageIdPin,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
-  deleteChatsRoomsByIdPin as coreDeleteChatsRoomsByIdPin,
+  deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -148,6 +150,7 @@ import {
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
   getChatsRoomsByIdInviteLinks as coreGetChatsRoomsByIdInviteLinks,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
+  getChatsRoomsByIdPinnedMessages as coreGetChatsRoomsByIdPinnedMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
   getChatsRoomsByIdThreadsByParentMessageIdMessages as coreGetChatsRoomsByIdThreadsByParentMessageIdMessages,
@@ -268,12 +271,13 @@ import {
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
+  postChatsRoomsByIdMessagesByMessageIdPin as corePostChatsRoomsByIdMessagesByMessageIdPin,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdMessagesByMessageIdUnfurlsRemove as corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
-  postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
+  postChatsRoomsByIdStar as corePostChatsRoomsByIdStar,
   postChatsRoomsByIdThreadsByParentMessageIdRead as corePostChatsRoomsByIdThreadsByParentMessageIdRead,
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
@@ -792,7 +796,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePostChatsRoomsByIdPin({
+        corePostChatsRoomsByIdStar({
           client,
           path: { id },
         }),
@@ -804,7 +808,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreDeleteChatsRoomsByIdPin({
+        coreDeleteChatsRoomsByIdStar({
           client,
           path: { id },
         }),
@@ -862,6 +866,47 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat room messages",
+    );
+  }
+
+  async function getChatRoomPinnedMessages(
+    id: string,
+    query?: GetChatsRoomsByIdPinnedMessagesData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdPinnedMessages({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch pinned messages",
+    );
+  }
+
+  async function pinChatRoomMessage(roomId: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdPin({
+          client,
+          path: { id: roomId, messageId },
+        }),
+      "Failed to pin message",
+    );
+  }
+
+  async function unpinChatRoomMessage(roomId: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageIdPin({
+          client,
+          path: { id: roomId, messageId },
+        }),
+      "Failed to unpin message",
     );
   }
 
@@ -4402,6 +4447,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     markChatRoomThreadRead,
     pinChatRoom,
     unpinChatRoom,
+    getChatRoomPinnedMessages,
+    pinChatRoomMessage,
+    unpinChatRoomMessage,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,

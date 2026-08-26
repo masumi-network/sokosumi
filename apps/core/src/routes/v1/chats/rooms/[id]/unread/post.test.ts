@@ -35,6 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     $queryRawUnsafe: unreadQueryMock,
     notification: { groupBy: mentionGroupByMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -111,7 +112,10 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
-  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null, mutedAt: null });
+  membershipFindUniqueMock.mockResolvedValue({
+    starredAt: null,
+    mutedAt: null,
+  });
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
 });
@@ -143,7 +147,7 @@ describe("POST /chats/rooms/{id}/unread", () => {
     expect(body.data).toMatchObject({
       id: ROOM_ID,
       markedUnread: true,
-      pinnedAt: null,
+      starredAt: null,
     });
   });
 });

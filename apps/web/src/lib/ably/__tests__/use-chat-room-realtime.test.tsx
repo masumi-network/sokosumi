@@ -93,6 +93,9 @@ describe("useChatRoomRealtime", () => {
       expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-b");
       expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
       expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledWith("chat_room_pinned_message", expect.any(Function));
     });
   });
 
@@ -150,10 +153,10 @@ describe("useChatRoomRealtime", () => {
     await waitFor(() => {
       expect(
         channelFor("chat_rooms:room_room-a").subscribe,
-      ).toHaveBeenCalledTimes(1);
+      ).toHaveBeenCalledTimes(2);
       expect(
         channelFor("chat_rooms:room_room-b").subscribe,
-      ).toHaveBeenCalledTimes(1);
+      ).toHaveBeenCalledTimes(2);
     });
 
     authorizeMock.mockClear();
@@ -173,13 +176,13 @@ describe("useChatRoomRealtime", () => {
       expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-c");
       expect(
         channelFor("chat_rooms:room_room-c").subscribe,
-      ).toHaveBeenCalledTimes(1);
+      ).toHaveBeenCalledTimes(2);
     });
 
     // stable a — no second subscribe
     expect(
       channelFor("chat_rooms:room_room-a").subscribe,
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledTimes(2);
     expect(
       channelFor("chat_rooms:room_room-a").unsubscribe,
     ).not.toHaveBeenCalled();
@@ -324,7 +327,7 @@ describe("useChatRoomRealtime", () => {
     // room-a stays attached; no re-subscribe
     expect(
       channelFor("chat_rooms:room_room-a").subscribe,
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledTimes(2);
     expect(
       channelFor("chat_rooms:room_room-a").unsubscribe,
     ).not.toHaveBeenCalled();

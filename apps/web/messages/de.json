@@ -5004,6 +5004,7 @@
       },
       "Actions": {
         "more": "Nachrichtenaktionen",
+        "overflow": "Mehr",
         "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",
@@ -5187,6 +5188,22 @@
         "linkPlaceholder": "https://",
         "cancel": "Abbrechen",
         "save": "Speichern"
+      },
+      "PinnedMessages": {
+        "open": "Angeheftete Nachrichten",
+        "title": "Angeheftete Nachrichten",
+        "close": "Angeheftete Nachrichten schließen",
+        "empty": "Noch keine angehefteten Nachrichten",
+        "loading": "Angeheftete Nachrichten werden geladen…",
+        "error": "Angeheftete Nachrichten konnten nicht geladen werden",
+        "couldNotLoad": "Nachricht konnte nicht geladen werden",
+        "pin": "Nachricht anheften",
+        "unpin": "Nachricht lösen",
+        "messageRequired": "Nachricht ist erforderlich.",
+        "roomRequired": "Raum ist erforderlich.",
+        "pinError": "Nachricht konnte nicht angeheftet werden.",
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
+        "count": "{count, plural, =0 {Angeheftet} one {# angeheftet} other {# angeheftet}}"
       },
       "Quote": {
         "action": "Zitieren",

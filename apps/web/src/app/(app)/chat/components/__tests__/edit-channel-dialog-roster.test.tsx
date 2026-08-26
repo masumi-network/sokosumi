@@ -94,7 +94,7 @@ function externalChannel(): ChatRoom {
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",
@@ -139,7 +139,11 @@ describe("EditChannelDialog host roster payload", () => {
         canArchive
         canLeave
         canInviteGuests={false}
-      />,
+      >
+        <button type="button" aria-label="editChannel">
+          edit
+        </button>
+      </EditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));
@@ -175,7 +179,11 @@ describe("EditChannelDialog host roster payload", () => {
         canArchive
         canLeave
         canInviteGuests={false}
-      />,
+      >
+        <button type="button" aria-label="editChannel">
+          edit
+        </button>
+      </EditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));

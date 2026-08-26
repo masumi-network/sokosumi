@@ -94,6 +94,8 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     scrollToBottom: vi.fn(),
     pinToBottomAfterOwnSend: vi.fn(),
     scrollToBottomIfPinned: vi.fn(),
+    suppressStickToBottom: vi.fn(),
+    releaseStickToBottomSuppress: vi.fn(),
   }),
 }));
 
@@ -185,11 +187,18 @@ vi.mock("../draft-direct-message", () => ({
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
-  EditChannelDialog: () => <div data-testid="edit-channel-dialog-probe" />,
+  EditChannelDialog: ({ children }: { children?: ReactNode }) => (
+    <>
+      {children}
+      <div data-testid="edit-channel-dialog-probe" />
+    </>
+  ),
 }));
 
 vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
+  ChannelDiscoverabilityIcon: () => (
+    <span data-testid="channel-discoverability-icon" />
+  ),
 }));
 
 vi.mock("@/components/chat/live-member-presence-dot", () => ({
@@ -229,7 +238,7 @@ function channelRoom(): ChatRoom {
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",
@@ -294,18 +303,101 @@ function renderRoom(room: ChatRoom) {
 }
 
 describe("RoomsClient room header chrome", () => {
-  it("keeps search with the title and paints the title as the landmark", () => {
+  it("makes the channel title the settings trigger and keeps search with the right actions", () => {
     renderRoom(channelRoom());
 
     const title = screen.getByTestId("room-open-title");
     const search = screen.getByTestId("room-search-trigger");
     const threads = screen.getByTestId("unread-threads-trigger");
 
+    expect(title.tagName).toBe("BUTTON");
+    expect(title).toHaveAttribute("title", "editChannel");
+    expect(title).toHaveAccessibleName("general");
+    expect(title).toContainElement(
+      screen.getByTestId("channel-discoverability-icon"),
+    );
     expect(title).toHaveClass("text-foreground");
-    expect(title).not.toHaveClass("text-muted-foreground");
-    expect(title.parentElement).toContainElement(search);
-    expect(title.parentElement).not.toContainElement(threads);
+    expect(title.className).toContain("[@media(hover:hover)]:hover:bg-");
+    expect(title.className).toContain("focus-visible:ring-inset");
+    expect(search.parentElement).toContainElement(threads);
+    expect(title.parentElement).not.toContainElement(search);
+    expect(screen.getByRole("button", { name: "general" })).toBe(title);
     expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+  });
+
+  it("shows a Channel topic beside the title, not inside the edit trigger", () => {
+    renderRoom({ ...channelRoom(), topic: "Weekly launch planning" });
+
+    const title = screen.getByTestId("room-open-title");
+    const topic = screen.getByTestId("room-open-topic");
+
+    expect(topic).toHaveTextContent("Weekly launch planning");
+    expect(title).not.toContainElement(topic);
+    expect(title).toHaveAccessibleName("general");
+    expect(title).toHaveAttribute("title", "editChannel");
+    expect(topic).toHaveAttribute("title", "Weekly launch planning");
+    expect(title.parentElement).toContainElement(topic);
+    expect(title).toHaveClass("shrink-0");
+    expect(topic).not.toHaveClass("hidden");
+    expect(topic).toHaveClass("min-w-0");
+    expect(topic.tagName).not.toBe("BUTTON");
+    expect(
+      screen.queryByRole("button", { name: "Weekly launch planning" }),
+    ).toBeNull();
+  });
+
+  it("keeps the Channel name as identity when a topic is present", () => {
+    renderRoom({
+      ...channelRoom(),
+      name: "Everyone",
+      topic: "General discussions & updates",
+    });
+
+    const title = screen.getByTestId("room-open-title");
+    const topic = screen.getByTestId("room-open-topic");
+
+    expect(title).toHaveAccessibleName("Everyone");
+    expect(title).toHaveClass("shrink-0");
+    expect(topic.className.split(/\s+/)).not.toContain("min-w-16");
+    expect(topic).toHaveClass("min-w-0");
+  });
+
+  it("trims a Channel topic for display", () => {
+    renderRoom({ ...channelRoom(), topic: "  Weekly launch planning  " });
+
+    const topic = screen.getByTestId("room-open-topic");
+    expect(topic).toHaveTextContent("Weekly launch planning");
+    expect(topic).toHaveAttribute("title", "Weekly launch planning");
+  });
+
+  it("hides a blank Channel topic", () => {
+    renderRoom({ ...channelRoom(), topic: "   " });
+
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-title")).toHaveAccessibleName(
+      "general",
+    );
+  });
+
+  it("does not show a topic on Directs", () => {
+    renderRoom({ ...humanDirectRoom(), topic: "Should stay hidden" });
+
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
+  });
+
+  it("keeps Direct titles static and still puts search with the right actions", () => {
+    renderRoom(humanDirectRoom());
+
+    const title = screen.getByTestId("room-open-title");
+    const search = screen.getByTestId("room-search-trigger");
+    const threads = screen.getByTestId("unread-threads-trigger");
+
+    expect(title.tagName).not.toBe("BUTTON");
+    expect(search.parentElement).toContainElement(threads);
+    expect(screen.queryByRole("button", { name: "editChannel" })).toBeNull();
+    expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
   });
 
   it("opens the Members rail from the face stack and yields the rail to threads", async () => {

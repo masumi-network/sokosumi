@@ -1,14 +1,15 @@
 "use client";
 
-import {
-  Archive as ArchiveIcon,
-  Loader2,
-  LogOut,
-  Settings,
-} from "lucide-react";
+import { Archive as ArchiveIcon, Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useEffect, useState, useTransition } from "react";
+import {
+  type FormEvent,
+  type ReactElement,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   archiveRoomAction,
@@ -76,6 +77,7 @@ export function EditChannelDialog({
   canLeave,
   canInviteGuests = false,
   membersLoadFailed = false,
+  children,
 }: {
   channel: ChatRoom;
   members: Member[];
@@ -96,6 +98,8 @@ export function EditChannelDialog({
    */
   canInviteGuests?: boolean;
   membersLoadFailed?: boolean;
+  /** Single element for DialogTrigger asChild; must accept merged props and ref. */
+  children: ReactElement;
 }) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
@@ -210,17 +214,7 @@ export function EditChannelDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 rounded-full"
-            aria-label={t("editChannel")}
-            title={t("editChannel")}
-          >
-            <Settings className="size-4" aria-hidden />
-          </Button>
-        </DialogTrigger>
+        <DialogTrigger asChild>{children}</DialogTrigger>
         {/* The fixed-height participant list makes this dialog ~755px tall, which
             overflows a shorter phone — on a 667px iPhone SE the title and close
             button sat above the viewport and Cancel below it, with nothing to

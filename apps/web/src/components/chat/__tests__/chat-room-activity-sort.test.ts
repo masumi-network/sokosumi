@@ -47,12 +47,12 @@ describe("compareChatRoomsByRecentActivity", () => {
     const unpinned = {
       id: "newer-unpinned",
       updatedAt: "2026-08-02T18:00:00.000Z",
-      pinnedAt: null,
+      starredAt: null,
     };
     const pinned = {
       id: "older-pinned",
       updatedAt: "2026-01-01T00:00:00.000Z",
-      pinnedAt: "2026-08-02T12:00:00.000Z",
+      starredAt: "2026-08-02T12:00:00.000Z",
     };
 
     expect(
@@ -62,16 +62,16 @@ describe("compareChatRoomsByRecentActivity", () => {
     ).toEqual(["older-pinned", "newer-unpinned"]);
   });
 
-  it("orders pinned rooms by pinnedAt ascending", () => {
+  it("orders pinned rooms by starredAt ascending", () => {
     const pinnedEarlier = {
       id: "earlier",
       updatedAt: "2026-08-02T18:00:00.000Z",
-      pinnedAt: "2026-08-02T10:00:00.000Z",
+      starredAt: "2026-08-02T10:00:00.000Z",
     };
     const pinnedLater = {
       id: "later",
       updatedAt: "2026-01-01T00:00:00.000Z",
-      pinnedAt: "2026-08-02T12:00:00.000Z",
+      starredAt: "2026-08-02T12:00:00.000Z",
     };
 
     expect(
@@ -103,25 +103,25 @@ describe("compareChatRoomsByRecentActivity", () => {
       id: "muted-newer",
       updatedAt: "2026-08-03T20:00:00.000Z",
       mutedAt: "2026-08-03T12:00:00.000Z",
-      pinnedAt: null,
+      starredAt: null,
     };
     const mutedOlder = {
       id: "muted-older",
       updatedAt: "2026-01-01T00:00:00.000Z",
       mutedAt: "2026-08-03T11:00:00.000Z",
-      pinnedAt: null,
+      starredAt: null,
     };
     const unmutedUnpinned = {
       id: "unmuted-unpinned",
       updatedAt: "2026-08-03T19:00:00.000Z",
       mutedAt: null,
-      pinnedAt: null,
+      starredAt: null,
     };
     const unmutedPinned = {
       id: "unmuted-pinned",
       updatedAt: "2026-01-01T00:00:00.000Z",
       mutedAt: null,
-      pinnedAt: "2026-08-03T09:00:00.000Z",
+      starredAt: "2026-08-03T09:00:00.000Z",
     };
 
     expect(
@@ -141,42 +141,42 @@ describe("compareChatRoomsByRecentActivity", () => {
       id: "muted-private",
       updatedAt: "2026-08-03T23:00:00.000Z",
       mutedAt: "2026-08-03T12:00:00.000Z",
-      pinnedAt: null,
+      starredAt: null,
       discoverability: "private" as const,
     };
     const mutedPublic = {
       id: "muted-public",
       updatedAt: "2026-01-01T00:00:00.000Z",
       mutedAt: "2026-08-03T11:00:00.000Z",
-      pinnedAt: null,
+      starredAt: null,
       discoverability: "public" as const,
     };
     const normalPrivate = {
       id: "normal-private",
       updatedAt: "2026-08-03T22:00:00.000Z",
       mutedAt: null,
-      pinnedAt: null,
+      starredAt: null,
       discoverability: "private" as const,
     };
     const normalPublic = {
       id: "normal-public",
       updatedAt: "2026-01-01T00:00:00.000Z",
       mutedAt: null,
-      pinnedAt: null,
+      starredAt: null,
       discoverability: "public" as const,
     };
     const pinnedPrivate = {
       id: "pinned-private",
       updatedAt: "2026-08-03T21:00:00.000Z",
       mutedAt: null,
-      pinnedAt: "2026-08-03T08:00:00.000Z",
+      starredAt: "2026-08-03T08:00:00.000Z",
       discoverability: "private" as const,
     };
     const pinnedPublic = {
       id: "pinned-public",
       updatedAt: "2026-01-01T00:00:00.000Z",
       mutedAt: null,
-      pinnedAt: "2026-08-03T10:00:00.000Z",
+      starredAt: "2026-08-03T10:00:00.000Z",
       discoverability: "public" as const,
     };
 

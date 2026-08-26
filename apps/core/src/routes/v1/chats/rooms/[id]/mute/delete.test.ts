@@ -39,6 +39,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -117,7 +118,7 @@ beforeEach(() => {
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([
-    { roomId: ROOM_ID, pinnedAt: null, mutedAt: null },
+    { roomId: ROOM_ID, starredAt: null, mutedAt: null },
   ]);
   readStateFindManyMock.mockResolvedValue([]);
 });

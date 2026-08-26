@@ -4,7 +4,6 @@ import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 const getChatRoomMessagesMock = vi.fn();
-const scrollToRoomMessageElementMock = vi.fn((_messageId: string) => true);
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
@@ -12,17 +11,6 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
       getChatRoomMessagesMock(...args),
   },
 }));
-
-vi.mock("@/app/chat/components/room-helpers", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/app/chat/components/room-helpers")
-  >("@/app/chat/components/room-helpers");
-  return {
-    ...actual,
-    scrollToRoomMessageElement: (messageId: string) =>
-      scrollToRoomMessageElementMock(messageId),
-  };
-});
 
 vi.mock("@/lib/utils/datetime.client", () => ({
   useLocalizedDateTime: () => ({
@@ -76,8 +64,7 @@ describe("RoomSearchPanel", () => {
       <RoomSearchPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        loadedMessages={[]}
-        onOpenThread={vi.fn()}
+        onJumpToMessage={vi.fn()}
       />,
     );
 
@@ -92,8 +79,7 @@ describe("RoomSearchPanel", () => {
       <RoomSearchPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        loadedMessages={[]}
-        onOpenThread={vi.fn()}
+        onJumpToMessage={vi.fn()}
       />,
     );
 
@@ -121,8 +107,7 @@ describe("RoomSearchPanel", () => {
       <RoomSearchPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        loadedMessages={[]}
-        onOpenThread={vi.fn()}
+        onJumpToMessage={vi.fn()}
       />,
     );
 
@@ -134,5 +119,59 @@ describe("RoomSearchPanel", () => {
     expect(await screen.findByTestId("room-search-empty")).toHaveTextContent(
       labels.empty,
     );
+  });
+
+  it("lists search hits in API order, newest first", async () => {
+    const newer = message({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      content: "Newer budget",
+    });
+    const older = message({
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      content: "Older budget",
+    });
+    getChatRoomMessagesMock.mockResolvedValue({ data: [newer, older] });
+
+    render(
+      <RoomSearchPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onJumpToMessage={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("room-search-trigger"));
+    fireEvent.change(screen.getByTestId("room-search-input"), {
+      target: { value: "budget" },
+    });
+
+    const results = await screen.findAllByTestId("room-search-result");
+    expect(results).toHaveLength(2);
+    expect(results[0]).toHaveTextContent("Newer budget");
+    expect(results[1]).toHaveTextContent("Older budget");
+  });
+
+  it("closes the popover and jumps to the selected hit", async () => {
+    const hit = message();
+    const onJumpToMessage = vi.fn();
+    getChatRoomMessagesMock.mockResolvedValue({ data: [hit] });
+
+    render(
+      <RoomSearchPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onJumpToMessage={onJumpToMessage}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("room-search-trigger"));
+    fireEvent.change(screen.getByTestId("room-search-input"), {
+      target: { value: "budget" },
+    });
+
+    fireEvent.click(await screen.findByTestId("room-search-result"));
+
+    expect(onJumpToMessage).toHaveBeenCalledWith(hit);
+    expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
   });
 });

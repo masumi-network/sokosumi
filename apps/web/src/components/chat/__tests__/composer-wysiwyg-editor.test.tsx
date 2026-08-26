@@ -1264,4 +1264,107 @@ describe("ComposerWysiwygEditor", () => {
     expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
     expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
   });
+
+  it("hydrates a roster User mention that is not in the picker catalog", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="@b0user:andreas-osberghaus hello"
+        onChange={() => undefined}
+        mentions={{}}
+        mentionDisplayByKey={new Map([["b0user", "Andreas Osberghaus"]])}
+        mentionDisplayBySlug={
+          new Map([["andreas-osberghaus", "Andreas Osberghaus"]])
+        }
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-mention-key='b0user']");
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+    expect(editor.textContent).not.toContain("b0user");
+  });
+
+  it("hydrates roster display names over picker catalog labels", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="@u1:andreas hello"
+        onChange={() => undefined}
+        mentions={{
+          u1: { value: "Andreas", slug: "andreas" },
+        }}
+        mentionDisplayByKey={new Map([["u1", "Andreas Osberghaus"]])}
+        mentionDisplayBySlug={
+          new Map([["andreas-osberghaus", "Andreas Osberghaus"]])
+        }
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-mention-key='u1']");
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+  });
+
+  it("does not preventDefault Escape when onEscape is omitted", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="hello"
+        onChange={() => undefined}
+        mentions={{}}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    editor.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("leaves unknown persist tokens raw on hydrate", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="ping @missing:ghost hey"
+        onChange={() => undefined}
+        mentions={{}}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    expect(editor.querySelector("[data-mention-key]")).toBeNull();
+    expect(editor).toHaveTextContent("ping @missing:ghost hey");
+  });
+
+  it("does not list roster-only names in the mention picker", () => {
+    render(
+      <ComposerWysiwygEditor
+        value=""
+        onChange={() => undefined}
+        mentions={{
+          alice: { value: "Alice", slug: "alice" },
+        }}
+        mentionDisplayByKey={new Map([["b0user", "Andreas Osberghaus"]])}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "@";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(screen.getByRole("option", { name: /Alice/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Andreas Osberghaus/i }),
+    ).not.toBeInTheDocument();
+  });
 });

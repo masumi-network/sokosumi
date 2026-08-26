@@ -26,6 +26,20 @@ _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), assistant (Hermes)
 
+### Developers
+
+**Coworker developer**:
+A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
+_Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
+
+**Agent developer**:
+A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
+_Avoid_: Coworker developer (when meaning this)
+
+**Developer CLI**:
+The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
+_Avoid_: Treating `/developer` as deprecated, a second CLI per persona
+
 ### Task payments
 
 **Task payment claim**:
@@ -92,6 +106,10 @@ _Avoid_: Room (all chats are rooms), conversation
 The unique handle for a Channel in its organization (`#team-soko`). The create UI collects the handle first; the display name is derived from it (`team-soko` → `Team Soko`) and can be edited before submit. After create the slug is stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
 _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s identity (that is `id`), vanity URL, requiring the slug to match the name, regenerating the slug on rename
 
+**Channel topic**:
+An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
+_Avoid_: Description, purpose, bio, treating a Direct as having a topic
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel
@@ -141,6 +159,16 @@ _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room m
 **Organization exit (chat)**:
 When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore prior room memberships. Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
+
+### Chat pins
+
+**Pinned room**:
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin and the pin icon. Distinct from a Pinned message.
+_Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
+
+**Pinned message**:
+A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
+_Avoid_: Announcement (a use of this), pinned room, thread pin
 
 ### Chat presence
 

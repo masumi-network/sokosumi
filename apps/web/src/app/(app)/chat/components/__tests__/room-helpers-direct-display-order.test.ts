@@ -55,7 +55,7 @@ function directRoom(overrides: {
     updatedAt: new Date(0),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     coworkerMembers: [],

@@ -11,6 +11,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
+  getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
@@ -66,12 +67,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       unreadCounts,
       unreadMentionCounts,
       sidebarFlags,
+      pinnedMessageCounts,
       organization,
       peerInActiveOrganization,
     ] = await Promise.all([
       getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
       getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
       getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
+      getChatRoomPinnedMessageCounts([room.id], prisma),
       room.organizationId
         ? prisma.organization.findUnique({
             where: { id: room.organizationId },
@@ -93,7 +96,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         mapChatRoom(room, userContext.userId, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          pinnedAt: flags?.pinnedAt ?? null,
+          starredAt: flags?.starredAt ?? null,
+          pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
           mutedAt: flags?.mutedAt ?? null,
           markedUnread: flags?.markedUnread ?? false,
           organizationName: organization?.name ?? null,

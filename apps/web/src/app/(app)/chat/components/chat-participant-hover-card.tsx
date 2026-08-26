@@ -44,6 +44,8 @@ interface ChatParticipantHoverCardProps {
    * a link/row that already owns activation). Still hoverable.
    */
   interactive?: boolean;
+  openDelay?: number;
+  closeDelay?: number;
 }
 
 interface TriggerChildProps {
@@ -149,6 +151,8 @@ export function ChatParticipantHoverCard({
   isOpeningDirect = false,
   isDirectActionBusy = false,
   interactive = true,
+  openDelay = 200,
+  closeDelay = 100,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
 
@@ -170,7 +174,7 @@ export function ChatParticipantHoverCard({
   });
 
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
+    <HoverCard openDelay={openDelay} closeDelay={closeDelay}>
       <HoverCardTrigger asChild>
         {renderHoverTrigger({
           profileName: profile.name,
