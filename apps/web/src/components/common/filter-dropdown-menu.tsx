@@ -122,6 +122,7 @@ export function FilterDropdownMenu({
         variant="outline"
         size="sm"
         className="relative gap-2 sm:hidden"
+        aria-label={buttonLabel}
         onClick={() => setSheetOpen(true)}
       >
         <ListFilter className="size-4" aria-hidden />
@@ -405,6 +406,20 @@ function FilterDropdownMenuSectionMobile({
                   </CommandItem>
                 );
               })}
+              {section.pagination?.nextCursor ? (
+                <CommandItem
+                  key={`${section.id}-load-more`}
+                  value={`${section.id}-load-more`}
+                  forceMount
+                  onSelect={() => {
+                    section.pagination?.onLoadMore();
+                  }}
+                  disabled={section.pagination.isLoadingMore}
+                  className="text-muted-foreground justify-center text-xs"
+                >
+                  {section.pagination.loadMoreLabel}
+                </CommandItem>
+              ) : null}
             </CommandList>
           </Command>
         </div>
