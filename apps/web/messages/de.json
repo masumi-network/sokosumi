@@ -5257,7 +5257,7 @@
         "slugLabel": "Handle",
         "slugPlaceholder": "team-soko",
         "slugHelp": "Wird als #Handle angezeigt. Du kannst es vor dem Erstellen noch ändern.",
-        "slugTaken": "Dieses Handle ist bereits vergeben. Wähle ein anderes.",
+        "slugTaken": "Dieses Kanal-Handle existiert bereits. Durchsuche die Kanäle, um es zu finden.",
         "slugInvalid": "Gib ein gültiges Handle ein.",
         "slugChecking": "Handle wird geprüft…",
         "slugCheckFailed": "Dieses Handle konnte nicht geprüft werden. Versuche es erneut.",

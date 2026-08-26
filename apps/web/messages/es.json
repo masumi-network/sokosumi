@@ -5257,7 +5257,7 @@
         "slugLabel": "Identificador",
         "slugPlaceholder": "team-soko",
         "slugHelp": "Se muestra como #identificador. Puedes cambiarlo antes de crear el canal.",
-        "slugTaken": "Este identificador ya está en uso. Elige otro.",
+        "slugTaken": "Este identificador de canal ya existe. Explora los canales para encontrarlo.",
         "slugInvalid": "Introduce un identificador válido.",
         "slugChecking": "Comprobando identificador…",
         "slugCheckFailed": "No se pudo comprobar este identificador. Inténtalo de nuevo.",

@@ -5257,7 +5257,7 @@
         "slugLabel": "Handle",
         "slugPlaceholder": "team-soko",
         "slugHelp": "Shown as #handle. You can change it before creating the channel.",
-        "slugTaken": "This handle is already taken. Choose another.",
+        "slugTaken": "This channel handle already exists. Browse channels to find it.",
         "slugInvalid": "Enter a valid handle.",
         "slugChecking": "Checking handle…",
         "slugCheckFailed": "Could not check this handle. Try again.",

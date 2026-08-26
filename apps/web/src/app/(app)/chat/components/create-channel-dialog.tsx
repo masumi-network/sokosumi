@@ -79,6 +79,16 @@ export function CreateChannelDialog({
     useState<ChannelSlugCheckState>("invalid");
   const [isPending, startTransition] = useTransition();
 
+  const slugFieldError =
+    wizard.step === "name"
+      ? availability === "taken"
+        ? t("slugTaken")
+        : availability === "error"
+          ? t("slugCheckFailed")
+          : availability === "invalid" && wizard.slugDirty
+            ? t("slugInvalid")
+            : null
+      : null;
   const createStepNumber = wizard.step === "visibility" ? 2 : 1;
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
@@ -282,7 +292,7 @@ export function CreateChannelDialog({
                     }
                   }}
                   placeholder={t("namePlaceholder")}
-                  className="pr-10"
+                  className="pr-10 pl-7"
                   autoFocus
                   maxLength={CHANNEL_NAME_MAX}
                 />
@@ -321,18 +331,22 @@ export function CreateChannelDialog({
                   autoComplete="off"
                   spellCheck={false}
                   maxLength={CHANNEL_SLUG_MAX}
+                  aria-invalid={slugFieldError !== null}
+                  aria-describedby="create-channel-slug-status"
                 />
               </div>
-              <p className="text-muted-foreground text-xs">
-                {availability === "taken"
-                  ? t("slugTaken")
-                  : availability === "error"
-                    ? t("slugCheckFailed")
-                    : availability === "unknown"
-                      ? t("slugChecking")
-                      : availability === "invalid" && wizard.slugDirty
-                        ? t("slugInvalid")
-                        : t("slugHelp")}
+              <p
+                id="create-channel-slug-status"
+                role={slugFieldError ? "alert" : undefined}
+                className={cn(
+                  "text-xs",
+                  slugFieldError ? "text-destructive" : "text-muted-foreground",
+                )}
+              >
+                {slugFieldError ??
+                  (availability === "unknown"
+                    ? t("slugChecking")
+                    : t("slugHelp"))}
               </p>
             </div>
           </div>
