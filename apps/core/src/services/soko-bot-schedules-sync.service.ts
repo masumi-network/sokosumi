@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { redactSokoBotSensitiveText } from "@sokosumi/soko-bot";
+import {
+  redactSokoBotSensitiveText,
+  SOKO_BOT_SYSTEM_SCHEDULES,
+} from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
@@ -407,6 +410,9 @@ export class SokoBotSchedulesSyncService {
             },
           });
           if (bot) {
+            const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
+              (candidate) => candidate.key === schedule.systemKey,
+            );
             const beat = await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
@@ -416,7 +422,8 @@ export class SokoBotSchedulesSyncService {
                 followWholeBoard: bot.followWholeBoard,
               },
               key: schedule.systemKey,
-              prompt: schedule.prompt,
+              // Registry prompt wins so wording changes ship without a migration.
+              prompt: rhythm?.prompt ?? schedule.prompt,
               now: new Date(),
             });
             message = beat.message;
