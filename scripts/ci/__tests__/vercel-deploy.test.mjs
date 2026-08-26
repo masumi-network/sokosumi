@@ -896,7 +896,7 @@ describe("git preview policy", () => {
     assert.match(workflow, /persist-credentials:\s*false/);
     assert.match(
       workflow,
-      /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}/,
+      /ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/,
     );
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
@@ -908,6 +908,10 @@ describe("git preview policy", () => {
     assert.doesNotMatch(openedJob, /GITHUB_TOKEN/);
     assert.doesNotMatch(openedJob, /issues:\s*write/);
     assert.doesNotMatch(openedJob, /pull-requests:\s*write/);
+    assert.doesNotMatch(
+      openedJob,
+      /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha/,
+    );
     assert.match(
       workflow,
       /contains\(github\.event\.comment\.body, '\/deploy'\)/,
