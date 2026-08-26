@@ -105,7 +105,7 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      if (results.some(Boolean)) {
+      if (results.length > 0 && results.every(Boolean)) {
         lastPublishedAtRef.current = now;
         lastPublishedRef.current = data;
       }

@@ -223,6 +223,32 @@ describe("useOrgPresencePublisher", () => {
     });
   });
 
+  it("retries a failed org on the next local tick instead of treating partial success as done", async () => {
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    authorizeMock.mockResolvedValue(tokenWithOrgs("org_1", "org_2"));
+    const failedOrg = channelFor("presence:org_org_2");
+    failedOrg.presence.update.mockRejectedValue(new Error("channel denied"));
+    failedOrg.presence.enter.mockRejectedValue(new Error("channel denied"));
+
+    try {
+      renderHook(() => useOrgPresencePublisher());
+      await flushEffects();
+
+      const okOrg = channelFor("presence:org_org_1").presence;
+      expect(okOrg.update).toHaveBeenCalledTimes(1);
+      expect(failedOrg.presence.update).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      expect(failedOrg.presence.update).toHaveBeenCalledTimes(2);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("force-publishes on reconnect even when the payload is unchanged", async () => {
     renderHook(() => useOrgPresencePublisher());
     await flushEffects();

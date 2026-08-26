@@ -1,7 +1,14 @@
-import type { ChatPresenceMemberData } from "@sokosumi/utils";
+import {
+  CHAT_PRESENCE_ONLINE_WINDOW_MS,
+  type ChatPresenceMemberData,
+} from "@sokosumi/utils";
 
-/** Refresh lastActiveAt just inside the 5 min Online window (SOK-894). */
-export const ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS = 4 * 60 * 1000;
+/** Slack so a throttled refresh arrives before teammates age you to AFK. */
+const ORG_PRESENCE_PUBLISH_MARGIN_MS = 60_000;
+
+/** Refresh lastActiveAt just inside the shared Online window (SOK-894). */
+export const ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS =
+  CHAT_PRESENCE_ONLINE_WINDOW_MS - ORG_PRESENCE_PUBLISH_MARGIN_MS;
 
 export interface ShouldPublishOrgPresenceUpdateInput {
   force: boolean;

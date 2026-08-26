@@ -9,10 +9,9 @@ import {
 const MIN_INTERVAL_MS = 240_000;
 
 describe("shouldPublishOrgPresenceUpdate", () => {
-  it("refreshes lastActiveAt inside the shared online window", () => {
-    expect(ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS).toBe(MIN_INTERVAL_MS);
-    expect(ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS).toBeLessThan(
-      CHAT_PRESENCE_ONLINE_WINDOW_MS,
+  it("refreshes lastActiveAt one minute inside the shared online window", () => {
+    expect(ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS).toBe(
+      CHAT_PRESENCE_ONLINE_WINDOW_MS - 60_000,
     );
   });
 
