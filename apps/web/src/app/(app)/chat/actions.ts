@@ -3,6 +3,7 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
@@ -823,10 +824,11 @@ export async function pinRoomMessageAction(
   roomId: string,
   messageId: string,
 ): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
   const cleanRoomId = cleanString(roomId);
   const cleanMessageId = cleanString(messageId);
   if (!cleanRoomId || !cleanMessageId) {
-    return roomFail("Message is required.");
+    return roomFail(t("messageRequired"));
   }
 
   try {
@@ -836,7 +838,7 @@ export async function pinRoomMessageAction(
     );
     return roomOk(result);
   } catch (error) {
-    return roomCatch(error, "Could not pin message.");
+    return roomCatch(error, t("pinError"));
   }
 }
 
@@ -849,9 +851,10 @@ export async function listPinnedMessagesAction(
     nextCursor: string | null;
   }>
 > {
+  const t = await getTranslations("App.Channels.PinnedMessages");
   const cleanRoomId = cleanString(roomId);
   if (!cleanRoomId) {
-    return roomFail("Room is required.");
+    return roomFail(t("roomRequired"));
   }
 
   try {
@@ -860,7 +863,7 @@ export async function listPinnedMessagesAction(
     });
     return roomOk(page);
   } catch (error) {
-    return roomCatch(error, "Could not load pinned messages.");
+    return roomCatch(error, t("error"));
   }
 }
 
@@ -868,10 +871,11 @@ export async function unpinRoomMessageAction(
   roomId: string,
   messageId: string,
 ): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
   const cleanRoomId = cleanString(roomId);
   const cleanMessageId = cleanString(messageId);
   if (!cleanRoomId || !cleanMessageId) {
-    return roomFail("Message is required.");
+    return roomFail(t("messageRequired"));
   }
 
   try {
@@ -881,7 +885,7 @@ export async function unpinRoomMessageAction(
     );
     return roomOk(result);
   } catch (error) {
-    return roomCatch(error, "Could not unpin message.");
+    return roomCatch(error, t("unpinError"));
   }
 }
 

@@ -5199,6 +5199,10 @@
         "couldNotLoad": "Nachricht konnte nicht geladen werden",
         "pin": "Nachricht anheften",
         "unpin": "Nachricht lösen",
+        "messageRequired": "Nachricht ist erforderlich.",
+        "roomRequired": "Raum ist erforderlich.",
+        "pinError": "Nachricht konnte nicht angeheftet werden.",
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
         "count": "{count, plural, =0 {Angeheftet} one {# angeheftet} other {# angeheftet}}"
       },
       "Quote": {

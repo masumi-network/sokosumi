@@ -5199,6 +5199,10 @@
         "couldNotLoad": "No se pudo cargar el mensaje",
         "pin": "Fijar mensaje",
         "unpin": "Desfijar mensaje",
+        "messageRequired": "El mensaje es obligatorio.",
+        "roomRequired": "La sala es obligatoria.",
+        "pinError": "No se pudo fijar el mensaje.",
+        "unpinError": "No se pudo desfijar el mensaje.",
         "count": "{count, plural, =0 {Fijados} one {# fijado} other {# fijados}}"
       },
       "Quote": {
