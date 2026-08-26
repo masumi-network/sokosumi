@@ -11,7 +11,8 @@ Push payloads (SOK-699) carry **data only**: the same fields as the realtime `no
 
 - The SW bundles the push-relevant message strings per locale (v1: the CHAT keys). Adding a pushed kind means adding its strings to the SW map.
 - One `notificationclick` handler focuses-or-opens the destination; one tag scheme (notification id) dedupes replays.
-- Shared show/skip rule: skip display when a visible focused Sokosumi client exists. Verify on iOS whether skipped displays count against Apple's silent-push tolerance; display-anyway on iOS if so.
+- Show/skip rule is platform-scoped. Chromium documents a focused-window exception ("you don't have to show a notification … when the user has your site open and focused", web.dev), so the SW skips display there when a visible focused client exists. WebKit documents no exception and revokes subscriptions on violations ("pushes will always be user visible", webkit.org/blog/12945), so on Apple platforms the SW **always** displays — idempotently: `tag` = notification id makes a re-display replace the existing banner in place with no re-alert (`renotify` unset). One banner per notification, no downgrade, promise kept. iOS spike verifies foreground banner behavior and tag-replace semantics.
+- Self-heal: on app open, the client checks `pushManager.getSubscription()` and re-activates when the subscription is missing or revoked, whatever the cause.
 - If the SW fails, nothing displays — there is no OS-rendered fallback title. Verify Ably delivers web pushes with an empty `notification` part.
 
 **Rejected:** Core-rendered title/body (locale + catalog duplication in Core); keeping `new Notification()` beside the SW with tag/skip dedupe between two permanent paths; shared-package href routing (PR #3587's shape).
