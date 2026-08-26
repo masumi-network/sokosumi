@@ -844,11 +844,12 @@ export async function pinRoomMessageAction(
 
 export async function listPinnedMessagesAction(
   roomId: string,
-  options?: { cursor?: string },
+  options?: { cursor?: string; limit?: number },
 ): Promise<
   RoomActionResult<{
     items: ChatRoomPinnedMessageListItem[];
     nextCursor: string | null;
+    total: number;
   }>
 > {
   const t = await getTranslations("App.Channels.PinnedMessages");
@@ -860,6 +861,7 @@ export async function listPinnedMessagesAction(
   try {
     const page = await chatRoomService.listPinnedMessages(cleanRoomId, {
       cursor: options?.cursor,
+      limit: options?.limit,
     });
     return roomOk(page);
   } catch (error) {

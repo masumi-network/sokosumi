@@ -42,6 +42,8 @@ interface RoomShellLayoutProps {
   rootClassName?: string;
   beforeMain?: ReactNode;
   desktopHeader?: ReactNode | null;
+  /** Sits under the header, outside the message scroller (e.g. latest pin). */
+  belowHeader?: ReactNode;
   reserveDesktopHeader?: boolean;
   /**
    * Wrap header + scroller + composer (e.g. RoomFileDropZone).
@@ -70,6 +72,7 @@ export function RoomShellLayout({
   rootClassName,
   beforeMain,
   desktopHeader = null,
+  belowHeader = null,
   reserveDesktopHeader = true,
   wrapColumn,
   listScrollerRef,
@@ -91,6 +94,7 @@ export function RoomShellLayout({
   const columnBody = (
     <>
       {header}
+      {belowHeader}
       <div ref={listScrollerRef} className={ROOM_SHELL_SCROLLER_CLASSNAME}>
         <div
           ref={listContentRef}
