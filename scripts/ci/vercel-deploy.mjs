@@ -542,6 +542,20 @@ export async function runProductionDeploy(options) {
   return { kind: "production", deployments: settled };
 }
 
+export function summarizeCliDeployResult(result) {
+  if (!Array.isArray(result?.deployments)) {
+    return result;
+  }
+  return {
+    kind: result.kind,
+    deployments: result.deployments.map((deployment) => ({
+      id: deployment.id,
+      name: deployment.name,
+      readyState: deployment.readyState,
+    })),
+  };
+}
+
 function requireVercelToken(env) {
   if (!env.VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is required");
@@ -574,7 +588,7 @@ async function cliPreview(env = process.env) {
     githubToken: env.GITHUB_TOKEN,
     teamId: env.VERCEL_ORG_ID ?? VERCEL_TEAM_ID,
   });
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(summarizeCliDeployResult(result)));
 }
 
 async function cliProduction(env = process.env) {
@@ -591,7 +605,7 @@ async function cliProduction(env = process.env) {
     vercelToken: env.VERCEL_TOKEN,
     teamId: env.VERCEL_ORG_ID ?? VERCEL_TEAM_ID,
   });
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(summarizeCliDeployResult(result)));
 }
 
 function isMainModule() {

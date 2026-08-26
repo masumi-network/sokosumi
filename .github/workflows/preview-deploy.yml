@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 jobs:
   comment:
@@ -19,6 +17,10 @@ jobs:
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
       contains(github.event.comment.body, '/deploy')
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -41,6 +43,8 @@ jobs:
 
   opened:
     name: Opened preview
+    # Do not add this job as a required check: it only runs on opened, so later
+    # commits would have no check on the new SHA.
     if: >
       github.event_name == 'pull_request' &&
       github.event.pull_request.user.type != 'Bot' &&
@@ -51,6 +55,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -62,5 +67,4 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/ci/vercel-deploy.mjs preview

@@ -14,6 +14,7 @@ import {
   runPreviewDeployOpened,
   runPreviewFromGithubEvent,
   runProductionDeploy,
+  summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
   VERCEL_TEAM_ID,
@@ -617,6 +618,21 @@ describe("runPreviewDeployOpened", () => {
     assert.deepEqual(urls, []);
   });
 
+  it("deploys draft pull requests", async () => {
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: sameRepoPullRequest({ draft: true }),
+      repoId: 99,
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.name}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 4);
+  });
+
   it("ignores pull requests opened by bots", async () => {
     const created = [];
     const result = await runPreviewDeployOpened({
@@ -810,6 +826,41 @@ describe("runProductionDeploy", () => {
   });
 });
 
+describe("summarizeCliDeployResult", () => {
+  it("keeps only id, name, and readyState from deployment payloads", () => {
+    assert.deepEqual(
+      summarizeCliDeployResult({
+        kind: "deploy",
+        deployments: [
+          {
+            id: "dpl_1",
+            name: "sokosumi-app-mainnet",
+            readyState: "READY",
+            env: [{ key: "DATABASE_URL" }],
+            project: { settings: { crons: [] } },
+          },
+        ],
+      }),
+      {
+        kind: "deploy",
+        deployments: [
+          {
+            id: "dpl_1",
+            name: "sokosumi-app-mainnet",
+            readyState: "READY",
+          },
+        ],
+      },
+    );
+  });
+
+  it("leaves results without deployments unchanged", () => {
+    assert.deepEqual(summarizeCliDeployResult({ kind: "ignore" }), {
+      kind: "ignore",
+    });
+  });
+});
+
 describe("git preview policy", () => {
   it("disables all automatic git deployments", async () => {
     for (const app of ["web", "core"]) {
@@ -843,10 +894,20 @@ describe("git preview policy", () => {
     );
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
     assert.match(workflow, /persist-credentials:\s*false/);
+    assert.match(
+      workflow,
+      /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}/,
+    );
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
     assert.match(workflow, /issues:\s*write/);
+    assert.match(workflow, /pull-requests:\s*write/);
+    const openedJob = workflow.split(/opened:\s*\n/)[1];
+    assert.ok(openedJob);
+    assert.doesNotMatch(openedJob, /GITHUB_TOKEN/);
+    assert.doesNotMatch(openedJob, /issues:\s*write/);
+    assert.doesNotMatch(openedJob, /pull-requests:\s*write/);
     assert.match(
       workflow,
       /contains\(github\.event\.comment\.body, '\/deploy'\)/,
