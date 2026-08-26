@@ -6,8 +6,14 @@ import {
   makeUserTasksChannelName,
 } from "@sokosumi/utils";
 
-/** Ably capability ops granted to browser clients. */
-export type AblyClientCapabilityOps = string[];
+type AblyClientCapabilityOp = "subscribe" | "presence" | "push-subscribe";
+
+/**
+ * Ably capability ops granted to browser clients. Typed as the exact op union
+ * so the mint site can pass the map to Ably without an `as` cast, and so a new
+ * op is one edit here rather than two.
+ */
+export type AblyClientCapabilityOps = AblyClientCapabilityOp[];
 
 /** Ably capability map: channel name → ops. */
 export interface AblySubscribeCapabilityMap {
@@ -26,6 +32,8 @@ export interface BuildAblyClientCapabilityInput {
  * - Chat control: always subscribe (SOK-742 membership revoke)
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
  *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
+ * - Notifications: `subscribe` (realtime feed) + `push-subscribe` (register this
+ *   device for closed-app OS banners; ADR-0017)
  */
 export function buildAblySubscribeCapability(
   userId: string,
@@ -48,7 +56,7 @@ export function buildAblyClientCapability({
     // Jobs channels use agent_id in the middle segment; wildcard keeps job pages working.
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
     [makeUserTasksChannelName(userId)]: ["subscribe"],
-    [makeUserNotificationsChannelName(userId)]: ["subscribe"],
+    [makeUserNotificationsChannelName(userId)]: ["subscribe", "push-subscribe"],
     [makeUserChatControlChannelName(userId)]: ["subscribe"],
   };
 
