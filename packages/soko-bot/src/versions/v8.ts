@@ -7,6 +7,6 @@ export const v8: SokoBotVersion = {
   name: "v8 · Magistral Medium, reasoning",
   createdAt: "2026-08-26",
   summary:
-    "Experiment: v1 prompt and skills on Magistral Medium (EU reasoning model). Tests whether built-in reasoning reduces judgment errors on multi-step scenarios.",
+    "Experiment: v1 prompt and skills on Magistral Medium. Lab 2026-08-26: model id not available on the AI Gateway (every turn MODEL_CALL_FAILED); keep for when it lands.",
   model: "mistral/magistral-medium",
 };
