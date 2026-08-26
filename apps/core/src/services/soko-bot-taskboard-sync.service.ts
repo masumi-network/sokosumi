@@ -291,6 +291,9 @@ export class SokoBotTaskboardSyncService {
       const alreadyHandedOver =
         work && watch?.lastSeenStatus === task.status && events.length === 0;
       if (alreadyHandedOver) continue;
+      // Status drift on Tasks the bot delegated is the events sync's job
+      // (it wakes with the latest comment); here only comment-only events
+      // on those Tasks count, so one change never produces two turns.
       const meaningful = events.filter((e) =>
         boardOnly
           ? Boolean(e.comment) &&
@@ -299,7 +302,9 @@ export class SokoBotTaskboardSyncService {
               botName: bot.name,
               memoryTokens: bot.memoryTokens,
             })
-          : e.comment || (e.status && assignedToBot),
+          : assignedToBot
+            ? e.comment || e.status
+            : Boolean(e.comment) && !e.status,
       );
       if (!work && meaningful.length === 0) {
         if (events.length > 0 && watch) {
