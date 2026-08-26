@@ -780,6 +780,7 @@ export class SokoBotControlPlane {
         ...tokenScope,
         model: version.model,
         versionId: version.id,
+        inferenceRegion: version.inferenceRegion,
       }),
       tokens.signTurnGrant({
         ...tokenScope,
@@ -1857,6 +1858,7 @@ export class SokoBotControlPlane {
           ...tokenScope,
           model: version.model,
           versionId: version.id,
+          inferenceRegion: version.inferenceRegion,
         }),
         tokens.signTurnGrant({
           ...tokenScope,

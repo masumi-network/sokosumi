@@ -522,6 +522,7 @@ export const sokoBotVersionSchema = z
       z.object({ id: z.string(), name: z.string(), description: z.string() }),
     ),
     capabilities: z.array(z.string()).nullable(),
+    inferenceRegion: z.enum(["eu", "us"]).nullable().optional(),
     systemPrompt: z.string(),
   })
   .openapi("SokoBotVersion");

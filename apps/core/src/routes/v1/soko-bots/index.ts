@@ -917,6 +917,7 @@ app.openapi(listVersionsRoute, async (c) => {
         };
       }),
       capabilities: version.capabilities ? [...version.capabilities] : null,
+      inferenceRegion: version.inferenceRegion ?? null,
       systemPrompt: composeSystemPrompt(version),
     })),
   );

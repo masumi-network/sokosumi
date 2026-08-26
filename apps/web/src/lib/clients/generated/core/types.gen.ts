@@ -4275,6 +4275,7 @@ export type SokoBotVersion = {
         description: string;
     }>;
     capabilities: Array<string> | null;
+    inferenceRegion?: 'eu' | 'us' | null;
     systemPrompt: string;
 };
 

@@ -167,8 +167,13 @@ export function SokoBotConsole({
                     </span>
                     <span aria-hidden>·</span>
                     <span className="max-w-[16rem] truncate">
-                      {version.model.replace(/^mistral\//, "")}
+                      {version.model.replace(/^[a-z]+\//, "")}
                     </span>
+                    {version.inferenceRegion ? (
+                      <span className="bg-primary/10 text-primary rounded px-1 uppercase">
+                        {version.inferenceRegion}
+                      </span>
+                    ) : null}
                   </span>
                 ) : null}
               </div>

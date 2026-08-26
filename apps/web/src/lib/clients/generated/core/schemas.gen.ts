@@ -14859,6 +14859,17 @@ export const SokoBotVersionSchema = {
                 type: 'string'
             }
         },
+        inferenceRegion: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'eu',
+                'us',
+                null
+            ]
+        },
         systemPrompt: {
             type: 'string'
         }

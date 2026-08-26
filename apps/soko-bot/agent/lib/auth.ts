@@ -11,6 +11,8 @@ export interface RuntimeAuthAttributes {
   /** Version the control plane chose for this turn; empty on eval/legacy tokens. */
   model: string | null;
   versionId: string | null;
+  /** AI Gateway region pin ("eu" | "us"); null for global routing. */
+  inferenceRegion: string | null;
 }
 
 function required(value: string | undefined, name: string): string {
@@ -63,5 +65,6 @@ export function readRuntimeAuth(
     capabilities: parsed as SokoBotCapability[],
     model: optional(attributes.model),
     versionId: optional(attributes.versionId),
+    inferenceRegion: optional(attributes.inferenceRegion),
   };
 }

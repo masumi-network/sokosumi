@@ -21,4 +21,6 @@ export interface SokoBotVersion {
   skills: readonly string[];
   /** Tool allowlist applied on top of the route ceiling; omit for all. */
   capabilities?: readonly SokoBotCapability[];
+  /** AI Gateway regional inference pin; omit for global routing. */
+  inferenceRegion?: "eu" | "us";
 }

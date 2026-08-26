@@ -112,6 +112,7 @@ const sokoBotAuth: AuthFn<Request> = async (request) => {
           capabilities: JSON.stringify(evaluationCapabilities(scenario)),
           model: "",
           versionId: "",
+          inferenceRegion: "",
         },
         authenticator: "soko-bot:eval",
         issuer: "eve-eval",
@@ -174,6 +175,10 @@ const sokoBotAuth: AuthFn<Request> = async (request) => {
         turnGrant,
         capabilities: JSON.stringify(capabilities),
         model: typeof claims.model === "string" ? claims.model : "",
+        inferenceRegion:
+          typeof claims.inferenceRegion === "string"
+            ? claims.inferenceRegion
+            : "",
         versionId: typeof claims.versionId === "string" ? claims.versionId : "",
       },
       authenticator: "soko-bot:eddsa",

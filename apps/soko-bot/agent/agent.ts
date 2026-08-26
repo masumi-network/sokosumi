@@ -150,9 +150,28 @@ const sokoBotAgent: DefinedAgent<AgentDefinition> =
                 attribute(ctx.session.auth.initiator, "model") ??
                 attribute(ctx.session.auth.current, "model") ??
                 DEFAULT_MODEL;
+              const region =
+                attribute(ctx.session.auth.initiator, "inferenceRegion") ??
+                attribute(ctx.session.auth.current, "inferenceRegion");
               return {
                 model,
                 modelContextWindowTokens: MODEL_CONTEXT_WINDOW_TOKENS,
+                // Data residency: pin inference to the version's region on the
+                // AI Gateway; requests fail rather than fall back elsewhere.
+                ...(region === "eu" || region === "us"
+                  ? {
+                      modelOptions: {
+                        providerOptions: {
+                          gateway: {
+                            inferenceRegion: {
+                              scope: "zone",
+                              geoRegion: region,
+                            },
+                          },
+                        },
+                      },
+                    }
+                  : {}),
               };
             },
           },

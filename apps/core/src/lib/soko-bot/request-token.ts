@@ -33,6 +33,7 @@ export interface SignRequestTokenInput {
   /** Version the runtime should apply; the prompt travels with the context. */
   model?: string;
   versionId?: string;
+  inferenceRegion?: string;
   now?: Date;
 }
 
@@ -88,6 +89,9 @@ export class SokoBotTokenService {
       turnId: input.turnId,
       ...(input.model ? { model: input.model } : {}),
       ...(input.versionId ? { versionId: input.versionId } : {}),
+      ...(input.inferenceRegion
+        ? { inferenceRegion: input.inferenceRegion }
+        : {}),
     })
       .setProtectedHeader({ alg: "EdDSA", kid: this.config.currentKeyId })
       .setIssuer(this.config.issuer)
