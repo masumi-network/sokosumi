@@ -338,13 +338,29 @@ describe("RoomsClient room header chrome", () => {
     expect(title).toHaveAttribute("title", "editChannel");
     expect(topic).toHaveAttribute("title", "Weekly launch planning");
     expect(title.parentElement).toContainElement(topic);
-    expect(title).not.toHaveClass("shrink-0");
+    expect(title).toHaveClass("shrink-0");
     expect(topic).not.toHaveClass("hidden");
-    expect(topic).toHaveClass("min-w-16");
+    expect(topic).toHaveClass("min-w-0");
     expect(topic.tagName).not.toBe("BUTTON");
     expect(
       screen.queryByRole("button", { name: "Weekly launch planning" }),
     ).toBeNull();
+  });
+
+  it("keeps the Channel name as identity when a topic is present", () => {
+    renderRoom({
+      ...channelRoom(),
+      name: "Everyone",
+      topic: "General discussions & updates",
+    });
+
+    const title = screen.getByTestId("room-open-title");
+    const topic = screen.getByTestId("room-open-topic");
+
+    expect(title).toHaveAccessibleName("Everyone");
+    expect(title).toHaveClass("shrink-0");
+    expect(topic.className.split(/\s+/)).not.toContain("min-w-16");
+    expect(topic).toHaveClass("min-w-0");
   });
 
   it("trims a Channel topic for display", () => {
