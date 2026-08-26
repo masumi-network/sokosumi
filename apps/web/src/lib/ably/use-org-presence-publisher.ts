@@ -115,33 +115,7 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
       }
     }
 
-    async function runSyncOnce(): Promise<void> {
-      if (cancelled) {
-        return;
-      }
-      const activeOrganizationId = organizationIdRef.current;
-      const nextNames = new Set<string>();
-      if (activeOrganizationId != null) {
-        let tokenDetails: Ably.TokenDetails | null = null;
-        try {
-          tokenDetails = await ably.auth.authorize();
-        } catch (error) {
-          if (!cancelled) {
-            console.error("Ably authorize for presence failed:", error);
-          }
-        }
-        if (cancelled) {
-          return;
-        }
-        if (tokenDetails != null) {
-          const grantedIds =
-            organizationIdsFromAblyCapability(tokenDetails.capability) ?? [];
-          if (grantedIds.includes(activeOrganizationId)) {
-            nextNames.add(makeOrgPresenceChannelName(activeOrganizationId));
-          }
-        }
-      }
-
+    async function leaveChannelsNotIn(nextNames: Set<string>): Promise<void> {
       for (const [name, channel] of channels) {
         if (cancelled) {
           return;
@@ -156,6 +130,49 @@ export function useOrgPresencePublisher(organizationId: string | null): void {
           channels.delete(name);
         }
       }
+    }
+
+    async function runSyncOnce(): Promise<void> {
+      if (cancelled) {
+        return;
+      }
+      const keepBeforeAuthorize = new Set<string>();
+      const organizationIdBeforeAuthorize = organizationIdRef.current;
+      if (organizationIdBeforeAuthorize != null) {
+        keepBeforeAuthorize.add(
+          makeOrgPresenceChannelName(organizationIdBeforeAuthorize),
+        );
+      }
+      await leaveChannelsNotIn(keepBeforeAuthorize);
+      if (cancelled) {
+        return;
+      }
+
+      const nextNames = new Set<string>();
+      if (organizationIdRef.current != null) {
+        let tokenDetails: Ably.TokenDetails | null = null;
+        try {
+          tokenDetails = await ably.auth.authorize();
+        } catch (error) {
+          if (!cancelled) {
+            console.error("Ably authorize for presence failed:", error);
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+        // Switch during authorize must not enter the org captured at start.
+        const currentOrganizationId = organizationIdRef.current;
+        if (tokenDetails != null && currentOrganizationId != null) {
+          const grantedIds =
+            organizationIdsFromAblyCapability(tokenDetails.capability) ?? [];
+          if (grantedIds.includes(currentOrganizationId)) {
+            nextNames.add(makeOrgPresenceChannelName(currentOrganizationId));
+          }
+        }
+      }
+
+      await leaveChannelsNotIn(nextNames);
 
       if (cancelled) {
         return;

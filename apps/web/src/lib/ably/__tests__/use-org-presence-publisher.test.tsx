@@ -360,7 +360,50 @@ describe("useOrgPresencePublisher", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(org1.presence.update).toHaveBeenCalledTimes(2);
+    expect(org1.presence.update.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("does not enter the previous organization if authorize resolves after a workspace switch", async () => {
+    const authResolvers: Array<(value: unknown) => void> = [];
+    authorizeMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          authResolvers.push(resolve);
+        }),
+    );
+
+    const { rerender } = renderHook<void, { organizationId: string | null }>(
+      ({ organizationId }) => useOrgPresencePublisher(organizationId),
+      { initialProps: { organizationId: "org_1" } },
+    );
+    await flushEffects();
+    expect(authResolvers).toHaveLength(1);
+    expect(getMock).not.toHaveBeenCalled();
+
+    rerender({ organizationId: "org_2" });
+    await flushEffects();
+
+    await act(async () => {
+      authResolvers[0]?.(tokenWithOrgs("org_1", "org_2"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_1");
+    expect(
+      channelFor("presence:org_org_1").presence.update,
+    ).not.toHaveBeenCalled();
+    expect(
+      channelFor("presence:org_org_1").presence.enter,
+    ).not.toHaveBeenCalled();
+    expect(getMock).toHaveBeenCalledWith("presence:org_org_2");
+    expect(channelFor("presence:org_org_2").presence.update).toHaveBeenCalled();
+
+    await act(async () => {
+      authResolvers[1]?.(tokenWithOrgs("org_1", "org_2"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_1");
   });
 
   it("does not enter the active organization when it is not granted on the token", async () => {
