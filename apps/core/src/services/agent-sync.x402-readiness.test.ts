@@ -515,6 +515,40 @@ describe("syncX402BuySideReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
+  it("does not page Sentry for empty ready pairs on Vercel preview", async () => {
+    // SOK-860 / CORE-37 gated captureException for check failures on
+    // preview. Empty-pair captureMessage still paged CORE-39 on
+    // sokosumi-core-mainnet-*.preview.sokosumi.com when the node check
+    // succeeded but composed to []. Same VERCEL_ENV gate; keep warn +
+    // cache write so fail-closed listing stays.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    envState.VERCEL_ENV = "preview";
+    getX402BudgetsMock.mockResolvedValue(ok([]));
+    getX402AdminPurchasingWalletsMock.mockResolvedValue(ok([]));
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: X402_BUY_SIDE_READINESS_KEY },
+        update: expect.objectContaining({ cursorId: "[]" }),
+      }),
+    );
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
   it("re-arms the Sentry report after a successful check", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
