@@ -1,9 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  buildCoworkerUsableInWorkspaceWhere,
-  buildSokoBotVisibilityWhere,
-} from "@/helpers/access-control";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { coworkerInclude } from "@/helpers/coworker";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -53,12 +50,8 @@ const sampleVendor = {
   logoDark: null,
 };
 
-const usableInWorkspaceWhere = {
-  AND: [
-    buildCoworkerUsableInWorkspaceWhere(personalWorkspaceId),
-    buildSokoBotVisibilityWhere("user_123"),
-  ],
-};
+const usableInWorkspaceWhere =
+  buildCoworkerUsableInWorkspaceWhere(personalWorkspaceId);
 
 function createApp(
   authContext: AuthenticationContext = {

@@ -207,13 +207,6 @@ export function buildCoworkerUsableInWorkspaceWhere(
   };
 }
 
-/** Hide other users' Soko Bots from coworker listings and pickers. */
-export function buildSokoBotVisibilityWhere(
-  userId: string,
-): Prisma.CoworkerWhereInput {
-  return { OR: [{ sokoBotId: null }, { sokoBot: { userId } }] };
-}
-
 /**
  * Prisma OR branches for coworkers a user may resolve by id (name chips,
  * enrichment) without enumerating private rows: marketplace whitelist, vendor
