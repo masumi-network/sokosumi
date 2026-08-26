@@ -222,6 +222,8 @@ export type AdminSokoBotQuality = {
     proactive: {
         sent: number;
         actedOn: number;
+        thumbsUp: number;
+        thumbsDown: number;
     };
     daily: Array<{
         date: string;
@@ -530,6 +532,9 @@ export type SokoBot = {
     avatarImageUrl?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
+    ingestTimezone?: string;
+    proactivePaused?: boolean;
+    proactiveDailyLimit?: number;
     coworker?: {
         id: string;
         slug: string;
@@ -4229,6 +4234,7 @@ export type SokoBotIntegration = {
     connectedAt: Date | null;
     lastIngestAt: Date | null;
     lastError: string | null;
+    lastErrorAt?: Date | null;
 };
 
 export type SokoBotIntegrationCatalogEntry = {
@@ -4279,6 +4285,16 @@ export type SokoBotVersion = {
     systemPrompt: string;
 };
 
+export type UpdateSokoBotProactiveRequest = {
+    paused?: boolean;
+    dailyLimit?: number;
+    timezone?: string;
+};
+
+export type SokoBotTurnFeedbackRequest = {
+    useful: boolean;
+};
+
 export type UpdateSokoBotBoardFollowingRequest = {
     enabled: boolean;
 };
@@ -4325,6 +4341,11 @@ export type SokoBotTeam = {
 
 export type SokoBotDailyStats = {
     days: number;
+    proactive: {
+        usedToday: number;
+        limit: number;
+        paused: boolean;
+    };
     totals: {
         messages: number;
         background: number;
@@ -29092,6 +29113,136 @@ export type ListSokoBotVersionsResponses = {
 };
 
 export type ListSokoBotVersionsResponse = ListSokoBotVersionsResponses[keyof ListSokoBotVersionsResponses];
+
+export type UpdateMySokoBotProactiveData = {
+    body?: UpdateSokoBotProactiveRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/proactive';
+};
+
+export type UpdateMySokoBotProactiveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateMySokoBotProactiveError = UpdateMySokoBotProactiveErrors[keyof UpdateMySokoBotProactiveErrors];
+
+export type UpdateMySokoBotProactiveResponses = {
+    /**
+     * Bot with the new settings
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateMySokoBotProactiveResponse = UpdateMySokoBotProactiveResponses[keyof UpdateMySokoBotProactiveResponses];
+
+export type SendMySokoBotTurnFeedbackData = {
+    body?: SokoBotTurnFeedbackRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/turns/{id}/feedback';
+};
+
+export type SendMySokoBotTurnFeedbackErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SendMySokoBotTurnFeedbackError = SendMySokoBotTurnFeedbackErrors[keyof SendMySokoBotTurnFeedbackErrors];
+
+export type SendMySokoBotTurnFeedbackResponses = {
+    /**
+     * Feedback stored
+     */
+    200: {
+        data: {
+            useful: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SendMySokoBotTurnFeedbackResponse = SendMySokoBotTurnFeedbackResponses[keyof SendMySokoBotTurnFeedbackResponses];
 
 export type UpdateMySokoBotBoardFollowingData = {
     body?: UpdateSokoBotBoardFollowingRequest;

@@ -1609,6 +1609,10 @@
         }
       },
       "SokoBot": {
+        "feedbackAsk": "Nützlich?",
+        "feedbackUseful": "Nützlich",
+        "feedbackNotUseful": "Nicht nützlich",
+        "feedbackThanks": "Danke, notiert.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
         "task": "Task"
@@ -3469,6 +3473,7 @@
           "description": "Bewertungen (1–5) für jeden abgeschlossenen Durchlauf, flottenweit, letzte 30 Tage.",
           "overall": "{judged} von {turns} Durchläufen bewertet",
           "proactive": "{sent} proaktive Nachrichten, {actedOn} innerhalb eines Tages aufgegriffen",
+          "thumbs": "{up} 👍 · {down} 👎",
           "version": "Version",
           "turns": "Durchläufe",
           "avgScore": "Ø Score",
@@ -5273,6 +5278,9 @@
         "paused": "Pausiert"
       },
       "Integrations": {
+        "connected": "Konto verbunden.",
+        "connectFailed": "Die Verbindung wurde nicht abgeschlossen. Bitte erneut versuchen.",
+        "lastError": "Braucht Aufmerksamkeit: {error}",
         "title": "Verbundene Konten",
         "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
         "connect": "Verbinden",
@@ -5334,6 +5342,16 @@
         }
       },
       "Settings": {
+        "Proactive": {
+          "pauseTitle": "Alles pausieren, was er von sich aus startet",
+          "pauseDescription": "Stoppt Stand-up, Wochenrückblick, Mail-Checks und Nudges. Chat und zugewiesene Tasks laufen weiter.",
+          "limitTitle": "Tageslimit",
+          "limitDescription": "Eigenständig gestartete Turns pro Tag.",
+          "limitUsage": "{used} von {limit} eigenständigen Turns heute genutzt.",
+          "timezoneTitle": "Zeitzone",
+          "timezoneDescription": "Für Stand-up, Wochenrückblick und \"heute\" in Briefings.",
+          "error": "Einstellung konnte nicht gespeichert werden."
+        },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
         "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar etwas fragt, ihn erwähnt oder zu seiner Erinnerung passt.",

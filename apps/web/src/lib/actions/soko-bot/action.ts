@@ -295,6 +295,45 @@ interface SetVersionParams extends AuthenticatedRequest {
   versionId: unknown;
 }
 
+const proactiveSchema = z
+  .object({
+    paused: z.boolean().optional(),
+    dailyLimit: z.number().int().min(1).max(200).optional(),
+    timezone: z.string().trim().min(1).max(64).optional(),
+  })
+  .strict();
+
+export const updateSokoBotProactiveAction = withSession<
+  AuthenticatedRequest & { input: unknown },
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ input }) => {
+  const parsed = proactiveSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.updateProactive(parsed.data);
+    revalidate();
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const sendSokoBotTurnFeedbackAction = withSession<
+  AuthenticatedRequest & { turnId: unknown; useful: unknown },
+  ActionResultDto<{ useful: boolean }, ActionError>
+>(async ({ turnId, useful }) => {
+  const parsedId = z.string().uuid().safeParse(turnId);
+  const parsedUseful = z.boolean().safeParse(useful);
+  if (!parsedId.success || !parsedUseful.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    await sokoBotService.sendTurnFeedback(parsedId.data, parsedUseful.data);
+    return toActionResult(ok({ useful: parsedUseful.data }));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const setSokoBotFollowBoardAction = withSession<
   AuthenticatedRequest & { enabled: unknown },
   ActionResultDto<SokoBot, ActionError>

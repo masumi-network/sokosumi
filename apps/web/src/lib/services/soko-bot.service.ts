@@ -73,6 +73,19 @@ export const sokoBotService = {
     return response.data;
   },
 
+  async updateProactive(input: {
+    paused?: boolean;
+    dailyLimit?: number;
+    timezone?: string;
+  }): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotProactive(input);
+    return response.data;
+  },
+
+  async sendTurnFeedback(turnId: string, useful: boolean): Promise<void> {
+    await coreClient.sendMySokoBotTurnFeedback(turnId, { useful });
+  },
+
   async setFollowBoard(enabled: boolean): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotBoardFollowing({
       enabled,

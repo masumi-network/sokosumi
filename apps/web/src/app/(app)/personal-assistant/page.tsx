@@ -46,6 +46,8 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
     searchParams,
   ]);
   const focusTurnId = typeof params.turn === "string" ? params.turn : null;
+  const integrationOutcome =
+    typeof params.integration === "string" ? params.integration : null;
 
   if (load.kind === "unavailable") {
     return (
@@ -85,6 +87,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       stats={stats}
       integrations={integrations}
       catalog={catalog}
+      integrationOutcome={integrationOutcome}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}

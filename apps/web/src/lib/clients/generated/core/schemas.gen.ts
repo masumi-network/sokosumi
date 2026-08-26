@@ -929,11 +929,19 @@ export const AdminSokoBotQualitySchema = {
                 },
                 actedOn: {
                     type: 'integer'
+                },
+                thumbsUp: {
+                    type: 'integer'
+                },
+                thumbsDown: {
+                    type: 'integer'
                 }
             },
             required: [
                 'sent',
-                'actedOn'
+                'actedOn',
+                'thumbsUp',
+                'thumbsDown'
             ]
         },
         daily: {
@@ -2392,6 +2400,15 @@ export const SokoBotSchema = {
         },
         followWholeBoard: {
             type: 'boolean'
+        },
+        ingestTimezone: {
+            type: 'string'
+        },
+        proactivePaused: {
+            type: 'boolean'
+        },
+        proactiveDailyLimit: {
+            type: 'integer'
         },
         coworker: {
             type: [
@@ -14671,6 +14688,13 @@ export const SokoBotIntegrationSchema = {
                 'string',
                 'null'
             ]
+        },
+        lastErrorAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
         }
     },
     required: [
@@ -14886,6 +14910,39 @@ export const SokoBotVersionSchema = {
     ]
 } as const;
 
+export const UpdateSokoBotProactiveRequestSchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean'
+        },
+        dailyLimit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 200
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    additionalProperties: false
+} as const;
+
+export const SokoBotTurnFeedbackRequestSchema = {
+    type: 'object',
+    properties: {
+        useful: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'useful'
+    ],
+    additionalProperties: false
+} as const;
+
 export const UpdateSokoBotBoardFollowingRequestSchema = {
     type: 'object',
     properties: {
@@ -15094,6 +15151,25 @@ export const SokoBotDailyStatsSchema = {
         days: {
             type: 'integer'
         },
+        proactive: {
+            type: 'object',
+            properties: {
+                usedToday: {
+                    type: 'integer'
+                },
+                limit: {
+                    type: 'integer'
+                },
+                paused: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'usedToday',
+                'limit',
+                'paused'
+            ]
+        },
         totals: {
             type: 'object',
             properties: {
@@ -15158,6 +15234,7 @@ export const SokoBotDailyStatsSchema = {
     },
     required: [
         'days',
+        'proactive',
         'totals',
         'daily'
     ]

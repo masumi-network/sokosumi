@@ -340,12 +340,14 @@ import {
   searchAdminUsers as coreSearchAdminUsers,
   searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
   searchSokoBotSkills as coreSearchSokoBotSkills,
+  sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
   updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
+  updateMySokoBotProactive as coreUpdateMySokoBotProactive,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   NoticeKind,
@@ -3640,6 +3642,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function updateMySokoBotProactive(body: {
+    paused?: boolean;
+    dailyLimit?: number;
+    timezone?: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreUpdateMySokoBotProactive({ client, body }),
+      "Failed to update assistant settings",
+    );
+  }
+
+  async function sendMySokoBotTurnFeedback(
+    turnId: string,
+    body: { useful: boolean },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSendMySokoBotTurnFeedback({ client, path: { id: turnId }, body }),
+      "Failed to send feedback",
+    );
+  }
+
   async function updateMySokoBotBoardFollowing(body: { enabled: boolean }) {
     return executeCoreOperation(
       getClient,
@@ -4589,6 +4615,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     browseSokoBotSkills,
     updateMySokoBotVersion,
     updateMySokoBotBoardFollowing,
+    updateMySokoBotProactive,
+    sendMySokoBotTurnFeedback,
     listMySokoBotTurns,
     getMySokoBotTurn,
     startMySokoBotTurn,

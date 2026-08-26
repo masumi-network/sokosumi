@@ -1609,6 +1609,10 @@
         }
       },
       "SokoBot": {
+        "feedbackAsk": "¿Útil?",
+        "feedbackUseful": "Útil",
+        "feedbackNotUseful": "No útil",
+        "feedbackThanks": "Gracias, anotado.",
         "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
         "review": "Revisar en la página del asistente",
         "task": "Task"
@@ -3469,6 +3473,7 @@
           "description": "Puntuaciones del evaluador (1–5) de cada turno finalizado, toda la flota, últimos 30 días.",
           "overall": "{judged} de {turns} turnos evaluados",
           "proactive": "{sent} mensajes proactivos, {actedOn} atendidos en un día",
+          "thumbs": "{up} 👍 · {down} 👎",
           "version": "Versión",
           "turns": "Turnos",
           "avgScore": "Media",
@@ -5273,6 +5278,9 @@
         "paused": "En pausa"
       },
       "Integrations": {
+        "connected": "Cuenta conectada.",
+        "connectFailed": "La conexión no se completó. Inténtalo de nuevo.",
+        "lastError": "Necesita atención: {error}",
         "title": "Cuentas conectadas",
         "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
         "connect": "Conectar",
@@ -5334,6 +5342,16 @@
         }
       },
       "Settings": {
+        "Proactive": {
+          "pauseTitle": "Pausar todo lo que inicia por su cuenta",
+          "pauseDescription": "Detiene el stand-up, el resumen semanal, las revisiones de correo y los avisos. El chat y las Tareas asignadas siguen funcionando.",
+          "limitTitle": "Límite diario",
+          "limitDescription": "Turnos iniciados por su cuenta al día.",
+          "limitUsage": "{used} de {limit} turnos propios usados hoy.",
+          "timezoneTitle": "Zona horaria",
+          "timezoneDescription": "Para el stand-up, el resumen semanal y \"hoy\" en los informes.",
+          "error": "No se pudo guardar el ajuste."
+        },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
         "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario pregunta algo, lo menciona o coincide con lo que recuerda.",

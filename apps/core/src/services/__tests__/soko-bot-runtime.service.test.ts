@@ -610,7 +610,7 @@ describe("SokoBotRuntimeService authorization", () => {
         where: expect.objectContaining({
           OR: [{ eveSessionId: null }, { eveSessionId: SCOPE.sessionId }],
         }),
-        select: { eveSessionId: true, id: true },
+        select: { eveSessionId: true, id: true, source: true },
       }),
     );
     expect(transactionTurnUpdateManyMock).not.toHaveBeenCalled();

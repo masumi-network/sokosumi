@@ -1609,6 +1609,10 @@
         }
       },
       "SokoBot": {
+        "feedbackAsk": "Useful?",
+        "feedbackUseful": "Useful",
+        "feedbackNotUseful": "Not useful",
+        "feedbackThanks": "Thanks, noted.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
         "task": "Task"
@@ -3500,6 +3504,7 @@
           "description": "Judge scores (1–5) for every settled turn, fleet-wide, last 30 days.",
           "overall": "{judged} of {turns} turns judged",
           "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
+          "thumbs": "{up} 👍 · {down} 👎",
           "version": "Version",
           "turns": "Turns",
           "avgScore": "Avg score",
@@ -5273,6 +5278,9 @@
         "paused": "Paused"
       },
       "Integrations": {
+        "connected": "Account connected.",
+        "connectFailed": "The connection did not complete. Try again.",
+        "lastError": "Needs attention: {error}",
         "title": "Connected accounts",
         "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
         "connect": "Connect",
@@ -5334,6 +5342,16 @@
         }
       },
       "Settings": {
+        "Proactive": {
+          "pauseTitle": "Pause everything it starts on its own",
+          "pauseDescription": "Stops the stand-up, weekly wrap, mail checks and nudges. Chat and assigned Tasks keep working.",
+          "limitTitle": "Daily limit",
+          "limitDescription": "Self-started turns per day.",
+          "limitUsage": "{used} of {limit} self-started turns used today.",
+          "timezoneTitle": "Timezone",
+          "timezoneDescription": "For the morning stand-up, the weekly wrap and \"today\" in briefings.",
+          "error": "Could not save the setting."
+        },
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
         "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment asks something, mentions it, or matches what it remembers.",

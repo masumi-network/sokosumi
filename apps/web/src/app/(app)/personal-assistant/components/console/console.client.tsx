@@ -4,7 +4,13 @@ import { MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import Markdown from "@/components/markdown";
@@ -20,6 +26,7 @@ import type {
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { describeCron } from "@/lib/soko-bot/describe-cron";
 import { cn } from "@/lib/utils";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
@@ -34,6 +41,7 @@ import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { IntegrationsSection } from "../integrations-section.client";
+import { ProactiveSettings } from "../proactive-settings.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
@@ -84,6 +92,8 @@ export interface SokoBotConsoleProps {
   integrations: SokoBotIntegrations | null;
   adminHref: string | null;
   catalog: SokoBotIntegrationCatalogEntry[];
+  /** Outcome of an OAuth round-trip we just returned from, if any. */
+  integrationOutcome: string | null;
 }
 
 /**
@@ -102,11 +112,19 @@ export function SokoBotConsole({
   integrations,
   adminHref,
   catalog,
+  integrationOutcome,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
   const router = useRouter();
   const { state, refresh } = useSokoBotState(initialState);
+  useEffect(() => {
+    if (!integrationOutcome) return;
+    if (integrationOutcome === "active")
+      toast.success(t("Integrations.connected"));
+    else toast.error(t("Integrations.connectFailed"));
+    router.replace(SOKO_BOT_ROUTE);
+  }, [integrationOutcome, router, t]);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
   // Same seed Core hands chat participants, so console and room match.
@@ -402,6 +420,14 @@ export function SokoBotConsole({
                 description={t("Chat.chips.settingsDescription")}
               >
                 <div className="space-y-5">
+                  <ProactiveSettings
+                    initial={{
+                      paused: bot.proactivePaused,
+                      dailyLimit: bot.proactiveDailyLimit,
+                      timezone: bot.ingestTimezone,
+                    }}
+                    usedToday={stats?.proactive.usedToday ?? null}
+                  />
                   <FollowBoardToggle initial={bot.followWholeBoard ?? false} />
                   <div className="space-y-2">
                     <p className="text-sm font-medium">

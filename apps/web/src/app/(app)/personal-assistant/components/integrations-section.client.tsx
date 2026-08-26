@@ -122,16 +122,19 @@ export function IntegrationsSection({
               logoUrl={integration.logoUrl}
               caption={describe(integration, t, format)}
               status={integration.status}
+              hasError={Boolean(integration.lastErrorAt)}
               busy={busy === integration.provider}
               actionLabel={
-                integration.status === "ACTIVE"
-                  ? t("disconnect")
-                  : integration.status === "DISCONNECTED"
-                    ? t("connect")
-                    : t("reconnect")
+                integration.lastErrorAt
+                  ? t("reconnect")
+                  : integration.status === "ACTIVE"
+                    ? t("disconnect")
+                    : integration.status === "DISCONNECTED"
+                      ? t("connect")
+                      : t("reconnect")
               }
               onAction={() =>
-                integration.status === "ACTIVE"
+                integration.status === "ACTIVE" && !integration.lastErrorAt
                   ? disconnect(integration.provider)
                   : connect(integration.provider)
               }
@@ -201,6 +204,7 @@ function Tile({
   logoUrl,
   caption,
   status,
+  hasError = false,
   busy,
   actionLabel,
   onAction,
@@ -209,11 +213,13 @@ function Tile({
   logoUrl: string | null;
   caption: string | null;
   status: Integration["status"];
+  hasError?: boolean;
   busy: boolean;
   actionLabel: string;
   onAction: () => void;
 }) {
   const active = status === "ACTIVE";
+  const broken = status === "FAILED" || status === "REVOKED" || hasError;
   return (
     <button
       type="button"
@@ -222,12 +228,17 @@ function Tile({
       title={caption ?? name}
       className={cn(
         "group focus-visible:ring-ring relative flex h-full w-full flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
-        active
-          ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
-          : "hover:border-primary/40 hover:bg-primary/5",
+        broken
+          ? "border-semantic-destructive/40 bg-semantic-destructive/5 hover:bg-semantic-destructive/10"
+          : active
+            ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
+            : "hover:border-primary/40 hover:bg-primary/5",
       )}
     >
-      <StatusDot status={status} className="absolute top-2 right-2" />
+      <StatusDot
+        status={broken ? "FAILED" : status}
+        className="absolute top-2 right-2"
+      />
       {logoUrl ? (
         <img src={logoUrl} alt="" className="size-8 rounded object-contain" />
       ) : (
@@ -253,6 +264,9 @@ function describe(
 ): string {
   switch (integration.status) {
     case "ACTIVE":
+      if (integration.lastErrorAt && integration.lastError) {
+        return t("lastError", { error: integration.lastError.slice(0, 80) });
+      }
       return integration.lastIngestAt
         ? t("lastChecked", {
             when: format.relativeTime(new Date(integration.lastIngestAt)),

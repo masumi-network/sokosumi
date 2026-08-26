@@ -117,6 +117,11 @@ export async function QualityOverview({
               sent: quality.proactive.sent,
               actedOn: quality.proactive.actedOn,
             })}
+            {" · "}
+            {t("thumbs", {
+              up: quality.proactive.thumbsUp,
+              down: quality.proactive.thumbsDown,
+            })}
           </span>
         </p>
       </header>

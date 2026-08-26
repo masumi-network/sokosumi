@@ -160,6 +160,9 @@ export interface ChatBot {
   avatarImageUrl: string | null;
   versionId: string | null;
   followWholeBoard: boolean;
+  ingestTimezone: string;
+  proactivePaused: boolean;
+  proactiveDailyLimit: number;
   /** Chat coworker row id; open a direct with it to talk to the bot. */
   coworkerId: string | null;
   status: SokoBotStatus;
@@ -321,6 +324,9 @@ export function toChatBot(bot: SokoBot): ChatBot {
     avatarImageUrl: bot.avatarImageUrl ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
+    ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
+    proactivePaused: bot.proactivePaused ?? false,
+    proactiveDailyLimit: bot.proactiveDailyLimit ?? 20,
     coworkerId: bot.coworker?.id ?? null,
     status: bot.status,
     memoryVersion: bot.memoryVersion,
