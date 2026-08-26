@@ -19,6 +19,7 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -69,6 +70,7 @@ import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
+  composerMentionDisplayNames,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -124,8 +126,28 @@ function RoomMentionSuggestion({
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 
+function mergeLookupMap<T>(
+  base: Map<string, T>,
+  extra?: Map<string, T>,
+): Map<string, T> {
+  if (!extra || extra.size === 0) {
+    return base;
+  }
+  const merged = new Map(base);
+  for (const [key, value] of extra) {
+    merged.set(key, value);
+  }
+  return merged;
+}
+
 function mentionLookupMapsFromCatalog(
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>,
+  roster?: {
+    coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+    coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+    usersById?: Map<string, UserMentionLookup>;
+    usersBySlug?: Map<string, UserMentionLookup>;
+  },
 ): {
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -162,13 +184,22 @@ function mentionLookupMapsFromCatalog(
     }
   }
 
-  return { coworkersById, coworkersBySlug, usersById, usersBySlug };
+  return {
+    coworkersById: mergeLookupMap(coworkersById, roster?.coworkersById),
+    coworkersBySlug: mergeLookupMap(coworkersBySlug, roster?.coworkersBySlug),
+    usersById: mergeLookupMap(usersById, roster?.usersById),
+    usersBySlug: mergeLookupMap(usersBySlug, roster?.usersBySlug),
+  };
 }
 
 function PendingQuotePreview({
   quote,
   onDismiss,
   mentions,
+  usersById: rosterUsersById,
+  usersBySlug: rosterUsersBySlug,
+  coworkersById: rosterCoworkersById,
+  coworkersBySlug: rosterCoworkersBySlug,
   channelLinks,
   currentUserId,
   canOpenHumanDirect,
@@ -178,6 +209,10 @@ function PendingQuotePreview({
   quote: PendingRoomQuote;
   onDismiss: () => void;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
   channelLinks: readonly ChannelLinkTarget[];
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
@@ -186,7 +221,12 @@ function PendingQuotePreview({
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
-    mentionLookupMapsFromCatalog(mentions);
+    mentionLookupMapsFromCatalog(mentions, {
+      usersById: rosterUsersById,
+      usersBySlug: rosterUsersBySlug,
+      coworkersById: rosterCoworkersById,
+      coworkersBySlug: rosterCoworkersBySlug,
+    });
 
   const attachment = quote.attachment;
 
@@ -249,6 +289,10 @@ export function RoomComposer({
   value,
   onValueChange,
   mentions,
+  usersById,
+  usersBySlug,
+  coworkersById,
+  coworkersBySlug,
   channels = [],
   channelLinks = [],
   onSelectedKeysChange,
@@ -275,6 +319,11 @@ export function RoomComposer({
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  /** Room roster lookups for quote preview / hydrate chips (includes you). */
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   onSelectedKeysChange: (selectedKeys: string[]) => void;
@@ -328,6 +377,17 @@ export function RoomComposer({
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
     : undefined;
+  const mentionDisplay = useMemo(
+    () =>
+      composerMentionDisplayNames({
+        usersById,
+        usersBySlug,
+        coworkersById,
+        coworkersBySlug,
+        mentionCatalog: mentions,
+      }),
+    [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
+  );
 
   // Stored pref wins; else desktop open / mobile closed (SOK-681).
   // useLayoutEffect: apply before paint so Instant → real composer does not
@@ -533,6 +593,10 @@ export function RoomComposer({
                 quote={pendingQuote}
                 onDismiss={onClearPendingQuote}
                 mentions={mentions}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
@@ -643,6 +707,8 @@ export function RoomComposer({
           onChange={onValueChange}
           onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
+          mentionDisplayByKey={mentionDisplay.byKey}
+          mentionDisplayBySlug={mentionDisplay.bySlug}
           channels={channels}
           placeholder={placeholder}
           onSubmitShortcut={() => formRef.current?.requestSubmit()}

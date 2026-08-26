@@ -1264,4 +1264,53 @@ describe("ComposerWysiwygEditor", () => {
     expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
     expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
   });
+
+  it("hydrates a roster User mention that is not in the picker catalog", () => {
+    render(
+      <ComposerWysiwygEditor
+        value="@b0user:andreas-osberghaus hello"
+        onChange={() => undefined}
+        mentions={{}}
+        mentionDisplayByKey={new Map([["b0user", "Andreas Osberghaus"]])}
+        mentionDisplayBySlug={
+          new Map([["andreas-osberghaus", "Andreas Osberghaus"]])
+        }
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-mention-key='b0user']");
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+    expect(editor.textContent).not.toContain("b0user");
+  });
+
+  it("does not list roster-only names in the mention picker", () => {
+    render(
+      <ComposerWysiwygEditor
+        value=""
+        onChange={() => undefined}
+        mentions={{
+          alice: { value: "Alice", slug: "alice" },
+        }}
+        mentionDisplayByKey={new Map([["b0user", "Andreas Osberghaus"]])}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "@";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(screen.getByRole("option", { name: /Alice/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Andreas Osberghaus/i }),
+    ).not.toBeInTheDocument();
+  });
 });

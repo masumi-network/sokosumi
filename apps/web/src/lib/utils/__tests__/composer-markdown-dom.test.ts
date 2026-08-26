@@ -36,6 +36,31 @@ describe("markdownToHtml", () => {
     expect(html).toContain("#general");
     expect(html).not.toContain("[#general]");
   });
+
+  it("leaves unknown mention persist tokens as raw text", () => {
+    const html = markdownToHtml("ping @missing:ghost hey");
+    expect(html).toContain("ping @missing:ghost hey");
+    expect(html).not.toContain("data-mention-key");
+  });
+
+  it("wraps persisted internal mention placeholders as chips", () => {
+    const html = markdownToHtml("@@MENTION1@@");
+    expect(html).toContain("data-mention-key");
+    expect(html).not.toContain("@@MENTION1@@");
+  });
+
+  it("wraps known mention persist tokens as display-name chips", () => {
+    const html = markdownToHtml(
+      "ping @user_1:alice-smith hey",
+      (mentionKey, mentionSlug) =>
+        mentionKey === "user_1"
+          ? { displayName: "Alice Smith", isKnown: true }
+          : { displayName: mentionSlug, isKnown: false },
+    );
+    expect(html).toContain("@Alice Smith");
+    expect(html).toContain('data-mention-key="user_1"');
+    expect(html).not.toContain("@user_1:alice-smith");
+  });
 });
 
 describe("htmlToMarkdown", () => {

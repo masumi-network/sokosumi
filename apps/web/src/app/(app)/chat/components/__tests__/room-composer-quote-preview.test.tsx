@@ -100,4 +100,38 @@ describe("RoomComposer quote preview mentions", () => {
     expect(chip).not.toBeNull();
     expect(chip).toHaveTextContent("@Elena");
   });
+
+  it("chips a roster User mention omitted from the picker catalog", () => {
+    const { container } = render(
+      <RoomComposer
+        value=""
+        onValueChange={() => undefined}
+        mentions={{}}
+        usersById={
+          new Map([["b0user", { id: "b0user", name: "Andreas Osberghaus" }]])
+        }
+        onSelectedKeysChange={() => undefined}
+        placeholder="Message"
+        attachments={[]}
+        onAttachmentsChange={() => undefined}
+        onSubmit={(event) => event.preventDefault()}
+        isSending={false}
+        sendDisabled={false}
+        pendingQuote={{
+          messageId: "msg-1",
+          authorName: "Yves Bollinger",
+          snippet: "@b0user:andreas-osberghaus please look",
+          attachment: null,
+        }}
+        onClearPendingQuote={() => undefined}
+      />,
+    );
+
+    const chip = container.querySelector(
+      '[data-direct-kind="human"][data-direct-id="b0user"]',
+    );
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+    expect(container.textContent).not.toContain("@b0user:andreas-osberghaus");
+  });
 });

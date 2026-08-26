@@ -25,7 +25,6 @@ import {
 import {
   createChannelLinkSpan,
   createMentionSpan,
-  deslugifyMentionSlug,
   filterNormalizedMentions,
   findPositionForOffset,
   getActiveChannelTrigger,
@@ -89,11 +88,13 @@ type SuggestionUiState =
 
 export interface ComposerWysiwygEditorHandle {
   focus: () => void;
+  focusAtEnd: () => void;
   insertText: (text: string) => void;
   openMentions: () => void;
   applyFormat: (command: ComposerFormatCommand) => void;
   insertLink: (text: string, url: string) => void;
   getSelectedPlainText: () => string;
+  getMarkdown: () => string;
   /** Flush bare trailing emoticons before submit when Send skips blur. */
   flushTrailingEmoticon: () => void;
 }
@@ -104,11 +105,25 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   value: string;
   onChange: (value: string) => void;
   mentions?: Record<string, MentionRecordEntry<TData>>;
+  /**
+   * Extra id/slug → display name for hydrating persist tokens (includes you).
+   * Does not appear in the `@` picker.
+   */
+  mentionDisplayByKey?: ReadonlyMap<string, string>;
+  mentionDisplayBySlug?: ReadonlyMap<string, string>;
   /** Membership-visible Channels for the `#` picker. */
   channels?: readonly ComposerChannelOption[];
   placeholder?: string;
   className?: string;
   onSubmitShortcut?: () => void;
+  /** Called when Escape is pressed and the suggestion popup is closed. */
+  onEscape?: () => void;
+  /** Called after blur, once suggestion clicks have been ruled out. */
+  onBlur?: () => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+  /** When true, Ctrl/Cmd+Enter submits instead of inserting a newline. */
+  modifierEnterSubmits?: boolean;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
   onSelectedKeysChange?: (selectedKeys: string[]) => void;
@@ -196,10 +211,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
   value,
   onChange,
   mentions = {},
+  mentionDisplayByKey,
+  mentionDisplayBySlug,
   channels = EMPTY_COMPOSER_CHANNELS,
   placeholder = "",
   className,
   onSubmitShortcut,
+  onEscape,
+  onBlur,
+  disabled = false,
+  ariaLabel,
+  modifierEnterSubmits = false,
   onLinkShortcut,
   onActiveFormatsChange,
   onSelectedKeysChange,
@@ -266,17 +288,21 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const resolveMentionDisplay = useCallback(
     (mentionKey: string, mentionSlug: string) => {
-      const isKnown =
-        keyToValue.has(mentionKey) || slugToValue.has(mentionSlug);
       const displayName =
         keyToValue.get(mentionKey) ??
+        mentionDisplayByKey?.get(mentionKey) ??
         slugToValue.get(mentionSlug) ??
+        mentionDisplayBySlug?.get(mentionSlug) ??
         slugToValue.get(slugifyMentionValue(mentionKey)) ??
-        deslugifyMentionSlug(mentionSlug);
+        mentionDisplayBySlug?.get(slugifyMentionValue(mentionKey));
 
-      return { displayName, isKnown };
+      if (displayName) {
+        return { displayName, isKnown: true };
+      }
+
+      return { displayName: mentionSlug, isKnown: false };
     },
-    [keyToValue, slugToValue],
+    [keyToValue, mentionDisplayByKey, mentionDisplayBySlug, slugToValue],
   );
 
   const mentionQuery =
@@ -1081,6 +1107,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+
       const key = event.key.toLowerCase();
       const hasModifier = event.metaKey || event.ctrlKey || event.altKey;
       const isDropdownVisible = isOpen && visibleSuggestionCount > 0;
@@ -1090,6 +1118,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (isOpen && !hasModifier && key === "escape") {
         event.preventDefault();
         closeSuggestions();
+        return;
+      }
+
+      if (!hasModifier && key === "escape") {
+        event.preventDefault();
+        onEscape?.();
         return;
       }
 
@@ -1157,8 +1191,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (key === "enter" && !event.nativeEvent.isComposing) {
         const action = resolveComposerEnterAction({
           shiftKey: event.shiftKey,
-          metaKey: event.metaKey,
-          ctrlKey: event.ctrlKey,
+          metaKey: modifierEnterSubmits ? false : event.metaKey,
+          ctrlKey: modifierEnterSubmits ? false : event.ctrlKey,
           isSuggestionKeyboardActive: isDropdownVisible,
         });
 
@@ -1183,6 +1217,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       activeIndex,
       applyFormat,
       closeSuggestions,
+      disabled,
       emojiMatches,
       handleInput,
       channelMatches,
@@ -1190,6 +1225,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertEmojiShortcode,
       insertMention,
       isOpen,
+      modifierEnterSubmits,
+      onEscape,
       onLinkShortcut,
       onSubmitShortcut,
       selectableMentions,
@@ -1207,11 +1244,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
     blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
         closeSuggestions();
+        onBlur?.();
       }
       isSelectingRef.current = false;
       publishActiveFormats();
     }, 150);
-  }, [closeSuggestions, publishActiveFormats, tryFlushTrailingEmoticon]);
+  }, [
+    closeSuggestions,
+    onBlur,
+    publishActiveFormats,
+    tryFlushTrailingEmoticon,
+  ]);
 
   useEffect(() => {
     const onSelectionChange = () => {
@@ -1291,11 +1334,25 @@ export function ComposerWysiwygEditor<TData = unknown>({
       focus: () => {
         editorRef.current?.focus();
       },
+      focusAtEnd: () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.focus();
+        const selection = window.getSelection();
+        if (!selection) return;
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      },
       insertText,
       openMentions,
       applyFormat,
       insertLink,
       getSelectedPlainText: () => window.getSelection()?.toString() ?? "",
+      getMarkdown: () =>
+        editorRef.current ? htmlToMarkdown(editorRef.current) : "",
       flushTrailingEmoticon: tryFlushTrailingEmoticon,
     }),
     [
@@ -1312,9 +1369,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
       <div
         ref={editorRef}
         id={id}
-        contentEditable
+        contentEditable={!disabled}
         suppressContentEditableWarning
         enterKeyHint="send"
+        aria-label={ariaLabel}
+        aria-disabled={disabled || undefined}
         onInput={handleInput}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}

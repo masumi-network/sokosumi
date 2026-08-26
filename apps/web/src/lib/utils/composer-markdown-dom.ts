@@ -148,11 +148,18 @@ export function markdownToHtml(
         continue;
       }
 
-      const token = `@@MENTIONTOKEN${mentionTokens.length}@@`;
       const { displayName, isKnown } = resolveMentionDisplay(
         mention.id,
         mention.slug,
       );
+      const isInternalPlaceholder = /^unknown-mention-\d+$/.test(mention.id);
+      if (!isKnown && !isInternalPlaceholder) {
+        rebuilt += rawMentionToken;
+        lastIndex = mention.end;
+        continue;
+      }
+
+      const token = `@@MENTIONTOKEN${mentionTokens.length}@@`;
       const mentionSpan = createMentionSpan(
         mention.id,
         mention.slug,
