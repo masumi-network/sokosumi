@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChannelLinkTarget } from "@sokosumi/utils";
-import { Pin, X } from "lucide-react";
+import { Pin, PinOff, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
@@ -161,15 +161,38 @@ export function PinnedMessagesPanel({
         ) : null}
         {items.map((item) => {
           const message = item.message;
+          const unpinControl = (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground size-8 shrink-0"
+              aria-label={labels.unpin}
+              onClick={() => {
+                void (async () => {
+                  const removed = await onUnpin(item.messageId);
+                  if (!removed) {
+                    return;
+                  }
+                  setItems((current) =>
+                    current.filter((pin) => pin.messageId !== item.messageId),
+                  );
+                })();
+              }}
+            >
+              <PinOff className="size-4" />
+            </Button>
+          );
           if (!message) {
             return (
               <div
                 key={item.messageId}
-                className="border-border mb-3 rounded-lg border p-3"
+                className="border-border mb-3 flex items-start gap-1 rounded-lg border p-3"
               >
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground min-w-0 flex-1 text-sm">
                   {labels.couldNotLoad}
                 </p>
+                {unpinControl}
               </div>
             );
           }
@@ -178,17 +201,17 @@ export function PinnedMessagesPanel({
             <div
               key={item.messageId}
               className={cn(
-                "border-border hover:bg-accent/40 mb-3 w-full rounded-lg border p-3 text-left",
+                "border-border hover:bg-accent/40 mb-3 flex w-full items-start gap-1 rounded-lg border p-3 text-left",
               )}
             >
               <button
                 type="button"
-                className="w-full text-left"
+                className="min-w-0 flex-1 text-left"
                 onClick={() => {
                   onJump(item.messageId);
                 }}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-baseline gap-2">
                   <span className="truncate text-sm font-medium">
                     {sender.name}
                   </span>
@@ -211,25 +234,7 @@ export function PinnedMessagesPanel({
                   />
                 </div>
               </button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  void (async () => {
-                    const removed = await onUnpin(item.messageId);
-                    if (!removed) {
-                      return;
-                    }
-                    setItems((current) =>
-                      current.filter((pin) => pin.messageId !== item.messageId),
-                    );
-                  })();
-                }}
-              >
-                {labels.unpin}
-              </Button>
+              {unpinControl}
             </div>
           );
         })}
