@@ -20,8 +20,12 @@ const OrgPresenceMapContext = createContext<Map<
   ChatPresenceState
 > | null>(null);
 
-function OrgPresencePublisherBridge() {
-  useOrgPresencePublisher();
+function OrgPresencePublisherBridge({
+  organizationId,
+}: {
+  organizationId: string | null;
+}) {
+  useOrgPresencePublisher(organizationId);
   return null;
 }
 
@@ -92,7 +96,7 @@ export function OrgPresenceProvider({
     <OrgPresenceMapContext value={presenceByUserId}>
       {children}
       <LazyAblyProvider>
-        <OrgPresencePublisherBridge />
+        <OrgPresencePublisherBridge organizationId={organizationId} />
         <OrgPresenceMapSync
           organizationId={organizationId}
           onMapChange={handleMapChange}
