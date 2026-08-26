@@ -92,6 +92,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -1334,9 +1335,9 @@ function MessageEditComposer({
     [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
   );
 
-  useEffect(() => {
+  useMountEffect(() => {
     editorRef.current?.focusAtEnd();
-  }, []);
+  });
 
   function liveMarkdown(): string {
     return editorRef.current?.getMarkdown() ?? liveRef.current;
