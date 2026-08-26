@@ -1,4 +1,6 @@
 import {
+  filterNormalizedMentions,
+  getActiveChannelTrigger,
   getActiveEmojiTrigger,
   getActiveTrigger,
 } from "@/components/ui/mention-textarea-utils";
@@ -8,11 +10,24 @@ import {
   filterEmojiShortcodes,
 } from "@/lib/utils/emoji-shortcodes";
 
+export interface ComposerChannelOption {
+  id: string;
+  name: string;
+  slug: string;
+  organizationName: string | null;
+}
+
 export type ComposerSuggestion =
   | {
       kind: "mention";
       query: string;
       triggerStart: number;
+    }
+  | {
+      kind: "channel";
+      query: string;
+      triggerStart: number;
+      matches: ComposerChannelOption[];
     }
   | {
       kind: "emoji";
@@ -24,11 +39,13 @@ export type ComposerSuggestion =
 export interface ComposerSuggestionContext {
   /** When false, skip mention branch (no mention catalog). */
   mentionsAvailable: boolean;
+  /** Membership-visible Channels for the `#` picker. */
+  channels?: readonly ComposerChannelOption[];
 }
 
 /**
  * Which autocomplete (if any) is active at caret.
- * Mutual exclusion: mention first when catalog exists, else emoji.
+ * Mutual exclusion: mention first, then channel, else emoji.
  */
 export function resolveComposerSuggestion(
   text: string,
@@ -43,6 +60,30 @@ export function resolveComposerSuggestion(
         query: mention.query,
         triggerStart: mention.triggerStart,
       };
+    }
+  }
+
+  const channels = context.channels;
+  if (channels && channels.length > 0) {
+    const channelTrigger = getActiveChannelTrigger(text, caret);
+    if (channelTrigger) {
+      const matches = filterNormalizedMentions(
+        channels.map((channel) => ({
+          key: channel.id,
+          value: channel.name,
+          slug: channel.slug,
+          data: channel,
+        })),
+        channelTrigger.query,
+      ).flatMap((item) => (item.data ? [item.data] : []));
+      if (matches.length > 0) {
+        return {
+          kind: "channel",
+          query: channelTrigger.query,
+          triggerStart: channelTrigger.triggerStart,
+          matches,
+        };
+      }
     }
   }
 

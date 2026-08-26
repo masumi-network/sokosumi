@@ -2,7 +2,7 @@
 /**
  * Create Vercel git deployments from GitHub Actions.
  *
- *   node scripts/ci/vercel-deploy.mjs preview     # `/deploy` PR comment
+ *   node scripts/ci/vercel-deploy.mjs preview     # PR opened (human, same-repo) or `/deploy` comment
  *   node scripts/ci/vercel-deploy.mjs production  # push to main
  */
 
@@ -249,23 +249,70 @@ async function githubJson(fetchImpl, token, url, init = {}) {
   return payload;
 }
 
-function formatDeployComment(networks, sha, targets, deployments) {
-  const shortSha = sha.slice(0, 7);
-  const lines = [
-    `Preview deploy for **${networks.join(" + ")}** at \`${shortSha}\`:`,
-    "",
-  ];
-  for (let index = 0; index < targets.length; index += 1) {
-    const target = targets[index];
-    const deployment = deployments[index];
-    const state = deployment.readyState ?? "UNKNOWN";
-    const url =
-      state === "READY"
-        ? pickPreviewUrl(deployment)
-        : (deployment.inspectorUrl ?? pickPreviewUrl(deployment));
-    lines.push(`- ${target.name} (${state}): ${url ?? "no URL yet"}`);
+function failedDeploymentNames(targets, deployments) {
+  return targets.flatMap((target, index) => {
+    const state = deployments[index]?.readyState;
+    if (state === "READY") {
+      return [];
+    }
+    return [`${target.name} (${state ?? "UNKNOWN"})`];
+  });
+}
+
+function previewGitSource(pullRequest, repoId) {
+  return {
+    repoId: repoId ?? pullRequest.base.repo.id,
+    ref: pullRequest.head.ref,
+    sha: pullRequest.head.sha,
+  };
+}
+
+function isSameRepoPullRequest(pullRequest) {
+  return pullRequest.head.repo?.id === pullRequest.base.repo.id;
+}
+
+async function settlePreviewDeployments(options) {
+  const {
+    networks,
+    git,
+    vercelToken,
+    teamId,
+    fetchImpl = globalThis.fetch,
+    createDeployment,
+    pollDeployment,
+  } = options;
+
+  const create =
+    createDeployment ??
+    ((input) =>
+      createGitDeployment({
+        token: vercelToken,
+        teamId,
+        fetchImpl,
+        ...input,
+      }));
+  const poll =
+    pollDeployment ??
+    ((deployment) =>
+      pollDeploymentUntilSettled({
+        deployment,
+        token: vercelToken,
+        teamId,
+        fetchImpl,
+      }));
+
+  const targets = deployTargets(networks);
+  const created = await Promise.all(
+    targets.map((target) => create({ target, ...git })),
+  );
+  const settled = await Promise.all(
+    created.map((deployment) => poll(deployment)),
+  );
+  const failed = failedDeploymentNames(targets, settled);
+  if (failed.length > 0) {
+    throw new Error(failed.join(", "));
   }
-  return lines.join("\n");
+  return { kind: "deploy", deployments: settled };
 }
 
 export async function runPreviewDeployComment(options) {
@@ -273,6 +320,7 @@ export async function runPreviewDeployComment(options) {
     commentBody,
     isPullRequest,
     commentAuthor,
+    commentId,
     repoOwner,
     repoName,
     repoId,
@@ -286,6 +334,7 @@ export async function runPreviewDeployComment(options) {
     createDeployment,
     pollDeployment,
     postComment,
+    addReaction,
   } = options;
 
   if (!isPullRequest) {
@@ -308,6 +357,21 @@ export async function runPreviewDeployComment(options) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body }),
+        },
+      );
+    });
+
+  const react =
+    addReaction ??
+    (async (content) => {
+      await githubJson(
+        fetchImpl,
+        githubToken,
+        `https://api.github.com/repos/${repoOwner}/${repoName}/issues/comments/${commentId}/reactions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
         },
       );
     });
@@ -344,54 +408,85 @@ export async function runPreviewDeployComment(options) {
     throw new Error(`Pull request ${issueNumber} was not found`);
   }
 
-  if (pullRequest.head.repo?.id !== pullRequest.base.repo.id) {
+  if (!isSameRepoPullRequest(pullRequest)) {
     await comment(
       "Preview deploy is only available for branches in this repository, not forks.",
     );
     return { kind: "fork" };
   }
 
-  const create =
-    createDeployment ??
-    ((input) =>
-      createGitDeployment({
-        token: vercelToken,
-        teamId,
-        fetchImpl,
-        ...input,
-      }));
-  const poll =
-    pollDeployment ??
-    ((deployment) =>
-      pollDeploymentUntilSettled({
-        deployment,
-        token: vercelToken,
-        teamId,
-        fetchImpl,
-      }));
-
-  const targets = deployTargets(parsed.networks);
-  const git = {
-    repoId: repoId ?? pullRequest.base.repo.id,
-    ref: pullRequest.head.ref,
-    sha: pullRequest.head.sha,
-  };
   try {
-    const created = await Promise.all(
-      targets.map((target) => create({ target, ...git })),
-    );
-    const settled = await Promise.all(
-      created.map((deployment) => poll(deployment)),
-    );
-    await comment(
-      formatDeployComment(parsed.networks, git.sha, targets, settled),
-    );
-    return { kind: "deploy", deployments: settled };
+    await react("eyes");
+    const result = await settlePreviewDeployments({
+      networks: parsed.networks,
+      git: previewGitSource(pullRequest, repoId),
+      vercelToken,
+      teamId,
+      fetchImpl,
+      createDeployment,
+      pollDeployment,
+    });
+    await react("rocket");
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await comment(`Preview deploy failed: ${message}`);
     throw error;
   }
+}
+
+export async function runPreviewDeployOpened(options) {
+  const {
+    pullRequest,
+    repoId,
+    vercelToken,
+    teamId = VERCEL_TEAM_ID,
+    fetchImpl = globalThis.fetch,
+    createDeployment,
+    pollDeployment,
+  } = options;
+
+  if (pullRequest.user?.type === "Bot") {
+    return { kind: "ignore" };
+  }
+
+  if (!isSameRepoPullRequest(pullRequest)) {
+    return { kind: "fork" };
+  }
+
+  return settlePreviewDeployments({
+    networks: [...NETWORKS],
+    git: previewGitSource(pullRequest, repoId),
+    vercelToken,
+    teamId,
+    fetchImpl,
+    createDeployment,
+    pollDeployment,
+  });
+}
+
+export async function runPreviewFromGithubEvent(options) {
+  const { eventName, event, ...rest } = options;
+  if (eventName === "pull_request") {
+    if (event.action !== "opened") {
+      return { kind: "ignore" };
+    }
+    return runPreviewDeployOpened({
+      ...rest,
+      pullRequest: event.pull_request,
+      repoId: rest.repoId ?? event.repository?.id,
+    });
+  }
+
+  return runPreviewDeployComment({
+    ...rest,
+    commentBody: rest.commentBody ?? event.comment.body,
+    commentAuthor: rest.commentAuthor ?? event.comment.user.login,
+    commentId: rest.commentId ?? event.comment.id,
+    isPullRequest: rest.isPullRequest ?? Boolean(event.issue?.pull_request),
+    issueNumber: rest.issueNumber ?? event.issue.number,
+    repoId: rest.repoId ?? event.repository?.id,
+  });
 }
 
 export async function runProductionDeploy(options) {
@@ -440,17 +535,25 @@ export async function runProductionDeploy(options) {
   const settled = await Promise.all(
     created.map((deployment) => poll(deployment)),
   );
-  const failed = targets.flatMap((target, index) => {
-    const state = settled[index]?.readyState;
-    if (state === "READY") {
-      return [];
-    }
-    return [`${target.name} (${state ?? "UNKNOWN"})`];
-  });
+  const failed = failedDeploymentNames(targets, settled);
   if (failed.length > 0) {
     throw new Error(`Production deploy failed: ${failed.join(", ")}`);
   }
   return { kind: "production", deployments: settled };
+}
+
+export function summarizeCliDeployResult(result) {
+  if (!Array.isArray(result?.deployments)) {
+    return result;
+  }
+  return {
+    kind: result.kind,
+    deployments: result.deployments.map((deployment) => ({
+      id: deployment.id,
+      name: deployment.name,
+      readyState: deployment.readyState,
+    })),
+  };
 }
 
 function requireVercelToken(env) {
@@ -475,11 +578,9 @@ async function cliPreview(env = process.env) {
   }
   const event = await readGithubEvent(env);
   const [repoOwner, repoName] = env.GITHUB_REPOSITORY.split("/");
-  const result = await runPreviewDeployComment({
-    commentBody: event.comment.body,
-    commentAuthor: event.comment.user.login,
-    isPullRequest: Boolean(event.issue.pull_request),
-    issueNumber: event.issue.number,
+  const result = await runPreviewFromGithubEvent({
+    eventName: env.GITHUB_EVENT_NAME,
+    event,
     repoOwner,
     repoName,
     repoId: event.repository.id,
@@ -487,7 +588,7 @@ async function cliPreview(env = process.env) {
     githubToken: env.GITHUB_TOKEN,
     teamId: env.VERCEL_ORG_ID ?? VERCEL_TEAM_ID,
   });
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(summarizeCliDeployResult(result)));
 }
 
 async function cliProduction(env = process.env) {
@@ -504,7 +605,7 @@ async function cliProduction(env = process.env) {
     vercelToken: env.VERCEL_TOKEN,
     teamId: env.VERCEL_ORG_ID ?? VERCEL_TEAM_ID,
   });
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(summarizeCliDeployResult(result)));
 }
 
 function isMainModule() {

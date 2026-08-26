@@ -11,7 +11,10 @@ import {
   pickPreviewUrl,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
+  runPreviewDeployOpened,
+  runPreviewFromGithubEvent,
   runProductionDeploy,
+  summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
   VERCEL_TEAM_ID,
@@ -333,6 +336,7 @@ describe("runPreviewDeployComment", () => {
 
   it("creates web and core previews for the named network", async () => {
     const posted = [];
+    const reactions = [];
     const created = [];
     const result = await runPreviewDeployComment({
       commentBody: "/deploy mainnet",
@@ -358,6 +362,9 @@ describe("runPreviewDeployComment", () => {
       postComment: async (body) => {
         posted.push(body);
       },
+      addReaction: async (content) => {
+        reactions.push(content);
+      },
     });
     assert.equal(result.kind, "deploy");
     assert.equal(created.length, 2);
@@ -368,19 +375,60 @@ describe("runPreviewDeployComment", () => {
     assert.equal(created[0].sha, "deadbeef");
     assert.equal(created[0].ref, "feat/x");
     assert.equal(created[0].repoId, 99);
-    assert.equal(
-      posted[0],
-      [
-        "Preview deploy for **mainnet** at `deadbee`:",
-        "",
-        "- sokosumi-app-mainnet (READY): https://sokosumi-app-mainnet-git-feat-x.preview.sokosumi.com",
-        "- sokosumi-core-mainnet (READY): https://sokosumi-core-mainnet-git-feat-x.preview.sokosumi.com",
-      ].join("\n"),
+    assert.deepEqual(posted, []);
+    assert.deepEqual(reactions, ["eyes", "rocket"]);
+  });
+
+  it("reacts eyes then rocket on the triggering comment via the GitHub API", async () => {
+    const calls = [];
+    const result = await runPreviewDeployComment({
+      commentBody: "/deploy mainnet",
+      isPullRequest: true,
+      commentAuthor: "alice",
+      commentId: 4242,
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      githubToken: "tok",
+      repoId: 99,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
+        base: { repo: { id: 99 } },
+      }),
+      createDeployment: async (input) => ({
+        id: `dpl_${input.target.app}`,
+        readyState: "READY",
+      }),
+      pollDeployment: async (deployment) => deployment,
+      fetchImpl: async (url, init) => {
+        calls.push({
+          url: String(url),
+          method: init?.method,
+          body: init?.body,
+        });
+        return {
+          ok: true,
+          json: async () => ({ id: 1, content: "rocket" }),
+        };
+      },
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((call) => call.method === "POST"));
+    assert.ok(
+      calls.every(
+        (call) =>
+          call.url ===
+          "https://api.github.com/repos/acme/sokosumi/issues/comments/4242/reactions",
+      ),
     );
+    assert.deepEqual(JSON.parse(calls[0].body), { content: "eyes" });
+    assert.deepEqual(JSON.parse(calls[1].body), { content: "rocket" });
   });
 
   it("comments when creating a deployment fails", async () => {
     const posted = [];
+    const reactions = [];
     await assert.rejects(
       () =>
         runPreviewDeployComment({
@@ -399,10 +447,50 @@ describe("runPreviewDeployComment", () => {
           postComment: async (body) => {
             posted.push(body);
           },
+          addReaction: async (content) => {
+            reactions.push(content);
+          },
         }),
       /nope/,
     );
     assert.match(posted[0], /Preview deploy failed: nope/);
+    assert.deepEqual(reactions, ["eyes"]);
+  });
+
+  it("comments when a preview deployment is not READY", async () => {
+    const posted = [];
+    const reactions = [];
+    await assert.rejects(
+      () =>
+        runPreviewDeployComment({
+          commentBody: "/deploy mainnet",
+          isPullRequest: true,
+          commentAuthor: "alice",
+          repoId: 99,
+          readPermission: async () => "write",
+          readPullRequest: async () => ({
+            head: { sha: "abc", ref: "feat", repo: { id: 99 } },
+            base: { repo: { id: 99 } },
+          }),
+          createDeployment: async (input) => ({
+            id: `dpl_${input.target.app}`,
+            readyState: input.target.app === "core" ? "ERROR" : "READY",
+          }),
+          pollDeployment: async (deployment) => deployment,
+          postComment: async (body) => {
+            posted.push(body);
+          },
+          addReaction: async (content) => {
+            reactions.push(content);
+          },
+        }),
+      /sokosumi-core-mainnet \(ERROR\)/,
+    );
+    assert.match(
+      posted[0],
+      /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
+    );
+    assert.deepEqual(reactions, ["eyes"]);
   });
 });
 
@@ -488,6 +576,203 @@ describe("pollDeploymentUntilSettled", () => {
   });
 });
 
+describe("runPreviewDeployOpened", () => {
+  function sameRepoPullRequest(overrides = {}) {
+    return {
+      user: { type: "User", login: "alice" },
+      head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
+      base: { repo: { id: 99 } },
+      ...overrides,
+    };
+  }
+
+  it("deploys web and core on both networks at the PR HEAD", async () => {
+    const urls = [];
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: sameRepoPullRequest(),
+      repoId: 99,
+      createDeployment: async (input) => {
+        created.push(input);
+        return {
+          id: `dpl_${input.target.name}`,
+          readyState: "READY",
+        };
+      },
+      pollDeployment: async (deployment) => deployment,
+      fetchImpl: async (url) => {
+        urls.push(String(url));
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 4);
+    assert.deepEqual(
+      created.map((item) => `${item.target.network}:${item.target.app}`),
+      ["mainnet:web", "mainnet:core", "preprod:web", "preprod:core"],
+    );
+    assert.ok(created.every((item) => item.sha === "deadbeef"));
+    assert.ok(created.every((item) => item.ref === "feat/x"));
+    assert.ok(created.every((item) => item.repoId === 99));
+    assert.ok(created.every((item) => item.deploymentTarget === undefined));
+    assert.deepEqual(urls, []);
+  });
+
+  it("deploys draft pull requests", async () => {
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: sameRepoPullRequest({ draft: true }),
+      repoId: 99,
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.name}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 4);
+  });
+
+  it("ignores pull requests opened by bots", async () => {
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: sameRepoPullRequest({
+        user: { type: "Bot", login: "cursor[bot]" },
+      }),
+      repoId: 99,
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: "dpl", readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+    });
+    assert.equal(result.kind, "ignore");
+    assert.deepEqual(created, []);
+  });
+
+  it("refuses fork pull requests without commenting", async () => {
+    const urls = [];
+    const created = [];
+    const result = await runPreviewDeployOpened({
+      pullRequest: {
+        user: { type: "User", login: "alice" },
+        head: { sha: "abc", ref: "feat", repo: { id: 2, fork: true } },
+        base: { repo: { id: 1 } },
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: "dpl", readyState: "READY" };
+      },
+      fetchImpl: async (url) => {
+        urls.push(String(url));
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    });
+    assert.equal(result.kind, "fork");
+    assert.deepEqual(created, []);
+    assert.deepEqual(urls, []);
+  });
+
+  it("throws when a preview deployment is not READY and does not comment", async () => {
+    const urls = [];
+    await assert.rejects(
+      () =>
+        runPreviewDeployOpened({
+          pullRequest: sameRepoPullRequest(),
+          repoId: 99,
+          createDeployment: async (input) => ({
+            id: `dpl_${input.target.name}`,
+            readyState: input.target.app === "core" ? "ERROR" : "READY",
+          }),
+          pollDeployment: async (deployment) => deployment,
+          fetchImpl: async (url) => {
+            urls.push(String(url));
+            throw new Error(`unexpected fetch ${url}`);
+          },
+        }),
+      /sokosumi-core-mainnet \(ERROR\)/,
+    );
+    assert.deepEqual(urls, []);
+  });
+});
+
+describe("runPreviewFromGithubEvent", () => {
+  it("routes pull_request opened events to the opened deploy", async () => {
+    const created = [];
+    const result = await runPreviewFromGithubEvent({
+      eventName: "pull_request",
+      event: {
+        action: "opened",
+        pull_request: {
+          user: { type: "User", login: "alice" },
+          head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+          base: { repo: { id: 99 } },
+        },
+        repository: { id: 99 },
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.name}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 4);
+  });
+
+  it("ignores pull_request events that are not opened", async () => {
+    const created = [];
+    for (const action of ["synchronize", "ready_for_review", "reopened"]) {
+      const result = await runPreviewFromGithubEvent({
+        eventName: "pull_request",
+        event: {
+          action,
+          pull_request: {
+            user: { type: "User", login: "alice" },
+            head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+            base: { repo: { id: 99 } },
+          },
+          repository: { id: 99 },
+        },
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: "dpl", readyState: "READY" };
+        },
+      });
+      assert.equal(result.kind, "ignore", action);
+    }
+    assert.deepEqual(created, []);
+  });
+
+  it("routes issue_comment events to the comment deploy", async () => {
+    const created = [];
+    const result = await runPreviewFromGithubEvent({
+      eventName: "issue_comment",
+      event: {
+        comment: { body: "/deploy mainnet", user: { login: "alice" }, id: 1 },
+        issue: { pull_request: {}, number: 12 },
+        repository: { id: 99 },
+      },
+      isPullRequest: true,
+      commentAuthor: "alice",
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+        base: { repo: { id: 99 } },
+      }),
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.app}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+      postComment: async () => {},
+      addReaction: async () => {},
+    });
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+  });
+});
+
 describe("runProductionDeploy", () => {
   it("deploys web and core on both networks as production", async () => {
     const created = [];
@@ -541,6 +826,41 @@ describe("runProductionDeploy", () => {
   });
 });
 
+describe("summarizeCliDeployResult", () => {
+  it("keeps only id, name, and readyState from deployment payloads", () => {
+    assert.deepEqual(
+      summarizeCliDeployResult({
+        kind: "deploy",
+        deployments: [
+          {
+            id: "dpl_1",
+            name: "sokosumi-app-mainnet",
+            readyState: "READY",
+            env: [{ key: "DATABASE_URL" }],
+            project: { settings: { crons: [] } },
+          },
+        ],
+      }),
+      {
+        kind: "deploy",
+        deployments: [
+          {
+            id: "dpl_1",
+            name: "sokosumi-app-mainnet",
+            readyState: "READY",
+          },
+        ],
+      },
+    );
+  });
+
+  it("leaves results without deployments unchanged", () => {
+    assert.deepEqual(summarizeCliDeployResult({ kind: "ignore" }), {
+      kind: "ignore",
+    });
+  });
+});
+
 describe("git preview policy", () => {
   it("disables all automatic git deployments", async () => {
     for (const app of ["web", "core"]) {
@@ -551,19 +871,47 @@ describe("git preview policy", () => {
     }
   });
 
-  it("runs comment-gated deploys from the default branch", async () => {
+  it("runs comment-gated deploys and one opened-PR deploy from Actions", async () => {
     const workflow = await readFile(
       path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
       "utf8",
     );
     assert.match(workflow, /issue_comment:/);
     assert.match(workflow, /types:\s*\[created\]/);
-    assert.doesNotMatch(workflow, /pull_request:/);
+    assert.match(workflow, /pull_request:/);
+    assert.match(workflow, /types:\s*\[opened\]/);
+    assert.doesNotMatch(workflow, /ready_for_review/);
+    assert.doesNotMatch(workflow, /synchronize/);
+    assert.match(workflow, /github\.event_name == 'issue_comment'/);
+    assert.match(workflow, /github\.event_name == 'pull_request'/);
+    assert.match(
+      workflow,
+      /github\.event\.pull_request\.user\.type\s*!=\s*'Bot'/,
+    );
+    assert.match(
+      workflow,
+      /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+    );
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
     assert.match(workflow, /persist-credentials:\s*false/);
+    assert.match(
+      workflow,
+      /ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/,
+    );
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
+    assert.match(workflow, /issues:\s*write/);
+    assert.match(workflow, /pull-requests:\s*write/);
+    const openedJob = workflow.split(/opened:\s*\n/)[1];
+    assert.ok(openedJob);
+    assert.doesNotMatch(openedJob, /GITHUB_TOKEN/);
+    assert.doesNotMatch(openedJob, /issues:\s*write/);
+    assert.doesNotMatch(openedJob, /pull-requests:\s*write/);
+    assert.doesNotMatch(
+      openedJob,
+      /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha/,
+    );
     assert.match(
       workflow,
       /contains\(github\.event\.comment\.body, '\/deploy'\)/,

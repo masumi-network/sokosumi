@@ -14,46 +14,25 @@
 
 ## Project Layout
 
+The live trees are the directories below. Package **exports** (not a cached file list) are the entry points — see each `package.json`. Scoped contracts: [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
+
 ```
 sokosumi/
 ├── apps/
-│   ├── web/                   # Next.js web application
-│   │   ├── src/app/           # App Router routes, server actions, API handlers
-│   │   ├── src/components/    # Shared UI components
-│   │   ├── src/hooks/         # Custom React hooks
-│   │   ├── src/contexts/      # React contexts
-│   │   ├── src/lib/           # Domain logic (services, actions, utilities)
-│   │   │   ├── services/      # Business logic coordination
-│   │   │   ├── actions/       # Server mutations
-│   │   │   └── utils/         # Helper functions and transformers
-│   │   ├── __tests__/         # Colocated tests
-│   │   ├── __mocks__/         # Reusable test doubles
-│   │   ├── public/            # Static assets
-│   │   └── messages/          # Translation catalogs
-│   └── core/                  # Hono API service
-│       ├── src/routes/v1/     # API route handlers (versioned)
-│       ├── src/middleware/    # Request middleware (auth, etc.)
-│       ├── src/helpers/       # Response and error helpers
-│       ├── src/schemas/       # Zod validation schemas
-│       └── src/lib/           # Shared utilities
+│   ├── web/                   # Next.js web app — live tree `src/`
+│   ├── core/                  # Hono API — live tree `src/`
+│   └── cli/                   # Developer CLI — VISION.md only until specced
 ├── packages/
-│   ├── database/              # Shared database layer (@sokosumi/database)
-│   │   ├── src/repositories/  # Prisma/Postgres access layer
-│   │   ├── src/helpers/       # Database domain logic
-│   │   ├── src/types/         # Database type definitions
-│   │   └── prisma/            # Database schema and migrations
-│   ├── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
-│   │   ├── src/clients/       # Agent API client
-│   │   ├── src/hash/          # Hash utilities for job verification
-│   │   ├── src/schemas/       # Agent protocol Zod schemas
-│   │   └── src/types/         # Agent types
-│   ├── utils/                 # Shared utilities (@sokosumi/utils)
-│   │   └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
-│   ├── net/                   # Network helpers (@sokosumi/net; SSRF-safe fetch, etc.)
-│   ├── email/                 # Shared email renderers and locales (@sokosumi/email)
-│   ├── chat/                  # Chat types and shared chat utilities (@sokosumi/chat)
-│   └── ai-provider/           # Sokosumi AI SDK provider (@sokosumi/ai-provider)
+│   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
+│   ├── masumi/                # @sokosumi/masumi — `src/`; exports in package.json
+│   ├── utils/                 # @sokosumi/utils — `src/`
+│   ├── net/                   # @sokosumi/net — `src/`
+│   ├── email/                 # @sokosumi/email — `src/`
+│   ├── chat/                  # @sokosumi/chat — `src/`
+│   └── ai-provider/           # @sokosumi/ai-provider — `src/`
 ├── docs/                      # Agent, domain, coworker, and design docs
+├── scripts/                   # local-env, cloud-agent-db, CI helpers
+├── skills/                    # First-party skill sources (installed into `.agents/skills/`)
 └── biome.jsonc                # Root Biome configuration
 ```
 
@@ -227,7 +206,7 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 - **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages and `apps/core`)
 - **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
-- **Mocking**: Use `__mocks__` or Prisma factories for external services
+- **Mocking**: Colocate `vi.mock` (and Prisma factories in Core / `@sokosumi/database`) next to the test. Web has no `__mocks__/` directory.
 - **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
 - **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
 
@@ -283,7 +262,30 @@ docs(readme): update setup instructions
 
 ### Code Changes
 
-- **Prioritize maintainability** over short-term wins — see [maintainability](.cursor/rules/maintainability.mdc)
+When several approaches fit, facts in this file win over a shortcut.
+
+Delete obsolete callers, branches, flags, and shims. Do not keep two paths. Prisma migrations, Core OpenAPI plus web client regen, and API versioning still apply when stored data or a released contract changes. Do not add silent dual-read or dual-write layers.
+
+Build the smallest thing that satisfies the current requirement. No knobs or extension points for work that is not real yet. Ship a thin end-to-end slice first. Do not replace a working product with a half-built framework.
+
+Put logic at the right layer. Web UI, actions, and services. Core routes. Shared packages. Do not smuggle domain rules across those boundaries to save a file.
+
+Prefer libraries already in the monorepo. Pin registry versions ([pinned-dependencies](.cursor/rules/pinned-dependencies.mdc)). Use `workspace:*` instead of copying logic.
+
+Keep a design you would still want in six months. A stopgap needs an explicit hotfix scope and a tracked follow-up.
+
+If two keepable options remain, pick the one that matches existing patterns, names things for what they mean today, and does not leave dead parameters, branches, or comments.
+
+| Short-term win | Maintainable choice |
+| --- | --- |
+| Reuse a positional arg slot for a new meaning | Named options object or explicit parameter |
+| Copy-paste to ship faster | Shared helper or package when logic is duplicated |
+| Leave a stub, TODO, or partial removal "for later" | Finish the removal or scope the PR honestly |
+| One-off hack around architecture | Fix at the right layer (Core, shared package, schema) |
+| Skip renaming because the diff is bigger | Rename when the old name is now misleading |
+
+A shortcut is fine when the user asked for the smallest change, when a hotfix has a tracked follow-up, or when expanding a bugfix would balloon into a refactor. Removing a feature means removing its types, routes, UI, migrations, and tests. If you touch a misleading API, rename it in the same change.
+
 - Prefer editing existing files over creating new ones
 - Use semantic search to understand codebase before making changes
 - Follow the three-layer architecture pattern
@@ -321,19 +323,33 @@ docs(readme): update setup instructions
 
 ## Agent skills
 
+First-party skills are authored in `skills/<name>/` and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
+
+### Ask Matt
+
+Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](.agents/skills/caveman/).
 
 ### Linear issue implementation
 
-Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, pinned-`headSha` re-verify, Review `/goal`, and opt-in swarm-verify (user ask, `swarm-verify: true`, or label `swarm-verify`). Human merges. Bugs/refactors without a Linear Requirement use other poteto playbooks.
+Inside that flow, ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
 
-Do **not** invent or file Linear issues during poteto implement work. Filing a new requirement is a separate, explicit ask via [`.cursor/skills/linear-requirement/`](.cursor/skills/linear-requirement/) (`disable-model-invocation`).
+Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`.agents/skills/linear-requirement/`](./.agents/skills/linear-requirement/) (`disable-model-invocation`).
+
+### Translations
+
+When deleting or changing `useTranslations()` / `getTranslations()` usage or `apps/web/messages/*.json` keys, follow [`.agents/skills/translations/`](./.agents/skills/translations/).
+
+### Verify Sokosumi
+
+End-to-end launch, doctor, and browser proof for web + Core. First-party skill lives at [`.cursor/skills/verify-sokosumi/`](./.cursor/skills/verify-sokosumi/) (not under `skills/`). Use `verify-sokosumi launch` / `doctor` / `sign-in` instead of inventing a local stack.
 
 ### Issue tracker
 
-Issues live in Linear (team "Sokosumi", key `SOK`), accessed via the Linear MCP tools. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
+Issues live in Linear (team "Sokosumi", key `SOK`). When `linear` is on PATH, run the CLI for all Linear work and ignore Linear MCP (`linear__*`). Follow [`.agents/skills/linear-cli/`](.agents/skills/linear-cli/) for flags, `--json`, and `linear api`. If `command -v linear` fails, use Linear MCP. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
 
 ### Triage labels
 
@@ -351,8 +367,6 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Additional Rules
 
-- [Principles](.cursor/rules/principles.mdc) – architecture judgment: delete over shims, simplest keepable design, layered growth
-- [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
@@ -373,7 +387,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.18.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.23.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
 ### Database (Cloud agent Neon branch)
 

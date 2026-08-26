@@ -32,88 +32,22 @@ Policy details and decision order: `src/helpers/coworker-user-context-binding.ts
 and the `UserContext` JSDoc in `src/middleware/auth.ts`. Vendor grant semantics
 for tasks: [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/vendor-workspace-grants-api.md).
 
-## Core API Structure
+## Layout
 
-```
-src/
-├── routes/              # API route definitions
-│   ├── auth/            # Better Auth routes
-│   ├── debug/           # Debug endpoints
-│   └── v1/              # API version 1
-│       ├── agents/      # Agent-related endpoints
-│       │   ├── [id]/    # Dynamic route segments
-│       │   │   ├── get.ts           # Get agent by ID
-│       │   │   ├── input-schema/    # Agent input schema
-│       │   │   └── jobs/            # Agent jobs
-│       │   ├── get.ts   # List all agents
-│       │   └── index.ts # Route mounting
-│       ├── jobs/        # Job-related endpoints
-│       │   ├── [id]/
-│       │   │   ├── events/      # Job events
-│       │   │   ├── files/       # Job files
-│       │   │   ├── links/       # Job links
-│       │   │   ├── inputs/      # Provide job input
-│       │   │   └── input-request/ # Get pending input request
-│       │   ├── get.ts           # List jobs
-│       │   └── index.ts
-│       ├── users/       # User-related endpoints
-│       │   ├── me/
-│       │   │   ├── credits/      # User credits
-│       │   │   ├── files/        # User files
-│       │   │   ├── links/        # User links
-│       │   │   ├── onboarding/   # User onboarding
-│       │   │   ├── organizations/# User organizations
-│       │   │   └── preferences/  # User preferences
-│       │   ├── post.ts          # Create user
-│       │   └── registered/      # Check if registered
-│       └── index.ts     # V1 API mounting
-├── clients/             # External API clients
-│   ├── masumi-payment.client.ts
-│   ├── masumi-registry.client.ts
-│   ├── openrouter.client.ts
-│   ├── email.client.ts
-│   ├── stripe.client.ts
-│   └── webhook.client.ts
-├── config/              # Configuration
-│   ├── constants.ts     # App constants
-│   └── env.ts           # Environment config
-├── middleware/          # Request middleware
-│   ├── auth.ts          # Authentication middleware
-│   ├── organization.ts  # Organization middleware
-│   └── sentry.ts        # Sentry error tracking
-├── helpers/             # Helper functions
-│   ├── response.ts      # Success response helpers
-│   ├── error.ts         # Error response helpers
-│   ├── error-handler.ts # Global error handler
-│   ├── openapi.ts       # OpenAPI helper utilities
-│   └── datetime.ts      # Datetime schema utilities
-├── lib/                 # Shared utilities
-│   ├── auth.ts          # Better Auth client
-│   ├── blob.ts          # Blob storage utilities
-│   ├── db/prisma.ts     # Prisma client
-│   ├── email/           # Email templates
-│   ├── hono.ts          # Type-safe Hono classes
-│   ├── i18next.ts       # Internationalization
-│   └── sentry.ts        # Sentry setup
-├── locales/             # Translation files
-│   └── en/              # English translations
-├── schemas/             # Zod validation schemas
-│   ├── agent.schema.ts
-│   ├── job.schema.ts
-│   ├── file.schema.ts
-│   ├── link.schema.ts
-│   ├── organization.schema.ts
-│   └── user.schema.ts
-├── services/            # Business logic services
-│   ├── stripe.service.ts
-│   └── webhook.service.ts
-├── types/               # TypeScript types
-│   ├── agent.ts
-│   ├── blob.ts
-│   ├── job.ts
-│   └── link.ts
-└── index.ts             # Application entry point
-```
+The live tree is `apps/core/src/`.
+
+| Area | Role |
+| --- | --- |
+| `routes/v1/` | Versioned HTTP handlers (one file per method) |
+| `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery |
+| `schemas/` | Zod / OpenAPI |
+| `helpers/` | Domain logic used by routes |
+| `lib/` | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry |
+| `clients/` | External HTTP clients |
+| `services/` | Longer-lived / legacy service modules |
+| `middleware/` | Auth, org, workspace, coworker context |
+
+Email rendering lives in `@sokosumi/email`, not under Core `lib/email` or `locales/`.
 
 ## Core-Specific Conventions
 
@@ -325,9 +259,7 @@ const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
 const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 ```
 
-**Note**: Credits use base 10^10 for precision (1 credit = 10^10 cents).
-
-For the **credits-only API contract** and **direct Prisma (no repository pattern)** conventions, see [.cursor/rules/credits-api.mdc](.cursor/rules/credits-api.mdc) and [.cursor/rules/data-access.mdc](.cursor/rules/data-access.mdc).
+**Note**: Credits use base 10^10 for precision (1 credit = 10^10 cents). Never expose cents in request/response bodies or query parameters; convert at the boundary (see [Credit Handling](#credit-handling)).
 
 ### Datetime Schemas
 
@@ -635,7 +567,7 @@ See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/rout
 Jobs have associated files (blobs) and links that can be accessed through Prisma queries:
 
 ```typescript
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
 import { linkWithJobIdInclude, flattenLinkJobId } from "@/types/link";
 
@@ -668,7 +600,7 @@ const userLinks = await prisma.link.findMany({
 const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
 
-**Note**: New Core routes use direct Prisma (`@/lib/db/prisma` or `@sokosumi/database/client`) with type-safe includes and flatten helpers. Repositories may still appear in legacy services — do not introduce new repository usage in routes.
+**Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
 **Shared Packages**:
 
@@ -735,8 +667,6 @@ Environment variables required by Vitest (or by code under test) must be set in 
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import from the canonical package; no passthrough re-export modules
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – shared pure helpers in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
-- [Credits API](.cursor/rules/credits-api.mdc) – expose credits only, never cents
-- [Data Access](.cursor/rules/data-access.mdc) – direct Prisma for new routes; repositories only in legacy services
 
 ## Coworker integrators
 

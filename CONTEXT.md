@@ -58,6 +58,20 @@ _Avoid_: Soko Bot memory, current turn history, Hermes chat (in product UI)
 A bounded Soko Bot proposal that needs user approval or clarification after the current turn ends. Accepting it starts a new authorized action; it never leaves a Soko Bot turn parked.
 _Avoid_: Paused turn, confirmation card (presentation), Eve approval
 
+### Developers
+
+**Coworker developer**:
+A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
+_Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
+
+**Agent developer**:
+A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
+_Avoid_: Coworker developer (when meaning this)
+
+**Developer CLI**:
+The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
+_Avoid_: Treating `/developer` as deprecated, a second CLI per persona
+
 ### Task payments
 
 **Task payment claim**:
@@ -120,6 +134,14 @@ _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup p
 A named, organization-owned chat room people join by membership, not by participant set. Distinct from a Direct.
 _Avoid_: Room (all chats are rooms), conversation
 
+**Channel slug**:
+The unique handle for a Channel in its organization (`#team-soko`). The create UI collects the handle first; the display name is derived from it (`team-soko` → `Team Soko`) and can be edited before submit. After create the slug is stable: renaming the Channel does not change it. Name and slug need not match. Directs have none.
+_Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s identity (that is `id`), vanity URL, requiring the slug to match the name, regenerating the slug on rename
+
+**Channel topic**:
+An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
+_Avoid_: Description, purpose, bio, treating a Direct as having a topic
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel
@@ -129,7 +151,7 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1.
+A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1. Has no Channel slug.
 _Avoid_: Conversation (retired), treating a DM as a Channel
 
 **Coworker 1:1**:
@@ -158,6 +180,10 @@ _Avoid_: Roster (for this set), channel list (unless referring to a specific UI 
 The set of human and coworker members of one open room. Distinct from membership-visible rooms.
 _Avoid_: Sidebar rooms, room list (when meaning who is in the room)
 
+**Self on Channel roster**:
+A Member who creates a Channel or saves its host-org roster stays on that room roster. They cannot omit themselves in the member picker. They leave with Leave, or another member removes them. The last remaining member cannot leave.
+_Avoid_: Permanent creator, unchecking yourself as Leave
+
 **Membership revoke**:
 The event that the current user is no longer a member of a room — by remote removal (kick / roster remove), voluntary room leave, or because they left or were removed from the host Organization for a room owned by that Organization. After revoke they must not remain in membership-visible rooms for that room.
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
@@ -165,6 +191,16 @@ _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room m
 **Organization exit (chat)**:
 When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore prior room memberships. Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
+
+### Chat pins
+
+**Pinned room**:
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin and the pin icon. Distinct from a Pinned message.
+_Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
+
+**Pinned message**:
+A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
+_Avoid_: Announcement (a use of this), pinned room, thread pin
 
 ### Chat presence
 
@@ -197,6 +233,18 @@ _Avoid_: Wire content (implementation jargon), rendered HTML (that is display, n
 **Bare domain**:
 In a room message body, a plain hostname with optional path, query, or fragment and no URL scheme (e.g. `google.com`, `naturstein-koester.de/path?q=1`). Shown as a clickable link in the room after send; not converted while typing in the composer; not rewritten in storage.
 _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer does not convert bare domains while typing)
+
+**Channel link**:
+In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
+_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
+
+**Unfurl**:
+A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.
+_Avoid_: Metadata preview, embed when meaning this card, treating the body link as the unfurl
+
+**Removed unfurl**:
+An unfurl the message's human author took off the message. Gone for everyone. The body URL stays. It stays gone while that URL remains in the body. Not a body edit. Not a personal hide.
+_Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
 
 ### Chat outbound delivery
 

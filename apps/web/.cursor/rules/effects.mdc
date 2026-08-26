@@ -16,7 +16,7 @@ Use Effects only to **synchronize with external systems** (browser APIs, network
 - **Filtering/transforming lists** — Calculate during render; use `useMemo` only if the calculation is expensive.
 - **Resetting state when a prop changes** — Prefer resetting via a `key` (e.g. `key={userId}`) so React remounts and clears state, or adjust state during render when appropriate.
 - **User events** — Handle in event handlers (e.g. submit → POST in `handleSubmit`, not in an Effect watching form state).
-- **Data fetching** — Use a data-fetching library (e.g. React Query, SWR) for caching, cancellation, and race-condition handling instead of `fetch` + `setState` in an Effect.
+- **Data fetching** — Use `@tanstack/react-query` (already in web) for caching, cancellation, and race-condition handling instead of `fetch` + `setState` in an Effect.
 - **Chains of state updates** — Compute what you can during render and update the rest in the event handler that caused the change.
 - **Notifying parent of child state** — Call the parent callback from the same event handler that updates local state, or lift state up.
 
@@ -24,12 +24,10 @@ Use Effects only to **synchronize with external systems** (browser APIs, network
 
 ## Mount-only sync: use a named hook
 
-For the rare case of “run once on mount, cleanup on unmount” (DOM focus, third-party widget, browser API), use a single named hook so intent is explicit and ad-hoc `useEffect(fn, [])` doesn’t spread:
+For the rare case of “run once on mount, cleanup on unmount” (DOM focus, third-party widget, browser API), use the named hook in `@/hooks/use-mount-effect` so intent is explicit and ad-hoc `useEffect(fn, [])` doesn’t spread:
 
 ```tsx
-function useMountEffect(effect: () => void | (() => void)) {
-  useEffect(effect, []);
-}
+import { useMountEffect } from "@/hooks/use-mount-effect";
 ```
 
 Prefer **conditional mounting** over guarding inside an effect: don’t mount the child until preconditions are met, then the child can safely use the mount-only hook (e.g. `if (isLoading) return <Loading />; return <VideoPlayer />` with `useMountEffect(() => playVideo())` inside `VideoPlayer`).

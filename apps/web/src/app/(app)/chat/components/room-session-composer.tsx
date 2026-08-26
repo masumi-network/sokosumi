@@ -1,6 +1,9 @@
 "use client";
 
-import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
+import {
+  type ChannelLinkTarget,
+  formatTaskAttachmentMarkdown,
+} from "@sokosumi/utils";
 import {
   type FormEvent,
   type Ref,
@@ -14,7 +17,12 @@ import {
   type ComposeDraft,
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomUserParticipant,
+} from "@/lib/clients/generated/core";
 
 import {
   RoomComposer,
@@ -23,6 +31,7 @@ import {
 } from "./room-composer";
 import {
   buildRoomComposerMessageContent,
+  type ChatParticipantHoverProfile,
   isRoomComposerEmpty,
   type PendingRoomQuote,
   type RoomMentionParticipant,
@@ -51,6 +60,12 @@ interface RoomSessionComposerProps {
   roomId: string;
   draftKey: string;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  channels?: readonly ComposerChannelOption[];
+  channelLinks?: readonly ChannelLinkTarget[];
   placeholder: string;
   pendingQuote: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
@@ -68,6 +83,10 @@ interface RoomSessionComposerProps {
   /** Claim in-flight lock with clientMessageId; return false to abort clear. */
   onBeforeSend?: (clientMessageId: string) => boolean;
   onSend: (request: RoomSessionSendRequest) => Promise<RoomSessionSendResult>;
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }
 
 /** Draft state lives here so room message lists do not re-render on typing. */
@@ -75,6 +94,12 @@ export function RoomSessionComposer({
   roomId,
   draftKey,
   mentions,
+  usersById,
+  usersBySlug,
+  coworkersById,
+  coworkersBySlug,
+  channels,
+  channelLinks,
   placeholder,
   pendingQuote,
   onClearPendingQuote,
@@ -87,6 +112,10 @@ export function RoomSessionComposer({
   ref,
   onBeforeSend,
   onSend,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: RoomSessionComposerProps) {
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
@@ -187,6 +216,12 @@ export function RoomSessionComposer({
       value={composerValue}
       onValueChange={setComposerValue}
       mentions={mentions}
+      usersById={usersById}
+      usersBySlug={usersBySlug}
+      coworkersById={coworkersById}
+      coworkersBySlug={coworkersBySlug}
+      channels={channels}
+      channelLinks={channelLinks}
       onSelectedKeysChange={setMentionedIds}
       placeholder={placeholder}
       attachments={composerAttachments}
@@ -200,6 +235,10 @@ export function RoomSessionComposer({
       onClearPendingQuote={onClearPendingQuote}
       onChromeResize={onChromeResize}
       focusOnMount={focusOnMount}
+      currentUserId={currentUserId}
+      canOpenHumanDirect={canOpenHumanDirect}
+      onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
     />
   );
 }

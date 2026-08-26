@@ -1,4 +1,5 @@
 import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 export interface CoworkerThoughtDisclosure {
   text: string;
@@ -173,6 +174,69 @@ export function isFailedMentionThoughtShell(metadata: unknown): boolean {
     record.mention_failed === true &&
     typeof record.mention_id === "string" &&
     record.mention_id.length > 0
+  );
+}
+
+export interface FailedMentionShellTarget {
+  mentionId: string;
+  sourceMessageId: string;
+}
+
+/** Ids needed to retry a failed mention shell (source human message + mention). */
+export function readFailedMentionShellTarget(
+  metadata: unknown,
+): FailedMentionShellTarget | null {
+  if (!isFailedMentionThoughtShell(metadata)) {
+    return null;
+  }
+  const record = metadata as Record<string, unknown>;
+  const mentionId = record.mention_id;
+  const sourceMessageId = record.in_reply_to_message_id;
+  if (typeof mentionId !== "string" || mentionId.length === 0) {
+    return null;
+  }
+  if (typeof sourceMessageId !== "string" || sourceMessageId.length === 0) {
+    return null;
+  }
+  return { mentionId, sourceMessageId };
+}
+
+/** Flip a failed shell back to live Thought without creating a second bubble. */
+export function withMentionShellRetrying(
+  metadata: unknown,
+  startedAtMs: number,
+): Record<string, unknown> {
+  const previous =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : {};
+  const { mention_failed: _mentionFailed, ...rest } = previous;
+  return {
+    ...rest,
+    streaming: true,
+    thought_timing_ms: { start: startedAtMs },
+  };
+}
+
+/** Retry is mentioner-only; other members see the failed shell without a button. */
+export function isCurrentUserMentionerOfFailedShell(params: {
+  shell: Pick<ChatRoomMessage, "metadata">;
+  currentUserId: string | undefined;
+  sourceMessages: readonly Pick<ChatRoomMessage, "id" | "sender">[];
+}): boolean {
+  if (!params.currentUserId) {
+    return false;
+  }
+  const target = readFailedMentionShellTarget(params.shell.metadata);
+  if (!target) {
+    return false;
+  }
+  const source = params.sourceMessages.find(
+    (message) => message.id === target.sourceMessageId,
+  );
+  return (
+    source?.sender.type === "user" &&
+    source.sender.user.id === params.currentUserId
   );
 }
 

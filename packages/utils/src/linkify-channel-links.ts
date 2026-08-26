@@ -1,0 +1,212 @@
+import { escapeMarkdownLinkUrl } from "./markdown-links.js";
+import {
+  collectMarkdownLinkRanges,
+  escapeMarkdownLinkLabel,
+  isFenceChar,
+  rangeContaining,
+  skipFencedCode,
+  skipInlineCode,
+} from "./markdown-prose-scan.js";
+
+export interface ChannelLinkIdentity {
+  name: string;
+  slug: string;
+}
+
+export interface ChannelLinkTarget extends ChannelLinkIdentity {
+  href: string;
+}
+
+export interface ChannelLinkMatch {
+  start: number;
+  end: number;
+  /** Matched source including `#`. */
+  label: string;
+  href?: string;
+}
+
+const TOKEN_CONTINUATION = /[\p{L}\p{N}_-]/u;
+
+function isWhitespaceChar(ch: string): boolean {
+  return ch.trim() === "";
+}
+
+function isMatchBoundary(text: string, end: number): boolean {
+  if (end >= text.length) return true;
+  return !TOKEN_CONTINUATION.test(text[end]!);
+}
+
+function uniqueKeys(channel: ChannelLinkIdentity): string[] {
+  const name = channel.name.trim();
+  const slug = channel.slug.trim();
+  if (name.length === 0 && slug.length === 0) return [];
+  if (name.toLowerCase() === slug.toLowerCase()) {
+    return name.length > 0 ? [name] : [slug];
+  }
+  const keys: string[] = [];
+  if (name.length > 0) keys.push(name);
+  if (slug.length > 0) keys.push(slug);
+  return keys;
+}
+
+function channelHref(channel: ChannelLinkIdentity): string | undefined {
+  return "href" in channel && typeof channel.href === "string"
+    ? channel.href
+    : undefined;
+}
+
+function findChannelMatch(
+  text: string,
+  startAfterHash: number,
+  channels: readonly ChannelLinkIdentity[],
+): { channel: ChannelLinkIdentity; end: number } | null {
+  const rest = text.slice(startAfterHash);
+  const restLower = rest.toLowerCase();
+  let bestLen = 0;
+  let bestIndex = -1;
+  let tied = false;
+
+  for (let index = 0; index < channels.length; index += 1) {
+    const channel = channels[index]!;
+    for (const key of uniqueKeys(channel)) {
+      if (!restLower.startsWith(key.toLowerCase())) continue;
+      const end = startAfterHash + key.length;
+      if (!isMatchBoundary(text, end)) continue;
+      if (key.length > bestLen) {
+        bestLen = key.length;
+        bestIndex = index;
+        tied = false;
+      } else if (key.length === bestLen && index !== bestIndex) {
+        tied = true;
+      }
+    }
+  }
+
+  if (tied || bestIndex < 0 || bestLen === 0) return null;
+  return { channel: channels[bestIndex]!, end: startAfterHash + bestLen };
+}
+
+/**
+ * Find Channel link ranges in markdown prose. Same skip rules as
+ * `linkifyChannelLinksInMarkdown` (code, existing links, hash runs, headings).
+ */
+export function collectChannelLinksInMarkdown(
+  markdown: string,
+  channels: readonly ChannelLinkIdentity[],
+): ChannelLinkMatch[] {
+  if (!markdown || channels.length === 0) return [];
+
+  const mdLinkRanges = collectMarkdownLinkRanges(markdown);
+  const matches: ChannelLinkMatch[] = [];
+  let i = 0;
+  const len = markdown.length;
+
+  while (i < len) {
+    const insideLink = rangeContaining(mdLinkRanges, i);
+    if (insideLink) {
+      i = insideLink.end;
+      continue;
+    }
+
+    const ch = markdown[i]!;
+
+    if (isFenceChar(ch)) {
+      let fenceLen = 0;
+      let j = i;
+      while (j < len && markdown[j] === ch) {
+        fenceLen += 1;
+        j += 1;
+      }
+      if (fenceLen >= 3) {
+        i = skipFencedCode(markdown, i, ch);
+        continue;
+      }
+      if (ch === "`") {
+        i = skipInlineCode(markdown, i);
+        continue;
+      }
+    }
+
+    if (ch === "<") {
+      const close = markdown.indexOf(">", i + 1);
+      i = close !== -1 ? close + 1 : i + 1;
+      continue;
+    }
+
+    if (ch === "#") {
+      let hashEnd = i;
+      while (hashEnd < len && markdown[hashEnd] === "#") {
+        hashEnd += 1;
+      }
+      if (hashEnd - i !== 1) {
+        i = hashEnd;
+        continue;
+      }
+
+      const atBoundary = i === 0 || isWhitespaceChar(markdown[i - 1]!);
+      const next = markdown[i + 1];
+      if (atBoundary && next !== undefined && !isWhitespaceChar(next)) {
+        const hit = findChannelMatch(markdown, i + 1, channels);
+        if (hit) {
+          matches.push({
+            start: i,
+            end: hit.end,
+            label: markdown.slice(i, hit.end),
+            href: channelHref(hit.channel),
+          });
+          i = hit.end;
+          continue;
+        }
+      }
+    }
+
+    i += 1;
+  }
+
+  return matches;
+}
+
+/**
+ * Display-time helper: rewrite `#name` / `#slug` in markdown prose into
+ * `[#typed](href)` links for membership-visible Channels. Skips code, existing
+ * links, hash runs, headings (`# `), and mid-token `#`. Does not mutate stored
+ * bodies — callers apply this only on render.
+ */
+export function linkifyChannelLinksInMarkdown(
+  markdown: string,
+  channels: readonly ChannelLinkTarget[],
+): string {
+  const matches = collectChannelLinksInMarkdown(markdown, channels);
+  if (matches.length === 0) return markdown;
+
+  let result = "";
+  let last = 0;
+  for (const match of matches) {
+    result += markdown.slice(last, match.start);
+    if (match.href) {
+      result += `[${escapeMarkdownLinkLabel(match.label)}](${escapeMarkdownLinkUrl(match.href)})`;
+    } else {
+      result += markdown.slice(match.start, match.end);
+    }
+    last = match.end;
+  }
+  result += markdown.slice(last);
+  return result;
+}
+
+/** Plain text the composer `#` picker inserts (`#name` or `#slug`). */
+export function channelLinkInsertText(
+  channel: Pick<ChannelLinkTarget, "name" | "slug">,
+  channels: readonly Pick<ChannelLinkTarget, "name">[],
+): string {
+  const needle = channel.name.toLowerCase();
+  let count = 0;
+  for (const candidate of channels) {
+    if (candidate.name.toLowerCase() === needle) {
+      count += 1;
+      if (count > 1) break;
+    }
+  }
+  const body = count === 1 ? channel.name : channel.slug;
+  return `#${body}`;
+}

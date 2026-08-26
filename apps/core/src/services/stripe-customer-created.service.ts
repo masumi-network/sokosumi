@@ -1,28 +1,15 @@
-import * as Sentry from "@sentry/node";
 import { ensureInitialLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
 import type Stripe from "stripe";
 
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
-function reportMissingStripeCustomerOwner(params: {
+function warnMissingStripeCustomerOwner(params: {
   customerId: string;
   ownerId: string;
   ownerType: "organization" | "user";
-  error: unknown;
 }): void {
-  Sentry.captureException(params.error, {
-    level: "warning",
-    tags: {
-      context: "stripe_customer_created",
-      reason: "owner_missing",
-      ownerType: params.ownerType,
-    },
-    extra: {
-      customerId: params.customerId,
-      ownerId: params.ownerId,
-    },
-  });
+  // Soft-ack only: captureException kept SOKOSUMI-CORE-2V unresolved.
   console.warn(
     `Skipping Stripe customer ${params.customerId} write-back: ${params.ownerType} ${params.ownerId} no longer exists`,
   );
@@ -58,11 +45,10 @@ export async function handleCustomerCreatedEvent(
         });
       } catch (error) {
         if (isPrismaRecordNotFoundError(error)) {
-          reportMissingStripeCustomerOwner({
+          warnMissingStripeCustomerOwner({
             customerId: customer.id,
             ownerId: userId,
             ownerType: "user",
-            error,
           });
           break;
         }
@@ -101,11 +87,10 @@ export async function handleCustomerCreatedEvent(
         });
       } catch (error) {
         if (isPrismaRecordNotFoundError(error)) {
-          reportMissingStripeCustomerOwner({
+          warnMissingStripeCustomerOwner({
             customerId: customer.id,
             ownerId: organizationId,
             ownerType: "organization",
-            error,
           });
           break;
         }

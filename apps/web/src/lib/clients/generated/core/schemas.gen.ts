@@ -7185,7 +7185,11 @@ export const ChatRoomSchema = {
             example: 'Launch Room'
         },
         slug: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Channel slug unique among Channels in the organization. Null for Directs.',
             example: 'launch-room'
         },
         kind: {
@@ -7251,14 +7255,21 @@ export const ChatRoomSchema = {
             description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
             example: 1
         },
-        pinnedAt: {
+        starredAt: {
             type: [
                 'string',
                 'null'
             ],
             format: 'date-time',
             example: '2026-08-02T12:00:00.000Z',
-            description: 'When the current user pinned this room in their sidebar. Null when unpinned.'
+            description: 'When the current user starred this room. Null when not starred.'
+        },
+        pinnedMessageCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Number of Pinned messages on this Channel. Always 0 for Directs.',
+            example: 1
         },
         mutedAt: {
             type: [
@@ -7311,7 +7322,7 @@ export const ChatRoomSchema = {
         'updatedAt',
         'unreadCount',
         'unreadMentionCount',
-        'pinnedAt',
+        'starredAt',
         'mutedAt',
         'markedUnread',
         'myAccess',
@@ -7509,9 +7520,14 @@ export const CreateChatRoomRequestSchema = {
                 },
                 name: {
                     type: 'string',
-                    minLength: 1,
                     maxLength: 80,
+                    description: 'Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).',
                     example: 'Launch Room'
+                },
+                slug: {
+                    type: 'string',
+                    description: 'Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.',
+                    example: 'launch-room'
                 },
                 topic: {
                     type: 'string',
@@ -7556,8 +7572,7 @@ export const CreateChatRoomRequestSchema = {
                 }
             },
             required: [
-                'kind',
-                'name'
+                'kind'
             ]
         },
         {
@@ -7672,6 +7687,24 @@ export const DiscoverableChannelDiscoverabilitySchema = {
     ],
     description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.',
     example: 'public'
+} as const;
+
+export const ChannelSlugAvailabilitySchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'free',
+                'taken'
+            ],
+            description: 'Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.',
+            example: 'free'
+        }
+    },
+    required: [
+        'status'
+    ]
 } as const;
 
 export const GetChatUiMessagesResponseDataSchema = {
@@ -7828,260 +7861,52 @@ export const ChatUiMessageSchema = {
     ]
 } as const;
 
-export const UpdateChatRoomRequestSchema = {
+export const ChatRoomPinnedMessageListItemSchema = {
     type: 'object',
     properties: {
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 80,
-            example: 'Launch Room'
-        },
-        topic: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 200,
-            example: 'Launch planning with design and AI research partners'
-        },
-        discoverability: {
-            $ref: '#/components/schemas/ChatRoomDiscoverability'
-        },
-        memberUserIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 500,
-            description: 'Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.',
-            example: [
-                'user_123',
-                'user_456'
-            ]
-        },
-        coworkerIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 50,
-            example: [
-                'cow_123'
-            ]
-        }
-    }
-} as const;
-
-export const ChatRoomDiscoverabilitySchema = {
-    type: 'string',
-    enum: [
-        'public',
-        'private',
-        'external'
-    ],
-    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
-    example: 'private'
-} as const;
-
-export const ArchivedChatRoomSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        archivedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'archivedAt'
-    ]
-} as const;
-
-export const CreateChatRoomInvitationRequestSchema = {
-    type: 'object',
-    properties: {
-        email: {
-            type: 'string',
-            format: 'email',
-            example: 'guest@example.com'
-        }
-    },
-    required: [
-        'email'
-    ]
-} as const;
-
-export const ChatRoomGuestInviteLinkSchema = {
-    type: 'object',
-    properties: {
-        token: {
-            type: 'string'
-        },
-        url: {
-            type: 'string',
-            format: 'uri'
-        },
-        roomId: {
+        messageId: {
             type: 'string',
             format: 'uuid'
         },
-        createdAt: {
+        pinnedAt: {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        expiresAt: {
+        pinnedBy: {
             type: [
-                'string',
+                'object',
                 'null'
             ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        revokedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        maxUses: {
-            type: [
-                'integer',
-                'null'
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
             ]
         },
-        useCount: {
-            type: 'integer'
-        }
-    },
-    required: [
-        'token',
-        'url',
-        'roomId',
-        'createdAt',
-        'expiresAt',
-        'revokedAt',
-        'maxUses',
-        'useCount'
-    ]
-} as const;
-
-export const CreateChatRoomGuestInviteLinkRequestSchema = {
-    type: 'object',
-    properties: {
-        expiresInDays: {
+        message: {
             anyOf: [
                 {
-                    type: 'integer',
-                    minimum: 1,
-                    maximum: 90
+                    $ref: '#/components/schemas/ChatRoomMessage'
                 },
                 {
                     type: 'null'
                 }
             ]
-        },
-        maxUses: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 1,
-            maximum: 10000
-        }
-    }
-} as const;
-
-export const RevokeChatRoomGuestInviteLinkResultSchema = {
-    type: 'object',
-    properties: {
-        ok: {
-            type: 'boolean'
         }
     },
     required: [
-        'ok'
-    ]
-} as const;
-
-export const LeftChatRoomSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        remainingUserMemberCount: {
-            type: 'integer',
-            minimum: 1,
-            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.',
-            example: 3
-        }
-    },
-    required: [
-        'id',
-        'remainingUserMemberCount'
-    ]
-} as const;
-
-export const ChatRoomThreadSchema = {
-    type: 'object',
-    properties: {
-        parentMessage: {
-            $ref: '#/components/schemas/ChatRoomMessage'
-        },
-        replyCount: {
-            type: 'integer',
-            minimum: 1,
-            description: 'Non-deleted replies under this parent.',
-            example: 5
-        },
-        lastReplyAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-07-02T12:00:00.000Z',
-            description: 'createdAt of the newest non-deleted reply.'
-        },
-        unreadReplyCount: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.',
-            example: 2
-        },
-        lastUnreadReplyAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2026-07-02T12:00:00.000Z',
-            description: 'createdAt of the newest qualifying unread reply, or null when none.'
-        },
-        hasLooked: {
-            type: 'boolean',
-            description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
-            example: true
-        }
-    },
-    required: [
-        'parentMessage',
-        'replyCount',
-        'lastReplyAt',
-        'unreadReplyCount',
-        'lastUnreadReplyAt',
-        'hasLooked'
+        'messageId',
+        'pinnedAt',
+        'pinnedBy',
+        'message'
     ]
 } as const;
 
@@ -8529,6 +8354,268 @@ export const ChatRoomMessageUnfurlSchema = {
     ]
 } as const;
 
+export const UpdateChatRoomRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80,
+            example: 'Launch Room'
+        },
+        slug: {
+            type: 'string',
+            description: 'Rejected. Channel slug is immutable after create.',
+            example: 'launch-room'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            example: 'Launch planning with design and AI research partners'
+        },
+        discoverability: {
+            $ref: '#/components/schemas/ChatRoomDiscoverability'
+        },
+        memberUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 500,
+            description: 'Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.',
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            example: [
+                'cow_123'
+            ]
+        }
+    }
+} as const;
+
+export const ChatRoomDiscoverabilitySchema = {
+    type: 'string',
+    enum: [
+        'public',
+        'private',
+        'external'
+    ],
+    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
+    example: 'private'
+} as const;
+
+export const ArchivedChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        archivedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'archivedAt'
+    ]
+} as const;
+
+export const CreateChatRoomInvitationRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            format: 'email',
+            example: 'guest@example.com'
+        }
+    },
+    required: [
+        'email'
+    ]
+} as const;
+
+export const ChatRoomGuestInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string'
+        },
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        maxUses: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        useCount: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'token',
+        'url',
+        'roomId',
+        'createdAt',
+        'expiresAt',
+        'revokedAt',
+        'maxUses',
+        'useCount'
+    ]
+} as const;
+
+export const CreateChatRoomGuestInviteLinkRequestSchema = {
+    type: 'object',
+    properties: {
+        expiresInDays: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 90
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        maxUses: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 10000
+        }
+    }
+} as const;
+
+export const RevokeChatRoomGuestInviteLinkResultSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const LeftChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        remainingUserMemberCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.',
+            example: 3
+        }
+    },
+    required: [
+        'id',
+        'remainingUserMemberCount'
+    ]
+} as const;
+
+export const ChatRoomThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessage: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Non-deleted replies under this parent.',
+            example: 5
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'createdAt of the newest non-deleted reply.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.',
+            example: 2
+        },
+        lastUnreadReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'createdAt of the newest qualifying unread reply, or null when none.'
+        },
+        hasLooked: {
+            type: 'boolean',
+            description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
+            example: true
+        }
+    },
+    required: [
+        'parentMessage',
+        'replyCount',
+        'lastReplyAt',
+        'unreadReplyCount',
+        'lastUnreadReplyAt',
+        'hasLooked'
+    ]
+} as const;
+
 export const ChatRoomThreadsUnreadCountSchema = {
     type: 'object',
     properties: {
@@ -8669,6 +8756,42 @@ export const ReactToChatRoomMessageRequestSchema = {
     },
     required: [
         'emoji'
+    ]
+} as const;
+
+export const ChatRoomPinnedMessageMutationSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Pinned or unpinned message id.',
+            example: '550e8400-e29b-41d4-a716-446655440001'
+        },
+        pinnedMessageCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Current number of Pinned messages on this Channel.',
+            example: 1
+        }
+    },
+    required: [
+        'messageId',
+        'pinnedMessageCount'
+    ]
+} as const;
+
+export const RemoveChatRoomMessageUnfurlRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://example.com/article'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 

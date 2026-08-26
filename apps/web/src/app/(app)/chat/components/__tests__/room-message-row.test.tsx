@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -36,6 +43,9 @@ vi.mock("next-intl", () => ({
       }
       if (key === "openLink" && values) {
         return `Open link preview: ${values.title}`;
+      }
+      if (key === "remove" && values) {
+        return `Remove link preview: ${values.title}`;
       }
       if (key === "imageAlt" && values) {
         return `Preview image for ${values.title}`;
@@ -147,10 +157,14 @@ function renderRow({
   isContinuation = false,
   isFirstOfDay = false,
   onQuote,
+  onPin,
+  showPinButton,
   currentUserId,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   showOutboundSentTick = false,
   isEditing = false,
@@ -160,6 +174,7 @@ function renderRow({
   onSaveEdit,
   isSavingEdit = false,
   coworkersById = new Map(),
+  usersById,
   reserveHoverActionGutter,
 }: {
   message?: ChatRoomMessage;
@@ -167,10 +182,14 @@ function renderRow({
   isFirstOfDay?: boolean;
   reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
+  showPinButton?: boolean;
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -180,18 +199,24 @@ function renderRow({
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, { id: string; name: string }>;
 } = {}) {
   render(
     <ChatMessageRow
       message={message}
       coworkersById={coworkersById}
       coworkersBySlug={new Map()}
+      usersById={usersById}
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
+      onPin={onPin}
+      showPinButton={showPinButton}
       onStartEdit={onStartEdit}
       onDelete={onDelete}
+      onRemoveUnfurl={onRemoveUnfurl}
       onRetryOutbound={onRetryOutbound}
+      onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
@@ -488,7 +513,34 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Copy on the hover action pill", () => {
+  it("shows Pin message on the hover action pill", async () => {
+    const user = userEvent.setup();
+    const onPin = vi.fn();
+    renderRow({
+      message: userMessage({ content: "Pin me" }),
+      onPin,
+      showPinButton: true,
+    });
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "PinnedMessages.pin",
+      }),
+    );
+    expect(onPin).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Copy on the hover action pill", async () => {
+    const user = userEvent.setup();
     copyMock.mockClear();
     renderRow({
       message: userMessage({ content: "Hover copy body" }),
@@ -499,10 +551,14 @@ describe("ChatMessageRow", () => {
       '[data-message-actions="hover"]',
     );
     expect(hoverActions).toBeTruthy();
-    const hoverCopy = within(hoverActions as HTMLElement).getByRole("button", {
-      name: "Copy.action",
-    });
-    fireEvent.click(hoverCopy);
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy.action" }),
+    );
     expect(copyMock).toHaveBeenCalledWith(
       "Hover copy body",
       expect.objectContaining({
@@ -966,6 +1022,27 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("linkifies membership-visible channel names in the body", () => {
+    render(
+      <ChatMessageRow
+        message={userMessage({ content: "see #general please" })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        channelLinks={[
+          {
+            name: "general",
+            slug: "general",
+            href: "/chat/rooms/room-general",
+          },
+        ]}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body.textContent).toContain("[#general](/chat/rooms/room-general)");
+  });
+
   it("styles @all mention tokens in quote snippets", () => {
     renderRow({
       message: userMessage({
@@ -1375,7 +1452,8 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    expect(screen.getByDisplayValue("Original fixed")).toBeInTheDocument();
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveTextContent("Original fixed");
     expect(screen.queryByText("Original")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Edit.save" }),
@@ -1397,12 +1475,16 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue(
-      "Original fixed",
-    ) as HTMLTextAreaElement;
-    expect(document.activeElement).toBe(textarea);
-    expect(textarea.selectionStart).toBe("Original fixed".length);
-    expect(textarea.selectionEnd).toBe("Original fixed".length);
+    const editor = screen.getByRole("textbox");
+    expect(document.activeElement).toBe(editor);
+    const selection = window.getSelection();
+    expect(selection?.rangeCount).toBeGreaterThan(0);
+    const range = selection?.getRangeAt(0);
+    expect(range?.collapsed).toBe(true);
+    const prefix = range?.cloneRange();
+    prefix?.selectNodeContents(editor);
+    prefix?.setEnd(range?.endContainer as Node, range?.endOffset ?? 0);
+    expect(prefix?.toString()).toBe("Original fixed");
   });
 
   it("saves on Enter and cancels on Escape while editing", async () => {
@@ -1421,8 +1503,8 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    const textarea = screen.getByDisplayValue("Original fixed");
-    textarea.focus();
+    const editor = screen.getByRole("textbox");
+    editor.focus();
 
     await user.keyboard("{Enter}");
     expect(onSaveEdit).toHaveBeenCalledTimes(1);
@@ -1448,7 +1530,7 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByDisplayValue("Original fixed").focus();
+    screen.getByRole("textbox").focus();
     await user.keyboard("{Shift>}{Enter}{/Shift}");
     expect(onSaveEdit).not.toHaveBeenCalled();
     expect(onCancelEdit).not.toHaveBeenCalled();
@@ -1470,13 +1552,13 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByDisplayValue("Original").focus();
+    screen.getByRole("textbox").focus();
     await user.keyboard("{Enter}");
     expect(onSaveEdit).not.toHaveBeenCalled();
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("saves live textarea value on Enter even if draft prop is stale", async () => {
+  it("saves live editor value on Enter even if draft prop is stale", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
 
@@ -1492,12 +1574,9 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    const textarea = screen.getByDisplayValue(
-      "Original",
-    ) as HTMLTextAreaElement;
-    textarea.focus();
-    // Bypass React onChange so the controlled prop stays stale while DOM updates.
-    textarea.value = "Original fixed live";
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "Original fixed live";
     await user.keyboard("{Enter}");
     expect(onSaveEdit).toHaveBeenCalledWith("Original fixed live");
   });
@@ -1517,10 +1596,12 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue("Original");
-    textarea.focus();
-    await user.tab(); // move focus away → blur
-    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    await user.tab();
+    await waitFor(() => {
+      expect(onCancelEdit).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("does not cancel on blur when draft is dirty", async () => {
@@ -1538,9 +1619,14 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue("Original fixed");
-    textarea.focus();
+    const editor = screen.getByRole("textbox");
+    editor.focus();
     await user.tab();
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 200);
+      });
+    });
     expect(onCancelEdit).not.toHaveBeenCalled();
   });
 
@@ -1559,12 +1645,15 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue(
-      "Original",
-    ) as HTMLTextAreaElement;
-    textarea.focus();
-    textarea.value = "Original fixed live";
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "Original fixed live";
     await user.tab();
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 200);
+      });
+    });
     expect(onCancelEdit).not.toHaveBeenCalled();
   });
 
@@ -1605,9 +1694,69 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByDisplayValue("Original fixed").focus();
+    screen.getByRole("textbox").focus();
     await user.keyboard("{Control>}{Enter}{/Control}");
     expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+  });
+
+  it("chips a roster User mention in the edit composer", () => {
+    renderRow({
+      message: userMessage({
+        content: "@b0user:andreas-osberghaus please look",
+      }),
+      currentUserId: "b0user",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "@b0user:andreas-osberghaus please look",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+      usersById: new Map([
+        ["b0user", { id: "b0user", name: "Andreas Osberghaus" }],
+      ]),
+    });
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-mention-key='b0user']");
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+    expect(editor.textContent).not.toContain("b0user");
+    expect(editor.closest(".border-input")).not.toBeNull();
+  });
+
+  it("saves persist @id:slug after editing a chipped User mention", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({
+        content: "@b0user:andreas-osberghaus please look",
+      }),
+      currentUserId: "b0user",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "@b0user:andreas-osberghaus please look",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+      usersById: new Map([
+        ["b0user", { id: "b0user", name: "Andreas Osberghaus" }],
+      ]),
+    });
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    await user.keyboard(" again{Enter}");
+
+    expect(onSaveEdit).toHaveBeenCalledWith(
+      "@b0user:andreas-osberghaus please look again",
+    );
   });
 
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
@@ -1744,6 +1893,169 @@ describe("ChatMessageRow", () => {
     );
   });
 
+  it("hides the unfurl card when the preview image fails and there is no description", () => {
+    renderRow({
+      message: userMessage({
+        content: "https://youtube.com/watch?v=1",
+        unfurls: [
+          {
+            url: "https://youtube.com/watch?v=1",
+            title: "Watch",
+            description: null,
+            imageUrl: "https://cdn.example.com/broken.jpg",
+            siteName: "YouTube",
+          },
+        ],
+      }),
+    });
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    );
+
+    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+  });
+
+  it("shows a replacement thumbnail after a later scrape when the first image failed", () => {
+    const coworkersById = new Map();
+    const coworkersBySlug = new Map();
+    const first = userMessage({
+      content: "https://youtube.com/watch?v=1",
+      unfurls: [
+        {
+          url: "https://youtube.com/watch?v=1",
+          title: "Watch",
+          description: null,
+          imageUrl: "https://cdn.example.com/broken.jpg",
+          siteName: "YouTube",
+        },
+      ],
+    });
+
+    const { rerender } = render(
+      <ChatMessageRow
+        message={first}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    );
+    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={{
+          ...first,
+          unfurls: [
+            {
+              url: "https://youtube.com/watch?v=1",
+              title: "Watch",
+              description: null,
+              imageUrl: "https://cdn.example.com/ok.jpg",
+              siteName: "YouTube",
+            },
+          ],
+        }}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: "Preview image for Watch" }),
+    ).toHaveAttribute("src", "https://cdn.example.com/ok.jpg");
+  });
+
+  it("keeps the unfurl card when the preview image fails and a description remains", () => {
+    renderRow({
+      message: userMessage({
+        content: "https://example.com/article",
+        unfurls: [
+          {
+            url: "https://example.com/article",
+            title: "Example Article",
+            description: "A short summary of the page.",
+            imageUrl: "https://cdn.example.com/broken.jpg",
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    fireEvent.error(
+      screen.getByRole("img", { name: "Preview image for Example Article" }),
+    );
+
+    const card = screen.getByTestId("room-message-unfurl");
+    expect(card).toHaveTextContent("Example Article");
+    expect(card).toHaveTextContent("A short summary of the page.");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("omits title-only unfurl cards that have no image and no description", () => {
+    renderRow({
+      message: userMessage({
+        content: "Check [Sentry](https://masumi.sentry.io)",
+        unfurls: [
+          {
+            url: "https://masumi.sentry.io",
+            title: "Sign In | Sentry",
+            description: null,
+            imageUrl: null,
+            siteName: "masumi.sentry.io",
+          },
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: "  ",
+            imageUrl: null,
+            siteName: "resend.com",
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.queryByTestId("room-message-unfurls"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders only unfurls that have an image or a description", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "See [Sentry](https://masumi.sentry.io) and https://example.com/article",
+        unfurls: [
+          {
+            url: "https://masumi.sentry.io",
+            title: "Sign In | Sentry",
+            description: null,
+            imageUrl: null,
+            siteName: "masumi.sentry.io",
+          },
+          {
+            url: "https://example.com/article",
+            title: "Example Article",
+            description: "A short summary of the page.",
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    const cards = screen.getAllByTestId("room-message-unfurl");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent("Example Article");
+    expect(cards[0]).toHaveTextContent("A short summary of the page.");
+    expect(screen.queryByText("Sign In | Sentry")).not.toBeInTheDocument();
+  });
+
   it("omits unfurl cards when unfurls are null or empty", () => {
     const { rerender } = render(
       <ChatMessageRow
@@ -1779,7 +2091,7 @@ describe("ChatMessageRow", () => {
           {
             url: "https://example.com",
             title: "Example",
-            description: null,
+            description: "Example description",
             imageUrl: null,
             siteName: null,
           },
@@ -1794,6 +2106,146 @@ describe("ChatMessageRow", () => {
     expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
       "Example",
     );
+  });
+
+  it("shows a remove control on each unfurl for the author", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: userMessage({
+        content: "Check https://ably.com https://resend.com",
+        unfurls: [
+          {
+            url: "https://ably.com",
+            title: "Ably",
+            description: "Realtime messaging",
+            imageUrl: null,
+            siteName: "Ably",
+          },
+          {
+            url: "https://resend.com",
+            title: "Resend",
+            description: "Email for developers",
+            imageUrl: null,
+            siteName: "Resend",
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Remove link preview: Ably" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove link preview: Resend" }),
+    ).toBeInTheDocument();
+  });
+
+  it("places the unfurl remove control on the card corner and only on that card's hover", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: userMessage({
+        content: "Check https://ably.com",
+        unfurls: [
+          {
+            url: "https://ably.com",
+            title: "Ably",
+            description: "Realtime messaging",
+            imageUrl: null,
+            siteName: "Ably",
+          },
+        ],
+      }),
+    });
+
+    const button = screen.getByRole("button", {
+      name: "Remove link preview: Ably",
+    });
+    expect(button.parentElement?.className).toContain("group/unfurl");
+    expect(button.className).toContain("group-hover/unfurl:");
+    expect(button.className).not.toMatch(
+      /(^|\s)\[@media\(hover:hover\)\]:group-hover:/,
+    );
+    expect(button.className).toContain("translate-x-1/2");
+    expect(button.className).toContain("-translate-y-1/2");
+  });
+
+  it("does not show unfurl remove for another member", () => {
+    renderRow({
+      currentUserId: "user-2",
+      onRemoveUnfurl: vi.fn(),
+      message: userMessage({
+        content: "Check https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: "Example description",
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /Remove link preview/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show unfurl remove on a coworker-authored message", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl: vi.fn(),
+      message: coworkerMessage({
+        content: "Check https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: "Example description",
+            imageUrl: null,
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    expect(screen.getByTestId("room-message-unfurl")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Remove link preview/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls onRemoveUnfurl with that card URL and does not open a confirm dialog", async () => {
+    const user = userEvent.setup();
+    const onRemoveUnfurl = vi.fn();
+    const message = userMessage({
+      content: "Check https://ably.com",
+      unfurls: [
+        {
+          url: "https://ably.com",
+          title: "Ably",
+          description: "Realtime messaging",
+          imageUrl: null,
+          siteName: "Ably",
+        },
+      ],
+    });
+
+    renderRow({
+      currentUserId: "user-1",
+      onRemoveUnfurl,
+      message,
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Remove link preview: Ably" }),
+    );
+
+    expect(onRemoveUnfurl).toHaveBeenCalledWith(message, "https://ably.com");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });
 
@@ -1912,12 +2364,43 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    const terminal = screen.getByTestId("coworker-mention-terminal");
-    expect(terminal).toHaveTextContent("MentionStatus.failed");
+    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+      "MentionStatus.failed",
+    );
     expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-thought-trace"),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-failed"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-retry"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Retry on a failed mention shell for the mentioner", async () => {
+    const user = userEvent.setup();
+    const onRetryMention = vi.fn();
+    const message = coworkerMessage({
+      content: "",
+      metadata: {
+        mention_id: "mention_1",
+        mention_failed: true,
+        in_reply_to_message_id: "source-1",
+      },
+    });
+
+    renderRow({ message, onRetryMention });
+
+    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+      "MentionStatus.failed",
+    );
+    await user.click(screen.getByTestId("coworker-mention-retry"));
+    expect(onRetryMention).toHaveBeenCalledWith(message);
+    expect(screen.getByTestId("coworker-mention-retry")).toHaveTextContent(
+      "MentionStatus.retry",
+    );
   });
 
   it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {

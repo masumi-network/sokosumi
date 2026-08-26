@@ -6,27 +6,11 @@
 
 **Framework**: Next.js 16 App Router with React 19.2 Server Components
 **Location**: `apps/web/` directory within the pnpm workspace
-**Key Directories**:
-
-- `src/app/` - App Router routes, server actions, API handlers
-- `src/components/` - Shared UI components (Shadcn UI + Radix)
-- `src/lib/` - Domain logic following three-layer pattern
-- `src/hooks/` - Custom React hooks
-- `src/contexts/` - React contexts
+**Key Directories**: The live tree is `src/`. Conventions that still match: `src/app/` (routes), `src/components/` (Shadcn + Radix), `src/lib/` (three-layer services/actions/utils), `src/hooks/`, `src/contexts/`. Also `src/auth/`, `src/config/`, `src/i18n/`, `src/queries/`, `src/middleware/`.
 
 ## App Router Structure
 
-```
-src/app/
-├── (app)/              # Protected app routes
-├── (auth)/             # Authentication routes
-├── (flows)/            # Transitional/public flows (e.g. accept-invitation)
-├── api/                 # API route handlers
-├── share/               # Public sharing routes
-├── layout.tsx           # Root layout
-├── globals.css          # Global styles with semantic colors
-└── not-found.tsx        # 404 page
-```
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `composio/`, `tasks/`, `maintenance`.
 
 ## App-Specific Conventions
 
@@ -98,7 +82,7 @@ Prefer `toActionResult` over inventing another Ok/Err helper.
 
 Use Effects only to **synchronize with external systems** (browser APIs, third-party widgets). Avoid Effects for derived state, user events, or mirroring props/state—dependency arrays hide coupling and effect chains are hard to trace.
 
-- **Do not use Effects for**: derived state (compute during render), filtering lists (derive or `useMemo`), resetting state on prop change (use `key` to remount), user events (use event handlers), data fetching (use a library like React Query/SWR), chains of state updates, notifying parent (use handler or lift state).
+- **Do not use Effects for**: derived state (compute during render), filtering lists (derive or `useMemo`), resetting state on prop change (use `key` to remount), user events (use event handlers), data fetching (use `@tanstack/react-query`), chains of state updates, notifying parent (use handler or lift state).
 - **Smell tests**: State used as a flag so an effect can “do the real action” → use the event handler. Effect that only resets when an ID/prop changes → use `key` and remount.
 - **Mount-only sync**: For “run once on mount, cleanup on unmount” (DOM focus, third-party widget, browser API), use a named hook such as `useMountEffect(effect)` (i.e. `useEffect(effect, [])`) so intent is explicit. Prefer conditional mounting: don’t mount the child until preconditions are met, then the child can use the mount-only hook.
 - **Do use Effects for**: mount-only external sync (via `useMountEffect`), external store subscriptions (`useSyncExternalStore` when applicable), syncing with non-React systems. For fetching that must stay in sync with props and a library isn’t feasible, use Effects only with proper cleanup to avoid race conditions.
@@ -193,7 +177,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 ## App-Specific Testing
 
 - Test files colocated in `__tests__/` directories
-- Mock external APIs using `__mocks__/` directory
+- Mock external APIs with colocated `vi.mock` (there is no `__mocks__/` directory)
 - Test both server and client components appropriately
 - Use Testing Library for component testing
 
@@ -476,15 +460,14 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Effects](.cursor/rules/effects.mdc)
-- [Principles](../../.cursor/rules/principles.mdc) – architecture judgment (monorepo-wide)
-- [Translations](.cursor/rules/translations.mdc)
+- [Translations](../../.agents/skills/translations/) – next-intl cleanup and locale parity
 - [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components
 
 ## References
 
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines
 - [Next.js App Router](https://nextjs.org/docs/app)
-- [Next-intl Documentation](https://next-intl-docs.vercel.app/)
+- [Next-intl Documentation](https://next-intl.dev/)
 - [Shadcn UI Components](https://ui.shadcn.com/)
 
 <!-- BEGIN:nextjs-agent-rules -->

@@ -90,6 +90,7 @@ model User {
   createdChatRooms                 ChatRoom[]                @relation("ChatRoomCreator")
   chatRoomMemberships              ChatRoomUserMember[]
   chatRoomMessages                 ChatRoomMessage[]         @relation("ChatRoomUserSender")
+  chatRoomPinnedMessages           ChatRoomPinnedMessage[]   @relation("ChatRoomPinnedMessagePinnedBy")
   chatRoomReactions                ChatRoomReaction[]
   chatRoomReadStates               ChatRoomReadState[]
   chatRoomThreadReadStates         ChatRoomThreadReadState[]
@@ -2885,7 +2886,8 @@ model ChatRoom {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   name                   String
-  slug                   String
+  /// Channel handle. Required for channels (CHECK); null for Directs.
+  slug                   String?
   kind                   String    @default("channel")
   directKey              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
@@ -2903,13 +2905,14 @@ model ChatRoom {
   userMembers      ChatRoomUserMember[]
   coworkerMembers  ChatRoomCoworkerMember[]
   messages         ChatRoomMessage[]
+  pinnedMessages   ChatRoomPinnedMessage[]
   readStates       ChatRoomReadState[]
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for (organizationId, slug|directKey) and personal directKey is
-  // enforced with partial unique indexes in the SQL migration — Prisma cannot
-  // express WHERE organizationId IS NOT NULL / IS NULL partial uniques.
+  // Uniqueness for Channel (organizationId, slug) WHERE kind = 'channel',
+  // org/personal directKey, and Channel/Direct slug CHECK are enforced in SQL
+  // migrations — Prisma cannot express those partial uniques.
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])
@@ -2929,17 +2932,17 @@ model ChatRoomUserMember {
   /// Values constrained by SQL CHECK; guests only on discoverability=external via trigger.
   access String @default("member")
 
-  /// Null = unpinned. Set to now when the user pins the room in their sidebar.
-  /// Mutually exclusive with mutedAt (enforced by DB check + API updateMany).
-  pinnedAt  DateTime?
+  /// Null = not starred. Set to now when the user Pins the room in their sidebar.
+  /// API name is star (ADR 0017); product UI stays Pin. Mutually exclusive with mutedAt.
+  starredAt DateTime?
   /// Null = unmuted. Set to now when the user mutes the room in their sidebar.
-  /// Mutually exclusive with pinnedAt (enforced by DB check + API updateMany).
+  /// Mutually exclusive with starredAt (enforced by DB check + API updateMany).
   mutedAt   DateTime?
   createdAt DateTime  @default(now())
 
   @@unique([roomId, userId])
   @@index([userId])
-  @@index([userId, pinnedAt])
+  @@index([userId, starredAt])
   @@index([userId, mutedAt])
   @@map("chat_room_user_member")
 }
@@ -3050,6 +3053,7 @@ model ChatRoomMessage {
   mentionResponseFor   ChatRoomMention?          @relation("ChatRoomMentionResponse")
   userMentionsAsSource ChatRoomUserMention[]     @relation("ChatRoomUserMentionSource")
   reactions            ChatRoomReaction[]
+  pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
@@ -3063,6 +3067,25 @@ model ChatRoomMessage {
   @@index([senderCoworkerId])
   @@index([deletedAt])
   @@map("chat_room_message")
+}
+
+/// Shared Channel pin list row. Distinct from membership sidebar Pin.
+model ChatRoomPinnedMessage {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  pinnedByUserId String?
+  pinnedByUser   User?    @relation("ChatRoomPinnedMessagePinnedBy", fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+
+  pinnedAt DateTime @default(now())
+
+  @@unique([roomId, messageId])
+  @@index([roomId, pinnedAt(sort: Desc)])
+  @@map("chat_room_pinned_message")
 }
 
 model ChatRoomReaction {

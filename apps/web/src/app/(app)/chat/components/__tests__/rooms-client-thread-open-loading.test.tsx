@@ -86,6 +86,8 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     scrollToBottom: vi.fn(),
     pinToBottomAfterOwnSend: vi.fn(),
     scrollToBottomIfPinned: vi.fn(),
+    suppressStickToBottom: vi.fn(),
+    releaseStickToBottomSuppress: vi.fn(),
   }),
 }));
 
@@ -106,6 +108,7 @@ vi.mock("@/app/chat/actions", () => ({
   listRoomMessagesAction: vi.fn(),
   listThreadMessagesAction: actions.listThreadMessagesAction,
   markThreadReadAction: actions.markThreadReadAction,
+  retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
   toggleMessageReactionAction: vi.fn(),
 }));
@@ -223,7 +226,7 @@ function channelRoom(): ChatRoom {
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",

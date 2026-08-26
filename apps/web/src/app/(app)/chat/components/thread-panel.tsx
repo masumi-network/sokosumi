@@ -1,11 +1,14 @@
 "use client";
 
+import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
@@ -41,6 +44,8 @@ export function ThreadPanel({
   usersById,
   usersBySlug,
   mentionRecords,
+  channelOptions = [],
+  channelLinks = [],
   draftKey,
   onBeforeSendReply,
   onSendReply,
@@ -55,7 +60,9 @@ export function ThreadPanel({
   openingDirectParticipantKey = null,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   outboundSentTickIds,
   editSession = null,
@@ -69,6 +76,7 @@ export function ThreadPanel({
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
+  holdOffBottom = false,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -81,6 +89,8 @@ export function ThreadPanel({
   usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   mentionRecords: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channelOptions?: readonly ComposerChannelOption[];
+  channelLinks?: readonly ChannelLinkTarget[];
   draftKey: string;
   onBeforeSendReply?: (clientMessageId: string) => boolean;
   onSendReply: (
@@ -97,7 +107,9 @@ export function ThreadPanel({
   openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
@@ -111,6 +123,7 @@ export function ThreadPanel({
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
+  holdOffBottom?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -120,9 +133,17 @@ export function ThreadPanel({
     contentMinHeight,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
+    suppressStickToBottom,
   } = useStickToBottom({
     resetKey: parentMessage.id,
+    holdOffBottom,
   });
+
+  useEffect(() => {
+    if (holdOffBottom) {
+      suppressStickToBottom();
+    }
+  }, [holdOffBottom, suppressStickToBottom]);
 
   function handleQuote(message: ChatRoomMessage) {
     onQuote?.(message);
@@ -141,12 +162,25 @@ export function ThreadPanel({
     return result;
   }
 
+  const mentionRetrySourceMessages = [parentMessage, ...replies];
+
+  function retryMentionFor(message: ChatRoomMessage) {
+    return isCurrentUserMentionerOfFailedShell({
+      shell: message,
+      currentUserId,
+      sourceMessages: mentionRetrySourceMessages,
+    })
+      ? onRetryMention
+      : undefined;
+  }
+
   function editPropsFor(messageId: string) {
     const isEditing = editSession?.messageId === messageId;
     return {
       currentUserId,
       onStartEdit,
       onDelete,
+      onRemoveUnfurl,
       isEditing,
       editDraft: isEditing && editSession ? editSession.draft : "",
       onEditDraftChange,
@@ -227,11 +261,15 @@ export function ThreadPanel({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                mentions={mentionRecords}
+                channels={channelOptions}
+                channelLinks={channelLinks}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectParticipantKey}
                 onToggleReaction={onToggleReaction}
                 onQuote={onQuote ? handleQuote : undefined}
+                onRetryMention={retryMentionFor(parentMessage)}
                 showThreadButton={false}
                 reserveHoverActionGutter={false}
                 {...editPropsFor(parentMessage.id)}
@@ -278,6 +316,9 @@ export function ThreadPanel({
                           coworkersBySlug={coworkersBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
+                          mentions={mentionRecords}
+                          channels={channelOptions}
+                          channelLinks={channelLinks}
                           canOpenHumanDirect={canOpenHumanDirect}
                           onOpenDirectMessage={onOpenDirectMessage}
                           openingDirectParticipantKey={
@@ -286,6 +327,7 @@ export function ThreadPanel({
                           onToggleReaction={onToggleReaction}
                           onQuote={onQuote ? handleQuote : undefined}
                           onRetryOutbound={onRetryOutbound}
+                          onRetryMention={retryMentionFor(reply)}
                           onRemoveOutbound={onRemoveOutbound}
                           showOutboundSentTick={outboundSentTickIds?.has(
                             reply.id,
@@ -316,6 +358,12 @@ export function ThreadPanel({
           roomId={roomId}
           draftKey={draftKey}
           mentions={mentionRecords}
+          usersById={usersById}
+          usersBySlug={usersBySlug}
+          coworkersById={coworkersById}
+          coworkersBySlug={coworkersBySlug}
+          channels={channelOptions}
+          channelLinks={channelLinks}
           placeholder={t("Thread.replyPlaceholder")}
           isSending={isSendingReply}
           showMentionShortcut={showMentionShortcut}
@@ -326,6 +374,10 @@ export function ThreadPanel({
           onChromeResize={scrollToBottomIfPinned}
           onBeforeSend={onBeforeSendReply}
           onSend={handleSendReply}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </RoomFileDropZone>
     </aside>

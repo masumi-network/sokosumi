@@ -11,6 +11,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
+  getChatRoomPinnedMessageCounts,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
   mapChatRoom,
@@ -53,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const markedUnreadAt = new Date();
 
-    const { room, pinnedAt, mutedAt } = await prisma.$transaction(
+    const { room, starredAt, mutedAt } = await prisma.$transaction(
       async (tx) => {
         const room = await requireChatRoomUserAccess(
           id,
@@ -86,21 +87,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               userId: userContext.userId,
             },
           },
-          select: { pinnedAt: true, mutedAt: true },
+          select: { starredAt: true, mutedAt: true },
         });
 
         return {
           room,
-          pinnedAt: membership?.pinnedAt ?? null,
+          starredAt: membership?.starredAt ?? null,
           mutedAt: membership?.mutedAt ?? null,
         };
       },
     );
 
-    const [unreadCounts, unreadMentionCounts] = await Promise.all([
-      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-    ]);
+    const [unreadCounts, unreadMentionCounts, pinnedCounts] = await Promise.all(
+      [
+        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+        getChatRoomPinnedMessageCounts([room.id], prisma),
+      ],
+    );
 
     return ok(
       c,
@@ -108,7 +112,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         mapChatRoom(room, userContext.userId, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          pinnedAt,
+          starredAt,
+          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
           mutedAt,
           markedUnread: true,
         }),

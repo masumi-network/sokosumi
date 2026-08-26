@@ -1,8 +1,10 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { listPinnedMessagesAction } from "@/app/chat/actions";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -94,6 +96,8 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     scrollToBottom: vi.fn(),
     pinToBottomAfterOwnSend: vi.fn(),
     scrollToBottomIfPinned: vi.fn(),
+    suppressStickToBottom: vi.fn(),
+    releaseStickToBottomSuppress: vi.fn(),
   }),
 }));
 
@@ -112,8 +116,13 @@ vi.mock("@/app/chat/actions", () => ({
   deleteRoomMessageAction: vi.fn(),
   editRoomMessageAction: vi.fn(),
   listRoomMessagesAction: vi.fn(),
+  listPinnedMessagesAction: vi.fn(async () => ({
+    ok: true as const,
+    value: { items: [], nextCursor: null, total: 0 },
+  })),
   listThreadMessagesAction: vi.fn(),
   markThreadReadAction: vi.fn(),
+  retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
   toggleMessageReactionAction: vi.fn(),
 }));
@@ -184,11 +193,18 @@ vi.mock("../draft-direct-message", () => ({
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
-  EditChannelDialog: () => <div data-testid="edit-channel-dialog-probe" />,
+  EditChannelDialog: ({ children }: { children?: ReactNode }) => (
+    <>
+      {children}
+      <div data-testid="edit-channel-dialog-probe" />
+    </>
+  ),
 }));
 
 vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
+  ChannelDiscoverabilityIcon: () => (
+    <span data-testid="channel-discoverability-icon" />
+  ),
 }));
 
 vi.mock("@/components/chat/live-member-presence-dot", () => ({
@@ -228,7 +244,7 @@ function channelRoom(): ChatRoom {
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",
@@ -289,22 +305,116 @@ function roomClientProps(room: ChatRoom) {
 }
 
 function renderRoom(room: ChatRoom) {
-  return render(<RoomsClient {...roomClientProps(room)} />);
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RoomsClient {...roomClientProps(room)} />
+    </QueryClientProvider>,
+  );
 }
 
 describe("RoomsClient room header chrome", () => {
-  it("keeps search with the title and paints the title as the landmark", () => {
+  it("makes the channel title the settings trigger and keeps search with the right actions", () => {
     renderRoom(channelRoom());
 
     const title = screen.getByTestId("room-open-title");
     const search = screen.getByTestId("room-search-trigger");
     const threads = screen.getByTestId("unread-threads-trigger");
 
+    expect(title.tagName).toBe("BUTTON");
+    expect(title).toHaveAttribute("title", "editChannel");
+    expect(title).toHaveAccessibleName("general");
+    expect(title).toContainElement(
+      screen.getByTestId("channel-discoverability-icon"),
+    );
     expect(title).toHaveClass("text-foreground");
-    expect(title).not.toHaveClass("text-muted-foreground");
-    expect(title.parentElement).toContainElement(search);
-    expect(title.parentElement).not.toContainElement(threads);
+    expect(title.className).toContain("[@media(hover:hover)]:hover:bg-");
+    expect(title.className).toContain("focus-visible:ring-inset");
+    expect(search.parentElement).toContainElement(threads);
+    expect(title.parentElement).not.toContainElement(search);
+    expect(screen.getByRole("button", { name: "general" })).toBe(title);
     expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+  });
+
+  it("shows a Channel topic beside the title, not inside the edit trigger", () => {
+    renderRoom({ ...channelRoom(), topic: "Weekly launch planning" });
+
+    const title = screen.getByTestId("room-open-title");
+    const topic = screen.getByTestId("room-open-topic");
+
+    expect(topic).toHaveTextContent("Weekly launch planning");
+    expect(title).not.toContainElement(topic);
+    expect(title).toHaveAccessibleName("general");
+    expect(title).toHaveAttribute("title", "editChannel");
+    expect(topic).toHaveAttribute("title", "Weekly launch planning");
+    expect(title.parentElement).toContainElement(topic);
+    expect(title).toHaveClass("shrink-0");
+    expect(topic).not.toHaveClass("hidden");
+    expect(topic).toHaveClass("min-w-0");
+    expect(topic.tagName).not.toBe("BUTTON");
+    expect(
+      screen.queryByRole("button", { name: "Weekly launch planning" }),
+    ).toBeNull();
+  });
+
+  it("keeps the Channel name as identity when a topic is present", () => {
+    renderRoom({
+      ...channelRoom(),
+      name: "Everyone",
+      topic: "General discussions & updates",
+    });
+
+    const title = screen.getByTestId("room-open-title");
+    const topic = screen.getByTestId("room-open-topic");
+
+    expect(title).toHaveAccessibleName("Everyone");
+    expect(title).toHaveClass("shrink-0");
+    expect(topic.className.split(/\s+/)).not.toContain("min-w-16");
+    expect(topic).toHaveClass("min-w-0");
+  });
+
+  it("trims a Channel topic for display", () => {
+    renderRoom({ ...channelRoom(), topic: "  Weekly launch planning  " });
+
+    const topic = screen.getByTestId("room-open-topic");
+    expect(topic).toHaveTextContent("Weekly launch planning");
+    expect(topic).toHaveAttribute("title", "Weekly launch planning");
+  });
+
+  it("hides a blank Channel topic", () => {
+    renderRoom({ ...channelRoom(), topic: "   " });
+
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-title")).toHaveAccessibleName(
+      "general",
+    );
+  });
+
+  it("does not show a topic on Directs", () => {
+    renderRoom({ ...humanDirectRoom(), topic: "Should stay hidden" });
+
+    expect(screen.queryByTestId("room-open-topic")).toBeNull();
+    expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
+  });
+
+  it("keeps Direct titles static and still puts search with the right actions", () => {
+    renderRoom(humanDirectRoom());
+
+    const title = screen.getByTestId("room-open-title");
+    const search = screen.getByTestId("room-search-trigger");
+    const threads = screen.getByTestId("unread-threads-trigger");
+
+    expect(title.tagName).not.toBe("BUTTON");
+    expect(search.parentElement).toContainElement(threads);
+    expect(screen.queryByRole("button", { name: "editChannel" })).toBeNull();
+    expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
   });
 
   it("opens the Members rail from the face stack and yields the rail to threads", async () => {
@@ -364,5 +474,70 @@ describe("RoomsClient room header chrome", () => {
     renderRoom(groupDirectRoom());
     expect(await screen.findByTestId("room-roster-trigger")).toBeTruthy();
     expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
+  });
+
+  it("highlights the latest pinned message under the Channel header", async () => {
+    vi.mocked(listPinnedMessagesAction).mockResolvedValue({
+      ok: true,
+      value: {
+        items: [
+          {
+            messageId: "msg-latest-pin",
+            pinnedAt: new Date("2026-08-26T15:00:00.000Z"),
+            pinnedBy: { id: "user-1", name: "Ada" },
+            message: {
+              id: "msg-latest-pin",
+              roomId: "room-channel",
+              parentMessageId: null,
+              content: "Don't freeze Friday",
+              createdAt: new Date("2026-08-26T14:00:00.000Z"),
+              editedAt: null,
+              deletedAt: null,
+              mentions: [],
+              reactions: [],
+              threadReplyCount: 0,
+              threadLastReplyAt: null,
+              metadata: null,
+              quote: null,
+              membership: null,
+              unfurls: null,
+              sender: {
+                type: "user",
+                user: {
+                  id: "user-1",
+                  name: "Ada",
+                  email: "ada@example.com",
+                  image: null,
+                  presence: "offline",
+                },
+              },
+            },
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+      },
+    });
+
+    const { container } = renderRoom({
+      ...channelRoom(),
+      pinnedMessageCount: 2,
+    });
+
+    const banner = await screen.findByTestId("latest-pinned-message");
+    const header = container.querySelector("header");
+    expect(header?.nextElementSibling).toBe(banner);
+    expect(banner).toHaveTextContent("PinnedMessages.latest");
+    expect(banner).toHaveTextContent("Ada");
+    expect(banner).toHaveTextContent("Don't freeze Friday");
+    expect(banner).toHaveTextContent("PinnedMessages.count");
+    expect(screen.getByTestId("room-open-title")).not.toContainElement(banner);
+  });
+
+  it("does not show a latest pin on Directs", async () => {
+    renderRoom({ ...humanDirectRoom(), pinnedMessageCount: 3 });
+    await screen.findByTestId("room-open-title");
+    expect(screen.queryByTestId("latest-pinned-message")).toBeNull();
+    expect(screen.queryByTestId("latest-pinned-message-loading")).toBeNull();
   });
 });

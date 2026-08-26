@@ -30,6 +30,12 @@ export type {
   SessionUser,
 } from "./better-auth-types.js";
 export {
+  CHANNEL_SLUG_MAX_LENGTH,
+  channelNameFromSlug,
+  liveSanitizeChannelSlug,
+  sanitizeChannelSlug,
+} from "./channel-slug.js";
+export {
   CHAT_MEMBERSHIP_REVOKE_REASONS,
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
   type ChatMembershipRevokeReason,
@@ -64,6 +70,11 @@ export {
   CHAT_ROOM_MESSAGE_EVENT_TYPES,
   type ChatRoomMessageEventType,
 } from "./chat-room-message-event-type.js";
+export {
+  CHAT_ROOM_PINNED_MESSAGE_ACTIONS,
+  CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+  type ChatRoomPinnedMessageAction,
+} from "./chat-room-pinned-message-event.js";
 export {
   buildQuoteSnippet,
   buildRoomQuoteSnippetParts,
@@ -172,6 +183,14 @@ export {
   buildJobBlobPrefix,
 } from "./job-blob-path.js";
 export { linkifyBareDomainsInMarkdown } from "./linkify-bare-domains.js";
+export {
+  type ChannelLinkIdentity,
+  type ChannelLinkMatch,
+  type ChannelLinkTarget,
+  channelLinkInsertText,
+  collectChannelLinksInMarkdown,
+  linkifyChannelLinksInMarkdown,
+} from "./linkify-channel-links.js";
 export {
   type AppLocale,
   DEFAULT_LOCALE,
@@ -325,6 +344,8 @@ export {
 export {
   extractBareHttpUrls,
   selectUnfurlCandidateUrls,
+  type UnfurlPreviewContent,
+  unfurlCardHasPreviewContent,
 } from "./unfurl-urls.js";
 export {
   buildUserMetadataWithDesignMd,

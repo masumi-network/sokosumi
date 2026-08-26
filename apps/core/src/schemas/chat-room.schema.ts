@@ -107,7 +107,11 @@ export const chatRoomSchema = z
       example: "Acme Corp",
     }),
     name: z.string().openapi({ example: "Launch Room" }),
-    slug: z.string().openapi({ example: "launch-room" }),
+    slug: z.string().nullable().openapi({
+      description:
+        "Channel slug unique among Channels in the organization. Null for Directs.",
+      example: "launch-room",
+    }),
     kind: z.enum(["channel", "direct"]).openapi({ example: "channel" }),
     directKey: z.string().nullable().openapi({
       description: "Deterministic key for direct rooms; null for normal rooms.",
@@ -137,10 +141,15 @@ export const chatRoomSchema = z
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
       example: 1,
     }),
-    pinnedAt: dateTimeSchema.nullable().openapi({
+    starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user pinned this room in their sidebar. Null when unpinned.",
+        "When the current user starred this room. Null when not starred.",
       example: "2026-08-02T12:00:00.000Z",
+    }),
+    pinnedMessageCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Number of Pinned messages on this Channel. Always 0 for Directs.",
+      example: 1,
     }),
     mutedAt: dateTimeSchema.nullable().openapi({
       description:
@@ -167,6 +176,19 @@ export const chatRoomSchema = z
   })
   .openapi("ChatRoom");
 
+export const chatRoomPinnedMessageMutationSchema = z
+  .object({
+    messageId: z.string().uuid().openapi({
+      description: "Pinned or unpinned message id.",
+      example: "550e8400-e29b-41d4-a716-446655440001",
+    }),
+    pinnedMessageCount: z.number().int().min(0).openapi({
+      description: "Current number of Pinned messages on this Channel.",
+      example: 1,
+    }),
+  })
+  .openapi("ChatRoomPinnedMessageMutation");
+
 const roomMemberUserIdsSchema = z
   .array(z.string().min(1))
   .max(MAX_ROOM_MEMBERS)
@@ -185,6 +207,16 @@ const roomCoworkerIdsSchema = z
     example: ["cow_123"],
   });
 
+export const channelSlugAvailabilitySchema = z
+  .object({
+    status: z.enum(["free", "taken"]).openapi({
+      description:
+        "Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.",
+      example: "free",
+    }),
+  })
+  .openapi("ChannelSlugAvailability");
+
 export const chatRoomKindSchema = z
   .enum(["channel", "direct"])
   .openapi("ChatRoomKind");
@@ -200,8 +232,15 @@ export const createChatRoomRequestSchema = z
         description:
           "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).",
       }),
-      name: z.string().trim().min(1).max(80).openapi({
+      name: z.string().trim().max(80).optional().openapi({
+        description:
+          "Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).",
         example: "Launch Room",
+      }),
+      slug: z.string().optional().openapi({
+        description:
+          "Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.",
+        example: "launch-room",
       }),
       topic: z.string().trim().max(200).optional().openapi({
         example: "Launch planning with design and AI research partners",
@@ -234,6 +273,10 @@ export const updateChatRoomRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional().openapi({
       example: "Launch Room",
+    }),
+    slug: z.string().optional().openapi({
+      description: "Rejected. Channel slug is immutable after create.",
+      example: "launch-room",
     }),
     topic: z.string().trim().max(200).nullable().optional().openapi({
       example: "Launch planning with design and AI research partners",
@@ -396,6 +439,12 @@ export const chatRoomMessageUnfurlSchema = z
   })
   .openapi("ChatRoomMessageUnfurl");
 
+export const removeChatRoomMessageUnfurlRequestSchema = z
+  .object({
+    url: z.string().url().openapi({ example: "https://example.com/article" }),
+  })
+  .openapi("RemoveChatRoomMessageUnfurlRequest");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -419,6 +468,22 @@ export const chatRoomMessageSchema = z
     }),
   })
   .openapi("ChatRoomMessage");
+
+export const chatRoomPinnedMessageListItemSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    pinnedAt: dateTimeSchema,
+    pinnedBy: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+      })
+      .nullable(),
+    // Do not chain `.nullable()` onto chatRoomMessageSchema — that poisons
+    // the OpenAPI ChatRoomMessage component with null.
+    message: z.union([chatRoomMessageSchema, z.null()]),
+  })
+  .openapi("ChatRoomPinnedMessageListItem");
 
 export const createChatRoomMessageRequestSchema = z
   .object({

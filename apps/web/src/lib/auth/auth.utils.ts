@@ -1,7 +1,8 @@
-import type { SocialProviderId } from "@/lib/schemas";
+import type { AuthMethodId } from "@/lib/schemas/auth";
 
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
+const AUTH_SESSION_GET_TIMEOUT_MS = 5_000;
 const OAUTH_CONSENT_PATH = "/oauth/consent";
 const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
@@ -18,12 +19,13 @@ const OAUTH_CONSENT_QUERY_KEYS = [
   "sig",
 ] as const;
 
-interface WaitForAuthSessionOptions {
+interface WaitForAuthSessionOptions<TSession = unknown> {
   context: "login" | "signup";
-  getSession: () => Promise<unknown>;
+  getSession: () => Promise<TSession | null>;
   logWarning: (message: string) => void;
   initialDelayMs?: number;
   retryDelayMs?: number;
+  sessionTimeoutMs?: number;
   waitForMs?: (ms: number) => Promise<void>;
 }
 
@@ -37,6 +39,27 @@ function waitForMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function getSessionOrNull<TSession>(
+  getSession: () => Promise<TSession | null>,
+  timeoutMs: number,
+): Promise<TSession | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve()
+        .then(() => getSession())
+        .catch(() => null),
+      new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export function createAuthSessionGetter<TSession>(
   getSessionResponse: () => Promise<AuthSessionResponse<TSession> | null>,
 ): () => Promise<TSession | null> {
@@ -46,19 +69,20 @@ export function createAuthSessionGetter<TSession>(
   };
 }
 
-export async function waitForAuthSession({
+export async function waitForAuthSession<TSession = unknown>({
   context,
   getSession,
   logWarning,
   initialDelayMs = AUTH_SESSION_INITIAL_WAIT_MS,
   retryDelayMs = AUTH_SESSION_RETRY_WAIT_MS,
+  sessionTimeoutMs = AUTH_SESSION_GET_TIMEOUT_MS,
   waitForMs: waitForMsFn = waitForMs,
-}: WaitForAuthSessionOptions): Promise<void> {
+}: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
   await waitForMsFn(initialDelayMs);
 
-  const session = await getSession();
+  const session = await getSessionOrNull(getSession, sessionTimeoutMs);
   if (session) {
-    return;
+    return session;
   }
 
   logWarning(
@@ -66,12 +90,13 @@ export async function waitForAuthSession({
   );
   await waitForMsFn(retryDelayMs);
 
-  const retrySession = await getSession();
+  const retrySession = await getSessionOrNull(getSession, sessionTimeoutMs);
   if (!retrySession) {
     logWarning(
       `Session not established after ${context}, proceeding with redirect anyway`,
     );
   }
+  return retrySession ?? null;
 }
 
 interface BuildSignUpUrlParams {
@@ -207,7 +232,8 @@ export function getAbsoluteAuthRedirectUrl(
 }
 
 /**
- * Builds a social-auth callback URL for `authClient.signIn.social`.
+ * Builds an absolute auth callback URL for Better Auth `callbackURL` /
+ * `newUserCallbackURL` (social, credential, magic-link).
  *
  * The result is an **absolute** URL anchored to the current web origin. This
  * matters when the browser `authClient` targets the Core Better Auth instance
@@ -221,7 +247,7 @@ export function getAbsoluteAuthRedirectUrl(
  */
 export function buildAuthCallbackUrl(
   path: string,
-  provider: SocialProviderId,
+  provider: AuthMethodId,
   returnUrl?: string,
 ): string {
   const params = new URLSearchParams({ provider });

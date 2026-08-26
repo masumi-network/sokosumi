@@ -77,13 +77,13 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 
 | Event                 | Fires when…                                    | Where |
 |-----------------------|------------------------------------------------|-------|
-| `sign_up` `{provider}`| account created                                | auth |
-| `login` `{provider}`  | signed in                                      | auth |
+| `sign_up` `{provider}`| account created (`credential` from the form; social from the callback page) | `signup/components/form.tsx`, `components/social-auth-callback.tsx` |
+| `login` `{provider}`  | signed in. Credential, social and magic-link fire on `/auth/callback/signin` after the full page load. Passkey fires in `social-buttons.tsx` before `router.replace` | `components/social-auth-callback.tsx`, `components/social-buttons.tsx` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
-| `begin_checkout`      | checkout opened                                | billing |
-| `purchase` `{transaction_id, value, currency, items}` | **a subscription / credit purchase succeeds** | `components/billing/purchase-tracker.tsx` |
+| `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
+| `purchase` `{transaction_id, value, currency, items}` | **a credit / coupon purchase succeeds** (Stripe returns with `session_id`). Subscription checkouts return with `status=success` only and do **not** fire `purchase` yet — see below | `components/billing/purchase-tracker.tsx` |
 | `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start`, `doi_confirmed` (defined, not yet fired — no call site) | funnel context | various |
-| `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made | banner |
+| `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made (banner) **and** on every full page load when the cookie already exists (`consent-mode-init.tsx`). Not re-pushed on SPA route changes — see [Why events go missing](#why-events-go-missing) | banner, `consent-mode-init.tsx` |
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
 
 Marketplace app Hire (`agent_hired` / `use-job-submission`) was removed with
@@ -99,6 +99,53 @@ Mark `sign_up` and `purchase` as **key events** (conversions) in GA4; add
 `message_start` if you want it as a conversion too.
 Drop any GTM conversion that still keys on `agent_hired`.
 
+### Why events go missing
+
+Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
+
+- **Better Auth hard-redirects on credential success.** `signIn.email` with a
+  `callbackURL` makes the Better Auth client set `window.location.href` inside
+  its fetch hook, *before* the caller's code after `await` runs. A
+  `fireGTMEvent.*` placed after such a call is dead code (GA4 showed 0
+  credential logins against 145 `login_area_form_start`). Magic-link submit
+  only sends the email — the user stays on the form. The hard navigation is
+  the verify GET → `callbackURL`. Fire success events on the page that
+  full-page load lands on — that is what `/auth/callback/signin?provider=…`
+  is for. Social sign-in already worked this way; credential and magic-link
+  now use it too. Passkey has no Better Auth hard redirect, so it fires in
+  place before `router.replace`.
+- **Hard navigations after a push are a race.** `begin_checkout` is pushed and
+  then `window.location.href = stripeUrl` runs on the next line. GA4 sends via
+  `sendBeacon`, so it mostly survives, but push *before* navigating, never after.
+- **GTM trigger groups fire once per page load.** Every GA4 event tag in the
+  container is gated by a trigger group `consent_status & <event>`. A trigger
+  group fires at most once per page load, so in this SPA the second
+  `view_agent`, `view_credits` or `message_start` on the same page load is
+  dropped. The tags already require `analytics_storage` via Consent Mode
+  ("additional consent checks"), which is the correct gate — the trigger
+  groups are redundant and lossy. GTM fix: fire each GA4 event tag on its plain
+  `ce - <event>` trigger and drop the `tg - …` trigger groups. Until then,
+  expect undercounts for repeated in-app events.
+- **`onboarding_*`, `agent_hired`** no longer exist in the app (SOK-805 removed
+  the marketplace Hire). GA4/Ads/LinkedIn/Meta tags keyed on them are dead.
+- **Subscription `purchase`** is a known gap: Better Auth's Stripe plugin owns
+  the subscription checkout and returns to `/billing?tab=subscription&status=success`
+  with no session id, so there is nothing to build `transaction_id`/`value`
+  from client-side. Closing it needs `{CHECKOUT_SESSION_ID}` on that
+  `successUrl` (`lib/auth/subscription.server.ts`) plus a `PurchaseTracker`
+  mount on the subscription tab. Only credits/coupons fire `purchase` today.
+
+### Event parameters worth registering as GA4 custom dimensions
+
+| Parameter | On event | Registered? |
+|-----------|----------|-------------|
+| `provider` | `sign_up`, `login` (`google`, `microsoft`, `credential`, `magic-link`, `passkey`) | yes |
+| `agent_name`, `agent_price` | `view_agent` | yes |
+| `plan`, `seats` | `begin_checkout` (subscriptions) | yes — but the GTM `GA4 - begin_checkout` tag must forward them |
+| `room_id` | `message_start` | no — high cardinality; only register if you want per-coworker DM reports. GTM tag does not forward it today |
+| `transaction_id`, `value`, `currency`, `items` | `purchase` | standard ecommerce — no dimension needed |
+| `consent_analytics`, `consent_marketing` | `consent_status` | no GA4 tag; not needed |
+
 ## User-ID
 
 After login we push an **opaque** Sokosumi user id (`session.user.id` — never
@@ -106,6 +153,11 @@ an email or a name) as `set_user_id`. The GA4 Configuration tag in GTM reads it
 (`user_id` field = the `user_id` dataLayer variable), which stitches a visitor's
 sessions and devices together. It is cleared on logout so a shared browser does
 not misattribute the next person.
+
+Caveat: the GA4 Configuration tag fires on Consent Initialization / History
+Change, but `set_user_id` is pushed later (after the session resolves), so the
+first page load's hits carry no `user_id` until the next route change re-fires
+the config. GTM fix: add `ce - set_user_id` as a trigger on `GA4 - config`.
 
 ## UTMs & attribution
 

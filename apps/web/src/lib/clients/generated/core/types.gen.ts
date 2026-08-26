@@ -1912,7 +1912,10 @@ export type ChatRoom = {
      */
     organizationName: string | null;
     name: string;
-    slug: string;
+    /**
+     * Channel slug unique among Channels in the organization. Null for Directs.
+     */
+    slug: string | null;
     kind: 'channel' | 'direct';
     /**
      * Deterministic key for direct rooms; null for normal rooms.
@@ -1935,9 +1938,13 @@ export type ChatRoom = {
      */
     unreadMentionCount: number;
     /**
-     * When the current user pinned this room in their sidebar. Null when unpinned.
+     * When the current user starred this room. Null when not starred.
      */
-    pinnedAt: Date | null;
+    starredAt: Date | null;
+    /**
+     * Number of Pinned messages on this Channel. Always 0 for Directs.
+     */
+    pinnedMessageCount?: number;
     /**
      * When the current user muted this room. Null when unmuted. Muted rooms sort last, hide sidebar attention chrome, and skip CHAT mention notifications.
      */
@@ -2027,7 +2034,14 @@ export type CreateChatRoomRequest = {
      * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).
      */
     kind: 'channel';
-    name: string;
+    /**
+     * Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).
+     */
+    name?: string;
+    /**
+     * Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.
+     */
+    slug?: string;
     topic?: string;
     /**
      * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join. `"external"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).
@@ -2082,6 +2096,13 @@ export const DiscoverableChannelDiscoverability = {
  */
 export type DiscoverableChannelDiscoverability = typeof DiscoverableChannelDiscoverability[keyof typeof DiscoverableChannelDiscoverability];
 
+export type ChannelSlugAvailability = {
+    /**
+     * Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.
+     */
+    status: 'free' | 'taken';
+};
+
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
 };
@@ -2114,90 +2135,14 @@ export type ChatUiMessage = {
     };
 };
 
-export type UpdateChatRoomRequest = {
-    name?: string;
-    topic?: string | null;
-    discoverability?: ChatRoomDiscoverability;
-    /**
-     * Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.
-     */
-    memberUserIds?: Array<string>;
-    coworkerIds?: Array<string>;
-};
-
-/**
- * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
- */
-export const ChatRoomDiscoverability = {
-    PUBLIC: 'public',
-    PRIVATE: 'private',
-    EXTERNAL: 'external'
-} as const;
-
-/**
- * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
- */
-export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
-
-export type ArchivedChatRoom = {
-    id: string;
-    archivedAt: Date;
-};
-
-export type CreateChatRoomInvitationRequest = {
-    email: string;
-};
-
-export type ChatRoomGuestInviteLink = {
-    token: string;
-    url: string;
-    roomId: string;
-    createdAt: Date;
-    expiresAt: Date | null;
-    revokedAt: Date | null;
-    maxUses: number | null;
-    useCount: number;
-};
-
-export type CreateChatRoomGuestInviteLinkRequest = {
-    expiresInDays?: number | null;
-    maxUses?: number | null;
-};
-
-export type RevokeChatRoomGuestInviteLinkResult = {
-    ok: boolean;
-};
-
-export type LeftChatRoom = {
-    id: string;
-    /**
-     * Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.
-     */
-    remainingUserMemberCount: number;
-};
-
-export type ChatRoomThread = {
-    parentMessage: ChatRoomMessage;
-    /**
-     * Non-deleted replies under this parent.
-     */
-    replyCount: number;
-    /**
-     * createdAt of the newest non-deleted reply.
-     */
-    lastReplyAt: Date;
-    /**
-     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.
-     */
-    unreadReplyCount: number;
-    /**
-     * createdAt of the newest qualifying unread reply, or null when none.
-     */
-    lastUnreadReplyAt: Date | null;
-    /**
-     * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
-     */
-    hasLooked: boolean;
+export type ChatRoomPinnedMessageListItem = {
+    messageId: string;
+    pinnedAt: Date;
+    pinnedBy: {
+        id: string;
+        name: string;
+    } | null;
+    message: ChatRoomMessage | null;
 };
 
 export type ChatRoomMessage = {
@@ -2301,6 +2246,96 @@ export type ChatRoomMessageUnfurl = {
     siteName: string | null;
 };
 
+export type UpdateChatRoomRequest = {
+    name?: string;
+    /**
+     * Rejected. Channel slug is immutable after create.
+     */
+    slug?: string;
+    topic?: string | null;
+    discoverability?: ChatRoomDiscoverability;
+    /**
+     * Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.
+     */
+    memberUserIds?: Array<string>;
+    coworkerIds?: Array<string>;
+};
+
+/**
+ * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
+ */
+export const ChatRoomDiscoverability = {
+    PUBLIC: 'public',
+    PRIVATE: 'private',
+    EXTERNAL: 'external'
+} as const;
+
+/**
+ * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
+ */
+export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
+
+export type ArchivedChatRoom = {
+    id: string;
+    archivedAt: Date;
+};
+
+export type CreateChatRoomInvitationRequest = {
+    email: string;
+};
+
+export type ChatRoomGuestInviteLink = {
+    token: string;
+    url: string;
+    roomId: string;
+    createdAt: Date;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    maxUses: number | null;
+    useCount: number;
+};
+
+export type CreateChatRoomGuestInviteLinkRequest = {
+    expiresInDays?: number | null;
+    maxUses?: number | null;
+};
+
+export type RevokeChatRoomGuestInviteLinkResult = {
+    ok: boolean;
+};
+
+export type LeftChatRoom = {
+    id: string;
+    /**
+     * Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.
+     */
+    remainingUserMemberCount: number;
+};
+
+export type ChatRoomThread = {
+    parentMessage: ChatRoomMessage;
+    /**
+     * Non-deleted replies under this parent.
+     */
+    replyCount: number;
+    /**
+     * createdAt of the newest non-deleted reply.
+     */
+    lastReplyAt: Date;
+    /**
+     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.
+     */
+    unreadReplyCount: number;
+    /**
+     * createdAt of the newest qualifying unread reply, or null when none.
+     */
+    lastUnreadReplyAt: Date | null;
+    /**
+     * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
+     */
+    hasLooked: boolean;
+};
+
 export type ChatRoomThreadsUnreadCount = {
     /**
      * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.
@@ -2349,6 +2384,21 @@ export type UpdateChatRoomMessageRequest = {
 
 export type ReactToChatRoomMessageRequest = {
     emoji: string;
+};
+
+export type ChatRoomPinnedMessageMutation = {
+    /**
+     * Pinned or unpinned message id.
+     */
+    messageId: string;
+    /**
+     * Current number of Pinned messages on this Channel.
+     */
+    pinnedMessageCount: number;
+};
+
+export type RemoveChatRoomMessageUnfurlRequest = {
+    url: string;
 };
 
 export type ChatRoomFileUploadSession = {
@@ -11548,7 +11598,7 @@ export type PostChatsRoomsErrors = {
         };
     };
     /**
-     * Room already exists
+     * Conflict
      */
     409: {
         error: string;
@@ -11708,6 +11758,115 @@ export type GetChatsRoomsDiscoverableResponses = {
 };
 
 export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
+
+export type GetChatsRoomsChannelSlugAvailabilityData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Channel slug to check. Sanitized with the same kebab rules as create.
+         */
+        slug: string;
+    };
+    url: '/chats/rooms/channel-slug-availability';
+};
+
+export type GetChatsRoomsChannelSlugAvailabilityErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsChannelSlugAvailabilityError = GetChatsRoomsChannelSlugAvailabilityErrors[keyof GetChatsRoomsChannelSlugAvailabilityErrors];
+
+export type GetChatsRoomsChannelSlugAvailabilityResponses = {
+    /**
+     * Channel slug availability
+     */
+    200: {
+        data: ChannelSlugAvailability;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsChannelSlugAvailabilityResponse = GetChatsRoomsChannelSlugAvailabilityResponses[keyof GetChatsRoomsChannelSlugAvailabilityResponses];
 
 export type GetChatsRoomsByIdStreamMessagesData = {
     body?: never;
@@ -12155,6 +12314,121 @@ export type PostChatsRoomsByIdStreamResponses = {
 };
 
 export type PostChatsRoomsByIdStreamResponse = PostChatsRoomsByIdStreamResponses[keyof PostChatsRoomsByIdStreamResponses];
+
+export type GetChatsRoomsByIdPinnedMessagesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/rooms/{id}/pinned-messages';
+};
+
+export type GetChatsRoomsByIdPinnedMessagesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdPinnedMessagesError = GetChatsRoomsByIdPinnedMessagesErrors[keyof GetChatsRoomsByIdPinnedMessagesErrors];
+
+export type GetChatsRoomsByIdPinnedMessagesResponses = {
+    /**
+     * Pinned messages retrieved
+     */
+    200: {
+        data: Array<ChatRoomPinnedMessageListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdPinnedMessagesResponse = GetChatsRoomsByIdPinnedMessagesResponses[keyof GetChatsRoomsByIdPinnedMessagesResponses];
 
 export type DeleteChatsRoomsByIdData = {
     body?: never;
@@ -14219,6 +14493,10 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Reading-order window of replies centred on this reply. Must belong to this thread. Cannot be combined with cursor.
+         */
+        around?: string;
     };
     url: '/chats/rooms/{id}/threads/{parentMessageId}/messages';
 };
@@ -14256,6 +14534,20 @@ export type GetChatsRoomsByIdThreadsByParentMessageIdMessagesErrors = {
      * Thread not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -14393,7 +14685,7 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadResponses = {
 
 export type PostChatsRoomsByIdThreadsByParentMessageIdReadResponse = PostChatsRoomsByIdThreadsByParentMessageIdReadResponses[keyof PostChatsRoomsByIdThreadsByParentMessageIdReadResponses];
 
-export type DeleteChatsRoomsByIdPinData = {
+export type DeleteChatsRoomsByIdStarData = {
     body?: never;
     headers?: {
         /**
@@ -14405,10 +14697,10 @@ export type DeleteChatsRoomsByIdPinData = {
         id: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/pin';
+    url: '/chats/rooms/{id}/star';
 };
 
-export type DeleteChatsRoomsByIdPinErrors = {
+export type DeleteChatsRoomsByIdStarErrors = {
     /**
      * Unauthorized
      */
@@ -14467,11 +14759,11 @@ export type DeleteChatsRoomsByIdPinErrors = {
     };
 };
 
-export type DeleteChatsRoomsByIdPinError = DeleteChatsRoomsByIdPinErrors[keyof DeleteChatsRoomsByIdPinErrors];
+export type DeleteChatsRoomsByIdStarError = DeleteChatsRoomsByIdStarErrors[keyof DeleteChatsRoomsByIdStarErrors];
 
-export type DeleteChatsRoomsByIdPinResponses = {
+export type DeleteChatsRoomsByIdStarResponses = {
     /**
-     * Chat room unpinned
+     * Chat room unstarred
      */
     200: {
         data: ChatRoom;
@@ -14483,9 +14775,9 @@ export type DeleteChatsRoomsByIdPinResponses = {
     };
 };
 
-export type DeleteChatsRoomsByIdPinResponse = DeleteChatsRoomsByIdPinResponses[keyof DeleteChatsRoomsByIdPinResponses];
+export type DeleteChatsRoomsByIdStarResponse = DeleteChatsRoomsByIdStarResponses[keyof DeleteChatsRoomsByIdStarResponses];
 
-export type PostChatsRoomsByIdPinData = {
+export type PostChatsRoomsByIdStarData = {
     body?: never;
     headers?: {
         /**
@@ -14497,10 +14789,10 @@ export type PostChatsRoomsByIdPinData = {
         id: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/pin';
+    url: '/chats/rooms/{id}/star';
 };
 
-export type PostChatsRoomsByIdPinErrors = {
+export type PostChatsRoomsByIdStarErrors = {
     /**
      * Unauthorized
      */
@@ -14573,11 +14865,11 @@ export type PostChatsRoomsByIdPinErrors = {
     };
 };
 
-export type PostChatsRoomsByIdPinError = PostChatsRoomsByIdPinErrors[keyof PostChatsRoomsByIdPinErrors];
+export type PostChatsRoomsByIdStarError = PostChatsRoomsByIdStarErrors[keyof PostChatsRoomsByIdStarErrors];
 
-export type PostChatsRoomsByIdPinResponses = {
+export type PostChatsRoomsByIdStarResponses = {
     /**
-     * Chat room pinned
+     * Chat room starred
      */
     200: {
         data: ChatRoom;
@@ -14589,7 +14881,7 @@ export type PostChatsRoomsByIdPinResponses = {
     };
 };
 
-export type PostChatsRoomsByIdPinResponse = PostChatsRoomsByIdPinResponses[keyof PostChatsRoomsByIdPinResponses];
+export type PostChatsRoomsByIdStarResponse = PostChatsRoomsByIdStarResponses[keyof PostChatsRoomsByIdStarResponses];
 
 export type DeleteChatsRoomsByIdMuteData = {
     body?: never;
@@ -14813,6 +15105,10 @@ export type GetChatsRoomsByIdMessagesData = {
          * Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages.
          */
         q?: string;
+        /**
+         * Reading-order window of top-level messages centred on this message, or on its parent if it is a reply. Cannot be combined with q or cursor.
+         */
+        around?: string;
     };
     url: '/chats/rooms/{id}/messages';
 };
@@ -14850,6 +15146,20 @@ export type GetChatsRoomsByIdMessagesErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -15320,6 +15630,449 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdPinData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/pin';
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdPinErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdPinError = DeleteChatsRoomsByIdMessagesByMessageIdPinErrors[keyof DeleteChatsRoomsByIdMessagesByMessageIdPinErrors];
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdPinResponses = {
+    /**
+     * Message unpinned
+     */
+    200: {
+        data: ChatRoomPinnedMessageMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdPinResponse = DeleteChatsRoomsByIdMessagesByMessageIdPinResponses[keyof DeleteChatsRoomsByIdMessagesByMessageIdPinResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdPinData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/pin';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdPinErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdPinError = PostChatsRoomsByIdMessagesByMessageIdPinErrors[keyof PostChatsRoomsByIdMessagesByMessageIdPinErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdPinResponses = {
+    /**
+     * Message pinned
+     */
+    200: {
+        data: ChatRoomPinnedMessageMutation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdPinResponse = PostChatsRoomsByIdMessagesByMessageIdPinResponses[keyof PostChatsRoomsByIdMessagesByMessageIdPinResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData = {
+    body?: RemoveChatRoomMessageUnfurlRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/unfurls/remove';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveError = PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors[keyof PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponses = {
+    /**
+     * Room message unfurl removed
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponse = PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponses[keyof PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+        mentionId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Mention not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Mention is not failed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryError = PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors[keyof PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponses = {
+    /**
+     * Failed mention reset and redispatched
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponse = PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponses[keyof PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryResponses];
 
 export type PostChatsRoomsByIdFilesData = {
     body: CreateChatRoomFileUploadSessionRequest;

@@ -26,7 +26,7 @@ export function UnreadThreadsPanel({
       aria-label={labels.open}
       aria-expanded={isOpen}
       data-testid="unread-threads-trigger"
-      className="relative"
+      className="relative size-8"
       onClick={onToggle}
     >
       <MessagesSquare className="size-4" />

@@ -1,18 +1,25 @@
 "use client";
 
-import { getExtensionFromUrl } from "@sokosumi/utils";
+import {
+  type ChannelLinkTarget,
+  getExtensionFromUrl,
+  unfurlCardHasPreviewContent,
+} from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
   Copy,
+  Ellipsis,
   MessageCircle,
   Pencil,
+  Pin,
+  PinOff,
   Quote,
   Trash2,
+  X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
-  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -24,8 +31,8 @@ import {
   useState,
 } from "react";
 import {
+  CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
-  CoworkerMentionTerminalStatus,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
@@ -55,8 +62,12 @@ import {
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { AuroraOrb } from "@/components/aurora-orb";
+import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
+import {
+  ComposerWysiwygEditor,
+  type ComposerWysiwygEditorHandle,
+} from "@/components/chat/composer-wysiwyg-editor";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import Markdown from "@/components/markdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,8 +80,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import {
   Sheet,
   SheetContent,
@@ -78,13 +96,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -102,13 +120,15 @@ import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
+  composerMentionDisplayNames,
   formatMessageTime,
-  formatRoomMarkdownMentions,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
+  type RoomMentionParticipant,
   scrollToRoomMessageElement,
 } from "./room-helpers";
+import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
@@ -260,12 +280,22 @@ function MessageQuoteBlock({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
@@ -295,15 +325,20 @@ function MessageQuoteBlock({
               expanded ? null : "line-clamp-4",
             )}
           >
-            <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
-              {formatRoomMarkdownMentions({
-                content: quote.snippet,
-                coworkersById,
-                coworkersBySlug,
-                usersById,
-                usersBySlug,
-              })}
-            </Markdown>
+            <RoomMessageMarkdown
+              content={quote.snippet}
+              markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              channelLinks={channelLinks}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectParticipantKey}
+              hoverInteractive={false}
+            />
           </div>
         ) : null}
         {attachment ? (
@@ -328,16 +363,13 @@ function MessageQuoteBlock({
 function MessageUnfurlImage({
   imageUrl,
   title,
+  onError,
 }: {
   imageUrl: string;
   title: string;
+  onError: () => void;
 }) {
   const t = useTranslations("App.Channels.Unfurl");
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return null;
-  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -345,59 +377,110 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className="mt-2 h-auto max-h-48 max-w-full rounded-md"
-      onError={() => {
-        setFailed(true);
-      }}
+      onError={onError}
     />
   );
 }
 
-function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
+function MessageUnfurlCard({
+  unfurl,
+  canRemove,
+  onRemove,
+}: {
+  unfurl: ChatRoomMessageUnfurl;
+  canRemove: boolean;
+  onRemove?: (url: string) => void;
+}) {
   const t = useTranslations("App.Channels.Unfurl");
+  const [imageFailed, setImageFailed] = useState(false);
   const siteLabel = unfurl.siteName?.trim() || null;
+  const description = unfurl.description?.trim() || null;
+  const imageUrl = unfurl.imageUrl?.trim() || null;
+  const showImage = Boolean(imageUrl) && !imageFailed;
+
+  if (!description && !showImage) {
+    return null;
+  }
 
   return (
-    <a
-      href={unfurl.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
-      aria-label={t("openLink", { title: unfurl.title })}
-      data-testid="room-message-unfurl"
-    >
-      {siteLabel ? (
-        <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
-          {siteLabel}
+    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
+      <a
+        href={unfurl.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        aria-label={t("openLink", { title: unfurl.title })}
+        data-testid="room-message-unfurl"
+      >
+        {siteLabel ? (
+          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
+            {siteLabel}
+          </div>
+        ) : null}
+        <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
+          {unfurl.title}
         </div>
+        {description ? (
+          <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
+            {description}
+          </div>
+        ) : null}
+        {showImage && imageUrl ? (
+          <MessageUnfurlImage
+            imageUrl={imageUrl}
+            title={unfurl.title}
+            onError={() => {
+              setImageFailed(true);
+            }}
+          />
+        ) : null}
+      </a>
+      {canRemove && onRemove ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="border-border absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
+          aria-label={t("remove", { title: unfurl.title })}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemove(unfurl.url);
+          }}
+        >
+          <X className="size-3.5" aria-hidden />
+        </Button>
       ) : null}
-      <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
-        {unfurl.title}
-      </div>
-      {unfurl.description?.trim() ? (
-        <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
-          {unfurl.description}
-        </div>
-      ) : null}
-      {unfurl.imageUrl ? (
-        <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
-      ) : null}
-    </a>
+    </div>
   );
 }
 
 function MessageUnfurlList({
   unfurls,
+  canRemove,
+  onRemove,
 }: {
   unfurls: ChatRoomMessageUnfurl[] | null;
+  canRemove: boolean;
+  onRemove?: (url: string) => void;
 }) {
-  if (!unfurls || unfurls.length === 0) {
+  const visible = unfurls?.filter(unfurlCardHasPreviewContent) ?? [];
+  if (visible.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-1" data-testid="room-message-unfurls">
-      {unfurls.map((unfurl) => (
-        <MessageUnfurlCard key={unfurl.url} unfurl={unfurl} />
+    <div
+      className={cn("space-y-1", canRemove && "pr-3")}
+      data-testid="room-message-unfurls"
+    >
+      {visible.map((unfurl) => (
+        <MessageUnfurlCard
+          key={`${unfurl.url}:${unfurl.imageUrl ?? ""}`}
+          unfurl={unfurl}
+          canRemove={canRemove}
+          onRemove={onRemove}
+        />
       ))}
     </div>
   );
@@ -409,42 +492,62 @@ function ChannelMarkdownSegment({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
-  if (!content.trim()) {
-    return null;
-  }
-
   return (
-    <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
-      {formatRoomMarkdownMentions({
-        content,
-        coworkersById,
-        coworkersBySlug,
-        usersById,
-        usersBySlug,
-      })}
-    </Markdown>
+    <RoomMessageMarkdown
+      content={content}
+      markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
+      coworkersById={coworkersById}
+      coworkersBySlug={coworkersBySlug}
+      usersById={usersById}
+      usersBySlug={usersBySlug}
+      channelLinks={channelLinks}
+      currentUserId={currentUserId}
+      canOpenHumanDirect={canOpenHumanDirect}
+      onOpenDirectMessage={onOpenDirectMessage}
+      openingDirectParticipantKey={openingDirectParticipantKey}
+    />
   );
 }
 
-function ChannelMessageText({
+export function ChannelMessageText({
   content,
   coworkersById,
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -456,6 +559,11 @@ function ChannelMessageText({
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
         usersBySlug={usersBySlug}
+        channelLinks={channelLinks}
+        currentUserId={currentUserId}
+        canOpenHumanDirect={canOpenHumanDirect}
+        onOpenDirectMessage={onOpenDirectMessage}
+        openingDirectParticipantKey={openingDirectParticipantKey}
       />
     );
   }
@@ -473,6 +581,11 @@ function ChannelMessageText({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                channelLinks={channelLinks}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
               />
             );
           case "files": {
@@ -514,6 +627,11 @@ function ChannelMessageBody({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirectMessage,
+  openingDirectParticipantKey,
 }: {
   messageId: string;
   content: string;
@@ -521,6 +639,11 @@ function ChannelMessageBody({
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks: readonly ChannelLinkTarget[];
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -562,6 +685,11 @@ function ChannelMessageBody({
           coworkersBySlug={coworkersBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
+          channelLinks={channelLinks}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirectMessage={onOpenDirectMessage}
+          openingDirectParticipantKey={openingDirectParticipantKey}
         />
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
@@ -663,31 +791,45 @@ function MessageActionControls({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showPinButton,
+  isPinned,
   showCopyButton,
   showEditButton,
   showDeleteButton,
+  collapseSecondary = false,
   onAfterAction,
+  onMoreOpenChange,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showPinButton: boolean;
+  isPinned: boolean;
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
+  collapseSecondary?: boolean;
   onAfterAction?: () => void;
+  onMoreOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("App.Channels");
+  const showPin = Boolean(showPinButton && onPin);
+  const showCopy = Boolean(showCopyButton && onCopy);
+  const showDelete = Boolean(showDeleteButton && onDelete);
+  const showMore = collapseSecondary && (showPin || showCopy || showDelete);
 
   return (
     <>
@@ -733,7 +875,29 @@ function MessageActionControls({
           <Quote className="size-4" aria-hidden />
         </Button>
       ) : null}
-      {showCopyButton && onCopy ? (
+      {!collapseSecondary && showPin ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+          aria-label={
+            isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")
+          }
+          onClick={() => {
+            onPin?.(message);
+            onAfterAction?.();
+          }}
+        >
+          {isPinned ? (
+            <PinOff className="size-4" aria-hidden />
+          ) : (
+            <Pin className="size-4" aria-hidden />
+          )}
+        </Button>
+      ) : null}
+      {!collapseSecondary && showCopy ? (
         <Button
           type="button"
           variant="ghost"
@@ -742,7 +906,7 @@ function MessageActionControls({
           title={t("Copy.action")}
           aria-label={t("Copy.action")}
           onClick={() => {
-            onCopy();
+            onCopy?.();
             onAfterAction?.();
           }}
         >
@@ -765,7 +929,7 @@ function MessageActionControls({
           <MessageCircle className="size-4" aria-hidden />
         </Button>
       ) : null}
-      {showDeleteButton && onDelete ? (
+      {!collapseSecondary && showDelete ? (
         <Button
           type="button"
           variant="ghost"
@@ -774,12 +938,68 @@ function MessageActionControls({
           title={t("Message.delete")}
           aria-label={t("Message.delete")}
           onClick={() => {
-            onDelete(message);
+            onDelete?.(message);
             onAfterAction?.();
           }}
         >
           <Trash2 className="size-4" aria-hidden />
         </Button>
+      ) : null}
+      {showMore ? (
+        <DropdownMenu onOpenChange={onMoreOpenChange}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-9 rounded-full sm:size-7"
+              title={t("Actions.overflow")}
+              aria-label={t("Actions.overflow")}
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {showPin ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onPin?.(message);
+                  onAfterAction?.();
+                }}
+              >
+                {isPinned ? (
+                  <PinOff className="size-4" aria-hidden />
+                ) : (
+                  <Pin className="size-4" aria-hidden />
+                )}
+                {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+              </DropdownMenuItem>
+            ) : null}
+            {showCopy ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onCopy?.();
+                  onAfterAction?.();
+                }}
+              >
+                <Copy className="size-4" aria-hidden />
+                {t("Copy.action")}
+              </DropdownMenuItem>
+            ) : null}
+            {showDelete ? (
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => {
+                  onDelete?.(message);
+                  onAfterAction?.();
+                }}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                {t("Message.delete")}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </>
   );
@@ -793,11 +1013,14 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showPinButton,
+  isPinned,
   showCopyButton,
   showEditButton,
   showDeleteButton,
@@ -806,21 +1029,27 @@ function MessageActions({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showPinButton: boolean;
+  isPinned: boolean;
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
   return (
     <div
       data-message-actions="hover"
       className={cn(
         messageActionsPillClassName,
         "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        moreOpen && "[@media(hover:hover)]:opacity-100",
       )}
     >
       <MessageActionControls
@@ -828,14 +1057,19 @@ function MessageActions({
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
+        onPin={onPin}
         onCopy={onCopy}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
+        showPinButton={showPinButton}
+        isPinned={isPinned}
         showCopyButton={showCopyButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
+        collapseSecondary
+        onMoreOpenChange={setMoreOpen}
       />
     </div>
   );
@@ -973,11 +1207,14 @@ function TouchMessageActionsSheet({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showPinButton,
+  isPinned,
   showCopyButton,
   showEditButton,
   showDeleteButton,
@@ -988,11 +1225,14 @@ function TouchMessageActionsSheet({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showPinButton: boolean;
+  isPinned: boolean;
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
@@ -1125,6 +1365,25 @@ function TouchMessageActionsSheet({
               {t("Quote.action")}
             </Button>
           ) : null}
+          {showPinButton && onPin ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onPin(message);
+                });
+              }}
+            >
+              {isPinned ? (
+                <PinOff className="size-4 shrink-0" aria-hidden />
+              ) : (
+                <Pin className="size-4 shrink-0" aria-hidden />
+              )}
+              {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+            </Button>
+          ) : null}
           {showCopyButton && onCopy ? (
             <Button
               type="button"
@@ -1181,6 +1440,12 @@ function MessageEditComposer({
   onSave,
   onCancel,
   isSaving,
+  mentions = {},
+  usersById,
+  usersBySlug,
+  coworkersById,
+  coworkersBySlug,
+  channels = [],
 }: {
   value: string;
   originalContent: string;
@@ -1188,48 +1453,45 @@ function MessageEditComposer({
   onSave: (content: string) => void;
   onCancel: () => void;
   isSaving: boolean;
+  mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  channels?: readonly ComposerChannelOption[];
 }) {
   const t = useTranslations("App.Channels");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+  const liveRef = useRef(value);
+  liveRef.current = value;
 
-  // autoFocus leaves the caret at 0; place it at the end so editing continues
-  // from the natural end of the message (Slack/Discord-style).
-  useLayoutEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.focus();
-    const end = el.value.length;
-    el.setSelectionRange(end, end);
-  }, []);
+  const mentionDisplay = useMemo(
+    () =>
+      composerMentionDisplayNames({
+        usersById,
+        usersBySlug,
+        coworkersById,
+        coworkersBySlug,
+        mentionCatalog: mentions,
+      }),
+    [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
+  );
 
-  // Live DOM via currentTarget: parent draft can lag the last keystroke's
-  // onChange. Enter with no real change (or empty) exits edit mode — no-op
-  // after preventDefault felt like a broken keyboard.
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
-    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
-      return;
-    }
+  useMountEffect(() => {
+    editorRef.current?.focusAtEnd();
+  });
 
-    if (event.key === "Escape") {
-      event.preventDefault();
-      if (!isSaving) onCancel();
-      return;
-    }
+  function liveMarkdown(): string {
+    return editorRef.current?.getMarkdown() ?? liveRef.current;
+  }
 
-    if (event.key !== "Enter") return;
-    // Shift+Enter → newline (default)
-    if (event.shiftKey) return;
-    // Alt+Enter ignored (leave default / no save)
-    if (event.altKey) return;
-
-    event.preventDefault();
+  function handleCommit() {
     if (isSaving) return;
-
-    const live = event.currentTarget.value;
-    const liveTrimmed = live.trim();
+    const markdown = liveMarkdown();
+    const liveTrimmed = markdown.trim();
     const originalTrimmed = originalContent.trim();
     if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
-      onSave(live);
+      onSave(markdown);
       return;
     }
     onCancel();
@@ -1237,25 +1499,39 @@ function MessageEditComposer({
 
   return (
     <div className="pt-0.5">
-      <Textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-        disabled={isSaving}
-        className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
-        aria-label={t("Edit.composerAria")}
-        onKeyDown={handleKeyDown}
-        onBlur={() => {
-          if (isSaving) return;
-          // Live DOM (same race as Enter): prop can lag a just-typed character.
-          const live = textareaRef.current?.value ?? value;
-          if (live.trim() === originalContent.trim()) {
-            onCancel();
-          }
-        }}
-      />
+      <div
+        className={cn(
+          "border-input focus-within:border-ring focus-within:ring-ring/50 dark:bg-input/30 rounded-md border bg-transparent focus-within:ring-[3px]",
+          isSaving && "pointer-events-none opacity-50",
+        )}
+      >
+        <ComposerWysiwygEditor
+          ref={editorRef}
+          value={value}
+          onChange={(next) => {
+            liveRef.current = next;
+            onChange(next);
+          }}
+          mentions={mentions}
+          mentionDisplayByKey={mentionDisplay.byKey}
+          mentionDisplayBySlug={mentionDisplay.bySlug}
+          channels={channels}
+          disabled={isSaving}
+          ariaLabel={t("Edit.composerAria")}
+          modifierEnterSubmits
+          onSubmitShortcut={handleCommit}
+          onEscape={() => {
+            if (!isSaving) onCancel();
+          }}
+          onBlur={() => {
+            if (isSaving) return;
+            if (liveMarkdown().trim() === originalContent.trim()) {
+              onCancel();
+            }
+          }}
+          className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
+        />
+      </div>
     </div>
   );
 }
@@ -1464,6 +1740,32 @@ function MessageTimeOrOutboundStatus({
   return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
+function FailedMentionActions({
+  onRetryMention,
+}: {
+  onRetryMention?: () => void;
+}) {
+  const t = useTranslations("App.Channels");
+  if (!onRetryMention) {
+    return null;
+  }
+  return (
+    <div
+      className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      data-testid="coworker-mention-failed"
+    >
+      <button
+        type="button"
+        className="text-primary hover:text-primary/80 font-medium"
+        data-testid="coworker-mention-retry"
+        onClick={onRetryMention}
+      >
+        {t("MentionStatus.retry")}
+      </button>
+    </div>
+  );
+}
+
 function OutboundFailedActions({
   message,
   onRetryOutbound,
@@ -1577,6 +1879,7 @@ export function ChatMessageRow({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  channelLinks = [],
   currentUserId,
   canOpenHumanDirect = false,
   onOpenDirectMessage,
@@ -1584,9 +1887,12 @@ export function ChatMessageRow({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onPin,
   onStartEdit,
   onDelete,
+  onRemoveUnfurl,
   onRetryOutbound,
+  onRetryMention,
   onRemoveOutbound,
   showOutboundSentTick = false,
   isEditing = false,
@@ -1595,8 +1901,12 @@ export function ChatMessageRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  mentions = {},
+  channels = [],
   showThreadButton = true,
   showQuoteButton = true,
+  showPinButton = false,
+  isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
   reserveHoverActionGutter = true,
@@ -1606,6 +1916,7 @@ export function ChatMessageRow({
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  channelLinks?: readonly ChannelLinkTarget[];
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
@@ -1613,9 +1924,12 @@ export function ChatMessageRow({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onPin?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
@@ -1626,8 +1940,12 @@ export function ChatMessageRow({
   /** Optional content uses the live editor value (avoids stale draft on Enter). */
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+  channels?: readonly ComposerChannelOption[];
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
+  showPinButton?: boolean;
+  isPinned?: boolean;
   /** Slack-style continuation: omit avatar / name / wall-clock (group header time is enough). */
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
@@ -1681,6 +1999,13 @@ export function ChatMessageRow({
     !isStreamOverlay &&
     !isOutboundLocal &&
     !isDeleted;
+  const canPin =
+    showPinButton &&
+    Boolean(onPin) &&
+    message.parentMessageId == null &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    !isDeleted;
   const canEdit =
     Boolean(onStartEdit) &&
     Boolean(currentUserId) &&
@@ -1691,6 +2016,14 @@ export function ChatMessageRow({
     !isDeleted;
   const canDelete =
     Boolean(onDelete) &&
+    Boolean(currentUserId) &&
+    !isDeleted &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
+  const canRemoveUnfurl =
+    Boolean(onRemoveUnfurl) &&
     Boolean(currentUserId) &&
     !isDeleted &&
     !isStreamOverlay &&
@@ -1737,7 +2070,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 data-[search-landed=true]:bg-primary/20 data-[search-landed=true]:ring-2 data-[search-landed=true]:ring-primary",
         reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
@@ -1860,6 +2193,11 @@ export function ChatMessageRow({
                   coworkersBySlug={coworkersBySlug}
                   usersById={usersById}
                   usersBySlug={usersBySlug}
+                  channelLinks={channelLinks}
+                  currentUserId={currentUserId}
+                  canOpenHumanDirect={canOpenHumanDirect}
+                  onOpenDirectMessage={onOpenDirectMessage}
+                  openingDirectParticipantKey={openingDirectParticipantKey}
                 />
               ) : null}
               {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
@@ -1870,13 +2208,24 @@ export function ChatMessageRow({
                   onSave={onSaveEdit}
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
+                  mentions={mentions}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  channels={channels}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
-                <CoworkerMentionTerminalStatus
-                  label={tChannels("MentionStatus.failed", {
-                    name: sender.name,
-                  })}
-                />
+                <>
+                  <CoworkerFailedThoughtSparkle
+                    label={tChannels("MentionStatus.failed")}
+                  />
+                  <FailedMentionActions
+                    onRetryMention={
+                      onRetryMention ? () => onRetryMention(message) : undefined
+                    }
+                  />
+                </>
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought
@@ -1914,13 +2263,26 @@ export function ChatMessageRow({
                     coworkersBySlug={coworkersBySlug}
                     usersById={usersById}
                     usersBySlug={usersBySlug}
+                    channelLinks={channelLinks}
+                    currentUserId={currentUserId}
+                    canOpenHumanDirect={canOpenHumanDirect}
+                    onOpenDirectMessage={onOpenDirectMessage}
+                    openingDirectParticipantKey={openingDirectParticipantKey}
                   />
                   {isContinuation && showEdited ? (
                     <span className="text-muted-foreground ml-1.5 text-xs">
                       {tChannels("Edit.edited")}
                     </span>
                   ) : null}
-                  <MessageUnfurlList unfurls={message.unfurls} />
+                  <MessageUnfurlList
+                    unfurls={message.unfurls}
+                    canRemove={canRemoveUnfurl}
+                    onRemove={
+                      onRemoveUnfurl
+                        ? (url) => onRemoveUnfurl(message, url)
+                        : undefined
+                    }
+                  />
                   <SokoBotMessageFooter metadata={message.metadata} />
                 </>
               )}
@@ -1951,11 +2313,14 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onPin={onPin}
             onCopy={handleCopy}
             onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showPinButton={canPin}
+            isPinned={isPinned}
             showCopyButton={canCopy}
             showEditButton={canEdit}
             showDeleteButton={canDelete}
@@ -1976,11 +2341,14 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onPin={onPin}
             onCopy={handleCopy}
             onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showPinButton={canPin}
+            isPinned={isPinned}
             showCopyButton={canCopy}
             showEditButton={canEdit}
             showDeleteButton={canDelete}

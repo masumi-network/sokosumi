@@ -1,6 +1,7 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Check,
@@ -18,13 +19,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -64,7 +59,6 @@ import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
@@ -80,7 +74,11 @@ import {
   postDriveFolders,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { listDriveItems } from "@/lib/utils/drive-file-list.client";
+import {
+  driveStoreForActiveWorkspace,
+  driveWorkspaceRootLabel,
+  listDriveItems,
+} from "@/lib/utils/drive-file-list.client";
 import {
   isDriveFileUploadDuplicate,
   isDuplicateResourceError,
@@ -88,6 +86,15 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
+
+function withoutLegacyDriveScopeParam(
+  params: URLSearchParams,
+): URLSearchParams {
+  const next = new URLSearchParams(params.toString());
+  next.delete("scope");
+  return next;
+}
 
 function appendDownloadParam(url: string): string {
   try {
@@ -164,16 +171,111 @@ function FileNameWithPreview({
   );
 }
 
+interface DrivePageWorkspaceProps {
+  activeOrganizationId: string | null;
+}
+
+function DriveListSkeleton(): ReactElement {
+  return (
+    <div
+      className={cn(
+        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      )}
+    >
+      <div className="divide-border/50 divide-y px-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <article
+            key={i}
+            className={cn(
+              "-mx-2 flex items-center gap-1 rounded-lg px-2",
+              PROJECTS_LIST_ROW_LAYOUT_CLASS,
+            )}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+              <div className="flex size-8 shrink-0 items-center justify-center">
+                <Skeleton className="size-4" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <Skeleton className="h-4 w-32 sm:w-48" />
+                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="shrink-0 pl-2">
+              <Skeleton className="size-8" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DrivePage(): ReactElement {
+  const { data: session } = useSession();
+  // Unknown session is not personal. Hold the last known workspace so a
+  // pending refetch cannot switch the list query to `{ scope: "me" }`.
+  const workspaceFromSession = session
+    ? (session.session.activeOrganizationId ?? null)
+    : undefined;
+  const workspaceIdRef = useRef(workspaceFromSession);
+  if (workspaceFromSession !== undefined) {
+    workspaceIdRef.current = workspaceFromSession;
+  }
+  const activeOrganizationId = workspaceIdRef.current;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (activeOrganizationId === undefined) {
+      return;
+    }
+    if (previousWorkspaceIdRef.current === undefined) {
+      previousWorkspaceIdRef.current = activeOrganizationId;
+      return;
+    }
+    if (previousWorkspaceIdRef.current === activeOrganizationId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = activeOrganizationId;
+    if (!searchParams.get("folder")) {
+      return;
+    }
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    params.delete("folder");
+    const query = params.toString();
+    router.replace(query ? `/drive?${query}` : "/drive");
+  }, [activeOrganizationId, router, searchParams]);
+
+  if (activeOrganizationId === undefined) {
+    return (
+      <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+        <DriveListSkeleton />
+      </div>
+    );
+  }
+
+  return <DrivePageWorkspace activeOrganizationId={activeOrganizationId} />;
+}
+
+function DrivePageWorkspace({
+  activeOrganizationId,
+}: DrivePageWorkspaceProps): ReactElement {
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [items, setItems] = useState<DriveItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
@@ -195,73 +297,76 @@ export default function DrivePage(): ReactElement {
   const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
 
-  const loadItemsAbortRef = useRef<AbortController | null>(null);
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
+  const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
+  const workspaceIdRef = useRef(activeOrganizationId);
+  workspaceIdRef.current = activeOrganizationId;
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
 
-  const scopeParam = searchParams.get("scope");
-  const scope: "me" | "org" = scopeParam === "org" ? "org" : "me";
+  if (uiWorkspaceId !== activeOrganizationId) {
+    setUiWorkspaceId(activeOrganizationId);
+    setEditingItemPath(null);
+    setEditingItemName("");
+    setDeleteDialogOpen(false);
+    setItemToDelete(null);
+    setCreateFolderDialogOpen(false);
+    setNewFolderName("");
+    setSnapshotFolder(null);
+    setMoveDialogOpen(false);
+    setItemToMove(null);
+    setSelectedDestination(null);
+    loadAllFoldersAbortRef.current?.abort();
+    setAllFolders([]);
+    setLoadingAllFolders(false);
+    debouncedSetSearchQuery.cancel();
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+  }
+
+  const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
+  const scope = driveStore.scope;
   const folderParam = searchParams.get("folder") || "";
   const currentFolder = folderParam;
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
 
   useRegisterBreadcrumbOverride({
     pathname,
     segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
 
-  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
-    setDebouncedSearchQuery(value);
-  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
-
   function handleSearchChange(value: string) {
     setSearchQuery(value);
     debouncedSetSearchQuery(value);
   }
 
-  const loadItems = useCallback(async () => {
-    loadItemsAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadItemsAbortRef.current = controller;
-
-    setLoading(true);
-    try {
-      if (scope === "org" && !activeOrganizationId) {
-        if (!controller.signal.aborted) {
-          setItems([]);
-        }
-        return;
-      }
-
-      const loaded = await listDriveItems({
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        ...(currentFolder ? { folder: currentFolder } : {}),
-        ...(debouncedSearchQuery.trim()
-          ? { q: debouncedSearchQuery.trim() }
-          : {}),
-        signal: controller.signal,
-      });
-
-      if (!controller.signal.aborted) {
-        setItems(loaded);
-      }
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load Drive items", err);
-        toast.error(t("loadFilesError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [scope, activeOrganizationId, currentFolder, debouncedSearchQuery, t]);
+  const driveItemsQuery = useQuery(
+    getDriveItemsQueryOptions({
+      store: driveStore,
+      folder: currentFolder,
+      search: debouncedSearchQuery,
+    }),
+  );
+  const items = driveItemsQuery.data ?? [];
+  const loading = driveItemsQuery.isPending;
 
   useEffect(() => {
-    void loadItems();
-  }, [loadItems]);
+    if (!driveItemsQuery.isError) {
+      return;
+    }
+    console.error("Failed to load Drive items", driveItemsQuery.error);
+    toast.error(t("loadFilesError"));
+  }, [driveItemsQuery.error, driveItemsQuery.isError, t]);
+
+  async function refreshDriveItems() {
+    await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+  }
 
   useEffect(() => {
     async function fetchOrganizationName() {
@@ -296,6 +401,12 @@ export default function DrivePage(): ReactElement {
     void fetchOrganizationName();
   }, [activeOrganizationId, session?.user?.id]);
 
+  useEffect(() => {
+    return () => {
+      loadAllFoldersAbortRef.current?.abort();
+    };
+  }, [activeOrganizationId]);
+
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -307,17 +418,14 @@ export default function DrivePage(): ReactElement {
 
     try {
       await uploadDriveFile(file, {
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
+        ...driveStore,
         ...(currentFolder ? { folder: currentFolder } : {}),
         onUploadProgress: (progress) => {
           setUploadProgress(progress.percentage);
         },
       });
 
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       if (isDriveFileUploadDuplicate(err)) {
         toast.error(t("uploadDuplicateError"));
@@ -357,10 +465,7 @@ export default function DrivePage(): ReactElement {
             newFolderPath: currentFolder
               ? `${currentFolder}/${newName.trim()}`
               : newName.trim(),
-            scope,
-            ...(scope === "org" && activeOrganizationId
-              ? { organizationId: activeOrganizationId }
-              : {}),
+            ...driveStore,
           },
           throwOnError: true,
         });
@@ -368,7 +473,7 @@ export default function DrivePage(): ReactElement {
 
       setEditingItemPath(null);
       setEditingItemName("");
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -405,10 +510,7 @@ export default function DrivePage(): ReactElement {
             folderPath: currentFolder
               ? `${currentFolder}/${itemToDelete.name}`
               : itemToDelete.name,
-            scope,
-            ...(scope === "org" && activeOrganizationId
-              ? { organizationId: activeOrganizationId }
-              : {}),
+            ...driveStore,
           },
           throwOnError: true,
         });
@@ -416,7 +518,7 @@ export default function DrivePage(): ReactElement {
 
       setDeleteDialogOpen(false);
       setItemToDelete(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
@@ -448,21 +550,8 @@ export default function DrivePage(): ReactElement {
     setEditingItemName("");
   }
 
-  function switchScope(newScope: "me" | "org") {
-    if (newScope !== "me" && newScope !== "org") {
-      return;
-    }
-    if (newScope === scope) {
-      return;
-    }
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("scope", newScope);
-    params.delete("folder");
-    router.push(`/drive?${params.toString()}`);
-  }
-
   function navigateToFolder(folderName: string) {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = withoutLegacyDriveScopeParam(searchParams);
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
@@ -471,7 +560,7 @@ export default function DrivePage(): ReactElement {
   }
 
   function navigateToBreadcrumb(index: number) {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = withoutLegacyDriveScopeParam(searchParams);
     if (index === -1) {
       params.delete("folder");
     } else {
@@ -507,10 +596,7 @@ export default function DrivePage(): ReactElement {
           folderPath: targetFolder
             ? `${targetFolder}/${newFolderName.trim()}`
             : newFolderName.trim(),
-          scope,
-          ...(scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
+          ...driveStore,
         },
         throwOnError: true,
       });
@@ -518,7 +604,7 @@ export default function DrivePage(): ReactElement {
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
       setSnapshotFolder(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
 
@@ -543,26 +629,39 @@ export default function DrivePage(): ReactElement {
   }
 
   async function loadAllFolders() {
+    loadAllFoldersAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAllFoldersAbortRef.current = controller;
+    const requestedWorkspaceId = activeOrganizationId;
     setLoadingAllFolders(true);
     try {
-      if (scope === "org" && !activeOrganizationId) {
-        setAllFolders([]);
+      const loaded = await listDriveItems({
+        ...driveStore,
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted ||
+        workspaceIdRef.current !== requestedWorkspaceId
+      ) {
         return;
       }
 
-      const loaded = await listDriveItems({
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-      });
-
       setAllFolders(loaded.filter((item) => item.type === "folder"));
     } catch (err) {
+      if (controller.signal.aborted) {
+        return;
+      }
       console.error("Failed to load all folders", err);
-      setAllFolders([]);
+      if (workspaceIdRef.current === requestedWorkspaceId) {
+        setAllFolders([]);
+      }
     } finally {
-      setLoadingAllFolders(false);
+      if (
+        !controller.signal.aborted &&
+        workspaceIdRef.current === requestedWorkspaceId
+      ) {
+        setLoadingAllFolders(false);
+      }
     }
   }
 
@@ -584,14 +683,7 @@ export default function DrivePage(): ReactElement {
                 : itemToMove.name,
           targetFolderPath: selectedDestination,
           itemType: itemToMove.type,
-          ...(itemToMove.type === "folder"
-            ? {
-                scope,
-                ...(scope === "org" && activeOrganizationId
-                  ? { organizationId: activeOrganizationId }
-                  : {}),
-              }
-            : {}),
+          ...(itemToMove.type === "folder" ? driveStore : {}),
         },
         throwOnError: true,
       });
@@ -599,7 +691,7 @@ export default function DrivePage(): ReactElement {
       setMoveDialogOpen(false);
       setItemToMove(null);
       setSelectedDestination(null);
-      await loadItems();
+      await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
@@ -691,308 +783,214 @@ export default function DrivePage(): ReactElement {
 
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
-      <Tabs value={scope} onValueChange={(v) => switchScope(v as "me" | "org")}>
-        <div className="mb-4 flex flex-col gap-4 md:mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
-              <TabsTrigger
-                value="me"
-                className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-              >
-                {t("myDriveTab")}
-              </TabsTrigger>
-              {activeOrganizationId && (
-                <TabsTrigger
-                  value="org"
-                  className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-                >
-                  {organizationName || t("organizationTabFallback")}
-                </TabsTrigger>
-              )}
-            </TabsList>
-
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="relative">
-                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-64 pl-8"
-                />
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={openCreateFolderDialog}
-              >
-                <FolderPlus className="size-4" aria-hidden />
-                {t("createFolder")}
-              </Button>
-              <Label htmlFor="file-upload" className="cursor-pointer">
-                <Button
-                  disabled={uploading}
-                  size="sm"
-                  className="gap-1.5"
-                  asChild
-                >
-                  <span>
-                    <Upload className="size-4" aria-hidden />
-                    {uploading
-                      ? t("uploadingProgress", { progress: uploadProgress })
-                      : t("uploadButton")}
-                  </span>
-                </Button>
-              </Label>
+      <div className="mb-4 flex flex-col gap-4 md:mb-6">
+        <div className="flex items-center justify-end gap-4">
+          <div className="hidden items-center gap-2 md:flex">
+            <div className="relative">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
               <Input
-                id="file-upload"
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-64 pl-8"
               />
             </div>
-          </div>
-
-          <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
-            aria-label={t("breadcrumbNavLabel")}
-          >
-            <button
+            <Button
               type="button"
-              onClick={() => navigateToBreadcrumb(-1)}
-              className={cn(
-                "hover:text-foreground whitespace-nowrap transition-colors",
-                breadcrumbSegments.length === 0 &&
-                  "text-foreground font-medium",
-              )}
-              aria-label={
-                scope === "org" && organizationName
-                  ? organizationName
-                  : t("myDriveTab")
-              }
-              title={
-                scope === "org" && organizationName
-                  ? organizationName
-                  : t("myDriveTab")
-              }
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={openCreateFolderDialog}
             >
-              {scope === "org" ? (
-                <Building2 className="size-4" aria-hidden />
-              ) : (
-                <Home className="size-4" aria-hidden />
-              )}
-            </button>
-            {breadcrumbSegments.map((segment, index) => (
-              <span key={index} className="flex shrink-0 items-center gap-1">
-                <ChevronRight className="size-4" aria-hidden />
-                <button
-                  type="button"
-                  onClick={() => navigateToBreadcrumb(index)}
-                  className={cn(
-                    "hover:text-foreground whitespace-nowrap transition-colors",
-                    index === breadcrumbSegments.length - 1 &&
-                      "text-foreground font-medium",
-                  )}
-                  title={segment}
-                >
-                  {segment}
-                </button>
-              </span>
-            ))}
-          </nav>
-        </div>
-
-        <div className="mb-6 flex items-center gap-2 md:hidden">
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <FolderPlus className="size-4" aria-hidden />
+              {t("createFolder")}
+            </Button>
+            <Label htmlFor="file-upload" className="cursor-pointer">
+              <Button
+                disabled={uploading}
+                size="sm"
+                className="gap-1.5"
+                asChild
+              >
+                <span>
+                  <Upload className="size-4" aria-hidden />
+                  {uploading
+                    ? t("uploadingProgress", { progress: uploadProgress })
+                    : t("uploadButton")}
+                </span>
+              </Button>
+            </Label>
             <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
+              id="file-upload"
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
             />
           </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={openCreateFolderDialog}
-            aria-label={t("createFolder")}
-          >
-            <FolderPlus className="size-4" aria-hidden />
-          </Button>
         </div>
 
-        <TabsContent value={scope} className="mt-0">
-          {loading ? (
-            <div
-              className={cn(
-                "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-                PROJECTS_LIST_CARD_MIN_H_CLASS,
-              )}
-            >
-              <div className="divide-border/50 divide-y px-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <article
-                    key={i}
-                    className={cn(
-                      "-mx-2 flex items-center gap-1 rounded-lg px-2",
-                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                    )}
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-8 shrink-0 items-center justify-center">
-                        <Skeleton className="size-4" />
-                      </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <Skeleton className="h-4 w-32 sm:w-48" />
-                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                          <Skeleton className="h-3 w-12" />
-                          <Skeleton className="h-3 w-24" />
-                        </div>
-                      </div>
-                      <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                        <Skeleton className="h-3 w-12" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                    </div>
-                    <div className="shrink-0 pl-2">
-                      <Skeleton className="size-8" />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : emptyState ? (
-            <div
-              className={cn(
-                "bg-muted/30 border-border/50 -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
-                PROJECTS_LIST_CARD_MIN_H_CLASS,
-              )}
-            >
-              <div className="max-w-sm">
-                <h2 className="text-foreground text-lg font-semibold">
-                  {searchQuery ? t("noMatchTitle") : t("emptyTitle")}
-                </h2>
-                <p className="text-muted-foreground mt-2 text-sm">
-                  {searchQuery
-                    ? t("noMatchDescription")
-                    : t("emptyDescription")}
-                </p>
-              </div>
-            </div>
-          ) : hasItems ? (
-            <div
-              className={cn(
-                "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-                PROJECTS_LIST_CARD_MIN_H_CLASS,
-              )}
-            >
-              <div className="divide-border/50 divide-y px-2">
-                {items.map((item) => {
-                  const itemKey =
-                    item.type === "file"
-                      ? item.pathname
-                      : `folder:${item.name}`;
-                  const isEditing =
-                    (item.type === "file" &&
-                      editingItemPath === item.pathname) ||
-                    (item.type === "folder" && editingItemPath === item.name);
+        <nav
+          className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+          aria-label={t("breadcrumbNavLabel")}
+        >
+          <button
+            type="button"
+            onClick={() => navigateToBreadcrumb(-1)}
+            className={cn(
+              "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
+              breadcrumbSegments.length === 0 && "text-foreground font-medium",
+            )}
+            aria-label={storeRootLabel}
+            title={storeRootLabel}
+          >
+            {scope === "org" ? (
+              <Building2 className="size-4" aria-hidden />
+            ) : (
+              <Home className="size-4" aria-hidden />
+            )}
+            <span className="ml-1">{storeRootLabel}</span>
+          </button>
+          {breadcrumbSegments.map((segment, index) => (
+            <span key={index} className="flex shrink-0 items-center gap-1">
+              <ChevronRight className="size-4" aria-hidden />
+              <button
+                type="button"
+                onClick={() => navigateToBreadcrumb(index)}
+                className={cn(
+                  "hover:text-foreground whitespace-nowrap transition-colors",
+                  index === breadcrumbSegments.length - 1 &&
+                    "text-foreground font-medium",
+                )}
+                title={segment}
+              >
+                {segment}
+              </button>
+            </span>
+          ))}
+        </nav>
+      </div>
 
-                  const extension =
-                    item.type === "file"
-                      ? getExtensionFromUrl(item.name)
-                      : null;
-                  const { isImage, documentKind } =
-                    item.type === "file"
-                      ? classifyFilePreview(item.fileUrl, item.name)
-                      : { isImage: false, documentKind: null };
-                  const isPreviewable = isImage || documentKind !== null;
+      <div className="mb-6 flex items-center gap-2 md:hidden">
+        <div className="relative flex-1">
+          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+          <Input
+            type="text"
+            placeholder={t("searchPlaceholder")}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-8"
+          />
+        </div>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={openCreateFolderDialog}
+          aria-label={t("createFolder")}
+        >
+          <FolderPlus className="size-4" aria-hidden />
+        </Button>
+      </div>
 
-                  return (
-                    <article
-                      key={itemKey}
-                      className={cn(
-                        "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+      {loading ? (
+        <DriveListSkeleton />
+      ) : emptyState ? (
+        <div
+          className={cn(
+            "bg-muted/30 border-border/50 -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            PROJECTS_LIST_CARD_MIN_H_CLASS,
+          )}
+        >
+          <div className="max-w-sm">
+            <h2 className="text-foreground text-lg font-semibold">
+              {searchQuery ? t("noMatchTitle") : t("emptyTitle")}
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              {searchQuery ? t("noMatchDescription") : t("emptyDescription")}
+            </p>
+          </div>
+        </div>
+      ) : hasItems ? (
+        <div
+          className={cn(
+            "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+            PROJECTS_LIST_CARD_MIN_H_CLASS,
+          )}
+        >
+          <div className="divide-border/50 divide-y px-2">
+            {items.map((item) => {
+              const itemKey =
+                item.type === "file" ? item.pathname : `folder:${item.name}`;
+              const isEditing =
+                (item.type === "file" && editingItemPath === item.pathname) ||
+                (item.type === "folder" && editingItemPath === item.name);
+
+              const extension =
+                item.type === "file" ? getExtensionFromUrl(item.name) : null;
+              const { isImage, documentKind } =
+                item.type === "file"
+                  ? classifyFilePreview(item.fileUrl, item.name)
+                  : { isImage: false, documentKind: null };
+              const isPreviewable = isImage || documentKind !== null;
+
+              return (
+                <article
+                  key={itemKey}
+                  className={cn(
+                    "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+                    PROJECTS_LIST_ROW_LAYOUT_CLASS,
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
+                    <div className="flex size-8 shrink-0 items-center justify-center">
+                      {item.type === "folder" ? (
+                        <Folder className="text-muted-foreground size-5" />
+                      ) : (
+                        <FileTypeIcon extension={extension || "file"} />
                       )}
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                        <div className="flex size-8 shrink-0 items-center justify-center">
-                          {item.type === "folder" ? (
-                            <Folder className="text-muted-foreground size-5" />
-                          ) : (
-                            <FileTypeIcon extension={extension || "file"} />
-                          )}
-                        </div>
+                    </div>
 
-                        {isEditing ? (
-                          <Input
-                            value={editingItemName}
-                            onChange={(e) => setEditingItemName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                void handleRename(item, editingItemName);
-                              } else if (e.key === "Escape") {
-                                cancelEdit();
-                              }
-                            }}
-                            className="h-8 flex-1"
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                              {item.type === "folder" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => navigateToFolder(item.name)}
-                                  className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
-                                  title={item.name}
-                                >
-                                  {item.name}
-                                </button>
-                              ) : (
-                                <FileNameWithPreview
-                                  item={item}
-                                  isPreviewable={isPreviewable}
-                                  isImage={isImage}
-                                  documentKind={documentKind}
-                                />
-                              )}
-                              <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                                {item.type === "file" ? (
-                                  <>
-                                    <span>
-                                      {item.size ? formatBytes(item.size) : "—"}
-                                    </span>
-                                    <span>
-                                      {formatter.dateTime(
-                                        new Date(item.uploadedAt),
-                                        {
-                                          year: "numeric",
-                                          month: "short",
-                                          day: "numeric",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        },
-                                      )}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span>{t("folder")}</span>
-                                )}
-                              </div>
-                            </div>
-                            {item.type === "file" && (
-                              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                    {isEditing ? (
+                      <Input
+                        value={editingItemName}
+                        onChange={(e) => setEditingItemName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void handleRename(item, editingItemName);
+                          } else if (e.key === "Escape") {
+                            cancelEdit();
+                          }
+                        }}
+                        className="h-8 flex-1"
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          {item.type === "folder" ? (
+                            <button
+                              type="button"
+                              onClick={() => navigateToFolder(item.name)}
+                              className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
+                              title={item.name}
+                            >
+                              {item.name}
+                            </button>
+                          ) : (
+                            <FileNameWithPreview
+                              item={item}
+                              isPreviewable={isPreviewable}
+                              isImage={isImage}
+                              documentKind={documentKind}
+                            />
+                          )}
+                          <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                            {item.type === "file" ? (
+                              <>
                                 <span>
                                   {item.size ? formatBytes(item.size) : "—"}
                                 </span>
@@ -1008,111 +1006,126 @@ export default function DrivePage(): ReactElement {
                                     },
                                   )}
                                 </span>
-                              </div>
+                              </>
+                            ) : (
+                              <span>{t("folder")}</span>
                             )}
-                            {item.type === "folder" && (
-                              <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
-                                {t("folder")}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      <div className="shrink-0 pl-2">
-                        {isEditing ? (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                void handleRename(item, editingItemName)
-                              }
-                              title={t("saveAction")}
-                            >
-                              <Check className="size-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={cancelEdit}
-                              title={t("cancelAction")}
-                            >
-                              <X className="size-4" />
-                            </Button>
                           </div>
-                        ) : (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8"
-                                aria-label={t("moreActions")}
-                              >
-                                <MoreHorizontal
-                                  className="size-4"
-                                  aria-hidden
-                                />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {item.type === "file" && (
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    handleDownload(item.fileUrl, item.name);
-                                  }}
-                                >
-                                  <Download className="size-4" aria-hidden />
-                                  {t("downloadAction")}
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  startEdit(item);
-                                }}
-                                disabled={editingItemPath !== null}
-                              >
-                                <Edit3 className="size-4" aria-hidden />
-                                {t("renameAction")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  openMoveDialog(item);
-                                }}
-                                disabled={editingItemPath !== null}
-                              >
-                                <Folder className="size-4" aria-hidden />
-                                {t("moveAction")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  openDeleteDialog(item);
-                                }}
-                                disabled={editingItemPath !== null}
-                              >
-                                <Trash2 className="size-4" aria-hidden />
-                                {t("deleteAction")}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        </div>
+                        {item.type === "file" && (
+                          <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                            <span>
+                              {item.size ? formatBytes(item.size) : "—"}
+                            </span>
+                            <span>
+                              {formatter.dateTime(new Date(item.uploadedAt), {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
                         )}
+                        {item.type === "folder" && (
+                          <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                            {t("folder")}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="shrink-0 pl-2">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            void handleRename(item, editingItemName)
+                          }
+                          title={t("saveAction")}
+                        >
+                          <Check className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={cancelEdit}
+                          title={t("cancelAction")}
+                        >
+                          <X className="size-4" />
+                        </Button>
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-        </TabsContent>
-      </Tabs>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label={t("moreActions")}
+                          >
+                            <MoreHorizontal className="size-4" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {item.type === "file" && (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                handleDownload(item.fileUrl, item.name);
+                              }}
+                            >
+                              <Download className="size-4" aria-hidden />
+                              {t("downloadAction")}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              startEdit(item);
+                            }}
+                            disabled={editingItemPath !== null}
+                          >
+                            <Edit3 className="size-4" aria-hidden />
+                            {t("renameAction")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              openMoveDialog(item);
+                            }}
+                            disabled={editingItemPath !== null}
+                          >
+                            <Folder className="size-4" aria-hidden />
+                            {t("moveAction")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              openDeleteDialog(item);
+                            }}
+                            disabled={editingItemPath !== null}
+                          >
+                            <Trash2 className="size-4" aria-hidden />
+                            {t("deleteAction")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <ListMobileCreateFab
         ariaLabel={t("uploadFab")}

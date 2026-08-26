@@ -1,6 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CHANNEL_SLUG_MAX_LENGTH, CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -49,6 +52,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomReadState: {
       findMany: readStateFindManyMock,
+    },
+    chatRoomPinnedMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
     },
     member: {
       findMany: memberFindManyMock,
@@ -106,6 +112,24 @@ function createApp(authContext: AuthVariables["authContext"]) {
   return app;
 }
 
+function createAppWithErrorHandler(authContext: AuthVariables["authContext"]) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & RequestIdVariables;
+  }>({
+    defaultHook: defaultValidationHook,
+  });
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_post_chat_room");
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+    return await next();
+  });
+  app.onError(errorHandler);
+  mountPostChatRooms(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
 const COWORKER_ID = "cow_123";
 const COWORKER_DIRECT_KEY = `coworker:${OTHER_USER_ID}:${COWORKER_ID}`;
 
@@ -158,7 +182,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
 function directRoom(overrides: Record<string, unknown> = {}) {
   return channelRoom({
     name: "Bob",
-    slug: "bob",
+    slug: null,
     kind: "direct",
     directKey: DIRECT_KEY,
     discoverability: null,
@@ -189,7 +213,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
 function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
   return directRoom({
     name: "Elena",
-    slug: "elena",
+    slug: null,
     directKey: COWORKER_DIRECT_KEY,
     createdByUserId: OTHER_USER_ID,
     userMembers: [
@@ -264,6 +288,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Launch Room",
+        slug: "launch-room",
       }),
     });
 
@@ -285,6 +310,241 @@ describe("POST /chats/rooms", () => {
     );
   });
 
+  it("stores the submitted Channel slug instead of deriving one from the name", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ name: "Team Soko", slug: "soko" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug: "soko",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.slug).toBe("soko");
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Team Soko",
+          slug: "soko",
+        }),
+      }),
+    );
+  });
+
+  it("sanitizes a submitted Channel slug with kebab rules", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ name: "Engineering", slug: "team-soko" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Engineering",
+        slug: " Team Soko ",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: "team-soko",
+        }),
+      }),
+    );
+  });
+
+  it("derives the Channel name from the slug when name is omitted", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ name: "Team Soko", slug: "team-soko" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        slug: "team-soko",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Team Soko",
+          slug: "team-soko",
+        }),
+      }),
+    );
+  });
+
+  it("derives the Channel name from the slug when name is blank", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ name: "Welcome", slug: "welcome" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "   ",
+        slug: "welcome",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Welcome",
+          slug: "welcome",
+        }),
+      }),
+    );
+  });
+
+  it("rejects channel create without a slug", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe("Channel slug is required");
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Channel slug longer than 80 after sanitize", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug: "a".repeat(CHANNEL_SLUG_MAX_LENGTH + 1),
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe("Channel slug is invalid");
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a Channel slug of exactly 80 characters", async () => {
+    const slug = "a".repeat(CHANNEL_SLUG_MAX_LENGTH);
+    roomCreateMock.mockResolvedValue(channelRoom({ slug }));
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ slug }),
+      }),
+    );
+  });
+
+  it("rejects a Channel slug that is empty after sanitize", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug: "---",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe("Channel slug is invalid");
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 Channel slug taken when the unique index is occupied", async () => {
+    roomCreateMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["organizationId", "slug"] },
+    });
+
+    const app = createAppWithErrorHandler(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug: "team-soko",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN);
+    expect(body.message).toBe("This Channel slug is taken.");
+    expect(roomCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not suffix a Channel slug when another Channel already holds the base", async () => {
+    roomCreateMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["organizationId", "slug"] },
+    });
+
+    const app = createAppWithErrorHandler(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Team Soko",
+        slug: "team-soko",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN);
+    expect(body.message).toBe("This Channel slug is taken.");
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: "team-soko",
+        }),
+      }),
+    );
+  });
+
   it("persists explicit private discoverability on channel create", async () => {
     roomCreateMock.mockResolvedValue(
       channelRoom({ discoverability: "private" }),
@@ -297,6 +557,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Launch Room",
+        slug: "launch-room",
         discoverability: "private",
       }),
     });
@@ -326,6 +587,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Client",
+        slug: "client",
         discoverability: "external",
       }),
     });
@@ -358,6 +620,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Client",
+        slug: "client",
         discoverability: "external",
       }),
     });
@@ -377,6 +640,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Client",
+        slug: "client",
         discoverability: "external",
       }),
     });
@@ -398,6 +662,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Launch Room",
+        slug: "launch-room",
       }),
     });
 
@@ -411,6 +676,22 @@ describe("POST /chats/rooms", () => {
         }),
       }),
     );
+  });
+
+  it("rejects a slug on direct create", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+        slug: "elena",
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects discoverability on direct create", async () => {
@@ -454,6 +735,7 @@ describe("POST /chats/rooms", () => {
         data: expect.objectContaining({
           organizationId: ORG_ID,
           kind: "direct",
+          slug: null,
         }),
       }),
     );
@@ -480,7 +762,7 @@ describe("POST /chats/rooms", () => {
     const created = directRoom({
       organizationId: null,
       name: "Elena",
-      slug: "elena",
+      slug: null,
       directKey: `coworker:${USER_ID}:${coworkerId}`,
       userMembers: [
         {
@@ -543,7 +825,7 @@ describe("POST /chats/rooms", () => {
     const created = directRoom({
       organizationId: ORG_ID,
       name: "Elena",
-      slug: "elena",
+      slug: null,
       directKey: `coworker:${USER_ID}:${coworkerId}`,
       userMembers: [
         {
@@ -832,7 +1114,6 @@ describe("POST /chats/rooms", () => {
   it("creates a multi-human group direct with 201 and direct:v2 key", async () => {
     const created = directRoom({
       name: "Bob, Carol",
-      slug: "bob-carol",
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
@@ -894,6 +1175,7 @@ describe("POST /chats/rooms", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "direct",
+          slug: null,
           directKey: GROUP_DIRECT_KEY,
           userMembers: {
             create: expect.arrayContaining([
@@ -910,7 +1192,6 @@ describe("POST /chats/rooms", () => {
   it("returns the same group direct room for the same member set with 200", async () => {
     const existing = directRoom({
       name: "Bob, Carol",
-      slug: "bob-carol",
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
@@ -990,7 +1271,6 @@ describe("POST /chats/rooms", () => {
   it("uses an order-independent directKey for multi-human group directs", async () => {
     const created = directRoom({
       name: "Bob, Carol",
-      slug: "bob-carol",
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
@@ -1159,54 +1439,6 @@ describe("POST /chats/rooms", () => {
     );
   });
 
-  it("retries when a slug unique race wins, then creates with 201", async () => {
-    const created = directRoom();
-    roomFindFirstMock.mockResolvedValue(null);
-    roomCreateMock
-      .mockRejectedValueOnce({
-        code: "P2002",
-        meta: { target: ["organizationId", "slug"] },
-      })
-      .mockResolvedValueOnce(created);
-
-    const app = createApp(userAuthContext);
-    const response = await app.request("/", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "direct",
-        memberUserIds: [OTHER_USER_ID],
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.id).toBe(ROOM_ID);
-    expect(roomCreateMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("returns 409 Room already exists after slug unique retries exhaust", async () => {
-    roomFindFirstMock.mockResolvedValue(null);
-    roomCreateMock.mockRejectedValue({
-      code: "P2002",
-      meta: { target: ["organizationId", "slug"] },
-    });
-
-    const app = createApp(userAuthContext);
-    const response = await app.request("/", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "direct",
-        memberUserIds: [OTHER_USER_ID],
-      }),
-    });
-
-    expect(response.status).toBe(409);
-    expect(await response.text()).toBe("Room already exists");
-    expect(roomCreateMock).toHaveBeenCalledTimes(3);
-  });
-
   describe("coworker actor", () => {
     it("creates an org-scoped coworker 1:1 with the target as createdByUserId when context user differs", async () => {
       const created = coworkerDirectRoom();
@@ -1262,7 +1494,7 @@ describe("POST /chats/rooms", () => {
       membershipFindManyMock.mockResolvedValue([
         {
           roomId: ROOM_ID,
-          pinnedAt: new Date("2025-01-01T00:00:00.000Z"),
+          starredAt: new Date("2025-01-01T00:00:00.000Z"),
           mutedAt: new Date("2025-01-02T00:00:00.000Z"),
         },
       ]);
@@ -1279,7 +1511,7 @@ describe("POST /chats/rooms", () => {
 
       expect(response.status).toBe(201);
       const body = await response.json();
-      expect(body.data.pinnedAt).toBeNull();
+      expect(body.data.starredAt).toBeNull();
       expect(body.data.mutedAt).toBeNull();
       expect(body.data.markedUnread).toBe(false);
     });
@@ -1346,6 +1578,7 @@ describe("POST /chats/rooms", () => {
         body: JSON.stringify({
           kind: "channel",
           name: "Launch Room",
+          slug: "launch-room",
         }),
       });
 

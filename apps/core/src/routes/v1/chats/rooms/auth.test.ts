@@ -59,6 +59,9 @@ const {
       notification: {
         groupBy: vi.fn().mockResolvedValue([]),
       },
+      chatRoomPinnedMessage: {
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     },
   };
 });
@@ -135,6 +138,12 @@ const { default: mountDeleteChatRoomMessage } = await import(
 const { default: mountPostChatRoomMessageReaction } = await import(
   "./[id]/messages/[messageId]/reactions/post"
 );
+const { default: mountRetryChatRoomMention } = await import(
+  "./[id]/messages/[messageId]/mentions/[mentionId]/retry/post"
+);
+const { default: mountRemoveChatRoomMessageUnfurl } = await import(
+  "./[id]/messages/[messageId]/unfurls/remove/post"
+);
 const { default: mountRoomStream } = await import("./[id]/stream/index");
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -182,6 +191,8 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountPostChatRoomMessage(typed);
   mountDeleteChatRoomMessage(typed);
   mountPostChatRoomMessageReaction(typed);
+  mountRemoveChatRoomMessageUnfurl(typed);
+  mountRetryChatRoomMention(typed);
   mountRoomStream(typed);
   return app;
 }
@@ -254,6 +265,22 @@ const userOnlyCases: AuthRequestCase[] = [
       path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ emoji: "👍" }),
+    }),
+  },
+  {
+    label: "POST /{id}/messages/{messageId}/unfurls/remove",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/unfurls/remove`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com" }),
+    }),
+  },
+  {
+    label: "POST /{id}/messages/{messageId}/mentions/{mentionId}/retry",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/mentions/${MESSAGE_ID}/retry`,
     }),
   },
   {
@@ -428,6 +455,22 @@ const membershipScopedCases: AuthRequestCase[] = [
       path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ emoji: "👍" }),
+    }),
+  },
+  {
+    label: "POST /{id}/messages/{messageId}/unfurls/remove",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/unfurls/remove`,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com" }),
+    }),
+  },
+  {
+    label: "POST /{id}/messages/{messageId}/mentions/{mentionId}/retry",
+    request: () => ({
+      method: "POST",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/mentions/${MESSAGE_ID}/retry`,
     }),
   },
   {
