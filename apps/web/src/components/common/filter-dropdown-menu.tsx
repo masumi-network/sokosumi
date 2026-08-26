@@ -135,7 +135,7 @@ export function FilterDropdownMenu({
       </Button>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="h-[80vh] overflow-x-hidden">
+        <SheetContent side="bottom" className="h-[80vh] w-full">
           <SheetHeader>
             <SheetTitle>{buttonLabel}</SheetTitle>
           </SheetHeader>
@@ -366,7 +366,7 @@ function FilterDropdownMenuSectionMobile({
         </span>
       </button>
       {expanded ? (
-        <div className="mt-2 min-w-0 overflow-x-hidden rounded-md border bg-card p-2">
+        <div className="mt-2 min-w-0 overflow-x-clip rounded-md border bg-card p-2">
           <Command
             className="**:data-[slot=command-list]:max-h-[40vh]"
             shouldFilter
