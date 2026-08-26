@@ -32,6 +32,7 @@ import {
 import { orderedTurns } from "../chat/timeline";
 import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
+import { HowItWorks } from "../how-it-works";
 import { IntegrationsSection } from "../integrations-section.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
@@ -225,6 +226,12 @@ export function SokoBotConsole({
                 )}
               </Section>
               <Section
+                title={t("HowItWorks.title")}
+                description={t("HowItWorks.description")}
+              >
+                <HowItWorks schedules={bot.schedules} />
+              </Section>
+              <Section
                 title={t("Console.skillsTitle")}
                 description={t("Console.skillsDescription")}
               >
@@ -263,8 +270,15 @@ export function SokoBotConsole({
                         <li key={schedule.id} className="space-y-1.5 px-3 py-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {schedule.name}
+                              <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                                <span className="truncate">
+                                  {schedule.name}
+                                </span>
+                                {schedule.systemKey ? (
+                                  <span className="text-muted-foreground shrink-0 text-[0.6875rem] tracking-wide uppercase">
+                                    {t("Schedules.builtIn")}
+                                  </span>
+                                ) : null}
                               </p>
                               <p
                                 className="text-muted-foreground text-xs"
@@ -276,6 +290,7 @@ export function SokoBotConsole({
                             <ScheduleRowActions
                               scheduleId={schedule.id}
                               enabled={schedule.enabled}
+                              deletable={!schedule.systemKey}
                             />
                           </div>
                           <p className="text-muted-foreground line-clamp-2 text-xs">

@@ -929,3 +929,31 @@ the connected account). `run_integration_tool` refuses mail toolkits and
 tools whose slug does not belong to the provider. The `connected-tools`
 skill sets the rules: discover before acting, prefer reads, writes only on
 an explicit ask, no deletes/bulk edits.
+
+## Proactive behaviour (2026-08-26)
+
+Single source: `packages/soko-bot/src/proactive.ts` — `SOKO_BOT_SYSTEM_SCHEDULES`
+(rhythms), `SOKO_BOT_PROACTIVE_RULES` (owner-facing explanation shown in the
+console's "How it works" card), `dueFollowUps` (ISO dates in memory follow-ups).
+
+- **Rhythms as system schedules.** Every bot gets `standup` (weekdays 08:00,
+  bot timezone) and `weekly-wrap` (Fri 16:00) rows in `soko_bot_schedule`
+  with `systemKey`; created at bot creation and lazily by the taskboard sync
+  for existing bots. Owners can pause them, not delete them (Core refuses).
+  When a system schedule fires, `buildSystemBeatMessage` replaces the prompt
+  with the live packet: calendar + unread mail (stand-up only), "Needs
+  attention", open board, and follow-ups due. The standalone morning
+  briefing in the ingest cron is skipped once a stand-up exists.
+- **Attention rules** (`findAttentionItems`, deterministic): RUNNING > 24h
+  without an event, INPUT_REQUIRED > 4h, FAILED > 1h unhandled — over the
+  bot's watch set (or the whole board when enabled). Each key has a 24h
+  cooldown in `soko_bot_nudge`; items ride along the taskboard EVENT turn or
+  the rhythm turn. The bot's own assigned Tasks are excluded (handled by the
+  assignment flow).
+- **Mail → board.** The inbox skill now creates DRAFT Tasks for explicit
+  requests with a deliverable and a date (mail ref in the description) and
+  "Prep:" drafts for meetings within a day; never READY.
+- **Memory follow-ups** with `YYYY-MM-DD` come back on the day in every
+  self-started packet; persona rule: raise once, then resolve or move.
+- **Metric.** Admin quality overview shows proactive messages sent vs. acted
+  on (owner chat turn within 24h).

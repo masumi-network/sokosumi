@@ -139,6 +139,7 @@ export interface ChatSchedule {
   timezone: string;
   cronExpression: string;
   prompt: string;
+  systemKey: string | null;
   nextRunAt: string;
   lastRunAt: string | null;
   consecutiveFailures: number;
@@ -303,6 +304,7 @@ function toSchedule(schedule: SokoBotSchedule): ChatSchedule {
     timezone: schedule.timezone,
     cronExpression: schedule.cronExpression,
     prompt: schedule.prompt,
+    systemKey: schedule.systemKey ?? null,
     nextRunAt: schedule.nextRunAt.toISOString(),
     lastRunAt: iso(schedule.lastRunAt),
     consecutiveFailures: schedule.consecutiveFailures,

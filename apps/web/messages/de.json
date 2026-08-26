@@ -3468,6 +3468,7 @@
           "title": "Qualität",
           "description": "Bewertungen (1–5) für jeden abgeschlossenen Durchlauf, flottenweit, letzte 30 Tage.",
           "overall": "{judged} von {turns} Durchläufen bewertet",
+          "proactive": "{sent} proaktive Nachrichten, {actedOn} innerhalb eines Tages aufgegriffen",
           "version": "Version",
           "turns": "Durchläufe",
           "avgScore": "Ø Score",
@@ -5264,6 +5265,13 @@
         "resetDone": "Gedächtnis zurückgesetzt.",
         "resetError": "Gedächtnis konnte nicht zurückgesetzt werden."
       },
+      "HowItWorks": {
+        "title": "So arbeitet er",
+        "description": "Was er von sich aus tut, und wann.",
+        "rhythms": "Rhythmen",
+        "triggers": "Auslöser",
+        "paused": "Pausiert"
+      },
       "Integrations": {
         "title": "Verbundene Konten",
         "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
@@ -5292,6 +5300,7 @@
         "kindsMailCalendar": "Liest Posteingang und Kalender"
       },
       "Schedules": {
+        "builtIn": "Eingebaut",
         "title": "Zeitpläne",
         "description": "Was er von selbst nach Zeitplan erledigt.",
         "count": "{count, plural, one {# Zeitplan} other {# Zeitpläne}}",

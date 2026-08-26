@@ -1606,6 +1606,19 @@ enum SokoBotTurnSource {
   INGEST
 }
 
+/// Cooldown per proactive nudge (e.g. "stale:<taskId>") so a bot raises the
+/// same thing at most once a day.
+model SokoBotNudge {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  sokoBotId String   @db.Uuid
+  sokoBot   SokoBot  @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  key       String
+  lastAt    DateTime
+
+  @@unique([sokoBotId, key])
+  @@map("soko_bot_nudge")
+}
+
 /// Per-(bot, task) cursor for the taskboard sync: what the bot already saw.
 model SokoBotTaskWatch {
   id        String   @id @default(uuid(7)) @db.Uuid
@@ -1740,6 +1753,7 @@ model SokoBot {
   installedSkills SokoBotInstalledSkill[]
   integrations    SokoBotIntegration[]
   taskWatches     SokoBotTaskWatch[]
+  nudges          SokoBotNudge[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
   ingestTimezone String    @default("Europe/Berlin")
@@ -2109,12 +2123,15 @@ model SokoBotSchedule {
   prompt              String
   /// External Hermes schedule id. Cutover imports use it for idempotency.
   legacyScheduleId    String?    @unique
+  /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
+  systemKey           String?
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
 
   runs SokoBotScheduleRun[]
 
+  @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
   @@index([userId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")

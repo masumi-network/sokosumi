@@ -921,6 +921,21 @@ export const AdminSokoBotQualitySchema = {
                 'avgScore'
             ]
         },
+        proactive: {
+            type: 'object',
+            properties: {
+                sent: {
+                    type: 'integer'
+                },
+                actedOn: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'sent',
+                'actedOn'
+            ]
+        },
         daily: {
             type: 'array',
             items: {
@@ -1019,6 +1034,7 @@ export const AdminSokoBotQualitySchema = {
     },
     required: [
         'overall',
+        'proactive',
         'daily',
         'versions'
     ]
@@ -1398,6 +1414,12 @@ export const SokoBotScheduleSchema = {
         },
         prompt: {
             type: 'string'
+        },
+        systemKey: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         nextRunAt: {
             type: 'string',

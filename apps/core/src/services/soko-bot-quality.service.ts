@@ -7,6 +7,8 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export interface SokoBotQualityOverview {
   overall: { turns: number; judged: number; avgScore: number | null };
+  /** Self-started turns that reached the owner, and how many they acted on within a day. */
+  proactive: { sent: number; actedOn: number };
   daily: { date: string; turns: number; avgScore: number | null }[];
   versions: {
     versionId: string;
@@ -35,7 +37,14 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
         createdAt: { gte: since },
         status: { in: ["COMPLETED", "FAILED"] },
       },
-      select: { createdAt: true, qualityScore: true, versionId: true },
+      select: {
+        createdAt: true,
+        qualityScore: true,
+        versionId: true,
+        source: true,
+        sokoBotId: true,
+        finalAnswer: true,
+      },
     }),
     prisma.sokoBotLabRun.findMany({
       where: { createdAt: { gte: since } },
@@ -113,12 +122,29 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
   const judged = turns.flatMap((t) =>
     t.qualityScore === null ? [] : [t.qualityScore],
   );
+  const proactiveTurns = turns.filter(
+    (t) =>
+      t.source !== "CHAT" &&
+      t.source !== "ADMIN_RETRY" &&
+      t.finalAnswer &&
+      !/^nothing (new worth flagging|to add)\.?$/i.test(t.finalAnswer.trim()),
+  );
+  const chatTurns = turns.filter((t) => t.source === "CHAT");
+  const actedOn = proactiveTurns.filter((p) =>
+    chatTurns.some(
+      (c) =>
+        c.sokoBotId === p.sokoBotId &&
+        c.createdAt > p.createdAt &&
+        c.createdAt.getTime() - p.createdAt.getTime() <= DAY_MS,
+    ),
+  ).length;
   return {
     overall: {
       turns: turns.length,
       judged: judged.length,
       avgScore: avg(judged),
     },
+    proactive: { sent: proactiveTurns.length, actedOn },
     daily,
     versions: versions.sort((a, b) => a.versionId.localeCompare(b.versionId)),
   };

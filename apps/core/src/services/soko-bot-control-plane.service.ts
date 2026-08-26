@@ -1004,7 +1004,7 @@ export class SokoBotControlPlane {
     const markdown = renderSokoBotMemory(createEmptySokoBotMemory());
     const hash = memoryHash(markdown);
 
-    return prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       const existing = await tx.sokoBot.findUnique({
         where: {
           userId_workspaceId: {
@@ -1076,6 +1076,21 @@ export class SokoBotControlPlane {
       if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
+    const { ensureSystemSchedules } = await import(
+      "@/services/soko-bot-proactive.service"
+    );
+    await ensureSystemSchedules({
+      id: created.id,
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      ingestTimezone: created.ingestTimezone,
+    }).catch((error) => {
+      console.error("Soko Bot system schedules failed", {
+        sokoBotId: created.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
+    return created;
   }
 
   async getForUser(userId: string, workspaceId: string) {

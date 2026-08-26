@@ -60,6 +60,8 @@ export const sokoBotScheduleSchema = z
     timezone: z.string(),
     cronExpression: z.string(),
     prompt: z.string(),
+    /** Built-in rhythm key; owners can pause but not delete these. */
+    systemKey: z.string().nullable().optional(),
     nextRunAt: dateTimeSchema,
     lastRunAt: dateTimeSchema.nullable(),
     consecutiveFailures: z.number().int().nonnegative(),
@@ -600,6 +602,10 @@ export const adminSokoBotQualitySchema = z
       turns: z.number().int(),
       judged: z.number().int(),
       avgScore: z.number().nullable(),
+    }),
+    proactive: z.object({
+      sent: z.number().int(),
+      actedOn: z.number().int(),
     }),
     daily: z.array(
       z.object({

@@ -112,6 +112,12 @@ export async function QualityOverview({
               turns: quality.overall.turns,
             })}
           </span>
+          <span className="text-muted-foreground block">
+            {t("proactive", {
+              sent: quality.proactive.sent,
+              actedOn: quality.proactive.actedOn,
+            })}
+          </span>
         </p>
       </header>
       <div className="px-4 py-3">

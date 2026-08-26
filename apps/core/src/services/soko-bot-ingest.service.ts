@@ -188,7 +188,14 @@ export class SokoBotIngestSyncService {
     abortSignal: AbortSignal,
   ): Promise<"briefings" | "deltas" | "skipped"> {
     const now = new Date();
-    const briefing = briefingDue(now, bot.ingestTimezone, bot.lastBriefingAt);
+    const hasStandup = await prisma.sokoBotSchedule.findFirst({
+      where: { sokoBotId: bot.id, systemKey: "standup", enabled: true },
+      select: { id: true },
+    });
+    // The daily stand-up carries calendar + mail; only bots without it get
+    // the standalone morning briefing.
+    const briefing =
+      !hasStandup && briefingDue(now, bot.ingestTimezone, bot.lastBriefingAt);
     const mailIntegrations = await activeIntegrationsForBot(bot.id, "email");
     const dueMail = mailIntegrations.filter((integration) => {
       const last = cursorDate(integration.cursor, "lastIngestAt");

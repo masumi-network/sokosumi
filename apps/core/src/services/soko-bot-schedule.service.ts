@@ -200,6 +200,11 @@ export async function deleteSokoBotSchedule(
   ref: { scheduleId?: string; scheduleName?: string },
 ): Promise<{ id: string; name: string }> {
   const schedule = await findScheduleForUser(userId, ref);
+  if (schedule.systemKey) {
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is a built-in rhythm; pause it instead of deleting it`,
+    );
+  }
   await prisma.sokoBotSchedule.delete({ where: { id: schedule.id } });
   return { id: schedule.id, name: schedule.name };
 }

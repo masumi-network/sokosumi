@@ -11,6 +11,10 @@ import {
   SokoBotRetryableStartError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import {
+  buildSystemBeatMessage,
+  stampNudges,
+} from "@/services/soko-bot-proactive.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
 const BUSY_RETRY_DELAY_MS = 60_000;
@@ -50,11 +54,13 @@ interface ClaimedOccurrence {
   };
   schedule: {
     id: string;
+    sokoBotId: string;
     userId: string;
     workspaceId: string;
     cronExpression: string;
     timezone: string;
     prompt: string;
+    systemKey: string | null;
     consecutiveFailures: number;
   };
   scheduledFor: Date;
@@ -387,11 +393,41 @@ export class SokoBotSchedulesSyncService {
         }
       }
       if (!turnId) {
+        let message = run.prompt ?? schedule.prompt;
+        let nudgeKeys: string[] = [];
+        if (schedule.systemKey) {
+          const bot = await prisma.sokoBot.findUnique({
+            where: { id: schedule.sokoBotId },
+            select: {
+              id: true,
+              workspaceId: true,
+              ingestTimezone: true,
+              followWholeBoard: true,
+              coworker: { select: { id: true } },
+            },
+          });
+          if (bot) {
+            const beat = await buildSystemBeatMessage({
+              bot: {
+                id: bot.id,
+                coworkerId: bot.coworker?.id ?? null,
+                workspaceId: bot.workspaceId,
+                ingestTimezone: bot.ingestTimezone,
+                followWholeBoard: bot.followWholeBoard,
+              },
+              key: schedule.systemKey,
+              prompt: schedule.prompt,
+              now: new Date(),
+            });
+            message = beat.message;
+            nudgeKeys = beat.nudgeKeys;
+          }
+        }
         const started = await sokoBotControlPlane.startTurn({
           userId: schedule.userId,
           workspaceId: schedule.workspaceId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
-          message: run.prompt ?? schedule.prompt,
+          message,
           source: "SCHEDULE",
           scheduleReservation: {
             runId: run.id,
@@ -404,6 +440,9 @@ export class SokoBotSchedulesSyncService {
         turnErrorKind = started.errorKind ?? null;
         reconciliationLeaseToken = started.reconciliationLeaseToken;
         startedFresh = true;
+        if (nudgeKeys.length > 0) {
+          await stampNudges(schedule.sokoBotId, nudgeKeys, new Date());
+        }
       }
 
       if (

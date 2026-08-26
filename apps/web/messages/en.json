@@ -3499,6 +3499,7 @@
           "title": "Quality",
           "description": "Judge scores (1–5) for every settled turn, fleet-wide, last 30 days.",
           "overall": "{judged} of {turns} turns judged",
+          "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
           "version": "Version",
           "turns": "Turns",
           "avgScore": "Avg score",
@@ -5264,6 +5265,13 @@
         "resetDone": "Memory reset.",
         "resetError": "Could not reset memory."
       },
+      "HowItWorks": {
+        "title": "How it works",
+        "description": "What it does on its own, and when.",
+        "rhythms": "Rhythms",
+        "triggers": "Triggers",
+        "paused": "Paused"
+      },
       "Integrations": {
         "title": "Connected accounts",
         "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
@@ -5292,6 +5300,7 @@
         "kindsMailCalendar": "Reads your inbox and calendar"
       },
       "Schedules": {
+        "builtIn": "Built-in",
         "title": "Schedules",
         "description": "Things it does on its own, on a schedule.",
         "count": "{count, plural, one {# schedule} other {# schedules}}",

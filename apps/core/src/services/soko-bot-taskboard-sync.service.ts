@@ -3,6 +3,13 @@ import {
   SokoBotBusyError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import {
+  attentionBlock,
+  ensureSystemSchedules,
+  findAttentionItems,
+  followUpsBlock,
+  stampNudges,
+} from "@/services/soko-bot-proactive.service";
 
 const WATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_TASKS_PER_TURN = 6;
@@ -149,6 +156,7 @@ export class SokoBotTaskboardSyncService {
         userId: true,
         workspaceId: true,
         followWholeBoard: true,
+        ingestTimezone: true,
         coworker: { select: { id: true } },
         memoryRevisions: {
           orderBy: { version: "desc" },
@@ -162,6 +170,7 @@ export class SokoBotTaskboardSyncService {
       if (!bot.coworker) continue;
       result.bots += 1;
       try {
+        await ensureSystemSchedules(bot);
         const woke = await this.syncBot(
           {
             id: bot.id,
@@ -170,6 +179,7 @@ export class SokoBotTaskboardSyncService {
             workspaceId: bot.workspaceId,
             coworkerId: bot.coworker.id,
             followWholeBoard: bot.followWholeBoard,
+            ingestTimezone: bot.ingestTimezone,
             memoryTokens: tokens(bot.memoryRevisions[0]?.markdown ?? ""),
           },
           since,
@@ -199,6 +209,7 @@ export class SokoBotTaskboardSyncService {
       workspaceId: string;
       coworkerId: string;
       followWholeBoard: boolean;
+      ingestTimezone: string;
       memoryTokens: Set<string>;
     },
     since: Date,
@@ -242,8 +253,6 @@ export class SokoBotTaskboardSyncService {
       orderBy: { updatedAt: "desc" },
       take: 50,
     });
-    if (tasks.length === 0) return false;
-
     const now = new Date();
     const updates: TaskUpdate[] = [];
     const baselines: { taskId: string; status: string; watchId?: string }[] =
@@ -318,18 +327,43 @@ export class SokoBotTaskboardSyncService {
     }
 
     await this.stamp(bot.id, baselines, now);
-    if (updates.length === 0) return false;
+    const attention = await findAttentionItems({
+      id: bot.id,
+      coworkerId: bot.coworkerId,
+      workspaceId: bot.workspaceId,
+      followWholeBoard: bot.followWholeBoard,
+      now,
+    });
+    const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
+    if (updates.length === 0 && attention.length === 0) return false;
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
+    const message = [
+      ...(batch.length > 0 ? [buildTaskboardMessage(batch), ""] : []),
+      ...attentionBlock(attention),
+      ...followUps,
+      ...(batch.length === 0
+        ? [
+            "Move each item that needs attention: nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or adjust the schedule. Then report in two lines or answer exactly `Nothing to add.`",
+          ]
+        : []),
+    ]
+      .join("\n")
+      .trim();
     const started = await sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId: bot.workspaceId,
       clientTurnId: `taskboard:${bot.id}:${now.toISOString().slice(0, 16)}`,
-      message: buildTaskboardMessage(batch),
+      message,
       source: "EVENT",
     });
     await this.stamp(
       bot.id,
       batch.map((u) => ({ taskId: u.taskId, status: u.status })),
+      now,
+    );
+    await stampNudges(
+      bot.id,
+      attention.map((item) => item.key),
       now,
     );
     if (

@@ -26,11 +26,14 @@ import {
 interface ScheduleRowActionsProps {
   scheduleId: string;
   enabled: boolean;
+  /** Built-in rhythms can be paused but not deleted. */
+  deletable?: boolean;
 }
 
 export function ScheduleRowActions({
   scheduleId,
   enabled,
+  deletable = true,
 }: ScheduleRowActionsProps) {
   const t = useTranslations("App.SokoBot.Schedules");
   const router = useRouter();
@@ -69,33 +72,35 @@ export function ScheduleRowActions({
         disabled={isPending}
         aria-label={enabled ? t("disable") : t("enable")}
       />
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={isPending}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            {t("delete")}
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deleteDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("deleteCancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={remove}>
-              {t("deleteConfirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deletable ? (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              {t("delete")}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("deleteDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("deleteCancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={remove}>
+                {t("deleteConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </div>
   );
 }

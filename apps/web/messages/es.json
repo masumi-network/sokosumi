@@ -3468,6 +3468,7 @@
           "title": "Calidad",
           "description": "Puntuaciones del evaluador (1–5) de cada turno finalizado, toda la flota, últimos 30 días.",
           "overall": "{judged} de {turns} turnos evaluados",
+          "proactive": "{sent} mensajes proactivos, {actedOn} atendidos en un día",
           "version": "Versión",
           "turns": "Turnos",
           "avgScore": "Media",
@@ -5264,6 +5265,13 @@
         "resetDone": "Memoria restablecida.",
         "resetError": "No se pudo restablecer la memoria."
       },
+      "HowItWorks": {
+        "title": "Cómo funciona",
+        "description": "Qué hace por su cuenta, y cuándo.",
+        "rhythms": "Rutinas",
+        "triggers": "Disparadores",
+        "paused": "En pausa"
+      },
       "Integrations": {
         "title": "Cuentas conectadas",
         "description": "Apps que puede usar por ti. Correo y calendarios son de solo lectura; otras apps actúan en tu nombre cuando lo pides.",
@@ -5292,6 +5300,7 @@
         "kindsMailCalendar": "Lee tu bandeja de entrada y calendario"
       },
       "Schedules": {
+        "builtIn": "Integrado",
         "title": "Programaciones",
         "description": "Lo que hace por su cuenta, según un horario.",
         "count": "{count, plural, one {# programación} other {# programaciones}}",

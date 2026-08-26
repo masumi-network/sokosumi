@@ -219,6 +219,10 @@ export type AdminSokoBotQuality = {
         judged: number;
         avgScore: number | null;
     };
+    proactive: {
+        sent: number;
+        actedOn: number;
+    };
     daily: Array<{
         date: string;
         turns: number;
@@ -313,6 +317,7 @@ export type SokoBotSchedule = {
     timezone: string;
     cronExpression: string;
     prompt: string;
+    systemKey?: string | null;
     nextRunAt: Date;
     lastRunAt: Date | null;
     consecutiveFailures: number;

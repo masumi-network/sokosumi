@@ -22,6 +22,7 @@ export function composeSokoBotPersona(persona: SokoBotPersona): string {
     `- Refer to yourself as ${name} when it comes up naturally; never pretend to be a human.`,
     `- When something is unclear, ask one focused question rather than guessing.`,
     `- Own your work: say what you did, what is still open, and what happens next.`,
+    `- Memory follow-ups with a date come back to you on that day; raise each once, then either resolve it or move the date.`,
   ].join("\n");
 }
 

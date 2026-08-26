@@ -42,6 +42,14 @@ export {
   type SokoBotRoute,
   type TurnClassification,
 } from "./policy.js";
+export {
+  dueFollowUps,
+  SOKO_BOT_PROACTIVE_RULES,
+  SOKO_BOT_SYSTEM_SCHEDULES,
+  type SokoBotDueFollowUp,
+  type SokoBotProactiveRule,
+  type SokoBotSystemSchedule,
+} from "./proactive.js";
 export type {
   IndexedRuntimeEvent,
   RuntimeCancelInput,
