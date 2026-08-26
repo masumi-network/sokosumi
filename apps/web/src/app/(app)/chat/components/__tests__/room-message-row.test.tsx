@@ -503,7 +503,8 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Pin message on the hover action pill", () => {
+  it("shows Pin message on the hover action pill", async () => {
+    const user = userEvent.setup();
     const onPin = vi.fn();
     renderRow({
       message: userMessage({ content: "Pin me" }),
@@ -515,15 +516,21 @@ describe("ChatMessageRow", () => {
       '[data-message-actions="hover"]',
     );
     expect(hoverActions).toBeTruthy();
-    fireEvent.click(
+    await user.click(
       within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
         name: "PinnedMessages.pin",
       }),
     );
     expect(onPin).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Copy on the hover action pill", () => {
+  it("shows Copy on the hover action pill", async () => {
+    const user = userEvent.setup();
     copyMock.mockClear();
     renderRow({
       message: userMessage({ content: "Hover copy body" }),
@@ -534,10 +541,14 @@ describe("ChatMessageRow", () => {
       '[data-message-actions="hover"]',
     );
     expect(hoverActions).toBeTruthy();
-    const hoverCopy = within(hoverActions as HTMLElement).getByRole("button", {
-      name: "Copy.action",
-    });
-    fireEvent.click(hoverCopy);
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy.action" }),
+    );
     expect(copyMock).toHaveBeenCalledWith(
       "Hover copy body",
       expect.objectContaining({

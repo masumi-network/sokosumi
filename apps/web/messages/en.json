@@ -5004,6 +5004,7 @@
       },
       "Actions": {
         "more": "Message actions",
+        "overflow": "More",
         "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",

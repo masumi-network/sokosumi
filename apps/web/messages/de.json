@@ -5004,6 +5004,7 @@
       },
       "Actions": {
         "more": "Nachrichtenaktionen",
+        "overflow": "Mehr",
         "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",

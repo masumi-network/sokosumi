@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Check,
   Copy,
+  Ellipsis,
   MessageCircle,
   Pencil,
   Pin,
@@ -74,6 +75,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
@@ -786,7 +793,9 @@ function MessageActionControls({
   showCopyButton,
   showEditButton,
   showDeleteButton,
+  collapseSecondary = false,
   onAfterAction,
+  onMoreOpenChange,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
@@ -803,9 +812,15 @@ function MessageActionControls({
   showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
+  collapseSecondary?: boolean;
   onAfterAction?: () => void;
+  onMoreOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("App.Channels");
+  const showPin = Boolean(showPinButton && onPin);
+  const showCopy = Boolean(showCopyButton && onCopy);
+  const showDelete = Boolean(showDeleteButton && onDelete);
+  const showMore = collapseSecondary && (showPin || showCopy || showDelete);
 
   return (
     <>
@@ -851,7 +866,7 @@ function MessageActionControls({
           <Quote className="size-4" aria-hidden />
         </Button>
       ) : null}
-      {showPinButton && onPin ? (
+      {!collapseSecondary && showPin ? (
         <Button
           type="button"
           variant="ghost"
@@ -862,7 +877,7 @@ function MessageActionControls({
             isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")
           }
           onClick={() => {
-            onPin(message);
+            onPin?.(message);
             onAfterAction?.();
           }}
         >
@@ -873,7 +888,7 @@ function MessageActionControls({
           )}
         </Button>
       ) : null}
-      {showCopyButton && onCopy ? (
+      {!collapseSecondary && showCopy ? (
         <Button
           type="button"
           variant="ghost"
@@ -882,7 +897,7 @@ function MessageActionControls({
           title={t("Copy.action")}
           aria-label={t("Copy.action")}
           onClick={() => {
-            onCopy();
+            onCopy?.();
             onAfterAction?.();
           }}
         >
@@ -905,7 +920,7 @@ function MessageActionControls({
           <MessageCircle className="size-4" aria-hidden />
         </Button>
       ) : null}
-      {showDeleteButton && onDelete ? (
+      {!collapseSecondary && showDelete ? (
         <Button
           type="button"
           variant="ghost"
@@ -914,12 +929,68 @@ function MessageActionControls({
           title={t("Message.delete")}
           aria-label={t("Message.delete")}
           onClick={() => {
-            onDelete(message);
+            onDelete?.(message);
             onAfterAction?.();
           }}
         >
           <Trash2 className="size-4" aria-hidden />
         </Button>
+      ) : null}
+      {showMore ? (
+        <DropdownMenu onOpenChange={onMoreOpenChange}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-9 rounded-full sm:size-7"
+              title={t("Actions.overflow")}
+              aria-label={t("Actions.overflow")}
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {showPin ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onPin?.(message);
+                  onAfterAction?.();
+                }}
+              >
+                {isPinned ? (
+                  <PinOff className="size-4" aria-hidden />
+                ) : (
+                  <Pin className="size-4" aria-hidden />
+                )}
+                {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+              </DropdownMenuItem>
+            ) : null}
+            {showCopy ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onCopy?.();
+                  onAfterAction?.();
+                }}
+              >
+                <Copy className="size-4" aria-hidden />
+                {t("Copy.action")}
+              </DropdownMenuItem>
+            ) : null}
+            {showDelete ? (
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => {
+                  onDelete?.(message);
+                  onAfterAction?.();
+                }}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                {t("Message.delete")}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </>
   );
@@ -961,12 +1032,15 @@ function MessageActions({
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
   return (
     <div
       data-message-actions="hover"
       className={cn(
         messageActionsPillClassName,
         "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        moreOpen && "[@media(hover:hover)]:opacity-100",
       )}
     >
       <MessageActionControls
@@ -985,6 +1059,8 @@ function MessageActions({
         showCopyButton={showCopyButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
+        collapseSecondary
+        onMoreOpenChange={setMoreOpen}
       />
     </div>
   );
