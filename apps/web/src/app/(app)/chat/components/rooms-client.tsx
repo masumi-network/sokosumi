@@ -384,7 +384,7 @@ function RoomHeaderChrome({
 
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 md:gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
         {isDirectRoom ? (
           <>
             <MessageCircle className="text-muted-foreground size-4 shrink-0" />

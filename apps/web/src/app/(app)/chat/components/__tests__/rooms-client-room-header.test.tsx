@@ -341,6 +341,18 @@ describe("RoomsClient room header chrome", () => {
     expect(title).not.toHaveClass("shrink-0");
     expect(topic).not.toHaveClass("hidden");
     expect(topic).toHaveClass("min-w-16");
+    expect(topic.tagName).not.toBe("BUTTON");
+    expect(
+      screen.queryByRole("button", { name: "Weekly launch planning" }),
+    ).toBeNull();
+  });
+
+  it("trims a Channel topic for display", () => {
+    renderRoom({ ...channelRoom(), topic: "  Weekly launch planning  " });
+
+    const topic = screen.getByTestId("room-open-topic");
+    expect(topic).toHaveTextContent("Weekly launch planning");
+    expect(topic).toHaveAttribute("title", "Weekly launch planning");
   });
 
   it("hides a blank Channel topic", () => {
