@@ -33,6 +33,23 @@ describe("liveSanitizeChannelSlug", () => {
   });
 });
 
+describe("sanitizeChannelSlug", () => {
+  it("kebabs a display name and strips leading and trailing hyphens", () => {
+    expect(sanitizeChannelSlug(" Team Soko ")).toBe("team-soko");
+    expect(sanitizeChannelSlug("team-")).toBe("team");
+    expect(sanitizeChannelSlug("---")).toBe("");
+  });
+
+  it("turns punctuation into hyphens, unlike live typing", () => {
+    expect(sanitizeChannelSlug("team.soko")).toBe("team-soko");
+    expect(liveSanitizeChannelSlug("team.soko")).toBe("teamsoko");
+  });
+
+  it("strips combining marks after NFKD", () => {
+    expect(sanitizeChannelSlug("Café")).toBe("cafe");
+  });
+});
+
 describe("channelNameFromSlug", () => {
   it("title-cases kebab segments and joins with spaces", () => {
     expect(channelNameFromSlug("team-soko")).toBe("Team Soko");

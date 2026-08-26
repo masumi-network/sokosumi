@@ -5266,7 +5266,7 @@
         "next": "Weiter",
         "back": "Zurück",
         "create": "Erstellen",
-        "addPeopleTitle": "Personen zu #{name} hinzufügen",
+        "addPeopleTitle": "Personen zu {name} hinzufügen",
         "addAll": "Alle {count} Mitglieder von {organization} hinzufügen",
         "addSpecific": "Bestimmte Personen hinzufügen",
         "addSpecificHelp": "Wähle Personen und KI-Coworker aus, die diesem Kanal beitreten sollen.",

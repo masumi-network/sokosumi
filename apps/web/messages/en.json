@@ -5266,7 +5266,7 @@
         "next": "Next",
         "back": "Back",
         "create": "Create",
-        "addPeopleTitle": "Add people to #{name}",
+        "addPeopleTitle": "Add people to {name}",
         "addAll": "Add all {count} members of {organization}",
         "addSpecific": "Add specific people",
         "addSpecificHelp": "Select people and AI coworkers to add to this channel.",

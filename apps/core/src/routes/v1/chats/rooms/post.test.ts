@@ -1111,7 +1111,6 @@ describe("POST /chats/rooms", () => {
   it("creates a multi-human group direct with 201 and direct:v2 key", async () => {
     const created = directRoom({
       name: "Bob, Carol",
-      slug: "bob-carol",
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
@@ -1173,6 +1172,7 @@ describe("POST /chats/rooms", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "direct",
+          slug: null,
           directKey: GROUP_DIRECT_KEY,
           userMembers: {
             create: expect.arrayContaining([
@@ -1189,7 +1189,6 @@ describe("POST /chats/rooms", () => {
   it("returns the same group direct room for the same member set with 200", async () => {
     const existing = directRoom({
       name: "Bob, Carol",
-      slug: "bob-carol",
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
@@ -1269,7 +1268,6 @@ describe("POST /chats/rooms", () => {
   it("uses an order-independent directKey for multi-human group directs", async () => {
     const created = directRoom({
       name: "Bob, Carol",
-      slug: "bob-carol",
       directKey: GROUP_DIRECT_KEY,
       userMembers: [
         {
