@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.23.0",
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -107,6 +107,6 @@
     "lighthouse": "13.4.1",
     "portless": "0.15.6",
     "tsx": "4.23.12",
-    "turbo": "2.10.11"
+    "turbo": "2.10.12"
   }
 }

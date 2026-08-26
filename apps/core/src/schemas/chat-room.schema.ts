@@ -103,7 +103,11 @@ export const chatRoomSchema = z
       example: "Acme Corp",
     }),
     name: z.string().openapi({ example: "Launch Room" }),
-    slug: z.string().openapi({ example: "launch-room" }),
+    slug: z.string().nullable().openapi({
+      description:
+        "Channel slug unique among Channels in the organization. Null for Directs.",
+      example: "launch-room",
+    }),
     kind: z.enum(["channel", "direct"]).openapi({ example: "channel" }),
     directKey: z.string().nullable().openapi({
       description: "Deterministic key for direct rooms; null for normal rooms.",
@@ -181,6 +185,16 @@ const roomCoworkerIdsSchema = z
     example: ["cow_123"],
   });
 
+export const channelSlugAvailabilitySchema = z
+  .object({
+    status: z.enum(["free", "taken"]).openapi({
+      description:
+        "Whether the sanitized Channel slug is free among Channels in the active organization, including private and archived Channels. Does not identify the occupant.",
+      example: "free",
+    }),
+  })
+  .openapi("ChannelSlugAvailability");
+
 export const chatRoomKindSchema = z
   .enum(["channel", "direct"])
   .openapi("ChatRoomKind");
@@ -196,8 +210,15 @@ export const createChatRoomRequestSchema = z
         description:
           "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).",
       }),
-      name: z.string().trim().min(1).max(80).openapi({
+      name: z.string().trim().max(80).optional().openapi({
+        description:
+          "Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug (`team-soko` → `Team Soko`).",
         example: "Launch Room",
+      }),
+      slug: z.string().optional().openapi({
+        description:
+          "Required Channel slug (max 80 after sanitize). Core sanitizes with kebab rules and rejects missing, empty-after-sanitize, or over-long values. Unique among Channels in the organization.",
+        example: "launch-room",
       }),
       topic: z.string().trim().max(200).optional().openapi({
         example: "Launch planning with design and AI research partners",
@@ -230,6 +251,10 @@ export const updateChatRoomRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional().openapi({
       example: "Launch Room",
+    }),
+    slug: z.string().optional().openapi({
+      description: "Rejected. Channel slug is immutable after create.",
+      example: "launch-room",
     }),
     topic: z.string().trim().max(200).nullable().optional().openapi({
       example: "Launch planning with design and AI research partners",

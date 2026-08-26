@@ -213,7 +213,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
 function directRoom() {
   return channelRoom({
     name: "Bob",
-    slug: "bob",
+    slug: null,
     kind: "direct",
     directKey: `${USER_ID}:${OTHER_USER_ID}`,
     discoverability: null,
@@ -423,12 +423,67 @@ describe("PATCH /chats/rooms/{id}", () => {
         where: { id: ROOM_ID },
         data: {
           name: "Ship Room",
-          slug: "ship-room",
           topic: "Go live checklist",
           discoverability: "public",
         },
       }),
     );
+  });
+
+  it("does not rewrite the Channel slug when the name changes", async () => {
+    const existing = channelRoom({
+      name: "Launch Room",
+      slug: "launch-room",
+    });
+    const updated = channelRoom({
+      name: "Ship Room",
+      slug: "launch-room",
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    roomUpdateMock.mockResolvedValueOnce(updated);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Ship Room",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.name).toBe("Ship Room");
+    expect(body.data.slug).toBe("launch-room");
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: {
+          name: "Ship Room",
+        },
+      }),
+    );
+  });
+
+  it("rejects a Channel slug on PATCH", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        slug: "new-handle",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({
+        message: "Channel slug cannot be changed",
+      }),
+    );
+    expect(roomFindFirstMock).not.toHaveBeenCalled();
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects direct room edits with 400", async () => {
