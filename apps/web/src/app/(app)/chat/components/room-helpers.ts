@@ -82,6 +82,48 @@ export function isRoomMentionAllId(id: string): boolean {
   return id === ROOM_MENTION_ALL_ID;
 }
 
+/** Display names for composer hydrate chips. Picker catalog stays separate. */
+export function composerMentionDisplayNames({
+  usersById,
+  usersBySlug,
+  coworkersById,
+  coworkersBySlug,
+  mentionCatalog,
+}: {
+  usersById?: Map<string, { name: string }>;
+  usersBySlug?: Map<string, { name: string }>;
+  coworkersById?: Map<string, { name: string }>;
+  coworkersBySlug?: Map<string, { name: string }>;
+  mentionCatalog?: Record<string, { value?: string; slug?: string | null }>;
+}): { byKey: Map<string, string>; bySlug: Map<string, string> } {
+  const byKey = new Map<string, string>();
+  const bySlug = new Map<string, string>();
+
+  // Catalog first (@all and picker labels), then roster overwrites so
+  // hydrate chips match posted quotes. Same win order as quote preview.
+  for (const [key, entry] of Object.entries(mentionCatalog ?? {})) {
+    if (!entry.value) continue;
+    byKey.set(key, entry.value);
+    if (entry.slug) {
+      bySlug.set(entry.slug, entry.value);
+    }
+  }
+  for (const [id, user] of usersById ?? []) {
+    byKey.set(id, user.name);
+  }
+  for (const [slug, user] of usersBySlug ?? []) {
+    bySlug.set(slug, user.name);
+  }
+  for (const [id, coworker] of coworkersById ?? []) {
+    byKey.set(id, coworker.name);
+  }
+  for (const [slug, coworker] of coworkersBySlug ?? []) {
+    bySlug.set(slug, coworker.name);
+  }
+
+  return { byKey, bySlug };
+}
+
 /** Shared mention-picker payload for humans, coworkers, and synthetic @all. */
 export interface RoomMentionParticipant {
   kind: "human" | "coworker" | "all";

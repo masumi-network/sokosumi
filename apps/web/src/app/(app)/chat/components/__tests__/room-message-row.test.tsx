@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -165,6 +172,7 @@ function renderRow({
   onSaveEdit,
   isSavingEdit = false,
   coworkersById = new Map(),
+  usersById,
   reserveHoverActionGutter,
 }: {
   message?: ChatRoomMessage;
@@ -187,12 +195,14 @@ function renderRow({
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, { id: string; name: string }>;
 } = {}) {
   render(
     <ChatMessageRow
       message={message}
       coworkersById={coworkersById}
       coworkersBySlug={new Map()}
+      usersById={usersById}
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
@@ -1405,7 +1415,8 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    expect(screen.getByDisplayValue("Original fixed")).toBeInTheDocument();
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveTextContent("Original fixed");
     expect(screen.queryByText("Original")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Edit.save" }),
@@ -1427,12 +1438,16 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue(
-      "Original fixed",
-    ) as HTMLTextAreaElement;
-    expect(document.activeElement).toBe(textarea);
-    expect(textarea.selectionStart).toBe("Original fixed".length);
-    expect(textarea.selectionEnd).toBe("Original fixed".length);
+    const editor = screen.getByRole("textbox");
+    expect(document.activeElement).toBe(editor);
+    const selection = window.getSelection();
+    expect(selection?.rangeCount).toBeGreaterThan(0);
+    const range = selection?.getRangeAt(0);
+    expect(range?.collapsed).toBe(true);
+    const prefix = range?.cloneRange();
+    prefix?.selectNodeContents(editor);
+    prefix?.setEnd(range?.endContainer as Node, range?.endOffset ?? 0);
+    expect(prefix?.toString()).toBe("Original fixed");
   });
 
   it("saves on Enter and cancels on Escape while editing", async () => {
@@ -1451,8 +1466,8 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    const textarea = screen.getByDisplayValue("Original fixed");
-    textarea.focus();
+    const editor = screen.getByRole("textbox");
+    editor.focus();
 
     await user.keyboard("{Enter}");
     expect(onSaveEdit).toHaveBeenCalledTimes(1);
@@ -1478,7 +1493,7 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByDisplayValue("Original fixed").focus();
+    screen.getByRole("textbox").focus();
     await user.keyboard("{Shift>}{Enter}{/Shift}");
     expect(onSaveEdit).not.toHaveBeenCalled();
     expect(onCancelEdit).not.toHaveBeenCalled();
@@ -1500,13 +1515,13 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByDisplayValue("Original").focus();
+    screen.getByRole("textbox").focus();
     await user.keyboard("{Enter}");
     expect(onSaveEdit).not.toHaveBeenCalled();
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("saves live textarea value on Enter even if draft prop is stale", async () => {
+  it("saves live editor value on Enter even if draft prop is stale", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
 
@@ -1522,12 +1537,9 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    const textarea = screen.getByDisplayValue(
-      "Original",
-    ) as HTMLTextAreaElement;
-    textarea.focus();
-    // Bypass React onChange so the controlled prop stays stale while DOM updates.
-    textarea.value = "Original fixed live";
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "Original fixed live";
     await user.keyboard("{Enter}");
     expect(onSaveEdit).toHaveBeenCalledWith("Original fixed live");
   });
@@ -1547,10 +1559,12 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue("Original");
-    textarea.focus();
-    await user.tab(); // move focus away → blur
-    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    await user.tab();
+    await waitFor(() => {
+      expect(onCancelEdit).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("does not cancel on blur when draft is dirty", async () => {
@@ -1568,9 +1582,14 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue("Original fixed");
-    textarea.focus();
+    const editor = screen.getByRole("textbox");
+    editor.focus();
     await user.tab();
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 200);
+      });
+    });
     expect(onCancelEdit).not.toHaveBeenCalled();
   });
 
@@ -1589,12 +1608,15 @@ describe("ChatMessageRow", () => {
       onSaveEdit: vi.fn(),
     });
 
-    const textarea = screen.getByDisplayValue(
-      "Original",
-    ) as HTMLTextAreaElement;
-    textarea.focus();
-    textarea.value = "Original fixed live";
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = "Original fixed live";
     await user.tab();
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 200);
+      });
+    });
     expect(onCancelEdit).not.toHaveBeenCalled();
   });
 
@@ -1635,9 +1657,69 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByDisplayValue("Original fixed").focus();
+    screen.getByRole("textbox").focus();
     await user.keyboard("{Control>}{Enter}{/Control}");
     expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+  });
+
+  it("chips a roster User mention in the edit composer", () => {
+    renderRow({
+      message: userMessage({
+        content: "@b0user:andreas-osberghaus please look",
+      }),
+      currentUserId: "b0user",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "@b0user:andreas-osberghaus please look",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+      usersById: new Map([
+        ["b0user", { id: "b0user", name: "Andreas Osberghaus" }],
+      ]),
+    });
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-mention-key='b0user']");
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveTextContent("@Andreas Osberghaus");
+    expect(editor.textContent).not.toContain("b0user");
+    expect(editor.closest(".border-input")).not.toBeNull();
+  });
+
+  it("saves persist @id:slug after editing a chipped User mention", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({
+        content: "@b0user:andreas-osberghaus please look",
+      }),
+      currentUserId: "b0user",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "@b0user:andreas-osberghaus please look",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+      usersById: new Map([
+        ["b0user", { id: "b0user", name: "Andreas Osberghaus" }],
+      ]),
+    });
+
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    await user.keyboard(" again{Enter}");
+
+    expect(onSaveEdit).toHaveBeenCalledWith(
+      "@b0user:andreas-osberghaus please look again",
+    );
   });
 
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
