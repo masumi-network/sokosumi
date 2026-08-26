@@ -1887,7 +1887,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 data-[search-landed=true]:bg-primary/20 data-[search-landed=true]:ring-2 data-[search-landed=true]:ring-primary",
         reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation

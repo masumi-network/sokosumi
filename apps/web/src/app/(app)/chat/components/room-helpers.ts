@@ -249,7 +249,10 @@ export function pendingQuoteFromMessage(
 }
 
 /** Soft-fail scroll to a room message article when it is still in the DOM. */
-export function scrollToRoomMessageElement(messageId: string): boolean {
+export function scrollToRoomMessageElement(
+  messageId: string,
+  options?: { behavior?: ScrollBehavior },
+): boolean {
   if (typeof document === "undefined") {
     return false;
   }
@@ -259,7 +262,37 @@ export function scrollToRoomMessageElement(messageId: string): boolean {
   if (!target) {
     return false;
   }
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.scrollIntoView({
+    behavior: options?.behavior ?? "smooth",
+    block: "center",
+  });
+  return true;
+}
+
+const ROOM_MESSAGE_HIGHLIGHT_MS = 2500;
+const ROOM_MESSAGE_HIGHLIGHT_CLASSES = [
+  "ring-2",
+  "ring-primary",
+  "bg-primary/20",
+] as const;
+
+/** Scroll into view and apply a short-lived highlight when the node exists. */
+export function highlightRoomMessageElement(messageId: string): boolean {
+  if (!scrollToRoomMessageElement(messageId, { behavior: "auto" })) {
+    return false;
+  }
+  const target = document.querySelector<HTMLElement>(
+    `[data-message-id="${CSS.escape(messageId)}"]`,
+  );
+  if (!target) {
+    return false;
+  }
+  target.dataset.searchLanded = "true";
+  target.classList.add(...ROOM_MESSAGE_HIGHLIGHT_CLASSES);
+  window.setTimeout(() => {
+    delete target.dataset.searchLanded;
+    target.classList.remove(...ROOM_MESSAGE_HIGHLIGHT_CLASSES);
+  }, ROOM_MESSAGE_HIGHLIGHT_MS);
   return true;
 }
 
