@@ -31,6 +31,7 @@ import {
 } from "../chat/assistant-avatar";
 import { orderedTurns } from "../chat/timeline";
 import { useSokoBotState } from "../chat/use-soko-bot-state";
+import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { IntegrationsSection } from "../integrations-section.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
@@ -366,14 +367,17 @@ export function SokoBotConsole({
                 title={t("Settings.title")}
                 description={t("Chat.chips.settingsDescription")}
               >
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">
-                    {t("Settings.archiveTitle")}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {t("Settings.archiveDescription")}
-                  </p>
-                  <ArchiveSokoBotButton />
+                <div className="space-y-5">
+                  <FollowBoardToggle initial={bot.followWholeBoard ?? false} />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">
+                      {t("Settings.archiveTitle")}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("Settings.archiveDescription")}
+                    </p>
+                    <ArchiveSokoBotButton />
+                  </div>
                 </div>
               </Section>
             </aside>

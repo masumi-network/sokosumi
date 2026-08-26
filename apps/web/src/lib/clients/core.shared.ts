@@ -345,6 +345,7 @@ import {
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   NoticeKind,
@@ -3639,6 +3640,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function updateMySokoBotBoardFollowing(body: { enabled: boolean }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreUpdateMySokoBotBoardFollowing({ client, body }),
+      "Failed to update board following",
+    );
+  }
+
   async function updateMySokoBotVersion(body: { versionId: string }) {
     return executeCoreOperation(
       getClient,
@@ -4579,6 +4588,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     searchSokoBotSkills,
     browseSokoBotSkills,
     updateMySokoBotVersion,
+    updateMySokoBotBoardFollowing,
     listMySokoBotTurns,
     getMySokoBotTurn,
     startMySokoBotTurn,

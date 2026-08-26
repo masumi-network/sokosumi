@@ -524,6 +524,7 @@ export type SokoBot = {
     schedules?: Array<SokoBotSchedule>;
     avatarImageUrl?: string | null;
     versionId?: string | null;
+    followWholeBoard?: boolean;
     coworker?: {
         id: string;
         slug: string;
@@ -4270,6 +4271,10 @@ export type SokoBotVersion = {
     }>;
     capabilities: Array<string> | null;
     systemPrompt: string;
+};
+
+export type UpdateSokoBotBoardFollowingRequest = {
+    enabled: boolean;
 };
 
 export type UpdateSokoBotVersionRequest = {
@@ -29081,6 +29086,62 @@ export type ListSokoBotVersionsResponses = {
 };
 
 export type ListSokoBotVersionsResponse = ListSokoBotVersionsResponses[keyof ListSokoBotVersionsResponses];
+
+export type UpdateMySokoBotBoardFollowingData = {
+    body?: UpdateSokoBotBoardFollowingRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/board-following';
+};
+
+export type UpdateMySokoBotBoardFollowingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateMySokoBotBoardFollowingError = UpdateMySokoBotBoardFollowingErrors[keyof UpdateMySokoBotBoardFollowingErrors];
+
+export type UpdateMySokoBotBoardFollowingResponses = {
+    /**
+     * Bot with the new setting
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateMySokoBotBoardFollowingResponse = UpdateMySokoBotBoardFollowingResponses[keyof UpdateMySokoBotBoardFollowingResponses];
 
 export type UpdateMySokoBotVersionData = {
     body?: UpdateSokoBotVersionRequest;

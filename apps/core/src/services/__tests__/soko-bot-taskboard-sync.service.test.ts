@@ -6,7 +6,10 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: {},
 }));
 
-import { buildTaskboardMessage } from "../soko-bot-taskboard-sync.service";
+import {
+  buildTaskboardMessage,
+  isRelevantBoardComment,
+} from "../soko-bot-taskboard-sync.service";
 
 describe("buildTaskboardMessage", () => {
   it("separates work handed to the bot from updates it only follows", () => {
@@ -50,5 +53,39 @@ describe("buildTaskboardMessage", () => {
     expect(message).toContain("## New on Tasks you follow");
     expect(message).toContain("Coworker Ada: Which currency should I use?");
     expect(message).toContain("Nothing to add.");
+  });
+});
+
+describe("isRelevantBoardComment", () => {
+  const memoryTokens = new Set(["marketplace", "launch"]);
+  it("lets through mentions, questions, and memory overlap only", () => {
+    expect(
+      isRelevantBoardComment({
+        comment: "Atlas, can you check?",
+        botName: "Atlas",
+        memoryTokens,
+      }),
+    ).toBe(true);
+    expect(
+      isRelevantBoardComment({
+        comment: "Which currency should we use?",
+        botName: "Atlas",
+        memoryTokens,
+      }),
+    ).toBe(true);
+    expect(
+      isRelevantBoardComment({
+        comment: "Draft done for the marketplace page.",
+        botName: "Atlas",
+        memoryTokens,
+      }),
+    ).toBe(true);
+    expect(
+      isRelevantBoardComment({
+        comment: "Looks good, shipping it.",
+        botName: "Atlas",
+        memoryTokens,
+      }),
+    ).toBe(false);
   });
 });

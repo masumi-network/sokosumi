@@ -84,6 +84,7 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       avatarSeed: null,
       avatarImageUrl: null,
       versionId: null,
+      followWholeBoard: false,
       coworkerId: null,
       status: "IDLE",
       memoryVersion: 0,

@@ -295,6 +295,21 @@ interface SetVersionParams extends AuthenticatedRequest {
   versionId: unknown;
 }
 
+export const setSokoBotFollowBoardAction = withSession<
+  AuthenticatedRequest & { enabled: unknown },
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ enabled }) => {
+  const parsed = z.boolean().safeParse(enabled);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.setFollowBoard(parsed.data);
+    revalidate();
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const setSokoBotVersionAction = withSession<
   SetVersionParams,
   ActionResultDto<SokoBot, ActionError>

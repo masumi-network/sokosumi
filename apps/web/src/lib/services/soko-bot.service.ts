@@ -73,6 +73,13 @@ export const sokoBotService = {
     return response.data;
   },
 
+  async setFollowBoard(enabled: boolean): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotBoardFollowing({
+      enabled,
+    });
+    return response.data;
+  },
+
   async setVersion(versionId: string): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotVersion({ versionId });
     return response.data;

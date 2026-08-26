@@ -1743,6 +1743,8 @@ model SokoBot {
 
   /// Timezone for the morning briefing and "today" in ingest packets.
   ingestTimezone String    @default("Europe/Berlin")
+  /// Follow every open Task on the workspace board, not only its own.
+  followWholeBoard Boolean @default(false)
   /// Last morning briefing sent; one per local day.
   lastBriefingAt DateTime?
 

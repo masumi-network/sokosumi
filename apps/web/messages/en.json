@@ -5326,6 +5326,9 @@
       },
       "Settings": {
         "title": "Settings",
+        "followBoardTitle": "Follow the whole board",
+        "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment asks something, mentions it, or matches what it remembers.",
+        "followBoardError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
         "archive": "Archive",

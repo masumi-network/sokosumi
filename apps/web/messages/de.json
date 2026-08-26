@@ -5326,6 +5326,9 @@
       },
       "Settings": {
         "title": "Einstellungen",
+        "followBoardTitle": "Das ganze Board verfolgen",
+        "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar etwas fragt, ihn erwähnt oder zu seiner Erinnerung passt.",
+        "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
         "archive": "Archivieren",

@@ -248,6 +248,7 @@ export const sokoBotSchema = z
     /** Picked mascot image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
+    followWholeBoard: z.boolean().optional(),
     /** Chat-facing coworker row; open a direct with it to chat with the bot. */
     coworker: z
       .object({ id: z.string(), slug: z.string() })
@@ -522,6 +523,11 @@ export const sokoBotVersionSchema = z
     systemPrompt: z.string(),
   })
   .openapi("SokoBotVersion");
+
+export const updateSokoBotBoardFollowingRequestSchema = z
+  .object({ enabled: z.boolean() })
+  .strict()
+  .openapi("UpdateSokoBotBoardFollowingRequest");
 
 export const updateSokoBotVersionRequestSchema = z
   .object({ versionId: z.string().min(1).max(64) })

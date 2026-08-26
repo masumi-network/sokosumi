@@ -2368,6 +2368,9 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        followWholeBoard: {
+            type: 'boolean'
+        },
         coworker: {
             type: [
                 'object',
@@ -14848,6 +14851,19 @@ export const SokoBotVersionSchema = {
         'capabilities',
         'systemPrompt'
     ]
+} as const;
+
+export const UpdateSokoBotBoardFollowingRequestSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ],
+    additionalProperties: false
 } as const;
 
 export const UpdateSokoBotVersionRequestSchema = {

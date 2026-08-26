@@ -10,6 +10,38 @@ const MAX_EVENTS_PER_TASK = 5;
 /** Statuses in which a Task assigned to the bot is waiting for the bot. */
 const WORK_STATUSES = new Set(["READY", "QUEUED"]);
 
+const TERMINAL = ["COMPLETED", "CANCELED", "DRAFT"] as const;
+
+function tokens(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((word) => word.length >= 6),
+  );
+}
+
+/**
+ * Cheap pre-filter for board-wide following: a comment reaches the bot only
+ * when it addresses the bot, asks something, or overlaps with what the bot
+ * already knows (memory). Everything else never becomes a turn.
+ */
+export function isRelevantBoardComment(input: {
+  comment: string;
+  botName: string | null;
+  memoryTokens: Set<string>;
+}): boolean {
+  const text = input.comment.trim();
+  if (!text) return false;
+  const name = input.botName?.trim().toLowerCase();
+  if (name && text.toLowerCase().includes(name)) return true;
+  if (/\?/.test(text)) return true;
+  for (const word of tokens(text)) {
+    if (input.memoryTokens.has(word)) return true;
+  }
+  return false;
+}
+
 export interface SokoBotTaskboardSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
@@ -113,9 +145,16 @@ export class SokoBotTaskboardSyncService {
       },
       select: {
         id: true,
+        name: true,
         userId: true,
         workspaceId: true,
+        followWholeBoard: true,
         coworker: { select: { id: true } },
+        memoryRevisions: {
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { markdown: true },
+        },
       },
     });
     for (const bot of bots) {
@@ -124,7 +163,15 @@ export class SokoBotTaskboardSyncService {
       result.bots += 1;
       try {
         const woke = await this.syncBot(
-          { ...bot, coworkerId: bot.coworker.id },
+          {
+            id: bot.id,
+            name: bot.name,
+            userId: bot.userId,
+            workspaceId: bot.workspaceId,
+            coworkerId: bot.coworker.id,
+            followWholeBoard: bot.followWholeBoard,
+            memoryTokens: tokens(bot.memoryRevisions[0]?.markdown ?? ""),
+          },
           since,
           input.abortSignal,
         );
@@ -147,9 +194,12 @@ export class SokoBotTaskboardSyncService {
   private async syncBot(
     bot: {
       id: string;
+      name: string | null;
       userId: string;
       workspaceId: string;
       coworkerId: string;
+      followWholeBoard: boolean;
+      memoryTokens: Set<string>;
     },
     since: Date,
     abortSignal: AbortSignal,
@@ -171,11 +221,11 @@ export class SokoBotTaskboardSyncService {
         workspaceId: bot.workspaceId,
         archivedAt: null,
         OR: [
-          {
-            assigneeId: bot.coworkerId,
-            status: { notIn: ["COMPLETED", "CANCELED", "DRAFT"] },
-          },
+          { assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } },
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
+          ...(bot.followWholeBoard
+            ? [{ status: { notIn: [...TERMINAL] }, updatedAt: { gte: since } }]
+            : []),
         ],
       },
       select: {
@@ -202,6 +252,8 @@ export class SokoBotTaskboardSyncService {
       const watch = task.sokoBotWatches[0] ?? null;
       const assignedToBot = task.assigneeId === bot.coworkerId;
       const work = assignedToBot && WORK_STATUSES.has(task.status);
+      // Board-only Tasks: the bot neither owns nor created them.
+      const boardOnly = !assignedToBot && !taskIds.has(task.id);
       if (!watch) {
         // First sight: baseline silently unless the Task is waiting for the bot.
         if (!work) {
@@ -230,8 +282,15 @@ export class SokoBotTaskboardSyncService {
       const alreadyHandedOver =
         work && watch?.lastSeenStatus === task.status && events.length === 0;
       if (alreadyHandedOver) continue;
-      const meaningful = events.filter(
-        (e) => e.comment || (e.status && assignedToBot),
+      const meaningful = events.filter((e) =>
+        boardOnly
+          ? Boolean(e.comment) &&
+            isRelevantBoardComment({
+              comment: e.comment ?? "",
+              botName: bot.name,
+              memoryTokens: bot.memoryTokens,
+            })
+          : e.comment || (e.status && assignedToBot),
       );
       if (!work && meaningful.length === 0) {
         if (events.length > 0 && watch) {

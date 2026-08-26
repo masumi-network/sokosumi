@@ -158,6 +158,7 @@ export interface ChatBot {
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
   versionId: string | null;
+  followWholeBoard: boolean;
   /** Chat coworker row id; open a direct with it to talk to the bot. */
   coworkerId: string | null;
   status: SokoBotStatus;
@@ -317,6 +318,7 @@ export function toChatBot(bot: SokoBot): ChatBot {
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
     versionId: bot.versionId ?? null,
+    followWholeBoard: bot.followWholeBoard ?? false,
     coworkerId: bot.coworker?.id ?? null,
     status: bot.status,
     memoryVersion: bot.memoryVersion,
