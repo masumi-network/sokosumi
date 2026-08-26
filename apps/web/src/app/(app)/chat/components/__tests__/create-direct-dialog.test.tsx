@@ -130,6 +130,18 @@ describe("CreateDirectDialog", () => {
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 
+  it("uses a shrink-wrapped roster scrollport so the scrollbar tracks the list", async () => {
+    const user = userEvent.setup();
+    render(<CreateDirectDialog />);
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await screen.findByRole("button", { name: /Francis/ });
+
+    expect(
+      document.querySelector("[data-scroll-area-shrink-content]"),
+    ).toBeTruthy();
+  });
+
   it("closes without routing when dismissed", async () => {
     const user = userEvent.setup();
     render(<CreateDirectDialog />);

@@ -201,8 +201,8 @@ export function CreateDirectDialog() {
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-2rem)] gap-6 overflow-hidden shadow-none sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-6 overflow-hidden shadow-none sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t("Draft.title")}</DialogTitle>
           <DialogDescription>{t("Draft.empty")}</DialogDescription>
         </DialogHeader>
@@ -212,8 +212,8 @@ export function CreateDirectDialog() {
             {t("loading")}
           </div>
         ) : (
-          <div className="min-w-0 space-y-3">
-            <div className="flex min-h-10 min-w-0 flex-wrap items-center gap-1.5">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+            <div className="flex min-h-10 min-w-0 shrink-0 flex-wrap items-center gap-1.5">
               {selectedTargets.map((target) => (
                 <span
                   key={target.key}
@@ -244,7 +244,7 @@ export function CreateDirectDialog() {
                 </span>
               ))}
             </div>
-            <div className="relative">
+            <div className="relative shrink-0">
               <Search
                 className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
                 aria-hidden
@@ -264,7 +264,7 @@ export function CreateDirectDialog() {
                 autoComplete="off"
               />
             </div>
-            <ScrollArea className="h-[min(16rem,40svh)]">
+            <ScrollArea className="h-[min(16rem,40svh)] min-h-0" shrinkContent>
               {roster.membersLoadFailed ? (
                 <MembersRosterLoadFailed className="m-1 px-3 py-6" />
               ) : null}
@@ -283,7 +283,7 @@ export function CreateDirectDialog() {
             </ScrollArea>
           </div>
         )}
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             type="button"
             variant="primary"
