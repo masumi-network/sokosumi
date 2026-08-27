@@ -1,12 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountArchiveChatRoom from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindFirstMock,
@@ -52,9 +56,7 @@ function member(id: string) {
 }
 
 function createApp(userId: string) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
@@ -65,7 +67,7 @@ function createApp(userId: string) {
     });
     return await next();
   });
-  mountArchiveChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  mountArchiveChatRoom(app);
   return app;
 }
 

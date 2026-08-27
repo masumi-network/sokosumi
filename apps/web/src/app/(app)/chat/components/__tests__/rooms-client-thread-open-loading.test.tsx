@@ -119,7 +119,8 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
 }));
 
 vi.mock("@/components/chat/room-read-overlay", () => ({
-  applyRoomReadResultToOverlay: vi.fn(),
+  rememberRoomRead: vi.fn(),
+  forgetRoomRead: vi.fn(),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -180,14 +181,6 @@ vi.mock("../thread-panel", () => ({
   ),
 }));
 
-vi.mock("../create-channel-dialog", () => ({
-  CreateChannelDialog: () => null,
-}));
-
-vi.mock("../draft-direct-message", () => ({
-  DraftDirectMessage: () => null,
-}));
-
 vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: () => null,
 }));
@@ -226,7 +219,7 @@ function channelRoom(): ChatRoom {
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
     unreadMentionCount: 0,
-    pinnedAt: null,
+    starredAt: null,
     mutedAt: null,
     markedUnread: false,
     myAccess: "member",
@@ -297,8 +290,6 @@ const baseProps = {
   currentUserId: "user-1",
   coworkers: [] as [],
   selectedRoomId: "room-channel",
-  isCreateChannelRequested: false,
-  isNewDirectMessage: false,
   messageLoadFailed: false,
   membersLoadFailed: false,
   messages: [parentMessage()],

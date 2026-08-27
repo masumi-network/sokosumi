@@ -10,6 +10,8 @@ import type {
   ChatRoomInvitation,
   ChatRoomKind,
   ChatRoomMessage,
+  ChatRoomPinnedMessageListItem,
+  ChatRoomPinnedMessageMutation,
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
@@ -299,6 +301,41 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function listPinnedMessages(
+    roomId: string,
+    options?: { cursor?: string; limit?: number },
+  ): Promise<{
+    items: ChatRoomPinnedMessageListItem[];
+    nextCursor: string | null;
+    total: number;
+  }> {
+    const response = await coreClient.getChatRoomPinnedMessages(roomId, {
+      cursor: options?.cursor,
+      limit: options?.limit,
+    });
+    return {
+      items: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+      total: response.meta?.pagination?.total ?? response.data.length,
+    };
+  }
+
+  async function pinMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomPinnedMessageMutation> {
+    const response = await coreClient.pinChatRoomMessage(roomId, messageId);
+    return response.data;
+  }
+
+  async function unpinMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomPinnedMessageMutation> {
+    const response = await coreClient.unpinChatRoomMessage(roomId, messageId);
+    return response.data;
+  }
+
   async function muteRoom(id: string): Promise<ChatRoom> {
     const response = await coreClient.muteChatRoom(id);
     return response.data;
@@ -504,12 +541,15 @@ export const chatRoomService = (() => {
     markAllUnreadThreadsRead,
     markThreadRead,
     markUnread,
+    pinMessage,
     pinRoom,
+    listPinnedMessages,
     removeUnfurl,
     resolveRoomGuestInviteLink,
     restoreRoom,
     revokeRoomGuestInviteLink,
     revokeRoomInvitation,
+    unpinMessage,
     unpinRoom,
     muteRoom,
     unmuteRoom,

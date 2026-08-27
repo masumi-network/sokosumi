@@ -8,25 +8,22 @@ describe("chatRouteErrorBoundaryKey", () => {
     expect(chatRouteErrorBoundaryKey("/", new URLSearchParams())).toBe("/");
   });
 
-  it("includes search so draft Welcome views remount separately", () => {
+  it("includes search so Welcome notice remounts separately", () => {
     expect(
-      chatRouteErrorBoundaryKey("/", new URLSearchParams("create=channel")),
-    ).toBe("/?create=channel");
-    expect(chatRouteErrorBoundaryKey("/", new URLSearchParams("dm=new"))).toBe(
-      "/?dm=new",
-    );
+      chatRouteErrorBoundaryKey(
+        "/",
+        new URLSearchParams("notice=room-unavailable"),
+      ),
+    ).toBe("/?notice=room-unavailable");
   });
 
   it("changes when soft-navigating between shared-pathname views", () => {
     const home = chatRouteErrorBoundaryKey("/", new URLSearchParams());
-    const create = chatRouteErrorBoundaryKey(
+    const notice = chatRouteErrorBoundaryKey(
       "/",
-      new URLSearchParams("create=channel"),
+      new URLSearchParams("notice=room-unavailable"),
     );
-    const dm = chatRouteErrorBoundaryKey("/", new URLSearchParams("dm=new"));
 
-    expect(home).not.toBe(create);
-    expect(create).not.toBe(dm);
-    expect(home).not.toBe(dm);
+    expect(home).not.toBe(notice);
   });
 });

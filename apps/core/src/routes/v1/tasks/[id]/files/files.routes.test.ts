@@ -1,14 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import { TASK_FILE_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetTaskFiles from "./get";
 import mountPostTaskFile from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   taskFindFirstMock,
@@ -97,9 +102,7 @@ function mountFiles(app: OpenAPIHonoWithAuth) {
 }
 
 function createUserApp(userId = OWNER_ID) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -117,14 +120,12 @@ function createUserApp(userId = OWNER_ID) {
     return await next();
   });
 
-  mountFiles(app as unknown as OpenAPIHonoWithAuth);
+  mountFiles(app);
   return app;
 }
 
 function createCoworkerApp(assigneeId = COWORKER_ID) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -137,7 +138,7 @@ function createCoworkerApp(assigneeId = COWORKER_ID) {
     return await next();
   });
 
-  mountFiles(app as unknown as OpenAPIHonoWithAuth);
+  mountFiles(app);
   return app;
 }
 

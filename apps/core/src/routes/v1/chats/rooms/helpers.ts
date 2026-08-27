@@ -727,7 +727,8 @@ export interface MapChatRoomAttentionOptions {
   unreadMentionCount?: number;
   /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
   lastActivityAt?: Date | null;
-  pinnedAt?: Date | null;
+  starredAt?: Date | null;
+  pinnedMessageCount?: number;
   mutedAt?: Date | null;
   markedUnread?: boolean;
   /** Override caller's room access; otherwise derived from membership row. */
@@ -764,7 +765,8 @@ export function mapChatRoom(
     unreadCount = 0,
     unreadMentionCount = 0,
     lastActivityAt,
-    pinnedAt = null,
+    starredAt = null,
+    pinnedMessageCount = 0,
     mutedAt = null,
     markedUnread = false,
     myAccess: myAccessOverride,
@@ -790,7 +792,8 @@ export function mapChatRoom(
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
     unreadMentionCount,
-    pinnedAt,
+    starredAt,
+    pinnedMessageCount,
     mutedAt,
     markedUnread,
     peerInActiveOrganization,
@@ -832,12 +835,28 @@ function mapChatRoomDiscoverability(
 }
 
 export interface ChatRoomSidebarFlags {
-  pinnedAt: Date | null;
+  starredAt: Date | null;
   mutedAt: Date | null;
   markedUnread: boolean;
 }
 
-/** Batch-load per-user pin + mute + forced-unread flags for sidebar mapping. */
+/** Shared Channel pin-list size, keyed by room. Distinct from sidebar Pin. */
+export async function getChatRoomPinnedMessageCounts(
+  roomIds: string[],
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, number>> {
+  const uniqueRoomIds = [...new Set(roomIds)];
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+  const grouped = await tx.chatRoomPinnedMessage.groupBy({
+    by: ["roomId"],
+    where: { roomId: { in: uniqueRoomIds } },
+    _count: { _all: true },
+  });
+  return new Map(grouped.map((row) => [row.roomId, row._count._all]));
+}
+
 export async function getChatRoomSidebarFlags(
   roomIds: readonly string[],
   userId: string,
@@ -856,7 +875,7 @@ export async function getChatRoomSidebarFlags(
       },
       select: {
         roomId: true,
-        pinnedAt: true,
+        starredAt: true,
         mutedAt: true,
       },
     }),
@@ -875,14 +894,14 @@ export async function getChatRoomSidebarFlags(
   const flagged = new Map<string, ChatRoomSidebarFlags>(
     uniqueRoomIds.map((roomId) => [
       roomId,
-      { pinnedAt: null, mutedAt: null, markedUnread: false },
+      { starredAt: null, mutedAt: null, markedUnread: false },
     ]),
   );
 
   for (const membership of memberships) {
     const current = flagged.get(membership.roomId);
     if (current) {
-      current.pinnedAt = membership.pinnedAt;
+      current.starredAt = membership.starredAt;
       current.mutedAt = membership.mutedAt;
     }
   }
@@ -990,8 +1009,10 @@ export async function mapChatRoomWithSidebarFlags(
     activeOrganizationId?: string | null;
   } = {},
 ) {
-  const flags = (await getChatRoomSidebarFlags([room.id], userId, tx)).get(
-    room.id,
+  const flagsByRoom = await getChatRoomSidebarFlags([room.id], userId, tx);
+  const pinnedMessageCounts = await getChatRoomPinnedMessageCounts(
+    [room.id],
+    tx,
   );
   const peerInActiveOrganization = await resolvePeerInActiveOrganization(
     room,
@@ -999,12 +1020,14 @@ export async function mapChatRoomWithSidebarFlags(
     attention.activeOrganizationId ?? null,
     tx,
   );
+  const flags = flagsByRoom.get(room.id);
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     lastActivityAt: attention.lastActivityAt,
-    pinnedAt: flags?.pinnedAt ?? null,
+    starredAt: flags?.starredAt ?? null,
+    pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
     mutedAt: flags?.mutedAt ?? null,
     markedUnread: flags?.markedUnread ?? false,
     peerInActiveOrganization,
@@ -1657,7 +1680,11 @@ export async function requireChatRoomUserMembership(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<{ id: string; organizationId: string | null }> {
+): Promise<{
+  id: string;
+  organizationId: string | null;
+  kind: "channel" | "direct";
+}> {
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
@@ -1669,6 +1696,7 @@ export async function requireChatRoomUserMembership(
     select: {
       id: true,
       organizationId: true,
+      kind: true,
       userMembers: {
         where: { userId },
         select: { access: true },
@@ -1691,6 +1719,7 @@ export async function requireChatRoomUserMembership(
   return {
     id: room.id,
     organizationId: room.organizationId,
+    kind: room.kind === "direct" ? "direct" : "channel",
   };
 }
 

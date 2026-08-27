@@ -5,13 +5,17 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { Hono } from "hono";
-import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
-
 import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import {
+  bindCoreRequestId,
+  coreEvlogMiddleware,
+  initCoreLogger,
+} from "@/lib/evlog";
+import { betterAuthEvlogMiddleware } from "@/lib/evlog-better-auth";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
@@ -24,6 +28,7 @@ import { hermesInboxSyncService } from "@/services/hermes-inbox-sync.service";
 
 validateEnv();
 initSentry();
+initCoreLogger();
 
 // Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
@@ -35,8 +40,10 @@ const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
 
-app.use(logger());
 app.use(requestId());
+app.use(coreEvlogMiddleware());
+app.use(bindCoreRequestId());
+app.use(betterAuthEvlogMiddleware());
 app.use(maintenanceMiddleware());
 app.use(sentryMiddleware());
 
@@ -115,6 +122,8 @@ app.get("/llms.txt", async (c) => {
 });
 
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
+// robots.txt lives on mainApp so crawlers still get Disallow during maintenance.
+mainApp.get("/robots.txt", (c) => c.text("User-Agent: *\nDisallow: /\n"));
 mainApp.route("/", app);
 
 serve(

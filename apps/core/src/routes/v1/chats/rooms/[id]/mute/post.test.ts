@@ -1,14 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountMuteChatRoom from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindFirstMock,
@@ -41,6 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -59,11 +65,7 @@ const tx = {
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_mute_chat_room");
@@ -73,7 +75,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.onError(errorHandler);
-  mountMuteChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  mountMuteChatRoom(app);
   return app;
 }
 
@@ -124,7 +126,7 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([
     {
       roomId: ROOM_ID,
-      pinnedAt: null,
+      starredAt: null,
       mutedAt: new Date("2026-08-03T12:00:00.000Z"),
     },
   ]);
@@ -144,7 +146,7 @@ describe("POST /chats/rooms/{id}/mute", () => {
         where: {
           roomId: ROOM_ID,
           userId: USER_ID,
-          pinnedAt: null,
+          starredAt: null,
         },
         data: { mutedAt: expect.any(Date) },
       }),
@@ -158,10 +160,10 @@ describe("POST /chats/rooms/{id}/mute", () => {
     });
   });
 
-  it("rejects mute when the room is pinned", async () => {
+  it("rejects mute when the room is starred", async () => {
     membershipUpdateManyMock.mockResolvedValue({ count: 0 });
     membershipFindUniqueMock.mockResolvedValue({
-      pinnedAt: new Date("2026-08-03T10:00:00.000Z"),
+      starredAt: new Date("2026-08-03T10:00:00.000Z"),
     });
 
     const response = await createApp(userAuthContext).request(
@@ -171,7 +173,7 @@ describe("POST /chats/rooms/{id}/mute", () => {
 
     expect(response.status).toBe(422);
     const body = await response.json();
-    expect(body.message).toBe("Cannot mute a pinned room. Unpin it first.");
+    expect(body.message).toBe("Cannot mute a starred room. Unstar it first.");
   });
 
   it("404s when membership disappears after access check", async () => {

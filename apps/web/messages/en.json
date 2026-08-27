@@ -5004,6 +5004,7 @@
       },
       "Actions": {
         "more": "Message actions",
+        "overflow": "More",
         "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",
@@ -5064,8 +5065,10 @@
         "membersLoadFailedTitle": "Members could not be loaded",
         "membersLoadFailedDescription": "Organization members are temporarily unavailable. Try again in a moment.",
         "membersLoadFailedRetry": "Retry",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Channels are for conversations around a topic. Create one to get started."
+        "rosterLoadFailedTitle": "Could not load people",
+        "rosterLoadFailedDescription": "Recipients are temporarily unavailable. Try again in a moment.",
+        "noChannelTitle": "No chat selected",
+        "noChannelDescription": "Choose a channel or direct message from the sidebar."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -5100,22 +5103,16 @@
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
-        "breadcrumb": "New direct message",
-        "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Add more people",
         "searchPlaceholderReplace": "Replace recipient",
         "noResults": "No matches",
         "title": "New direct message",
         "empty": "Choose who to message.",
-        "ready": "Recipient selected",
         "chooseRecipientError": "Choose a recipient.",
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
-        "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Add a recipient to start",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
-        "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
       "RoomSearch": {
@@ -5188,6 +5185,25 @@
         "cancel": "Cancel",
         "save": "Save"
       },
+      "PinnedMessages": {
+        "open": "Pinned messages",
+        "title": "Pinned Messages",
+        "close": "Close pinned messages",
+        "empty": "No pinned messages yet",
+        "loading": "Loading pinned messages…",
+        "error": "Could not load pinned messages",
+        "couldNotLoad": "Message could not be loaded",
+        "pin": "Pin message",
+        "unpin": "Unpin message",
+        "messageRequired": "Message is required.",
+        "roomRequired": "Room is required.",
+        "pinError": "Could not pin message.",
+        "unpinError": "Could not unpin message.",
+        "count": "{count, plural, =0 {Pinned} one {# pinned} other {# pinned}}",
+        "latest": "Latest pin",
+        "jumpToLatest": "Jump to pinned message from {author}",
+        "viewAll": "View all pinned messages"
+      },
       "Quote": {
         "action": "Quote",
         "dismiss": "Remove quote",
@@ -5211,7 +5227,8 @@
       "Edit": {
         "action": "Edit",
         "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
-        "edited": "Edited"
+        "edited": "(edited)",
+        "editedAt": "Edited {when}"
       },
       "Copy": {
         "action": "Copy",
@@ -5438,6 +5455,9 @@
       "emptyTitle": "No files yet",
       "emptyDescription": "Upload your first file to get started",
       "searchPlaceholder": "Search files...",
+      "tasksSearchPlaceholder": "Search tasks...",
+      "tasksNoMatchTitle": "No task files found",
+      "tasksNoMatchDescription": "Try a different search query",
       "noMatchTitle": "No files found",
       "noMatchDescription": "Try a different search query",
       "pickerEmptyMessage": "No files in this folder",
@@ -5483,7 +5503,29 @@
       "createFolderDuplicateError": "A folder with this name already exists. Choose a different name.",
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
-      "moveFileError": "Failed to move file"
+      "moveFileError": "Failed to move file",
+      "tasksFolder": "Tasks",
+      "tasksEmptyTitle": "No task files yet",
+      "tasksEmptyDescription": "Task files will appear here when you complete tasks",
+      "loadTasksError": "Failed to load tasks",
+      "loadMore": "Load more",
+      "loadMoreTasksError": "Failed to load more tasks",
+      "copyToFilesAction": "Copy to Files",
+      "copyToFilesSuccess": "File copied to Files",
+      "copyToFilesError": "Failed to copy file",
+      "copyToFilesDuplicateError": "A file with this name already exists in Files",
+      "copyToFilesDialogTitle": "Copy to Files?",
+      "copyToFilesDialogDescription": "Copy {fileName} to {workspace}.",
+      "copyToFilesDialogConfirm": "Copy",
+      "tasksBreadcrumbLabel": "Tasks",
+      "noProject": "No project",
+      "filterTitle": "Filter",
+      "filterSearchPlaceholder": "Search...",
+      "filterEmptyResults": "No results",
+      "filterAll": "All",
+      "filterCoworkerLabel": "Agent",
+      "filterProjectLabel": "Project",
+      "filterTaskLabel": "Task"
     }
   },
   "Share": {

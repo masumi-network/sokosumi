@@ -10,6 +10,10 @@ import { useEffect, useRef } from "react";
 
 import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 import { safeDetachChannel } from "./safe-detach-channel";
+import {
+  ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
+  shouldPublishOrgPresenceUpdate,
+} from "./should-publish-org-presence";
 
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -18,8 +22,7 @@ const ACTIVITY_EVENTS = [
   "touchstart",
 ] as const;
 
-/** Throttle presence.update while active; enter/leave still immediate. */
-const PRESENCE_UPDATE_MIN_INTERVAL_MS = 30_000;
+/** Local recheck only; unchanged payloads still do not publish. */
 const PRESENCE_IDLE_TICK_MS = 30_000;
 
 function buildPresenceData(
@@ -30,20 +33,27 @@ function buildPresenceData(
 }
 
 /**
- * Enter Ably Presence on every org channel granted on the token (ADR-0003).
- * Updates lastActiveAt / visible from browser activity and visibility.
+ * Enter Ably Presence only on the active organization (ADR-0003). Other orgs
+ * on the token stay offline. Updates lastActiveAt / visible from browser
+ * activity and visibility. Unchanged idle presence does not publish; activity
+ * refreshes lastActiveAt on a ~4 min throttle. A 30s local tick only rechecks;
+ * it is not an Ably message. Visibility, enter, and reconnect force publish.
  * Owns channel attach/detach for presence channels (map only subscribes).
  */
-export function useOrgPresencePublisher(): void {
+export function useOrgPresencePublisher(organizationId: string | null): void {
   const ably = useAbly();
-  const channelsRef = useRef(new Map<string, Ably.RealtimeChannel>());
   const lastActiveAtRef = useRef(Date.now());
   const lastPublishedAtRef = useRef(0);
-  const lastPublishedVisibleRef = useRef<boolean | null>(null);
+  const lastPublishedRef = useRef<ChatPresenceMemberData | null>(null);
+  const organizationIdRef = useRef(organizationId);
+  organizationIdRef.current = organizationId;
+  const syncRef = useRef<() => void>(() => undefined);
 
+  // Workspace switch must leave-then-enter on the same effect. Remounting
+  // fire-and-forgets leave and can wipe a later re-enter of the same channel.
   useEffect(() => {
     let cancelled = false;
-    const channels = channelsRef.current;
+    const channels = new Map<string, Ably.RealtimeChannel>();
     /** Coalesce mount + connected so authorize never overlaps. */
     let syncInFlight = false;
     let syncQueued = false;
@@ -57,10 +67,14 @@ export function useOrgPresencePublisher(): void {
       const lastActiveAt = lastActiveAtRef.current;
       const data = buildPresenceData(lastActiveAt, visible);
 
-      const shouldPublish =
-        force ||
-        lastPublishedVisibleRef.current !== visible ||
-        now - lastPublishedAtRef.current >= PRESENCE_UPDATE_MIN_INTERVAL_MS;
+      const shouldPublish = shouldPublishOrgPresenceUpdate({
+        force,
+        next: data,
+        lastPublished: lastPublishedRef.current,
+        lastPublishedAt: lastPublishedAtRef.current,
+        now,
+        minIntervalMs: ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
+      });
 
       if (!shouldPublish || channels.size === 0) {
         return;
@@ -95,35 +109,13 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      if (results.some(Boolean)) {
-        lastPublishedAtRef.current = Date.now();
-        lastPublishedVisibleRef.current = visible;
+      if (results.length > 0 && results.every(Boolean)) {
+        lastPublishedAtRef.current = now;
+        lastPublishedRef.current = data;
       }
     }
 
-    async function runSyncOnce(): Promise<void> {
-      if (cancelled) {
-        return;
-      }
-      let tokenDetails: Ably.TokenDetails | null = null;
-      try {
-        tokenDetails = await ably.auth.authorize();
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Ably authorize for presence failed:", error);
-        }
-        return;
-      }
-      if (cancelled) {
-        return;
-      }
-
-      const organizationIds =
-        organizationIdsFromAblyCapability(tokenDetails?.capability) ?? [];
-      const nextNames = new Set(
-        organizationIds.map((id) => makeOrgPresenceChannelName(id)),
-      );
-
+    async function leaveChannelsNotIn(nextNames: Set<string>): Promise<void> {
       for (const [name, channel] of channels) {
         if (cancelled) {
           return;
@@ -138,15 +130,61 @@ export function useOrgPresencePublisher(): void {
           channels.delete(name);
         }
       }
+    }
+
+    async function runSyncOnce(): Promise<void> {
+      if (cancelled) {
+        return;
+      }
+      const keepBeforeAuthorize = new Set<string>();
+      const organizationIdBeforeAuthorize = organizationIdRef.current;
+      if (organizationIdBeforeAuthorize != null) {
+        keepBeforeAuthorize.add(
+          makeOrgPresenceChannelName(organizationIdBeforeAuthorize),
+        );
+      }
+      await leaveChannelsNotIn(keepBeforeAuthorize);
+      if (cancelled) {
+        return;
+      }
+
+      const nextNames = new Set<string>();
+      if (organizationIdRef.current != null) {
+        let tokenDetails: Ably.TokenDetails | null = null;
+        try {
+          tokenDetails = await ably.auth.authorize();
+        } catch (error) {
+          if (!cancelled) {
+            console.error("Ably authorize for presence failed:", error);
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+        // Switch during authorize must not enter the org captured at start.
+        const currentOrganizationId = organizationIdRef.current;
+        if (tokenDetails != null && currentOrganizationId != null) {
+          const grantedIds =
+            organizationIdsFromAblyCapability(tokenDetails.capability) ?? [];
+          if (grantedIds.includes(currentOrganizationId)) {
+            nextNames.add(makeOrgPresenceChannelName(currentOrganizationId));
+          }
+        }
+      }
+
+      await leaveChannelsNotIn(nextNames);
 
       if (cancelled) {
         return;
       }
 
-      // Ensure every granted org channel is tracked, then force enter/update on
-      // all of them. Skipping already-tracked channels leaves self offline after
-      // hard reconnect (Ably only auto-restores presence on resume).
+      // Ensure the active org channel is tracked, then force enter/update.
+      // Skipping an already-tracked channel leaves self offline after hard
+      // reconnect (Ably only auto-restores presence on resume).
       for (const name of nextNames) {
+        if (cancelled) {
+          return;
+        }
         if (!channels.has(name)) {
           channels.set(name, ably.channels.get(name));
         }
@@ -182,7 +220,9 @@ export function useOrgPresencePublisher(): void {
       void publishPresence(true);
     }
 
-    void syncChannels();
+    syncRef.current = () => {
+      void syncChannels();
+    };
 
     for (const event of ACTIVITY_EVENTS) {
       window.addEventListener(event, handleActivity, { passive: true });
@@ -202,6 +242,7 @@ export function useOrgPresencePublisher(): void {
     return () => {
       cancelled = true;
       syncQueued = false;
+      syncRef.current = () => undefined;
       for (const event of ACTIVITY_EVENTS) {
         window.removeEventListener(event, handleActivity);
       }
@@ -217,4 +258,8 @@ export function useOrgPresencePublisher(): void {
       channels.clear();
     };
   }, [ably]);
+
+  useEffect(() => {
+    syncRef.current();
+  }, [ably, organizationId]);
 }

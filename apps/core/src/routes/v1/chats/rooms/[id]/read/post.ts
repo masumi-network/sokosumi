@@ -12,6 +12,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
+  getChatRoomPinnedMessageCounts,
   getChatRoomUnreadCounts,
   mapChatRoom,
   requireChatRoomUserAccess,
@@ -53,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const readAt = new Date();
 
-    const { room, pinnedAt, mutedAt } = await prisma.$transaction(
+    const { room, starredAt, mutedAt } = await prisma.$transaction(
       async (tx) => {
         const room = await requireChatRoomUserAccess(
           id,
@@ -97,12 +98,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               userId: userContext.userId,
             },
           },
-          select: { pinnedAt: true, mutedAt: true },
+          select: { starredAt: true, mutedAt: true },
         });
 
         return {
           room,
-          pinnedAt: membership?.pinnedAt ?? null,
+          starredAt: membership?.starredAt ?? null,
           mutedAt: membership?.mutedAt ?? null,
         };
       },
@@ -111,11 +112,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does
     // not optimistically hide unlooked threads.
-    const unreadCounts = await getChatRoomUnreadCounts(
-      [room.id],
-      userContext.userId,
-      prisma,
-    );
+    const [unreadCounts, pinnedCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomPinnedMessageCounts([room.id], prisma),
+    ]);
 
     return ok(
       c,
@@ -123,7 +123,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         mapChatRoom(room, userContext.userId, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: 0,
-          pinnedAt,
+          starredAt,
+          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
           mutedAt,
           markedUnread: false,
         }),

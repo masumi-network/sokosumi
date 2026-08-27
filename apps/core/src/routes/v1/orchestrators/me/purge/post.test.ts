@@ -1,10 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostOrchestratorMePurge from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { captureExceptionMock, clearHermesLocalMirrorForUserMock } = vi.hoisted(
   () => ({
@@ -23,9 +29,7 @@ vi.mock("@/helpers/orchestrator-instance", () => ({
 }));
 
 function createApp(actor: "orchestrator" | "user" = "orchestrator") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -42,7 +46,7 @@ function createApp(actor: "orchestrator" | "user" = "orchestrator") {
     return await next();
   });
 
-  mountPostOrchestratorMePurge(app as unknown as OpenAPIHonoWithAuth);
+  mountPostOrchestratorMePurge(app);
   return app;
 }
 
@@ -67,14 +71,14 @@ describe("POST /orchestrators/me/purge", () => {
     expect(clearHermesLocalMirrorForUserMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when userId is missing", async () => {
+  it("returns 422 when userId is missing", async () => {
     const response = await createApp().request("/me/purge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(clearHermesLocalMirrorForUserMock).not.toHaveBeenCalled();
   });
 

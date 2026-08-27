@@ -3,7 +3,9 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
+import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import {
@@ -20,12 +22,18 @@ import type {
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomMessage,
+  ChatRoomPinnedMessageListItem,
+  ChatRoomPinnedMessageMutation,
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  Coworker,
   DiscoverableChatRoom,
+  Member,
 } from "@/lib/clients/generated/core";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
@@ -76,17 +84,14 @@ interface CreateDirectRoomInput {
   coworkerIds?: string[];
 }
 
-interface SendNewDirectMessageInput {
-  memberUserIds?: string[];
-  coworkerIds?: string[];
-  content: string;
-  mentionedCoworkerIds?: string[];
-  mentionedUserIds?: string[];
-}
-
-interface SendNewDirectMessageResult {
-  room: ChatRoom;
-  message: ChatRoomMessage;
+export interface ChatComposeRoster {
+  currentUserId: string;
+  organizationName: string;
+  hasOrganization: boolean;
+  canCreateExternal: boolean;
+  members: Member[];
+  coworkers: Coworker[];
+  membersLoadFailed: boolean;
 }
 
 function cleanString(value: string | null | undefined): string {
@@ -117,6 +122,54 @@ async function invalidateSidebarChatList(): Promise<void> {
     userId: session.user.id,
     organizationId: session.session.activeOrganizationId ?? null,
   });
+}
+
+export async function loadChatComposeRosterAction(): Promise<
+  RoomActionResult<ChatComposeRoster>
+> {
+  const session = await getSession();
+  if (!session) {
+    return roomFail("Sign in required.");
+  }
+
+  try {
+    const currentUserId = session.user.id;
+    const [activeOrganization, coworkers] = await Promise.all([
+      userService.getActiveOrganization(),
+      coworkerService.listCoworkers("chat"),
+    ]);
+
+    if (!activeOrganization) {
+      return roomOk({
+        currentUserId,
+        organizationName: "",
+        hasOrganization: false,
+        canCreateExternal: false,
+        members: [],
+        coworkers,
+        membersLoadFailed: false,
+      });
+    }
+
+    const [membersPage, currentMember] = await Promise.all([
+      loadOrganizationMembers(activeOrganization.id),
+      userService.getMyMemberInOrganization(activeOrganization.id),
+    ]);
+
+    return roomOk({
+      currentUserId,
+      organizationName: activeOrganization.name,
+      hasOrganization: true,
+      canCreateExternal: Boolean(
+        currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
+      ),
+      members: membersPage.members,
+      coworkers,
+      membersLoadFailed: membersPage.failed,
+    });
+  } catch (error) {
+    return roomCatch(error, "Could not load chat recipients.");
+  }
 }
 
 export async function checkChannelSlugAvailabilityAction(
@@ -253,46 +306,6 @@ export async function ensureCoworkerDirectRoomAction(
     return roomOk(room);
   } catch (error) {
     return roomCatch(error, "Could not ensure coworker direct room.");
-  }
-}
-
-export async function sendNewDirectMessageAction(
-  input: SendNewDirectMessageInput,
-): Promise<RoomActionResult<SendNewDirectMessageResult>> {
-  const activeOrganization = await userService.getActiveOrganization();
-  if (!activeOrganization) {
-    return roomFail("Select an organization first.");
-  }
-
-  const memberUserIds = cleanIds(input.memberUserIds);
-  const coworkerIds = cleanIds(input.coworkerIds);
-  const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
-  if (shapeError) {
-    return roomFail(shapeError);
-  }
-
-  const cleanContent = cleanString(input.content);
-  if (!cleanContent) {
-    return roomFail("Message is required.");
-  }
-
-  try {
-    const room = await chatRoomService.createRoom({
-      kind: "direct",
-      memberUserIds,
-      coworkerIds,
-    });
-    const message = await chatRoomService.sendMessage(room.id, {
-      content: cleanContent,
-      mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
-      mentionedUserIds: cleanIds(input.mentionedUserIds),
-    });
-    await invalidateSidebarChatList();
-    revalidatePath("/");
-    revalidatePath("/chat");
-    return roomOk({ room, message });
-  } catch (error) {
-    return roomCatch(error, "Could not start direct message.");
   }
 }
 
@@ -814,6 +827,77 @@ export async function retryRoomMentionAction(
     return roomOk(message);
   } catch (error) {
     return roomCatch(error, "Could not retry mention.");
+  }
+}
+
+export async function pinRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("messageRequired"));
+  }
+
+  try {
+    const result = await chatRoomService.pinMessage(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, t("pinError"));
+  }
+}
+
+export async function listPinnedMessagesAction(
+  roomId: string,
+  options?: { cursor?: string; limit?: number },
+): Promise<
+  RoomActionResult<{
+    items: ChatRoomPinnedMessageListItem[];
+    nextCursor: string | null;
+    total: number;
+  }>
+> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail(t("roomRequired"));
+  }
+
+  try {
+    const page = await chatRoomService.listPinnedMessages(cleanRoomId, {
+      cursor: options?.cursor,
+      limit: options?.limit,
+    });
+    return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, t("error"));
+  }
+}
+
+export async function unpinRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomPinnedMessageMutation>> {
+  const t = await getTranslations("App.Channels.PinnedMessages");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("messageRequired"));
+  }
+
+  try {
+    const result = await chatRoomService.unpinMessage(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, t("unpinError"));
   }
 }
 

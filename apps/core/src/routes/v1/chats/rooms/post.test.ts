@@ -1,14 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { CHANNEL_SLUG_MAX_LENGTH, CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountPostChatRooms from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindFirstMock,
@@ -53,6 +58,9 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomReadState: {
       findMany: readStateFindManyMock,
     },
+    chatRoomPinnedMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
     member: {
       findMany: memberFindManyMock,
     },
@@ -95,9 +103,7 @@ const tx = {
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -105,16 +111,12 @@ function createApp(authContext: AuthVariables["authContext"]) {
     return await next();
   });
 
-  mountPostChatRooms(app as unknown as OpenAPIHonoWithAuth);
+  mountPostChatRooms(app);
   return app;
 }
 
 function createAppWithErrorHandler(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_post_chat_room");
@@ -123,7 +125,7 @@ function createAppWithErrorHandler(authContext: AuthVariables["authContext"]) {
     return await next();
   });
   app.onError(errorHandler);
-  mountPostChatRooms(app as unknown as OpenAPIHonoWithAuth);
+  mountPostChatRooms(app);
   return app;
 }
 
@@ -1491,7 +1493,7 @@ describe("POST /chats/rooms", () => {
       membershipFindManyMock.mockResolvedValue([
         {
           roomId: ROOM_ID,
-          pinnedAt: new Date("2025-01-01T00:00:00.000Z"),
+          starredAt: new Date("2025-01-01T00:00:00.000Z"),
           mutedAt: new Date("2025-01-02T00:00:00.000Z"),
         },
       ]);
@@ -1508,7 +1510,7 @@ describe("POST /chats/rooms", () => {
 
       expect(response.status).toBe(201);
       const body = await response.json();
-      expect(body.data.pinnedAt).toBeNull();
+      expect(body.data.starredAt).toBeNull();
       expect(body.data.mutedAt).toBeNull();
       expect(body.data.markedUnread).toBe(false);
     });

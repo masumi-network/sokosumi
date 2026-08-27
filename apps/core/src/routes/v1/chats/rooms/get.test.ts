@@ -1,12 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetChatRooms from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindManyMock,
@@ -16,6 +20,7 @@ const {
   memberFindUniqueMock,
   memberFindManyMock,
   messageGroupByMock,
+  pinGroupByMock,
   notificationGroupByMock,
   membershipFindManyMock,
   readStateFindManyMock,
@@ -29,6 +34,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   messageGroupByMock: vi.fn(),
+  pinGroupByMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
@@ -53,6 +59,9 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomMessage: {
       groupBy: messageGroupByMock,
     },
+    chatRoomPinnedMessage: {
+      groupBy: pinGroupByMock,
+    },
     notification: {
       groupBy: notificationGroupByMock,
     },
@@ -75,9 +84,7 @@ const GUEST_ROOM_ID = "550e8400-e29b-41d4-a716-446655440099";
 const PERSONAL_DIRECT_ID = "550e8400-e29b-41d4-a716-446655440088";
 
 function createApp(organizationId: string | null) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
@@ -88,7 +95,7 @@ function createApp(organizationId: string | null) {
     });
     return await next();
   });
-  mountGetChatRooms(app as unknown as OpenAPIHonoWithAuth);
+  mountGetChatRooms(app);
   return app;
 }
 
@@ -113,7 +120,7 @@ function guestRoomRow() {
         roomId: GUEST_ROOM_ID,
         userId: USER_ID,
         access: "guest",
-        pinnedAt: null,
+        starredAt: null,
         mutedAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         user: {
@@ -150,7 +157,7 @@ function personalDirectRow() {
         roomId: PERSONAL_DIRECT_ID,
         userId: USER_ID,
         access: "member",
-        pinnedAt: null,
+        starredAt: null,
         mutedAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         user: {
@@ -166,7 +173,7 @@ function personalDirectRow() {
         roomId: PERSONAL_DIRECT_ID,
         userId: PEER_USER_ID,
         access: "member",
-        pinnedAt: null,
+        starredAt: null,
         mutedAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         user: {
@@ -191,6 +198,7 @@ beforeEach(() => {
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
   messageGroupByMock.mockResolvedValue([]);
+  pinGroupByMock.mockResolvedValue([]);
   notificationGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);

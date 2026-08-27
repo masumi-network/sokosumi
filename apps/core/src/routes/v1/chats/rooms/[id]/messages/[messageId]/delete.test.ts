@@ -1,11 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountDeleteChatRoomMessage from "./delete";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindFirstMock,
@@ -14,6 +19,8 @@ const {
   messageFindFirstMock,
   messageUpdateManyMock,
   mentionUpdateManyMock,
+  pinDeleteManyMock,
+  pinCountMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -22,6 +29,8 @@ const {
   messageFindFirstMock: vi.fn(),
   messageUpdateManyMock: vi.fn(),
   mentionUpdateManyMock: vi.fn(),
+  pinDeleteManyMock: vi.fn(),
+  pinCountMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -42,6 +51,10 @@ const {
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
+}));
+
+vi.mock("@/helpers/chat-room-pinned-message-realtime", () => ({
+  publishChatRoomPinnedMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -66,12 +79,14 @@ const tx = {
   chatRoomMention: {
     updateMany: mentionUpdateManyMock,
   },
+  chatRoomPinnedMessage: {
+    deleteMany: pinDeleteManyMock,
+    count: pinCountMock,
+  },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -79,7 +94,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
     return await next();
   });
 
-  mountDeleteChatRoomMessage(app as unknown as OpenAPIHonoWithAuth);
+  mountDeleteChatRoomMessage(app);
   return app;
 }
 
@@ -149,6 +164,8 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
       .mockResolvedValueOnce(tombstone);
     messageUpdateManyMock.mockResolvedValue({ count: 1 });
     mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+    pinDeleteManyMock.mockResolvedValue({ count: 0 });
+    pinCountMock.mockResolvedValue(0);
   });
 
   it("soft-deletes the author message and returns a tombstone", async () => {
@@ -184,6 +201,9 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
         status: "failed",
         error: "Source message was deleted",
       },
+    });
+    expect(pinDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, messageId: MESSAGE_ID },
     });
   });
 

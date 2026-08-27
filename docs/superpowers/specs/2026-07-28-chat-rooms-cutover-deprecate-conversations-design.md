@@ -49,7 +49,7 @@ Bridge already exists: create-or-get `kind: "direct"` via `directKey`. Stream an
 
 | Path | Role |
 | --- | --- |
-| `/chat` | Landing / empty state; drafts via query (`?create=channel`, `?dm=new`) |
+| `/chat` | Landing / empty state. Leftover `?create=channel` / `?dm=new` are ignored; Channel and Direct create overlay the current page (PR 3982). |
 | `/chat/rooms/{roomId}` | Open room — channel or direct; UI from `kind` |
 
 - **Landing:** `DEFAULT_AUTHENTICATED_LANDING_PATH` stays `"/chat"`.

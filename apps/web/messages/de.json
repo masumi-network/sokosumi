@@ -5004,6 +5004,7 @@
       },
       "Actions": {
         "more": "Nachrichtenaktionen",
+        "overflow": "Mehr",
         "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",
@@ -5064,8 +5065,10 @@
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
         "membersLoadFailedDescription": "Organisationsmitglieder sind vorübergehend nicht verfügbar. Bitte versuche es gleich noch einmal.",
         "membersLoadFailedRetry": "Erneut versuchen",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Kanäle sind für Gespräche zu einem Thema. Erstelle einen, um zu starten."
+        "rosterLoadFailedTitle": "Personen konnten nicht geladen werden",
+        "rosterLoadFailedDescription": "Empfänger sind vorübergehend nicht verfügbar. Bitte versuche es gleich noch einmal.",
+        "noChannelTitle": "Kein Chat ausgewählt",
+        "noChannelDescription": "Wähle einen Kanal oder eine Direktnachricht in der Seitenleiste."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -5100,22 +5103,16 @@
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
-        "breadcrumb": "New direct message",
-        "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Weitere Personen hinzufügen",
+        "searchPlaceholderReplace": "Empfänger ersetzen",
         "noResults": "No matches",
         "title": "New direct message",
         "empty": "Wähle, wen du anschreiben möchtest.",
-        "ready": "Empfänger ausgewählt",
         "chooseRecipientError": "Wähle einen Empfänger.",
         "organizationRequiredForGroup": "Wechsle zu einer Organisation, um einem Teammitglied zu schreiben.",
         "removeRecipient": "Remove {name}",
-        "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Empfänger hinzufügen, um zu starten",
-        "searchPlaceholderReplace": "Empfänger ersetzen",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
-        "groupDirectNoCoworkersError": "Gruppendirektnachrichten können keine Coworker enthalten.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
       },
       "RoomSearch": {
@@ -5188,6 +5185,25 @@
         "cancel": "Abbrechen",
         "save": "Speichern"
       },
+      "PinnedMessages": {
+        "open": "Angeheftete Nachrichten",
+        "title": "Angeheftete Nachrichten",
+        "close": "Angeheftete Nachrichten schließen",
+        "empty": "Noch keine angehefteten Nachrichten",
+        "loading": "Angeheftete Nachrichten werden geladen…",
+        "error": "Angeheftete Nachrichten konnten nicht geladen werden",
+        "couldNotLoad": "Nachricht konnte nicht geladen werden",
+        "pin": "Nachricht anheften",
+        "unpin": "Nachricht lösen",
+        "messageRequired": "Nachricht ist erforderlich.",
+        "roomRequired": "Raum ist erforderlich.",
+        "pinError": "Nachricht konnte nicht angeheftet werden.",
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
+        "count": "{count, plural, =0 {Angeheftet} one {# angeheftet} other {# angeheftet}}",
+        "latest": "Neueste Anheftung",
+        "jumpToLatest": "Zur angehefteten Nachricht von {author} springen",
+        "viewAll": "Alle angehefteten Nachrichten anzeigen"
+      },
       "Quote": {
         "action": "Zitieren",
         "dismiss": "Zitat entfernen",
@@ -5223,7 +5239,8 @@
       "Edit": {
         "action": "Bearbeiten",
         "composerAria": "Nachricht bearbeiten. Enter speichern, Escape abbrechen, Umschalt+Enter neue Zeile.",
-        "edited": "Bearbeitet"
+        "edited": "(bearbeitet)",
+        "editedAt": "Bearbeitet {when}"
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",
@@ -5438,6 +5455,9 @@
       "emptyTitle": "Noch keine Dateien",
       "emptyDescription": "Lade deine erste Datei hoch, um loszulegen",
       "searchPlaceholder": "Dateien suchen...",
+      "tasksSearchPlaceholder": "Tasks suchen...",
+      "tasksNoMatchTitle": "Keine Task-Dateien gefunden",
+      "tasksNoMatchDescription": "Versuche eine andere Suchanfrage",
       "noMatchTitle": "Keine Dateien gefunden",
       "noMatchDescription": "Versuche eine andere Suchanfrage",
       "pickerEmptyMessage": "Keine Dateien in diesem Ordner",
@@ -5483,7 +5503,29 @@
       "createFolderDuplicateError": "Ein Ordner mit diesem Namen existiert bereits. Wähle einen anderen Namen.",
       "deleteFolderError": "Ordner konnte nicht gelöscht werden",
       "moveFolderError": "Ordner konnte nicht verschoben werden",
-      "moveFileError": "Datei konnte nicht verschoben werden"
+      "moveFileError": "Datei konnte nicht verschoben werden",
+      "tasksFolder": "Aufgaben",
+      "tasksEmptyTitle": "Noch keine Aufgabendateien",
+      "tasksEmptyDescription": "Aufgabendateien werden hier angezeigt, wenn du Aufgaben abschließt",
+      "loadTasksError": "Laden der Aufgaben fehlgeschlagen",
+      "loadMore": "Mehr laden",
+      "loadMoreTasksError": "Weitere Aufgaben konnten nicht geladen werden",
+      "copyToFilesAction": "In Dateien kopieren",
+      "copyToFilesSuccess": "Datei in Dateien kopiert",
+      "copyToFilesError": "Kopieren fehlgeschlagen",
+      "copyToFilesDuplicateError": "Eine Datei mit diesem Namen existiert bereits in Dateien",
+      "copyToFilesDialogTitle": "In Dateien kopieren?",
+      "copyToFilesDialogDescription": "{fileName} nach {workspace} kopieren.",
+      "copyToFilesDialogConfirm": "Kopieren",
+      "tasksBreadcrumbLabel": "Aufgaben",
+      "noProject": "Kein Projekt",
+      "filterTitle": "Filtern",
+      "filterSearchPlaceholder": "Suchen...",
+      "filterEmptyResults": "Keine Ergebnisse",
+      "filterAll": "Alle",
+      "filterCoworkerLabel": "Agent",
+      "filterProjectLabel": "Projekt",
+      "filterTaskLabel": "Aufgabe"
     }
   },
   "Share": {

@@ -1,14 +1,21 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   revokeMock,
@@ -70,9 +77,7 @@ const workspaceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const now = new Date("2026-08-05T12:00:00.000Z");
 
 function createApp(authContext: AuthenticationContext = SESSION_USER) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
@@ -80,13 +85,9 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables & { requestId: string };
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountRevokeUserCoworkerAccess(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountRevokeUserCoworkerAccess(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }

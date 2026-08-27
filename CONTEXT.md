@@ -160,11 +160,21 @@ _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room m
 When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore prior room memberships. Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
 
+### Chat pins
+
+**Pinned room**:
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin and the pin icon. Distinct from a Pinned message.
+_Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
+
+**Pinned message**:
+A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
+_Avoid_: Announcement (a use of this), pinned room, thread pin
+
 ### Chat presence
 
 **Presence**:
-Whether a human participant is currently reachable on the product — they have at least one live client connection. App-global (any Sokosumi surface with a live connection), not room-scoped. Multi-device: any connected device makes the person reachable (aggregate by user, not by single connection id).
-_Avoid_: Session freshness, last seen (that is a separate timestamp), membership, Ably channel subscribe alone without a presence signal, equating one connection id with one human
+Whether a human participant is currently reachable in the **active organization** — they have at least one live client connection on that workspace. App-shell (any Sokosumi surface with a live connection, not chat-page-only), not room-scoped. Other organizations see Offline. Multi-device: any connected device in that organization makes the person reachable (aggregate by user, not by single connection id).
+_Avoid_: Session freshness, last seen (that is a separate timestamp), membership, Ably channel subscribe alone without a presence signal, equating one connection id with one human, treating presence as reachable in every org at once
 
 **Online**:
 Presence state: reachable and recently active in a connected client.
@@ -237,8 +247,12 @@ The per-room list of that room’s threads, shown in the thread side panel. Ever
 _Avoid_: Unread threads (as the name of this list), inbox, treating this as a cross-room surface, Threads badge as a separate count
 
 **Look**:
-The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from room read state and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Marking the room as read does not.
+The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from Room last-read and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Advancing Room last-read does not Look.
 _Avoid_: Replied, Participant, lastLookedAt, read receipt. Do not use “looked” in product UI (say unread / mark as read)
+
+**Room last-read**:
+The user’s high-water mark on a room’s main transcript. Distinct from Look. Advancing it clears top-level Room unread and that room’s mention badge; leftover Participant Thread unread stays.
+_Avoid_: Look, lastReadAt (storage), treating this as reading Threads
 
 **User mention**:
 A human @-reference to a user on a room message (main transcript or Thread). Distinct from Mention status (coworker turn lifecycle).
@@ -249,7 +263,7 @@ A user of a Thread who authored the parent, has a remaining reply in that Thread
 _Avoid_: Follower, subscriber, treating Look (opened it) as participation
 
 **Room unread**:
-The count of unseen messages that page the user in this room: non-self top-level messages after room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**. Not the mention badge.
+The count of unseen messages that page the user in this room: non-self top-level messages after Room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**. Not the mention badge.
 _Avoid_: Attention, attentionReplyCount, counting lurker thread replies, a separate Threads badge, using the mention badge as the message unread count
 
 **Unread thread**:

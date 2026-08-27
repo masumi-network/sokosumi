@@ -1,11 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetJobs from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { getUserJobsMock } = vi.hoisted(() => ({
   getUserJobsMock: vi.fn(),
@@ -16,9 +21,7 @@ vi.mock("@/helpers/job", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -33,7 +36,7 @@ function createApp() {
     return await next();
   });
 
-  mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+  mountGetJobs(app);
   return app;
 }
 
@@ -57,9 +60,7 @@ describe("GET /jobs", () => {
   });
 
   it("defaults to owned scope when the query parameter is omitted", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -78,7 +79,7 @@ describe("GET /jobs", () => {
       return await next();
     });
 
-    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetJobs(app);
 
     const response = await app.request("http://localhost/?status=COMPLETED");
 
@@ -111,9 +112,7 @@ describe("GET /jobs", () => {
   });
 
   it("passes scope=workspace through to the job helper", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -132,7 +131,7 @@ describe("GET /jobs", () => {
       return await next();
     });
 
-    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetJobs(app);
 
     const response = await app.request("http://localhost/?scope=workspace");
 
@@ -146,9 +145,7 @@ describe("GET /jobs", () => {
   });
 
   it("accepts delegated coworker context when workspaceContext is resolved", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -170,7 +167,7 @@ describe("GET /jobs", () => {
       return await next();
     });
 
-    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetJobs(app);
 
     const response = await app.request("http://localhost/");
 
@@ -202,9 +199,7 @@ describe("GET /jobs", () => {
   });
 
   it("passes projectId through to the job helper", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -223,7 +218,7 @@ describe("GET /jobs", () => {
       return await next();
     });
 
-    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetJobs(app);
 
     const projectId = "33333333-3333-4333-8333-333333333333";
     const response = await app.request(
@@ -240,9 +235,7 @@ describe("GET /jobs", () => {
   });
 
   it("passes projectId=null through to the job helper", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -261,7 +254,7 @@ describe("GET /jobs", () => {
       return await next();
     });
 
-    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetJobs(app);
 
     const response = await app.request("http://localhost/?projectId=null");
 

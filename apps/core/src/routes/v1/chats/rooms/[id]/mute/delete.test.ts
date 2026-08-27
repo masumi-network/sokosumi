@@ -1,14 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountUnmuteChatRoom from "./delete";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindFirstMock,
@@ -39,6 +44,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: { groupBy: mentionGroupByMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
+    chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -54,11 +60,7 @@ const tx = {
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_unmute_chat_room");
@@ -68,7 +70,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.onError(errorHandler);
-  mountUnmuteChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  mountUnmuteChatRoom(app);
   return app;
 }
 
@@ -117,7 +119,7 @@ beforeEach(() => {
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([
-    { roomId: ROOM_ID, pinnedAt: null, mutedAt: null },
+    { roomId: ROOM_ID, starredAt: null, mutedAt: null },
   ]);
   readStateFindManyMock.mockResolvedValue([]);
 });

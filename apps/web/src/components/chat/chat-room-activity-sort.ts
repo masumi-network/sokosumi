@@ -1,7 +1,7 @@
 export interface ChatRoomActivitySortKey {
   id: string;
   updatedAt: string | Date;
-  pinnedAt?: string | Date | null;
+  starredAt?: string | Date | null;
   mutedAt?: string | Date | null;
   discoverability?: "public" | "private" | "external" | null;
 }
@@ -10,7 +10,7 @@ function isPinned(value: string | Date | null | undefined): boolean {
   return value != null;
 }
 
-function pinnedAtMs(value: string | Date | null | undefined): number {
+function starredAtMs(value: string | Date | null | undefined): number {
   if (value == null) {
     return 0;
   }
@@ -31,7 +31,7 @@ function discoverabilityRank(
 /**
  * Unmuted before muted; within bucket pinned before unpinned;
  * then public before private in every bucket; among pins oldest
- * pinnedAt first; then newest activity; stable id tie-break.
+ * starredAt first; then newest activity; stable id tie-break.
  */
 export function compareChatRoomsByRecentActivity(
   a: ChatRoomActivitySortKey,
@@ -42,8 +42,8 @@ export function compareChatRoomsByRecentActivity(
     return byMuted;
   }
 
-  const aPinned = isPinned(a.pinnedAt);
-  const bPinned = isPinned(b.pinnedAt);
+  const aPinned = isPinned(a.starredAt);
+  const bPinned = isPinned(b.starredAt);
   if (aPinned !== bPinned) {
     return aPinned ? -1 : 1;
   }
@@ -56,7 +56,7 @@ export function compareChatRoomsByRecentActivity(
   }
 
   if (aPinned) {
-    const byPinned = pinnedAtMs(a.pinnedAt) - pinnedAtMs(b.pinnedAt);
+    const byPinned = starredAtMs(a.starredAt) - starredAtMs(b.starredAt);
     if (byPinned !== 0) {
       return byPinned;
     }

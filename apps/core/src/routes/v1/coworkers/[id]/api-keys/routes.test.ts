@@ -1,13 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountDeleteCoworkerApiKey from "./delete";
 import mountGetCoworkerApiKeys from "./get";
 import mountPatchCoworkerApiKey from "./patch";
 import mountPostCoworkerApiKey from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -74,9 +80,7 @@ function createApiKeyRecord(
 }
 
 function createApp(userId = "owner_123", role = "user") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -89,10 +93,10 @@ function createApp(userId = "owner_123", role = "user") {
     return await next();
   });
 
-  mountGetCoworkerApiKeys(app as unknown as OpenAPIHonoWithAuth);
-  mountPostCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
+  mountGetCoworkerApiKeys(app);
+  mountPostCoworkerApiKey(app);
+  mountPatchCoworkerApiKey(app);
+  mountDeleteCoworkerApiKey(app);
 
   return app;
 }

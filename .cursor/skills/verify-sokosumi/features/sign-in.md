@@ -36,7 +36,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 # UI-only proof of signin-submit (fixtures only): … sign-in --method ui
 ```
 
-`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, then cookie bootstrap. If Core rejects it: coworker vault `agent-browser auth login` with the email/password testids, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
+`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, then cookie bootstrap. If Core rejects it: coworker vault `agent-browser auth login` with the email/password testids, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
 
 ### Manual UI recipe
 

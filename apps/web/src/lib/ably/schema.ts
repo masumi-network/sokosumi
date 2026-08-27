@@ -1,4 +1,7 @@
-import { CHAT_ROOM_MESSAGE_EVENT_TYPES } from "@sokosumi/utils";
+import {
+  CHAT_ROOM_MESSAGE_EVENT_TYPES,
+  CHAT_ROOM_PINNED_MESSAGE_ACTIONS,
+} from "@sokosumi/utils";
 import * as z from "zod";
 import {
   NotificationKind,
@@ -152,6 +155,17 @@ export function isChatRoomMessagePatchEvent(
     event.eventType === "mention_status"
   );
 }
+
+export const chatRoomPinnedMessageEventDataSchema = z.object({
+  action: z.enum(CHAT_ROOM_PINNED_MESSAGE_ACTIONS),
+  roomId: z.string().min(1),
+  messageId: z.string().min(1),
+  pinnedMessageCount: z.number().int().min(0),
+});
+
+export type ChatRoomPinnedMessageEventData = z.infer<
+  typeof chatRoomPinnedMessageEventDataSchema
+>;
 
 export function isChatRoomMessageIdEnvelope(
   event: ChatRoomMessageEventData,

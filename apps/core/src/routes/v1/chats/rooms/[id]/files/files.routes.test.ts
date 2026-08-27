@@ -1,11 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { CHAT_ROOM_FILE_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostChatRoomFile from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { roomFindFirstMock, createChatRoomFileUploadSessionMock, getEnvMock } =
   vi.hoisted(() => ({
@@ -57,7 +63,7 @@ const UPLOAD_SESSION = {
 };
 
 function createUserApp(userId = USER_ID) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -70,12 +76,12 @@ function createUserApp(userId = USER_ID) {
     return await next();
   });
 
-  mountPostChatRoomFile(app as unknown as OpenAPIHonoWithAuth);
+  mountPostChatRoomFile(app);
   return app;
 }
 
 function createCoworkerApp(coworkerId = COWORKER_ID) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -87,7 +93,7 @@ function createCoworkerApp(coworkerId = COWORKER_ID) {
     return await next();
   });
 
-  mountPostChatRoomFile(app as unknown as OpenAPIHonoWithAuth);
+  mountPostChatRoomFile(app);
   return app;
 }
 

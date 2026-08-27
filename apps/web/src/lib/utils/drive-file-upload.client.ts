@@ -50,12 +50,22 @@ export function isDuplicateResourceError(error: unknown): boolean {
       ? error.message
       : undefined;
 
+  // HTTP 409 = Conflict (duplicate or reserved resource)
   if (status === 409) {
     return true;
   }
 
-  if (message && /already exists?/i.test(message)) {
-    return true;
+  // Check message for duplicate/reserved/conflict patterns
+  if (message) {
+    const duplicatePatterns = [
+      /already exists?/i,
+      /is reserved/i,
+      /conflict/i,
+      /duplicate/i,
+    ];
+    if (duplicatePatterns.some((pattern) => pattern.test(message))) {
+      return true;
+    }
   }
 
   return false;
