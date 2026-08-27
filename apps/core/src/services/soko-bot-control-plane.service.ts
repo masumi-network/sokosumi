@@ -56,6 +56,7 @@ import {
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
 import {
+  getDefaultSokoBotVersionId,
   isKnownSokoBotVersionId,
   resolveSokoBotVersion,
 } from "@/services/soko-bot-version.service";
@@ -964,6 +965,9 @@ export class SokoBotControlPlane {
     }
     const markdown = renderSokoBotMemory(createEmptySokoBotMemory());
     const hash = memoryHash(markdown);
+    // Resolved outside the transaction: promoting a version affects new bots
+    // only, so this is read once at creation and then pinned.
+    const defaultVersionId = await getDefaultSokoBotVersionId();
 
     const created = await prisma.$transaction(async (tx) => {
       const existing = await tx.sokoBot.findUnique({
@@ -1020,7 +1024,7 @@ export class SokoBotControlPlane {
           // and relying on the runtime fallback: the console can then show
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
-          versionId: DEFAULT_SOKO_BOT_VERSION_ID,
+          versionId: defaultVersionId,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,

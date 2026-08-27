@@ -650,6 +650,71 @@ export const listSokoBotLabRunsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(200),
 });
 
+export const sokoBotVersionDetailSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    createdAt: z.string(),
+    summary: z.string(),
+    model: z.string(),
+    inferenceRegion: z.string().nullable(),
+    systemPrompt: z.string(),
+    skills: z.array(z.string()),
+    /** Empty means every capability the route ceiling allows. */
+    capabilities: z.array(z.string()),
+    /** Built-ins live in code and cannot be edited; authored ones can. */
+    authored: z.boolean(),
+    isDefault: z.boolean(),
+  })
+  .openapi("SokoBotVersionDetail");
+
+export const sokoBotVersionListSchema = z
+  .object({
+    versions: z.array(sokoBotVersionDetailSchema),
+    defaultVersionId: z.string(),
+    /** Every tool an authored version may allow. */
+    availableCapabilities: z.array(z.string()),
+    availableSkills: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        installed: z.boolean(),
+      }),
+    ),
+  })
+  .openapi("SokoBotVersionList");
+
+export const sokoBotVersionWriteSchema = z
+  .object({
+    slug: z
+      .string()
+      .min(2)
+      .max(41)
+      .regex(/^[a-z0-9][a-z0-9-]*$/, "lowercase letters, numbers and dashes"),
+    name: z.string().min(1).max(120),
+    summary: z.string().max(2_000).default(""),
+    model: z.string().min(1).max(200),
+    inferenceRegion: z.enum(["eu", "us"]).nullable().default(null),
+    systemPrompt: z.string().min(1).max(60_000),
+    skills: z.array(z.string().max(120)).max(50).default([]),
+    capabilities: z.array(z.string().max(80)).max(60).default([]),
+  })
+  .openapi("SokoBotVersionWrite");
+
+export const sokoBotGatewayModelSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().nullable(),
+    /** Gateway zones the model can be pinned to, e.g. ["eu"]. */
+    regions: z.array(z.string()),
+  })
+  .openapi("SokoBotGatewayModel");
+
+export const sokoBotGatewayModelListSchema = z
+  .object({ models: z.array(sokoBotGatewayModelSchema) })
+  .openapi("SokoBotGatewayModelList");
+
 export const adminSokoBotQualitySchema = z
   .object({
     overall: z.object({

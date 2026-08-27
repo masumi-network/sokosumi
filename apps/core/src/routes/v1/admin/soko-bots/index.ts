@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { SOKO_BOT_CAPABILITIES, SOKO_BOT_SKILLS } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-
+import { listGatewayModels } from "@/clients/ai-gateway.client";
 import {
   conflict,
   forbidden,
@@ -25,6 +26,10 @@ import {
   adminSokoBotDetailSchema,
   adminSokoBotListSchema,
   adminSokoBotQualitySchema,
+  sokoBotGatewayModelListSchema,
+  sokoBotVersionDetailSchema,
+  sokoBotVersionListSchema,
+  sokoBotVersionWriteSchema,
 } from "@/schemas/soko-bot.schema";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
@@ -37,6 +42,14 @@ import {
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 import { getSokoBotQualityOverview } from "@/services/soko-bot-quality.service";
+import {
+  archiveAuthoredVersion,
+  createAuthoredVersion,
+  getDefaultSokoBotVersionId,
+  listSokoBotVersions,
+  promoteSokoBotVersion,
+  updateAuthoredVersion,
+} from "@/services/soko-bot-version.service";
 
 const app = new OpenAPIHonoWithAuth();
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -80,6 +93,37 @@ function mapError(error: unknown): never {
     throw unprocessableEntity(error.message);
   }
   throw error;
+}
+
+/** Shapes a resolved version for the API. */
+function versionDetail(
+  version: {
+    id: string;
+    name: string;
+    createdAt: string;
+    summary: string;
+    model: string;
+    systemPrompt: string;
+    skills: readonly string[];
+    capabilities?: readonly string[];
+    inferenceRegion?: "eu" | "us";
+  },
+  authored: boolean,
+  defaultVersionId: string,
+) {
+  return sokoBotVersionDetailSchema.parse({
+    id: version.id,
+    name: version.name,
+    createdAt: version.createdAt,
+    summary: version.summary,
+    model: version.model,
+    inferenceRegion: version.inferenceRegion ?? null,
+    systemPrompt: version.systemPrompt,
+    skills: [...version.skills],
+    capabilities: [...(version.capabilities ?? [])],
+    authored,
+    isDefault: version.id === defaultVersionId,
+  });
 }
 
 const listRoute = createRoute({
@@ -247,6 +291,192 @@ app.openapi(actionRoute, async (c) => {
   } catch (error) {
     mapError(error);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Version authoring
+//
+// Built-in versions stay immutable in code; these endpoints manage the
+// database-backed ones and the promoted default. Admin-only: the system prompt
+// carries the operating contract, so editing it changes how every new bot
+// behaves.
+// ---------------------------------------------------------------------------
+
+const listVersionsRoute = createRoute({
+  method: "get",
+  path: "/versions",
+  operationId: "listAdminSokoBotVersions",
+  tags: ["Admin"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotVersionListSchema,
+      "Built-in and authored versions, with the tools and skills available",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+app.openapi(listVersionsRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  const [versions, defaultVersionId] = await Promise.all([
+    listSokoBotVersions(),
+    getDefaultSokoBotVersionId(),
+  ]);
+  return ok(
+    c,
+    sokoBotVersionListSchema.parse({
+      defaultVersionId,
+      versions: versions.map((version) => ({
+        id: version.id,
+        name: version.name,
+        createdAt: version.createdAt,
+        summary: version.summary,
+        model: version.model,
+        inferenceRegion: version.inferenceRegion ?? null,
+        systemPrompt: version.systemPrompt,
+        skills: [...version.skills],
+        capabilities: [...(version.capabilities ?? [])],
+        authored: version.authored,
+        isDefault: version.id === defaultVersionId,
+      })),
+      availableCapabilities: [...SOKO_BOT_CAPABILITIES],
+      availableSkills: SOKO_BOT_SKILLS.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        installed: false,
+      })),
+    }),
+  );
+});
+
+const modelsRoute = createRoute({
+  method: "get",
+  path: "/versions/models",
+  operationId: "listAdminSokoBotGatewayModels",
+  tags: ["Admin"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotGatewayModelListSchema,
+      "Models available on the AI Gateway",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+app.openapi(modelsRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  const models = await listGatewayModels();
+  return ok(c, sokoBotGatewayModelListSchema.parse({ models }));
+});
+
+const createVersionRoute = createRoute({
+  method: "post",
+  path: "/versions",
+  operationId: "createAdminSokoBotVersion",
+  tags: ["Admin"],
+  request: {
+    body: {
+      content: { "application/json": { schema: sokoBotVersionWriteSchema } },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotVersionDetailSchema, "Created version"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    409: jsonErrorResponse("Version id already in use"),
+    422: jsonErrorResponse("Validation error"),
+  },
+});
+
+app.openapi(createVersionRoute, async (c) => {
+  const auth = requireAdminAuthContext(c.var.authContext);
+  const body = c.req.valid("json");
+  const version = await createAuthoredVersion(body, auth.userId);
+  return ok(
+    c,
+    versionDetail(version, true, await getDefaultSokoBotVersionId()),
+  );
+});
+
+const updateVersionRoute = createRoute({
+  method: "patch",
+  path: "/versions/{slug}",
+  operationId: "updateAdminSokoBotVersion",
+  tags: ["Admin"],
+  request: {
+    params: z.object({ slug: z.string().min(2).max(41) }),
+    body: {
+      content: {
+        "application/json": {
+          schema: sokoBotVersionWriteSchema.omit({ slug: true }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotVersionDetailSchema, "Updated version"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not found"),
+    422: jsonErrorResponse("Validation error"),
+  },
+});
+
+app.openapi(updateVersionRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  const { slug } = c.req.valid("param");
+  const version = await updateAuthoredVersion(slug, c.req.valid("json"));
+  return ok(
+    c,
+    versionDetail(version, true, await getDefaultSokoBotVersionId()),
+  );
+});
+
+const archiveVersionRoute = createRoute({
+  method: "delete",
+  path: "/versions/{slug}",
+  operationId: "archiveAdminSokoBotVersion",
+  tags: ["Admin"],
+  request: { params: z.object({ slug: z.string().min(2).max(41) }) },
+  responses: {
+    200: jsonSuccessResponse(z.object({ archived: z.boolean() }), "Archived"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not found"),
+  },
+});
+
+app.openapi(archiveVersionRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  await archiveAuthoredVersion(c.req.valid("param").slug);
+  return ok(c, { archived: true });
+});
+
+const promoteVersionRoute = createRoute({
+  method: "post",
+  path: "/versions/{slug}/promote",
+  operationId: "promoteAdminSokoBotVersion",
+  tags: ["Admin"],
+  request: { params: z.object({ slug: z.string().min(2).max(41) }) },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ defaultVersionId: z.string() }),
+      "New bots are created on this version",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not found"),
+  },
+});
+
+app.openapi(promoteVersionRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  const { slug } = c.req.valid("param");
+  await promoteSokoBotVersion(slug);
+  return ok(c, { defaultVersionId: slug });
 });
 
 export default app;

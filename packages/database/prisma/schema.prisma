@@ -2057,6 +2057,21 @@ model SokoBotAuthoredVersion {
   @@map("soko_bot_authored_version")
 }
 
+/**
+ * Single-row platform settings for Soko Bot. Exists so promoting a version can
+ * point at either a built-in id or an authored slug; an `isDefault` flag on the
+ * authored table could not express "the default is the built-in v11".
+ */
+model SokoBotSetting {
+  id        String   @id @default("singleton")
+  updatedAt DateTime @updatedAt
+
+  /// Version new bots are created on; null falls back to the code default.
+  defaultVersionId String?
+
+  @@map("soko_bot_setting")
+}
+
 model SokoBotRuntimeEvent {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())

@@ -559,6 +559,53 @@ export type AdminSokoBotActionRequest = {
     reason: string;
 };
 
+export type SokoBotVersionList = {
+    versions: Array<SokoBotVersionDetail>;
+    defaultVersionId: string;
+    availableCapabilities: Array<string>;
+    availableSkills: Array<{
+        id: string;
+        name: string;
+        description: string;
+        installed: boolean;
+    }>;
+};
+
+export type SokoBotVersionDetail = {
+    id: string;
+    name: string;
+    createdAt: string;
+    summary: string;
+    model: string;
+    inferenceRegion: string | null;
+    systemPrompt: string;
+    skills: Array<string>;
+    capabilities: Array<string>;
+    authored: boolean;
+    isDefault: boolean;
+};
+
+export type SokoBotGatewayModelList = {
+    models: Array<SokoBotGatewayModel>;
+};
+
+export type SokoBotGatewayModel = {
+    id: string;
+    name: string | null;
+    regions: Array<string>;
+};
+
+export type SokoBotVersionWrite = {
+    slug: string;
+    name: string;
+    summary?: string;
+    model: string;
+    inferenceRegion?: 'eu' | 'us' | null;
+    systemPrompt: string;
+    skills?: Array<string>;
+    capabilities?: Array<string>;
+};
+
 export type AdminUserOverviewItem = {
     id: string;
     name: string;
@@ -6048,6 +6095,444 @@ export type PerformAdminSokoBotActionResponses = {
 };
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
+
+export type ListAdminSokoBotVersionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/versions';
+};
+
+export type ListAdminSokoBotVersionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotVersionsError = ListAdminSokoBotVersionsErrors[keyof ListAdminSokoBotVersionsErrors];
+
+export type ListAdminSokoBotVersionsResponses = {
+    /**
+     * Built-in and authored versions, with the tools and skills available
+     */
+    200: {
+        data: SokoBotVersionList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotVersionsResponse = ListAdminSokoBotVersionsResponses[keyof ListAdminSokoBotVersionsResponses];
+
+export type CreateAdminSokoBotVersionData = {
+    body?: SokoBotVersionWrite;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/versions';
+};
+
+export type CreateAdminSokoBotVersionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Version id already in use
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminSokoBotVersionError = CreateAdminSokoBotVersionErrors[keyof CreateAdminSokoBotVersionErrors];
+
+export type CreateAdminSokoBotVersionResponses = {
+    /**
+     * Created version
+     */
+    200: {
+        data: SokoBotVersionDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminSokoBotVersionResponse = CreateAdminSokoBotVersionResponses[keyof CreateAdminSokoBotVersionResponses];
+
+export type ListAdminSokoBotGatewayModelsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/versions/models';
+};
+
+export type ListAdminSokoBotGatewayModelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotGatewayModelsError = ListAdminSokoBotGatewayModelsErrors[keyof ListAdminSokoBotGatewayModelsErrors];
+
+export type ListAdminSokoBotGatewayModelsResponses = {
+    /**
+     * Models available on the AI Gateway
+     */
+    200: {
+        data: SokoBotGatewayModelList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotGatewayModelsResponse = ListAdminSokoBotGatewayModelsResponses[keyof ListAdminSokoBotGatewayModelsResponses];
+
+export type ArchiveAdminSokoBotVersionData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/versions/{slug}';
+};
+
+export type ArchiveAdminSokoBotVersionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ArchiveAdminSokoBotVersionError = ArchiveAdminSokoBotVersionErrors[keyof ArchiveAdminSokoBotVersionErrors];
+
+export type ArchiveAdminSokoBotVersionResponses = {
+    /**
+     * Archived
+     */
+    200: {
+        data: {
+            archived: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ArchiveAdminSokoBotVersionResponse = ArchiveAdminSokoBotVersionResponses[keyof ArchiveAdminSokoBotVersionResponses];
+
+export type UpdateAdminSokoBotVersionData = {
+    body?: {
+        name: string;
+        summary?: string;
+        model: string;
+        inferenceRegion?: 'eu' | 'us' | null;
+        systemPrompt: string;
+        skills?: Array<string>;
+        capabilities?: Array<string>;
+    };
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/versions/{slug}';
+};
+
+export type UpdateAdminSokoBotVersionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateAdminSokoBotVersionError = UpdateAdminSokoBotVersionErrors[keyof UpdateAdminSokoBotVersionErrors];
+
+export type UpdateAdminSokoBotVersionResponses = {
+    /**
+     * Updated version
+     */
+    200: {
+        data: SokoBotVersionDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateAdminSokoBotVersionResponse = UpdateAdminSokoBotVersionResponses[keyof UpdateAdminSokoBotVersionResponses];
+
+export type PromoteAdminSokoBotVersionData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/versions/{slug}/promote';
+};
+
+export type PromoteAdminSokoBotVersionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PromoteAdminSokoBotVersionError = PromoteAdminSokoBotVersionErrors[keyof PromoteAdminSokoBotVersionErrors];
+
+export type PromoteAdminSokoBotVersionResponses = {
+    /**
+     * New bots are created on this version
+     */
+    200: {
+        data: {
+            defaultVersionId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PromoteAdminSokoBotVersionResponse = PromoteAdminSokoBotVersionResponses[keyof PromoteAdminSokoBotVersionResponses];
 
 export type ListAdminUsersData = {
     body?: never;

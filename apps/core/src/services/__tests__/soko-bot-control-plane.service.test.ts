@@ -16,6 +16,8 @@ const {
   botUpdateManyMock,
   botUpdateMock,
   agentFindManyMock,
+  settingFindUniqueMock,
+  authoredVersionFindFirstMock,
   contextSnapshotFindUniqueMock,
   coworkerFindManyMock,
   getEnvMock,
@@ -58,6 +60,8 @@ const {
   botUpdateManyMock: vi.fn(),
   botUpdateMock: vi.fn(),
   agentFindManyMock: vi.fn(),
+  settingFindUniqueMock: vi.fn(),
+  authoredVersionFindFirstMock: vi.fn(),
   contextSnapshotFindUniqueMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   getEnvMock: vi.fn<
@@ -105,6 +109,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
     agent: { findMany: agentFindManyMock },
+    // Creation resolves the promoted default version before its transaction.
+    sokoBotSetting: { findUnique: settingFindUniqueMock },
+    sokoBotAuthoredVersion: { findFirst: authoredVersionFindFirstMock },
     coworker: { findMany: coworkerFindManyMock },
     job: { findMany: jobFindManyMock },
     project: { findMany: projectFindManyMock },

@@ -192,4 +192,29 @@ export async function archiveAuthoredVersion(slug: string): Promise<void> {
   });
 }
 
+/**
+ * Version new bots are created on. Promoting affects new bots only — existing
+ * bots keep the version they were pinned to at creation.
+ */
+export async function getDefaultSokoBotVersionId(): Promise<string> {
+  const setting = await prisma.sokoBotSetting.findUnique({
+    where: { id: "singleton" },
+    select: { defaultVersionId: true },
+  });
+  const promoted = setting?.defaultVersionId;
+  if (promoted && (await isKnownSokoBotVersionId(promoted))) return promoted;
+  return DEFAULT_SOKO_BOT_VERSION_ID;
+}
+
+export async function promoteSokoBotVersion(slug: string): Promise<void> {
+  if (!(await isKnownSokoBotVersionId(slug))) {
+    throw notFound("Version not found");
+  }
+  await prisma.sokoBotSetting.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton", defaultVersionId: slug },
+    update: { defaultVersionId: slug },
+  });
+}
+
 export { DEFAULT_SOKO_BOT_VERSION_ID };
