@@ -1845,8 +1845,8 @@ model SokoBot {
   @@index([archivedAt])
   @@index([lastPolledAt])
   // One LIVE bot per user and workspace. Enforced by the partial unique index
-  // `orchestrator_user_workspace_live_key` (see the migration): Prisma cannot
-  // express `WHERE deleted_at IS NULL`, and a plain unique would let a
+  // `orchestrator_user_workspace_live_key` (see the migrations): Prisma cannot
+  // express `WHERE "deletedAt" IS NULL`, and a plain unique would let a
   // tombstone block its owner from ever creating a new bot.
   @@index([userId, workspaceId])
   @@index([workspaceId])

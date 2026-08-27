@@ -1,17 +1,29 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const migrationsDir = join(packageRoot, "prisma/migrations");
 const schema = readFileSync(join(packageRoot, "prisma/schema.prisma"), "utf8");
-const migration = readFileSync(
-  join(
-    packageRoot,
-    "prisma/migrations/20260827200000_soko_bot_deletion/migration.sql",
-  ),
-  "utf8",
-);
+
+/** Every migration, in apply order, so assertions see the final state. */
+function migrationSql(): string {
+  return readdirSync(migrationsDir)
+    .filter((entry) => entry.startsWith("2026"))
+    .sort()
+    .map((entry) => {
+      try {
+        return readFileSync(
+          join(migrationsDir, entry, "migration.sql"),
+          "utf8",
+        );
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+}
 
 function sokoBotModel(): string {
   const match = schema.match(/model SokoBot\s*\{([\s\S]*?)\n\}/);
@@ -27,19 +39,32 @@ describe("one live Soko Bot per user and workspace", () => {
   });
 
   it("enforces the rule with a partial unique index instead", () => {
-    // Prisma cannot express `WHERE deleted_at IS NULL`, so the index lives in
-    // raw SQL and this test is what keeps it from being dropped silently.
-    expect(migration).toMatch(
+    // Prisma cannot express the predicate, so the index lives in raw SQL and
+    // this test is what keeps it from being dropped silently.
+    const sql = migrationSql();
+    expect(sql).toMatch(
       /CREATE UNIQUE INDEX "orchestrator_user_workspace_live_key"/,
     );
-    expect(migration).toMatch(/WHERE "deleted_at" IS NULL/);
-    expect(migration).toMatch(
+    expect(sql).toMatch(
       /DROP INDEX IF EXISTS "orchestrator_userId_workspaceId_key"/,
     );
   });
 
-  it("keeps deleted_at on the bot table", () => {
+  it("names the column the way Prisma will query it", () => {
+    // `orchestrator` maps only its table name, so its columns stay camelCase.
+    // Adding `deleted_at` instead made Prisma query a column that did not
+    // exist and every Soko Bot read returned 500.
     expect(sokoBotModel()).toMatch(/deletedAt\s+DateTime\?/);
-    expect(migration).toMatch(/ADD COLUMN "deleted_at"/);
+    expect(sokoBotModel()).not.toMatch(/deletedAt[^\n]*@map\(/);
+
+    const sql = migrationSql();
+    const lastDeletedAtIndex = sql.lastIndexOf(
+      'CREATE UNIQUE INDEX "orchestrator_user_workspace_live_key"',
+    );
+    const finalIndex = sql.slice(lastDeletedAtIndex);
+    expect(finalIndex).toMatch(/WHERE "deletedAt" IS NULL/);
+    expect(sql).toMatch(
+      /RENAME COLUMN "deleted_at" TO "deletedAt"|ADD COLUMN "deletedAt"/,
+    );
   });
 });
