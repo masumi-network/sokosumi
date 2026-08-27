@@ -6,6 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
+import { recordCoreRequestError } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 import {
@@ -64,6 +65,8 @@ export function errorHandler<E extends { Variables: RequestIdVariables }>(
   error: Error,
   c: Context<E>,
 ): Response {
+  recordCoreRequestError(error);
+
   const meta = {
     timestamp: new Date().toISOString(),
     requestId: c.var.requestId,
