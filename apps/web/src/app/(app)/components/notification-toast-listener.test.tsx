@@ -93,7 +93,7 @@ vi.mock("@/lib/utils/notification-navigation", () => ({
     handleNotificationNavigation(...args),
 }));
 
-import { NotificationToastListener } from "../notification-toast-listener";
+import { NotificationToastListener } from "./notification-toast-listener";
 
 const NOTIFICATION = {
   ...TARGET,

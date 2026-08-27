@@ -9,7 +9,7 @@ vi.mock("ably/react", () => ({
   useChannel: () => ({ channel }),
 }));
 
-import { useNotificationRealtime } from "../use-notification-realtime";
+import { useNotificationRealtime } from "./use-notification-realtime";
 
 describe("useNotificationRealtime", () => {
   it("reports it is receiving while the channel is attached", () => {

@@ -58,7 +58,7 @@ describe("core.preferences.browser.client", () => {
 
   it("patches the session user's preferences and returns the DTO", async () => {
     const { preferencesBrowserClient } = await import(
-      "../core.preferences.browser.client"
+      "./core.preferences.browser.client"
     );
 
     const result = await preferencesBrowserClient.patchMyPreferences({
@@ -82,7 +82,7 @@ describe("core.preferences.browser.client", () => {
 
   it("sends only the keys the caller passed, leaving email preferences alone", async () => {
     const { preferencesBrowserClient } = await import(
-      "../core.preferences.browser.client"
+      "./core.preferences.browser.client"
     );
 
     await preferencesBrowserClient.patchMyPreferences({ pushOptIn: false });
@@ -93,7 +93,7 @@ describe("core.preferences.browser.client", () => {
 
   it("reads the session user's preferences", async () => {
     const { preferencesBrowserClient } = await import(
-      "../core.preferences.browser.client"
+      "./core.preferences.browser.client"
     );
 
     const result = await preferencesBrowserClient.getMyPreferences();
@@ -116,7 +116,7 @@ describe("core.preferences.browser.client", () => {
       response: new Response("{}", { status: 500 }),
     });
     const { preferencesBrowserClient } = await import(
-      "../core.preferences.browser.client"
+      "./core.preferences.browser.client"
     );
 
     await expect(

@@ -10,7 +10,7 @@ const getNotificationServiceWorkerMock = vi.fn();
 
 const calls: string[] = [];
 
-vi.mock("../realtime-singleton.client", () => ({
+vi.mock("./realtime-singleton.client", () => ({
   getAblyRealtimeClient: () => ({
     push: {
       activate: () => {
@@ -47,7 +47,7 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
   hasWebPushSubscription: () => hasWebPushSubscriptionMock(),
 }));
 
-import { activatePush, deactivatePush } from "../push-activation.client";
+import { activatePush, deactivatePush } from "./push-activation.client";
 
 describe("deactivatePush", () => {
   beforeEach(() => {

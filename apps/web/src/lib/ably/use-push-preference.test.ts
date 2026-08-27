@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { usePushPreference } from "../use-push-preference";
+import { usePushPreference } from "./use-push-preference";
 
 let queryClient: QueryClient;
 
@@ -19,7 +19,7 @@ const getMyPreferencesMock = vi.fn();
 const getSubscriptionMock = vi.fn();
 const requestPermissionMock = vi.fn();
 
-vi.mock("../push-activation.client", () => ({
+vi.mock("./push-activation.client", () => ({
   activatePush: (...args: unknown[]) => activatePushMock(...args),
   deactivatePush: (...args: unknown[]) => deactivatePushMock(...args),
 }));
