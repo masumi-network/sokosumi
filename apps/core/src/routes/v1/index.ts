@@ -119,6 +119,7 @@ app.use(
     allowHeaders: [
       "Content-Type",
       "Authorization",
+      "X-Request-Id",
       "X-Organization-Slug",
       "X-Context-User-Id",
       "X-Context-Organization-Id",
