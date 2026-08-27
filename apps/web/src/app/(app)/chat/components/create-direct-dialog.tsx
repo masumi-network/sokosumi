@@ -5,10 +5,8 @@ import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
-  type ChatComposeRoster,
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
-  loadChatComposeRosterAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { getInitials } from "@/lib/utils/text";
 import {
   CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-  EMPTY_CHAT_COMPOSE_ROSTER,
+  useChatComposeRoster,
 } from "./chat-compose-dialog";
 import {
   AiCoworkerIcon,
@@ -43,16 +41,11 @@ export function CreateDirectDialog() {
   const rosterScrollRef = useRef<HTMLDivElement | null>(null);
   const inFlightRef = useRef(false);
   const [open, setOpen] = useState(false);
-  const [roster, setRoster] = useState<ChatComposeRoster>(
-    EMPTY_CHAT_COMPOSE_ROSTER,
-  );
+  const { roster, rosterLoaded, rosterError, loadRoster, resetRoster } =
+    useChatComposeRoster();
   const [recipientQuery, setRecipientQuery] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
-  const [rosterLoaded, setRosterLoaded] = useState(false);
-  const [rosterError, setRosterError] = useState(false);
-  const [, startRosterTransition] = useTransition();
-  const rosterLoadGenerationRef = useRef(0);
 
   const targets = useMemo(
     () =>
@@ -128,33 +121,9 @@ export function CreateDirectDialog() {
   }
 
   function resetDialog() {
-    setRoster(EMPTY_CHAT_COMPOSE_ROSTER);
+    resetRoster();
     setRecipientQuery("");
     setSelectedKeys([]);
-    setRosterLoaded(false);
-    setRosterError(false);
-  }
-
-  function loadRoster() {
-    const generation = rosterLoadGenerationRef.current + 1;
-    rosterLoadGenerationRef.current = generation;
-    setRosterLoaded(false);
-    setRosterError(false);
-    startRosterTransition(async () => {
-      const result = await loadChatComposeRosterAction();
-      if (generation !== rosterLoadGenerationRef.current) {
-        return;
-      }
-      if (!result.ok) {
-        toast.error(result.error.message);
-        setRosterError(true);
-        setRosterLoaded(true);
-        return;
-      }
-      setRoster(result.value);
-      setRosterError(false);
-      setRosterLoaded(true);
-    });
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -163,7 +132,6 @@ export function CreateDirectDialog() {
     }
     setOpen(nextOpen);
     if (!nextOpen) {
-      rosterLoadGenerationRef.current += 1;
       resetDialog();
       return;
     }
@@ -299,6 +267,8 @@ export function CreateDirectDialog() {
                 <MembersRosterLoadFailed
                   className="w-full px-3 py-6"
                   onRetry={loadRoster}
+                  title={t("Empty.rosterLoadFailedTitle")}
+                  description={t("Empty.rosterLoadFailedDescription")}
                 />
               </div>
             ) : (

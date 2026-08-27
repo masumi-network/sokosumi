@@ -114,7 +114,7 @@ describe("CreateChannelDialog", () => {
     render(<CreateChannelDialog />);
 
     await user.click(screen.getByRole("button", { name: "createChannel" }));
-    await screen.findByText("Empty.membersLoadFailedTitle");
+    await screen.findByText("Empty.rosterLoadFailedTitle");
     expect(screen.queryByText("NoOrganization.description")).toBeNull();
   });
 

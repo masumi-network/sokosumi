@@ -197,7 +197,7 @@ describe("CreateDirectDialog", () => {
     await waitFor(() => {
       expect(screen.queryByText("loading")).toBeNull();
     });
-    expect(screen.getByText("Empty.membersLoadFailedTitle")).toBeTruthy();
+    expect(screen.getByText("Empty.rosterLoadFailedTitle")).toBeTruthy();
     expect(screen.queryByText("NoOrganization.description")).toBeNull();
     await user.click(
       screen.getByRole("button", { name: "Empty.membersLoadFailedRetry" }),

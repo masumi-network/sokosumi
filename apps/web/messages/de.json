@@ -5065,8 +5065,10 @@
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
         "membersLoadFailedDescription": "Organisationsmitglieder sind vorübergehend nicht verfügbar. Bitte versuche es gleich noch einmal.",
         "membersLoadFailedRetry": "Erneut versuchen",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Kanäle sind für Gespräche zu einem Thema. Erstelle einen, um zu starten."
+        "rosterLoadFailedTitle": "Personen konnten nicht geladen werden",
+        "rosterLoadFailedDescription": "Empfänger sind vorübergehend nicht verfügbar. Bitte versuche es gleich noch einmal.",
+        "noChannelTitle": "Kein Chat ausgewählt",
+        "noChannelDescription": "Wähle einen Kanal oder eine Direktnachricht in der Seitenleiste."
       },
       "Dialog": {
         "createTitle": "Create channel",

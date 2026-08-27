@@ -5065,8 +5065,10 @@
         "membersLoadFailedTitle": "No se pudieron cargar los miembros",
         "membersLoadFailedDescription": "Los miembros de la organización no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
         "membersLoadFailedRetry": "Reintentar",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Los canales sirven para conversar sobre un tema. Crea uno para empezar."
+        "rosterLoadFailedTitle": "No se pudieron cargar las personas",
+        "rosterLoadFailedDescription": "Los destinatarios no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
+        "noChannelTitle": "Ningún chat seleccionado",
+        "noChannelDescription": "Elige un canal o un mensaje directo en la barra lateral."
       },
       "Dialog": {
         "createTitle": "Create channel",

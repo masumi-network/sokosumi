@@ -6,10 +6,8 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
-  type ChatComposeRoster,
   checkChannelSlugAvailabilityAction,
   createChannelAction,
-  loadChatComposeRosterAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
@@ -29,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-  EMPTY_CHAT_COMPOSE_ROSTER,
+  useChatComposeRoster,
 } from "./chat-compose-dialog";
 import {
   backToCreate,
@@ -65,18 +63,13 @@ export function CreateChannelDialog() {
   const tVisibility = useTranslations("App.Channels.Visibility");
   const inFlightRef = useRef(false);
   const [open, setOpen] = useState(false);
-  const [roster, setRoster] = useState<ChatComposeRoster>(
-    EMPTY_CHAT_COMPOSE_ROSTER,
-  );
+  const { roster, rosterLoaded, rosterError, loadRoster, resetRoster } =
+    useChatComposeRoster();
   const [wizard, setWizard] =
     useState<CreateChannelWizard>(createInitialWizard);
   const [availability, setAvailability] =
     useState<ChannelSlugCheckState>("invalid");
   const [isPending, startTransition] = useTransition();
-  const [rosterLoaded, setRosterLoaded] = useState(false);
-  const [rosterError, setRosterError] = useState(false);
-  const [, startRosterTransition] = useTransition();
-  const rosterLoadGenerationRef = useRef(0);
 
   const {
     members,
@@ -103,31 +96,7 @@ export function CreateChannelDialog() {
   function resetDialog() {
     setWizard(createInitialWizard());
     setAvailability("invalid");
-    setRoster(EMPTY_CHAT_COMPOSE_ROSTER);
-    setRosterLoaded(false);
-    setRosterError(false);
-  }
-
-  function loadRoster() {
-    const generation = rosterLoadGenerationRef.current + 1;
-    rosterLoadGenerationRef.current = generation;
-    setRosterLoaded(false);
-    setRosterError(false);
-    startRosterTransition(async () => {
-      const result = await loadChatComposeRosterAction();
-      if (generation !== rosterLoadGenerationRef.current) {
-        return;
-      }
-      if (!result.ok) {
-        toast.error(result.error.message);
-        setRosterError(true);
-        setRosterLoaded(true);
-        return;
-      }
-      setRoster(result.value);
-      setRosterError(false);
-      setRosterLoaded(true);
-    });
+    resetRoster();
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -136,7 +105,6 @@ export function CreateChannelDialog() {
     }
     setOpen(nextOpen);
     if (!nextOpen) {
-      rosterLoadGenerationRef.current += 1;
       resetDialog();
       return;
     }
@@ -286,7 +254,11 @@ export function CreateChannelDialog() {
         ) : null}
 
         {rosterLoaded && rosterError ? (
-          <MembersRosterLoadFailed onRetry={loadRoster} />
+          <MembersRosterLoadFailed
+            onRetry={loadRoster}
+            title={tChannels("Empty.rosterLoadFailedTitle")}
+            description={tChannels("Empty.rosterLoadFailedDescription")}
+          />
         ) : null}
 
         {rosterLoaded && !rosterError && !hasOrganization ? (
@@ -302,7 +274,8 @@ export function CreateChannelDialog() {
           <MembersRosterLoadFailed onRetry={loadRoster} />
         ) : null}
 
-        {hasOrganization &&
+        {rosterLoaded &&
+        hasOrganization &&
         !rosterError &&
         !membersLoadFailed &&
         wizard.step === "create" ? (
@@ -459,7 +432,8 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {hasOrganization &&
+        {rosterLoaded &&
+        hasOrganization &&
         !rosterError &&
         !membersLoadFailed &&
         wizard.step === "add-people" ? (
@@ -538,7 +512,8 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {hasOrganization &&
+        {rosterLoaded &&
+        hasOrganization &&
         !rosterError &&
         !membersLoadFailed &&
         isCreateStep ? (
@@ -554,7 +529,8 @@ export function CreateChannelDialog() {
           </DialogFooter>
         ) : null}
 
-        {hasOrganization &&
+        {rosterLoaded &&
+        hasOrganization &&
         !rosterError &&
         !membersLoadFailed &&
         wizard.step === "add-people" ? (

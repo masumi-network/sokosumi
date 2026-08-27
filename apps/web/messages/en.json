@@ -5065,8 +5065,10 @@
         "membersLoadFailedTitle": "Members could not be loaded",
         "membersLoadFailedDescription": "Organization members are temporarily unavailable. Try again in a moment.",
         "membersLoadFailedRetry": "Retry",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Channels are for conversations around a topic. Create one to get started."
+        "rosterLoadFailedTitle": "Could not load people",
+        "rosterLoadFailedDescription": "Recipients are temporarily unavailable. Try again in a moment.",
+        "noChannelTitle": "No chat selected",
+        "noChannelDescription": "Choose a channel or direct message from the sidebar."
       },
       "Dialog": {
         "createTitle": "Create channel",
