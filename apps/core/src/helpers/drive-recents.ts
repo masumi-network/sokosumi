@@ -235,13 +235,69 @@ export async function fetchDriveRecentsPage(input: {
       };
 
   const batchSize = Math.max(input.limit * 4, 20);
-  const merged: DriveRecentsItem[] = [];
+  const pool: DriveRecentsItem[] = [];
+  const poolItemIds = new Set<string>();
   let driveBlobCursor = pageState.driveBlobCursor;
   let taskFileCursor = pageState.taskFileCursor;
   let driveHasMore = true;
   let taskHasMore = true;
 
-  while (merged.length < input.limit + 1 && (driveHasMore || taskHasMore)) {
+  function shouldIncludeItem(item: DriveRecentsItem): boolean {
+    if (
+      pageState.lastItem &&
+      !isRecentsItemOlderThanCursor(item, pageState.lastItem)
+    ) {
+      return false;
+    }
+    if (
+      searchQuery &&
+      item.kind === "drive-file" &&
+      !driveRecentsDriveFileNameMatchesSearch(item.name, searchQuery)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  function addItemsToPool(items: DriveRecentsItem[]): void {
+    for (const item of items) {
+      const itemId = recentsItemId(item);
+      if (poolItemIds.has(itemId)) {
+        continue;
+      }
+      poolItemIds.add(itemId);
+      pool.push(item);
+    }
+  }
+
+  function getTopEligiblePreview(): {
+    signature: string | null;
+    count: number;
+  } {
+    const topEligible: DriveRecentsItem[] = [];
+    for (const item of pool) {
+      if (!shouldIncludeItem(item)) {
+        continue;
+      }
+      topEligible.push(item);
+      if (topEligible.length >= input.limit + 1) {
+        break;
+      }
+    }
+
+    if (topEligible.length === 0) {
+      return { signature: null, count: 0 };
+    }
+
+    return {
+      signature: topEligible.map(recentsItemId).join("\0"),
+      count: topEligible.length,
+    };
+  }
+
+  let previousTopSignature: string | null = null;
+
+  while (driveHasMore || taskHasMore) {
     type DriveBlobRecentsBatch = Awaited<
       ReturnType<typeof fetchDriveBlobRecentsBatch>
     >;
@@ -282,40 +338,37 @@ export async function fetchDriveRecentsPage(input: {
     driveBlobCursor = driveBatch.nextCursor;
     taskFileCursor = taskBatch.nextCursor;
 
-    const candidates = [
-      ...driveBatch.items,
-      ...taskBatch.rows.map(mapTaskOutputRowToRecentsItem),
-    ];
-    candidates.sort(compareDriveRecentsItems);
+    addItemsToPool(driveBatch.items);
+    addItemsToPool(taskBatch.rows.map(mapTaskOutputRowToRecentsItem));
 
-    for (const item of candidates) {
-      if (
-        pageState.lastItem &&
-        !isRecentsItemOlderThanCursor(item, pageState.lastItem)
-      ) {
-        continue;
-      }
-      if (
-        searchQuery &&
-        item.kind === "drive-file" &&
-        !driveRecentsDriveFileNameMatchesSearch(item.name, searchQuery)
-      ) {
-        continue;
-      }
-      if (
-        merged.some(
-          (existing) => recentsItemId(existing) === recentsItemId(item),
-        )
-      ) {
-        continue;
-      }
-      merged.push(item);
-      if (merged.length >= input.limit + 1) {
-        break;
-      }
-    }
+    pool.sort(compareDriveRecentsItems);
+    const { signature: topSignature, count: topEligibleCount } =
+      getTopEligiblePreview();
 
     if (!driveHasMore && !taskHasMore) {
+      break;
+    }
+
+    if (
+      topSignature !== null &&
+      topSignature === previousTopSignature &&
+      topEligibleCount >= input.limit + 1
+    ) {
+      break;
+    }
+
+    previousTopSignature = topSignature;
+  }
+
+  pool.sort(compareDriveRecentsItems);
+
+  const merged: DriveRecentsItem[] = [];
+  for (const item of pool) {
+    if (!shouldIncludeItem(item)) {
+      continue;
+    }
+    merged.push(item);
+    if (merged.length >= input.limit + 1) {
       break;
     }
   }

@@ -221,4 +221,133 @@ describe("GET /v1/drive/recents", () => {
     expect(body.data[0].taskName).toBe("Design mockup");
     expect(prismaTaskFileFindManyMock).toHaveBeenCalled();
   });
+
+  it("filters drive files by filename when q is set", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/report.pdf",
+          pathname: "drive/users/user_123/report.pdf",
+          size: 1000,
+          uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+        {
+          url: "https://blob.example/notes.pdf",
+          pathname: "drive/users/user_123/notes.pdf",
+          size: 500,
+          uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
+        },
+      ],
+      hasMore: false,
+      cursor: undefined,
+    });
+    prismaTaskFileFindManyMock.mockResolvedValue([]);
+
+    const app = createRecentsApp();
+    const response = await app.request("/?scope=me&limit=20&q=report");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].kind).toBe("drive-file");
+    expect(body.data[0].name).toBe("report.pdf");
+  });
+
+  it("paginates search results with cursor while keeping q applied", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/report.pdf",
+          pathname: "drive/users/user_123/report.pdf",
+          size: 1000,
+          uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+        {
+          url: "https://blob.example/report-copy.pdf",
+          pathname: "drive/users/user_123/report-copy.pdf",
+          size: 500,
+          uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
+        },
+      ],
+      hasMore: false,
+      cursor: undefined,
+    });
+    prismaTaskFileFindManyMock.mockResolvedValue([]);
+
+    const app = createRecentsApp();
+    const firstResponse = await app.request("/?scope=me&limit=1&q=report");
+    expect(firstResponse.status).toBe(200);
+
+    const firstBody = await firstResponse.json();
+    expect(firstBody.data).toHaveLength(1);
+    expect(firstBody.data[0].name).toBe("report.pdf");
+    expect(firstBody.meta.pagination.nextCursor).toBeTruthy();
+
+    const secondResponse = await app.request(
+      `/?scope=me&limit=1&q=report&cursor=${encodeURIComponent(firstBody.meta.pagination.nextCursor)}`,
+    );
+    expect(secondResponse.status).toBe(200);
+
+    const secondBody = await secondResponse.json();
+    expect(secondBody.data).toHaveLength(1);
+    expect(secondBody.data[0].name).toBe("report-copy.pdf");
+    expect(secondBody.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("keeps global recency order when blob listing spans multiple pages", async () => {
+    let blobPage = 0;
+    listMock.mockImplementation(async () => {
+      blobPage += 1;
+      if (blobPage === 1) {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/older-report.pdf",
+              pathname: "drive/users/user_123/older-report.pdf",
+              size: 1000,
+              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+            },
+          ],
+          hasMore: true,
+          cursor: "blob-page-2",
+        };
+      }
+
+      return {
+        blobs: [
+          {
+            url: "https://blob.example/newer-report.pdf",
+            pathname: "drive/users/user_123/newer-report.pdf",
+            size: 500,
+            uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+          },
+        ],
+        hasMore: false,
+      };
+    });
+    prismaTaskFileFindManyMock.mockResolvedValue([
+      {
+        id: "tf_mid",
+        name: "mid-report.pdf",
+        fileUrl: "https://blob.example/mid-report.pdf",
+        size: BigInt(500),
+        updatedAt: new Date("2026-08-20T12:00:00.000Z"),
+        task: {
+          id: "task_1",
+          name: "Report task",
+          projectId: null,
+          project: null,
+        },
+      },
+    ]);
+
+    const app = createRecentsApp();
+    const response = await app.request("/?scope=me&limit=3&q=report");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(
+      body.data.map((item: { kind: string; name: string }) => item.name),
+    ).toEqual(["newer-report.pdf", "mid-report.pdf", "older-report.pdf"]);
+  });
 });

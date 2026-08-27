@@ -256,6 +256,7 @@ export function DriveRecentsPanel({
     const controller = new AbortController();
     loadMoreAbortRef.current = controller;
     const requestedWorkspaceId = activeOrganizationId;
+    const searchQueryAtRequest = trimmedSearchQuery;
     setLoadingMore(true);
 
     try {
@@ -265,14 +266,15 @@ export function DriveRecentsPanel({
           ? { organizationId: activeOrganizationId }
           : {}),
         cursor: nextCursor,
-        ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
+        ...(searchQueryAtRequest ? { q: searchQueryAtRequest } : {}),
         signal: controller.signal,
       });
 
-      if (
-        controller.signal.aborted ||
-        workspaceIdRef.current !== requestedWorkspaceId
-      ) {
+      const queryStillMatches =
+        workspaceIdRef.current === requestedWorkspaceId &&
+        trimmedSearchQuery === searchQueryAtRequest;
+
+      if (controller.signal.aborted || !queryStillMatches) {
         return;
       }
 
