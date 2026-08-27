@@ -341,6 +341,7 @@ export type AdminExternalChannelGuest = {
     userId: string;
     roomId: string;
     access: 'guest';
+    outcome: 'joined' | 'already_guest';
 };
 
 export type AdminAddExternalChannelGuestBody = {

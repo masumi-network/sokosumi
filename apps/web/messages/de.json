@@ -3351,6 +3351,7 @@
             "description": "Setzt einen bestehenden Plattformnutzer sofort auf die Channel-Liste. Die Person wird kein Organisationsmitglied und belegt keinen Seat.",
             "submit": "Gast hinzufügen",
             "success": "Gast hinzugefügt",
+            "alreadyGuest": "Ist bereits Gast in diesem Channel",
             "userRequired": "Wähle einen Benutzer als Gast aus",
             "channelRequired": "Wähle einen External Channel",
             "channelPlaceholder": "Channel auswählen…",

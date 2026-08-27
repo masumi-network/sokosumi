@@ -8,14 +8,23 @@ import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
 export interface JoinExternalChannelAsGuestResult {
   userId: string;
   roomId: string;
+  roomName: string;
   access: typeof CHAT_ROOM_ACCESS.GUEST;
-  outcome: "joined" | "already_guest";
+  outcome: "joined" | "already_guest" | "aborted";
 }
 
 interface JoinExternalChannelAsGuestArgs {
   userId: string;
   roomId: string;
-  organizationId: string;
+  /** When set, the room must belong to this org (404 on mismatch). */
+  organizationId?: string;
+  /** Override 400 copy when the room exists but is not a live External channel. */
+  roomUnavailableMessage?: string;
+  /**
+   * Runs after eligibility and before membership create. `"abort"` skips
+   * create (invite-link consume failed). Not called when already a guest.
+   */
+  beforeCreate?: () => Promise<"continue" | "abort">;
 }
 
 /**
@@ -31,6 +40,9 @@ export async function joinExternalChannelAsGuest(
   result: JoinExternalChannelAsGuestResult;
   statusMessages: Awaited<ReturnType<typeof recordChannelMembershipStatus>>;
 }> {
+  const unavailableMessage =
+    args.roomUnavailableMessage ?? "Room is not available for guests.";
+
   const user = await tx.user.findUnique({
     where: { id: args.userId },
     select: { id: true, name: true },
@@ -49,6 +61,7 @@ export async function joinExternalChannelAsGuest(
     where: { id: args.roomId },
     select: {
       id: true,
+      name: true,
       kind: true,
       discoverability: true,
       archivedAt: true,
@@ -56,17 +69,27 @@ export async function joinExternalChannelAsGuest(
     },
   });
 
-  if (!room || room.organizationId !== args.organizationId) {
+  if (!room) {
+    if (args.organizationId) {
+      throw notFound("Room not found");
+    }
+    throw badRequest(unavailableMessage);
+  }
+
+  if (args.organizationId && room.organizationId !== args.organizationId) {
     throw notFound("Room not found");
   }
 
   if (
     room.archivedAt !== null ||
     room.kind !== "channel" ||
-    room.discoverability !== "external"
+    room.discoverability !== "external" ||
+    !room.organizationId
   ) {
-    throw badRequest("Room is not available for guests.");
+    throw badRequest(unavailableMessage);
   }
+
+  const organizationId = room.organizationId;
 
   const existingMembership = await tx.chatRoomUserMember.findUnique({
     where: {
@@ -83,6 +106,7 @@ export async function joinExternalChannelAsGuest(
       result: {
         userId: user.id,
         roomId: room.id,
+        roomName: room.name,
         access: CHAT_ROOM_ACCESS.GUEST,
         outcome: "already_guest",
       },
@@ -98,7 +122,7 @@ export async function joinExternalChannelAsGuest(
     where: {
       userId_organizationId: {
         userId: user.id,
-        organizationId: args.organizationId,
+        organizationId,
       },
     },
     select: { id: true },
@@ -107,6 +131,22 @@ export async function joinExternalChannelAsGuest(
     throw badRequest(
       "User is already an organization member; they can join the channel directly.",
     );
+  }
+
+  if (args.beforeCreate) {
+    const gate = await args.beforeCreate();
+    if (gate === "abort") {
+      return {
+        result: {
+          userId: user.id,
+          roomId: room.id,
+          roomName: room.name,
+          access: CHAT_ROOM_ACCESS.GUEST,
+          outcome: "aborted",
+        },
+        statusMessages: [],
+      };
+    }
   }
 
   try {
@@ -135,6 +175,7 @@ export async function joinExternalChannelAsGuest(
         result: {
           userId: user.id,
           roomId: room.id,
+          roomName: room.name,
           access: CHAT_ROOM_ACCESS.GUEST,
           outcome: "already_guest",
         },
@@ -169,6 +210,7 @@ export async function joinExternalChannelAsGuest(
     result: {
       userId: user.id,
       roomId: room.id,
+      roomName: room.name,
       access: CHAT_ROOM_ACCESS.GUEST,
       outcome: "joined",
     },

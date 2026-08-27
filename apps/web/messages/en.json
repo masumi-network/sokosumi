@@ -3529,6 +3529,7 @@
             "description": "Puts an existing platform user on the channel roster immediately. They do not join the organization and do not take a seat.",
             "submit": "Add guest",
             "success": "Guest added",
+            "alreadyGuest": "Already a guest on this channel",
             "userRequired": "Select a user to add as a guest",
             "channelRequired": "Select an external channel",
             "channelPlaceholder": "Select channel…",

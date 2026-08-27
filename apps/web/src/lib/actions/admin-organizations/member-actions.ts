@@ -99,7 +99,7 @@ interface AddAdminExternalChannelGuestRequest extends AuthenticatedRequest {
 
 export const addAdminExternalChannelGuestAction = withSession<
   AddAdminExternalChannelGuestRequest,
-  ActionResultDto<void, ActionError>
+  ActionResultDto<{ outcome: "joined" | "already_guest" }, ActionError>
 >(async ({ session, slug, roomId, userId }) => {
   const parsed = addGuestSchema.safeParse({ slug, roomId, userId });
   if (!parsed.success) {
@@ -108,12 +108,12 @@ export const addAdminExternalChannelGuestAction = withSession<
 
   try {
     assertAdminSession(session);
-    await coreClient.addAdminExternalChannelGuest(
+    const result = await coreClient.addAdminExternalChannelGuest(
       parsed.data.slug,
       parsed.data.roomId,
       { userId: parsed.data.userId },
     );
-    return toActionResult(ok(undefined));
+    return toActionResult(ok({ outcome: result.data.outcome }));
   } catch (error) {
     return toActionResult(
       err(mapMemberActionError(error, "Failed to add guest")),

@@ -3351,6 +3351,7 @@
             "description": "Coloca de inmediato a un usuario existente de la plataforma en la lista del canal. No se une a la organización ni ocupa un asiento.",
             "submit": "Añadir invitado",
             "success": "Invitado añadido",
+            "alreadyGuest": "Ya es invitado en este canal",
             "userRequired": "Selecciona un usuario para añadir como invitado",
             "channelRequired": "Selecciona un canal externo",
             "channelPlaceholder": "Seleccionar canal…",

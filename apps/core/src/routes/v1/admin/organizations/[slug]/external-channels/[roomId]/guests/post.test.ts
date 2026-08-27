@@ -65,7 +65,7 @@ vi.mock("@/routes/v1/chats/rooms/membership-status", () => ({
     recordChannelMembershipStatusMock(...args),
 }));
 
-vi.mock("@/helpers/chat-room-message-realtime", () => ({
+vi.mock("@/helpers/chat-room-message-realtime.js", () => ({
   publishChatRoomMessageRealtime: (...args: unknown[]) =>
     publishChatRoomMessageRealtimeMock(...args),
 }));
@@ -185,6 +185,7 @@ describe("POST /admin/organizations/{slug}/external-channels/{roomId}/guests", (
       userId: "user_guest",
       roomId: ROOM_ID,
       access: "guest",
+      outcome: "joined",
     });
     expect(queryRawMock).toHaveBeenCalled();
     expect(roomUserMemberCreateMock).toHaveBeenCalledWith({
@@ -228,6 +229,7 @@ describe("POST /admin/organizations/{slug}/external-channels/{roomId}/guests", (
       userId: "user_guest",
       roomId: ROOM_ID,
       access: "guest",
+      outcome: "already_guest",
     });
     expect(roomUserMemberCreateMock).not.toHaveBeenCalled();
     expect(recordChannelMembershipStatusMock).not.toHaveBeenCalled();
@@ -244,7 +246,10 @@ describe("POST /admin/organizations/{slug}/external-channels/{roomId}/guests", (
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.access).toBe("guest");
+    expect(body.data).toMatchObject({
+      access: "guest",
+      outcome: "already_guest",
+    });
     expect(recordChannelMembershipStatusMock).not.toHaveBeenCalled();
   });
 

@@ -1283,12 +1283,21 @@ export const AdminExternalChannelGuestSchema = {
                 'guest'
             ],
             example: 'guest'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'joined',
+                'already_guest'
+            ],
+            example: 'joined'
         }
     },
     required: [
         'userId',
         'roomId',
-        'access'
+        'access',
+        'outcome'
     ]
 } as const;
 

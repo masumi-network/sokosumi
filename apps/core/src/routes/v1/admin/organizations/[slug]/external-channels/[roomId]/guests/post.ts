@@ -1,8 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
-import { joinExternalChannelAsGuest } from "@/helpers/chat-room-guest-membership";
-import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { joinExternalChannelAsGuest } from "@/helpers/chat-room-guest-membership.js";
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -71,6 +71,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: result.userId,
         roomId: result.roomId,
         access: result.access,
+        outcome:
+          result.outcome === "already_guest" ? "already_guest" : "joined",
       }),
     );
   });

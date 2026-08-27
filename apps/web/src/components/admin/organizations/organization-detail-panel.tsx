@@ -165,15 +165,23 @@ export function OrganizationDetailPanel({
       return;
     }
 
-    runMemberAction(
-      () =>
-        addAdminExternalChannelGuestAction({
-          slug: detail.organization.slug,
-          roomId: selectedChannelId,
-          userId: selectedGuestUser.id,
-        }),
-      t("addGuest.success"),
-    );
+    startTransition(async () => {
+      const result = await addAdminExternalChannelGuestAction({
+        slug: detail.organization.slug,
+        roomId: selectedChannelId,
+        userId: selectedGuestUser.id,
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("memberActionError"));
+        return;
+      }
+      toast.success(
+        result.value.outcome === "already_guest"
+          ? t("addGuest.alreadyGuest")
+          : t("addGuest.success"),
+      );
+      refresh();
+    });
   }
 
   return (

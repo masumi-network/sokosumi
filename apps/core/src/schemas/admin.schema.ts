@@ -319,6 +319,9 @@ export const adminExternalChannelGuestSchema = z
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
     access: z.literal("guest").openapi({ example: "guest" }),
+    outcome: z.enum(["joined", "already_guest"]).openapi({
+      example: "joined",
+    }),
   })
   .openapi("AdminExternalChannelGuest");
 
