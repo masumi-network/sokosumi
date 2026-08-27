@@ -34,6 +34,7 @@ import {
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
@@ -752,6 +753,106 @@ export class SokoBotRuntimeService {
   }
 
   /** Everything a project manager needs to act on a Task without opening it. */
+  /**
+   * Rooms the bot itself belongs to. Membership is the whole authorization
+   * boundary here: the bot is a Coworker in chat, so it sees exactly the rooms
+   * a person added it to and nothing else in the workspace.
+   */
+  private async listChats(authorized: AuthorizedSokoBotRuntime) {
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { coworker: { select: { id: true } } },
+    });
+    const coworkerId = bot?.coworker?.id;
+    if (!coworkerId) return { rooms: [] };
+    const rooms = await prisma.chatRoom.findMany({
+      where: {
+        archivedAt: null,
+        workspaceId: authorized.turn.workspaceId,
+        coworkerMembers: { some: { coworkerId } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        updatedAt: true,
+        _count: { select: { messages: true } },
+      },
+    });
+    return {
+      rooms: rooms.map((room) => ({
+        roomId: room.id,
+        name: room.name,
+        kind: room.kind,
+        messages: room._count.messages,
+        lastActivityAt: room.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  /** Recent messages in one room the bot belongs to, newest first. */
+  private async readChat(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { roomId: string; limit?: number; before?: string },
+  ) {
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { coworker: { select: { id: true } } },
+    });
+    const coworkerId = bot?.coworker?.id;
+    // Re-checked per call rather than trusting the id the model passed: a room
+    // the bot was removed from must stop being readable immediately.
+    const room = coworkerId
+      ? await prisma.chatRoom.findFirst({
+          where: {
+            id: input.roomId,
+            archivedAt: null,
+            workspaceId: authorized.turn.workspaceId,
+            coworkerMembers: { some: { coworkerId } },
+          },
+          select: { id: true, name: true },
+        })
+      : null;
+    if (!room) {
+      throw new SokoBotRuntimeValidationError(
+        "You are not a member of that chat room",
+      );
+    }
+    const messages = await prisma.chatRoomMessage.findMany({
+      where: {
+        roomId: room.id,
+        deletedAt: null,
+        ...(input.before ? { createdAt: { lt: new Date(input.before) } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: input.limit ?? 30,
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        senderUser: { select: { name: true } },
+        senderCoworker: { select: { id: true, name: true } },
+      },
+    });
+    return {
+      roomId: room.id,
+      name: room.name,
+      messages: messages.map((message) => ({
+        id: message.id,
+        at: message.createdAt.toISOString(),
+        from:
+          message.senderUser?.name ?? message.senderCoworker?.name ?? "unknown",
+        /** True when the bot itself wrote it. */
+        fromYou: message.senderCoworker?.id === coworkerId,
+        // Chat is untrusted text: the operating contract already tells the bot
+        // never to follow instructions found in content it reads.
+        content: message.content.slice(0, 4_000),
+      })),
+    };
+  }
+
   private async readTask(authorized: AuthorizedSokoBotRuntime, taskId: string) {
     const task = await prisma.task.findFirst({
       where: {
@@ -1816,6 +1917,12 @@ export class SokoBotRuntimeService {
         return this.updateMemory(authorized, input.input, input.toolCallId);
       case "list_schedules":
         return listSokoBotSchedules(authorized.turn.sokoBotId);
+      case "list_chats":
+        return this.listChats(authorized);
+      case "read_chat": {
+        const parsed = sokoBotReadChatInputSchema.parse(input.input);
+        return this.readChat(authorized, parsed);
+      }
       case "list_integrations":
         return listSokoBotIntegrations(
           authorized.turn.userId,

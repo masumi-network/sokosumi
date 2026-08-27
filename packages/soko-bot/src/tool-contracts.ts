@@ -178,6 +178,15 @@ export const sokoBotScheduleIdInputSchema = z
   .strict()
   .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
+export const sokoBotReadChatInputSchema = z.object({
+  /** Room id from `list_chats`. */
+  roomId: z.string().min(1),
+  /** Newest messages first; default 30. */
+  limit: z.number().int().min(1).max(100).optional(),
+  /** Only messages before this ISO timestamp, to page further back. */
+  before: z.string().datetime().optional(),
+});
+
 export const sokoBotSearchInboxInputSchema = z.object({
   /** Free-text search (sender, subject, words). Provider search syntax works (e.g. Gmail `from:x newer_than:2d`). */
   query: z.string().max(500).optional(),
@@ -222,6 +231,8 @@ export const sokoBotRunIntegrationToolInputSchema = z.object({
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
+  list_chats: emptyInputSchema,
+  read_chat: sokoBotReadChatInputSchema,
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
   read_email: sokoBotReadEmailInputSchema,
@@ -257,6 +268,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead.",
   run_integration_tool:
     "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes.",
+  list_chats:
+    "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat.",
+  read_chat:
+    "Read recent messages in one chat room you are a member of, newest first, with who sent each one. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:

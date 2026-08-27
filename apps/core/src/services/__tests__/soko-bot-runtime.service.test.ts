@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   botFindFirstMock,
+  botFindUniqueMock,
+  chatRoomFindFirstMock,
+  chatRoomFindManyMock,
+  chatMessageFindManyMock,
   botUpdateManyMock,
   contextSnapshotFindFirstMock,
   createAgentClientMock,
@@ -56,6 +60,10 @@ const {
   workspaceFindFirstMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
+  botFindUniqueMock: vi.fn(),
+  chatRoomFindFirstMock: vi.fn(),
+  chatRoomFindManyMock: vi.fn(),
+  chatMessageFindManyMock: vi.fn(),
   botUpdateManyMock: vi.fn(),
   contextSnapshotFindFirstMock: vi.fn(),
   createAgentClientMock: vi.fn(),
@@ -113,8 +121,14 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     sokoBot: {
       findFirst: botFindFirstMock,
+      findUnique: botFindUniqueMock,
       updateMany: botUpdateManyMock,
     },
+    chatRoom: {
+      findFirst: chatRoomFindFirstMock,
+      findMany: chatRoomFindManyMock,
+    },
+    chatRoomMessage: { findMany: chatMessageFindManyMock },
     sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
     sokoBotDelegation: {
       create: delegationCreateMock,
@@ -2146,5 +2160,86 @@ describe("SokoBotRuntimeService hire decisions", () => {
         data: expect.objectContaining({ status: "EXPIRED" }),
       }),
     );
+  });
+});
+
+describe("SokoBotRuntimeService chat reading", () => {
+  const SCOPE_TURN = {
+    id: SCOPE.turnId,
+    sokoBotId: SCOPE.sokoBotId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    eveSessionId: SCOPE.sessionId,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    botFindUniqueMock.mockResolvedValue({ coworker: { id: "coworker_1" } });
+  });
+
+  it("only lists rooms the bot is a member of", async () => {
+    chatRoomFindManyMock.mockResolvedValue([]);
+
+    await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+    } as never);
+
+    const where = chatRoomFindManyMock.mock.calls[0][0].where;
+    expect(where.coworkerMembers).toEqual({
+      some: { coworkerId: "coworker_1" },
+    });
+    expect(where.workspaceId).toBe(SCOPE.workspaceId);
+    expect(where.archivedAt).toBeNull();
+  });
+
+  it("refuses to read a room the bot does not belong to", async () => {
+    // The model supplies the room id, so membership is re-checked per call.
+    chatRoomFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService()["readChat"]({ turn: SCOPE_TURN } as never, {
+        roomId: "01960001-0001-7001-8001-00000000dead",
+      }),
+    ).rejects.toThrow(/not a member/);
+    expect(chatMessageFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns messages newest first and marks the bot's own", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
+    chatMessageFindManyMock.mockResolvedValue([
+      {
+        id: "m2",
+        content: "on it",
+        createdAt: new Date("2026-08-27T10:01:00.000Z"),
+        senderUser: null,
+        senderCoworker: { id: "coworker_1", name: "Soko Bot" },
+      },
+      {
+        id: "m1",
+        content: "can you check the launch date?",
+        createdAt: new Date("2026-08-27T10:00:00.000Z"),
+        senderUser: { name: "Patrick" },
+        senderCoworker: null,
+      },
+    ]);
+
+    const result = (await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    )) as { messages: { from: string; fromYou: boolean }[] };
+
+    expect(chatMessageFindManyMock.mock.calls[0][0].orderBy).toEqual({
+      createdAt: "desc",
+    });
+    expect(chatMessageFindManyMock.mock.calls[0][0].where.deletedAt).toBeNull();
+    expect(result.messages[0]).toMatchObject({
+      from: "Soko Bot",
+      fromYou: true,
+    });
+    expect(result.messages[1]).toMatchObject({
+      from: "Patrick",
+      fromYou: false,
+    });
   });
 });
