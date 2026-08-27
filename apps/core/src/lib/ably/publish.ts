@@ -73,14 +73,15 @@ interface PublishNotificationEventInput {
  * The plain string fields stay tied to the event shape so the two cannot
  * drift; the two structured fields are JSON-encoded for the worker to parse.
  */
-type NotificationPushData = Pick<
-  NotificationEventData,
-  "id" | "kind" | "referenceId" | "messageKey"
-> & {
+interface NotificationPushData
+  extends Pick<
+    NotificationEventData,
+    "id" | "kind" | "referenceId" | "messageKey"
+  > {
   messageParams: string;
   /** Omitted, not null, when the notification carries no metadata. */
   metadata?: string;
-};
+}
 
 function toNotificationPushData(
   notification: NotificationEventData,
