@@ -60,8 +60,12 @@ function recentsItemRef(item: DriveRecentsItem): DriveRecentsItemRef {
   return {
     kind: item.kind,
     id: recentsItemId(item),
-    activityAt: item.activityAt,
+    activityAt: normalizeRecentsActivityAt(item.activityAt),
   };
+}
+
+function normalizeRecentsActivityAt(activityAt: string | Date): string {
+  return typeof activityAt === "string" ? activityAt : activityAt.toISOString();
 }
 
 export function driveRecentsDriveFileNameMatchesSearch(
@@ -191,7 +195,7 @@ export function encodeDriveRecentsCursor(input: {
 }): string {
   const payload: RecentsCursorPayload = {
     v: RECENTS_CURSOR_VERSION,
-    activityAt: input.lastItem.activityAt,
+    activityAt: normalizeRecentsActivityAt(input.lastItem.activityAt),
     kind: input.lastItem.kind,
     id: recentsItemId(input.lastItem),
     driveBlobCursor: input.driveBlobCursor,
@@ -264,6 +268,9 @@ export async function hydrateDriveRecentsPendingRefs(input: {
         if (isDriveFolderMarker(blob.pathname)) {
           continue;
         }
+        if (!blob.uploadedAt) {
+          continue;
+        }
         const segments = blob.pathname
           .split("/")
           .filter((segment) => segment.length > 0);
@@ -271,17 +278,19 @@ export async function hydrateDriveRecentsPendingRefs(input: {
         if (!name) {
           continue;
         }
+        const activityAt = ref.activityAt;
         const item: DriveRecentsItem = {
           kind: "drive-file",
           name,
           fileUrl: blob.url,
           pathname: blob.pathname,
-          size: blob.size,
-          activityAt: blob.uploadedAt.toISOString(),
+          size:
+            typeof blob.size === "number" && Number.isFinite(blob.size)
+              ? blob.size
+              : 0,
+          activityAt,
         };
-        if (item.activityAt === ref.activityAt) {
-          hydrated.push(item);
-        }
+        hydrated.push(item);
       } catch {
         continue;
       }
@@ -293,7 +302,7 @@ export async function hydrateDriveRecentsPendingRefs(input: {
       continue;
     }
     const item = mapTaskOutputRowToRecentsItem(row);
-    if (item.activityAt === ref.activityAt) {
+    if (normalizeRecentsActivityAt(item.activityAt) === ref.activityAt) {
       hydrated.push(item);
     }
   }
@@ -466,10 +475,11 @@ export async function fetchDriveRecentsPage(input: {
         })
       : [];
 
+  const validatedPending: DriveRecentsItem[] = [];
   for (const item of hydratedPending) {
     const parsed = driveRecentsItemSchema.safeParse(item);
-    if (!parsed.success) {
-      throw badRequest("Invalid pagination cursor");
+    if (parsed.success) {
+      validatedPending.push(parsed.data);
     }
   }
 
@@ -509,7 +519,7 @@ export async function fetchDriveRecentsPage(input: {
     }
   }
 
-  addItemsToPool(hydratedPending);
+  addItemsToPool(validatedPending);
 
   function collectPendingRefs(
     returnedItems: DriveRecentsItem[],

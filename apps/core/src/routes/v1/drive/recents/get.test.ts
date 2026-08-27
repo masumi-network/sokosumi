@@ -55,12 +55,25 @@ vi.mock("@/helpers/vendor-grants", () => ({
 
 vi.mock("@vercel/blob", () => ({
   list: listMock,
-  head: vi.fn(async (pathname: string) => ({
-    url: `https://blob.example/${pathname}`,
-    pathname,
-    size: 100,
-    uploadedAt: new Date("2026-08-19T10:00:00.000Z"),
-  })),
+  head: vi.fn(async (pathname: string) => {
+    const uploadedAtByPath: Record<string, string> = {
+      "drive/users/user_123/file-0.pdf": "2026-08-20T12:00:00.000Z",
+      "drive/users/user_123/file-1.pdf": "2026-08-19T12:00:00.000Z",
+      "drive/users/user_123/file-2.pdf": "2026-08-18T12:00:00.000Z",
+      "drive/users/user_123/report.pdf": "2026-08-21T12:00:00.000Z",
+      "drive/users/user_123/report-copy.pdf": "2026-08-20T12:00:00.000Z",
+      "drive/users/user_123/older-report.pdf": "2026-08-18T12:00:00.000Z",
+      "drive/users/user_123/newer-report.pdf": "2026-08-21T12:00:00.000Z",
+    };
+    return {
+      url: `https://blob.example/${pathname}`,
+      pathname,
+      size: 100,
+      uploadedAt: new Date(
+        uploadedAtByPath[pathname] ?? "2026-08-19T10:00:00.000Z",
+      ),
+    };
+  }),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -186,6 +199,62 @@ describe("GET /v1/drive/recents", () => {
     const body = await response.json();
     expect(body.data).toHaveLength(2);
     expect(body.meta.pagination.nextCursor).toBeTruthy();
+  });
+
+  it("paginates without search when more items remain", async () => {
+    let blobPage = 0;
+    listMock.mockImplementation(async () => {
+      blobPage += 1;
+      if (blobPage === 1) {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/file-0.pdf",
+              pathname: "drive/users/user_123/file-0.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
+            },
+            {
+              url: "https://blob.example/file-1.pdf",
+              pathname: "drive/users/user_123/file-1.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-19T12:00:00.000Z"),
+            },
+          ],
+          hasMore: true,
+          cursor: "blob-page-2",
+        };
+      }
+
+      return {
+        blobs: [
+          {
+            url: "https://blob.example/file-2.pdf",
+            pathname: "drive/users/user_123/file-2.pdf",
+            size: 100,
+            uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+          },
+        ],
+        hasMore: false,
+      };
+    });
+
+    const app = createRecentsApp();
+    const firstResponse = await app.request("/?scope=me&limit=1");
+    expect(firstResponse.status).toBe(200);
+
+    const firstBody = await firstResponse.json();
+    expect(firstBody.data).toHaveLength(1);
+    expect(firstBody.meta.pagination.nextCursor).toBeTruthy();
+
+    const secondResponse = await app.request(
+      `/?scope=me&limit=1&cursor=${encodeURIComponent(firstBody.meta.pagination.nextCursor)}`,
+    );
+    expect(secondResponse.status).toBe(200);
+
+    const secondBody = await secondResponse.json();
+    expect(secondBody.data).toHaveLength(1);
+    expect(secondBody.data[0].name).toBe("file-1.pdf");
   });
 
   it("requires organizationId for org scope", async () => {

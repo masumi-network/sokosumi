@@ -468,6 +468,75 @@ describe("fetchDriveRecentsPage", () => {
     expect(thirdPage.hasMore).toBe(false);
   });
 
+  it("does not fail page two when head omits blob size for a pending ref", async () => {
+    let drivePage = 0;
+    listMock.mockImplementation(async () => {
+      drivePage += 1;
+      if (drivePage === 1) {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/c-old.pdf",
+              pathname: "drive/users/u/c-old.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+            },
+          ],
+          hasMore: true,
+          cursor: "blob-page-2",
+        };
+      }
+
+      return {
+        blobs: [
+          {
+            url: "https://blob.example/a-new.pdf",
+            pathname: "drive/users/u/a-new.pdf",
+            size: 100,
+            uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+          },
+        ],
+        hasMore: false,
+      };
+    });
+
+    headMock.mockImplementation(async (pathname: string) => ({
+      url: `https://blob.example/${pathname}`,
+      pathname,
+      uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+    }));
+
+    const fetchTaskOutputs = vi.fn(async () => ({
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+    }));
+
+    const firstPage = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 1,
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: CURSOR_BINDING,
+      fetchTaskOutputs,
+      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
+    });
+
+    const secondPage = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 1,
+      cursor: firstPage.nextCursor ?? undefined,
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: CURSOR_BINDING,
+      fetchTaskOutputs,
+      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
+    });
+
+    expect(secondPage.items).toHaveLength(1);
+    expect(secondPage.items[0]?.name).toBe("c-old.pdf");
+  });
+
   it("continues scanning blob pages when the newest match appears on page three", async () => {
     let drivePage = 0;
     listMock.mockImplementation(async () => {
