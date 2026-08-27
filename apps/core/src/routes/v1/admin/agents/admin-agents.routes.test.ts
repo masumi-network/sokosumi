@@ -1,12 +1,10 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { AgentStatus } from "@sokosumi/database";
 import { createMiddleware } from "hono/factory";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 
 import mountGetAdminAgent from "./[id]/get";
@@ -28,7 +26,16 @@ const {
   tagUpsertMock,
   transactionMock,
   queryRawMock,
+  authContextState,
 } = vi.hoisted(() => ({
+  authContextState: {
+    current: {
+      actor: "user",
+      userId: "user_admin",
+      organizationId: null,
+      role: "admin",
+    } as AuthenticationContext,
+  },
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
@@ -43,6 +50,24 @@ const {
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
 }));
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  return {
+    ...actual,
+    authMiddleware: async (
+      c: {
+        json: (body: unknown, status: number) => unknown;
+        set: (key: string, value: unknown) => void;
+      },
+      next: () => Promise<unknown>,
+    ) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", authContextState.current);
+      return await next();
+    },
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -110,23 +135,7 @@ function createRegistryAgent(overrides: Record<string, unknown> = {}) {
 }
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
-
-  app.use("*", async (c, next) => {
-    c.set("requestId", "req_admin_agent_test");
-    c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_admin",
-      organizationId: null,
-      role: "admin",
-    });
-    await next();
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use(
     "*",
@@ -137,10 +146,10 @@ function createApp() {
   );
 
   app.onError(errorHandler);
-  mountGetAdminAgents(app as unknown as OpenAPIHonoWithAuth);
-  mountGetAdminAgent(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchAdminAgentMetadataOverride(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteAdminAgentMetadataOverride(app as unknown as OpenAPIHonoWithAuth);
+  mountGetAdminAgents(app);
+  mountGetAdminAgent(app);
+  mountPatchAdminAgentMetadataOverride(app);
+  mountDeleteAdminAgentMetadataOverride(app);
 
   return app;
 }

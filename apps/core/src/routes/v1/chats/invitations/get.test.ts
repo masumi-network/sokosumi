@@ -1,13 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountListInviteeInvitations from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { userFindUniqueMock, invitationFindManyMock } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
@@ -35,11 +40,7 @@ function createApp(
     role: "user",
   },
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_list_invitee");
@@ -49,7 +50,7 @@ function createApp(
   });
 
   app.onError(errorHandler);
-  mountListInviteeInvitations(app as unknown as OpenAPIHonoWithAuth);
+  mountListInviteeInvitations(app);
   return app;
 }
 

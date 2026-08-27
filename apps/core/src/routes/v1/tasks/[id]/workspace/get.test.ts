@@ -1,12 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetTaskWorkspace from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { resolveMemberOrganizationByIdMock, taskFindUniqueMock } = vi.hoisted(
   () => ({
@@ -51,9 +57,7 @@ function createApp(
     role: "user",
   },
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_workspace_get_test");
@@ -64,7 +68,7 @@ function createApp(
   });
   app.onError(errorHandler);
 
-  mountGetTaskWorkspace(app as unknown as OpenAPIHonoWithAuth);
+  mountGetTaskWorkspace(app);
 
   return app;
 }

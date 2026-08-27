@@ -1,11 +1,9 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { createMiddleware } from "hono/factory";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { emptyVendorLogos, testVendor } from "@/test-fixtures/vendor";
 
@@ -18,7 +16,16 @@ const {
   vendorFindManyMock,
   vendorFindUniqueMock,
   vendorUpdateMock,
+  authContextState,
 } = vi.hoisted(() => ({
+  authContextState: {
+    current: {
+      actor: "user",
+      userId: "user_admin",
+      organizationId: null,
+      role: "admin",
+    } as AuthenticationContext,
+  },
   vendorCreateMock: vi.fn(),
   vendorFindManyMock: vi.fn(),
   vendorFindUniqueMock: vi.fn(),
@@ -36,6 +43,24 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  return {
+    ...actual,
+    authMiddleware: async (
+      c: {
+        json: (body: unknown, status: number) => unknown;
+        set: (key: string, value: unknown) => void;
+      },
+      next: () => Promise<unknown>,
+    ) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", authContextState.current);
+      return await next();
+    },
+  };
+});
+
 function createVendor(overrides: Partial<typeof testVendor> = {}) {
   return {
     ...testVendor,
@@ -46,23 +71,7 @@ function createVendor(overrides: Partial<typeof testVendor> = {}) {
 }
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
-
-  app.use("*", async (c, next) => {
-    c.set("requestId", "req_admin_vendor_crud_test");
-    c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_admin",
-      organizationId: null,
-      role: "admin",
-    });
-    await next();
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use(
     "*",
@@ -73,9 +82,9 @@ function createApp() {
   );
 
   app.onError(errorHandler);
-  mountGetAdminVendors(app as unknown as OpenAPIHonoWithAuth);
-  mountPostAdminVendor(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchAdminVendor(app as unknown as OpenAPIHonoWithAuth);
+  mountGetAdminVendors(app);
+  mountPostAdminVendor(app);
+  mountPatchAdminVendor(app);
 
   return app;
 }

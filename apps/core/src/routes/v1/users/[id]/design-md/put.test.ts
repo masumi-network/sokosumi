@@ -1,14 +1,21 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 import mountPutUserDesignMd from "./put";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -46,20 +53,16 @@ const SESSION_USER: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = SESSION_USER) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountPutUserDesignMd(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountPutUserDesignMd(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
@@ -141,7 +144,7 @@ describe("PUT /users/{id}/design-md", () => {
     expect(body.data.designMd).toBeNull();
   });
 
-  it("returns 400 when the content is empty", async () => {
+  it("returns 422 when the content is empty", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
 
     const response = await putDesignMd("me/design-md", {
@@ -149,7 +152,7 @@ describe("PUT /users/{id}/design-md", () => {
       extractionId: null,
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
   });
 

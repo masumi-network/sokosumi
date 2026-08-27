@@ -1,16 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { coworkerInclude } from "@/helpers/coworker";
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import type {
-  WorkspaceContext,
-  WorkspaceVariables,
-} from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace";
 
 import mountGetCoworkers from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { coworkerFindManyMock } = vi.hoisted(() => ({
   coworkerFindManyMock: vi.fn(),
@@ -74,15 +77,7 @@ function createApp(
   },
   workspaceContext: WorkspaceContext | null = null,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -91,7 +86,7 @@ function createApp(
     return await next();
   });
 
-  mountGetCoworkers(app as unknown as OpenAPIHonoWithAuth);
+  mountGetCoworkers(app);
   return app;
 }
 

@@ -1,12 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetChatRooms from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindManyMock,
@@ -80,9 +84,7 @@ const GUEST_ROOM_ID = "550e8400-e29b-41d4-a716-446655440099";
 const PERSONAL_DIRECT_ID = "550e8400-e29b-41d4-a716-446655440088";
 
 function createApp(organizationId: string | null) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
@@ -93,7 +95,7 @@ function createApp(organizationId: string | null) {
     });
     return await next();
   });
-  mountGetChatRooms(app as unknown as OpenAPIHonoWithAuth);
+  mountGetChatRooms(app);
   return app;
 }
 

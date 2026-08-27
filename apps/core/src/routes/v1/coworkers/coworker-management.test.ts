@@ -1,13 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { coworkerInclude } from "@/helpers/coworker";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountDeleteCoworkerById from "./[id]/delete";
 import mountPatchCoworkerById from "./[id]/patch";
 import mountPostCoworker from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -87,9 +93,7 @@ interface AppOptions {
 
 function createApp(options: AppOptions = {}) {
   const { userId = "user_123", role = "user" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -103,9 +107,9 @@ function createApp(options: AppOptions = {}) {
     return await next();
   });
 
-  mountPostCoworker(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchCoworkerById(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteCoworkerById(app as unknown as OpenAPIHonoWithAuth);
+  mountPostCoworker(app);
+  mountPatchCoworkerById(app);
+  mountDeleteCoworkerById(app);
 
   return app;
 }
@@ -439,7 +443,7 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
@@ -493,7 +497,7 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
@@ -509,7 +513,7 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
@@ -950,7 +954,7 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
@@ -966,7 +970,7 @@ describe("coworker management CRUD endpoints", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
