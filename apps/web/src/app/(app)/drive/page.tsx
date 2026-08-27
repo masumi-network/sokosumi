@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
@@ -72,7 +73,6 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
@@ -270,49 +270,6 @@ interface DrivePageWorkspaceProps {
   activeOrganizationId: string | null;
 }
 
-function DriveListSkeleton(): ReactElement {
-  return (
-    <div
-      className={cn(
-        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-        PROJECTS_LIST_CARD_MIN_H_CLASS,
-      )}
-    >
-      <div className="divide-border/50 divide-y px-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <article
-            key={i}
-            className={cn(
-              "-mx-2 flex items-center gap-1 rounded-lg px-2",
-              PROJECTS_LIST_ROW_LAYOUT_CLASS,
-            )}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-              <div className="flex size-8 shrink-0 items-center justify-center">
-                <Skeleton className="size-4" />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <Skeleton className="h-4 w-32 sm:w-48" />
-                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                  <Skeleton className="h-3 w-12" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-              </div>
-              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                <Skeleton className="h-3 w-12" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            </div>
-            <div className="shrink-0 pl-2">
-              <Skeleton className="size-8" />
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function DrivePage(): ReactElement {
   const { data: session } = useSession();
   // Unknown session is not personal. Hold the last known workspace so a
@@ -467,7 +424,8 @@ function DrivePageWorkspace({
   const isBrowseView =
     !isTasksView && (viewParam === "browse" || folderParam.length > 0);
   const isRecentsView = !isTasksView && !isBrowseView;
-  const primaryView: DrivePrimaryView = isBrowseView ? "browse" : "recents";
+  const primaryView: DrivePrimaryView =
+    isBrowseView || isTasksView ? "browse" : "recents";
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
@@ -1393,13 +1351,11 @@ function DrivePageWorkspace({
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
-        {!isTasksView ? (
-          <DriveViewTabs
-            activeView={primaryView}
-            browseLabel={storeRootLabel}
-            onViewChange={navigateToPrimaryView}
-          />
-        ) : null}
+        <DriveViewTabs
+          activeView={primaryView}
+          browseLabel={storeRootLabel}
+          onViewChange={navigateToPrimaryView}
+        />
         <div className="flex items-center justify-end gap-4">
           {isTasksView && (
             <>
