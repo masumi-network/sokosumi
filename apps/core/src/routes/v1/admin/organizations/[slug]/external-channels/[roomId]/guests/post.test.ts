@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
@@ -127,6 +128,7 @@ function createApp() {
       await next();
     }),
   );
+  app.onError(errorHandler);
   mountAddAdminExternalChannelGuest(app);
   return app;
 }
