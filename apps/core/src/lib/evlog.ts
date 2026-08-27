@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import type { DrainContext } from "evlog";
 import { initLogger } from "evlog";
 import { evlog, useLogger } from "evlog/hono";
@@ -20,10 +21,17 @@ export function initCoreLogger(options: InitCoreLoggerOptions = {}) {
   });
 }
 
+export function coreEvlogDrain() {
+  return process.env.SENTRY_DSN ? createSentryDrain() : undefined;
+}
+
 export function coreEvlogMiddleware() {
   return evlog({
     exclude: [OPENAPI_SPEC_PATH],
-    drain: process.env.SENTRY_DSN ? createSentryDrain() : undefined,
+    drain: coreEvlogDrain(),
+    // Local/tests must not pass waitUntil: evlog then skips awaiting the
+    // drain, and @vercel/functions waitUntil is a no-op off Vercel.
+    waitUntil: process.env.VERCEL ? waitUntil : undefined,
   });
 }
 

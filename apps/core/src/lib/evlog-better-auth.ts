@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
  * Auth lives at `/auth`, not `/api/auth`. Mask emails before Sentry Logs.
  */
 const identify = createAuthMiddleware(auth, {
-  exclude: ["/auth/**"],
+  exclude: ["/auth/**", "/sync/**", "/debug/**"],
   maskEmail: true,
 });
 

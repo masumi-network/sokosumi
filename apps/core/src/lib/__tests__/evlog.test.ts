@@ -43,6 +43,7 @@ function createApp() {
 describe("core evlog request events", () => {
   beforeEach(() => {
     captured.length = 0;
+    delete process.env.SENTRY_DSN;
     initCoreLogger({
       silent: true,
       drain: (ctx) => {
@@ -73,6 +74,23 @@ describe("core evlog request events", () => {
     expect(ctx?.event.status).toBe(200);
     expect(ctx?.event.requestId).toBe(body.meta.requestId);
     expect(body.meta.requestId).toEqual(expect.any(String));
+  });
+
+  it("reuses an incoming X-Request-Id on the wide event and envelope", async () => {
+    const app = createApp();
+    app.get("/v1/jobs", (c) =>
+      c.json({
+        meta: { requestId: c.var.requestId },
+      }),
+    );
+
+    const response = await app.request("http://localhost/v1/jobs", {
+      headers: { "X-Request-Id": "req_from_web" },
+    });
+    const body = (await response.json()) as { meta: { requestId: string } };
+
+    expect(body.meta.requestId).toBe("req_from_web");
+    expect(captured[0]?.event.requestId).toBe("req_from_web");
   });
 
   it("does not emit a wide event for the OpenAPI snapshot", async () => {
@@ -138,6 +156,32 @@ describe("core evlog request events", () => {
     expect(captured[0]?.event.actor).toBe("user");
     expect(captured[0]?.event.user).toEqual({ id: "user_123" });
     expect(captured[0]?.event.organization).toEqual({ id: "org_456" });
+  });
+
+  it("setAuthContext copies coworker and orchestrator identity onto the wide event", async () => {
+    const app = createApp();
+    app.use("/v1/coworker", async (c, next) => {
+      setAuthContext(c as never, {
+        isAuthenticated: true,
+        authContext: {
+          actor: "coworker",
+          coworkerId: "cw_1",
+          vendorId: "vnd_1",
+          context: { userId: "user_9", organizationId: "org_9" },
+        },
+      });
+      return await next();
+    });
+    app.get("/v1/coworker", (c) => c.json({ ok: true }));
+
+    await app.request("http://localhost/v1/coworker");
+
+    expect(captured[0]?.event.actor).toBe("coworker");
+    expect(captured[0]?.event.coworker).toEqual({ id: "cw_1" });
+    expect(captured[0]?.event.context).toEqual({
+      userId: "user_9",
+      organizationId: "org_9",
+    });
   });
 
   it("records a thrown HTTPException on the wide event", async () => {

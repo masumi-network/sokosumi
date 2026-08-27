@@ -38,6 +38,7 @@ function createApp(identify: Awaited<ReturnType<typeof loadMiddleware>>) {
 describe("betterAuthEvlogMiddleware", () => {
   beforeEach(() => {
     captured.length = 0;
+    delete process.env.SENTRY_DSN;
     getSessionMock.mockReset();
     initCoreLogger({
       silent: true,
@@ -81,6 +82,16 @@ describe("betterAuthEvlogMiddleware", () => {
     app.get("/auth/sign-in", (c) => c.json({ ok: true }));
 
     await app.request("http://localhost/auth/sign-in");
+
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(captured[0]?.event.auth).toBeUndefined();
+  });
+
+  it("skips Better Auth session resolution on /sync cron routes", async () => {
+    const app = createApp(await loadMiddleware());
+    app.get("/sync/jobs", (c) => c.json({ ok: true }));
+
+    await app.request("http://localhost/sync/jobs");
 
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(captured[0]?.event.auth).toBeUndefined();
