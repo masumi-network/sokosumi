@@ -5,6 +5,7 @@ import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
+import { recordCoreRequestError } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 import {
@@ -14,6 +15,18 @@ import {
 } from "./error.js";
 
 const RESERVED_ERROR_BODY_KEYS = new Set(["error", "message", "meta", "kind"]);
+
+function shouldMarkWideEventError(error: Error): boolean {
+  if (error instanceof HTTPException) {
+    return shouldReportHttpException(error);
+  }
+
+  if (isAPIError(error)) {
+    return resolveBetterAuthApiErrorStatus(error.statusCode) >= 500;
+  }
+
+  return true;
+}
 
 function mergeHttpExceptionExtensions(
   extensions: Record<string, unknown> | undefined,
@@ -60,6 +73,10 @@ function resolveBetterAuthApiErrorStatus(
  * Logs parsing errors for debugging
  */
 export const errorHandler: ErrorHandler = (error, c) => {
+  if (shouldMarkWideEventError(error)) {
+    recordCoreRequestError(error);
+  }
+
   const meta = {
     timestamp: new Date().toISOString(),
     requestId: c.var.requestId,
