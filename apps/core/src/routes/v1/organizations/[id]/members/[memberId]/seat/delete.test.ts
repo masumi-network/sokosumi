@@ -180,7 +180,7 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
     expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
-  it("syncs local-free credits when unassigning in a free organization", async () => {
+  it("unassigns a seat in a free organization without minting period credits", async () => {
     setMembership("admin");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -191,26 +191,16 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
       status: "active",
       stripeSubscriptionId: null,
     });
-    fetchOrganizationMemberUserIdsMock.mockResolvedValue([
-      "user_123",
-      "user_456",
-    ]);
 
     const response = await unassignSeat("org_123", "member_456");
 
     expect(response.status).toBe(200);
-    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      {
-        billingAnchorDate: new Date("2026-01-01T00:00:00.000Z"),
-        memberUserIds: ["user_123", "user_456"],
-        organizationId: "org_123",
-        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
-        periodStart: new Date("2026-05-01T00:00:00.000Z"),
-        purchasedSeats: 2,
-        referenceId: "org_123",
-      },
+    expect(unassignSeatMock).toHaveBeenCalledWith(
+      "member_456",
+      "org_123",
       expect.anything(),
     );
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
   it("skips credit handling when unassigning on consumable enterprise contracts", async () => {

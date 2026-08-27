@@ -54,7 +54,6 @@ const {
   webhookCallUserCreatedMock,
   webhookCallUserUpdatedMock,
   ensureCanAcceptOrganizationInvitationMock,
-  syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
   deleteStripeCustomerBestEffortMock,
   listOrganizationExitChatRoomIdsForAblyMock,
@@ -163,7 +162,6 @@ const {
     webhookCallUserCreatedMock: vi.fn(),
     webhookCallUserUpdatedMock: vi.fn(),
     ensureCanAcceptOrganizationInvitationMock: vi.fn(),
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
     deleteStripeCustomerBestEffortMock: vi.fn(),
     listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
@@ -372,8 +370,6 @@ vi.mock("@/services/preferred-organization.service", () => ({
 vi.mock("@/services/organization-subscription-auth.service", () => ({
   ensureCanAcceptOrganizationInvitation: (...args: unknown[]) =>
     ensureCanAcceptOrganizationInvitationMock(...args),
-  syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
 }));
 
 vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
@@ -491,9 +487,6 @@ describe("core auth config", () => {
       id: "cus_org_123",
     });
     ensureCanAcceptOrganizationInvitationMock.mockResolvedValue(undefined);
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
-      undefined,
-    );
     prepareStripeEmailSyncForUserUpdateMock.mockResolvedValue(undefined);
     handleUserUpdateStripeEmailSyncMock.mockResolvedValue(undefined);
     syncUserEmailWithStripeMock.mockResolvedValue(undefined);
@@ -2544,7 +2537,7 @@ describe("core auth config", () => {
     );
   });
 
-  it("syncs local free seats and credits after accepting an invitation", async () => {
+  it("upgrades guest chat memberships after accepting an invitation", async () => {
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
@@ -2569,12 +2562,9 @@ describe("core auth config", () => {
       "user-1",
       "org-1",
     );
-    expect(
-      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
-    ).toHaveBeenCalledWith("org-1");
   });
 
-  it("syncs local free seats and credits after adding a member", async () => {
+  it("upgrades guest chat memberships after adding a member", async () => {
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
@@ -2599,9 +2589,6 @@ describe("core auth config", () => {
       "user-1",
       "org-1",
     );
-    expect(
-      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
-    ).toHaveBeenCalledWith("org-1");
   });
 
   it("hands Ably room ids through the member object around remove", async () => {
@@ -2651,9 +2638,6 @@ describe("core auth config", () => {
       "user-1",
       { revokedRoomIds: ["room-a", "room-b"], statusMessages: [] },
     );
-    expect(
-      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
-    ).toHaveBeenCalledWith("org-1");
   });
 
   it("creates a Stripe customer when an organization is created", async () => {

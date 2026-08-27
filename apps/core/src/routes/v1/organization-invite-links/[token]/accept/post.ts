@@ -18,10 +18,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { acceptOrganizationInviteLinkResponseSchema } from "@/schemas/organization-invite-link.schema";
-import {
-  ensureCanAcceptOrganizationInvitation,
-  syncLocalFreeSeatsAndCreditsForCurrentMembers,
-} from "@/services/organization-subscription-auth.service";
+import { ensureCanAcceptOrganizationInvitation } from "@/services/organization-subscription-auth.service";
 
 const params = z.object({
   token: z.string().openapi({
@@ -174,12 +171,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (outcome === "depleted") {
       throw badRequest("This invite link has reached its usage limit.");
-    }
-
-    if (outcome === "joined") {
-      // Keep local free-seat + credit accounting in step with the new member,
-      // exactly as the normal invitation-accept hook does.
-      await syncLocalFreeSeatsAndCreditsForCurrentMembers(organizationId);
     }
 
     return ok(

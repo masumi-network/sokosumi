@@ -260,7 +260,7 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     expect(transactionCreateMock).not.toHaveBeenCalled();
   });
 
-  it("syncs local-free credits when assigning in a free organization", async () => {
+  it("assigns a seat in a free organization without minting period credits", async () => {
     setMembership("owner");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -271,23 +271,12 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
       status: "active",
       stripeSubscriptionId: null,
     });
-    fetchOrganizationMemberUserIdsMock.mockResolvedValue([
-      "user_123",
-      "user_456",
-    ]);
 
     const response = await assignSeat("org_123", "member_456");
 
     expect(response.status).toBe(200);
     expect(transactionCreateMock).not.toHaveBeenCalled();
-    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        memberUserIds: ["user_123", "user_456"],
-        organizationId: "org_123",
-        referenceId: "org_123",
-      }),
-      expect.anything(),
-    );
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the member does not exist", async () => {

@@ -35,6 +35,7 @@ function createLocalFreePeriodClient() {
     findUniqueBucketMock,
     tx: {
       creditBucket: {
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: findUniqueBucketMock,
       },
       subscription: {

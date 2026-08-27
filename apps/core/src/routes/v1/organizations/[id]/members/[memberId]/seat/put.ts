@@ -1,10 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
 import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -14,10 +11,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
-import {
-  mapSeatRepositoryError,
-  syncLocalFreeOrganizationCreditsIfNeeded,
-} from "@/services/organization-seat.service";
+import { mapSeatRepositoryError } from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -85,13 +79,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
         const purchasedSeats = billingPlan.purchasedSeats;
-        const subscription =
-          billingPlan.mode === "self_serve"
-            ? await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-                organization.id,
-                tx,
-              )
-            : null;
 
         const member = await memberRepository.assignSeat(
           memberId,
@@ -102,25 +89,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (!member.seatAssignedAt) {
           throw internalServerError("Failed to assign seat");
-        }
-
-        if (
-          billingPlan.mode === "self_serve" &&
-          subscription?.periodStart &&
-          subscription?.periodEnd
-        ) {
-          await syncLocalFreeOrganizationCreditsIfNeeded(
-            organization.id,
-            {
-              createdAt: subscription.createdAt,
-              periodEnd: subscription.periodEnd,
-              periodStart: subscription.periodStart,
-              seats: subscription.seats,
-              status: subscription.status,
-              stripeSubscriptionId: subscription.stripeSubscriptionId,
-            },
-            tx,
-          );
         }
 
         return {

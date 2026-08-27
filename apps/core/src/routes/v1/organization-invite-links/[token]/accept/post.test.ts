@@ -13,7 +13,6 @@ const {
   createMemberMock,
   ensurePersonalWorkspaceForOrganizationMembershipMock,
   ensureGateMock,
-  syncSeatsMock,
   orgFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -43,7 +42,6 @@ const {
   createMemberMock: vi.fn(),
   ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
   ensureGateMock: vi.fn(),
-  syncSeatsMock: vi.fn(),
   orgFindUniqueMock: vi.fn(),
 }));
 
@@ -100,8 +98,6 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/services/organization-subscription-auth.service", () => ({
   ensureCanAcceptOrganizationInvitation: (...args: unknown[]) =>
     ensureGateMock(...args),
-  syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
-    syncSeatsMock(...args),
 }));
 
 const { upgradeGuestChatRoomMembershipsToMemberMock } = vi.hoisted(() => ({
@@ -162,7 +158,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     };
     orgFindUniqueMock.mockResolvedValue({ slug: "acme" });
     ensureGateMock.mockResolvedValue(undefined);
-    syncSeatsMock.mockResolvedValue(undefined);
     getMemberMock.mockResolvedValue(null);
     tryConsumeInviteLinkMock.mockResolvedValue(true);
     createMemberMock.mockResolvedValue(undefined);
@@ -208,10 +203,9 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     const response = await post();
     expect(response.status).toBe(400);
     expect(createMemberMock).not.toHaveBeenCalled();
-    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
-  it("joins a valid link, enforcing the seat gate then syncing seats", async () => {
+  it("joins a valid link after enforcing the subscription gate", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(liveLink());
 
     const response = await post();
@@ -236,7 +230,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
       expect.anything(),
     );
     expect(tryConsumeInviteLinkMock).toHaveBeenCalledTimes(1);
-    expect(syncSeatsMock).toHaveBeenCalledWith("org_1");
     expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
       "user_123",
       "org_1",
@@ -257,10 +250,9 @@ describe("POST /organization-invite-links/{token}/accept", () => {
 
     expect(response.status).toBe(500);
     expect(createMemberMock).not.toHaveBeenCalled();
-    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
-  it("does not consume a use or sync seats when already a member", async () => {
+  it("does not consume a use when already a member", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(liveLink({ maxUses: 5 }));
     getMemberMock.mockResolvedValue({ id: "mem_1" });
 
@@ -271,7 +263,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(body.data.status).toBe("already_member");
     expect(tryConsumeInviteLinkMock).not.toHaveBeenCalled();
     expect(createMemberMock).not.toHaveBeenCalled();
-    expect(syncSeatsMock).not.toHaveBeenCalled();
     expect(
       cancelPendingOrganizationInvitationsForUserMock,
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
@@ -289,8 +280,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.status).toBe("already_member");
-    // A rolled-back join must not sync seats.
-    expect(syncSeatsMock).not.toHaveBeenCalled();
     expect(
       cancelPendingOrganizationInvitationsForUserMock,
     ).toHaveBeenCalledWith("user_123", "org_1", expect.anything());
@@ -308,7 +297,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     const response = await post();
 
     expect(response.status).toBe(500);
-    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the link is depleted at consume time", async () => {
@@ -318,7 +306,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     const response = await post();
     expect(response.status).toBe(400);
     expect(createMemberMock).not.toHaveBeenCalled();
-    expect(syncSeatsMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 for an expired link and never touches the gate", async () => {

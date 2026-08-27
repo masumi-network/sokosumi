@@ -1,15 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
-import {
-  ensureLocalFreeSubscriptionPeriod,
-  fetchOrganizationMemberUserIds,
-  isActiveSubscriptionStatus,
-  resolveOrganizationBillingPlan,
-  resolvePurchasedSeats,
-} from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
+import { memberRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
@@ -40,88 +30,18 @@ export function mapSeatRepositoryError(error: unknown): never {
   throw error;
 }
 
-export async function unassignOrganizationMemberSeatWithCreditSync(
+export async function unassignOrganizationMemberSeat(
   organizationId: string,
   memberId: string,
   tx: Prisma.TransactionClient,
 ): Promise<{ memberId: string }> {
-  const billingPlan = await resolveOrganizationBillingPlan(organizationId, tx);
   const member = await memberRepository.unassignSeat(
     memberId,
     organizationId,
     tx,
   );
 
-  if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable) {
-    return {
-      memberId: member.id,
-    };
-  }
-
-  const subscription =
-    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-      organizationId,
-      tx,
-    );
-
-  if (
-    subscription?.periodStart &&
-    subscription.periodEnd &&
-    !subscription.stripeSubscriptionId
-  ) {
-    await syncLocalFreeOrganizationCreditsIfNeeded(
-      organizationId,
-      {
-        createdAt: subscription.createdAt,
-        periodEnd: subscription.periodEnd,
-        periodStart: subscription.periodStart,
-        seats: subscription.seats,
-        status: subscription.status,
-        stripeSubscriptionId: subscription.stripeSubscriptionId,
-      },
-      tx,
-    );
-  }
-
   return {
     memberId: member.id,
   };
-}
-
-export async function syncLocalFreeOrganizationCreditsIfNeeded(
-  organizationId: string,
-  subscription: {
-    createdAt: Date;
-    periodEnd: Date;
-    periodStart: Date;
-    seats: number | null;
-    status: string;
-    stripeSubscriptionId: string | null;
-  },
-  tx: Prisma.TransactionClient,
-): Promise<void> {
-  if (
-    subscription.stripeSubscriptionId ||
-    !isActiveSubscriptionStatus(subscription.status)
-  ) {
-    return;
-  }
-
-  const memberUserIds = await fetchOrganizationMemberUserIds(
-    organizationId,
-    tx,
-  );
-
-  await ensureLocalFreeSubscriptionPeriod(
-    {
-      billingAnchorDate: subscription.createdAt,
-      memberUserIds,
-      organizationId,
-      periodEnd: subscription.periodEnd,
-      periodStart: subscription.periodStart,
-      purchasedSeats: resolvePurchasedSeats(subscription.seats),
-      referenceId: organizationId,
-    },
-    tx,
-  );
 }

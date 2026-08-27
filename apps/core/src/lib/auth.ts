@@ -84,10 +84,7 @@ import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
-import {
-  ensureCanAcceptOrganizationInvitation,
-  syncLocalFreeSeatsAndCreditsForCurrentMembers,
-} from "@/services/organization-subscription-auth.service";
+import { ensureCanAcceptOrganizationInvitation } from "@/services/organization-subscription-auth.service";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
@@ -695,14 +692,12 @@ export const auth = betterAuth({
             user.id,
             organization.id,
           );
-          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         afterAddMember: async ({ organization, user }) => {
           await upgradeGuestChatRoomMembershipsToMember(
             user.id,
             organization.id,
           );
-          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         // BA leaveOrganization has no remove-member hooks — durable hard-leave
         // for leave (and for remove) is the member-delete DB trigger. For
@@ -718,7 +713,7 @@ export const auth = betterAuth({
             member as { organizationExitChatRoomIds?: string[] }
           ).organizationExitChatRoomIds = roomIds;
         },
-        afterRemoveMember: async ({ organization, user, member }) => {
+        afterRemoveMember: async ({ user, member }) => {
           const roomIds =
             (member as { organizationExitChatRoomIds?: string[] })
               .organizationExitChatRoomIds ?? [];
@@ -726,7 +721,6 @@ export const auth = betterAuth({
             revokedRoomIds: roomIds,
             statusMessages: [],
           });
-          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         beforeDeleteOrganization: async ({ organization, user }) => {
           const evaluation = await evaluateOrganizationDeletion(
