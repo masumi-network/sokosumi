@@ -113,22 +113,18 @@ function SectionHeader({
   createAction?: ReactNode;
   secondaryAction?: ReactNode;
 }) {
-  const mobileTrailingCount =
-    (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
-  const desktopTrailingCount =
-    (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
-  const hasTrailing = mobileTrailingCount > 0 || desktopTrailingCount > 0;
+  const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
 
   return (
     <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
       <CollapsibleTrigger
         className={cn(
           "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
-          mobileTrailingCount === 1 && "pr-9",
-          mobileTrailingCount >= 2 && "pr-16",
-          desktopTrailingCount === 0 && "md:pr-0",
-          desktopTrailingCount === 1 && "md:pr-8",
-          desktopTrailingCount >= 2 && "md:pr-14",
+          trailingCount === 1 && "pr-9",
+          trailingCount >= 2 && "pr-16",
+          trailingCount === 0 && "md:pr-0",
+          trailingCount === 1 && "md:pr-8",
+          trailingCount >= 2 && "md:pr-14",
         )}
       >
         <ChevronDown
@@ -140,7 +136,7 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      {hasTrailing ? (
+      {trailingCount > 0 ? (
         <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
           {secondaryAction}
           {createAction}

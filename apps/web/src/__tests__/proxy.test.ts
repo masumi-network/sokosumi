@@ -81,7 +81,7 @@ describe("proxy", () => {
     expect(getSessionCookieMock).toHaveBeenCalledTimes(1);
   });
 
-  it("edge-redirects anonymous /?dm=new to /signin preserving compose returnUrl", async () => {
+  it("edge-redirects anonymous Welcome with leftover query to /signin preserving returnUrl", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("../proxy");
     getSessionCookieMock.mockReturnValue(null);
