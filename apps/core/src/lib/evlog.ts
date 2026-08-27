@@ -1,5 +1,6 @@
 import type { DrainContext } from "evlog";
 import { initLogger } from "evlog";
+import { identifyUser } from "evlog/better-auth";
 import { evlog, useLogger } from "evlog/hono";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
@@ -98,6 +99,18 @@ export function attachWorkspaceToLogger(
       organizationId: workspace.organizationId,
     },
   });
+}
+
+export function identifyBetterAuthSession(session: {
+  user: Record<string, unknown>;
+  session: Record<string, unknown>;
+}) {
+  const log = tryUseLogger();
+  if (!log) {
+    return;
+  }
+
+  identifyUser(log, session, { maskEmail: true });
 }
 
 export function recordCoreRequestError(error: Error) {

@@ -8,7 +8,7 @@ import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
-import { attachAuthToLogger } from "@/lib/evlog";
+import { attachAuthToLogger, identifyBetterAuthSession } from "@/lib/evlog";
 import { isOrchestratorServiceToken } from "@/lib/orchestrator-service-token";
 
 const DEFAULT_USER_ROLE = "user";
@@ -645,6 +645,10 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       role: user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "session",
     },
+  });
+  identifyBetterAuthSession({
+    user: { ...user },
+    session: { ...session },
   });
 
   return await next();

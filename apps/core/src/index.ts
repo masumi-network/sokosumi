@@ -4,10 +4,10 @@ import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
+import { createSentryDrain } from "evlog/sentry";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
-
 import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
@@ -28,7 +28,9 @@ import { hermesInboxSyncService } from "@/services/hermes-inbox-sync.service";
 
 validateEnv();
 initSentry();
-initCoreLogger();
+initCoreLogger({
+  drain: getEnv().SENTRY_DSN ? createSentryDrain() : undefined,
+});
 
 // Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
