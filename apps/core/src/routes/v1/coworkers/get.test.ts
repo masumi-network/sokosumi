@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { coworkerInclude } from "@/helpers/coworker";

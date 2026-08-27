@@ -11,7 +11,6 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   composeSystemPrompt,
-  containsSokoBotSensitiveMaterial,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
   hasSokoBotNegatedMutationIntent,
