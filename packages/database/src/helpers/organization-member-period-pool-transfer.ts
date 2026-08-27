@@ -11,9 +11,11 @@ export interface MemberPeriodPoolTransferResult {
   organizations: number;
   bucketsDrained: number;
   centsTransferred: bigint;
+  skippedNoActor: number;
 }
 
 interface LeftoverMemberPeriodBucket {
+  activatesAt: Date | null;
   amount: bigint;
   expiresAt: Date | null;
   id: string;
@@ -29,8 +31,9 @@ export function buildMigratedMemberPeriodPoolReferenceId(
   organizationId: string,
   transferredAt: Date,
   expiresAt: Date | null = null,
+  activatesAt: Date | null = null,
 ): string {
-  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:migrated-member-period:${transferredAt.toISOString()}:${expiryGroupKey(expiresAt)}`;
+  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:migrated-member-period:${transferredAt.toISOString()}:${expiryGroupKey(expiresAt)}:${expiryGroupKey(activatesAt)}`;
 }
 
 const leftoverMemberPeriodWhereSql = Prisma.sql`
@@ -75,6 +78,7 @@ async function listLeftoverMemberPeriodBucketsWithRemaining(
       cb.id,
       cb.amount,
       cb."expiresAt",
+      cb."activatesAt",
       cb."organizationId",
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
     FROM credit_bucket cb
@@ -82,9 +86,32 @@ async function listLeftoverMemberPeriodBucketsWithRemaining(
     WHERE ${organizationFilter}
       AND ${leftoverMemberPeriodWhereSql}
       AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
-    GROUP BY cb.id, cb.amount, cb."expiresAt", cb."organizationId"
+    GROUP BY cb.id, cb.amount, cb."expiresAt", cb."activatesAt", cb."organizationId"
     HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
   `;
+}
+
+async function resolveTransferActorUserId(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+): Promise<string | null> {
+  const owner = await tx.member.findFirst({
+    where: {
+      organizationId,
+      role: "owner",
+    },
+    select: { userId: true },
+  });
+  if (owner) {
+    return owner.userId;
+  }
+
+  const member = await tx.member.findFirst({
+    where: { organizationId },
+    orderBy: { createdAt: "asc" },
+    select: { userId: true },
+  });
+  return member?.userId ?? null;
 }
 
 export async function transferMemberPeriodBucketsToOrganizationPool(
@@ -98,38 +125,37 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
     organizationId,
   );
 
-  const byOrganizationAndExpiry = new Map<
+  const byOrganizationAndSchedule = new Map<
     string,
     {
+      activatesAt: Date | null;
       buckets: LeftoverMemberPeriodBucket[];
       expiresAt: Date | null;
       organizationId: string;
     }
   >();
   for (const bucket of buckets) {
-    const key = `${bucket.organizationId}:${expiryGroupKey(bucket.expiresAt)}`;
-    const group = byOrganizationAndExpiry.get(key) ?? {
+    const key = `${bucket.organizationId}:${expiryGroupKey(bucket.expiresAt)}:${expiryGroupKey(bucket.activatesAt)}`;
+    const group = byOrganizationAndSchedule.get(key) ?? {
+      activatesAt: bucket.activatesAt,
       buckets: [],
       expiresAt: bucket.expiresAt,
       organizationId: bucket.organizationId,
     };
     group.buckets.push(bucket);
-    byOrganizationAndExpiry.set(key, group);
+    byOrganizationAndSchedule.set(key, group);
   }
 
-  const ownerByOrganization = new Map<string, string>();
+  const actorByOrganization = new Map<string, string>();
+  const skippedOrganizations = new Set<string>();
   for (const organization of new Set(
     buckets.map((bucket) => bucket.organizationId),
   )) {
-    const owner = await tx.member.findFirst({
-      where: {
-        organizationId: organization,
-        role: "owner",
-      },
-      select: { userId: true },
-    });
-    if (owner) {
-      ownerByOrganization.set(organization, owner.userId);
+    const actorUserId = await resolveTransferActorUserId(tx, organization);
+    if (actorUserId) {
+      actorByOrganization.set(organization, actorUserId);
+    } else {
+      skippedOrganizations.add(organization);
     }
   }
 
@@ -137,9 +163,9 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
   let centsTransferred = 0n;
   const transferredOrganizations = new Set<string>();
 
-  for (const group of byOrganizationAndExpiry.values()) {
-    const ownerUserId = ownerByOrganization.get(group.organizationId);
-    if (!ownerUserId) {
+  for (const group of byOrganizationAndSchedule.values()) {
+    const actorUserId = actorByOrganization.get(group.organizationId);
+    if (!actorUserId) {
       continue;
     }
 
@@ -156,7 +182,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       data: {
         amount: totalRemaining * -1n,
         organizationId: group.organizationId,
-        userId: ownerUserId,
+        userId: actorUserId,
         creditConsumptions: {
           createMany: {
             data: group.buckets.map((bucket) => ({
@@ -172,9 +198,10 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       data: {
         amount: totalRemaining,
         organizationId: group.organizationId,
-        userId: ownerUserId,
+        userId: actorUserId,
         sourceCreditBucket: {
           create: {
+            activatesAt: group.activatesAt,
             amount: totalRemaining,
             expiresAt: group.expiresAt,
             organizationId: group.organizationId,
@@ -182,6 +209,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
               group.organizationId,
               transferredAt,
               group.expiresAt,
+              group.activatesAt,
             ),
             referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
             userId: null,
@@ -199,5 +227,6 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
     organizations: transferredOrganizations.size,
     bucketsDrained,
     centsTransferred,
+    skippedNoActor: skippedOrganizations.size,
   };
 }

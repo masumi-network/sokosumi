@@ -313,4 +313,29 @@ describe("POST /orchestrators/me/usage", () => {
     expect(usageCreate).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });
+
+  it("bills the organization pool when X-Context organization is set and the user is a member", async () => {
+    mockTxWithOrchestrator();
+
+    const app = createApp("orchestrator", {
+      context: { organizationId: "org_123", userId: TARGET_USER_ID },
+    });
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(prepareConsumptionMock).toHaveBeenCalledWith(
+      TARGET_USER_ID,
+      "org_123",
+      expect.any(BigInt),
+      expect.anything(),
+    );
+  });
 });

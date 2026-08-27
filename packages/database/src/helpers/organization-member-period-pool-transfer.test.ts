@@ -12,6 +12,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
         {
           id: "b-1",
           amount: 100n,
+          activatesAt: null,
           expiresAt: new Date("2026-09-01T00:00:00.000Z"),
           organizationId: "org-1",
           remaining: 60n,
@@ -19,6 +20,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
         {
           id: "b-2",
           amount: 50n,
+          activatesAt: null,
           expiresAt: new Date("2026-08-01T00:00:00.000Z"),
           organizationId: "org-1",
           remaining: 50n,
@@ -41,9 +43,11 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     assert.equal(result.organizations, 1);
     assert.equal(result.bucketsDrained, 2);
     assert.equal(result.centsTransferred, 110n);
+    assert.equal(result.skippedNoActor, 0);
     assert.equal(createTransactionMock.mock.calls.length, 4);
 
     interface MigratedGrant {
+      activatesAt: Date | null;
       amount: bigint;
       expiresAt: Date;
       userId: string | null;
@@ -57,6 +61,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
               data: {
                 sourceCreditBucket?: {
                   create: {
+                    activatesAt: Date | null;
                     amount: bigint;
                     expiresAt: Date;
                     userId: string | null;
@@ -74,6 +79,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
               data: {
                 sourceCreditBucket: {
                   create: {
+                    activatesAt: Date | null;
                     amount: bigint;
                     expiresAt: Date;
                     userId: string | null;
@@ -89,6 +95,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     assert.deepEqual(
       grantAmounts
         .map((grant) => ({
+          activatesAt: grant.activatesAt,
           amount: grant.amount,
           expiresAt: grant.expiresAt.toISOString(),
           userId: grant.userId,
@@ -98,16 +105,89 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
         ),
       [
         {
+          activatesAt: null,
           amount: 50n,
           expiresAt: "2026-08-01T00:00:00.000Z",
           userId: null,
         },
         {
+          activatesAt: null,
           amount: 60n,
           expiresAt: "2026-09-01T00:00:00.000Z",
           userId: null,
         },
       ],
     );
+  });
+
+  it("copies future activatesAt onto the org-owned bucket", async () => {
+    const createTransactionMock = vi.fn();
+    const activatesAt = new Date("2026-09-01T00:00:00.000Z");
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: "b-future",
+          amount: 250n,
+          activatesAt,
+          expiresAt: new Date("2026-10-01T00:00:00.000Z"),
+          organizationId: "org-1",
+          remaining: 250n,
+        },
+      ]),
+      member: {
+        findFirst: vi.fn().mockResolvedValue({ userId: "owner-1" }),
+      },
+      transaction: {
+        create: createTransactionMock,
+      },
+    };
+
+    await transferMemberPeriodBucketsToOrganizationPool(
+      tx as never,
+      "org-1",
+      new Date("2026-07-01T00:00:00.000Z"),
+    );
+
+    const grant = createTransactionMock.mock.calls.find(
+      (
+        call: [
+          { data: { sourceCreditBucket?: { create: { activatesAt: Date } } } },
+        ],
+      ) => call[0].data.sourceCreditBucket != null,
+    )?.[0].data.sourceCreditBucket.create;
+    assert.equal(grant?.activatesAt, activatesAt);
+    assert.equal(grant?.userId, null);
+  });
+
+  it("skips leftover remaining when the organization has no members", async () => {
+    const createTransactionMock = vi.fn();
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: "b-1",
+          amount: 50n,
+          activatesAt: null,
+          expiresAt: new Date("2026-09-01T00:00:00.000Z"),
+          organizationId: "org-orphan",
+          remaining: 50n,
+        },
+      ]),
+      member: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+      transaction: {
+        create: createTransactionMock,
+      },
+    };
+
+    const result = await transferMemberPeriodBucketsToOrganizationPool(
+      tx as never,
+      "org-orphan",
+      new Date("2026-07-01T00:00:00.000Z"),
+    );
+
+    assert.equal(result.skippedNoActor, 1);
+    assert.equal(result.bucketsDrained, 0);
+    assert.equal(createTransactionMock.mock.calls.length, 0);
   });
 });
