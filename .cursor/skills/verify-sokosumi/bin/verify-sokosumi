@@ -360,6 +360,20 @@ function wait_authed_agents() {
   sleep 2
 }
 
+function copy_latest_screenshot() {
+  # agent-browser screenshot (no path) writes ~/.agent-browser/tmp/screenshots/.
+  # Copy the newest PNG to the named artifact so evidence survives tmp cleanup.
+  local dest="$1"
+  local dir="${HOME}/.agent-browser/tmp/screenshots"
+  local newest
+  newest="$(find "$dir" -maxdepth 1 -name '*.png' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)"
+  if [[ -z "$newest" ]]; then
+    echo "warn: no agent-browser screenshot to copy to $dest" >&2
+    return 0
+  fi
+  cp "$newest" "$dest"
+}
+
 function record_sign_in() {
   local email="$1"
   local method="$2"
@@ -367,6 +381,7 @@ function record_sign_in() {
   mkdir -p "$art_dir"
   agent-browser snapshot -i >"$art_dir/after-login.snapshot.txt" || true
   agent-browser screenshot >/dev/null || true
+  copy_latest_screenshot "$art_dir/after-login.png"
   printf '%s\n' "$email" >"$art_dir/account.txt"
   printf 'method=%s\n' "$method" >"$art_dir/method.txt"
 }

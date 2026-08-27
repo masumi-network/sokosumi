@@ -5,7 +5,7 @@ description: Drive the Sokosumi web app (and Core API) the way a user does — l
 
 # Verify Sokosumi
 
-Project-local verification for agents that have never seen this app. Primary surface is the **web UI** at `:3000`. Secondary surface is the **Core API** at `:8787` (OpenAPI / curl). Web never talks to Postgres directly — Core owns the DB.
+Project-local verification for agents that have never seen this app. Primary surface is the **web UI** at the portless named HTTPS URL (`web_url=` from doctor). Secondary surface is the **Core API** (`core_url=` — OpenAPI / curl). Web never talks to Postgres directly — Core owns the DB.
 
 Read `features/README.md` before driving. Use a matching feature file as the recipe. Prefer `agent-browser` over inventing selectors.
 
@@ -93,7 +93,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 # or: … sign-in --method ui       # fixture UI only (signin-submit proof)
 ```
 
-Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). Cookie-only unlocks later features — for `signin-submit` proof, require `method=ui`. Vault unlocks the map on coworker/shared Neon; it is not fixture `signin-submit` proof.
+Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). Cookie-only unlocks later features — for `signin-submit` proof, require `method=ui`. Vault unlocks the map on coworker/shared Neon; it is not fixture `signin-submit` proof.
 
 ## Drive
 
