@@ -95,12 +95,23 @@ export class SokoBotEventsSyncService {
       failed: 0,
     };
     if (!getEnv().SOKO_BOT_ENABLED) return result;
+    // Platform kill switch covers everything bots start on their own, and a
+    // taskboard event turn is exactly that.
+    if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return result;
 
     const delegations = await prisma.sokoBotDelegation.findMany({
       where: {
         createdAt: { gte: new Date(Date.now() - WATCH_WINDOW_MS) },
         OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
-        turn: { sokoBot: { archivedAt: null, adminPausedAt: null } },
+        // Unattended work the bot starts itself honours the owner's pause,
+        // not just the administrator's.
+        turn: {
+          sokoBot: {
+            archivedAt: null,
+            adminPausedAt: null,
+            proactivePaused: false,
+          },
+        },
       },
       // Newest first: the delegations most likely to change are recent ones,
       // and a large backlog must not starve them.

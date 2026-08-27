@@ -7,6 +7,7 @@ const {
   botFindFirstMock,
   botFindUniqueMock,
   chatRoomFindFirstMock,
+  workspaceFindUniqueMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
   botUpdateManyMock,
@@ -62,6 +63,7 @@ const {
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
   botUpdateManyMock: vi.fn(),
@@ -158,7 +160,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: jobInputFindManyMock,
       findUnique: jobInputFindUniqueMock,
     },
-    workspace: { findFirst: workspaceFindFirstMock },
+    workspace: {
+      findFirst: workspaceFindFirstMock,
+      findUnique: workspaceFindUniqueMock,
+    },
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
@@ -2176,6 +2181,7 @@ describe("SokoBotRuntimeService chat reading", () => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     botFindUniqueMock.mockResolvedValue({ coworker: { id: "coworker_1" } });
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
   });
 
   it("only lists rooms the bot is a member of", async () => {

@@ -63,7 +63,6 @@ const DIRECT_READ_CAPABILITIES = [
   "read_email",
   "list_calendar_events",
   "list_integration_tools",
-  "run_integration_tool",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */
@@ -77,6 +76,9 @@ const SCHEDULE_CAPABILITIES = [
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "post_chat",
   "upload_file",
+  // Runs a real tool on a connected account (send, create, update). It is a
+  // write in every sense, so it belongs with the writes rather than the reads.
+  "run_integration_tool",
 ] as const satisfies readonly SokoBotCapability[];
 
 export const SOKO_BOT_SCRATCH_CAPABILITIES = [

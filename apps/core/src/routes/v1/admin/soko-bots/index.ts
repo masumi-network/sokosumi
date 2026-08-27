@@ -270,19 +270,9 @@ app.openapi(listVersionsRoute, async (c) => {
     c,
     sokoBotVersionListSchema.parse({
       defaultVersionId,
-      versions: versions.map((version) => ({
-        id: version.id,
-        name: version.name,
-        createdAt: version.createdAt,
-        summary: version.summary,
-        model: version.model,
-        inferenceRegion: version.inferenceRegion ?? null,
-        systemPrompt: version.systemPrompt,
-        skills: [...version.skills],
-        capabilities: [...(version.capabilities ?? [])],
-        authored: version.authored,
-        isDefault: version.id === defaultVersionId,
-      })),
+      versions: versions.map((version) =>
+        versionDetail(version, version.authored, defaultVersionId),
+      ),
       availableCapabilities: [...SOKO_BOT_CAPABILITIES],
       availableSkills: SOKO_BOT_SKILLS.map((skill) => ({
         id: skill.id,

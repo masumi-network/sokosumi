@@ -55,6 +55,7 @@ import {
 import { list, put } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { toMasumiAgent } from "@/helpers/agent";
+import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
@@ -767,19 +768,10 @@ export class SokoBotRuntimeService {
    * a person added it to and nothing else in the workspace.
    */
   private async listChats(authorized: AuthorizedSokoBotRuntime) {
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: authorized.turn.sokoBotId },
-      select: { coworker: { select: { id: true } } },
-    });
-    const coworkerId = bot?.coworker?.id;
+    const coworkerId = await this.chatCoworkerId(authorized);
     if (!coworkerId) return { rooms: [] };
     const rooms = await prisma.chatRoom.findMany({
-      where: {
-        archivedAt: null,
-        // Membership is the boundary: the bot's coworker only belongs to rooms
-        // someone added it to. ChatRoom has no workspaceId to filter on.
-        coworkerMembers: { some: { coworkerId } },
-      },
+      where: await this.chatRoomScope(authorized, coworkerId),
       orderBy: { updatedAt: "desc" },
       take: 50,
       select: {
@@ -802,6 +794,38 @@ export class SokoBotRuntimeService {
   }
 
   /**
+   * Rooms the bot may touch: its own coworker's memberships, bounded to the
+   * workspace the turn runs in. Membership alone is not enough — a coworker
+   * could in principle be added to a room in another organization, and a turn
+   * must never reach outside its own workspace.
+   */
+  private async chatRoomScope(
+    authorized: AuthorizedSokoBotRuntime,
+    coworkerId: string,
+  ): Promise<Prisma.ChatRoomWhereInput> {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: authorized.turn.workspaceId },
+      select: { organizationId: true },
+    });
+    return {
+      archivedAt: null,
+      coworkerMembers: { some: { coworkerId } },
+      organizationId: workspace?.organizationId ?? null,
+    };
+  }
+
+  /** The bot's chat identity; absent until it has a coworker row. */
+  private async chatCoworkerId(
+    authorized: AuthorizedSokoBotRuntime,
+  ): Promise<string | null> {
+    const bot = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { coworker: { select: { id: true } } },
+    });
+    return bot?.coworker?.id ?? null;
+  }
+
+  /**
    * The single authorization boundary for chat: the bot may only touch rooms
    * its coworker belongs to, in its own workspace. Re-checked on every call
    * because the room id comes from the model, so removal takes effect at once.
@@ -810,17 +834,12 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     roomId: string,
   ): Promise<{ id: string; name: string; coworkerId: string }> {
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: authorized.turn.sokoBotId },
-      select: { coworker: { select: { id: true } } },
-    });
-    const coworkerId = bot?.coworker?.id;
+    const coworkerId = await this.chatCoworkerId(authorized);
     const room = coworkerId
       ? await prisma.chatRoom.findFirst({
           where: {
+            ...(await this.chatRoomScope(authorized, coworkerId)),
             id: roomId,
-            archivedAt: null,
-            coworkerMembers: { some: { coworkerId } },
           },
           select: { id: true, name: true },
         })
@@ -854,6 +873,9 @@ export class SokoBotRuntimeService {
       });
       return created;
     });
+    // Every other message-create site publishes; without this the bot's post
+    // only appears after a refresh, which reads as the tool having failed.
+    await publishChatRoomMessageRealtimeById(message.id, "create");
     return {
       messageId: message.id,
       roomId: room.id,
@@ -896,11 +918,28 @@ export class SokoBotRuntimeService {
       authorized.turn.userId,
       input.filename,
     );
+    // The human upload route refuses to overwrite (409). The bot must not be
+    // able to silently replace an owner's file because a model reused a name.
+    const existing = await list({ prefix: pathname, limit: 1 });
+    if (existing.blobs.some((blob) => blob.pathname === pathname)) {
+      throw new SokoBotRuntimeValidationError(
+        `A file named "${input.filename}" already exists; choose another name`,
+      );
+    }
+    const contentType = input.contentType ?? "text/markdown";
+    // Text only: this tool writes what the model composed, never binary.
+    if (
+      !contentType.startsWith("text/") &&
+      contentType !== "application/json"
+    ) {
+      throw new SokoBotRuntimeValidationError(
+        "Only text files can be written with upload_file",
+      );
+    }
     const blob = await put(pathname, input.content, {
       access: "public",
-      contentType: input.contentType ?? "text/markdown",
+      contentType,
       addRandomSuffix: false,
-      allowOverwrite: true,
     });
     return {
       filename: pathname.split("/").pop() ?? input.filename,

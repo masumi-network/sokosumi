@@ -30,4 +30,23 @@ describe("Soko Bot route capability ceilings", () => {
       }
     }
   });
+
+  it("keeps write tools off the read-only routes", () => {
+    // CLARIFY and MIXED are read-only by the operating contract; a tool that
+    // sends, posts, writes or runs something must never appear on them.
+    const writes = [
+      "post_chat",
+      "upload_file",
+      "run_integration_tool",
+      "create_task",
+      "assign_task",
+      "hire_agent",
+    ] as const;
+    for (const route of ["CLARIFY", "MIXED"] as const) {
+      const allowed = SOKO_BOT_ROUTE_CAPABILITIES[route] as readonly string[];
+      for (const write of writes) {
+        expect(allowed).not.toContain(write);
+      }
+    }
+  });
 });

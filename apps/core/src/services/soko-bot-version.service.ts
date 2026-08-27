@@ -74,6 +74,16 @@ export async function resolveSokoBotVersion(
       where: { slug: versionId, archivedAt: null },
     });
     if (row) return toVersion(row);
+    // Pinned to something archived: fall back to whatever is promoted now,
+    // not the hard-coded code default, or the bot silently regresses past it.
+    const promoted = await getDefaultSokoBotVersionId();
+    if (promoted !== versionId && !isBuiltInId(promoted)) {
+      const fallback = await prisma.sokoBotAuthoredVersion.findFirst({
+        where: { slug: promoted, archivedAt: null },
+      });
+      if (fallback) return toVersion(fallback);
+    }
+    return getSokoBotVersion(promoted);
   }
   return getSokoBotVersion(versionId);
 }
@@ -225,5 +235,3 @@ export async function promoteSokoBotVersion(slug: string): Promise<void> {
     update: { defaultVersionId: slug },
   });
 }
-
-export { DEFAULT_SOKO_BOT_VERSION_ID };

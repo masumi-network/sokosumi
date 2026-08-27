@@ -202,18 +202,21 @@ export class SokoBotSchedulesSyncService {
   }
 
   private async claimDueOccurrence(): Promise<ClaimedOccurrence | null> {
+    // Platform kill switch: nothing the bot starts on its own may run.
+    if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return null;
     const due = await prisma.sokoBotSchedule.findFirst({
       where: {
         enabled: true,
         nextRunAt: { lte: new Date() },
-        sokoBot: { archivedAt: null, status: { not: "PAUSED" } },
-        // Built-in rhythms honour the owner's and the platform's proactive pause.
-        OR: [
-          { systemKey: null },
-          ...(getEnv().SOKO_BOT_PROACTIVE_PAUSED
-            ? []
-            : [{ sokoBot: { proactivePaused: false } }]),
-        ],
+        sokoBot: {
+          archivedAt: null,
+          status: { not: "PAUSED" },
+          // Every schedule is something the bot runs unattended, including the
+          // ones it created for itself through create_schedule, which needs no
+          // approval. Gating only the built-in rhythms left the owner's pause
+          // and the platform kill switch bypassable by the bot's own follow-ups.
+          proactivePaused: false,
+        },
       },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
