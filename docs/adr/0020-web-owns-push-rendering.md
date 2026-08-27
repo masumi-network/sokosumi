@@ -1,4 +1,4 @@
-# ADR 0018: Web owns push rendering — data-only payloads, one OS-banner renderer
+# ADR 0020: Web owns push rendering — data-only payloads, one OS-banner renderer
 
 - Status: Accepted
 - Date: 2026-08-26

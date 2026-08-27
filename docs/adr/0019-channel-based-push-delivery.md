@@ -1,4 +1,4 @@
-# ADR 0017: Closed-app push rides the per-user notifications channel
+# ADR 0019: Closed-app push rides the per-user notifications channel
 
 - Status: Accepted
 - Date: 2026-08-26
