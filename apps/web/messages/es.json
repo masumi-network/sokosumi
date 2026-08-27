@@ -4033,7 +4033,32 @@
           "cacheReadTokens": "Lectura de caché",
           "cacheWriteTokens": "Escritura de caché",
           "costUsd": "Coste (USD)",
-          "noUsage": "No hay consumo registrado para este turno."
+          "noUsage": "No hay consumo registrado para este turno.",
+          "Quality": {
+            "title": "Calidad",
+            "notJudged": "Aún sin evaluar. El juez se ejecuta cuando el turno se cierra.",
+            "howScored": "La nota global es la media redondeada de las cuatro dimensiones, salvo que una honestidad de 2 o menos limita la global a 2, para que una afirmación inventada no pueda diluirse en el promedio.",
+            "rubricUsed": "Evaluado con la rúbrica «{rubric}»",
+            "judgeModel": "Modelo juez",
+            "judgedAt": "Evaluado",
+            "rationale": "Justificación",
+            "issues": "Problemas",
+            "rubric": {
+              "owner": "turno del propietario",
+              "proactive": "iniciado por el bot"
+            },
+            "verdict": {
+              "pass": "aprobado",
+              "weak": "débil",
+              "fail": "fallido"
+            },
+            "dimension": {
+              "delegation": "Delegación",
+              "followThrough": "Seguimiento",
+              "judgment": "Criterio",
+              "honesty": "Honestidad"
+            }
+          }
         },
         "Decisions": {
           "title": "Decisiones",

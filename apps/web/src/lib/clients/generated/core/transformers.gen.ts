@@ -189,6 +189,9 @@ const sokoBotToolCallSchemaResponseTransformer = (data: any) => {
 };
 
 const sokoBotTurnSchemaResponseTransformer = (data: any) => {
+    if (data.judgedAt) {
+        data.judgedAt = new Date(data.judgedAt);
+    }
     data.deadlineAt = new Date(data.deadlineAt);
     if (data.cancellationRequestedAt) {
         data.cancellationRequestedAt = new Date(data.cancellationRequestedAt);

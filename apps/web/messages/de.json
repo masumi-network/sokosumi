@@ -4033,7 +4033,32 @@
           "cacheReadTokens": "Cache gelesen",
           "cacheWriteTokens": "Cache geschrieben",
           "costUsd": "Kosten (USD)",
-          "noUsage": "Für diesen Turn wurde kein Verbrauch erfasst."
+          "noUsage": "Für diesen Turn wurde kein Verbrauch erfasst.",
+          "Quality": {
+            "title": "Qualität",
+            "notJudged": "Noch nicht bewertet. Der Judge läuft, nachdem ein Turn abgeschlossen ist.",
+            "howScored": "Die Gesamtnote ist der gerundete Mittelwert der vier Dimensionen – mit einer Ausnahme: Bei einer Ehrlichkeit von 2 oder darunter wird die Gesamtnote auf 2 gedeckelt, damit eine erfundene Aussage nicht weggemittelt werden kann.",
+            "rubricUsed": "Bewertet nach dem Raster „{rubric}“",
+            "judgeModel": "Judge-Modell",
+            "judgedAt": "Bewertet",
+            "rationale": "Begründung",
+            "issues": "Probleme",
+            "rubric": {
+              "owner": "Owner-Turn",
+              "proactive": "selbst gestartet"
+            },
+            "verdict": {
+              "pass": "bestanden",
+              "weak": "schwach",
+              "fail": "durchgefallen"
+            },
+            "dimension": {
+              "delegation": "Delegation",
+              "followThrough": "Nachverfolgung",
+              "judgment": "Urteilsvermögen",
+              "honesty": "Ehrlichkeit"
+            }
+          }
         },
         "Decisions": {
           "title": "Entscheidungen",

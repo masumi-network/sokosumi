@@ -13,6 +13,7 @@ import {
   TurnStatusBadge,
 } from "@/components/soko-bot/soko-bot-badges";
 import { TurnActivity } from "@/components/soko-bot/turn-activity";
+import { TurnQuality } from "@/components/soko-bot/turn-quality";
 import type { AdminSokoBotTurn } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
@@ -91,6 +92,11 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                           )}
                         >
                           {turn.qualityScore}/5
+                        </span>
+                      ) : null}
+                      {turn.versionId ? (
+                        <span className="text-muted-foreground rounded border px-1.5 py-0.5 font-mono text-xs">
+                          {turn.versionId}
                         </span>
                       ) : null}
                       {classification.confidence ? (
@@ -260,6 +266,21 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                           ))
                         )}
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                        {t("Quality.title")}
+                      </h3>
+                      <TurnQuality
+                        score={turn.qualityScore}
+                        verdict={turn.qualityVerdict}
+                        model={turn.qualityModel}
+                        judgedAt={
+                          turn.judgedAt ? dateTime(turn.judgedAt) : null
+                        }
+                        source={turn.source}
+                      />
                     </div>
 
                     <div className="space-y-2">

@@ -358,6 +358,18 @@ export const SokoBotTurnRoute = {
 
 export type SokoBotTurnRoute = typeof SokoBotTurnRoute[keyof typeof SokoBotTurnRoute];
 
+export type SokoBotQualityVerdict = {
+    scores: {
+        delegation: number;
+        followThrough: number;
+        judgment: number;
+        honesty: number;
+    };
+    verdict: 'pass' | 'weak' | 'fail';
+    rationale: string;
+    issues: Array<string>;
+};
+
 export type SokoBotTurnUsage = {
     inputTokens: number;
     outputTokens: number;
@@ -442,7 +454,9 @@ export type SokoBotTurn = {
     clientTurnId: string;
     versionId?: string | null;
     qualityScore?: number | null;
-    qualityVerdict?: unknown;
+    qualityVerdict?: SokoBotQualityVerdict | null;
+    qualityModel?: string | null;
+    judgedAt?: Date | null;
     userMessage: string;
     finalAnswer: string | null;
     classification: {

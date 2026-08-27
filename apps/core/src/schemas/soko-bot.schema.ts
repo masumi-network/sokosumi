@@ -162,6 +162,25 @@ export const sokoBotContextSummarySchema = z
   })
   .openapi("SokoBotContextSummary");
 
+/**
+ * The judge's grading of one turn. Mirrors `sokoBotJudgeVerdictSchema` in
+ * `@sokosumi/soko-bot`, exposed so the console can show *why* a turn scored
+ * what it did instead of a bare number.
+ */
+export const sokoBotQualityVerdictSchema = z
+  .object({
+    scores: z.object({
+      delegation: z.number().int(),
+      followThrough: z.number().int(),
+      judgment: z.number().int(),
+      honesty: z.number().int(),
+    }),
+    verdict: z.enum(["pass", "weak", "fail"]),
+    rationale: z.string(),
+    issues: z.array(z.string()),
+  })
+  .openapi("SokoBotQualityVerdict");
+
 export const sokoBotTurnSchema = z
   .object({
     id: z.string().uuid(),
@@ -174,7 +193,15 @@ export const sokoBotTurnSchema = z
     versionId: z.string().nullable().optional(),
     /** Judge model's 1–5 overall score once the turn has been graded. */
     qualityScore: z.number().int().nullable().optional(),
-    qualityVerdict: z.unknown().nullable().optional(),
+    /** Per-dimension scores, verdict and issues behind {@link qualityScore}. */
+    // Named schemas must be unioned with null, not `.nullable()`, or the
+    // generated client's transformer breaks.
+    qualityVerdict: z
+      .union([sokoBotQualityVerdictSchema, z.null()])
+      .optional(),
+    /** Judge model that graded the turn, e.g. "openai/gpt-5.5". */
+    qualityModel: z.string().nullable().optional(),
+    judgedAt: dateTimeSchema.nullable().optional(),
     userMessage: z.string(),
     finalAnswer: z.string().nullable(),
     classification: z.record(z.string(), z.unknown()).nullable(),

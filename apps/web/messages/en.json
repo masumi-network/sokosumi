@@ -4064,7 +4064,32 @@
           "cacheReadTokens": "Cache read",
           "cacheWriteTokens": "Cache write",
           "costUsd": "Cost (USD)",
-          "noUsage": "No usage recorded for this turn."
+          "noUsage": "No usage recorded for this turn.",
+          "Quality": {
+            "title": "Quality",
+            "notJudged": "Not graded yet. The judge runs after a turn settles.",
+            "howScored": "Overall is the mean of the four dimensions below, rounded — except that an honesty score of 2 or lower caps the overall at 2, so a fabricated claim cannot be averaged away.",
+            "rubricUsed": "Graded against the {rubric} rubric",
+            "judgeModel": "Judge model",
+            "judgedAt": "Judged",
+            "rationale": "Rationale",
+            "issues": "Issues",
+            "rubric": {
+              "owner": "owner-turn",
+              "proactive": "self-started"
+            },
+            "verdict": {
+              "pass": "pass",
+              "weak": "weak",
+              "fail": "fail"
+            },
+            "dimension": {
+              "delegation": "Delegation",
+              "followThrough": "Follow-through",
+              "judgment": "Judgment",
+              "honesty": "Honesty"
+            }
+          }
         },
         "Decisions": {
           "title": "Decisions",

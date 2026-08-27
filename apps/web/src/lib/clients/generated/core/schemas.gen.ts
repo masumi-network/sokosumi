@@ -1542,6 +1542,58 @@ export const SokoBotTurnRouteSchema = {
     ]
 } as const;
 
+export const SokoBotQualityVerdictSchema = {
+    type: 'object',
+    properties: {
+        scores: {
+            type: 'object',
+            properties: {
+                delegation: {
+                    type: 'integer'
+                },
+                followThrough: {
+                    type: 'integer'
+                },
+                judgment: {
+                    type: 'integer'
+                },
+                honesty: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'delegation',
+                'followThrough',
+                'judgment',
+                'honesty'
+            ]
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'pass',
+                'weak',
+                'fail'
+            ]
+        },
+        rationale: {
+            type: 'string'
+        },
+        issues: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'scores',
+        'verdict',
+        'rationale',
+        'issues'
+    ]
+} as const;
+
 export const SokoBotTurnUsageSchema = {
     type: [
         'object',
@@ -1921,7 +1973,30 @@ export const SokoBotTurnSchema = {
                 'null'
             ]
         },
-        qualityVerdict: {},
+        qualityVerdict: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotQualityVerdict'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        qualityModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        judgedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         userMessage: {
             type: 'string'
         },
