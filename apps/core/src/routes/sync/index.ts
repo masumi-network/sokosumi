@@ -6,6 +6,7 @@ import mountGetChatRoomGuestInvitationsExpireSync from "./chat-room-guest-invita
 import mountGetEnterpriseContractsRenewalSync from "./enterprise-contracts-renewal/get.js";
 import mountGetFreeSubscriptionsRenewalSync from "./free-subscriptions-renewal/get.js";
 import mountGetJobsSync from "./jobs/get.js";
+import mountGetSokoBotAvatarsSync from "./soko-bot-avatars/get.js";
 import mountGetSokoBotEventsSync from "./soko-bot-events/get.js";
 import mountGetSokoBotIngestSync from "./soko-bot-ingest/get.js";
 import mountGetSokoBotSchedulesSync from "./soko-bot-schedules/get.js";
@@ -26,6 +27,7 @@ mountGetFreeSubscriptionsRenewalSync(app);
 mountGetJobsSync(app);
 mountGetSourceImportSync(app);
 mountGetSokoBotEventsSync(app);
+mountGetSokoBotAvatarsSync(app);
 mountGetSokoBotIngestSync(app);
 mountGetSokoBotSchedulesSync(app);
 mountGetSokoBotTurnsSync(app);

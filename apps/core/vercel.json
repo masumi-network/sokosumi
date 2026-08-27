@@ -74,6 +74,10 @@
     {
       "path": "/sync/soko-bot-ingest",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-avatars",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

@@ -295,9 +295,30 @@ export interface AvailableAvatar {
   background: string;
 }
 
+/** Unclaimed avatars the pool should hold before a picker ever asks. */
+export const AVATAR_POOL_FLOOR = 24;
+
 /**
- * Unclaimed avatars for a picker. Tops the pool up first when it is short,
- * so a new user always sees `take` choices (as long as generation works).
+ * Fills the pool back to {@link AVATAR_POOL_FLOOR}. Runs on a cron so image
+ * generation never happens inside a page render: the sidebar asks for avatars
+ * on every route, and generating a dozen images inline would block it.
+ */
+export async function stockAvatarPool(): Promise<{
+  available: number;
+  generated: number;
+}> {
+  if (!getEnv().FAL_KEY) return { available: 0, generated: 0 };
+  const available = await prisma.sokoBotAvatar.count({
+    where: { claimedBySokoBotId: null },
+  });
+  if (available >= AVATAR_POOL_FLOOR) return { available, generated: 0 };
+  const generated = await generateAvatars(AVATAR_POOL_FLOOR - available);
+  return { available: available + generated, generated };
+}
+
+/**
+ * Unclaimed avatars for a picker. Reads only — {@link stockAvatarPool} keeps
+ * the pool full, so a short pool shows fewer choices rather than stalling.
  */
 export async function listAvailableAvatars(
   take: number,
@@ -309,11 +330,6 @@ export async function listAvailableAvatars(
       ? { id: { notIn: options.excludeIds } }
       : {}),
   };
-  let available = await prisma.sokoBotAvatar.count({ where });
-  if (available < take && options.topUp !== false && getEnv().FAL_KEY) {
-    await generateAvatars(take - available);
-    available = await prisma.sokoBotAvatar.count({ where });
-  }
   const rows = await prisma.sokoBotAvatar.findMany({
     where,
     orderBy: [{ createdAt: "desc" }],
