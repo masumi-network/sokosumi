@@ -98,6 +98,26 @@ describe("drive recents cursor", () => {
     expect(decoded.lastItem?.activityAt).toBe(item.activityAt);
     expect(decoded.driveBlobCursor).toBe("blob-cursor");
     expect(decoded.taskFileCursor).toBe("task-cursor");
+    expect(decoded.pendingItems).toEqual([]);
+  });
+
+  it("round-trips pending items in cursor payload", () => {
+    const item = driveFile(
+      "drive/users/u/report.pdf",
+      "2026-08-20T10:00:00.000Z",
+    );
+    const pending = [
+      driveFile("drive/users/u/older.pdf", "2026-08-19T10:00:00.000Z"),
+    ];
+    const encoded = encodeDriveRecentsCursor({
+      lastItem: item,
+      driveBlobCursor: "blob-cursor",
+      taskFileCursor: null,
+      pendingItems: pending,
+    });
+
+    const decoded = decodeDriveRecentsCursor(encoded);
+    expect(decoded.pendingItems).toEqual(pending);
   });
 
   it("detects items older than cursor position", () => {
@@ -235,6 +255,95 @@ describe("fetchDriveRecentsPage", () => {
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.kind).toBe("drive-file");
     expect(page.items[0]?.name).toBe("report.pdf");
+  });
+
+  it("preserves buffered eligible items across paginated pages", async () => {
+    let drivePage = 0;
+    listMock.mockImplementation(async () => {
+      drivePage += 1;
+      if (drivePage === 1) {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/c-old.pdf",
+              pathname: "drive/users/u/c-old.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+            },
+          ],
+          hasMore: true,
+          cursor: "blob-page-2",
+        };
+      }
+      if (drivePage === 2) {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/b-mid.pdf",
+              pathname: "drive/users/u/b-mid.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
+            },
+          ],
+          hasMore: true,
+          cursor: "blob-page-3",
+        };
+      }
+
+      return {
+        blobs: [
+          {
+            url: "https://blob.example/a-new.pdf",
+            pathname: "drive/users/u/a-new.pdf",
+            size: 100,
+            uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+          },
+        ],
+        hasMore: false,
+      };
+    });
+
+    const fetchTaskOutputs = vi.fn(async () => ({
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+    }));
+
+    const firstPage = await fetchDriveRecentsPage({
+      prefix: "drive/users/u/",
+      token: "test-token",
+      limit: 1,
+      fetchTaskOutputs,
+    });
+
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.items[0]?.name).toBe("a-new.pdf");
+    expect(firstPage.hasMore).toBe(true);
+    expect(firstPage.nextCursor).toBeTruthy();
+
+    const secondPage = await fetchDriveRecentsPage({
+      prefix: "drive/users/u/",
+      token: "test-token",
+      limit: 1,
+      cursor: firstPage.nextCursor ?? undefined,
+      fetchTaskOutputs,
+    });
+
+    expect(secondPage.items).toHaveLength(1);
+    expect(secondPage.items[0]?.name).toBe("b-mid.pdf");
+    expect(secondPage.hasMore).toBe(true);
+
+    const thirdPage = await fetchDriveRecentsPage({
+      prefix: "drive/users/u/",
+      token: "test-token",
+      limit: 1,
+      cursor: secondPage.nextCursor ?? undefined,
+      fetchTaskOutputs,
+    });
+
+    expect(thirdPage.items).toHaveLength(1);
+    expect(thirdPage.items[0]?.name).toBe("c-old.pdf");
+    expect(thirdPage.hasMore).toBe(false);
   });
 });
 

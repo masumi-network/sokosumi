@@ -14,12 +14,14 @@ interface RecentsCursorPayload {
   id: string;
   driveBlobCursor?: string | null;
   taskFileCursor?: string | null;
+  pendingItems?: DriveRecentsItem[];
 }
 
 export interface DriveRecentsPageState {
   lastItem: DriveRecentsItem | null;
   driveBlobCursor: string | null;
   taskFileCursor: string | null;
+  pendingItems: DriveRecentsItem[];
 }
 
 export interface DriveRecentsPageResult {
@@ -75,6 +77,7 @@ export function encodeDriveRecentsCursor(input: {
   lastItem: DriveRecentsItem;
   driveBlobCursor: string | null;
   taskFileCursor: string | null;
+  pendingItems?: DriveRecentsItem[];
 }): string {
   const payload: RecentsCursorPayload = {
     v: RECENTS_CURSOR_VERSION,
@@ -83,6 +86,9 @@ export function encodeDriveRecentsCursor(input: {
     id: recentsItemId(input.lastItem),
     driveBlobCursor: input.driveBlobCursor,
     taskFileCursor: input.taskFileCursor,
+    ...(input.pendingItems && input.pendingItems.length > 0
+      ? { pendingItems: input.pendingItems }
+      : {}),
   };
   return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
 }
@@ -127,6 +133,7 @@ export function decodeDriveRecentsCursor(
       lastItem,
       driveBlobCursor: payload.driveBlobCursor ?? null,
       taskFileCursor: payload.taskFileCursor ?? null,
+      pendingItems: payload.pendingItems ?? [],
     };
   } catch (error) {
     if (
@@ -232,6 +239,7 @@ export async function fetchDriveRecentsPage(input: {
         lastItem: null,
         driveBlobCursor: null,
         taskFileCursor: null,
+        pendingItems: [],
       };
 
   const batchSize = Math.max(input.limit * 4, 20);
@@ -268,6 +276,26 @@ export async function fetchDriveRecentsPage(input: {
       poolItemIds.add(itemId);
       pool.push(item);
     }
+  }
+
+  addItemsToPool(pageState.pendingItems);
+
+  function collectPendingItems(
+    returnedItems: DriveRecentsItem[],
+  ): DriveRecentsItem[] {
+    const returnedIds = new Set(returnedItems.map(recentsItemId));
+    const pending: DriveRecentsItem[] = [];
+    for (const item of pool) {
+      if (!shouldIncludeItem(item)) {
+        continue;
+      }
+      if (returnedIds.has(recentsItemId(item))) {
+        continue;
+      }
+      pending.push(item);
+    }
+    pending.sort(compareDriveRecentsItems);
+    return pending;
   }
 
   function getTopEligiblePreview(): {
@@ -376,6 +404,7 @@ export async function fetchDriveRecentsPage(input: {
   const hasMore = merged.length > input.limit;
   const items = merged.slice(0, input.limit);
   const lastItem = items[items.length - 1] ?? null;
+  const pendingItems = hasMore ? collectPendingItems(items) : [];
 
   return {
     items,
@@ -386,6 +415,7 @@ export async function fetchDriveRecentsPage(input: {
             lastItem,
             driveBlobCursor,
             taskFileCursor,
+            pendingItems,
           })
         : null,
     driveBlobCursor,

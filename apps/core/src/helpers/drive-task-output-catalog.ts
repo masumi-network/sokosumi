@@ -80,6 +80,7 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
     searchQuery,
   });
 
+  let effectiveCursor = cursor;
   if (cursor) {
     const cursorFile = await prisma.taskFile.findFirst({
       where: {
@@ -89,7 +90,7 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
       select: { id: true },
     });
     if (!cursorFile) {
-      return { rows: [], hasMore: false, nextCursor: null };
+      effectiveCursor = undefined;
     }
   }
 
@@ -97,8 +98,8 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
     where: taskFileWhere,
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: takePlusOne,
-    skip: cursor ? 1 : undefined,
-    cursor: cursor ? { id: cursor } : undefined,
+    skip: effectiveCursor ? 1 : undefined,
+    cursor: effectiveCursor ? { id: effectiveCursor } : undefined,
     include: {
       task: {
         select: {
