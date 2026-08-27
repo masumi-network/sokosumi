@@ -3,6 +3,7 @@ import {
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   isSokoBotCapability,
+  SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
   type SokoBotCapability,
   type SokoBotVersion,
@@ -102,6 +103,26 @@ export async function listSokoBotVersions(): Promise<
   ];
 }
 
+/**
+ * What a non-admin may see and run: the built-ins plus the promoted default.
+ * Unpromoted authored versions are drafts — their composed system prompt is
+ * console-internal, and pinning a bot to one would bypass promotion.
+ */
+export async function listSelectableSokoBotVersions(): Promise<
+  (SokoBotVersion & { authored: boolean })[]
+> {
+  const all = await listSokoBotVersions();
+  const defaultId = await getDefaultSokoBotVersionId();
+  return all.filter((version) => !version.authored || version.id === defaultId);
+}
+
+export async function isSelectableSokoBotVersionId(
+  slug: string,
+): Promise<boolean> {
+  if (isBuiltInId(slug)) return true;
+  return slug === (await getDefaultSokoBotVersionId());
+}
+
 export async function isKnownSokoBotVersionId(slug: string): Promise<boolean> {
   if (isBuiltInId(slug)) return true;
   const row = await prisma.sokoBotAuthoredVersion.findFirst({
@@ -130,6 +151,14 @@ function assertValid(input: AuthoredVersionInput): void {
   );
   if (unknown.length > 0) {
     throw unprocessableEntity(`Unknown tools: ${unknown.join(", ")}`);
+  }
+  // composeSystemPrompt throws on an unknown skill id, which would fail every
+  // turn of this version at run time. Reject it while the author is watching.
+  const unknownSkills = input.skills.filter(
+    (id) => !SOKO_BOT_SKILLS.some((skill) => skill.id === id),
+  );
+  if (unknownSkills.length > 0) {
+    throw unprocessableEntity(`Unknown skills: ${unknownSkills.join(", ")}`);
   }
 }
 
@@ -205,10 +234,20 @@ export async function archiveAuthoredVersion(slug: string): Promise<void> {
   if (setting?.defaultVersionId === slug) {
     throw conflict("Promote another version before archiving this default");
   }
-  await prisma.sokoBotAuthoredVersion.update({
-    where: { id: row.id },
-    data: { archivedAt: new Date() },
-  });
+  const fallbackVersionId = await getDefaultSokoBotVersionId();
+  await prisma.$transaction([
+    prisma.sokoBotAuthoredVersion.update({
+      where: { id: row.id },
+      data: { archivedAt: new Date() },
+    }),
+    // Repoint pinned bots explicitly. Resolution would otherwise miss the
+    // archived row and fall back on its own, silently changing the prompt and
+    // model of a bot whose stored versionId still names the archived version.
+    prisma.sokoBot.updateMany({
+      where: { versionId: slug },
+      data: { versionId: fallbackVersionId },
+    }),
+  ]);
 }
 
 /**

@@ -70,15 +70,12 @@ export function composeSystemPrompt(
   ].join("\n\n");
 }
 
-/** Route ceiling ∩ version allowlist; scratch tools always stay. */
+/** Route ceiling ∩ version allowlist; a version narrows, it never widens. */
 export function applyVersionCapabilities(
   version: SokoBotVersion,
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
   if (!version.capabilities) return [...capabilities];
   const allowed = new Set<SokoBotCapability>(version.capabilities);
-  return capabilities.filter(
-    (capability) =>
-      allowed.has(capability) || capability.startsWith("scratch_"),
-  );
+  return capabilities.filter((capability) => allowed.has(capability));
 }

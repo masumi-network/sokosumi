@@ -80,12 +80,44 @@ interface AgentPricingRow {
   } | null;
 }
 
+/**
+ * Strips the owner's private surfaces from an assembled packet. Workspace
+ * projects, tasks, and jobs stay: every member of that workspace can already
+ * see them. Durable memory, prior turns, the owner's approval queue, and their
+ * credit balance cannot be published into a shared room.
+ */
+function redactForTeammate(
+  packet: ContextPacketWithoutHash,
+): ContextPacketWithoutHash {
+  return {
+    ...packet,
+    workspace: {
+      ...packet.workspace,
+      plan: null,
+      subscriptionStatus: null,
+      availableCredits: null,
+      bufferCredits: null,
+      subscriptionRemainingCredits: null,
+      enterpriseRemainingCredits: null,
+    },
+    pendingDecisions: [],
+    recentTurns: [],
+    memory: { version: 0, hash: null, markdown: "# Soko Bot memory" },
+  };
+}
+
 export interface BuildContextPacketInput {
   userId: string;
   sokoBotId: string;
   workspaceId: string;
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
   classification: TurnClassification;
+  /**
+   * Who the turn answers. A teammate mentioning someone else's bot in a shared
+   * room receives the model's answer in that room, so the packet must not carry
+   * the owner's private surfaces even though the turn runs as the owner.
+   */
+  audience?: "OWNER" | "TEAMMATE";
 }
 
 export interface BuiltContextPacket {
@@ -904,7 +936,12 @@ export class ContextPacketBuilder {
       counts,
       omissions: {},
     };
-    const fitted = fitPacketToBudget(packetWithoutHash, counts);
+    const fitted = fitPacketToBudget(
+      input.audience === "TEAMMATE"
+        ? redactForTeammate(packetWithoutHash)
+        : packetWithoutHash,
+      counts,
+    );
 
     return {
       packet: fitted.packet,

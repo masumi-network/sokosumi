@@ -96,16 +96,6 @@ function syncRequestLogger(context: AuthVariables) {
     return;
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
-    attachAuthToLogger({
-      actor: "orchestrator",
-      orchestratorId: authContext.orchestratorId,
-      contextUserId: authContext.context?.userId,
-      contextOrganizationId: authContext.context?.organizationId,
-    });
-    return;
-  }
-
   if (isCoworkerAuthContext(authContext)) {
     attachAuthToLogger({
       actor: "coworker",

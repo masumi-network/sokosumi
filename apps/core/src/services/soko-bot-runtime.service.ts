@@ -60,6 +60,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
@@ -95,8 +96,6 @@ const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALL_LIMIT_PER_TURN = 64;
 const TOOL_RESULT_MAX_BYTES = 16_384;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
-const PERSISTED_VALUE_MAX_DEPTH = 8;
-const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
 
 interface SellerReservationMarker {
@@ -224,8 +223,11 @@ export interface SokoBotActionContext {
     userId: string;
     workspaceId: string;
     eveSessionId: string | null;
-    versionId?: string | null;
-    source?: string | null;
+    // Required, not optional: both were silently dropped from authorize()'s
+    // return once, which made every turn resolve the default version and
+    // disabled the DRAFT-only rule for self-started work.
+    versionId: string | null;
+    source: string | null;
   };
   classificationConfidence: number;
   hasNegatedMutationIntent: boolean;
@@ -321,44 +323,6 @@ function serializeSellerReservationMarker(
     ...marker,
     ...(error === undefined ? {} : { error: persistedErrorDetail(error) }),
   });
-}
-
-function sanitizePersistedValue(
-  value: unknown,
-  depth = 0,
-  seen = new WeakSet<object>(),
-): unknown {
-  if (value === null || typeof value === "boolean") return value;
-  if (typeof value === "string") return redactSokoBotSensitiveText(value);
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value === "bigint") return value.toString();
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value !== "object") return String(value);
-  if (depth >= PERSISTED_VALUE_MAX_DEPTH || seen.has(value)) {
-    return "[Truncated]";
-  }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    const items = value
-      .slice(0, PERSISTED_COLLECTION_MAX_ITEMS)
-      .map((item) => sanitizePersistedValue(item, depth + 1, seen));
-    if (value.length > items.length) items.push("[Truncated]");
-    return items;
-  }
-
-  const result: Record<string, unknown> = {};
-  const entries = Object.entries(value).slice(
-    0,
-    PERSISTED_COLLECTION_MAX_ITEMS,
-  );
-  for (const [key, entry] of entries) {
-    const safeKey = redactSokoBotSensitiveText(key);
-    result[safeKey] = containsSokoBotSensitiveMaterial(`${key}: value`)
-      ? redactSokoBotSensitiveText(`${key}: value`)
-      : sanitizePersistedValue(entry, depth + 1, seen);
-  }
-  if (Object.keys(value).length > entries.length) result._truncated = true;
-  return result;
 }
 
 function persistedToolResult(value: unknown): Prisma.InputJsonValue {
@@ -666,6 +630,8 @@ export class SokoBotRuntimeService {
         userId: turn.userId,
         workspaceId: turn.workspaceId,
         eveSessionId: storedSessionId,
+        versionId: turn.versionId,
+        source: turn.source,
       },
       classificationConfidence:
         typeof turn.classification === "object" &&
@@ -2231,12 +2197,6 @@ export class SokoBotRuntimeService {
           return { deleted: true, ...deleted };
         });
       }
-      case "scratch_read":
-      case "scratch_write":
-      case "scratch_list":
-        throw new SokoBotRuntimeValidationError(
-          "Scratch capabilities execute inside Eve sandbox only",
-        );
     }
   }
 
@@ -2750,6 +2710,7 @@ export class SokoBotRuntimeService {
             userId,
             workspaceId: decision.workspaceId,
             eveSessionId: decision.turn.eveSessionId,
+            versionId: decision.turn.versionId,
             source: decision.turn.source,
           },
           classificationConfidence: 1,
@@ -2771,6 +2732,8 @@ export class SokoBotRuntimeService {
               userId,
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
+              versionId: decision.turn.versionId,
+              source: decision.turn.source,
             },
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
@@ -2789,6 +2752,8 @@ export class SokoBotRuntimeService {
               userId,
               workspaceId: decision.workspaceId,
               eveSessionId: decision.turn.eveSessionId,
+              versionId: decision.turn.versionId,
+              source: decision.turn.source,
             },
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,

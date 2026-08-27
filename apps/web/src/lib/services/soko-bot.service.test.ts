@@ -13,7 +13,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: coreMock,
 }));
 
-import { sokoBotService } from "../soko-bot.service";
+import { sokoBotService } from "./soko-bot.service";
 
 describe("sokoBotService", () => {
   beforeEach(() => {

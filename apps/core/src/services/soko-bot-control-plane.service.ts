@@ -14,7 +14,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_ROUTE_CAPABILITIES,
-  SOKO_BOT_SCRATCH_CAPABILITIES,
+  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
@@ -55,6 +55,7 @@ import {
 import {
   getDefaultSokoBotVersionId,
   isKnownSokoBotVersionId,
+  isSelectableSokoBotVersionId,
   resolveSokoBotVersion,
 } from "@/services/soko-bot-version.service";
 
@@ -1622,21 +1623,18 @@ export class SokoBotControlPlane {
     const requestedByTeammate =
       !!input.chat?.requestedByUserId &&
       input.chat.requestedByUserId !== input.userId;
-    // A teammate may ask the owner's bot questions but never spend the
-    // owner's credits or create work in their name: read-only ceiling.
+    // A teammate may ask the owner's bot questions but never spend the owner's
+    // credits, create work in their name, or read the owner's private surfaces:
+    // the answer is published back into the shared room.
     const version = await resolveSokoBotVersion(
       input.versionId ?? bot.versionId,
     );
     const capabilities = applyVersionCapabilities(
       version,
       (requestedByTeammate
-        ? [
-            ...SOKO_BOT_ROUTE_CAPABILITIES.CLARIFY,
-            ...SOKO_BOT_SCRATCH_CAPABILITIES,
-          ]
+        ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
         : [
             ...SOKO_BOT_ROUTE_CAPABILITIES[classification.classification.route],
-            ...SOKO_BOT_SCRATCH_CAPABILITIES,
           ]) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
@@ -1655,6 +1653,7 @@ export class SokoBotControlPlane {
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       classification: classification.classification,
+      audience: requestedByTeammate ? "TEAMMATE" : "OWNER",
     });
     const contextSnapshotId = randomUUID();
 
@@ -2399,9 +2398,18 @@ export class SokoBotControlPlane {
     }, "Soko Bot memory changed concurrently");
   }
 
-  async updateVersion(userId: string, workspaceId: string, versionId: string) {
-    // Built-in or console-authored; both share one id namespace.
-    if (!(await isKnownSokoBotVersionId(versionId))) {
+  async updateVersion(
+    userId: string,
+    workspaceId: string,
+    versionId: string,
+    options: { allowUnpromoted: boolean } = { allowUnpromoted: false },
+  ) {
+    // Built-in or console-authored; both share one id namespace. Authored
+    // versions are selectable only once promoted, except from the admin lab.
+    const known = options.allowUnpromoted
+      ? await isKnownSokoBotVersionId(versionId)
+      : await isSelectableSokoBotVersionId(versionId);
+    if (!known) {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }
     const updated = await prisma.sokoBot.updateMany({

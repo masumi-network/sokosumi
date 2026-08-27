@@ -17,7 +17,9 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { generateText, stepCountIs, type ToolSet, tool } from "ai";
 
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
@@ -63,6 +65,16 @@ async function settleNow(turnId: string): Promise<void> {
  */
 const MAX_STEPS = 24;
 
+/**
+ * How long one turn may run inside a single invocation. Vercel kills Core at
+ * `maxDuration` (300s), and a killed invocation writes neither `turn.failed`
+ * nor `session.waiting` — the turn then stays RUNNING until the 15-minute
+ * watchdog, which never fires on preview because crons run on production
+ * deployments only. Stopping first is what keeps the loop able to settle
+ * itself.
+ */
+const TURN_RUNTIME_BUDGET_MS = 240_000;
+
 function runtimeEvent(
   type: string,
   data: Record<string, unknown>,
@@ -79,8 +91,20 @@ function runtimeEvent(
  * serverless invocations share no memory: the loop appends here and the
  * `/sync/soko-bot-turns` drain reads it back through `streamEvents`.
  */
+/**
+ * How many times an append re-reads the tail after losing `(turnId, startIndex)`
+ * to another writer. Cancellation builds its own log, so at most a handful of
+ * writers ever contend for one turn.
+ */
+const MAX_APPEND_ATTEMPTS = 5;
+
 class RuntimeEventLog {
   private index: number | null = null;
+  /**
+   * Appends run one at a time. Parallel tool calls append concurrently, and two
+   * callers that both read a null index would otherwise claim the same slot.
+   */
+  private tail: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly turnId: string,
@@ -103,21 +127,48 @@ class RuntimeEventLog {
   }
 
   async append(event: RuntimeEvent): Promise<void> {
-    const startIndex = await this.nextIndex();
-    await prisma.sokoBotRuntimeEvent.createMany({
-      data: [
-        {
-          turnId: this.turnId,
-          sessionId: this.sessionId,
-          startIndex,
-          eventId: event.meta.id,
-          type: event.type,
-          data: { ...event.data },
-          occurredAt: new Date(event.meta.at),
-        },
-      ],
-      skipDuplicates: true,
-    });
+    const queued = this.tail.then(
+      () => this.write(event),
+      () => this.write(event),
+    );
+    // A failed append must not cancel the ones queued behind it.
+    this.tail = queued.catch(() => undefined);
+    return queued;
+  }
+
+  /**
+   * Writes one event, taking the next free index. A cancellation appended from
+   * a separate log can hold the index this one just read; that must retry
+   * rather than drop the event, because losing `session.waiting` leaves the
+   * turn unsettled until the watchdog expires it.
+   */
+  private async write(event: RuntimeEvent): Promise<void> {
+    for (let attempt = 1; attempt <= MAX_APPEND_ATTEMPTS; attempt += 1) {
+      const startIndex = await this.nextIndex();
+      try {
+        await prisma.sokoBotRuntimeEvent.create({
+          data: {
+            turnId: this.turnId,
+            sessionId: this.sessionId,
+            startIndex,
+            eventId: event.meta.id,
+            type: event.type,
+            data: { ...event.data },
+            occurredAt: new Date(event.meta.at),
+          },
+        });
+        return;
+      } catch (error) {
+        if (
+          !isPrismaUniqueViolation(error) ||
+          attempt === MAX_APPEND_ATTEMPTS
+        ) {
+          throw error;
+        }
+        // Another writer took this slot: re-read the tail and take the next.
+        this.index = null;
+      }
+    }
   }
 }
 
@@ -139,13 +190,16 @@ async function runTurn(
   input: RuntimeTurnInput,
 ): Promise<void> {
   const log = new RuntimeEventLog(input.turnId, sessionId);
-  await log.append(runtimeEvent("session.started", { sessionId }));
-  await log.append(runtimeEvent("turn.started", { turnId: input.turnId }));
-  await log.append(
-    runtimeEvent("message.received", { message: input.message }),
-  );
+  const abortSignal = AbortSignal.timeout(TURN_RUNTIME_BUDGET_MS);
 
   try {
+    // Inside the try: an append that fails here must still settle the turn
+    // rather than abandon it in RUNNING.
+    await log.append(runtimeEvent("session.started", { sessionId }));
+    await log.append(runtimeEvent("turn.started", { turnId: input.turnId }));
+    await log.append(
+      runtimeEvent("message.received", { message: input.message }),
+    );
     const service = await runtimeService();
     const authorized = await service.authorize({
       sessionId,
@@ -167,8 +221,16 @@ async function runTurn(
         async execute(toolInput: unknown, options: { toolCallId: string }) {
           const callId = options.toolCallId;
           await log.append(
+            // The model chose this input; it can carry a key or password, and
+            // runtime events outlive the turn.
             runtimeEvent("actions.requested", {
-              actions: [{ name: capability, callId, input: toolInput }],
+              actions: [
+                {
+                  name: capability,
+                  callId,
+                  input: sanitizePersistedValue(toolInput),
+                },
+              ],
             }),
           );
           const result = await service.executeTool({
@@ -207,6 +269,7 @@ async function runTurn(
       messages: [{ role: "user", content: input.message }],
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
+      abortSignal,
       async onStepFinish(step) {
         await log.append(
           runtimeEvent("step.completed", {
@@ -247,15 +310,19 @@ async function runTurn(
     );
     await log.append(runtimeEvent("turn.completed", {}));
   } catch (error) {
-    await log.append(
-      runtimeEvent("turn.failed", {
-        code: error instanceof Error ? error.name : "runtime_failed",
-        message:
-          error instanceof Error ? error.message : "Soko Bot turn failed",
-      }),
-    );
+    // Best effort: if the log itself is what failed, the watchdog settles the
+    // turn. Swallowing here keeps `session.waiting` and settlement reachable.
+    await log
+      .append(
+        runtimeEvent("turn.failed", {
+          code: error instanceof Error ? error.name : "runtime_failed",
+          message:
+            error instanceof Error ? error.message : "Soko Bot turn failed",
+        }),
+      )
+      .catch(() => undefined);
   }
-  await log.append(runtimeEvent("session.waiting", {}));
+  await log.append(runtimeEvent("session.waiting", {})).catch(() => undefined);
   await settleNow(input.turnId);
 }
 

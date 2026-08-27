@@ -412,6 +412,41 @@ describe("SokoBotRuntimeService authorization", () => {
     ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
   });
 
+  it("carries the turn's version and source into the action context", async () => {
+    // Dropping these silently made every turn resolve the default version and
+    // disabled the DRAFT-only rule for self-started work.
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      versionId: "inbox-tuned",
+      source: "SCHEDULE",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+
+    const service = new SokoBotRuntimeService();
+    const authorized = await service.authorize({
+      ...SCOPE,
+      capability: "create_task",
+    });
+
+    expect(authorized.turn.versionId).toBe("inbox-tuned");
+    expect(authorized.turn.source).toBe("SCHEDULE");
+  });
+
   it("denies Context reads while cancellation settles", async () => {
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
@@ -1216,6 +1251,7 @@ describe("SokoBotRuntimeService authorization", () => {
       "coworker_1",
       SCOPE.workspaceId,
       expect.anything(),
+      { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
     );
   });
 
@@ -1739,6 +1775,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
       "coworker_1",
       SCOPE.workspaceId,
       expect.anything(),
+      { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
     );
     expect(transactionTaskUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({

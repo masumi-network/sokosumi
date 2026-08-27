@@ -226,6 +226,7 @@ describe("task coworker whitelist enforcement", () => {
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
       tx,
+      { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
@@ -408,6 +409,7 @@ describe("task coworker whitelist enforcement", () => {
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
       tx,
+      { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });

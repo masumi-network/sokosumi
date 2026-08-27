@@ -11,7 +11,7 @@ import {
   briefingDue,
   buildIngestMessage,
   localClock,
-} from "../soko-bot-ingest.service";
+} from "./soko-bot-ingest.service";
 
 describe("soko-bot ingest", () => {
   it("reads the local clock in the bot's timezone", () => {

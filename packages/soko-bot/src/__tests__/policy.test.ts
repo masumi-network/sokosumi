@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SOKO_BOT_ROUTE_CAPABILITIES,
-  SOKO_BOT_SCRATCH_CAPABILITIES,
+  SOKO_BOT_TEAMMATE_CAPABILITIES,
 } from "../policy.js";
 
 describe("Soko Bot route capability ceilings", () => {
@@ -23,14 +23,6 @@ describe("Soko Bot route capability ceilings", () => {
     expect(SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT).not.toContain("create_task");
   });
 
-  it("keeps scratch capabilities outside product policy", () => {
-    for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES)) {
-      for (const scratch of SOKO_BOT_SCRATCH_CAPABILITIES) {
-        expect(capabilities).not.toContain(scratch);
-      }
-    }
-  });
-
   it("keeps write tools off the read-only routes", () => {
     // CLARIFY and MIXED are read-only by the operating contract; a tool that
     // sends, posts, writes or runs something must never appear on them.
@@ -47,6 +39,38 @@ describe("Soko Bot route capability ceilings", () => {
       for (const write of writes) {
         expect(allowed).not.toContain(write);
       }
+    }
+  });
+
+  it("keeps the owner's private surfaces off the teammate ceiling", () => {
+    // A teammate mention answers into a shared room, so anything that reads
+    // the owner's own data would publish it to the room.
+    const ownerPrivate = [
+      "read_memory",
+      "update_memory",
+      "search_inbox",
+      "read_email",
+      "list_calendar_events",
+      "list_files",
+      "upload_file",
+      "list_chats",
+      "read_chat",
+      "post_chat",
+      "list_integrations",
+      "list_integration_tools",
+      "run_integration_tool",
+      "list_schedules",
+    ] as const;
+    const allowed = SOKO_BOT_TEAMMATE_CAPABILITIES as readonly string[];
+    for (const capability of ownerPrivate) {
+      expect(allowed).not.toContain(capability);
+    }
+  });
+
+  it("keeps the teammate ceiling inside the CLARIFY ceiling", () => {
+    const clarify = SOKO_BOT_ROUTE_CAPABILITIES.CLARIFY as readonly string[];
+    for (const capability of SOKO_BOT_TEAMMATE_CAPABILITIES) {
+      expect(clarify).toContain(capability);
     }
   });
 });

@@ -32,7 +32,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
 }));
 
-import { adminSokoBotService } from "../admin-soko-bot.service";
+import { adminSokoBotService } from "./admin-soko-bot.service";
 
 describe("adminSokoBotService", () => {
   beforeEach(() => {

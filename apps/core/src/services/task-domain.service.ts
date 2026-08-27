@@ -8,7 +8,10 @@ import {
 } from "@sokosumi/database";
 import { isTaskEditableStatus } from "@sokosumi/utils";
 
-import { requireTaskAssignableCoworker } from "@/helpers/access-control";
+import {
+  requireTaskAssignableCoworker,
+  type TaskAssigner,
+} from "@/helpers/access-control";
 import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   isGrantDeniedOrRevoked,
@@ -92,11 +95,24 @@ async function requireProjectInWorkspace(
   if (!project) throw notFound("Project not found");
 }
 
+/** Only a user or a Soko Bot acting for itself carries tasking authority. */
+function taskAssigner(actor: TaskDomainActor): TaskAssigner {
+  switch (actor.kind) {
+    case "user":
+      return { kind: "user", userId: actor.userId };
+    case "soko_bot":
+      return { kind: "soko_bot", sokoBotId: actor.sokoBotId };
+    case "coworker":
+      return { kind: "other" };
+  }
+}
+
 async function requireTaskReferences(
   input: {
     projectId?: string | null;
     assigneeId?: string | null;
     workspaceId: string;
+    actor: TaskDomainActor;
   },
   tx: Prisma.TransactionClient,
 ): Promise<void> {
@@ -106,6 +122,7 @@ async function requireTaskReferences(
       input.assigneeId,
       input.workspaceId,
       tx,
+      taskAssigner(input.actor),
     );
   }
 }
@@ -296,6 +313,7 @@ export async function updateTaskForActor(
       workspaceId: task.workspaceId,
       projectId: input.projectId,
       assigneeId: assigneeIdWasProvided ? input.assigneeId : undefined,
+      actor: input.actor,
     },
     tx,
   );

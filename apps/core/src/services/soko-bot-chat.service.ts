@@ -32,9 +32,6 @@ const CAPABILITY_LABELS: Record<string, string> = {
   request_user_decision: "Asking for your approval",
   read_memory: "Reading memory",
   update_memory: "Updating memory",
-  scratch_read: "Reading notes",
-  scratch_write: "Writing notes",
-  scratch_list: "Listing notes",
 };
 
 export function sokoBotCapabilityLabel(toolName: string | null): string {

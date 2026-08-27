@@ -36,7 +36,7 @@ import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 import {
   buildEventMessage,
   SokoBotEventsSyncService,
-} from "../soko-bot-events-sync.service";
+} from "./soko-bot-events-sync.service";
 
 const turn = { sokoBotId: "bot_1", userId: "user_1", workspaceId: "ws_1" };
 const input = {

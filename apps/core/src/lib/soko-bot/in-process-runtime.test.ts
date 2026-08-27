@@ -5,7 +5,7 @@ const pendingTurns: Promise<unknown>[] = [];
 const {
   reconcileTurnMock,
   authorizeMock,
-  createManyMock,
+  createEventMock,
   executeToolMock,
   findFirstMock,
   findManyMock,
@@ -15,7 +15,7 @@ const {
 } = vi.hoisted(() => ({
   reconcileTurnMock: vi.fn(),
   authorizeMock: vi.fn(),
-  createManyMock: vi.fn(),
+  createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
   findFirstMock: vi.fn(),
   findManyMock: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock("ai", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotRuntimeEvent: {
-      createMany: createManyMock,
+      create: createEventMock,
       findFirst: findFirstMock,
       findMany: findManyMock,
       deleteMany: vi.fn(),
@@ -60,7 +60,7 @@ import { InProcessSokoBotRuntime } from "./in-process-runtime";
 const TURN_ID = "01960001-0001-7001-8001-000000000001";
 
 function recordedEvents(): { type: string; data: Record<string, unknown> }[] {
-  return createManyMock.mock.calls.map((call) => call[0].data[0]);
+  return createEventMock.mock.calls.map((call) => call[0].data);
 }
 
 describe("InProcessSokoBotRuntime", () => {

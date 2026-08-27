@@ -390,13 +390,29 @@ export async function requireCoworkerChatCapabilityInWorkspace(
 }
 
 /**
+ * Who is putting the coworker on the task. `null` means the assignee is not
+ * changing (a workspace move re-checks the existing one), so no new tasking
+ * authority is being exercised.
+ */
+export type TaskAssigner =
+  | { kind: "user"; userId: string }
+  | { kind: "soko_bot"; sokoBotId: string }
+  | { kind: "other" }
+  | null;
+
+/**
  * Human task assign: coworker must be usable in the target workspace and have
  * the tasks capability.
+ *
+ * A Soko Bot is visible to its whole workspace but is not a shared worker: only
+ * its owner may task it, because an assigned Task is mandatory work that spends
+ * the owner's credits and runs past their proactive pause.
  */
 export async function requireTaskAssignableCoworker(
   coworkerId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
+  assigner: TaskAssigner = null,
 ): Promise<void> {
   const coworker = await findUsableCoworkerByCapabilityInWorkspace(
     coworkerId,
@@ -409,6 +425,20 @@ export async function requireTaskAssignableCoworker(
     // Covers missing, archived, no tasks capability, and no whitelist/GRANTED
     // access in this workspace (including task moves into a foreign workspace).
     throw notFound("Coworker is not usable in this workspace");
+  }
+
+  if (!assigner) return;
+  const sokoBot = await tx.sokoBot.findFirst({
+    where: { coworkerId, archivedAt: null },
+    select: { id: true, userId: true },
+  });
+  if (!sokoBot) return;
+  const isOwner =
+    assigner.kind === "user"
+      ? sokoBot.userId === assigner.userId
+      : assigner.kind === "soko_bot" && sokoBot.id === assigner.sokoBotId;
+  if (!isOwner) {
+    throw forbidden("Only the owner can assign work to this Soko Bot");
   }
 }
 

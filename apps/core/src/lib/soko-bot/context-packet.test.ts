@@ -571,4 +571,52 @@ describe("ContextPacketBuilder", () => {
       if (collection.length > 0) expect(collection[0]?.id).toContain("-0");
     }
   });
+
+  it("withholds the owner's private surfaces from a teammate turn", async () => {
+    // A teammate mention runs as the owner and answers into the shared room,
+    // so the packet must not carry what only the owner should see.
+    pendingDecisionFindManyMock.mockResolvedValue([
+      pendingDecision("decision-1"),
+    ]);
+    recentTurnFindManyMock.mockResolvedValue([
+      recentTurn("turn-new", "Private request", "Private answer"),
+    ]);
+    memoryFindFirstMock.mockResolvedValue({
+      id: "memory-1",
+      version: 3,
+      hash: "memory-hash",
+      markdown: "# Soko Bot memory\n\n## Active goals\n- Ship the secret",
+    });
+
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      audience: "TEAMMATE" as const,
+    });
+    const serialized = JSON.stringify(result.packet);
+
+    expect(result.packet.memory.markdown).toBe("# Soko Bot memory");
+    expect(result.packet.memory.version).toBe(0);
+    expect(result.packet.recentTurns).toEqual([]);
+    expect(result.packet.pendingDecisions).toEqual([]);
+    expect(result.packet.workspace.availableCredits).toBeNull();
+    expect(serialized).not.toContain("Ship the secret");
+    expect(serialized).not.toContain("Private answer");
+  });
+
+  it("keeps the owner's own turn complete", async () => {
+    recentTurnFindManyMock.mockResolvedValue([
+      recentTurn("turn-new", "Owner request", "Owner answer"),
+    ]);
+    memoryFindFirstMock.mockResolvedValue({
+      id: "memory-1",
+      version: 3,
+      hash: "memory-hash",
+      markdown: "# Soko Bot memory\n\n## Active goals\n- Ship the project",
+    });
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.memory.version).toBe(3);
+    expect(result.packet.recentTurns).toHaveLength(1);
+  });
 });

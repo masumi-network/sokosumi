@@ -123,22 +123,6 @@ export const sokoBotMemoryUpdateInputSchema = z
   .object({ markdown: z.string().min(1).max(16_384) })
   .strict();
 
-export const sokoBotScratchPathSchema = z
-  .string()
-  .regex(/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,199}$/)
-  .refine((value) => !value.includes("..") && !value.startsWith("/"));
-
-export const sokoBotScratchReadInputSchema = z
-  .object({ path: sokoBotScratchPathSchema })
-  .strict();
-
-export const sokoBotScratchWriteInputSchema = z
-  .object({
-    path: sokoBotScratchPathSchema,
-    content: z.string().max(16_384),
-  })
-  .strict();
-
 const cronExpressionSchema = z.string().trim().min(9).max(120);
 const timezoneSchema = z.string().trim().min(1).max(100);
 
@@ -282,9 +266,6 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   create_schedule: sokoBotCreateScheduleInputSchema,
   update_schedule: sokoBotUpdateScheduleInputSchema,
   delete_schedule: sokoBotScheduleIdInputSchema,
-  scratch_read: sokoBotScratchReadInputSchema,
-  scratch_write: sokoBotScratchWriteInputSchema,
-  scratch_list: emptyInputSchema,
 } as const satisfies Record<SokoBotCapability, z.ZodType>;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
@@ -344,9 +325,6 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
   delete_schedule:
     "Remove a follow-up schedule once its work is done or the owner no longer wants it. Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
-  scratch_read: "Read bounded temporary scratch file from current sandbox.",
-  scratch_write: "Write bounded temporary scratch file in current sandbox.",
-  scratch_list: "List temporary scratch files in current sandbox.",
 } as const satisfies Record<SokoBotCapability, string>;
 
 export function isSokoBotDecisionTarget(

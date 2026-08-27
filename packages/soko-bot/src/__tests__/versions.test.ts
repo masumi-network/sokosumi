@@ -32,7 +32,7 @@ describe("versions", () => {
     expect(prompt).toContain("# Coworker coordination");
   });
 
-  it("intersect the route ceiling with the allowlist but keep scratch tools", () => {
+  it("intersect the route ceiling with the version allowlist", () => {
     const version = {
       ...getSokoBotVersion("v1"),
       capabilities: ["create_task"] as const,
@@ -41,8 +41,8 @@ describe("versions", () => {
       applyVersionCapabilities(version, [
         "create_task",
         "hire_agent",
-        "scratch_read",
+        "read_memory",
       ]),
-    ).toEqual(["create_task", "scratch_read"]);
+    ).toEqual(["create_task"]);
   });
 });

@@ -22,7 +22,7 @@ import {
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -118,7 +118,10 @@ import {
   searchSkillsSh,
 } from "@/services/soko-bot-skills.service";
 import { getSokoBotDailyStats } from "@/services/soko-bot-stats.service";
-import { listSokoBotVersions } from "@/services/soko-bot-version.service";
+import {
+  listSelectableSokoBotVersions,
+  listSokoBotVersions,
+} from "@/services/soko-bot-version.service";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -899,9 +902,12 @@ const listVersionsRoute = createRoute({
 });
 
 app.openapi(listVersionsRoute, async (c) => {
-  requireUserAuthContext(c.var.authContext);
-  // Built-ins plus console-authored versions, so the lab can test a new one.
-  const versions = await listSokoBotVersions();
+  const auth = requireUserAuthContext(c.var.authContext);
+  // Authored drafts carry a console-internal system prompt and have not been
+  // promoted, so only platform admins — who run the lab — see the full list.
+  const versions = hasAdminRole(auth.role)
+    ? await listSokoBotVersions()
+    : await listSelectableSokoBotVersions();
   return ok(
     c,
     versions.map((version) => ({
@@ -1087,6 +1093,7 @@ app.openapi(updateVersionRoute, async (c) => {
       auth.userId,
       workspace.workspaceId,
       c.req.valid("json").versionId,
+      { allowUnpromoted: hasAdminRole(auth.role) },
     );
   } catch (error) {
     mapControlPlaneError(error);

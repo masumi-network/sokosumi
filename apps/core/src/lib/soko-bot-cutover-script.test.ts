@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const coreRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const coreRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const source = readFileSync(
   join(coreRoot, "scripts/import-soko-bot-cutover.mts"),
   "utf8",

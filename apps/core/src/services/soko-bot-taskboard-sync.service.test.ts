@@ -9,7 +9,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 import {
   buildTaskboardMessage,
   isRelevantBoardComment,
-} from "../soko-bot-taskboard-sync.service";
+} from "./soko-bot-taskboard-sync.service";
 
 describe("buildTaskboardMessage", () => {
   it("separates work handed to the bot from updates it only follows", () => {

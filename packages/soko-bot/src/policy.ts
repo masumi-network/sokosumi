@@ -42,9 +42,6 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_calendar_events",
   "list_integration_tools",
   "run_integration_tool",
-  "scratch_read",
-  "scratch_write",
-  "scratch_list",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -81,10 +78,18 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "run_integration_tool",
 ] as const satisfies readonly SokoBotCapability[];
 
-export const SOKO_BOT_SCRATCH_CAPABILITIES = [
-  "scratch_read",
-  "scratch_write",
-  "scratch_list",
+/**
+ * A teammate mentioning someone else's bot in a shared room answers into that
+ * room, so the ceiling is strictly smaller than the owner's own CLARIFY turn:
+ * the owner's private surfaces — durable memory, inbox, calendar, Drive,
+ * connected accounts, and the bot's other chats — stay unreadable. Workspace
+ * projects, tasks, and jobs are already visible to every member of the
+ * workspace the turn runs in, so status reads remain available.
+ */
+export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
+  "refresh_context",
+  "get_task_status",
+  "get_job_status",
 ] as const satisfies readonly SokoBotCapability[];
 
 export const SOKO_BOT_ROUTE_CAPABILITIES = {

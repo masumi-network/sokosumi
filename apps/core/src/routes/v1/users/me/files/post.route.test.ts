@@ -45,6 +45,10 @@ vi.mock("@/middleware/auth", async () => ({
     authContext: AuthenticationContext | null,
   ): authContext is Extract<AuthenticationContext, { actor: "user" }> =>
     authContext?.actor === "user",
+  isCoworkerAuthContext: (
+    authContext: AuthenticationContext | null,
+  ): authContext is Extract<AuthenticationContext, { actor: "coworker" }> =>
+    authContext?.actor === "coworker",
   requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
