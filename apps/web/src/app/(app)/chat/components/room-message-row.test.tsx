@@ -22,6 +22,9 @@ import type {
 import { ChatMessageRow } from "./room-message-row";
 
 vi.mock("next-intl", () => ({
+  useFormatter: () => ({
+    dateTime: (value: Date | string) => `dt:${new Date(value).toISOString()}`,
+  }),
   useTranslations: (namespace?: string) => {
     return (key: string, values?: Record<string, unknown>) => {
       if (key === "Reactions.whoReacted" && values) {

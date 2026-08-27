@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  formatMessageDateTime,
   formatMessageTime,
   messageDayKey,
 } from "@/app/chat/components/room-helpers";
@@ -70,20 +69,5 @@ describe("chat local calendar helpers (SOKOSUMI-A)", () => {
     expect(enUs).not.toEqual(enGb);
     // Production helper uses `undefined` locale — same class of divergence.
     expect(typeof formatMessageTime(iso)).toBe("string");
-  });
-
-  it("formatMessageDateTime with default locale diverges en-US vs en-GB for the same instant", () => {
-    const iso = "2026-08-05T15:30:00.000Z";
-    const enUs = new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(iso));
-    const enGb = new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(iso));
-
-    expect(enUs).not.toEqual(enGb);
-    expect(typeof formatMessageDateTime(iso)).toBe("string");
   });
 });

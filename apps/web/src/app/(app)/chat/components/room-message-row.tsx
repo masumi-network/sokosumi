@@ -18,7 +18,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -121,7 +121,6 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
-  formatMessageDateTime,
   formatMessageTime,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
@@ -138,16 +137,21 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
 
-function MessageEditedLabel({
-  editedAt,
-  className,
-}: {
+interface MessageEditedLabelProps {
   editedAt: Date | string;
   className?: string;
-}) {
+}
+
+function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
   const t = useTranslations("App.Channels");
+  const format = useFormatter();
   const localCalendarReady = useClientLocalCalendarReady();
-  const when = localCalendarReady ? formatMessageDateTime(editedAt) : null;
+  const when = localCalendarReady
+    ? format.dateTime(new Date(editedAt), {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
   const editedWhen = when ? t("Edit.editedAt", { when }) : undefined;
 
   return (
