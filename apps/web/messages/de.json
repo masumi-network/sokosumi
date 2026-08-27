@@ -3934,6 +3934,22 @@
             "memory": "Gedächtnis",
             "audit": "Audit",
             "legacy": "Legacy"
+          },
+          "viewsNav": "Bot-Ansichten",
+          "views": {
+            "status": "Status",
+            "advanced": "Erweitert"
+          },
+          "danger": {
+            "title": "Diesen Soko Bot löschen",
+            "description": "Löscht {name} endgültig, samt Verlauf, Gedächtnis, Zeitplänen und verbundenen Konten. Erstellte Aufgaben und Abrechnungsdaten bleiben erhalten.",
+            "unnamedBot": "dieser Assistent",
+            "confirmLabel": "Zur Bestätigung die E-Mail-Adresse des Besitzers eingeben ({email})",
+            "delete": "Soko Bot löschen",
+            "deleting": "Wird gelöscht…",
+            "deleted": "Soko Bot gelöscht.",
+            "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
+            "error": "Dieser Soko Bot konnte nicht gelöscht werden."
           }
         },
         "Actions": {
@@ -6287,7 +6303,16 @@
         "archiveCancel": "Behalten",
         "archiveConfirm": "Archivieren",
         "archived": "Soko Bot archiviert.",
-        "archiveError": "Der Soko Bot konnte nicht archiviert werden."
+        "archiveError": "Der Soko Bot konnte nicht archiviert werden.",
+        "delete": "Löschen",
+        "deleting": "Wird gelöscht…",
+        "deleteConfirm": "Endgültig löschen",
+        "deleteCancel": "Abbrechen",
+        "deleteConfirmTitle": "Soko Bot löschen?",
+        "deleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden gelöscht. Erstellte Aufgaben bleiben auf deinem Board. Du kannst sofort einen neuen Assistenten anlegen.",
+        "deleteConfirmLabel": "Zur Bestätigung {name} eingeben",
+        "deleteError": "Dein Soko Bot konnte nicht gelöscht werden.",
+        "deleted": "Soko Bot gelöscht."
       },
       "Chat": {
         "defaultName": "Soko Bot",

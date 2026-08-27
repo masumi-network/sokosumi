@@ -113,6 +113,7 @@ import {
   createMySokoBotSchedule as coreCreateMySokoBotSchedule,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteAdminSokoBot as coreDeleteAdminSokoBot,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
   deleteChatsRoomsByIdInviteLinksByToken as coreDeleteChatsRoomsByIdInviteLinksByToken,
@@ -125,6 +126,7 @@ import {
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteMySokoBotPermanently as coreDeleteMySokoBotPermanently,
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
@@ -3856,6 +3858,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function deleteMySokoBotPermanently() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteMySokoBotPermanently({ client }),
+      "Failed to delete Soko Bot",
+    );
+  }
+
+  async function deleteAdminSokoBot(sokoBotId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteAdminSokoBot({ client, path: { sokoBotId } }),
+      "Failed to delete Soko Bot",
+    );
+  }
+
   async function listSokoBotAvatars(query?: {
     take?: number;
     exclude?: string;
@@ -4173,7 +4191,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getAdminSokoBotQuality(query?: { versionId?: string }) {
+  async function getAdminSokoBotQuality(query?: {
+    versionId?: string;
+    sokoBotId?: string;
+  }) {
     return executeCoreOperation(
       getClient,
       (client) =>
@@ -4912,6 +4933,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMySokoBot,
     createMySokoBot,
     archiveMySokoBot,
+    deleteAdminSokoBot,
+    deleteMySokoBotPermanently,
     listSokoBotAvatars,
     claimMySokoBotAvatar,
     introduceMySokoBot,

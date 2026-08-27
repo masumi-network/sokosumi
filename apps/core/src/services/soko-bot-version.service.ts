@@ -262,7 +262,7 @@ export async function archiveAuthoredVersion(slug: string): Promise<void> {
     // archived row and fall back on its own, silently changing the prompt and
     // model of a bot whose stored versionId still names the archived version.
     prisma.sokoBot.updateMany({
-      where: { versionId: slug },
+      where: { versionId: slug, deletedAt: null },
       data: { versionId: fallbackVersionId },
     }),
   ]);

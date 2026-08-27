@@ -1752,8 +1752,15 @@ model SokoBot {
   id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-  /// Soft-deactivate on purge; keep row while tasks/events reference it.
+  /// Reversible owner deactivation. The row keeps its name, memory and history
+  /// and the owner can reactivate it from the console.
   archivedAt DateTime?
+  /// Irreversible owner deletion. Set only when Tasks, task events, billing
+  /// usage or chat messages still reference this bot, so the row must survive
+  /// as a tombstone to keep that provenance resolvable; everything the bot
+  /// owned is erased and the owner is free to create a brand-new bot. A bot
+  /// nothing references is deleted outright instead of tombstoned.
+  deletedAt DateTime?
 
   /// Owner of this Soko Bot. One row per user and workspace (active or archived).
   userId String
@@ -1837,7 +1844,11 @@ model SokoBot {
 
   @@index([archivedAt])
   @@index([lastPolledAt])
-  @@unique([userId, workspaceId])
+  // One LIVE bot per user and workspace. Enforced by the partial unique index
+  // `orchestrator_user_workspace_live_key` (see the migration): Prisma cannot
+  // express `WHERE deleted_at IS NULL`, and a plain unique would let a
+  // tombstone block its owner from ever creating a new bot.
+  @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("orchestrator")
 }

@@ -3965,6 +3965,22 @@
             "memory": "Memory",
             "audit": "Audit",
             "legacy": "Legacy"
+          },
+          "viewsNav": "Bot views",
+          "views": {
+            "status": "Status",
+            "advanced": "Advanced"
+          },
+          "danger": {
+            "title": "Delete this Soko Bot",
+            "description": "Permanently deletes {name}, its history, memory, schedules and connected accounts. Tasks it created and any billing records are kept.",
+            "unnamedBot": "this assistant",
+            "confirmLabel": "Type the owner's email ({email}) to confirm",
+            "delete": "Delete Soko Bot",
+            "deleting": "Deleting…",
+            "deleted": "Soko Bot deleted.",
+            "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
+            "error": "Could not delete this Soko Bot."
           }
         },
         "Actions": {
@@ -6287,7 +6303,16 @@
         "archiveCancel": "Keep",
         "archiveConfirm": "Archive",
         "archived": "Soko Bot archived.",
-        "archiveError": "Could not archive the Soko Bot."
+        "archiveError": "Could not archive the Soko Bot.",
+        "delete": "Delete",
+        "deleting": "Deleting…",
+        "deleteConfirm": "Delete forever",
+        "deleteCancel": "Cancel",
+        "deleteConfirmTitle": "Delete your Soko Bot?",
+        "deleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased. Tasks it created stay on your board. You can create a new assistant straight away.",
+        "deleteConfirmLabel": "Type {name} to confirm",
+        "deleteError": "Could not delete your Soko Bot.",
+        "deleted": "Soko Bot deleted."
       },
       "Chat": {
         "defaultName": "Soko Bot",

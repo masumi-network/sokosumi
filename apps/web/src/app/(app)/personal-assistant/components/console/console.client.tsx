@@ -38,6 +38,7 @@ import {
 } from "../chat/assistant-avatar";
 import { orderedTurns } from "../chat/timeline";
 import { useSokoBotState } from "../chat/use-soko-bot-state";
+import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { IntegrationsSection } from "../integrations-section.client";
@@ -442,6 +443,7 @@ export function SokoBotConsole({
                       {t("Settings.archiveDescription")}
                     </p>
                     <ArchiveSokoBotButton />
+                    <DeleteSokoBotButton botName={state.bot.name ?? null} />
                   </div>
                 </div>
               </Section>

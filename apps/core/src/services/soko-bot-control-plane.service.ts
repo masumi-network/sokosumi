@@ -968,12 +968,13 @@ export class SokoBotControlPlane {
     const defaultVersionId = await getDefaultSokoBotVersionId();
 
     const created = await prisma.$transaction(async (tx) => {
-      const existing = await tx.sokoBot.findUnique({
+      // Only a live row: a deleted bot is a tombstone kept for provenance and
+      // must never be reactivated into the owner's new assistant.
+      const existing = await tx.sokoBot.findFirst({
         where: {
-          userId_workspaceId: {
-            userId: input.userId,
-            workspaceId: input.workspaceId,
-          },
+          userId: input.userId,
+          workspaceId: input.workspaceId,
+          deletedAt: null,
         },
       });
       if (existing) {
@@ -2447,8 +2448,11 @@ export class SokoBotControlPlane {
       )
         ? term
         : null;
+    // Tombstones are emptied rows kept only so Tasks and billing still resolve;
+    // they are not bots and never appear in the fleet.
     const where: Prisma.SokoBotWhereInput = term
       ? {
+          deletedAt: null,
           OR: [
             ...(idTerm ? [{ id: idTerm }] : []),
             { name: { contains: term, mode: "insensitive" } },
@@ -2456,7 +2460,7 @@ export class SokoBotControlPlane {
             { user: { email: { contains: term, mode: "insensitive" } } },
           ],
         }
-      : {};
+      : { deletedAt: null };
     const [items, total] = await prisma.$transaction([
       prisma.sokoBot.findMany({
         where,
@@ -2480,8 +2484,8 @@ export class SokoBotControlPlane {
   }
 
   async getForAdmin(sokoBotId: string) {
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: sokoBotId },
+    const bot = await prisma.sokoBot.findFirst({
+      where: { id: sokoBotId, deletedAt: null },
       include: {
         user: { select: { id: true, name: true, email: true } },
         turns: {

@@ -320,8 +320,31 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("never reactivates a deleted bot into the owner's new assistant", async () => {
+    // The tombstone still holds this (userId, workspaceId), so create() has to
+    // look past it — otherwise deleting and starting over returns the old bot.
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000ffff",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+    });
+
+    expect(botFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ deletedAt: null }),
+      }),
+    );
+    expect(botCreateMock).toHaveBeenCalled();
+    expect(botUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("preserves an administrator pause during profile updates", async () => {
-    botFindUniqueMock.mockResolvedValue({
+    botFindFirstMock.mockResolvedValue({
       id: BOT_ID,
       archivedAt: null,
       adminPausedAt: null,
@@ -407,7 +430,9 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it("reactivates an archived bot explicitly", async () => {
-    botFindUniqueMock.mockResolvedValue({
+    // create() looks up the live row with findFirst so a deleted tombstone can
+    // never be reactivated into the owner's new assistant.
+    botFindFirstMock.mockResolvedValue({
       id: BOT_ID,
       archivedAt: new Date(),
       adminPausedAt: null,
@@ -431,7 +456,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("preserves an administrator pause across owner reactivation", async () => {
     const pausedAt = new Date("2026-08-18T10:00:00.000Z");
-    botFindUniqueMock.mockResolvedValue({
+    botFindFirstMock.mockResolvedValue({
       id: BOT_ID,
       archivedAt: new Date(),
       adminPausedAt: pausedAt,

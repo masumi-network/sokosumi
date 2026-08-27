@@ -3934,6 +3934,22 @@
             "memory": "Memoria",
             "audit": "Auditoría",
             "legacy": "Heredado"
+          },
+          "viewsNav": "Vistas del bot",
+          "views": {
+            "status": "Estado",
+            "advanced": "Avanzado"
+          },
+          "danger": {
+            "title": "Eliminar este Soko Bot",
+            "description": "Elimina {name} de forma permanente, junto con su historial, memoria, programaciones y cuentas conectadas. Las tareas que creó y los registros de facturación se conservan.",
+            "unnamedBot": "este asistente",
+            "confirmLabel": "Escribe el correo del propietario ({email}) para confirmar",
+            "delete": "Eliminar Soko Bot",
+            "deleting": "Eliminando…",
+            "deleted": "Soko Bot eliminado.",
+            "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
+            "error": "No se pudo eliminar este Soko Bot."
           }
         },
         "Actions": {
@@ -6287,7 +6303,16 @@
         "archiveCancel": "Conservar",
         "archiveConfirm": "Archivar",
         "archived": "Soko Bot archivado.",
-        "archiveError": "No se pudo archivar el Soko Bot."
+        "archiveError": "No se pudo archivar el Soko Bot.",
+        "delete": "Eliminar",
+        "deleting": "Eliminando…",
+        "deleteConfirm": "Eliminar para siempre",
+        "deleteCancel": "Cancelar",
+        "deleteConfirmTitle": "¿Eliminar tu Soko Bot?",
+        "deleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran. Las tareas que creó permanecen en tu tablero. Puedes crear un asistente nuevo enseguida.",
+        "deleteConfirmLabel": "Escribe {name} para confirmar",
+        "deleteError": "No se pudo eliminar tu Soko Bot.",
+        "deleted": "Soko Bot eliminado."
       },
       "Chat": {
         "defaultName": "Soko Bot",

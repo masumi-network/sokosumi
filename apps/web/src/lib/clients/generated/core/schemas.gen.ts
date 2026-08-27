@@ -1248,6 +1248,50 @@ export const SokoBotVersionWriteSchema = {
     ]
 } as const;
 
+export const SokoBotDeletionResultSchema = {
+    type: 'object',
+    properties: {
+        outcome: {
+            type: 'string',
+            enum: [
+                'deleted',
+                'tombstoned'
+            ]
+        },
+        retained: {
+            type: 'object',
+            properties: {
+                tasks: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                taskEvents: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                billingRecords: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                chatMessages: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'tasks',
+                'taskEvents',
+                'billingRecords',
+                'chatMessages'
+            ]
+        }
+    },
+    required: [
+        'outcome',
+        'retained'
+    ]
+} as const;
+
 export const AdminSokoBotDetailSchema = {
     allOf: [
         {

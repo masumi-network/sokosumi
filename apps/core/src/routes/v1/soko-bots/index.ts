@@ -48,6 +48,7 @@ import {
   simulateSokoBotTaskEventRequestSchema,
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
+  sokoBotDeletionResultSchema,
   sokoBotInstalledSkillSchema,
   sokoBotIntegrationCatalogEntrySchema,
   sokoBotIntegrationsSchema,
@@ -91,6 +92,7 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { deleteSokoBotForUser } from "@/services/soko-bot-deletion.service";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
@@ -281,6 +283,30 @@ app.openapi(archiveMeRoute, async (c) => {
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
   await sokoBotControlPlane.archive(auth.userId, workspace.workspaceId);
   return ok(c, { archived: true as const });
+});
+
+const deleteMeRoute = createRoute({
+  method: "delete",
+  path: "/me/permanent",
+  operationId: "deleteMySokoBotPermanently",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotDeletionResultSchema,
+      "Soko Bot deleted; the owner may create a new one immediately",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
+  },
+});
+
+app.openapi(deleteMeRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const result = await deleteSokoBotForUser(auth.userId, workspace.workspaceId);
+  return ok(c, result);
 });
 
 const startTurnRoute = createRoute({

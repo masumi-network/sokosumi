@@ -931,3 +931,20 @@ export const introduceSokoBotResponseSchema = z
 export const claimSokoBotAvatarRequestSchema = z
   .object({ avatarId: z.string().uuid() })
   .openapi("ClaimSokoBotAvatarRequest");
+
+export const sokoBotDeletionResultSchema = z
+  .object({
+    /**
+     * `deleted` when the row was removed outright; `tombstoned` when Tasks,
+     * task events, billing usage or chat messages still reference the bot, so
+     * an emptied row stays behind to keep those records resolvable.
+     */
+    outcome: z.enum(["deleted", "tombstoned"]),
+    retained: z.object({
+      tasks: z.number().int().nonnegative(),
+      taskEvents: z.number().int().nonnegative(),
+      billingRecords: z.number().int().nonnegative(),
+      chatMessages: z.number().int().nonnegative(),
+    }),
+  })
+  .openapi("SokoBotDeletionResult");
