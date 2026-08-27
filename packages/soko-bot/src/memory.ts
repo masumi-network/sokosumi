@@ -140,8 +140,16 @@ function isValidCardNumber(value: string): boolean {
 function containsCardNumber(value: string): boolean {
   for (const match of value.matchAll(CARD_NUMBER_CANDIDATE)) {
     // The pattern can swallow a trailing separator, which would push the
-    // boundary check onto the following word.
-    const candidate = match[0].replace(/[ -]+$/, "");
+    // boundary check onto the following word. Trimmed by index rather than by
+    // an anchored regex: `/[ -]+$/` backtracks from every start position, which
+    // is quadratic on a long run of spaces (CodeQL js/polynomial-redos).
+    let end = match[0].length;
+    while (end > 0) {
+      const character = match[0][end - 1];
+      if (character !== " " && character !== "-") break;
+      end -= 1;
+    }
+    const candidate = match[0].slice(0, end);
     const start = match.index ?? 0;
     const before = value[start - 1];
     const after = value[start + candidate.length];
