@@ -1,15 +1,20 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import { getTaskCannotArchiveMessage } from "@sokosumi/utils";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountDeleteTask from "./delete";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
   vi.hoisted(() => ({
@@ -158,9 +163,7 @@ function createApp(
     role: "user",
   },
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_delete_route_test");
@@ -177,7 +180,7 @@ function createApp(
 
   app.onError(errorHandler);
 
-  mountDeleteTask(app as unknown as OpenAPIHonoWithAuth);
+  mountDeleteTask(app);
 
   return app;
 }

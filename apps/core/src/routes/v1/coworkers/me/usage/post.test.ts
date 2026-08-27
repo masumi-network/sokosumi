@@ -1,11 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostCoworkerMeUsage from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   prepareConsumptionMock,
@@ -80,9 +86,7 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
 }
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -95,7 +99,7 @@ function createApp() {
     return await next();
   });
 
-  mountPostCoworkerMeUsage(app as unknown as OpenAPIHonoWithAuth);
+  mountPostCoworkerMeUsage(app);
 
   return app;
 }
@@ -130,7 +134,7 @@ describe("POST /me/usage", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
@@ -149,7 +153,7 @@ describe("POST /me/usage", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 

@@ -1,12 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import { createMiddleware } from "hono/factory";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler.js";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import { requireUserAuthContext } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { coworkerFindFirstMock, taskCountMock, taskFindManyMock } = vi.hoisted(
   () => ({
@@ -60,11 +65,7 @@ interface AppOptions {
 
 function createApp(options: AppOptions = {}) {
   const { actor = "user", userId = "user_dev" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_developer_test");
@@ -97,7 +98,7 @@ function createApp(options: AppOptions = {}) {
   );
 
   app.onError(errorHandler);
-  mountListDeveloperTasks(app as unknown as OpenAPIHonoWithAuth);
+  mountListDeveloperTasks(app);
 
   return app;
 }

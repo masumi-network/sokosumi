@@ -1,12 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler.js";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPutJobWorkspace, { putJobWorkspaceRequestSchema } from "./put";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   jobFindFirstMock,
@@ -159,9 +165,7 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 function createApp(activeOrganizationId: string | null = null) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -178,7 +182,7 @@ function createApp(activeOrganizationId: string | null = null) {
     return await next();
   });
 
-  mountPutJobWorkspace(app as unknown as OpenAPIHonoWithAuth);
+  mountPutJobWorkspace(app);
 
   return app;
 }

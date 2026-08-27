@@ -1,10 +1,15 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler.js";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { listPricesMock } = vi.hoisted(() => ({
   listPricesMock: vi.fn(),
@@ -25,11 +30,7 @@ interface AppOptions {
 
 function createApp(options: AppOptions = {}) {
   const { actor = "user" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_products_test");
@@ -54,7 +55,7 @@ function createApp(options: AppOptions = {}) {
   });
 
   app.onError(errorHandler);
-  mountListCreditPrices(app as unknown as OpenAPIHonoWithAuth);
+  mountListCreditPrices(app);
 
   return app;
 }

@@ -1,15 +1,22 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler.js";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 import mountPutUserPreferredOrganization from "./put";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   updatePreferredOrganizationIdMock,
@@ -54,9 +61,7 @@ const SESSION_USER: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = SESSION_USER) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -67,13 +72,9 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountPutUserPreferredOrganization(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountPutUserPreferredOrganization(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }

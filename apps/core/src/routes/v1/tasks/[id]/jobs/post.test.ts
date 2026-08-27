@@ -1,11 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostTaskJob from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { createAgentJobForUserMock, flattenJobMock, requireTaskAccessMock } =
   vi.hoisted(() => ({
@@ -28,9 +35,7 @@ vi.mock("@/types/job", () => ({
 
 describe("POST /tasks/{id}/jobs", () => {
   function createApp(authContext: AuthVariables["authContext"]) {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -39,7 +44,7 @@ describe("POST /tasks/{id}/jobs", () => {
       return await next();
     });
 
-    mountPostTaskJob(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskJob(app);
 
     return app;
   }

@@ -1,7 +1,5 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { describe, expect, it } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { describe, expect, it, vi } from "vitest";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
@@ -12,12 +10,18 @@ import mountGetAgentJobs from "./agents/[id]/jobs/get";
 import mountGetJobs from "./jobs/get";
 import mountGetUserCredits from "./users/[id]/credits/get";
 
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
+
 function createCoworkerContextApp(
   mount: (app: OpenAPIHonoWithAuth) => void,
-): OpenAPIHono<{ Variables: AuthVariables }> {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+): OpenAPIHonoWithAuth {
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -29,16 +33,14 @@ function createCoworkerContextApp(
     return await next();
   });
 
-  mount(app as unknown as OpenAPIHonoWithAuth);
+  mount(app);
   return app;
 }
 
 function createCoworkerUserRouteContextApp(
   mount: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void,
-): OpenAPIHono<{ Variables: AuthVariables }> {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+): OpenAPIHonoWithAuth {
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -50,11 +52,9 @@ function createCoworkerUserRouteContextApp(
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mount(userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>);
+  mount(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
