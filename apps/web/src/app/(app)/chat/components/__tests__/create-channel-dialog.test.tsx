@@ -117,4 +117,45 @@ describe("CreateChannelDialog", () => {
     await screen.findByText("Empty.membersLoadFailedTitle");
     expect(screen.queryByText("NoOrganization.description")).toBeNull();
   });
+
+  it("blocks channel creation until member roster load succeeds", async () => {
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        organizationName: "Acme",
+        hasOrganization: true,
+        canCreateExternal: false,
+        members: [],
+        coworkers: [],
+        membersLoadFailed: true,
+      },
+    });
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await screen.findByText("Empty.membersLoadFailedTitle");
+    expect(screen.queryByLabelText("slugLabel")).toBeNull();
+    expect(screen.queryByRole("button", { name: "next" })).toBeNull();
+    expect(createChannelActionMock).not.toHaveBeenCalled();
+
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        organizationName: "Acme",
+        hasOrganization: true,
+        canCreateExternal: false,
+        members: [member("user-self", "Ada")],
+        coworkers: [],
+        membersLoadFailed: false,
+      },
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Empty.membersLoadFailedRetry" }),
+    );
+    await screen.findByLabelText("slugLabel");
+    expect(loadChatComposeRosterActionMock).toHaveBeenCalledTimes(2);
+  });
 });

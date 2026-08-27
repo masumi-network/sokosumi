@@ -156,6 +156,34 @@ describe("CreateDirectDialog", () => {
     expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-coworker");
   });
 
+  it("retries a members-only roster failure through loadRoster", async () => {
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        organizationName: "Acme",
+        hasOrganization: true,
+        canCreateExternal: false,
+        members: [],
+        coworkers: [coworker("coworker-1", "Hannah")],
+        membersLoadFailed: true,
+      },
+    });
+    const user = userEvent.setup();
+    render(<CreateDirectDialog />);
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await screen.findByText("Empty.membersLoadFailedTitle");
+    await screen.findByRole("button", { name: /Hannah/ });
+
+    await user.click(
+      screen.getByRole("button", { name: "Empty.membersLoadFailedRetry" }),
+    );
+    await waitFor(() => {
+      expect(loadChatComposeRosterActionMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("ends the roster spinner when load fails", async () => {
     loadChatComposeRosterActionMock.mockResolvedValue({
       ok: false,

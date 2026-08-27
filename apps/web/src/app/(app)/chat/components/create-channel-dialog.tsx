@@ -182,6 +182,7 @@ export function CreateChannelDialog() {
     if (
       wizard.step !== "create" ||
       isPending ||
+      membersLoadFailed ||
       !canCreateChannel(wizard, availability)
     ) {
       return;
@@ -226,7 +227,7 @@ export function CreateChannelDialog() {
   }
 
   function handleCreate() {
-    if (wizard.step !== "add-people") {
+    if (wizard.step !== "add-people" || membersLoadFailed) {
       return;
     }
     if (wizard.mode === "all") {
@@ -294,7 +295,17 @@ export function CreateChannelDialog() {
           </p>
         ) : null}
 
-        {hasOrganization && !rosterError && wizard.step === "create" ? (
+        {rosterLoaded &&
+        hasOrganization &&
+        !rosterError &&
+        membersLoadFailed ? (
+          <MembersRosterLoadFailed onRetry={loadRoster} />
+        ) : null}
+
+        {hasOrganization &&
+        !rosterError &&
+        !membersLoadFailed &&
+        wizard.step === "create" ? (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="create-channel-slug">{t("slugLabel")}</Label>
@@ -448,7 +459,10 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {hasOrganization && !rosterError && wizard.step === "add-people" ? (
+        {hasOrganization &&
+        !rosterError &&
+        !membersLoadFailed &&
+        wizard.step === "add-people" ? (
           <div className="space-y-4">
             <RadioGroup
               value={wizard.mode}
@@ -524,7 +538,10 @@ export function CreateChannelDialog() {
           </div>
         ) : null}
 
-        {hasOrganization && !rosterError && isCreateStep ? (
+        {hasOrganization &&
+        !rosterError &&
+        !membersLoadFailed &&
+        isCreateStep ? (
           <DialogFooter>
             <Button
               type="button"
@@ -537,7 +554,10 @@ export function CreateChannelDialog() {
           </DialogFooter>
         ) : null}
 
-        {hasOrganization && !rosterError && wizard.step === "add-people" ? (
+        {hasOrganization &&
+        !rosterError &&
+        !membersLoadFailed &&
+        wizard.step === "add-people" ? (
           <DialogFooter className="gap-2 sm:justify-between">
             <Button
               type="button"

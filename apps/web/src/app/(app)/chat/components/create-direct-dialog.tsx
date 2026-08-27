@@ -285,7 +285,10 @@ export function CreateDirectDialog() {
               className="max-h-[min(16rem,40svh)] overflow-y-auto overscroll-contain"
             >
               {roster.membersLoadFailed ? (
-                <MembersRosterLoadFailed className="m-1 px-3 py-6" />
+                <MembersRosterLoadFailed
+                  className="m-1 px-3 py-6"
+                  onRetry={loadRoster}
+                />
               ) : null}
               {candidateTargets.length > 0 ? (
                 <DirectDraftTargetList

@@ -132,40 +132,44 @@ export async function loadChatComposeRosterAction(): Promise<
     return roomFail("Sign in required.");
   }
 
-  const currentUserId = session.user.id;
-  const [activeOrganization, coworkers] = await Promise.all([
-    userService.getActiveOrganization(),
-    coworkerService.listCoworkers("chat"),
-  ]);
+  try {
+    const currentUserId = session.user.id;
+    const [activeOrganization, coworkers] = await Promise.all([
+      userService.getActiveOrganization(),
+      coworkerService.listCoworkers("chat"),
+    ]);
 
-  if (!activeOrganization) {
+    if (!activeOrganization) {
+      return roomOk({
+        currentUserId,
+        organizationName: "",
+        hasOrganization: false,
+        canCreateExternal: false,
+        members: [],
+        coworkers,
+        membersLoadFailed: false,
+      });
+    }
+
+    const [membersPage, currentMember] = await Promise.all([
+      loadOrganizationMembers(activeOrganization.id),
+      userService.getMyMemberInOrganization(activeOrganization.id),
+    ]);
+
     return roomOk({
       currentUserId,
-      organizationName: "",
-      hasOrganization: false,
-      canCreateExternal: false,
-      members: [],
+      organizationName: activeOrganization.name,
+      hasOrganization: true,
+      canCreateExternal: Boolean(
+        currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
+      ),
+      members: membersPage.members,
       coworkers,
-      membersLoadFailed: false,
+      membersLoadFailed: membersPage.failed,
     });
+  } catch (error) {
+    return roomCatch(error, "Could not load chat recipients.");
   }
-
-  const [membersPage, currentMember] = await Promise.all([
-    loadOrganizationMembers(activeOrganization.id),
-    userService.getMyMemberInOrganization(activeOrganization.id),
-  ]);
-
-  return roomOk({
-    currentUserId,
-    organizationName: activeOrganization.name,
-    hasOrganization: true,
-    canCreateExternal: Boolean(
-      currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
-    ),
-    members: membersPage.members,
-    coworkers,
-    membersLoadFailed: membersPage.failed,
-  });
 }
 
 export async function checkChannelSlugAvailabilityAction(
