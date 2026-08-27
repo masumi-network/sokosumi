@@ -184,7 +184,7 @@ describe("core evlog request events", () => {
     });
   });
 
-  it("records a thrown HTTPException on the wide event", async () => {
+  it("keeps expected 4xx HTTPExceptions at info on the wide event", async () => {
     const app = createApp();
     app.onError(errorHandler);
     app.get("/v1/fail", () => {
@@ -196,6 +196,20 @@ describe("core evlog request events", () => {
     expect(response.status).toBe(409);
     expect(captured).toHaveLength(1);
     expect(captured[0]?.event.status).toBe(409);
+    expect(captured[0]?.event.level).toBe("info");
+  });
+
+  it("marks unexpected 5xx errors on the wide event", async () => {
+    const app = createApp();
+    app.onError(errorHandler);
+    app.get("/v1/fail", () => {
+      throw new Error("boom");
+    });
+
+    const response = await app.request("http://localhost/v1/fail");
+
+    expect(response.status).toBe(500);
+    expect(captured[0]?.event.status).toBe(500);
     expect(captured[0]?.event.level).toBe("error");
   });
 });

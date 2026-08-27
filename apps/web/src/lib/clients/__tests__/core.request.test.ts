@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { executeCoreOperation } from "../core.request";
-import { CORE_REQUEST_ID_HEADER } from "../utils/core-request-id";
+import { executeCoreOperation } from "@/lib/clients/core.request";
+import { CORE_REQUEST_ID_HEADER } from "@/lib/clients/utils/core-request-id";
 
 describe("executeCoreOperation", () => {
   it("copies Core's request id from the error envelope", async () => {

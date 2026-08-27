@@ -1,5 +1,5 @@
 import { createAuthMiddleware } from "evlog/better-auth";
-import { useLogger } from "evlog/hono";
+import type { EvlogVariables } from "evlog/hono";
 import type { MiddlewareHandler } from "hono";
 
 import { auth } from "@/lib/auth";
@@ -14,15 +14,9 @@ const identify = createAuthMiddleware(auth, {
   maskEmail: true,
 });
 
-export function betterAuthEvlogMiddleware(): MiddlewareHandler {
+export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {
   return async (c, next) => {
-    let log: ReturnType<typeof useLogger> | undefined;
-    try {
-      log = useLogger();
-    } catch {
-      log = undefined;
-    }
-
+    const log = c.get("log");
     if (log) {
       await identify(log, c.req.raw.headers, c.req.path);
     }

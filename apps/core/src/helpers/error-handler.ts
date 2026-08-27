@@ -17,6 +17,18 @@ import {
 
 const RESERVED_ERROR_BODY_KEYS = new Set(["error", "message", "meta", "kind"]);
 
+function shouldMarkWideEventError(error: Error): boolean {
+  if (error instanceof HTTPException) {
+    return shouldReportHttpException(error);
+  }
+
+  if (isAPIError(error)) {
+    return resolveBetterAuthApiErrorStatus(error.statusCode) >= 500;
+  }
+
+  return true;
+}
+
 function mergeHttpExceptionExtensions(
   extensions: Record<string, unknown> | undefined,
 ): Record<string, unknown> {
@@ -65,7 +77,9 @@ export function errorHandler<E extends { Variables: RequestIdVariables }>(
   error: Error,
   c: Context<E>,
 ): Response {
-  recordCoreRequestError(error);
+  if (shouldMarkWideEventError(error)) {
+    recordCoreRequestError(error);
+  }
 
   const meta = {
     timestamp: new Date().toISOString(),

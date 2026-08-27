@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/clients/generated/core/client";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
+import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request-id";
 import { createCoreClient } from "./core.shared";
-import { attachCoreRequestIdInterceptor } from "./utils/core-request-id";
 
 export {
   CoreApiRequestError,
