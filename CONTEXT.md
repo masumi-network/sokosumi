@@ -205,8 +205,8 @@ _Avoid_: Announcement (a use of this), pinned room, thread pin
 ### Chat presence
 
 **Presence**:
-Whether a human participant is currently reachable on the product — they have at least one live client connection. App-global (any Sokosumi surface with a live connection), not room-scoped. Multi-device: any connected device makes the person reachable (aggregate by user, not by single connection id).
-_Avoid_: Session freshness, last seen (that is a separate timestamp), membership, Ably channel subscribe alone without a presence signal, equating one connection id with one human
+Whether a human participant is currently reachable in the **active organization** — they have at least one live client connection on that workspace. App-shell (any Sokosumi surface with a live connection, not chat-page-only), not room-scoped. Other organizations see Offline. Multi-device: any connected device in that organization makes the person reachable (aggregate by user, not by single connection id).
+_Avoid_: Session freshness, last seen (that is a separate timestamp), membership, Ably channel subscribe alone without a presence signal, equating one connection id with one human, treating presence as reachable in every org at once
 
 **Online**:
 Presence state: reachable and recently active in a connected client.

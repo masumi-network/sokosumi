@@ -68,8 +68,6 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
       currentUserId={shell.currentUserId}
       coworkers={[]}
       selectedRoomId={shell.selectedRoomId}
-      isCreateChannelRequested={false}
-      isNewDirectMessage={false}
       messageLoadFailed={false}
       membersLoadFailed={false}
       messages={[]}

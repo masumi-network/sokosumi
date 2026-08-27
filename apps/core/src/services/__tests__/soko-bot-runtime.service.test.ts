@@ -53,8 +53,6 @@ const {
   transactionMock,
   turnFindUniqueMock,
   turnUpdateManyMock,
-  turnGrantVerifyMock,
-  verifyVercelOidcTokenMock,
   workspaceFindFirstMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
@@ -106,20 +104,10 @@ const {
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
-  turnGrantVerifyMock: vi.fn(),
-  verifyVercelOidcTokenMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
 }));
 
-vi.mock("@vercel/oidc", () => ({
-  verifyVercelOidcToken: verifyVercelOidcTokenMock,
-}));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
-vi.mock("@/lib/soko-bot/factory", () => ({
-  getSokoBotTokenService: async () => ({
-    verifyTurnGrant: turnGrantVerifyMock,
-  }),
-}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -327,20 +315,6 @@ describe("SokoBotRuntimeService authorization", () => {
       SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
       SOKO_BOT_EVE_ENVIRONMENT: "production",
     });
-    verifyVercelOidcTokenMock.mockResolvedValue({});
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      issuer: "https://core.example.com",
-      audience: "soko-bot-core",
-      subject: SCOPE.userId,
-      jwtId: "grant_1",
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["create_task"],
-      issuedAt: 1,
-      expiresAt: 9_999_999_999,
-    });
     toolCallCreateMock.mockResolvedValue({});
     toolCallUpdateMock.mockResolvedValue({});
     transactionToolCallUpdateMock.mockResolvedValue({});
@@ -449,14 +423,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("does not attach a pending Eve session after administrator PAUSE wins", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      sessionId: `pending:${SCOPE.turnId}`,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -509,14 +475,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("atomically attaches an eligible pending Eve session to turn and bot", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      sessionId: `pending:${SCOPE.turnId}`,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -578,14 +536,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("accepts an overlapping retry after the same Eve session was attached", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      sessionId: `pending:${SCOPE.turnId}`,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     // Both requests optimistically read null. This request then waits for the
     // first request's transaction and reloads the exact same bound session.
     turnFindUniqueMock.mockResolvedValue({
@@ -634,14 +584,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("rejects a pending attachment when a different Eve session won", async () => {
     const differentSessionId = "session_different_request";
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      sessionId: `pending:${SCOPE.turnId}`,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -682,14 +624,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("replaces the prior completed turn session when attaching a new turn", async () => {
     const priorSessionId = "session_previous_turn";
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      sessionId: `pending:${SCOPE.turnId}`,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -833,13 +767,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("reclaims a stale in-flight read tool call", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -896,13 +823,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("keeps a fresh in-flight tool call single-flight", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -945,13 +865,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("enforces a finite tool-call ceiling per turn", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -990,13 +903,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("returns raw tool result but persists bounded redacted evidence", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -1054,13 +960,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("redacts and bounds persisted tool errors", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["get_task_status"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -1103,13 +1002,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("rejects mutation when stored user message contains negative imperative", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["create_task"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -1250,15 +1142,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("assigns a Task directly through shared assignee and status-event policy", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["assign_task"],
-      issuedAt: 1,
-      expiresAt: 9_999_999_999,
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -1318,13 +1201,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("limits Task updates to DRAFT and READY records", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["update_task"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -1367,13 +1243,6 @@ describe("SokoBotRuntimeService authorization", () => {
   });
 
   it("denies a Task mutation after workspace access is revoked", async () => {
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: null,
-      memoryVersion: 1,
-      capabilities: ["update_task"],
-    });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -1417,14 +1286,6 @@ describe("SokoBotRuntimeService memory updates", () => {
       SOKO_BOT_ENABLED: true,
       SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
       SOKO_BOT_EVE_ENVIRONMENT: "production",
-    });
-    verifyVercelOidcTokenMock.mockResolvedValue({});
-    turnGrantVerifyMock.mockResolvedValue({
-      ...SCOPE,
-      contextSnapshotId: "01960001-0001-7001-8001-000000000004",
-      memoryRevisionId: "01960001-0001-7001-8001-000000000020",
-      memoryVersion: 1,
-      capabilities: ["update_memory"],
     });
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,

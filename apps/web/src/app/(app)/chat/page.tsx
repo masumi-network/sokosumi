@@ -18,7 +18,7 @@ import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
 import { ChatDesktopHomeRedirect } from "./components/chat-desktop-home-redirect.client";
 import {
   CHAT_WELCOME_PATH,
-  hasChatDraftOrNoticeFromRecord,
+  hasChatNoticeFromRecord,
   type NextSearchParamsRecord,
   pathWithSearch,
   toURLSearchParamsFromRecord,
@@ -74,7 +74,7 @@ async function ChatChatsListWithArchived({
 /**
  * Mobile Chats tab at bare `/chat`: Personal Assistant (beta-gated) above
  * Channels + DMs (`md:hidden`). Desktop has no list page — client redirect
- * to Welcome. Draft/notice query → Welcome `/?…` (server).
+ * to Welcome. Notice query → Welcome `/?…` (server).
  *
  * Instant Nav uses `chat/loading.tsx` while this page streams after
  * `connection()`.
@@ -89,7 +89,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const params = await searchParams;
   const qs = toURLSearchParamsFromRecord(params);
 
-  if (hasChatDraftOrNoticeFromRecord(params)) {
+  if (hasChatNoticeFromRecord(params)) {
     redirect(pathWithSearch(CHAT_WELCOME_PATH, qs));
   }
 

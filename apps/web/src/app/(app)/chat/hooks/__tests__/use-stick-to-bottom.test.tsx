@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { type RefObject, useLayoutEffect, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,26 +13,50 @@ type ResizeObserverCallback = (
 ) => void;
 
 const observerCallbacks = new Set<ResizeObserverCallback>();
+const observerCallbacksByTarget = new Map<
+  Element,
+  Set<ResizeObserverCallback>
+>();
 
-class ResizeObserverMock {
+class ResizeObserverMock implements ResizeObserver {
   private readonly callback: ResizeObserverCallback;
+  private readonly observed = new Set<Element>();
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
     observerCallbacks.add(callback);
   }
 
-  observe(_target: Element) {}
+  observe(target: Element, _options?: ResizeObserverOptions) {
+    this.observed.add(target);
+    let set = observerCallbacksByTarget.get(target);
+    if (!set) {
+      set = new Set();
+      observerCallbacksByTarget.set(target, set);
+    }
+    set.add(this.callback);
+  }
 
   disconnect() {
     observerCallbacks.delete(this.callback);
+    for (const target of this.observed) {
+      observerCallbacksByTarget.get(target)?.delete(this.callback);
+    }
+    this.observed.clear();
   }
 
-  unobserve() {}
+  unobserve(target: Element) {
+    this.observed.delete(target);
+    observerCallbacksByTarget.get(target)?.delete(this.callback);
+  }
 }
 
-function fireResize() {
-  for (const callback of observerCallbacks) {
+function fireResize(target?: Element) {
+  const callbacks =
+    target == null
+      ? observerCallbacks
+      : (observerCallbacksByTarget.get(target) ?? new Set());
+  for (const callback of callbacks) {
     callback([], {} as ResizeObserver);
   }
 }
@@ -107,12 +132,13 @@ function Harness({
 describe("useStickToBottom", () => {
   beforeEach(() => {
     observerCallbacks.clear();
-    global.ResizeObserver =
-      ResizeObserverMock as unknown as typeof global.ResizeObserver;
+    observerCallbacksByTarget.clear();
+    global.ResizeObserver = ResizeObserverMock;
   });
 
   afterEach(() => {
     observerCallbacks.clear();
+    observerCallbacksByTarget.clear();
   });
 
   it("pins the viewport on content resize while sticky", () => {
@@ -414,5 +440,114 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(1000 + growth);
+  });
+
+  it("re-pins when the scroller shrinks while sticky", () => {
+    // Latest pin sits outside the scroller. Flex chrome shrinks clientHeight
+    // without growing content, so content ResizeObserver never fires.
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+    const content = screen.getByTestId("content");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 600,
+    });
+    act(() => {
+      fireResize(content);
+    });
+    expect(scroller.scrollTop).toBe(1000);
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 320,
+      scrollTop: 600,
+    });
+    act(() => {
+      fireResize(scroller);
+    });
+
+    expect(scroller.scrollTop).toBe(1000);
+  });
+
+  it("does not re-pin on scroller shrink after the user scrolls away", () => {
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 200,
+    });
+    act(() => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 320,
+      scrollTop: 200,
+    });
+    act(() => {
+      fireResize(scroller);
+    });
+
+    expect(scroller.scrollTop).toBe(200);
+  });
+
+  it("does not re-pin on scroller shrink when holdOffBottom is set", () => {
+    render(<Harness resetKey="thread-1" holdOffBottom />);
+    const scroller = screen.getByTestId("scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 200,
+    });
+    act(() => {
+      fireResize(scroller);
+    });
+    expect(scroller.scrollTop).toBe(200);
+  });
+
+  it("does not pin from the initial scroller layout observer when holdOffBottom is set", () => {
+    // Child layout effects run before the parent hook's. Attach the node and
+    // seed metrics there so the first handleScrollerResize sees a real bottom
+    // while stickToBottomRef is still true and suppressPinRef is still false.
+    function BindScroller({
+      scrollerRef,
+      contentRef,
+    }: {
+      scrollerRef: RefObject<HTMLDivElement | null>;
+      contentRef: RefObject<HTMLDivElement | null>;
+    }) {
+      const nodeRef = useRef<HTMLDivElement | null>(null);
+      useLayoutEffect(() => {
+        const node = nodeRef.current;
+        if (!node) {
+          return;
+        }
+        setScrollerMetrics(node, {
+          scrollHeight: 1000,
+          clientHeight: 400,
+          scrollTop: 200,
+        });
+        scrollerRef.current = node;
+      }, [scrollerRef]);
+      return (
+        <div ref={nodeRef} data-testid="scroller">
+          <div ref={contentRef} data-testid="content" />
+        </div>
+      );
+    }
+
+    function MountHarness() {
+      const { scrollerRef, contentRef } = useStickToBottom({
+        resetKey: "thread-1",
+        holdOffBottom: true,
+      });
+      return <BindScroller scrollerRef={scrollerRef} contentRef={contentRef} />;
+    }
+
+    render(<MountHarness />);
+    expect(screen.getByTestId("scroller").scrollTop).toBe(200);
   });
 });

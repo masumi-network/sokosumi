@@ -70,6 +70,22 @@ vi.mock("@/app/chat/components/browse-channels-dialog", () => ({
   BrowseChannelsDialog: () => null,
 }));
 
+vi.mock("@/app/chat/components/create-channel-dialog", () => ({
+  CreateChannelDialog: () => (
+    <button type="button" aria-label="App.Channels.createChannel">
+      +
+    </button>
+  ),
+}));
+
+vi.mock("@/app/chat/components/create-direct-dialog", () => ({
+  CreateDirectDialog: () => (
+    <button type="button" aria-label="App.Channels.Draft.title">
+      +
+    </button>
+  ),
+}));
+
 vi.mock("@/app/chat/components/room-helpers", () => ({
   getRoomDisplayName: () => "room",
 }));

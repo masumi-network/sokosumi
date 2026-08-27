@@ -79,9 +79,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // Unauthenticated `/` → sign-in with returnUrl (same as other protected
-  // routes) so `/?dm=new` / `/?create=channel` survive login. Authenticated
-  // `/` is Welcome — fall through to Next (do not redirect; landing path is
-  // `/` and would loop forever).
+  // routes) so Welcome queries (e.g. `/?notice=…`) survive login.
+  // Authenticated `/` is Welcome — fall through to Next (do not redirect;
+  // landing path is `/` and would loop forever).
   if (pathname === "/") {
     const sessionCookie = getSessionCookie(request, {
       cookiePrefix: betterAuthCookiePrefix,

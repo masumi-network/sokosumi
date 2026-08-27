@@ -16,10 +16,10 @@ describe("chatMobileHeightShellClass", () => {
     );
   });
 
-  it("uses no-tab-bar shell for draft DM compose", () => {
+  it("keeps tab-bar shell for retired draft DM query", () => {
     expect(
       chatMobileHeightShellClass("/chat", false, new URLSearchParams("dm=new")),
-    ).toBe(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS);
+    ).toBe(CHAT_MOBILE_HEIGHT_SHELL_CLASS);
   });
 
   // `welcome=1` used to open the questionnaire and hide the tab bar with it.
@@ -35,14 +35,14 @@ describe("chatMobileHeightShellClass", () => {
     ).toBe(CHAT_MOBILE_HEIGHT_SHELL_CLASS);
   });
 
-  it("uses no-tab-bar shell for create-channel draft", () => {
+  it("keeps tab-bar shell for retired create-channel query", () => {
     expect(
       chatMobileHeightShellClass(
         "/chat",
         false,
         new URLSearchParams("create=channel"),
       ),
-    ).toBe(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS);
+    ).toBe(CHAT_MOBILE_HEIGHT_SHELL_CLASS);
   });
 
   it("keeps tab-bar shell on home and chats", () => {

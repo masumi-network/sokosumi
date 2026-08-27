@@ -77,11 +77,15 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/chat");
   });
 
-  it("shows back to chats on draft DM compose", () => {
+  it("treats leftover compose queries as home chrome", () => {
+    mockPathname = "/";
     mockSearchParams = new URLSearchParams("dm=new");
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat");
+    expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
+      "href",
+      "/",
+    );
   });
 
   it("shows back to chats on account (not sidebar trigger)", () => {

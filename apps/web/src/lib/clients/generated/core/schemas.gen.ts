@@ -9739,6 +9739,287 @@ export const RenameDriveFolderRequestSchema = {
     ]
 } as const;
 
+export const DriveTasksListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DriveTasksListItem'
+    }
+} as const;
+
+export const DriveTasksListItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveTasksProjectItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksNoProjectItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksTaskItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveTasksTaskFileItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            project: '#/components/schemas/DriveTasksProjectItem',
+            'no-project': '#/components/schemas/DriveTasksNoProjectItem',
+            task: '#/components/schemas/DriveTasksTaskItem',
+            'task-file': '#/components/schemas/DriveTasksTaskFileItem'
+        }
+    }
+} as const;
+
+export const DriveTasksProjectItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'project'
+            ],
+            example: 'project',
+            description: 'Project row with at least one task file'
+        },
+        id: {
+            type: 'string',
+            example: 'prj_abc123',
+            description: 'Project ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Q4 Campaign',
+            description: 'Project name'
+        },
+        latestFileUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest TaskFile updatedAt within this project'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'latestFileUpdatedAt'
+    ]
+} as const;
+
+export const DriveTasksNoProjectItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'no-project'
+            ],
+            example: 'no-project',
+            description: 'No-project row for unscoped tasks with files'
+        },
+        id: {
+            type: 'string',
+            enum: [
+                'null'
+            ],
+            example: 'null',
+            description: 'Sentinel id for no-project tasks (same as query literal "null")'
+        },
+        latestFileUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest TaskFile updatedAt for tasks without a project'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'latestFileUpdatedAt'
+    ]
+} as const;
+
+export const DriveTasksTaskItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'task'
+            ],
+            example: 'task',
+            description: 'Task row with at least one file'
+        },
+        id: {
+            type: 'string',
+            example: 'tsk_xyz789',
+            description: 'Task ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Design mockups',
+            description: 'Task name'
+        },
+        latestFileUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest TaskFile updatedAt for this task'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'latestFileUpdatedAt'
+    ]
+} as const;
+
+export const DriveTasksTaskFileItemSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'task-file'
+            ],
+            example: 'task-file',
+            description: 'READY TASK_OUTPUT TaskFile row'
+        },
+        id: {
+            type: 'string',
+            example: 'tf_123',
+            description: 'TaskFile ID'
+        },
+        name: {
+            type: 'string',
+            example: 'mockup-v2.pdf',
+            description: 'TaskFile name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/tasks/...',
+            description: 'TaskFile blob URL'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 1024000,
+            description: 'File size in bytes (null if unknown)'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf',
+            description: 'MIME type (null if unknown)'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'TaskFile updatedAt'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_xyz789',
+            description: 'Parent task ID (search results only)'
+        },
+        taskName: {
+            type: 'string',
+            example: 'Design mockups',
+            description: 'Parent task name (search results only)'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null (search results only)'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Q4 Campaign',
+            description: 'Parent project name, or null (search results only)'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'name',
+        'fileUrl',
+        'size',
+        'mimeType',
+        'updatedAt'
+    ]
+} as const;
+
+export const CopyTaskFileToDriveResponseSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'mockup-v2.pdf',
+            description: 'Copied file name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/...',
+            description: 'Copied Drive file URL'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/mockup-v2.pdf',
+            description: 'Drive file pathname'
+        }
+    },
+    required: [
+        'name',
+        'fileUrl',
+        'pathname'
+    ]
+} as const;
+
+export const CopyTaskFileToDriveRequestSchema = {
+    type: 'object',
+    properties: {
+        taskFileId: {
+            type: 'string',
+            example: 'tf_123',
+            description: 'TaskFile ID to copy'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Destination Drive scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'taskFileId',
+        'scope'
+    ]
+} as const;
+
 export const EnterpriseContractSchema = {
     type: 'object',
     properties: {
@@ -15797,61 +16078,6 @@ export const JudgeSokoBotLabTurnRequestSchema = {
         'scenarioId'
     ],
     additionalProperties: false
-} as const;
-
-export const SokoBotRuntimeErrorSchema = {
-    type: 'object',
-    properties: {
-        error: {
-            type: 'string',
-            example: 'Unauthorized'
-        },
-        message: {
-            type: 'string',
-            example: 'Authentication required'
-        },
-        kind: {
-            type: 'string',
-            example: 'organization_not_found'
-        },
-        retryable: {
-            type: 'boolean'
-        },
-        meta: {
-            type: 'object',
-            properties: {
-                timestamp: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                requestId: {
-                    type: 'string',
-                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
-                },
-                path: {
-                    type: 'string',
-                    example: '/v1/agents'
-                },
-                method: {
-                    type: 'string',
-                    example: 'GET'
-                }
-            },
-            required: [
-                'timestamp',
-                'requestId',
-                'path',
-                'method'
-            ]
-        }
-    },
-    required: [
-        'error',
-        'message',
-        'retryable',
-        'meta'
-    ]
 } as const;
 
 export const CoworkerSchema = {
