@@ -6489,7 +6489,12 @@
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
         "showMore": "{count} weitere anzeigen",
         "skillsTitle": "Skills",
-        "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh."
+        "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh.",
+        "viewsNav": "Assistent-Ansichten",
+        "views": {
+          "status": "Status",
+          "advanced": "Erweitert"
+        }
       },
       "Avatar": {
         "title": "Bild",

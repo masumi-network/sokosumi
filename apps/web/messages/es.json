@@ -6489,7 +6489,12 @@
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
         "showMore": "Mostrar {count} más",
         "skillsTitle": "Skills",
-        "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh."
+        "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh.",
+        "viewsNav": "Vistas del asistente",
+        "views": {
+          "status": "Estado",
+          "advanced": "Avanzado"
+        }
       },
       "Avatar": {
         "title": "Imagen",
