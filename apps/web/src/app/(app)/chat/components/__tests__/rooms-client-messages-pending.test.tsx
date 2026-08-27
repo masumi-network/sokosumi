@@ -508,6 +508,62 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     expect(rememberRoomRead).toHaveBeenCalled();
   });
 
+  it("restores unread after mark-read fails even if the room unmounted", async () => {
+    let resolveRead!: (result: {
+      ok: false;
+      error: { code: string; message: string };
+    }) => void;
+    vi.mocked(markOrganizationChatRoomReadAction).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    const unreadRoom = {
+      ...channelRoom(),
+      unreadCount: 4,
+      unreadMentionCount: 1,
+    };
+    const { unmount } = render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[unreadRoom]}
+        messages={[sampleMessage()]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(rememberRoomRead).toHaveBeenCalled();
+    });
+    dispatchSpy.mockClear();
+    unmount();
+
+    await act(async () => {
+      resolveRead({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "fail" },
+      });
+    });
+
+    expect(forgetRoomRead).toHaveBeenCalledWith("room-channel");
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "organization-chat-room-read",
+        detail: expect.objectContaining({
+          roomId: "room-channel",
+          room: expect.objectContaining({
+            id: "room-channel",
+            unreadCount: 4,
+            unreadMentionCount: 1,
+          }),
+        }),
+      }),
+    );
+    dispatchSpy.mockRestore();
+  });
+
   it("shows load-failed empty state when deferred history fails", async () => {
     let resolvePage!: (page: {
       messages: ChatRoomMessage[];

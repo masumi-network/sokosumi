@@ -747,6 +747,7 @@ export function RoomsClient({
     scrollToBottom();
   }, [messagesPending, scrollToBottom]);
   const readMarkerRef = useRef<string | null>(null);
+  const roomReadGenerationByRoomIdRef = useRef(new Map<string, number>());
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
   // handlers must not merge into messagesState after the selection moved.
@@ -1517,8 +1518,8 @@ export function RoomsClient({
     if (!selectedRoomReadId || !selectedRoom) {
       return;
     }
-    // Empty rooms keep marker `room:empty`; skip while pending/failed so
-    // hydrate can still advance last-read.
+    // Skip while pending/failed so empty-room hydrate can still advance
+    // last-read (same marker as the pending empty transcript).
     if (messagesPending || effectiveMessageLoadFailed) {
       return;
     }
@@ -1544,26 +1545,25 @@ export function RoomsClient({
       unreadMentionCount: 0,
       markedUnread: false,
     };
+    const generation =
+      (roomReadGenerationByRoomIdRef.current.get(roomId) ?? 0) + 1;
+    roomReadGenerationByRoomIdRef.current.set(roomId, generation);
+
     rememberRoomRead(optimisticRoom);
     dispatchOrganizationChatRoomRead(roomId, optimisticRoom);
 
-    let cancelled = false;
     markOrganizationChatRoomReadAction(roomId).then((result) => {
+      if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
+        return;
+      }
       if (!result.ok) {
         forgetRoomRead(roomId);
-        if (cancelled) {
-          return;
-        }
         dispatchOrganizationChatRoomRead(roomId, restoreRoom);
         return;
       }
       rememberRoomRead(result.value);
       dispatchOrganizationChatRoomRead(roomId, result.value);
     });
-
-    return () => {
-      cancelled = true;
-    };
   }, [
     effectiveMessageLoadFailed,
     latestOpenThreadMessageId,

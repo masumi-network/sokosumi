@@ -9,8 +9,10 @@
 
 **Why not wait for POST success:** back can happen while the write is in flight; the remounted list would still flash stale unread.
 
-**Why leftover Thread unread stays bold:** [ADR-0013](./0013-thread-unread-is-participant-gated.md). Opening the room does not Look Threads. First paint is leftover-only unread, not the pre-read total and not a fully-read flash.
+**Why leftover Thread unread stays bold:** [ADR-0013](./0013-thread-unread-is-participant-gated.md). Opening the room does not Look Threads. After mark-read returns, first paint is leftover-only unread, not the pre-read total.
 
-**Rejected:** advance last-read on route enter before history exists; on leave; after scroll-to-latest; Look every Thread on room open; optimistic fully-read then snap leftover; Instant Nav list-skeleton rewrite; transcript unread divider; numeric unread on the row.
+**Known limitation:** leftover thread unread is not on the room DTO until POST returns, so in-flight back can paint fully-read then leftover. Zeroing unreadCount immediately is required so the common fully-clear remount does not flash stale unread. Do not keep the pre-read total until POST — that is the jump this ADR removes.
+
+**Rejected:** advance last-read on route enter before history exists; on leave; after scroll-to-latest; Look every Thread on room open; Instant Nav list-skeleton rewrite; transcript unread divider; numeric unread on the row.
 
 **Out of scope:** making `/chat` skip Instant Nav skeleton.

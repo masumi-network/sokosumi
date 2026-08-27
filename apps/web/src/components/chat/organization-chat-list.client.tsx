@@ -73,7 +73,11 @@ import {
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import { applyRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
+import {
+  applyRoomReadOverlays,
+  forgetRoomRead,
+  rememberRoomRead,
+} from "./room-read-overlay";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
@@ -438,7 +442,9 @@ export function OrganizationChatList({
   }
 
   function handleRoomUpdated(updated: ChatRoom) {
-    rememberRoomRead(updated);
+    if (updated.markedUnread) {
+      forgetRoomRead(updated.id);
+    }
     setRoomRows((current) =>
       applyRoomReadOverlays(
         current.map((room) => (room.id === updated.id ? updated : room)),
