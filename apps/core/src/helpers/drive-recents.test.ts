@@ -12,11 +12,10 @@ import type { DriveTaskOutputRecentsRow } from "@/helpers/drive-task-output-cata
 import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
 
 const listMock = vi.hoisted(() => vi.fn());
-const headMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@vercel/blob", () => ({
   list: listMock,
-  head: headMock,
+  head: vi.fn(),
 }));
 
 const CURSOR_SECRET = "test-cursor-secret";
@@ -47,12 +46,6 @@ function taskOutput(taskFileId: string, activityAt: string): DriveRecentsItem {
     projectId: null,
     projectName: null,
   };
-}
-
-function fetchTaskOutputsByIds(
-  rows: DriveTaskOutputRecentsRow[],
-): (ids: string[]) => Promise<DriveTaskOutputRecentsRow[]> {
-  return async (ids) => rows.filter((row) => ids.includes(row.id));
 }
 
 describe("driveRecentsDriveFileNameMatchesSearch", () => {
@@ -94,18 +87,18 @@ describe("compareDriveRecentsItems", () => {
 });
 
 describe("drive recents cursor", () => {
-  it("round-trips signed cursor payload", () => {
+  it("round-trips a compact signed cursor payload", () => {
     const item = driveFile(
       "drive/users/u/report.pdf",
       "2026-08-20T10:00:00.000Z",
     );
     const encoded = encodeDriveRecentsCursor({
       lastItem: item,
-      driveBlobCursor: "blob-cursor",
-      taskFileCursor: "task-cursor",
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
     });
+
+    expect(encoded.length).toBeLessThan(512);
 
     const decoded = decodeDriveRecentsCursor(encoded, {
       cursorSecret: CURSOR_SECRET,
@@ -113,46 +106,9 @@ describe("drive recents cursor", () => {
     });
     expect(decoded.lastItem?.kind).toBe("drive-file");
     expect(decoded.lastItem?.activityAt).toBe(item.activityAt);
-    expect(decoded.driveBlobCursor).toBe("blob-cursor");
-    expect(decoded.taskFileCursor).toBe("task-cursor");
-    expect(decoded.pendingRefs).toEqual([]);
-  });
-
-  it("round-trips pending refs without embedding full records", () => {
-    const item = driveFile(
-      "drive/users/u/report.pdf",
-      "2026-08-20T10:00:00.000Z",
-    );
-    const pendingPath = "drive/users/u/older.pdf";
-    const pending = driveFile(pendingPath, "2026-08-19T10:00:00.000Z");
-    const encoded = encodeDriveRecentsCursor({
-      lastItem: item,
-      driveBlobCursor: "blob-cursor",
-      taskFileCursor: null,
-      pendingRefs: [
-        {
-          kind: "drive-file",
-          id: pendingPath,
-          activityAt: pending.activityAt,
-        },
-      ],
-      cursorSecret: CURSOR_SECRET,
-      cursorBinding: CURSOR_BINDING,
-    });
-
-    expect(encoded.length).toBeLessThan(2048);
-
-    const decoded = decodeDriveRecentsCursor(encoded, {
-      cursorSecret: CURSOR_SECRET,
-      cursorBinding: CURSOR_BINDING,
-    });
-    expect(decoded.pendingRefs).toEqual([
-      {
-        kind: "drive-file",
-        id: pendingPath,
-        activityAt: pending.activityAt,
-      },
-    ]);
+    if (decoded.lastItem?.kind === "drive-file") {
+      expect(decoded.lastItem.pathname).toBe("drive/users/u/report.pdf");
+    }
   });
 
   it("rejects cursors signed for a different workspace prefix", () => {
@@ -162,8 +118,6 @@ describe("drive recents cursor", () => {
     );
     const encoded = encodeDriveRecentsCursor({
       lastItem: item,
-      driveBlobCursor: null,
-      taskFileCursor: null,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
     });
@@ -183,13 +137,43 @@ describe("drive recents cursor", () => {
     const legacyPayload = Buffer.from(
       JSON.stringify({
         payload: JSON.stringify({
-          v: 2,
+          v: 3,
           activityAt: "2026-08-20T10:00:00.000Z",
           kind: "drive-file",
           id: "drive/users/u/report.pdf",
           pendingItems: [
             driveFile("drive/users/u/older.pdf", "2026-08-19T10:00:00.000Z"),
           ],
+        }),
+        signature: "not-valid",
+      }),
+      "utf8",
+    ).toString("base64url");
+
+    expect(() =>
+      decodeDriveRecentsCursor(legacyPayload, {
+        cursorSecret: CURSOR_SECRET,
+        cursorBinding: CURSOR_BINDING,
+      }),
+    ).toThrow("Invalid pagination cursor");
+  });
+
+  it("rejects legacy cursors that embed pendingRefs or source cursors", () => {
+    const legacyPayload = Buffer.from(
+      JSON.stringify({
+        payload: JSON.stringify({
+          v: 3,
+          activityAt: "2026-08-20T10:00:00.000Z",
+          kind: "drive-file",
+          id: "drive/users/u/report.pdf",
+          pendingRefs: [
+            {
+              kind: "drive-file",
+              id: "drive/users/u/older.pdf",
+              activityAt: "2026-08-19T10:00:00.000Z",
+            },
+          ],
+          driveBlobCursor: "blob-cursor",
         }),
         signature: "not-valid",
       }),
@@ -222,13 +206,6 @@ describe("drive recents cursor", () => {
 describe("fetchDriveRecentsPage", () => {
   beforeEach(() => {
     listMock.mockReset();
-    headMock.mockReset();
-    headMock.mockImplementation(async (pathname: string) => ({
-      url: `https://blob.example/${pathname}`,
-      pathname,
-      size: 100,
-      uploadedAt: new Date("2026-08-19T10:00:00.000Z"),
-    }));
   });
 
   function taskRow(id: string, updatedAt: string): DriveTaskOutputRecentsRow {
@@ -303,7 +280,6 @@ describe("fetchDriveRecentsPage", () => {
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
       fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
     });
 
     expect(page.items.map((item) => recentsItemKey(item))).toEqual([
@@ -346,7 +322,6 @@ describe("fetchDriveRecentsPage", () => {
       cursorSecret: CURSOR_SECRET,
       cursorBinding: { prefix: PREFIX, searchQuery: "report" },
       fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
     });
 
     expect(page.items).toHaveLength(1);
@@ -354,25 +329,9 @@ describe("fetchDriveRecentsPage", () => {
     expect(page.items[0]?.name).toBe("report.pdf");
   });
 
-  it("preserves buffered eligible items across paginated pages", async () => {
-    let drivePage = 0;
-    listMock.mockImplementation(async () => {
-      drivePage += 1;
-      if (drivePage === 1) {
-        return {
-          blobs: [
-            {
-              url: "https://blob.example/c-old.pdf",
-              pathname: "drive/users/u/c-old.pdf",
-              size: 100,
-              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
-            },
-          ],
-          hasMore: true,
-          cursor: "blob-page-2",
-        };
-      }
-      if (drivePage === 2) {
+  it("paginates by re-scanning with a compact activity cursor", async () => {
+    listMock.mockImplementation(async (options?: { cursor?: string }) => {
+      if (options?.cursor === "blob-page-2") {
         return {
           blobs: [
             {
@@ -386,32 +345,31 @@ describe("fetchDriveRecentsPage", () => {
           cursor: "blob-page-3",
         };
       }
+      if (options?.cursor === "blob-page-3") {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/a-new.pdf",
+              pathname: "drive/users/u/a-new.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+            },
+          ],
+          hasMore: false,
+        };
+      }
 
       return {
         blobs: [
           {
-            url: "https://blob.example/a-new.pdf",
-            pathname: "drive/users/u/a-new.pdf",
+            url: "https://blob.example/c-old.pdf",
+            pathname: "drive/users/u/c-old.pdf",
             size: 100,
-            uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+            uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
           },
         ],
-        hasMore: false,
-      };
-    });
-
-    headMock.mockImplementation(async (pathname: string) => {
-      const uploadedAtByPath: Record<string, string> = {
-        "drive/users/u/b-mid.pdf": "2026-08-20T12:00:00.000Z",
-        "drive/users/u/c-old.pdf": "2026-08-18T12:00:00.000Z",
-      };
-      return {
-        url: `https://blob.example/${pathname}`,
-        pathname,
-        size: 100,
-        uploadedAt: new Date(
-          uploadedAtByPath[pathname] ?? "2026-08-19T10:00:00.000Z",
-        ),
+        hasMore: true,
+        cursor: "blob-page-2",
       };
     });
 
@@ -428,14 +386,13 @@ describe("fetchDriveRecentsPage", () => {
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
       fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
     });
 
     expect(firstPage.items).toHaveLength(1);
     expect(firstPage.items[0]?.name).toBe("a-new.pdf");
     expect(firstPage.hasMore).toBe(true);
     expect(firstPage.nextCursor).toBeTruthy();
-    expect(firstPage.nextCursor?.length).toBeLessThan(2048);
+    expect(firstPage.nextCursor?.length).toBeLessThan(512);
 
     const secondPage = await fetchDriveRecentsPage({
       prefix: PREFIX,
@@ -445,12 +402,12 @@ describe("fetchDriveRecentsPage", () => {
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
       fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
     });
 
     expect(secondPage.items).toHaveLength(1);
     expect(secondPage.items[0]?.name).toBe("b-mid.pdf");
     expect(secondPage.hasMore).toBe(true);
+    expect(secondPage.nextCursor?.length).toBeLessThan(512);
 
     const thirdPage = await fetchDriveRecentsPage({
       prefix: PREFIX,
@@ -460,7 +417,6 @@ describe("fetchDriveRecentsPage", () => {
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
       fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
     });
 
     expect(thirdPage.items).toHaveLength(1);
@@ -468,76 +424,7 @@ describe("fetchDriveRecentsPage", () => {
     expect(thirdPage.hasMore).toBe(false);
   });
 
-  it("does not fail page two when head omits blob size for a pending ref", async () => {
-    let drivePage = 0;
-    listMock.mockImplementation(async () => {
-      drivePage += 1;
-      if (drivePage === 1) {
-        return {
-          blobs: [
-            {
-              url: "https://blob.example/c-old.pdf",
-              pathname: "drive/users/u/c-old.pdf",
-              size: 100,
-              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
-            },
-          ],
-          hasMore: true,
-          cursor: "blob-page-2",
-        };
-      }
-
-      return {
-        blobs: [
-          {
-            url: "https://blob.example/a-new.pdf",
-            pathname: "drive/users/u/a-new.pdf",
-            size: 100,
-            uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
-          },
-        ],
-        hasMore: false,
-      };
-    });
-
-    headMock.mockImplementation(async (pathname: string) => ({
-      url: `https://blob.example/${pathname}`,
-      pathname,
-      uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
-    }));
-
-    const fetchTaskOutputs = vi.fn(async () => ({
-      rows: [],
-      hasMore: false,
-      nextCursor: null,
-    }));
-
-    const firstPage = await fetchDriveRecentsPage({
-      prefix: PREFIX,
-      token: "test-token",
-      limit: 1,
-      cursorSecret: CURSOR_SECRET,
-      cursorBinding: CURSOR_BINDING,
-      fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
-    });
-
-    const secondPage = await fetchDriveRecentsPage({
-      prefix: PREFIX,
-      token: "test-token",
-      limit: 1,
-      cursor: firstPage.nextCursor ?? undefined,
-      cursorSecret: CURSOR_SECRET,
-      cursorBinding: CURSOR_BINDING,
-      fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
-    });
-
-    expect(secondPage.items).toHaveLength(1);
-    expect(secondPage.items[0]?.name).toBe("c-old.pdf");
-  });
-
-  it("does not drop buffered items when pending refs exceed the cursor cap", async () => {
+  it("keeps cursors compact across many pages without dropping items", async () => {
     const files = Array.from({ length: 155 }, (_, index) => {
       const rank = String(index).padStart(3, "0");
       return {
@@ -563,19 +450,6 @@ describe("fetchDriveRecentsPage", () => {
       };
     });
 
-    headMock.mockImplementation(async (pathname: string) => {
-      const uploadedAtMatch = pathname.match(/f-(\d+)\.pdf$/);
-      const index = uploadedAtMatch
-        ? Number.parseInt(uploadedAtMatch[1] ?? "0", 10)
-        : 0;
-      return {
-        url: `https://blob.example/${pathname}`,
-        pathname,
-        size: 100,
-        uploadedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
-      };
-    });
-
     const fetchTaskOutputs = vi.fn(async () => ({
       rows: [],
       hasMore: false,
@@ -595,8 +469,9 @@ describe("fetchDriveRecentsPage", () => {
         cursorSecret: CURSOR_SECRET,
         cursorBinding: CURSOR_BINDING,
         fetchTaskOutputs,
-        fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
       });
+
+      expect(pageResult.nextCursor?.length ?? 0).toBeLessThan(512);
 
       for (const item of pageResult.items) {
         seenNames.add(item.name);
@@ -679,7 +554,6 @@ describe("fetchDriveRecentsPage", () => {
       cursorSecret: CURSOR_SECRET,
       cursorBinding: { prefix: PREFIX, searchQuery: "pdf" },
       fetchTaskOutputs,
-      fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
     });
 
     expect(page.items.map((item) => item.name)).toEqual([
@@ -687,6 +561,59 @@ describe("fetchDriveRecentsPage", () => {
       "aac-mid.pdf",
     ]);
     expect(drivePage).toBe(3);
+  });
+
+  it("surfaces a newer blob past the old pending-ref cap on a later page", async () => {
+    const olderFiles = Array.from({ length: 120 }, (_, index) => {
+      const rank = String(index).padStart(3, "0");
+      return {
+        url: `https://blob.example/aaa-${rank}.pdf`,
+        pathname: `drive/users/u/aaa-${rank}.pdf`,
+        size: 100,
+        uploadedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
+      };
+    });
+
+    listMock.mockImplementation(async (options?: { cursor?: string }) => {
+      if (options?.cursor === "blob-page-2") {
+        return {
+          blobs: [
+            {
+              url: "https://blob.example/zzz-newest.pdf",
+              pathname: "drive/users/u/zzz-newest.pdf",
+              size: 100,
+              uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+            },
+          ],
+          hasMore: false,
+        };
+      }
+
+      return {
+        blobs: olderFiles,
+        hasMore: true,
+        cursor: "blob-page-2",
+      };
+    });
+
+    const fetchTaskOutputs = vi.fn(async () => ({
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+    }));
+
+    const page = await fetchDriveRecentsPage({
+      prefix: PREFIX,
+      token: "test-token",
+      limit: 10,
+      cursorSecret: CURSOR_SECRET,
+      cursorBinding: CURSOR_BINDING,
+      fetchTaskOutputs,
+    });
+
+    expect(page.items[0]?.name).toBe("zzz-newest.pdf");
+    expect(listMock).toHaveBeenCalledTimes(2);
+    expect(page.nextCursor?.length).toBeLessThan(512);
   });
 });
 

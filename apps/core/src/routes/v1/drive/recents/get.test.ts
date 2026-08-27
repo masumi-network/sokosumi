@@ -170,25 +170,23 @@ describe("GET /v1/drive/recents", () => {
   });
 
   it("returns nextCursor when more items remain", async () => {
-    let blobPage = 0;
-    listMock.mockImplementation(async () => {
-      blobPage += 1;
-      if (blobPage === 1) {
+    listMock.mockImplementation(async (options?: { cursor?: string }) => {
+      if (options?.cursor === "blob-page-2") {
         return {
-          blobs: Array.from({ length: 3 }, (_, index) => ({
-            url: `https://blob.example/file-${index}.pdf`,
-            pathname: `drive/users/user_123/file-${index}.pdf`,
-            size: 100,
-            uploadedAt: new Date(`2026-08-${20 - index}T12:00:00.000Z`),
-          })),
-          hasMore: true,
-          cursor: "blob-page-2",
+          blobs: [],
+          hasMore: false,
         };
       }
 
       return {
-        blobs: [],
-        hasMore: false,
+        blobs: Array.from({ length: 3 }, (_, index) => ({
+          url: `https://blob.example/file-${index}.pdf`,
+          pathname: `drive/users/user_123/file-${index}.pdf`,
+          size: 100,
+          uploadedAt: new Date(`2026-08-${20 - index}T12:00:00.000Z`),
+        })),
+        hasMore: true,
+        cursor: "blob-page-2",
       };
     });
 
@@ -202,40 +200,38 @@ describe("GET /v1/drive/recents", () => {
   });
 
   it("paginates without search when more items remain", async () => {
-    let blobPage = 0;
-    listMock.mockImplementation(async () => {
-      blobPage += 1;
-      if (blobPage === 1) {
+    listMock.mockImplementation(async (options?: { cursor?: string }) => {
+      if (options?.cursor === "blob-page-2") {
         return {
           blobs: [
             {
-              url: "https://blob.example/file-0.pdf",
-              pathname: "drive/users/user_123/file-0.pdf",
+              url: "https://blob.example/file-2.pdf",
+              pathname: "drive/users/user_123/file-2.pdf",
               size: 100,
-              uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
-            },
-            {
-              url: "https://blob.example/file-1.pdf",
-              pathname: "drive/users/user_123/file-1.pdf",
-              size: 100,
-              uploadedAt: new Date("2026-08-19T12:00:00.000Z"),
+              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
             },
           ],
-          hasMore: true,
-          cursor: "blob-page-2",
+          hasMore: false,
         };
       }
 
       return {
         blobs: [
           {
-            url: "https://blob.example/file-2.pdf",
-            pathname: "drive/users/user_123/file-2.pdf",
+            url: "https://blob.example/file-0.pdf",
+            pathname: "drive/users/user_123/file-0.pdf",
             size: 100,
-            uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+            uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
+          },
+          {
+            url: "https://blob.example/file-1.pdf",
+            pathname: "drive/users/user_123/file-1.pdf",
+            size: 100,
+            uploadedAt: new Date("2026-08-19T12:00:00.000Z"),
           },
         ],
-        hasMore: false,
+        hasMore: true,
+        cursor: "blob-page-2",
       };
     });
 
@@ -245,6 +241,7 @@ describe("GET /v1/drive/recents", () => {
 
     const firstBody = await firstResponse.json();
     expect(firstBody.data).toHaveLength(1);
+    expect(firstBody.data[0].name).toBe("file-0.pdf");
     expect(firstBody.meta.pagination.nextCursor).toBeTruthy();
 
     const secondResponse = await app.request(
@@ -382,34 +379,32 @@ describe("GET /v1/drive/recents", () => {
   });
 
   it("keeps global recency order when blob listing spans multiple pages", async () => {
-    let blobPage = 0;
-    listMock.mockImplementation(async () => {
-      blobPage += 1;
-      if (blobPage === 1) {
+    listMock.mockImplementation(async (options?: { cursor?: string }) => {
+      if (options?.cursor === "blob-page-2") {
         return {
           blobs: [
             {
-              url: "https://blob.example/older-report.pdf",
-              pathname: "drive/users/user_123/older-report.pdf",
-              size: 1000,
-              uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
+              url: "https://blob.example/newer-report.pdf",
+              pathname: "drive/users/user_123/newer-report.pdf",
+              size: 500,
+              uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
             },
           ],
-          hasMore: true,
-          cursor: "blob-page-2",
+          hasMore: false,
         };
       }
 
       return {
         blobs: [
           {
-            url: "https://blob.example/newer-report.pdf",
-            pathname: "drive/users/user_123/newer-report.pdf",
-            size: 500,
-            uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+            url: "https://blob.example/older-report.pdf",
+            pathname: "drive/users/user_123/older-report.pdf",
+            size: 1000,
+            uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
           },
         ],
-        hasMore: false,
+        hasMore: true,
+        cursor: "blob-page-2",
       };
     });
     prismaTaskFileFindManyMock.mockResolvedValue([

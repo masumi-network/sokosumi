@@ -65,6 +65,7 @@ interface DriveRecentsPanelProps {
   driveStore: DriveWorkspaceStore;
   activeOrganizationId: string | null;
   searchQuery: string;
+  reloadToken?: number;
   onOpenMoveDialog: (item: DriveItem) => void;
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
@@ -150,6 +151,7 @@ export function DriveRecentsPanel({
   driveStore,
   activeOrganizationId,
   searchQuery,
+  reloadToken = 0,
   onOpenMoveDialog,
   onOpenDeleteDialog,
   onRenameFile,
@@ -237,7 +239,13 @@ export function DriveRecentsPanel({
         setLoading(false);
       }
     }
-  }, [activeOrganizationId, driveStore.scope, t, trimmedSearchQuery]);
+  }, [
+    activeOrganizationId,
+    driveStore.scope,
+    reloadToken,
+    t,
+    trimmedSearchQuery,
+  ]);
 
   useEffect(() => {
     void loadRecents();
@@ -536,7 +544,7 @@ export function DriveRecentsPanel({
                           ) : null}
                           <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
                             <span>
-                              {item.size ? formatBytes(item.size) : "—"}
+                              {item.size != null ? formatBytes(item.size) : "—"}
                             </span>
                             <span>
                               {formatter.dateTime(new Date(item.activityAt), {
@@ -551,7 +559,7 @@ export function DriveRecentsPanel({
                         </div>
                         <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
                           <span>
-                            {item.size ? formatBytes(item.size) : "—"}
+                            {item.size != null ? formatBytes(item.size) : "—"}
                           </span>
                           <span>
                             {formatter.dateTime(new Date(item.activityAt), {

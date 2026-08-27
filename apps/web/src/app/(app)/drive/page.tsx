@@ -373,6 +373,7 @@ function DrivePageWorkspace({
   const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [recentsReloadToken, setRecentsReloadToken] = useState(0);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
   const [copying, setCopying] = useState(false);
@@ -892,6 +893,7 @@ function DrivePageWorkspace({
       setDeleteDialogOpen(false);
       setItemToDelete(null);
       await refreshDriveItems();
+      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
@@ -1138,6 +1140,7 @@ function DrivePageWorkspace({
       setItemToMove(null);
       setSelectedDestination(null);
       await refreshDriveItems();
+      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
@@ -1599,6 +1602,7 @@ function DrivePageWorkspace({
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
+          reloadToken={recentsReloadToken}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
           onRenameFile={handleRename}

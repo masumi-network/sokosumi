@@ -12,7 +12,6 @@ import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
 import {
   DRIVE_TASK_FILE_WHERE,
   fetchDriveTaskOutputRecentsBatch,
-  fetchDriveTaskOutputRecentsByIds,
 } from "@/helpers/drive-task-output-catalog";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { badRequest, forbidden, serviceUnavailable } from "@/helpers/error";
@@ -142,12 +141,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           baseTaskWhere,
           cursor: taskCursor,
           take: taskTake,
-          ...(searchQuery ? { searchQuery } : {}),
-        }),
-      fetchTaskOutputsByIds: (ids) =>
-        fetchDriveTaskOutputRecentsByIds({
-          ids,
-          baseTaskWhere,
           ...(searchQuery ? { searchQuery } : {}),
         }),
     });
