@@ -204,7 +204,7 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 ## Testing Guidelines
 
 - **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages and `apps/core`)
-- **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
+- **Test Files**: Name as `*.test.ts(x)` and place next to the source they cover (`foo.test.ts` beside `foo.ts`). Use `__tests__/` only for tests that do not map 1:1 to a single source file (cross-module contracts, harnesses, fixtures).
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
 - **Mocking**: Colocate `vi.mock` (and Prisma factories in Core / `@sokosumi/database`) next to the test. Web has no `__mocks__/` directory.
 - **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
@@ -324,6 +324,10 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 ## Agent skills
 
 First-party skills are authored in `skills/<name>/` and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
+
+### Evlog (Core only)
+
+Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps/core/AGENTS.md) (the `<!-- evlog:start -->` block plus Sokosumi constraints). Skills are under `apps/core/.agents/skills/` (`review-logging-patterns`, `build-audit-logs`, `analyze-logs`). Do not add `evlog/next` to Web. Do not run `evlog agents` at the repo root.
 
 ### Ask Matt
 

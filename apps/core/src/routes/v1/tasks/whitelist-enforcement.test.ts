@@ -1,14 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPatchTask from "./[id]/patch";
 import mountPostTask from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   prismaTransactionMock,
@@ -156,9 +161,7 @@ vi.mock("@/helpers/task", () => ({
 }));
 
 function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -177,8 +180,8 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
     return await next();
   });
 
-  mountPostTask(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchTask(app as unknown as OpenAPIHonoWithAuth);
+  mountPostTask(app);
+  mountPatchTask(app);
 
   return app;
 }

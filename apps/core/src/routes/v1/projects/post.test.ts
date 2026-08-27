@@ -1,12 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostProject from "./post.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   generateProjectFilesTokenMock,
@@ -48,9 +55,7 @@ const WORKSPACE_CONTEXT = {
 } satisfies WorkspaceVariables["workspaceContext"];
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -61,7 +66,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
     return await next();
   });
 
-  mountPostProject(app as unknown as OpenAPIHonoWithAuth);
+  mountPostProject(app);
   return app;
 }
 

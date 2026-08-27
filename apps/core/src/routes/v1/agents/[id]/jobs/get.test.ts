@@ -1,11 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetAgentJobs from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { getUserJobsMock } = vi.hoisted(() => ({
   getUserJobsMock: vi.fn(),
@@ -16,9 +21,7 @@ vi.mock("@/helpers/job", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -33,7 +36,7 @@ function createApp() {
     return await next();
   });
 
-  mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+  mountGetAgentJobs(app);
   return app;
 }
 
@@ -57,9 +60,7 @@ describe("GET /agents/{id}/jobs", () => {
   });
 
   it("defaults to owned scope for agent job lists", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -78,7 +79,7 @@ describe("GET /agents/{id}/jobs", () => {
       return await next();
     });
 
-    mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetAgentJobs(app);
 
     const response = await app.request("http://localhost/agent_123/jobs");
 
@@ -104,9 +105,7 @@ describe("GET /agents/{id}/jobs", () => {
   });
 
   it("passes scope=workspace for agent job lists", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -125,7 +124,7 @@ describe("GET /agents/{id}/jobs", () => {
       return await next();
     });
 
-    mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetAgentJobs(app);
 
     const response = await app.request(
       "http://localhost/agent_123/jobs?scope=workspace",
@@ -142,9 +141,7 @@ describe("GET /agents/{id}/jobs", () => {
   });
 
   it("accepts delegated coworker context when workspaceContext is resolved", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -166,7 +163,7 @@ describe("GET /agents/{id}/jobs", () => {
       return await next();
     });
 
-    mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+    mountGetAgentJobs(app);
 
     const response = await app.request("http://localhost/agent_123/jobs");
 

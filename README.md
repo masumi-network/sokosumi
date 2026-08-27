@@ -92,6 +92,7 @@ Other available scripts:
 ## Testing
 
 - The monorepo uses Vitest for unit tests.
+- Name tests `*.test.ts(x)` and place them next to the source they cover (`foo.test.ts` beside `foo.ts`). Use `__tests__/` only when a test does not map 1:1 to a single source file.
 - Run all workspace tests from the repo root with `pnpm test`.
 - Run a single workspace with `pnpm --filter web test`, `pnpm --filter core test`, or `pnpm --filter @sokosumi/<package> test`.
 

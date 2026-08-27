@@ -1,9 +1,8 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const { uploadDesignMdContentMock } = vi.hoisted(() => ({
@@ -15,7 +14,10 @@ vi.mock("@/lib/design-md-blob", () => ({
     uploadDesignMdContentMock(...args),
 }));
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, { message: "User authentication required" });
@@ -40,16 +42,14 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
 let mountPostWorkspaceDesignMdAdHoc: (app: OpenAPIHonoWithAuth) => void;
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
-  mountPostWorkspaceDesignMdAdHoc(app as unknown as OpenAPIHonoWithAuth);
+  mountPostWorkspaceDesignMdAdHoc(app);
   return app;
 }
 
@@ -118,9 +118,9 @@ describe("POST /workspaces/design-md/adhoc", () => {
     expect(response.status).toBe(403);
   });
 
-  it("returns 400 for empty content", async () => {
+  it("returns 422 for empty content", async () => {
     const response = await postAdHoc({ content: "   ", extractionId: null });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
   });
 

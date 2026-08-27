@@ -1,12 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountGetNotifications from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   notificationCountMock,
@@ -49,7 +56,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -58,7 +65,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
     return await next();
   });
 
-  mountGetNotifications(app as unknown as OpenAPIHonoWithAuth);
+  mountGetNotifications(app);
   return app;
 }
 

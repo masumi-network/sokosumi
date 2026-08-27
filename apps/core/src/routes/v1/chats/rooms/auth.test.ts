@@ -1,10 +1,15 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   prismaTransactionMock,
@@ -167,11 +172,7 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_chat_rooms_auth");
@@ -181,7 +182,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.onError(errorHandler);
-  const typed = app as unknown as OpenAPIHonoWithAuth;
+  const typed = app;
   mountGetChatRooms(typed);
   mountPostChatRoom(typed);
   mountGetChatRoom(typed);

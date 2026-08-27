@@ -1,15 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const { prismaTransactionMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext) {
       throw new HTTPException(403, {
@@ -85,9 +87,7 @@ function createOrganization(overrides: Record<string, unknown> = {}) {
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -104,7 +104,7 @@ function createApp(
     return await next();
   });
 
-  mountGetOrganization(app as unknown as OpenAPIHonoWithAuth);
+  mountGetOrganization(app);
 
   return app;
 }

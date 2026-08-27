@@ -1,15 +1,21 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import mountMoveFile from "../files/move";
 import mountPostFolder from "../folders/post";
 import mountRenameFolder from "../folders/rename";
 import mountCopy from "./copy";
 import mountGet from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 function flattenPrismaSqlArgs(args: unknown[]): unknown[] {
   const values: unknown[] = [];
@@ -189,9 +195,7 @@ const DRIVE_TASK_FILE_WHERE = {
 function createDriveTasksApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -202,8 +206,8 @@ function createDriveTasksApp(
     await next();
   });
 
-  mountGet(app as unknown as OpenAPIHonoWithAuth);
-  mountCopy(app as unknown as OpenAPIHonoWithAuth);
+  mountGet(app);
+  mountCopy(app);
 
   return app;
 }
@@ -211,9 +215,7 @@ function createDriveTasksApp(
 function createFoldersApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -224,7 +226,7 @@ function createFoldersApp(
     await next();
   });
 
-  mountPostFolder(app as unknown as OpenAPIHonoWithAuth);
+  mountPostFolder(app);
 
   return app;
 }
@@ -232,9 +234,7 @@ function createFoldersApp(
 function createRenameFolderApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -245,7 +245,7 @@ function createRenameFolderApp(
     await next();
   });
 
-  mountRenameFolder(app as unknown as OpenAPIHonoWithAuth);
+  mountRenameFolder(app);
 
   return app;
 }
@@ -253,9 +253,7 @@ function createRenameFolderApp(
 function createMoveFileApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -266,7 +264,7 @@ function createMoveFileApp(
     await next();
   });
 
-  mountMoveFile(app as unknown as OpenAPIHonoWithAuth);
+  mountMoveFile(app);
 
   return app;
 }
@@ -882,7 +880,7 @@ describe("Drive Tasks Routes", () => {
         const app = createDriveTasksApp();
         const res = await app.request("http://localhost/");
 
-        expect(res.status).toBe(400);
+        expect(res.status).toBe(422);
       });
 
       it("resolves org workspace for scope=org", async () => {

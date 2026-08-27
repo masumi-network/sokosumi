@@ -1,11 +1,9 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
@@ -37,7 +35,9 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async () => ({
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   hasAdminRole: (role: string | null | undefined) =>
     role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
     false,
@@ -89,15 +89,7 @@ let mountPostUserFiles: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -114,19 +106,9 @@ function createApp(
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables & { requestId: string };
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountPostUserFiles(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountPostUserFiles(userByIdApp);
   app.route("/:id", userByIdApp);
 
   return app;

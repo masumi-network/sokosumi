@@ -1,14 +1,20 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 import mountGetUserById from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { pathUserFindUniqueMock, prismaTransactionMock, txUserFindUniqueMock } =
   vi.hoisted(() => ({
@@ -27,9 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -43,13 +47,9 @@ function createApp() {
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountGetUserById(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountGetUserById(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }

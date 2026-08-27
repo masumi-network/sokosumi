@@ -8,6 +8,7 @@ import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
+import { attachAuthToLogger } from "@/lib/evlog";
 
 const DEFAULT_USER_ROLE = "user";
 
@@ -78,10 +79,52 @@ function syncSentryUser(context: AuthVariables) {
   }
 }
 
+function syncRequestLogger(context: AuthVariables) {
+  if (!context.isAuthenticated) {
+    attachAuthToLogger({ actor: "anonymous" });
+    return;
+  }
+
+  const { authContext } = context;
+
+  if (isUserAuthContext(authContext)) {
+    attachAuthToLogger({
+      actor: "user",
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
+    });
+    return;
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    attachAuthToLogger({
+      actor: "orchestrator",
+      orchestratorId: authContext.orchestratorId,
+      contextUserId: authContext.context?.userId,
+      contextOrganizationId: authContext.context?.organizationId,
+    });
+    return;
+  }
+
+  if (isCoworkerAuthContext(authContext)) {
+    attachAuthToLogger({
+      actor: "coworker",
+      coworkerId: authContext.coworkerId,
+      contextUserId: authContext.context?.userId,
+      contextOrganizationId: authContext.context?.organizationId,
+    });
+    return;
+  }
+
+  const _exhaustive: never = authContext;
+  void _exhaustive;
+}
+
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
   syncSentryUser(context);
+  syncRequestLogger(context);
 }
 
 export function isUserAuthContext(
@@ -525,7 +568,6 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       authenticationMethod: "session",
     },
   });
-
   return await next();
 };
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {

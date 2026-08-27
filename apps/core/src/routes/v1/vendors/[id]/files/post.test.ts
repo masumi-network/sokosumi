@@ -1,16 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { ORGANIZATION_LOGO_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  forbidden,
-  formatZodErrorMessage,
-  notFound,
-  unprocessableEntity,
-} from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { forbidden, notFound } from "@/helpers/error";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   getEnvMock,
@@ -70,15 +72,7 @@ let mountPostVendorFiles: (app: OpenAPIHonoWithAuth) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -90,7 +84,7 @@ function createApp(
     return await next();
   });
 
-  mountPostVendorFiles(app as unknown as OpenAPIHonoWithAuth);
+  mountPostVendorFiles(app);
   return app;
 }
 

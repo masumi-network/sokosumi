@@ -57,6 +57,27 @@ describe("v1 router", () => {
     });
   });
 
+  it("allows x-request-id on cors preflight from the web app", async () => {
+    const { default: app } = await import("./index.js");
+
+    const response = await app.request("http://localhost/v1/drive/files", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://app.sokosumi.com",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "x-request-id,authorization",
+      },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://app.sokosumi.com",
+    );
+    expect(response.headers.get("access-control-allow-headers")).toContain(
+      "X-Request-Id",
+    );
+  });
+
   it("serves openapi.json with cors headers and a relative v1 server url", async () => {
     const { default: app } = await import("./index.js");
 

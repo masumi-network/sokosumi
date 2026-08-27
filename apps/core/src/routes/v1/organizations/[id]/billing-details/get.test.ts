@@ -1,11 +1,9 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
@@ -16,7 +14,10 @@ const {
   getOrganizationBillingDetailsByIdMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext) {
       throw new HTTPException(403, {
@@ -94,11 +95,7 @@ let mountGetOrganizationBillingDetails: (app: OpenAPIHonoWithAuth) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -111,7 +108,7 @@ function createApp(
   });
 
   app.onError(errorHandler);
-  mountGetOrganizationBillingDetails(app as unknown as OpenAPIHonoWithAuth);
+  mountGetOrganizationBillingDetails(app);
   return app;
 }
 

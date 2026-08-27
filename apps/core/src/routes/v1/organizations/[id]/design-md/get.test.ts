@@ -1,16 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 const { organizationFindUniqueMock, memberFindUniqueMock } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, { message: "User authentication required" });
@@ -38,9 +40,7 @@ let mountGetOrganizationDesignMd: (app: OpenAPIHonoWithAuth) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     if (!authContext) {
@@ -50,7 +50,7 @@ function createApp(
     c.set("authContext", authContext);
     return await next();
   });
-  mountGetOrganizationDesignMd(app as unknown as OpenAPIHonoWithAuth);
+  mountGetOrganizationDesignMd(app);
   return app;
 }
 

@@ -66,6 +66,7 @@
     "better-auth": "1.7.2",
     "cron-parser": "5.10.0",
     "dotenv": "17.4.2",
+    "evlog": "2.27.1",
     "hono": "4.13.5",
     "ioredis": "6.0.0",
     "neverthrow": "8.2.0",
@@ -80,6 +81,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@evlog/cli": "0.6.0",
     "@types/node": "24.13.3",
     "@typescript/typescript6": "6.0.2",
     "tsup": "8.5.1",

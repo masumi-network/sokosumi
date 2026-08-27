@@ -1,18 +1,23 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { testVendor } from "@/test-fixtures/vendor";
 import mountDeleteTaskLink from "./[linkId]/delete";
 import mountPatchTaskLink from "./[linkId]/patch";
 import mountGetTaskLinks from "./get";
 import mountPostTaskLink from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   prismaTransactionMock,
@@ -74,9 +79,7 @@ interface CreateUserAppOptions {
 
 function createUserApp(options: CreateUserAppOptions = {}) {
   const { userId = "user_123" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -101,9 +104,7 @@ function createUserApp(options: CreateUserAppOptions = {}) {
 }
 
 function createCoworkerApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -120,9 +121,7 @@ function createCoworkerApp() {
 }
 
 function createDelegatedCoworkerApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -179,7 +178,7 @@ describe("GET /tasks/{id}/links", () => {
 
   it("returns 200 with an empty link list", async () => {
     const app = createUserApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -230,7 +229,7 @@ describe("GET /tasks/{id}/links", () => {
     });
 
     const app = createUserApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -278,7 +277,7 @@ describe("GET /tasks/{id}/links", () => {
 
   it("filters linked peer tasks to those visible to the coworker", async () => {
     const app = createCoworkerApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -358,7 +357,7 @@ describe("GET /tasks/{id}/links", () => {
 
   it("filters delegated coworker linked peers to assignee or same-vendor siblings", async () => {
     const app = createDelegatedCoworkerApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -446,7 +445,7 @@ describe("GET /tasks/{id}/links", () => {
 
   it("filters archived peer links from user link reads", async () => {
     const app = createUserApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -541,7 +540,7 @@ describe("GET /tasks/{id}/links", () => {
     });
 
     const app = createUserApp({ userId: "user_456" });
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -628,7 +627,7 @@ describe("GET /tasks/{id}/links", () => {
     taskFindUniqueMock.mockResolvedValue(null);
 
     const app = createUserApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskLinks(app);
 
     const response = await app.request("http://localhost/tsk_a/links");
 
@@ -674,7 +673,7 @@ describe("POST /tasks/{id}/links", () => {
 
   it("returns 201 when a link is created", async () => {
     const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -731,7 +730,7 @@ describe("POST /tasks/{id}/links", () => {
 
   it("returns 403 for coworker authentication", async () => {
     const app = createCoworkerApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -750,7 +749,7 @@ describe("POST /tasks/{id}/links", () => {
     taskFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -771,7 +770,7 @@ describe("POST /tasks/{id}/links", () => {
       c.set("workspaceContext", null);
       return await next();
     });
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -792,7 +791,7 @@ describe("POST /tasks/{id}/links", () => {
     );
 
     const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -812,7 +811,7 @@ describe("POST /tasks/{id}/links", () => {
     );
 
     const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -831,7 +830,7 @@ describe("POST /tasks/{id}/links", () => {
 
   it("returns 400 when a task is linked to itself", async () => {
     const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -848,7 +847,7 @@ describe("POST /tasks/{id}/links", () => {
 
   it("returns 403 for delegated coworker context on owner link mutations", async () => {
     const app = createDelegatedCoworkerApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -866,7 +865,7 @@ describe("POST /tasks/{id}/links", () => {
 
   it("returns 403 for delegated coworker context on owner link patch", async () => {
     const app = createDelegatedCoworkerApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -883,7 +882,7 @@ describe("POST /tasks/{id}/links", () => {
 
   it("returns 403 for delegated coworker context on owner link delete", async () => {
     const app = createDelegatedCoworkerApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "DELETE",
@@ -906,7 +905,7 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links", {
       method: "POST",
@@ -967,7 +966,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 
   it("returns 200 when the link is deleted", async () => {
     const app = createUserApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "DELETE",
@@ -1000,7 +999,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     );
 
     const app = createUserApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "DELETE",
@@ -1035,7 +1034,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     );
 
     const app = createUserApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "DELETE",
@@ -1059,7 +1058,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "DELETE",
@@ -1071,7 +1070,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 
   it("returns 403 for coworker authentication", async () => {
     const app = createCoworkerApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "DELETE",
@@ -1091,7 +1090,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteTaskLink(app);
 
     const response = await app.request(
       "http://localhost/tsk_template/links/tl_schedule",
@@ -1152,7 +1151,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
 
   it("returns 200 when the link metadata is updated", async () => {
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1218,7 +1217,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1241,7 +1240,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     taskFindFirstMock.mockResolvedValueOnce(null);
 
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1261,7 +1260,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       c.set("workspaceContext", null);
       return await next();
     });
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1277,7 +1276,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
 
   it("returns 400 when no updatable fields are provided", async () => {
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1285,7 +1284,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       body: JSON.stringify({}),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -1299,7 +1298,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1315,7 +1314,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
 
   it("returns 403 for coworker authentication", async () => {
     const app = createCoworkerApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1339,7 +1338,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1377,7 +1376,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request("http://localhost/tsk_a/links/tl_1", {
       method: "PATCH",
@@ -1406,7 +1405,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
 
     const app = createUserApp();
-    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchTaskLink(app);
 
     const response = await app.request(
       "http://localhost/tsk_template/links/tl_schedule",

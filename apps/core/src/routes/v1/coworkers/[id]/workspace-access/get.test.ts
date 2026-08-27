@@ -1,10 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   coworkerFindFirstMock,
@@ -65,9 +71,7 @@ function baseAccess(
 }
 
 function createApp(role = "user", userId = "user_123") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -81,7 +85,7 @@ function createApp(role = "user", userId = "user_123") {
     return await next();
   });
 
-  mountGetCoworkerWorkspaceAccess(app as unknown as OpenAPIHonoWithAuth);
+  mountGetCoworkerWorkspaceAccess(app);
   return app;
 }
 

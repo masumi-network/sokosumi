@@ -176,7 +176,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 ## App-Specific Testing
 
-- Test files colocated in `__tests__/` directories
+- Place `foo.test.ts(x)` next to `foo.ts(x)`. Use `__tests__/` only for tests that do not map 1:1 to a source file (contracts, harnesses, fixtures)
 - Mock external APIs with colocated `vi.mock` (there is no `__mocks__/` directory)
 - Test both server and client components appropriately
 - Use Testing Library for component testing

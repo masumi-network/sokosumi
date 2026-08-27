@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   MemberRole,
   TaskStatus,
@@ -8,8 +7,16 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   resolveMemberOrganizationByIdMock,
@@ -59,9 +66,7 @@ let mountRevokeVendorGrant: (app: OpenAPIHonoWithAuth) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     if (!authContext) {
@@ -71,7 +76,7 @@ function createApp(
     c.set("authContext", authContext);
     return await next();
   });
-  mountRevokeVendorGrant(app as unknown as OpenAPIHonoWithAuth);
+  mountRevokeVendorGrant(app);
   return app;
 }
 

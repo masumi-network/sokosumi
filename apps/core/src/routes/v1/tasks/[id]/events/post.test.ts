@@ -1,14 +1,21 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { Channel, NotificationKind, TaskStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostTaskEvents from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   calculateCentsFromMasumiAmountStringsMock,
@@ -247,9 +254,7 @@ function createTaskEvent(
 }
 
 function createApp(authContext: AuthenticationContext) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -257,7 +262,7 @@ function createApp(authContext: AuthenticationContext) {
     return await next();
   });
 
-  mountPostTaskEvents(app as unknown as OpenAPIHonoWithAuth);
+  mountPostTaskEvents(app);
   return app;
 }
 
@@ -1803,7 +1808,7 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
@@ -2166,7 +2171,7 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(chargeSpy).not.toHaveBeenCalled();
     expect(processTaskPaymentClaimMock).not.toHaveBeenCalled();
   });
@@ -2387,7 +2392,7 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(chargeSpy).not.toHaveBeenCalled();
     expect(processTaskPaymentClaimMock).not.toHaveBeenCalled();
   });
@@ -2550,7 +2555,7 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(processTaskPaymentClaimMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();

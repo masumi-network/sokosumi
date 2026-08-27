@@ -1,10 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   organizationFindUniqueMock,
@@ -91,9 +98,7 @@ let mountPutOrganizationMemberSeat: (app: OpenAPIHonoWithAuth) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -105,7 +110,7 @@ function createApp(
     return await next();
   });
 
-  mountPutOrganizationMemberSeat(app as unknown as OpenAPIHonoWithAuth);
+  mountPutOrganizationMemberSeat(app);
   return app;
 }
 

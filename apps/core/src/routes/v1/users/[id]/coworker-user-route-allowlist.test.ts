@@ -1,8 +1,7 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { coworkerUserRouteAllowlistMiddleware } from "@/routes/v1/users/user-coworker-route-allowlist";
 import {
   type UserRouteVariables,
@@ -16,6 +15,14 @@ import mountGetUserOrganizationCredits from "./organizations/[organizationId]/cr
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -126,10 +133,8 @@ const SESSION_USER: AuthenticationContext = {
 
 function createUserRouteApp(
   authContext: AuthenticationContext,
-): OpenAPIHono<{ Variables: AuthVariables }> {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+): OpenAPIHonoWithAuth {
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -137,29 +142,15 @@ function createUserRouteApp(
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
   userByIdApp.use("*", coworkerUserRouteAllowlistMiddleware);
-  mountGetUserById(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountGetUserCredits(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountGetUserOrganizations(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountGetUserOrganizationCredits(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountGetUserOrganizationMember(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  mountGetUserPreferences(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountGetUserById(userByIdApp);
+  mountGetUserCredits(userByIdApp);
+  mountGetUserOrganizations(userByIdApp);
+  mountGetUserOrganizationCredits(userByIdApp);
+  mountGetUserOrganizationMember(userByIdApp);
+  mountGetUserPreferences(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }

@@ -1,14 +1,20 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCoworkerAuthorizedTaskWhere,
   buildCoworkerSiblingTaskListFilter,
 } from "@/helpers/vendor-siblings";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import mountGetTaskById from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { taskFindFirstMock, coworkerFindFirstMock } = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
@@ -39,9 +45,7 @@ interface CreateAppOptions {
 
 function createApp(options: CreateAppOptions = {}) {
   const { actor = "user", userId = "user_123", context } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -190,7 +194,7 @@ describe("GET /tasks/{id}", () => {
 
   it("filters archived peer links from user task reads", async () => {
     const app = createApp();
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -288,7 +292,7 @@ describe("GET /tasks/{id}", () => {
     });
 
     const app = createApp({ userId: "user_456" });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -344,7 +348,7 @@ describe("GET /tasks/{id}", () => {
 
   it("filters included links to peer tasks visible to the coworker", async () => {
     const app = createApp({ actor: "coworker" });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -421,7 +425,7 @@ describe("GET /tasks/{id}", () => {
         organizationId: "org_delegate",
       },
     });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -482,7 +486,7 @@ describe("GET /tasks/{id}", () => {
         organizationId: "org_delegate",
       },
     });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -499,7 +503,7 @@ describe("GET /tasks/{id}", () => {
         organizationId: "org_delegate",
       },
     });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -525,7 +529,7 @@ describe("GET /tasks/{id}", () => {
     );
 
     const app = createApp({ actor: "coworker" });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -556,7 +560,7 @@ describe("GET /tasks/{id}", () => {
     });
 
     const app = createApp({ userId: "user_456" });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 
@@ -614,7 +618,7 @@ describe("GET /tasks/{id}", () => {
     });
 
     const app = createApp();
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+    mountGetTaskById(app);
 
     const response = await app.request("http://localhost/tsk_a");
 

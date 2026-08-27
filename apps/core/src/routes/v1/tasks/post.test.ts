@@ -1,12 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { Channel, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostTask, { createTaskRequestSchema } from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   ensureProjectFilesTokenMock,
@@ -380,9 +385,7 @@ describe("createTaskRequestSchema", () => {
 
 describe("POST /tasks", () => {
   function createApp() {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -401,7 +404,7 @@ describe("POST /tasks", () => {
       return await next();
     });
 
-    mountPostTask(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTask(app);
 
     return app;
   }
@@ -937,15 +940,13 @@ describe("POST /tasks", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });
 describe("POST /tasks delegated coworker create grant", () => {
   function createDelegatedCoworkerApp() {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables & WorkspaceVariables;
-    }>();
+    const app = new OpenAPIHonoWithAuth();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -967,7 +968,7 @@ describe("POST /tasks delegated coworker create grant", () => {
       return await next();
     });
 
-    mountPostTask(app as unknown as OpenAPIHonoWithAuth);
+    mountPostTask(app);
 
     return app;
   }
