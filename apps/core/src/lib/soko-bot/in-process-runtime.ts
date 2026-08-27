@@ -97,6 +97,18 @@ class RuntimeEventLog {
   }
 }
 
+/** AI Gateway reports per-call cost in provider metadata; absent means unpriced. */
+function gatewayCostUsd(metadata: unknown): number {
+  if (!metadata || typeof metadata !== "object") return 0;
+  const gateway = (metadata as Record<string, unknown>).gateway;
+  if (!gateway || typeof gateway !== "object") return 0;
+  const cost = (gateway as Record<string, unknown>).cost;
+  const parsed = typeof cost === "string" ? Number(cost) : cost;
+  return typeof parsed === "number" && Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : 0;
+}
+
 /** Runs one turn to completion, recording everything the drain needs. */
 async function runTurn(
   sessionId: string,
@@ -148,6 +160,9 @@ async function runTurn(
       });
     }
 
+    // The drain reads the model from `step.started` and meters usage from
+    // `step.completed`; billing depends on both, so emit them per step.
+    await log.append(runtimeEvent("step.started", { modelId: version.model }));
     const result = await generateText({
       model: version.model,
       system: [
@@ -166,6 +181,22 @@ async function runTurn(
       messages: [{ role: "user", content: input.message }],
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
+      async onStepFinish(step) {
+        await log.append(
+          runtimeEvent("step.completed", {
+            modelId: version.model,
+            usage: {
+              inputTokens: step.usage?.inputTokens ?? 0,
+              outputTokens: step.usage?.outputTokens ?? 0,
+              cacheReadTokens:
+                step.usage?.inputTokenDetails?.cacheReadTokens ?? 0,
+              cacheWriteTokens:
+                step.usage?.inputTokenDetails?.cacheWriteTokens ?? 0,
+              costUsd: gatewayCostUsd(step.providerMetadata),
+            },
+          }),
+        );
+      },
       ...(version.inferenceRegion
         ? {
             providerOptions: {
@@ -186,11 +217,6 @@ async function runTurn(
       runtimeEvent("message.completed", {
         message: result.text,
         finishReason: result.finishReason,
-        usage: {
-          inputTokens: result.usage?.inputTokens ?? 0,
-          outputTokens: result.usage?.outputTokens ?? 0,
-          totalTokens: result.usage?.totalTokens ?? 0,
-        },
       }),
     );
     await log.append(runtimeEvent("turn.completed", {}));

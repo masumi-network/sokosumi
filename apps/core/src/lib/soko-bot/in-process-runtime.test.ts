@@ -71,10 +71,17 @@ describe("InProcessSokoBotRuntime", () => {
       version: { id: "v11", name: "v11 test", systemPrompt: "Be useful." },
       packet: { memory: { version: 1 } },
     });
-    generateTextMock.mockResolvedValue({
-      text: "Delegated to a Coworker.",
-      finishReason: "stop",
-      usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+    generateTextMock.mockImplementation(async (options) => {
+      // The SDK reports each step through onStepFinish; the drain meters those.
+      await options.onStepFinish?.({
+        usage: {
+          inputTokens: 20,
+          outputTokens: 5,
+          inputTokenDetails: { cacheReadTokens: 7, cacheWriteTokens: 0 },
+        },
+        providerMetadata: { gateway: { cost: "0.0136" } },
+      });
+      return { text: "Delegated to a Coworker.", finishReason: "stop" };
     });
   });
 
@@ -97,6 +104,8 @@ describe("InProcessSokoBotRuntime", () => {
       "session.started",
       "turn.started",
       "message.received",
+      "step.started",
+      "step.completed",
       "message.completed",
       "turn.completed",
       "session.waiting",
@@ -105,6 +114,30 @@ describe("InProcessSokoBotRuntime", () => {
       (event) => event.type === "message.completed",
     );
     expect(completed?.data.message).toBe("Delegated to a Coworker.");
+  });
+
+  it("reports the model and metered usage the drain bills on", async () => {
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Plan the launch",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+
+    await Promise.all(pendingTurns);
+
+    const started = recordedEvents().find((e) => e.type === "step.started");
+    const completed = recordedEvents().find((e) => e.type === "step.completed");
+    expect(started?.data.modelId).toBe("google/gemini-3.6-flash");
+    expect(completed?.data.usage).toEqual({
+      inputTokens: 20,
+      outputTokens: 5,
+      cacheReadTokens: 7,
+      cacheWriteTokens: 0,
+      costUsd: 0.0136,
+    });
   });
 
   it("offers only the capabilities the turn granted", async () => {
