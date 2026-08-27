@@ -325,6 +325,10 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 First-party skills are authored in `skills/<name>/` and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
 
+### Evlog (Core only)
+
+Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps/core/AGENTS.md) (the `<!-- evlog:start -->` block plus Sokosumi constraints). Skills are under `apps/core/.agents/skills/` (`review-logging-patterns`, `build-audit-logs`, `analyze-logs`). Do not add `evlog/next` to Web. Do not run `evlog agents` at the repo root.
+
 ### Ask Matt
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
