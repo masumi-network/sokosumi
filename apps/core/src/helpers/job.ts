@@ -431,6 +431,7 @@ export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
+  await requireOrganizationWorkstation(owner.ownerId, owner.organizationId);
   const maxCents =
     agentInput.maxAcceptedCents ??
     (agentInput.maxCredits

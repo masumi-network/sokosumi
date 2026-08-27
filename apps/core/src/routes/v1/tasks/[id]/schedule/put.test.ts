@@ -123,4 +123,26 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
+
+  it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/schedule`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "once",
+        runAt: "2099-01-01T09:00:00.000Z",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
 });

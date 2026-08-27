@@ -65,7 +65,7 @@ export async function resolveCreditBucketScopeContext(
     organizationId,
     canAccessOrganizationSharedCredits: requiresAssignedSeat
       ? hasAssignedSeat
-      : true,
+      : member != null,
     canAccessEnterprisePool: isConsumableEnterprise && hasAssignedSeat,
   };
 }
