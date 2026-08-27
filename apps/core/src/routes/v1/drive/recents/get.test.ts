@@ -55,6 +55,12 @@ vi.mock("@/helpers/vendor-grants", () => ({
 
 vi.mock("@vercel/blob", () => ({
   list: listMock,
+  head: vi.fn(async (pathname: string) => ({
+    url: `https://blob.example/${pathname}`,
+    pathname,
+    size: 100,
+    uploadedAt: new Date("2026-08-19T10:00:00.000Z"),
+  })),
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -65,6 +71,7 @@ vi.mock("@/config/env", async (importOriginal) => {
       ...actual.getEnv(),
       BLOB_READ_WRITE_TOKEN: "test-token",
       STRIPE_SECRET_KEY: "sk_test_123",
+      BETTER_AUTH_SECRET: "test-better-auth-secret",
     }),
   };
 });
@@ -150,15 +157,26 @@ describe("GET /v1/drive/recents", () => {
   });
 
   it("returns nextCursor when more items remain", async () => {
-    listMock.mockResolvedValue({
-      blobs: Array.from({ length: 3 }, (_, index) => ({
-        url: `https://blob.example/file-${index}.pdf`,
-        pathname: `drive/users/user_123/file-${index}.pdf`,
-        size: 100,
-        uploadedAt: new Date(`2026-08-${20 - index}T12:00:00.000Z`),
-      })),
-      hasMore: true,
-      cursor: "blob-page-2",
+    let blobPage = 0;
+    listMock.mockImplementation(async () => {
+      blobPage += 1;
+      if (blobPage === 1) {
+        return {
+          blobs: Array.from({ length: 3 }, (_, index) => ({
+            url: `https://blob.example/file-${index}.pdf`,
+            pathname: `drive/users/user_123/file-${index}.pdf`,
+            size: 100,
+            uploadedAt: new Date(`2026-08-${20 - index}T12:00:00.000Z`),
+          })),
+          hasMore: true,
+          cursor: "blob-page-2",
+        };
+      }
+
+      return {
+        blobs: [],
+        hasMore: false,
+      };
     });
 
     const app = createRecentsApp();

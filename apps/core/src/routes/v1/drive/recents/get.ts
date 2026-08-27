@@ -12,6 +12,7 @@ import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
 import {
   DRIVE_TASK_FILE_WHERE,
   fetchDriveTaskOutputRecentsBatch,
+  fetchDriveTaskOutputRecentsByIds,
 } from "@/helpers/drive-task-output-catalog";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
@@ -139,12 +140,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       token,
       limit: take,
       cursor,
+      cursorSecret: env.BETTER_AUTH_SECRET,
+      cursorBinding: {
+        prefix,
+        searchQuery: searchQuery ?? "",
+      },
       ...(searchQuery ? { searchQuery } : {}),
       fetchTaskOutputs: ({ cursor: taskCursor, take: taskTake }) =>
         fetchDriveTaskOutputRecentsBatch({
           baseTaskWhere,
           cursor: taskCursor,
           take: taskTake,
+          ...(searchQuery ? { searchQuery } : {}),
+        }),
+      fetchTaskOutputsByIds: (ids) =>
+        fetchDriveTaskOutputRecentsByIds({
+          ids,
+          baseTaskWhere,
           ...(searchQuery ? { searchQuery } : {}),
         }),
     });

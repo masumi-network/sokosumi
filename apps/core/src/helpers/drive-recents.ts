@@ -1,11 +1,23 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { z } from "@hono/zod-openapi";
 import { isDriveFolderMarker } from "@sokosumi/utils";
 import type { ListBlobResult } from "@vercel/blob";
-import { list } from "@vercel/blob";
+import { head, list } from "@vercel/blob";
 import type { DriveTaskOutputRecentsRow } from "@/helpers/drive-task-output-catalog";
 import { badRequest } from "@/helpers/error";
 import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
+import { driveRecentsItemSchema } from "@/schemas/drive-recents.schema";
 
-const RECENTS_CURSOR_VERSION = 1;
+const RECENTS_CURSOR_VERSION = 2;
+const MAX_PENDING_REFS = 100;
+
+const driveRecentsItemRefSchema = z.object({
+  kind: z.enum(["drive-file", "task-output"]),
+  id: z.string().min(1),
+  activityAt: z.string().min(1),
+});
+
+type DriveRecentsItemRef = z.infer<typeof driveRecentsItemRefSchema>;
 
 interface RecentsCursorPayload {
   v: typeof RECENTS_CURSOR_VERSION;
@@ -14,14 +26,19 @@ interface RecentsCursorPayload {
   id: string;
   driveBlobCursor?: string | null;
   taskFileCursor?: string | null;
-  pendingItems?: DriveRecentsItem[];
+  pendingRefs?: DriveRecentsItemRef[];
+}
+
+export interface DriveRecentsCursorBinding {
+  prefix: string;
+  searchQuery: string;
 }
 
 export interface DriveRecentsPageState {
   lastItem: DriveRecentsItem | null;
   driveBlobCursor: string | null;
   taskFileCursor: string | null;
-  pendingItems: DriveRecentsItem[];
+  pendingRefs: DriveRecentsItemRef[];
 }
 
 export interface DriveRecentsPageResult {
@@ -37,6 +54,14 @@ function recentsItemId(item: DriveRecentsItem): string {
     return item.pathname;
   }
   return item.taskFileId;
+}
+
+function recentsItemRef(item: DriveRecentsItem): DriveRecentsItemRef {
+  return {
+    kind: item.kind,
+    id: recentsItemId(item),
+    activityAt: item.activityAt,
+  };
 }
 
 export function driveRecentsDriveFileNameMatchesSearch(
@@ -73,11 +98,96 @@ export function isRecentsItemOlderThanCursor(
   return compareDriveRecentsItems(item, cursorItem) > 0;
 }
 
+function signRecentsCursorEnvelope(
+  payload: RecentsCursorPayload,
+  secret: string,
+  binding: DriveRecentsCursorBinding,
+): string {
+  const payloadJson = JSON.stringify(payload);
+  const bindingJson = JSON.stringify(binding);
+  const signature = createHmac("sha256", secret)
+    .update(bindingJson)
+    .update("\0")
+    .update(payloadJson)
+    .digest("base64url");
+
+  return Buffer.from(
+    JSON.stringify({ payload: payloadJson, signature }),
+    "utf8",
+  ).toString("base64url");
+}
+
+function parseRecentsCursorPayload(raw: unknown): RecentsCursorPayload {
+  if (!raw || typeof raw !== "object") {
+    throw badRequest("Invalid pagination cursor");
+  }
+
+  const payload = raw as Partial<RecentsCursorPayload> & {
+    pendingItems?: unknown;
+  };
+
+  if (payload.v !== RECENTS_CURSOR_VERSION) {
+    throw badRequest("Invalid pagination cursor");
+  }
+  if (!payload.activityAt || !payload.kind || !payload.id) {
+    throw badRequest("Invalid pagination cursor");
+  }
+  if ("pendingItems" in payload) {
+    throw badRequest("Invalid pagination cursor");
+  }
+
+  let pendingRefs: DriveRecentsItemRef[] | undefined;
+  if (payload.pendingRefs !== undefined) {
+    const parsed = z
+      .array(driveRecentsItemRefSchema)
+      .safeParse(payload.pendingRefs);
+    if (!parsed.success) {
+      throw badRequest("Invalid pagination cursor");
+    }
+    pendingRefs = parsed.data;
+  }
+
+  return {
+    v: RECENTS_CURSOR_VERSION,
+    activityAt: payload.activityAt,
+    kind: payload.kind,
+    id: payload.id,
+    driveBlobCursor: payload.driveBlobCursor ?? null,
+    taskFileCursor: payload.taskFileCursor ?? null,
+    ...(pendingRefs && pendingRefs.length > 0 ? { pendingRefs } : {}),
+  };
+}
+
+function verifyRecentsCursorSignature(
+  payloadJson: string,
+  signature: string,
+  secret: string,
+  binding: DriveRecentsCursorBinding,
+): void {
+  const bindingJson = JSON.stringify(binding);
+  const expected = createHmac("sha256", secret)
+    .update(bindingJson)
+    .update("\0")
+    .update(payloadJson)
+    .digest("base64url");
+
+  const signatureBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expected);
+  if (
+    signatureBuf.length !== expectedBuf.length ||
+    !timingSafeEqual(signatureBuf, expectedBuf)
+  ) {
+    throw badRequest("Invalid pagination cursor");
+  }
+}
+
 export function encodeDriveRecentsCursor(input: {
   lastItem: DriveRecentsItem;
   driveBlobCursor: string | null;
   taskFileCursor: string | null;
-  pendingItems?: DriveRecentsItem[];
+  pendingRefs?: DriveRecentsItemRef[];
+  cursorSecret: string;
+  cursorBinding: DriveRecentsCursorBinding;
 }): string {
   const payload: RecentsCursorPayload = {
     v: RECENTS_CURSOR_VERSION,
@@ -86,54 +196,143 @@ export function encodeDriveRecentsCursor(input: {
     id: recentsItemId(input.lastItem),
     driveBlobCursor: input.driveBlobCursor,
     taskFileCursor: input.taskFileCursor,
-    ...(input.pendingItems && input.pendingItems.length > 0
-      ? { pendingItems: input.pendingItems }
+    ...(input.pendingRefs && input.pendingRefs.length > 0
+      ? { pendingRefs: input.pendingRefs }
       : {}),
   };
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+
+  return signRecentsCursorEnvelope(
+    payload,
+    input.cursorSecret,
+    input.cursorBinding,
+  );
+}
+
+function lastItemFromCursorPayload(
+  payload: RecentsCursorPayload,
+): DriveRecentsItem {
+  return payload.kind === "drive-file"
+    ? {
+        kind: "drive-file",
+        name: "",
+        fileUrl: "https://example.com/placeholder",
+        pathname: payload.id,
+        size: 0,
+        activityAt: payload.activityAt,
+      }
+    : {
+        kind: "task-output",
+        name: "",
+        fileUrl: "https://example.com/placeholder",
+        size: null,
+        activityAt: payload.activityAt,
+        taskFileId: payload.id,
+        taskId: "",
+        taskName: "",
+        projectId: null,
+        projectName: null,
+      };
+}
+
+export async function hydrateDriveRecentsPendingRefs(input: {
+  refs: DriveRecentsItemRef[];
+  prefix: string;
+  token: string;
+  fetchTaskOutputsByIds: (
+    ids: string[],
+  ) => Promise<DriveTaskOutputRecentsRow[]>;
+}): Promise<DriveRecentsItem[]> {
+  const hydrated: DriveRecentsItem[] = [];
+
+  const taskOutputIds = input.refs
+    .filter((ref) => ref.kind === "task-output")
+    .map((ref) => ref.id);
+  const taskRows =
+    taskOutputIds.length > 0
+      ? await input.fetchTaskOutputsByIds(taskOutputIds)
+      : [];
+  const taskRowById = new Map(taskRows.map((row) => [row.id, row]));
+
+  for (const ref of input.refs) {
+    if (ref.kind === "drive-file") {
+      if (!ref.id.startsWith(input.prefix)) {
+        continue;
+      }
+
+      try {
+        const blob = await head(ref.id, { token: input.token });
+        if (isDriveFolderMarker(blob.pathname)) {
+          continue;
+        }
+        const segments = blob.pathname
+          .split("/")
+          .filter((segment) => segment.length > 0);
+        const name = segments[segments.length - 1];
+        if (!name) {
+          continue;
+        }
+        const item: DriveRecentsItem = {
+          kind: "drive-file",
+          name,
+          fileUrl: blob.url,
+          pathname: blob.pathname,
+          size: blob.size,
+          activityAt: blob.uploadedAt.toISOString(),
+        };
+        if (item.activityAt === ref.activityAt) {
+          hydrated.push(item);
+        }
+      } catch {
+        continue;
+      }
+      continue;
+    }
+
+    const row = taskRowById.get(ref.id);
+    if (!row) {
+      continue;
+    }
+    const item = mapTaskOutputRowToRecentsItem(row);
+    if (item.activityAt === ref.activityAt) {
+      hydrated.push(item);
+    }
+  }
+
+  return hydrated;
 }
 
 export function decodeDriveRecentsCursor(
   cursor: string,
+  input: {
+    cursorSecret: string;
+    cursorBinding: DriveRecentsCursorBinding;
+  },
 ): DriveRecentsPageState {
   try {
     const decoded = Buffer.from(cursor, "base64url").toString("utf8");
-    const payload = JSON.parse(decoded) as RecentsCursorPayload;
-    if (payload.v !== RECENTS_CURSOR_VERSION) {
-      throw badRequest("Invalid pagination cursor");
-    }
-    if (!payload.activityAt || !payload.kind || !payload.id) {
+    const envelope = JSON.parse(decoded) as {
+      payload?: string;
+      signature?: string;
+    };
+
+    if (!envelope.payload || !envelope.signature) {
       throw badRequest("Invalid pagination cursor");
     }
 
-    const lastItem: DriveRecentsItem =
-      payload.kind === "drive-file"
-        ? {
-            kind: "drive-file",
-            name: "",
-            fileUrl: "https://example.com/placeholder",
-            pathname: payload.id,
-            size: 0,
-            activityAt: payload.activityAt,
-          }
-        : {
-            kind: "task-output",
-            name: "",
-            fileUrl: "https://example.com/placeholder",
-            size: null,
-            activityAt: payload.activityAt,
-            taskFileId: payload.id,
-            taskId: "",
-            taskName: "",
-            projectId: null,
-            projectName: null,
-          };
+    verifyRecentsCursorSignature(
+      envelope.payload,
+      envelope.signature,
+      input.cursorSecret,
+      input.cursorBinding,
+    );
+
+    const payload = parseRecentsCursorPayload(JSON.parse(envelope.payload));
 
     return {
-      lastItem,
+      lastItem: lastItemFromCursorPayload(payload),
       driveBlobCursor: payload.driveBlobCursor ?? null,
       taskFileCursor: payload.taskFileCursor ?? null,
-      pendingItems: payload.pendingItems ?? [],
+      pendingRefs: payload.pendingRefs ?? [],
     };
   } catch (error) {
     if (
@@ -226,21 +425,53 @@ export async function fetchDriveRecentsPage(input: {
   limit: number;
   cursor?: string;
   searchQuery?: string;
+  cursorSecret: string;
+  cursorBinding: DriveRecentsCursorBinding;
   fetchTaskOutputs: (options: { cursor?: string; take: number }) => Promise<{
     rows: DriveTaskOutputRecentsRow[];
     hasMore: boolean;
     nextCursor: string | null;
   }>;
+  fetchTaskOutputsByIds: (
+    ids: string[],
+  ) => Promise<DriveTaskOutputRecentsRow[]>;
 }): Promise<DriveRecentsPageResult> {
   const searchQuery = input.searchQuery?.trim() ?? "";
-  const pageState = input.cursor
-    ? decodeDriveRecentsCursor(input.cursor)
-    : {
-        lastItem: null,
-        driveBlobCursor: null,
-        taskFileCursor: null,
-        pendingItems: [],
-      };
+  const cursorBinding: DriveRecentsCursorBinding = {
+    prefix: input.cursorBinding.prefix,
+    searchQuery,
+  };
+
+  let pageState: DriveRecentsPageState = {
+    lastItem: null,
+    driveBlobCursor: null,
+    taskFileCursor: null,
+    pendingRefs: [],
+  };
+
+  if (input.cursor) {
+    pageState = decodeDriveRecentsCursor(input.cursor, {
+      cursorSecret: input.cursorSecret,
+      cursorBinding,
+    });
+  }
+
+  const hydratedPending =
+    pageState.pendingRefs.length > 0
+      ? await hydrateDriveRecentsPendingRefs({
+          refs: pageState.pendingRefs,
+          prefix: input.prefix,
+          token: input.token,
+          fetchTaskOutputsByIds: input.fetchTaskOutputsByIds,
+        })
+      : [];
+
+  for (const item of hydratedPending) {
+    const parsed = driveRecentsItemSchema.safeParse(item);
+    if (!parsed.success) {
+      throw badRequest("Invalid pagination cursor");
+    }
+  }
 
   const batchSize = Math.max(input.limit * 4, 20);
   const pool: DriveRecentsItem[] = [];
@@ -278,13 +509,13 @@ export async function fetchDriveRecentsPage(input: {
     }
   }
 
-  addItemsToPool(pageState.pendingItems);
+  addItemsToPool(hydratedPending);
 
-  function collectPendingItems(
+  function collectPendingRefs(
     returnedItems: DriveRecentsItem[],
-  ): DriveRecentsItem[] {
+  ): DriveRecentsItemRef[] {
     const returnedIds = new Set(returnedItems.map(recentsItemId));
-    const pending: DriveRecentsItem[] = [];
+    const pendingItems: DriveRecentsItem[] = [];
     for (const item of pool) {
       if (!shouldIncludeItem(item)) {
         continue;
@@ -292,38 +523,11 @@ export async function fetchDriveRecentsPage(input: {
       if (returnedIds.has(recentsItemId(item))) {
         continue;
       }
-      pending.push(item);
+      pendingItems.push(item);
     }
-    pending.sort(compareDriveRecentsItems);
-    return pending;
+    pendingItems.sort(compareDriveRecentsItems);
+    return pendingItems.map(recentsItemRef);
   }
-
-  function getTopEligiblePreview(): {
-    signature: string | null;
-    count: number;
-  } {
-    const topEligible: DriveRecentsItem[] = [];
-    for (const item of pool) {
-      if (!shouldIncludeItem(item)) {
-        continue;
-      }
-      topEligible.push(item);
-      if (topEligible.length >= input.limit + 1) {
-        break;
-      }
-    }
-
-    if (topEligible.length === 0) {
-      return { signature: null, count: 0 };
-    }
-
-    return {
-      signature: topEligible.map(recentsItemId).join("\0"),
-      count: topEligible.length,
-    };
-  }
-
-  let previousTopSignature: string | null = null;
 
   while (driveHasMore || taskHasMore) {
     type DriveBlobRecentsBatch = Awaited<
@@ -370,22 +574,14 @@ export async function fetchDriveRecentsPage(input: {
     addItemsToPool(taskBatch.rows.map(mapTaskOutputRowToRecentsItem));
 
     pool.sort(compareDriveRecentsItems);
-    const { signature: topSignature, count: topEligibleCount } =
-      getTopEligiblePreview();
 
+    const eligibleCount = pool.filter((item) => shouldIncludeItem(item)).length;
     if (!driveHasMore && !taskHasMore) {
       break;
     }
-
-    if (
-      topSignature !== null &&
-      topSignature === previousTopSignature &&
-      topEligibleCount >= input.limit + 1
-    ) {
+    if (!driveHasMore && eligibleCount >= input.limit + 1) {
       break;
     }
-
-    previousTopSignature = topSignature;
   }
 
   pool.sort(compareDriveRecentsItems);
@@ -404,7 +600,9 @@ export async function fetchDriveRecentsPage(input: {
   const hasMore = merged.length > input.limit;
   const items = merged.slice(0, input.limit);
   const lastItem = items[items.length - 1] ?? null;
-  const pendingItems = hasMore ? collectPendingItems(items) : [];
+  const pendingRefs = hasMore
+    ? collectPendingRefs(items).slice(0, MAX_PENDING_REFS)
+    : [];
 
   return {
     items,
@@ -415,7 +613,9 @@ export async function fetchDriveRecentsPage(input: {
             lastItem,
             driveBlobCursor,
             taskFileCursor,
-            pendingItems,
+            pendingRefs,
+            cursorSecret: input.cursorSecret,
+            cursorBinding,
           })
         : null,
     driveBlobCursor,

@@ -145,3 +145,59 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
       : null,
   };
 }
+
+export async function fetchDriveTaskOutputRecentsByIds(input: {
+  ids: string[];
+  baseTaskWhere: Prisma.TaskWhereInput;
+  searchQuery?: string;
+}): Promise<DriveTaskOutputRecentsRow[]> {
+  if (input.ids.length === 0) {
+    return [];
+  }
+
+  const taskFileWhere = buildDriveTaskOutputRecentsWhere({
+    baseTaskWhere: input.baseTaskWhere,
+    searchQuery: input.searchQuery,
+  });
+
+  const matchingFiles = await prisma.taskFile.findMany({
+    where: {
+      id: { in: input.ids },
+      ...taskFileWhere,
+    },
+    include: {
+      task: {
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
+          project: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const rows: DriveTaskOutputRecentsRow[] = [];
+  for (const file of matchingFiles) {
+    if (!file.fileUrl) {
+      continue;
+    }
+    rows.push({
+      id: file.id,
+      name: file.name,
+      fileUrl: file.fileUrl,
+      size: file.size ? Number(file.size) : null,
+      updatedAt: file.updatedAt,
+      taskId: file.task.id,
+      taskName: file.task.name,
+      projectId: file.task.projectId,
+      projectName: file.task.project?.name ?? null,
+    });
+  }
+
+  return rows;
+}
