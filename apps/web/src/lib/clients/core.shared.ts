@@ -1,6 +1,7 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
+  AdminAddExternalChannelGuestBody,
   AgentStatus,
   AggregateAdminTaskX402PaymentsByAgentData,
   CreateAdminVendorData,
@@ -1733,7 +1734,7 @@ export function createCoreClient(getClient: GetCoreClient) {
   async function addAdminExternalChannelGuest(
     slug: string,
     roomId: string,
-    body: { userId: string },
+    body: AdminAddExternalChannelGuestBody,
   ) {
     return executeCoreOperation(
       getClient,

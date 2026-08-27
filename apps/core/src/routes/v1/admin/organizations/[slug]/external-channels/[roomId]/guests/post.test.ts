@@ -1,11 +1,8 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { createMiddleware } from "hono/factory";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { errorHandler } from "@/helpers/error-handler";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
@@ -36,6 +33,31 @@ const {
   recordChannelMembershipStatusMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
 }));
+
+const authContextState: { current: AuthenticationContext | null } = {
+  current: null,
+};
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  return {
+    ...actual,
+    authMiddleware: async (
+      c: {
+        json: (body: unknown, status: number) => unknown;
+        set: (key: string, value: unknown) => void;
+      },
+      next: () => Promise<unknown>,
+    ) => {
+      if (!authContextState.current) {
+        return c.json({ error: "Unauthorized", message: "Unauthorized" }, 401);
+      }
+      c.set("isAuthenticated", true);
+      c.set("authContext", authContextState.current);
+      return await next();
+    },
+  };
+});
 
 vi.mock("@/helpers/admin-organization-overview.js", () => ({
   getAdminOrganizationBySlug: (...args: unknown[]) =>
@@ -85,47 +107,19 @@ function externalRoom() {
   };
 }
 
-interface AppOptions {
-  role?: string;
-  actor?: "user" | "coworker" | "orchestrator";
+function adminUserContext(
+  role = "admin",
+): Extract<AuthenticationContext, { actor: "user" }> {
+  return {
+    actor: "user",
+    userId: "user_admin",
+    organizationId: null,
+    role,
+  };
 }
 
-function createApp(options: AppOptions = {}) {
-  const { role = "admin", actor = "user" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
-
-  app.use("*", async (c, next) => {
-    c.set("requestId", "req_admin_external_guest_post_test");
-    c.set("isAuthenticated", true);
-
-    if (actor === "coworker") {
-      c.set("authContext", {
-        actor: "coworker",
-        coworkerId: "cow_123",
-        vendorId: TEST_VENDOR_ID,
-      });
-    } else if (actor === "orchestrator") {
-      c.set("authContext", {
-        actor: "orchestrator",
-        orchestratorId: "orch_1",
-        context: { userId: "user_guest", organizationId: null },
-      });
-    } else {
-      c.set("authContext", {
-        actor: "user",
-        userId: "user_admin",
-        organizationId: null,
-        role,
-      });
-    }
-
-    await next();
-  });
-
+function createApp() {
+  const app = new OpenAPIHonoWithAuth();
   app.use(
     "*",
     createMiddleware(async (c, next) => {
@@ -133,18 +127,12 @@ function createApp(options: AppOptions = {}) {
       await next();
     }),
   );
-
-  app.onError(errorHandler);
-  mountAddAdminExternalChannelGuest(app as unknown as OpenAPIHonoWithAuth);
-
+  mountAddAdminExternalChannelGuest(app);
   return app;
 }
 
-async function post(
-  options: AppOptions = {},
-  body: { userId: string } = { userId: "user_guest" },
-) {
-  const app = createApp(options);
+async function post(body: { userId: string } = { userId: "user_guest" }) {
+  const app = createApp();
   return app.request(
     `http://localhost/acme/external-channels/${ROOM_ID}/guests`,
     {
@@ -158,6 +146,7 @@ async function post(
 describe("POST /admin/organizations/{slug}/external-channels/{roomId}/guests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authContextState.current = adminUserContext();
     prismaTransactionMock.mockImplementation(
       async (cb: (client: typeof tx) => unknown) => cb(tx),
     );
@@ -325,19 +314,30 @@ describe("POST /admin/organizations/{slug}/external-channels/{roomId}/guests", (
   });
 
   it("rejects non-admin users", async () => {
-    const response = await post({ role: "user" });
+    authContextState.current = adminUserContext("user");
+    const response = await post();
     expect(response.status).toBe(403);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("rejects a coworker actor so it cannot enroll an arbitrary user", async () => {
-    const response = await post({ actor: "coworker" });
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+    };
+    const response = await post();
     expect(response.status).toBe(403);
     expect(roomUserMemberCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects an orchestrator actor so it cannot enroll an arbitrary user", async () => {
-    const response = await post({ actor: "orchestrator" });
+    authContextState.current = {
+      actor: "orchestrator",
+      orchestratorId: "orch_1",
+      context: { userId: "user_guest", organizationId: null },
+    };
+    const response = await post();
     expect(response.status).toBe(403);
     expect(roomUserMemberCreateMock).not.toHaveBeenCalled();
   });
