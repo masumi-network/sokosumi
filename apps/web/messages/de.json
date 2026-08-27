@@ -5243,7 +5243,8 @@
       "Edit": {
         "action": "Bearbeiten",
         "composerAria": "Nachricht bearbeiten. Enter speichern, Escape abbrechen, Umschalt+Enter neue Zeile.",
-        "edited": "Bearbeitet"
+        "edited": "(bearbeitet)",
+        "editedAt": "Bearbeitet {when}"
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",
