@@ -184,6 +184,7 @@ export type AdminSokoBotListItem = {
     name: string | null;
     status: SokoBotStatus;
     archivedAt: Date | null;
+    versionId: string | null;
     runtimeVersion: string | null;
     runtimeDeployment: string | null;
     lastActivityAt: Date | null;

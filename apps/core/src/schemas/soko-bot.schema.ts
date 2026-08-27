@@ -345,6 +345,8 @@ export const adminSokoBotListItemSchema = z
     name: z.string().nullable(),
     status: sokoBotStatusSchema,
     archivedAt: dateTimeSchema.nullable(),
+    /** Agent version the bot runs (prompt, skills, model), e.g. "v11". */
+    versionId: z.string().nullable(),
     runtimeVersion: z.string().nullable(),
     runtimeDeployment: z.string().nullable(),
     lastActivityAt: dateTimeSchema.nullable(),

@@ -3932,7 +3932,8 @@
           "runtime": "Runtime",
           "lastActivity": "Last activity",
           "unnamed": "Unnamed",
-          "archived": "Archived"
+          "archived": "Archived",
+          "version": "Version"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",

@@ -776,6 +776,12 @@ export const AdminSokoBotListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        versionId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         runtimeVersion: {
             type: [
                 'string',
@@ -847,6 +853,7 @@ export const AdminSokoBotListItemSchema = {
         'name',
         'status',
         'archivedAt',
+        'versionId',
         'runtimeVersion',
         'runtimeDeployment',
         'lastActivityAt',

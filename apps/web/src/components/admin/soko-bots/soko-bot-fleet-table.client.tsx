@@ -88,6 +88,7 @@ export function SokoBotFleetTable({
               <TableHead>{t("bot")}</TableHead>
               <TableHead>{t("owner")}</TableHead>
               <TableHead>{t("status")}</TableHead>
+              <TableHead>{t("version")}</TableHead>
               <TableHead className="text-right">{t("turns")}</TableHead>
               <TableHead className="text-right">{t("pending")}</TableHead>
               <TableHead className="text-right">{t("schedules")}</TableHead>
@@ -137,6 +138,13 @@ export function SokoBotFleetTable({
                         </StatusBadge>
                       ) : null}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {item.versionId ? (
+                      <StatusBadge tone="neutral">{item.versionId}</StatusBadge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {item.turnCount}

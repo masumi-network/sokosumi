@@ -10,6 +10,7 @@ import {
   applyVersionCapabilities,
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
+  DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
   isSokoBotVersionId,
@@ -1011,6 +1012,11 @@ export class SokoBotControlPlane {
           userId: input.userId,
           workspaceId: input.workspaceId,
           name,
+          // Pin the version a bot was created on rather than leaving it null
+          // and relying on the runtime fallback: the console can then show
+          // what each bot actually runs, and an older bot keeps its version
+          // when the default moves on.
+          versionId: DEFAULT_SOKO_BOT_VERSION_ID,
           avatarSeed: input.avatarSeed,
           personalityTone: input.personalityTone,
           personalityDetail: input.personalityDetail,
