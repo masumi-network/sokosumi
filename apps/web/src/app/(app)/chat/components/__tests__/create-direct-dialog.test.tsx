@@ -238,6 +238,7 @@ describe("CreateDirectDialog", () => {
     expect(scrollport).toHaveClass("overflow-y-auto");
     expect(scrollport).toHaveClass("h-[min(20rem,45svh)]");
     expect(scrollport.contains(screen.getByText("Francis"))).toBe(true);
+    expect(screen.getByTestId("direct-roster-edge-fade")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: /Francis/ }));
     const composer = screen.getByTestId("direct-recipient-composer");

@@ -282,46 +282,55 @@ export function CreateDirectDialog() {
             spellCheck={false}
           />
         </div>
-        <div
-          ref={rosterScrollRef}
-          data-testid="direct-roster-scrollport"
-          className="h-[min(20rem,45svh)] overflow-y-auto overscroll-contain"
-          aria-busy={!rosterLoaded || undefined}
-        >
-          {!rosterLoaded ? (
-            <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              {t("loading")}
-            </div>
-          ) : rosterError ? (
-            <div className="flex h-full items-center justify-center p-3">
-              <MembersRosterLoadFailed
-                className="w-full px-3 py-6"
-                onRetry={loadRoster}
-              />
-            </div>
-          ) : (
-            <>
-              {roster.membersLoadFailed ? (
+        <div className="relative">
+          <div
+            ref={rosterScrollRef}
+            data-testid="direct-roster-scrollport"
+            className="h-[min(20rem,45svh)] overflow-y-auto overscroll-contain"
+            aria-busy={!rosterLoaded || undefined}
+          >
+            {!rosterLoaded ? (
+              <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                {t("loading")}
+              </div>
+            ) : rosterError ? (
+              <div className="flex h-full items-center justify-center p-3">
                 <MembersRosterLoadFailed
-                  className="mx-1 mt-1 px-3 py-4"
+                  className="w-full px-3 py-6"
                   onRetry={loadRoster}
                 />
-              ) : null}
-              {candidateTargets.length > 0 ? (
-                <DirectDraftTargetList
-                  targets={candidateTargets}
-                  onSelect={addTarget}
-                  isTargetDisabled={isTargetDisabled}
-                  disabledReason={extraHumanDisabledReason}
-                />
-              ) : roster.membersLoadFailed ? null : (
-                <p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-sm">
-                  {t("Draft.noResults")}
-                </p>
-              )}
-            </>
-          )}
+              </div>
+            ) : (
+              <>
+                {roster.membersLoadFailed ? (
+                  <MembersRosterLoadFailed
+                    className="mx-1 mt-1 px-3 py-4"
+                    onRetry={loadRoster}
+                  />
+                ) : null}
+                {candidateTargets.length > 0 ? (
+                  <div className="pb-8">
+                    <DirectDraftTargetList
+                      targets={candidateTargets}
+                      onSelect={addTarget}
+                      isTargetDisabled={isTargetDisabled}
+                      disabledReason={extraHumanDisabledReason}
+                    />
+                  </div>
+                ) : roster.membersLoadFailed ? null : (
+                  <p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-sm">
+                    {t("Draft.noResults")}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          <div
+            aria-hidden
+            data-testid="direct-roster-edge-fade"
+            className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t to-transparent"
+          />
         </div>
         <DialogFooter>
           <Button
