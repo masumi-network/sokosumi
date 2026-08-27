@@ -1538,7 +1538,7 @@ export function RoomsClient({
     readMarkerRef.current = marker;
 
     const roomId = selectedRoomReadId;
-    const restoreRoom = selectedRoom;
+    const unreadBeforeMarkRead = selectedRoom;
     const optimisticRoom = {
       ...selectedRoom,
       unreadCount: 0,
@@ -1558,7 +1558,7 @@ export function RoomsClient({
       }
       if (!result.ok) {
         forgetRoomRead(roomId);
-        dispatchOrganizationChatRoomRead(roomId, restoreRoom);
+        dispatchOrganizationChatRoomRead(roomId, unreadBeforeMarkRead);
         return;
       }
       rememberRoomRead(result.value);

@@ -22,13 +22,15 @@ function toUpdatedAtMs(updatedAt: string | Date): number {
   return Number.isFinite(ms) ? ms : 0;
 }
 
-export function rememberRoomRead(room: {
+interface RoomAttentionFields {
   id: string;
   updatedAt: string | Date;
   unreadCount: number;
   unreadMentionCount: number;
   markedUnread: boolean;
-}): void {
+}
+
+export function rememberRoomRead(room: RoomAttentionFields): void {
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
     unreadCount: room.unreadCount,
@@ -45,19 +47,11 @@ export function clearRoomReadOverlays(): void {
   overlaysByRoomId.clear();
 }
 
-interface RoomAttentionFields {
-  id: string;
-  updatedAt: string | Date;
-  unreadCount: number;
-  unreadMentionCount: number;
-  markedUnread: boolean;
-}
-
 /**
  * Reapply post-read attention when the incoming list is stale (same or older
- * `updatedAt`). Newer activity or a fully-clear server row drops the overlay.
- * Matching leftover counts must not drop it — a later stale fetch still needs
- * the overlay.
+ * `updatedAt`). Newer activity drops the overlay. A fully-clear incoming row
+ * only drops a fully-clear overlay — leftover Thread unread must not be wiped
+ * by a stale empty cache.
  */
 export function applyRoomReadOverlays<T extends RoomAttentionFields>(
   rooms: readonly T[],
@@ -78,11 +72,15 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
       return room;
     }
 
-    if (
+    const overlayFullyClear =
+      overlay.unreadCount === 0 &&
+      overlay.unreadMentionCount === 0 &&
+      overlay.markedUnread === false;
+    const incomingFullyClear =
       room.unreadCount === 0 &&
       room.unreadMentionCount === 0 &&
-      room.markedUnread === false
-    ) {
+      room.markedUnread === false;
+    if (overlayFullyClear && incomingFullyClear) {
       overlaysByRoomId.delete(room.id);
       return room;
     }

@@ -111,6 +111,30 @@ describe("room-read-overlay", () => {
     });
   });
 
+  it("does not let a stale fully-clear row wipe leftover thread unread", () => {
+    rememberRoomRead(
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const staleFullyClear = applyRoomReadOverlays([
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    ]);
+
+    expect(staleFullyClear[0]).toMatchObject({
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
   it("keeps leftover overlay after a matching poll so a later stale fetch still overlays", () => {
     rememberRoomRead(
       room({
