@@ -696,3 +696,56 @@ Key implementation files:
 - [Hono Documentation](https://hono.dev/)
 - [Hono Node.js Server](https://hono.dev/getting-started/nodejs)
 - [Better Auth Hono Integration](https://www.better-auth.com/docs/integrations/hono#middleware)
+
+<!-- evlog:start -->
+## Logging with evlog
+
+This project uses [evlog](https://evlog.dev). Follow these rules when you add or change logging.
+
+**One wide event per operation.** A request, a job, a user action — each produces exactly one
+event carrying everything about it. Not one log line per step.
+
+- Get the request logger with `c.get('log')` or `useLogger()` from `evlog/hono` inside a route handler.
+- Add context as you learn it: `log.set({ user: { id, plan }, cart: { items, total } })`.
+- Group related fields into objects. Never flat abbreviations like `{ uid, n, t }`.
+- Never pass a raw body — `log.set({ user: body })` leaks passwords. List fields explicitly.
+- Do not time anything by hand; the duration is computed when the event emits.
+- `log.debug()` is for step detail and is stripped from production builds.
+
+**Errors are structured, never bare.**
+
+```ts
+throw createError({
+  message: 'Payment failed',
+  status: 402,
+  why: 'Card declined by the issuer',
+  fix: 'Use a different payment method',
+  internal: { correlationId },   // drains only — never reaches the client
+})
+```
+
+Never `throw new Error(...)`. Never `console.error(e); throw e` — use `log.error(e)`.
+When the same error appears in three or more places, promote it to `defineErrorCatalog()`.
+
+**Sensitive actions get an audit trail.** Call `log.audit({ action, actor, target, outcome })`
+on anything that changes permissions, money, or personal data. Audit entries are never sampled.
+
+**Never log** passwords, tokens, API keys, full card numbers, or session JWTs. Redaction is on
+in production, but it is a safety net — not a substitute for choosing the fields yourself.
+
+Check coverage with `npx @evlog/cli map --no-write`. Diagnose setup with `npx @evlog/cli doctor`.
+Deeper guidance is in the `review-logging-patterns` skill — read it before a logging change.
+<!-- evlog:end -->
+
+## Sokosumi evlog constraints
+
+The evlog block above is the generic convention. This app narrows it:
+
+- Wide events come from Hono `evlog()` middleware (`src/lib/evlog.ts`, mounted in `src/index.ts`). Do not add per-handler `useLogger()` / `log.set` unless a ticket asks for a hot-path field.
+- Do **not** use `createError` from evlog in HTTP responses. The public envelope is `error` / `message` / `kind` / `meta.requestId` via `@/helpers/error`.
+- Identity is already on the event (auth/workspace middleware + `createAuthMiddleware` in `src/lib/evlog-better-auth.ts`). Cookie identify is `user.id` / `userId` and masked `user.email` (`session: false`, `fields: ["id", "email"]`). Skip `/auth/**`, `/sync/**`, `/debug/**`, and any request with an `Authorization` header (bearer / API key / coworker / orchestrator).
+- Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
+- Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
+- Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
+- CLI is a Core devDependency (`@evlog/cli` 0.6.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+

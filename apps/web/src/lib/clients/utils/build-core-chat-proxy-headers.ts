@@ -1,3 +1,8 @@
+import {
+  applyCoreRequestIdHeader,
+  CORE_REQUEST_ID_HEADER,
+} from "./core-request-id";
+
 /**
  * Builds headers for server-side `fetch()` from the Next.js app to Core.
  *
@@ -20,5 +25,10 @@ export function buildCoreChatProxyHeaders(headerSource: Headers): Headers {
   if (organizationSlug) {
     out.set("x-organization-slug", organizationSlug);
   }
+  const incomingRequestId = headerSource.get(CORE_REQUEST_ID_HEADER);
+  if (incomingRequestId) {
+    out.set(CORE_REQUEST_ID_HEADER, incomingRequestId);
+  }
+  applyCoreRequestIdHeader(out);
   return out;
 }
