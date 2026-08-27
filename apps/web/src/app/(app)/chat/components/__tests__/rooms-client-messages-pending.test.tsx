@@ -508,6 +508,24 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     expect(rememberRoomRead).toHaveBeenCalled();
   });
 
+  it("restores unread when mark-read transport rejects", async () => {
+    vi.mocked(markOrganizationChatRoomReadAction).mockRejectedValue(
+      new Error("network"),
+    );
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[{ ...channelRoom(), unreadCount: 4 }]}
+        messages={[sampleMessage()]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(forgetRoomRead).toHaveBeenCalledWith("room-channel");
+    });
+  });
+
   it("restores unread after mark-read fails even if the room unmounted", async () => {
     let resolveRead!: (result: {
       ok: false;

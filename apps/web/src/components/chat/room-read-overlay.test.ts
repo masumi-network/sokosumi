@@ -135,6 +135,38 @@ describe("room-read-overlay", () => {
     });
   });
 
+  it("keeps a fully-clear overlay after a matching row so a later stale fetch stays read", () => {
+    rememberRoomRead(
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const matchingClear = applyRoomReadOverlays([
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    ]);
+    expect(matchingClear[0]).toMatchObject({ unreadCount: 0 });
+
+    const staleUnread = applyRoomReadOverlays([
+      room({
+        unreadCount: 4,
+        unreadMentionCount: 1,
+        markedUnread: false,
+      }),
+    ]);
+    expect(staleUnread[0]).toMatchObject({
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
   it("keeps leftover overlay after a matching poll so a later stale fetch still overlays", () => {
     rememberRoomRead(
       room({

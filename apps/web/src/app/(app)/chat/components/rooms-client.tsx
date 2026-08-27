@@ -1552,18 +1552,29 @@ export function RoomsClient({
     rememberRoomRead(optimisticRoom);
     dispatchOrganizationChatRoomRead(roomId, optimisticRoom);
 
-    markOrganizationChatRoomReadAction(roomId).then((result) => {
-      if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
-        return;
-      }
-      if (!result.ok) {
-        forgetRoomRead(roomId);
-        dispatchOrganizationChatRoomRead(roomId, unreadBeforeMarkRead);
-        return;
-      }
-      rememberRoomRead(result.value);
-      dispatchOrganizationChatRoomRead(roomId, result.value);
-    });
+    function restoreUnread(): void {
+      forgetRoomRead(roomId);
+      dispatchOrganizationChatRoomRead(roomId, unreadBeforeMarkRead);
+    }
+
+    markOrganizationChatRoomReadAction(roomId)
+      .then((result) => {
+        if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
+          return;
+        }
+        if (!result.ok) {
+          restoreUnread();
+          return;
+        }
+        rememberRoomRead(result.value);
+        dispatchOrganizationChatRoomRead(roomId, result.value);
+      })
+      .catch(() => {
+        if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
+          return;
+        }
+        restoreUnread();
+      });
   }, [
     effectiveMessageLoadFailed,
     latestOpenThreadMessageId,
