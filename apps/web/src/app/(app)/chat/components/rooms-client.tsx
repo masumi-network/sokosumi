@@ -166,6 +166,7 @@ import {
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldDisableCoworkerThreadComposer,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -3105,7 +3106,13 @@ export function RoomsClient({
                 allowAttachments={!isCoworkerStreamRoom}
                 roomId={selectedRoom.id}
                 composerDisabledMessage={
-                  isCoworkerStreamRoom && !canUseWorkstation
+                  shouldDisableCoworkerThreadComposer({
+                    canUseWorkstation,
+                    isCoworkerStreamRoom,
+                    threadMessages: threadParentMessage
+                      ? [threadParentMessage, ...displayThreadMessages]
+                      : [],
+                  })
                     ? t("Workstation.coworkerDirectDisabled")
                     : undefined
                 }

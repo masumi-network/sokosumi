@@ -4,6 +4,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isCoworkerAgentContext, requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -91,6 +93,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         assigneeId: existingTask.assigneeId,
       });
     }
+
+    const workstationUserId = isCoworkerAgentContext(authContext)
+      ? existingTask.ownerId
+      : requireUserContext(authContext).userId;
+    await requireOrganizationWorkstation(
+      workstationUserId,
+      existingTask.organizationId,
+    );
 
     const task = await prisma.$transaction(async (tx) => {
       await requireTaskCollaboration(authContext, id, tx);

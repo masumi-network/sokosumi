@@ -48,6 +48,7 @@ const {
   clearPendingResponseMirrorMock,
   renewPendingResponseMirrorMock,
   pollCoworkerResponseStatusMock,
+  canUseOrganizationWorkstationMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
@@ -84,7 +85,18 @@ const {
   clearPendingResponseMirrorMock: vi.fn(),
   renewPendingResponseMirrorMock: vi.fn(),
   pollCoworkerResponseStatusMock: vi.fn(),
+  canUseOrganizationWorkstationMock: vi.fn(),
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    canUseOrganizationWorkstation: (...args: unknown[]) =>
+      canUseOrganizationWorkstationMock(...args),
+  };
+});
 
 vi.mock("@vercel/functions", () => ({
   waitUntil: (...args: unknown[]) => waitUntilMock(...args),
@@ -302,6 +314,7 @@ async function postStream(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  canUseOrganizationWorkstationMock.mockResolvedValue(true);
   prismaTransactionMock.mockImplementation(async (callback) =>
     callback({
       chatRoom: {
@@ -477,6 +490,17 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(response.status).toBe(400);
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the member has no organization workstation", async () => {
+    canUseOrganizationWorkstationMock.mockResolvedValue(false);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+    const response = await postStream();
+
+    expect(response.status).toBe(403);
+    expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
   });
 
   it("persists user message to chat_room_message and streams without conversation* rows", async () => {

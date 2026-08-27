@@ -36,6 +36,7 @@ import {
 } from "@/helpers/error";
 import { extractMessageText } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import {
   persistAssistantToChatRoom,
   persistUserMessageToChatRoom,
@@ -175,6 +176,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "Room stream requires a 1:1 direct with exactly one AI coworker member. Use message POST for channels and human-only rooms.",
       );
     }
+
+    await requireOrganizationWorkstation(
+      userContext.userId,
+      room.organizationId,
+    );
 
     const { parentMessageId, userMessageMetadata } = await prisma.$transaction(
       async (tx) => {

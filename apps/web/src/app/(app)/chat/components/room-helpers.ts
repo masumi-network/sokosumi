@@ -256,6 +256,32 @@ export function hasPendingCoworkerMention(
   );
 }
 
+interface CoworkerThreadComposerMessage {
+  sender: { type: string };
+  mentions?: unknown[];
+}
+
+interface CoworkerThreadComposerDisableInput {
+  canUseWorkstation: boolean;
+  isCoworkerStreamRoom: boolean;
+  threadMessages: CoworkerThreadComposerMessage[];
+}
+
+export function shouldDisableCoworkerThreadComposer(
+  input: CoworkerThreadComposerDisableInput,
+): boolean {
+  if (input.canUseWorkstation) {
+    return false;
+  }
+  if (input.isCoworkerStreamRoom) {
+    return true;
+  }
+  return input.threadMessages.some(
+    (message) =>
+      message.sender.type === "coworker" || (message.mentions?.length ?? 0) > 0,
+  );
+}
+
 export function appendMessage(
   messages: ChatRoomMessage[],
   nextMessage: ChatRoomMessage,
