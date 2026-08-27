@@ -8,7 +8,10 @@ import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
-import { EveRuntimeError } from "@/lib/soko-bot/eve-http-runtime";
+import {
+  isRetryableSokoBotRuntimeError,
+  SokoBotRuntimeUnavailableError,
+} from "@/lib/soko-bot/runtime-errors";
 import {
   SokoBotBusyError,
   SokoBotRetryableStartError,
@@ -92,8 +95,8 @@ function isRetryableScheduleFailure(error: unknown): boolean {
   ) {
     return true;
   }
-  if (error instanceof EveRuntimeError) {
-    return error.status === 408 || error.status === 429 || error.status >= 500;
+  if (isRetryableSokoBotRuntimeError(error)) {
+    return true;
   }
   return ["P1001", "P1002", "P2024", "P2034"].includes(
     prismaErrorCode(error) ?? "",
@@ -468,10 +471,8 @@ export class SokoBotSchedulesSyncService {
         turnStatus === "FAILED" &&
         turnErrorKind === "runtime_start_ambiguous"
       ) {
-        throw new EveRuntimeError(
-          "Eve turn acceptance remains ambiguous",
-          503,
-          "runtime_start_ambiguous",
+        throw new SokoBotRuntimeUnavailableError(
+          "Soko Bot turn acceptance remains ambiguous",
         );
       }
 

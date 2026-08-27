@@ -204,7 +204,6 @@ describe("SokoBotControlPlane reconciliation", () => {
     expect(cancelTurn).toHaveBeenCalledWith({
       sessionId: "eve_session_1",
       eveTurnId: "eve_turn_1",
-      requestToken: "request-token",
     });
     expect(turnUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -336,7 +335,6 @@ describe("SokoBotControlPlane reconciliation", () => {
     expect(cancelTurn).toHaveBeenCalledWith({
       sessionId: "eve_session_1",
       eveTurnId: "eve_turn_1",
-      requestToken: "request-token",
     });
   });
 
@@ -375,7 +373,6 @@ describe("SokoBotControlPlane reconciliation", () => {
     expect(cancelTurn).toHaveBeenCalledWith({
       sessionId: "eve_session_1",
       eveTurnId: "eve_turn_new",
-      requestToken: "request-token",
     });
   });
 
@@ -422,7 +419,6 @@ describe("SokoBotControlPlane reconciliation", () => {
     expect(cancelTurn).toHaveBeenCalledWith({
       sessionId: "eve_session_1",
       eveTurnId: "eve_turn_new",
-      requestToken: "request-token",
     });
   });
 

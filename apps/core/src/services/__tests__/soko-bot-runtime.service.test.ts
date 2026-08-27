@@ -395,6 +395,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "CANCEL_REQUESTED",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -408,8 +413,6 @@ describe("SokoBotRuntimeService authorization", () => {
     const service = new SokoBotRuntimeService();
     await expect(
       service.authorize({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "create_task",
       }),
@@ -422,6 +425,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "CANCEL_REQUESTED",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -435,8 +443,6 @@ describe("SokoBotRuntimeService authorization", () => {
     const service = new SokoBotRuntimeService();
     await expect(
       service.authorize({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
       }),
     ).rejects.toThrow("cancellation is pending");
@@ -456,6 +462,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: null,
       status: "STARTING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -472,8 +483,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().authorize({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "get_task_status",
       }),
@@ -513,6 +522,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: null,
       status: "STARTING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -529,8 +543,6 @@ describe("SokoBotRuntimeService authorization", () => {
     });
 
     const authorized = await new SokoBotRuntimeService().authorize({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "get_task_status",
     });
@@ -581,6 +593,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: null,
       status: "STARTING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -598,8 +615,6 @@ describe("SokoBotRuntimeService authorization", () => {
     transactionTurnUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const authorized = await new SokoBotRuntimeService().authorize({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "get_task_status",
     });
@@ -632,6 +647,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: null,
       status: "STARTING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -651,8 +671,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().authorize({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "get_task_status",
       }),
@@ -677,6 +695,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: null,
       status: "STARTING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -709,8 +732,6 @@ describe("SokoBotRuntimeService authorization", () => {
     );
 
     const authorized = await new SokoBotRuntimeService().authorize({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "get_task_status",
     });
@@ -731,6 +752,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -751,8 +777,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().getContext({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
       }),
     ).rejects.toThrow("Workspace access is no longer available");
@@ -778,15 +802,14 @@ describe("SokoBotRuntimeService authorization", () => {
   it("fails closed when capability was not granted for turn", async () => {
     const service = new SokoBotRuntimeService();
 
+    // The turn row is what grants capabilities, so it is read first and the
+    // check fails closed on what it says — not on a caller-supplied claim.
     await expect(
       service.authorize({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "hire_agent",
       }),
     ).rejects.toThrow("Capability is not granted");
-    expect(turnFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("does not let a decision target exceed originating capabilities", () => {
@@ -822,6 +845,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -852,8 +880,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     const service = new SokoBotRuntimeService();
     const result = await service.executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "get_task_status",
       toolCallId: "call_1",
@@ -882,6 +908,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -904,8 +935,6 @@ describe("SokoBotRuntimeService authorization", () => {
     const service = new SokoBotRuntimeService();
     await expect(
       service.executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "get_task_status",
         toolCallId: "call_1",
@@ -928,6 +957,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       userMessage: "Check task",
       classification: { confidence: 1 },
@@ -944,8 +978,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "get_task_status",
         toolCallId: "call_over_limit",
@@ -970,6 +1002,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       userMessage: "Check task",
       classification: { confidence: 1 },
@@ -997,8 +1034,6 @@ describe("SokoBotRuntimeService authorization", () => {
     taskFindFirstMock.mockResolvedValue(rawResult);
 
     const result = await new SokoBotRuntimeService().executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "get_task_status",
       toolCallId: "call_redacted_result",
@@ -1031,6 +1066,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       userMessage: "Check task",
       classification: { confidence: 1 },
@@ -1049,8 +1089,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "get_task_status",
         toolCallId: "call_redacted_error",
@@ -1077,6 +1115,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       userMessage: "Don't create a task yet",
       classification: { confidence: 1 },
@@ -1092,8 +1135,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "create_task",
         toolCallId: "call_negated",
@@ -1111,6 +1152,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -1123,8 +1169,6 @@ describe("SokoBotRuntimeService authorization", () => {
     toolCallFindUniqueMock.mockResolvedValue(null);
 
     const result = await new SokoBotRuntimeService().executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "create_task",
       toolCallId: "call_create_shared",
@@ -1165,6 +1209,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -1179,8 +1228,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "create_task",
         toolCallId: "call_bad_project",
@@ -1217,6 +1264,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["assign_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       userMessage: "Assign it",
       classification: { confidence: 0.3 },
@@ -1230,6 +1282,11 @@ describe("SokoBotRuntimeService authorization", () => {
       id: "task_1",
       ownerId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["assign_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       status: TaskStatus.DRAFT,
       assigneeId: null,
     });
@@ -1241,8 +1298,6 @@ describe("SokoBotRuntimeService authorization", () => {
     });
 
     const result = await new SokoBotRuntimeService().executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "assign_task",
       toolCallId: "call_assign_direct",
@@ -1275,6 +1330,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -1290,8 +1350,6 @@ describe("SokoBotRuntimeService authorization", () => {
     const service = new SokoBotRuntimeService();
     await expect(
       service.executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "update_task",
         toolCallId: "call_2",
@@ -1321,6 +1379,11 @@ describe("SokoBotRuntimeService authorization", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -1335,8 +1398,6 @@ describe("SokoBotRuntimeService authorization", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "update_task",
         toolCallId: "call_revoked_workspace",
@@ -1370,6 +1431,11 @@ describe("SokoBotRuntimeService memory updates", () => {
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_memory"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + 60_000),
@@ -1401,8 +1467,6 @@ describe("SokoBotRuntimeService memory updates", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "update_memory",
         toolCallId: "memory_secret",
@@ -1441,16 +1505,12 @@ describe("SokoBotRuntimeService memory updates", () => {
     const service = new SokoBotRuntimeService();
 
     await service.executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "update_memory",
       toolCallId: "memory_1",
       input: { markdown: memoryMarkdown("Ship launch") },
     });
     await service.executeTool({
-      oidcToken: "oidc",
-      turnGrant: "grant",
       ...SCOPE,
       capability: "update_memory",
       toolCallId: "memory_2",
@@ -1482,8 +1542,6 @@ describe("SokoBotRuntimeService memory updates", () => {
 
     await expect(
       new SokoBotRuntimeService().executeTool({
-        oidcToken: "oidc",
-        turnGrant: "grant",
         ...SCOPE,
         capability: "update_memory",
         toolCallId: "memory_conflict",
@@ -1768,6 +1826,11 @@ describe("SokoBotRuntimeService hire decisions", () => {
       id: "task_1",
       ownerId: SCOPE.userId,
       workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["create_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
       status: TaskStatus.DRAFT,
       assigneeId: null,
     });

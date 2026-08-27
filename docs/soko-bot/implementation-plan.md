@@ -1,5 +1,14 @@
 # Soko Bot implementation plan
 
+> [!NOTE]
+> **Partly superseded (2026-08-27).** The Eve runtime described below no longer
+> exists: `apps/soko-bot` was removed and the agent loop moved inside
+> `apps/core` as the `in-process` adapter behind the same `SokoBotRuntime`
+> port. Everything about the control plane, capability policy, context packets,
+> memory, schedules, and admin operations still holds. See
+> [ADR 0007](../adr/0007-soko-bot-eve-runtime.md) and
+> [deployment](./deployment.md).
+
 Status: implementation complete and independently accepted by Grok, Claude
 Fable, and Codex after final remediation re-gates on 2026-08-18.
 

@@ -126,27 +126,14 @@ const baseEnvSchema = z.object({
   /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
-  SOKO_BOT_RUNTIME_ADAPTER: z.enum(["in-memory", "eve"]).default("eve"),
-  SOKO_BOT_RUNTIME_BASE_URL: z.url().default("http://localhost:2000"),
-  SOKO_BOT_RUNTIME_VERSION: z.string().min(1).default("0.38.3"),
+  SOKO_BOT_RUNTIME_ADAPTER: z
+    .enum(["in-memory", "in-process"])
+    .default("in-process"),
   SOKO_BOT_CLASSIFIER_MODE: z
     .enum(["deterministic", "model"])
     .default("deterministic"),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
-  SOKO_BOT_SIGNING_KEY_ID: z.string().min(1).default("soko-bot-v1"),
-  SOKO_BOT_SIGNING_PRIVATE_KEY: z.string().min(1).optional(),
-  SOKO_BOT_PREVIOUS_PUBLIC_KEYS: z.string().default("[]"),
-  SOKO_BOT_EVE_PROJECT_ID: z
-    .string()
-    .min(1)
-    .refine((value) => value !== "*", {
-      message: "SOKO_BOT_EVE_PROJECT_ID must pin one Vercel project",
-    })
-    .optional(),
-  SOKO_BOT_EVE_ENVIRONMENT: z
-    .enum(["production", "preview", "development"])
-    .optional(),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
@@ -245,59 +232,17 @@ function isDeployedSokoBotEnvironment(
   );
 }
 
-function isLocalRuntimeHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().replace(/\.$/, "");
-  return (
-    normalized === "localhost" ||
-    normalized.endsWith(".localhost") ||
-    normalized === "0.0.0.0" ||
-    normalized === "[::]" ||
-    normalized === "[::1]" ||
-    /^127(?:\.\d{1,3}){3}$/.test(normalized)
-  );
-}
-
-function isRemoteHttpsRuntimeUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !isLocalRuntimeHostname(url.hostname);
-  } catch {
-    return false;
-  }
-}
-
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
-  const required = [
-    ["SOKO_BOT_SIGNING_PRIVATE_KEY", value.SOKO_BOT_SIGNING_PRIVATE_KEY],
-    ["SOKO_BOT_EVE_PROJECT_ID", value.SOKO_BOT_EVE_PROJECT_ID],
-    ["SOKO_BOT_EVE_ENVIRONMENT", value.SOKO_BOT_EVE_ENVIRONMENT],
-  ] as const;
-  for (const [name, configured] of required) {
-    if (configured) continue;
-    context.addIssue({
-      code: "custom",
-      path: [name],
-      message: `${name} is required when SOKO_BOT_ENABLED=true`,
-    });
-  }
-
+  // The agent runs inside Core, so enabling it needs no runtime deployment,
+  // signing key, or allowlist — only a real adapter in a deployed environment.
   if (!isDeployedSokoBotEnvironment(value)) return;
-  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "eve") {
+  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
     context.addIssue({
       code: "custom",
       path: ["SOKO_BOT_RUNTIME_ADAPTER"],
       message:
-        "SOKO_BOT_RUNTIME_ADAPTER must be eve when Soko Bot is enabled in a deployed environment",
-    });
-  }
-
-  if (!isRemoteHttpsRuntimeUrl(value.SOKO_BOT_RUNTIME_BASE_URL)) {
-    context.addIssue({
-      code: "custom",
-      path: ["SOKO_BOT_RUNTIME_BASE_URL"],
-      message:
-        "SOKO_BOT_RUNTIME_BASE_URL must be a remote HTTPS URL when Soko Bot is enabled in a deployed environment",
+        "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
     });
   }
 });

@@ -58,7 +58,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 
 import { conflict } from "@/helpers/error";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
-import { EveRuntimeError } from "@/lib/soko-bot/eve-http-runtime";
+import { SokoBotRuntimeUnavailableError } from "@/lib/soko-bot/runtime-errors";
 import {
   SokoBotBusyError,
   SokoBotRetryableStartError,
@@ -589,7 +589,7 @@ describe("SokoBotSchedulesSyncService", () => {
 
   it("backs off a transient Eve failure without counting schedule failure", async () => {
     startTurnMock.mockRejectedValue(
-      new EveRuntimeError("Eve runtime returned 503", 503, "unavailable"),
+      new SokoBotRuntimeUnavailableError("Soko Bot runtime is unavailable"),
     );
 
     const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
@@ -659,7 +659,7 @@ describe("SokoBotSchedulesSyncService", () => {
     runFindFirstMock.mockResolvedValue(expiredClaimedRun({ attempt: 4 }));
     dueScheduleFindFirstMock.mockResolvedValue(null);
     startTurnMock.mockRejectedValue(
-      new EveRuntimeError("Eve runtime returned 503", 503, "unavailable"),
+      new SokoBotRuntimeUnavailableError("Soko Bot runtime is unavailable"),
     );
 
     const result = await new SokoBotSchedulesSyncService().syncDueSchedules({

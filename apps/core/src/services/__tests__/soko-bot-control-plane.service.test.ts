@@ -595,12 +595,6 @@ describe("SokoBotControlPlane lifecycle", () => {
       2,
       expect.objectContaining({ turnId: "turn_existing", sessionId: null }),
     );
-    expect(tokenSignMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        turnId: "turn_existing",
-        sessionId: "pending:turn_existing",
-      }),
-    );
     expect(result).toMatchObject({
       turnId: "turn_existing",
       sessionId: "session_bound_after_lost_response",
@@ -648,13 +642,6 @@ describe("SokoBotControlPlane lifecycle", () => {
       message: "Hello",
     });
 
-    expect(turnGrantSignMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contextSnapshotId: "snapshot_1",
-        memoryRevisionId: "memory_v1",
-        memoryVersion: 1,
-      }),
-    );
     expect(memoryFindFirstMock).not.toHaveBeenCalled();
   });
 

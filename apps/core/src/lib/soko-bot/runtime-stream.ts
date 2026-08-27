@@ -1,16 +1,16 @@
 import type { IndexedRuntimeEvent } from "@sokosumi/soko-bot";
 
-const TRANSIENT_EVE_EVENT_TYPES = new Set([
+const TRANSIENT_RUNTIME_EVENT_TYPES = new Set([
   "action.partial",
   "message.appended",
   "reasoning.appended",
 ]);
 
-export function shouldPersistSokoBotEveEvent(type: string): boolean {
-  return !TRANSIENT_EVE_EVENT_TYPES.has(type);
+export function shouldPersistSokoBotRuntimeEvent(type: string): boolean {
+  return !TRANSIENT_RUNTIME_EVENT_TYPES.has(type);
 }
 
-export function matchSokoBotEveTurnBoundary(input: {
+export function matchSokoBotRuntimeTurnBoundary(input: {
   turnStarted: IndexedRuntimeEvent;
   messageReceived: IndexedRuntimeEvent;
   expectedMessage: string;

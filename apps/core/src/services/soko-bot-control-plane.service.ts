@@ -32,16 +32,13 @@ import {
   ExternalTurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
-import { EveRuntimeError } from "@/lib/soko-bot/eve-http-runtime";
+import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import { isRetryableSokoBotRuntimeError } from "@/lib/soko-bot/runtime-errors";
 import {
-  matchSokoBotEveTurnBoundary,
-  shouldPersistSokoBotEveEvent,
-} from "@/lib/soko-bot/eve-stream";
-import {
-  getSokoBotRuntime,
-  getSokoBotTokenService,
-} from "@/lib/soko-bot/factory";
-import type { SokoBotTokenService } from "@/lib/soko-bot/request-token";
+  matchSokoBotRuntimeTurnBoundary,
+  shouldPersistSokoBotRuntimeEvent,
+} from "@/lib/soko-bot/runtime-stream";
+import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
   recordSokoBotTurnUsage,
@@ -271,10 +268,7 @@ function isAmbiguousRuntimeAcceptance(error: unknown): boolean {
   ) {
     return true;
   }
-  return (
-    error instanceof EveRuntimeError &&
-    (error.status === 408 || error.status === 429 || error.status >= 500)
-  );
+  return isRetryableSokoBotRuntimeError(error);
 }
 
 function assertMatchingAdminActionIntent(
@@ -524,12 +518,7 @@ export class SokoBotControlPlane {
     private readonly classifier: ExternalTurnClassifier = new ExternalTurnClassifier(
       getEnv().SOKO_BOT_CLASSIFIER_MODE === "model",
     ),
-    private readonly providedTokenService?: Promise<SokoBotTokenService>,
   ) {}
-
-  private get tokenServicePromise(): Promise<SokoBotTokenService> {
-    return this.providedTokenService ?? getSokoBotTokenService();
-  }
 
   private async startRuntimeWithAcceptanceRetry(
     input: Parameters<SokoBotRuntime["createSession"]>[0],
@@ -551,22 +540,13 @@ export class SokoBotControlPlane {
     workspaceId: string;
     turnId: string;
     currentSessionId: string;
-    tokens: SokoBotTokenService;
   }): Promise<void> {
     const priorSessionId = input.bot.eveSessionId;
     if (!priorSessionId || priorSessionId === input.currentSessionId) return;
     try {
-      const requestToken = await input.tokens.signRequestToken({
-        userId: input.userId,
-        sokoBotId: input.bot.id,
-        workspaceId: input.workspaceId,
-        sessionId: priorSessionId,
-        turnId: input.turnId,
-      });
       await this.runtime.resetSession({
         sessionId: priorSessionId,
         reason: "Soko Bot prior turn completed",
-        requestToken,
       });
     } catch (error) {
       console.warn("Soko Bot old runtime session cleanup failed", {
@@ -753,7 +733,8 @@ export class SokoBotControlPlane {
       );
     }
     const memoryVersion = contextMemoryVersion(snapshot.packet);
-    const memoryRevision = requireContextMemoryRevision(
+    // Fences replay: the snapshot's memory revision must still exist.
+    requireContextMemoryRevision(
       memoryVersion,
       memoryVersion === 0
         ? null
@@ -773,33 +754,12 @@ export class SokoBotControlPlane {
       sessionId: expectedSessionId,
       turnId: turn.id,
     };
-    const version = getSokoBotVersion(turn.versionId);
-    const tokens = await this.tokenServicePromise;
-    const [requestToken, turnGrant] = await Promise.all([
-      tokens.signRequestToken({
-        ...tokenScope,
-        model: version.model,
-        versionId: version.id,
-        inferenceRegion: version.inferenceRegion,
-      }),
-      tokens.signTurnGrant({
-        ...tokenScope,
-        contextSnapshotId: snapshot.id,
-        memoryRevisionId: memoryRevision?.id ?? null,
-        memoryVersion,
-        capabilities,
-        deadlineAt: turn.deadlineAt,
-      }),
-    ]);
-
     let runtimeTurn;
     try {
       runtimeTurn = await this.startRuntimeWithAcceptanceRetry({
         ...tokenScope,
         sessionId: null,
         message: turn.userMessage,
-        requestToken,
-        turnGrant,
       });
     } catch (error) {
       if (isAmbiguousRuntimeAcceptance(error)) {
@@ -849,7 +809,7 @@ export class SokoBotControlPlane {
           data: {
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
-            runtimeDeployment: getEnv().SOKO_BOT_RUNTIME_BASE_URL,
+            runtimeDeployment: "core",
             status: "RUNNING",
           },
         });
@@ -889,10 +849,6 @@ export class SokoBotControlPlane {
           await this.runtime.resetSession({
             sessionId: runtimeTurn.sessionId,
             reason: "Soko Bot replay acknowledgement failed",
-            requestToken: await tokens.signRequestToken({
-              ...tokenScope,
-              sessionId: runtimeTurn.sessionId,
-            }),
           });
         } catch {
           // Durable STARTING/CANCEL_REQUESTED state remains recoverable.
@@ -907,7 +863,6 @@ export class SokoBotControlPlane {
       workspaceId: turn.workspaceId,
       turnId: turn.id,
       currentSessionId: runtimeTurn.sessionId,
-      tokens,
     });
 
     return {
@@ -1475,18 +1430,9 @@ export class SokoBotControlPlane {
     eveTurnId: string | null;
   }): Promise<boolean> {
     if (!turn.eveSessionId || !turn.eveTurnId) return false;
-    const tokens = await this.tokenServicePromise;
-    const requestToken = await tokens.signRequestToken({
-      userId: turn.userId,
-      sokoBotId: turn.sokoBotId,
-      workspaceId: turn.workspaceId,
-      sessionId: turn.eveSessionId,
-      turnId: turn.id,
-    });
     await this.runtime.cancelTurn({
       sessionId: turn.eveSessionId,
       eveTurnId: turn.eveTurnId,
-      requestToken,
     });
     return true;
   }
@@ -1700,7 +1646,6 @@ export class SokoBotControlPlane {
     const contextSnapshotId = randomUUID();
 
     let turn;
-    let contextMemoryRevision: { id: string; version: number } | null = null;
     try {
       const reservation = await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
@@ -1806,7 +1751,6 @@ export class SokoBotControlPlane {
         return { turn: created, memoryRevision };
       }, "Soko Bot turn collided with another request");
       turn = reservation.turn;
-      contextMemoryRevision = reservation.memoryRevision;
     } catch (error) {
       // Another request with this idempotency key may have committed between
       // the optimistic read and serializable acquisition. Return its durable
@@ -1841,10 +1785,9 @@ export class SokoBotControlPlane {
     }
 
     let acceptedRuntime:
-      | { sessionId: string; requestToken: string; createdSession: boolean }
+      | { sessionId: string; createdSession: boolean }
       | undefined;
     try {
-      const tokens = await this.tokenServicePromise;
       const expectedSessionId = sessionIdForTurn ?? `pending:${turn.id}`;
       const tokenScope = {
         userId: input.userId,
@@ -1853,36 +1796,14 @@ export class SokoBotControlPlane {
         sessionId: expectedSessionId,
         turnId: turn.id,
       };
-      const [requestToken, turnGrant] = await Promise.all([
-        tokens.signRequestToken({
-          ...tokenScope,
-          model: version.model,
-          versionId: version.id,
-          inferenceRegion: version.inferenceRegion,
-        }),
-        tokens.signTurnGrant({
-          ...tokenScope,
-          contextSnapshotId,
-          memoryRevisionId: contextMemoryRevision?.id ?? null,
-          memoryVersion: context.packet.memory.version,
-          capabilities,
-          deadlineAt,
-        }),
-      ]);
       const runtimeTurn = await this.startRuntimeWithAcceptanceRetry({
         ...tokenScope,
         sessionId: sessionIdForTurn,
         message,
-        requestToken,
-        turnGrant,
       });
       acceptedRuntime = {
         sessionId: runtimeTurn.sessionId,
         createdSession: true,
-        requestToken: await tokens.signRequestToken({
-          ...tokenScope,
-          sessionId: runtimeTurn.sessionId,
-        }),
       };
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
@@ -1920,7 +1841,7 @@ export class SokoBotControlPlane {
           data: {
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
-            runtimeDeployment: getEnv().SOKO_BOT_RUNTIME_BASE_URL,
+            runtimeDeployment: "core",
             status: "RUNNING",
           },
         });
@@ -1937,7 +1858,6 @@ export class SokoBotControlPlane {
         workspaceId: input.workspaceId,
         turnId: turn.id,
         currentSessionId: runtimeTurn.sessionId,
-        tokens,
       });
       return {
         turnId: turn.id,
@@ -1975,7 +1895,6 @@ export class SokoBotControlPlane {
           await this.runtime.resetSession({
             sessionId: acceptedRuntime.sessionId,
             reason: "Soko Bot start acknowledgement failed",
-            requestToken: acceptedRuntime.requestToken,
           });
           acceptedSessionWasReset = true;
         } catch (cleanupError) {
@@ -2054,14 +1973,6 @@ export class SokoBotControlPlane {
       );
     }
 
-    const tokens = await this.tokenServicePromise;
-    const requestToken = await tokens.signRequestToken({
-      userId: turn.userId,
-      sokoBotId: turn.sokoBotId,
-      workspaceId: turn.workspaceId,
-      sessionId: turn.eveSessionId,
-      turnId: turn.id,
-    });
     let aggregateUsage = parseTurnUsage(turn.usage);
     let aggregateCostUsdMicros = turn.costUsdMicros ?? 0n;
     const priorTerminalEvent = await prisma.sokoBotEvent.findFirst({
@@ -2100,7 +2011,6 @@ export class SokoBotControlPlane {
         await this.runtime.cancelTurn({
           sessionId: eveSessionId,
           eveTurnId: boundEveTurnId,
-          requestToken,
         });
       } catch (error) {
         console.warn("Soko Bot cancellation redelivery failed", {
@@ -2213,7 +2123,6 @@ export class SokoBotControlPlane {
       await deliverBoundCancellation();
       for await (const indexed of this.runtime.streamEvents({
         sessionId: turn.eveSessionId,
-        requestToken,
         startIndex: turn.eveStreamIndex + 1,
         signal,
       })) {
@@ -2241,7 +2150,7 @@ export class SokoBotControlPlane {
                   select: { id: true },
                 })
               : null;
-            const candidateTurnId = matchSokoBotEveTurnBoundary({
+            const candidateTurnId = matchSokoBotRuntimeTurnBoundary({
               turnStarted: candidateTurnStarted,
               messageReceived: indexed,
               expectedMessage: turn.userMessage,
@@ -2266,7 +2175,7 @@ export class SokoBotControlPlane {
         // Eve delta events are transient presentation artifacts. Persisting
         // each token creates DB write amplification and duplicate UI rows. A
         // later durable event advances the cursor across all skipped deltas.
-        if (!shouldPersistSokoBotEveEvent(indexed.event.type)) continue;
+        if (!shouldPersistSokoBotRuntimeEvent(indexed.event.type)) continue;
 
         const turnData: Prisma.SokoBotTurnUpdateManyMutationInput = {};
         let nextAggregateUsage: SokoBotTurnUsage | null = null;
@@ -2353,7 +2262,6 @@ export class SokoBotControlPlane {
             await this.runtime.cancelTurn({
               sessionId: turn.eveSessionId,
               eveTurnId: boundEveTurnId ?? undefined,
-              requestToken,
             });
           } catch (error) {
             console.warn("Soko Bot unsupported input cancellation failed", {
@@ -2590,19 +2498,9 @@ export class SokoBotControlPlane {
     const latestTurn = bot.turns[0];
     if (bot.eveSessionId && latestTurn) {
       try {
-        const requestToken = await (
-          await this.tokenServicePromise
-        ).signRequestToken({
-          userId: bot.userId,
-          sokoBotId: bot.id,
-          workspaceId: latestTurn.workspaceId,
-          sessionId: bot.eveSessionId,
-          turnId: latestTurn.id,
-        });
         runtimeHealth = {
           ...(await this.runtime.inspectSession({
             sessionId: bot.eveSessionId,
-            requestToken,
           })),
           checkedAt: new Date(),
           errorKind: null,
@@ -2610,8 +2508,7 @@ export class SokoBotControlPlane {
       } catch {
         runtimeHealth = {
           healthy: false,
-          runtimeVersion:
-            bot.runtimeVersion ?? getEnv().SOKO_BOT_RUNTIME_VERSION,
+          runtimeVersion: bot.runtimeVersion ?? IN_PROCESS_RUNTIME_VERSION,
           sessionStatus: null,
           checkedAt: new Date(),
           errorKind: "runtime_unreachable",
@@ -3074,21 +2971,11 @@ export class SokoBotControlPlane {
 
       if (intent.targetId && resetPreparation.sessionTurn) {
         const resetTurn = resetPreparation.sessionTurn;
-        const requestToken = await (
-          await this.tokenServicePromise
-        ).signRequestToken({
-          userId: bot.userId,
-          sokoBotId: bot.id,
-          workspaceId: resetTurn.workspaceId,
-          sessionId: resetTurn.eveSessionId,
-          turnId: resetTurn.id,
-        });
-        // RESET_SESSION is idempotent. Any remote or post-effect failure leaves
-        // ATTEMPTED open and bot fenced PAUSED; exact operation replay resumes it.
+        // RESET_SESSION is idempotent. Any failure leaves ATTEMPTED open and
+        // the bot fenced PAUSED; exact operation replay resumes it.
         await this.runtime.resetSession({
           sessionId: resetTurn.eveSessionId,
           reason,
-          requestToken,
         });
       }
 

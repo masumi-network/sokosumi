@@ -363,7 +363,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](./docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 
-**Soko Bot:** [`docs/soko-bot/implementation-plan.md`](./docs/soko-bot/implementation-plan.md) and [`docs/adr/0007-soko-bot-eve-runtime.md`](./docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager, Eve runtime, capability-scoped Core tools, context packets, memory, schedules, and admin operations.
+**Soko Bot:** [`docs/soko-bot/implementation-plan.md`](./docs/soko-bot/implementation-plan.md) and [`docs/adr/0007-soko-bot-eve-runtime.md`](./docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager running inside Core, capability-scoped tools, context packets, memory, schedules, and admin operations.
 
 ## Additional Rules
 

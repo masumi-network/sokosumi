@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { getEnvMock } = vi.hoisted(() => ({ getEnvMock: vi.fn() }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
-vi.mock("@/lib/soko-bot/eve-http-runtime", () => ({
-  EveHttpSokoBotRuntime: class EveHttpSokoBotRuntime {},
+vi.mock("@/lib/soko-bot/in-process-runtime", () => ({
+  InProcessSokoBotRuntime: class InProcessSokoBotRuntime {},
 }));
 vi.mock("@/lib/soko-bot/in-memory-runtime", () => ({
   InMemorySokoBotRuntime: class InMemorySokoBotRuntime {},
@@ -31,7 +31,7 @@ describe("getSokoBotRuntime", () => {
     const { getSokoBotRuntime } = await import("./factory");
 
     expect(() => getSokoBotRuntime()).toThrow(
-      "SOKO_BOT_RUNTIME_ADAPTER must be eve when Soko Bot is enabled in production",
+      "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
     );
   });
 

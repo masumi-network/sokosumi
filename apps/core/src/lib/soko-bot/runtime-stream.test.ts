@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  matchSokoBotEveTurnBoundary,
-  shouldPersistSokoBotEveEvent,
-} from "./eve-stream";
+  matchSokoBotRuntimeTurnBoundary,
+  shouldPersistSokoBotRuntimeEvent,
+} from "./runtime-stream";
 
 function event(type: string, data: Record<string, unknown>, index: number) {
   return {
@@ -26,7 +26,7 @@ describe("Soko Bot Eve stream projection", () => {
     );
 
     expect(
-      matchSokoBotEveTurnBoundary({
+      matchSokoBotRuntimeTurnBoundary({
         turnStarted: started,
         messageReceived: received,
         expectedMessage: "repeat this",
@@ -34,7 +34,7 @@ describe("Soko Bot Eve stream projection", () => {
       }),
     ).toBe("eve_turn_2");
     expect(
-      matchSokoBotEveTurnBoundary({
+      matchSokoBotRuntimeTurnBoundary({
         turnStarted: started,
         messageReceived: received,
         expectedMessage: "different message",
@@ -45,7 +45,7 @@ describe("Soko Bot Eve stream projection", () => {
 
   it("rejects a stale boundary even when owner repeated the same message", () => {
     expect(
-      matchSokoBotEveTurnBoundary({
+      matchSokoBotRuntimeTurnBoundary({
         turnStarted: event("turn.started", { turnId: "already_ingested" }, 10),
         messageReceived: event(
           "message.received",
@@ -59,10 +59,10 @@ describe("Soko Bot Eve stream projection", () => {
   });
 
   it("drops token deltas while retaining durable lifecycle events", () => {
-    expect(shouldPersistSokoBotEveEvent("message.appended")).toBe(false);
-    expect(shouldPersistSokoBotEveEvent("reasoning.appended")).toBe(false);
-    expect(shouldPersistSokoBotEveEvent("action.partial")).toBe(false);
-    expect(shouldPersistSokoBotEveEvent("message.completed")).toBe(true);
-    expect(shouldPersistSokoBotEveEvent("session.waiting")).toBe(true);
+    expect(shouldPersistSokoBotRuntimeEvent("message.appended")).toBe(false);
+    expect(shouldPersistSokoBotRuntimeEvent("reasoning.appended")).toBe(false);
+    expect(shouldPersistSokoBotRuntimeEvent("action.partial")).toBe(false);
+    expect(shouldPersistSokoBotRuntimeEvent("message.completed")).toBe(true);
+    expect(shouldPersistSokoBotRuntimeEvent("session.waiting")).toBe(true);
   });
 });

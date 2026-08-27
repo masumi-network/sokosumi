@@ -65,8 +65,6 @@ export interface RuntimeTurnInput extends SokoBotActorContext {
   sessionId: string | null;
   turnId: string;
   message: string;
-  requestToken: string;
-  turnGrant: string;
 }
 
 export interface RuntimeTurnRef extends RuntimeSessionRef {
@@ -86,7 +84,6 @@ export interface IndexedRuntimeEvent {
 
 export interface RuntimeEventStreamInput {
   sessionId: string;
-  requestToken: string;
   startIndex: number;
   signal?: AbortSignal;
 }
@@ -94,18 +91,15 @@ export interface RuntimeEventStreamInput {
 export interface RuntimeCancelInput {
   sessionId: string;
   eveTurnId?: string;
-  requestToken: string;
 }
 
 export interface RuntimeResetInput {
   sessionId: string;
   reason: string;
-  requestToken: string;
 }
 
 export interface RuntimeInspectInput {
   sessionId: string;
-  requestToken: string;
 }
 
 export interface RuntimeHealth {

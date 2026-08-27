@@ -1,8 +1,0 @@
-node_modules
-.env*
-.eve
-.next
-.output
-.nitro
-dist
-*.tsbuildinfo

@@ -1947,6 +1947,7 @@ model SokoBotTurn {
 
   contextSnapshot  SokoBotContextSnapshot?
   events           SokoBotEvent[]
+  runtimeEvents    SokoBotRuntimeEvent[]
   toolCalls        SokoBotToolCall[]
   delegations      SokoBotDelegation[]
   pendingDecisions SokoBotPendingDecision[]
@@ -2008,6 +2009,30 @@ model SokoBotEvent {
   @@unique([turnId, sequence])
   @@index([turnId, createdAt])
   @@map("soko_bot_event")
+}
+
+/**
+ * Raw event log written by the in-process runtime while a turn executes.
+ * Serverless invocations share no memory, so the loop appends here and the
+ * `/sync/soko-bot-turns` drain reads it back through `streamEvents`.
+ */
+model SokoBotRuntimeEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  sessionId  String
+  startIndex Int
+  eventId    String
+  type       String
+  data       Json
+  occurredAt DateTime
+
+  @@unique([turnId, startIndex])
+  @@index([sessionId, startIndex])
+  @@map("soko_bot_runtime_event")
 }
 
 model SokoBotContextSnapshot {

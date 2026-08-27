@@ -76,58 +76,34 @@ describe("Soko Bot deployment environment", () => {
       ...deploymentEnv,
       SOKO_BOT_ENABLED: "true",
       SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
-      SOKO_BOT_RUNTIME_BASE_URL: "https://runtime.example.com",
     });
 
     expectInvalidEnvironment(
-      "SOKO_BOT_RUNTIME_ADAPTER must be eve when Soko Bot is enabled in a deployed environment",
+      "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
     );
   });
 
-  it.each([
-    "not-a-url",
-    "http://runtime.example.com",
-    "https://localhost:2000",
-    "https://runtime.localhost:2000",
-    "https://127.0.0.1:2000",
-    "https://[::1]:2000",
-    "https://0.0.0.0:2000",
-  ])("rejects deployed runtime URL %s", (runtimeBaseUrl) => {
+  it("needs no runtime deployment or signing key to enable in production", () => {
     setSokoBotEnv({
       NODE_ENV: "production",
       SOKO_BOT_ENABLED: "true",
-      SOKO_BOT_RUNTIME_ADAPTER: "eve",
-      SOKO_BOT_RUNTIME_BASE_URL: runtimeBaseUrl,
-    });
-
-    expectInvalidEnvironment("SOKO_BOT_RUNTIME_BASE_URL");
-  });
-
-  it("accepts a pinned remote HTTPS Eve runtime in production", () => {
-    setSokoBotEnv({
-      NODE_ENV: "production",
-      SOKO_BOT_ENABLED: "true",
-      SOKO_BOT_RUNTIME_ADAPTER: "eve",
-      SOKO_BOT_RUNTIME_BASE_URL: "https://soko-bot-runtime.example.com",
-    });
-
-    expect(validateEnv().SOKO_BOT_RUNTIME_BASE_URL).toBe(
-      "https://soko-bot-runtime.example.com",
-    );
-  });
-
-  it("keeps local HTTP and in-memory runtime available in development", () => {
-    setSokoBotEnv({
-      NODE_ENV: "development",
-      SOKO_BOT_ENABLED: "true",
-      SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
-      SOKO_BOT_RUNTIME_BASE_URL: "http://localhost:2000",
+      SOKO_BOT_RUNTIME_ADAPTER: "in-process",
     });
 
     const config = validateEnv();
 
-    expect(config.SOKO_BOT_RUNTIME_ADAPTER).toBe("in-memory");
-    expect(config.SOKO_BOT_RUNTIME_BASE_URL).toBe("http://localhost:2000");
+    expect(config.SOKO_BOT_ENABLED).toBe(true);
+    expect(config.SOKO_BOT_RUNTIME_ADAPTER).toBe("in-process");
+  });
+
+  it("keeps the in-memory runtime available in development", () => {
+    setSokoBotEnv({
+      NODE_ENV: "development",
+      SOKO_BOT_ENABLED: "true",
+      SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
+    });
+
+    expect(validateEnv().SOKO_BOT_RUNTIME_ADAPTER).toBe("in-memory");
   });
 
   it("keeps the kill switch bootable with local defaults in production", () => {
@@ -135,7 +111,6 @@ describe("Soko Bot deployment environment", () => {
       NODE_ENV: "production",
       SOKO_BOT_ENABLED: "false",
       SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
-      SOKO_BOT_RUNTIME_BASE_URL: "http://localhost:2000",
     });
 
     expect(validateEnv().SOKO_BOT_ENABLED).toBe(false);

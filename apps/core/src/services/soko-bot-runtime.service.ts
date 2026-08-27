@@ -45,7 +45,6 @@ import {
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
-import { verifyVercelOidcToken } from "@vercel/oidc";
 import { getEnv } from "@/config/env";
 import { toMasumiAgent } from "@/helpers/agent";
 import { createAgentJobForUser } from "@/helpers/job";
@@ -56,7 +55,6 @@ import prisma from "@/lib/db/prisma";
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
 
 import { serializableTransaction } from "@/lib/db/transaction";
-import { getSokoBotTokenService } from "@/lib/soko-bot/factory";
 import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
@@ -204,8 +202,6 @@ async function describeDecision(
 }
 
 export interface RuntimeAuthorizationInput {
-  oidcToken: string;
-  turnGrant: string;
   sessionId: string;
   turnId: string;
   capability?: SokoBotCapability;
@@ -394,18 +390,55 @@ function hashMemory(markdown: string): string {
   return createHash("sha256").update(markdown).digest("hex");
 }
 
-function assertSameScope(
-  grant: SokoBotTurnGrantClaims,
-  input: RuntimeAuthorizationInput,
-): void {
-  if (grant.turnId !== input.turnId) {
+/**
+ * The runtime executes inside Core, so a turn's scope is read from the row the
+ * control plane wrote rather than from a signed grant carried across a network
+ * hop. The claims shape is unchanged: capability scoping, the context snapshot
+ * a turn is pinned to, and the memory version it was handed all still gate what
+ * a tool call may do.
+ */
+function buildTurnGrant(
+  turn: {
+    id: string;
+    sokoBotId: string;
+    userId: string;
+    workspaceId: string;
+    capabilityNames: string[];
+    contextSnapshot: { id: string; packet: Prisma.JsonValue } | null;
+  },
+  sessionId: string,
+): SokoBotTurnGrantClaims {
+  if (!turn.contextSnapshot) {
     throw new SokoBotRuntimeAuthorizationError(
-      "Turn grant does not match turn",
+      "Context snapshot is unavailable",
     );
   }
-  if (input.capability && !grant.capabilities.includes(input.capability)) {
-    throw new SokoBotRuntimeAuthorizationError("Capability is not granted");
-  }
+  const packet = turn.contextSnapshot.packet;
+  const memory =
+    packet && typeof packet === "object" && !Array.isArray(packet)
+      ? (packet as Record<string, unknown>).memory
+      : null;
+  const memoryVersion =
+    memory && typeof memory === "object" && !Array.isArray(memory)
+      ? (memory as Record<string, unknown>).version
+      : null;
+  return {
+    issuer: "sokosumi-core",
+    audience: "soko-bot-core",
+    subject: turn.sokoBotId,
+    jwtId: `in-process:${turn.id}`,
+    sessionId,
+    turnId: turn.id,
+    sokoBotId: turn.sokoBotId,
+    userId: turn.userId,
+    workspaceId: turn.workspaceId,
+    contextSnapshotId: turn.contextSnapshot.id,
+    memoryRevisionId: null,
+    memoryVersion: typeof memoryVersion === "number" ? memoryVersion : 0,
+    capabilities: turn.capabilityNames.filter(isSokoBotCapability),
+    issuedAt: 0,
+    expiresAt: 0,
+  };
 }
 
 function sokoBotWorkspaceAccessWhere(
@@ -454,34 +487,6 @@ export class SokoBotRuntimeService {
     if (!env.SOKO_BOT_ENABLED) {
       throw new SokoBotRuntimeAuthorizationError("Soko Bot is not enabled");
     }
-    if (!env.SOKO_BOT_EVE_PROJECT_ID || !env.SOKO_BOT_EVE_ENVIRONMENT) {
-      throw new SokoBotRuntimeAuthorizationError(
-        "Soko Bot Eve OIDC allowlist is not configured",
-      );
-    }
-    try {
-      await verifyVercelOidcToken(input.oidcToken, {
-        projectId: env.SOKO_BOT_EVE_PROJECT_ID,
-        environment: env.SOKO_BOT_EVE_ENVIRONMENT,
-      });
-    } catch {
-      throw new SokoBotRuntimeAuthorizationError(
-        "Invalid Eve deployment identity",
-      );
-    }
-
-    let grant: SokoBotTurnGrantClaims;
-    try {
-      grant = await (await getSokoBotTokenService()).verifyTurnGrant(
-        input.turnGrant,
-      );
-    } catch {
-      throw new SokoBotRuntimeAuthorizationError(
-        "Invalid or expired turn grant",
-      );
-    }
-    assertSameScope(grant, input);
-
     const turn = await prisma.sokoBotTurn.findUnique({
       where: { id: input.turnId },
       select: {
@@ -497,6 +502,8 @@ export class SokoBotRuntimeService {
         source: true,
         deadlineAt: true,
         leaseExpiresAt: true,
+        capabilityNames: true,
+        contextSnapshot: { select: { id: true, packet: true } },
         sokoBot: {
           select: {
             adminPausedAt: true,
@@ -532,15 +539,14 @@ export class SokoBotRuntimeService {
     ) {
       throw new SokoBotRuntimeAuthorizationError("Soko Bot turn lease expired");
     }
-    if (
-      turn.sokoBotId !== grant.sokoBotId ||
-      turn.userId !== grant.userId ||
-      turn.workspaceId !== grant.workspaceId
-    ) {
-      throw new SokoBotRuntimeAuthorizationError("Turn grant scope mismatch");
+    const grant = buildTurnGrant(turn, input.sessionId);
+    if (input.capability && !grant.capabilities.includes(input.capability)) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Capability is not granted for this turn",
+      );
     }
     let storedSessionId = turn.eveSessionId;
-    if (grant.sessionId === `pending:${turn.id}` && storedSessionId === null) {
+    if (storedSessionId === null) {
       storedSessionId = await serializableTransaction(async (tx) => {
         // Same bot-row-first order as administrator PAUSE. Session attachment
         // either commits before PAUSE or reloads its paused state and fails.
@@ -638,11 +644,7 @@ export class SokoBotRuntimeService {
         turn.workspaceId,
       );
     }
-    const sessionMatches =
-      grant.sessionId === input.sessionId ||
-      (grant.sessionId === `pending:${turn.id}` &&
-        storedSessionId === input.sessionId);
-    if (!sessionMatches || storedSessionId !== input.sessionId) {
+    if (storedSessionId !== input.sessionId) {
       throw new SokoBotRuntimeAuthorizationError("Runtime session mismatch");
     }
 
