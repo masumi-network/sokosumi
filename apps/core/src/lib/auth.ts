@@ -84,7 +84,6 @@ import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
-import { ensureCanAcceptOrganizationInvitation } from "@/services/organization-subscription-auth.service";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
@@ -677,7 +676,6 @@ export const auth = betterAuth({
           };
         },
         beforeAcceptInvitation: async ({ organization, user }) => {
-          await ensureCanAcceptOrganizationInvitation(organization.id);
           await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
             organizationId: organization.id,
           });

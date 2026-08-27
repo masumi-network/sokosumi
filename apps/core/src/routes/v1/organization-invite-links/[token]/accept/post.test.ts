@@ -1,4 +1,3 @@
-import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -12,7 +11,6 @@ const {
   getMemberMock,
   createMemberMock,
   ensurePersonalWorkspaceForOrganizationMembershipMock,
-  ensureGateMock,
   orgFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -41,7 +39,6 @@ const {
   getMemberMock: vi.fn(),
   createMemberMock: vi.fn(),
   ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
-  ensureGateMock: vi.fn(),
   orgFindUniqueMock: vi.fn(),
 }));
 
@@ -93,11 +90,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: (...args: unknown[]) => orgFindUniqueMock(...args),
     },
   },
-}));
-
-vi.mock("@/services/organization-subscription-auth.service", () => ({
-  ensureCanAcceptOrganizationInvitation: (...args: unknown[]) =>
-    ensureGateMock(...args),
 }));
 
 const { upgradeGuestChatRoomMembershipsToMemberMock } = vi.hoisted(() => ({
@@ -157,7 +149,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
       role: "user",
     };
     orgFindUniqueMock.mockResolvedValue({ slug: "acme" });
-    ensureGateMock.mockResolvedValue(undefined);
     getMemberMock.mockResolvedValue(null);
     tryConsumeInviteLinkMock.mockResolvedValue(true);
     createMemberMock.mockResolvedValue(undefined);
@@ -192,20 +183,7 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(tryConsumeInviteLinkMock).not.toHaveBeenCalled();
   });
 
-  it("maps the billing-gate rejection to 400, not 500", async () => {
-    getInviteLinkByTokenMock.mockResolvedValue(liveLink());
-    ensureGateMock.mockRejectedValue(
-      new APIError("BAD_REQUEST", {
-        message: "An active organization subscription is required.",
-      }),
-    );
-
-    const response = await post();
-    expect(response.status).toBe(400);
-    expect(createMemberMock).not.toHaveBeenCalled();
-  });
-
-  it("joins a valid link after enforcing the subscription gate", async () => {
+  it("joins a valid link without a subscription or seat gate", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(liveLink());
 
     const response = await post();
@@ -215,8 +193,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(body.data.status).toBe("joined");
     expect(body.data.organizationSlug).toBe("acme");
     expect(body.data.organizationId).toBe("org_1");
-    // Billing gate runs before any membership write.
-    expect(ensureGateMock).toHaveBeenCalledWith("org_1");
     expect(
       ensurePersonalWorkspaceForOrganizationMembershipMock,
     ).toHaveBeenCalledWith("user_123", {
@@ -308,14 +284,13 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     expect(createMemberMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 for an expired link and never touches the gate", async () => {
+  it("returns 400 for an expired link", async () => {
     getInviteLinkByTokenMock.mockResolvedValue(
       liveLink({ expiresAt: new Date(NOW - 1000) }),
     );
 
     const response = await post();
     expect(response.status).toBe(400);
-    expect(ensureGateMock).not.toHaveBeenCalled();
     expect(createMemberMock).not.toHaveBeenCalled();
   });
 
@@ -334,7 +309,6 @@ describe("POST /organization-invite-links/{token}/accept", () => {
 
     const response = await post("tok_missing");
     expect(response.status).toBe(404);
-    expect(ensureGateMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization no longer exists", async () => {
@@ -343,6 +317,5 @@ describe("POST /organization-invite-links/{token}/accept", () => {
 
     const response = await post();
     expect(response.status).toBe(404);
-    expect(ensureGateMock).not.toHaveBeenCalled();
   });
 });

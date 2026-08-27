@@ -5,7 +5,6 @@ import {
   organizationInviteLinkRepository,
 } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
-import { APIError } from "better-auth/api";
 
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { badRequest, notFound } from "@/helpers/error";
@@ -18,7 +17,6 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { acceptOrganizationInviteLinkResponseSchema } from "@/schemas/organization-invite-link.schema";
-import { ensureCanAcceptOrganizationInvitation } from "@/services/organization-subscription-auth.service";
 
 const params = z.object({
   token: z.string().openapi({
@@ -83,25 +81,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
     if (!organization) {
       throw notFound("Organization not found.");
-    }
-
-    // Billing seat gate — identical to a normal invitation accept, so a link
-    // can never sneak a member past the org's plan limits. The gate throws a
-    // better-auth APIError (a plain Error), which the route error handler would
-    // otherwise surface as a 500; translate it to the documented 400.
-    try {
-      await ensureCanAcceptOrganizationInvitation(organizationId);
-    } catch (error) {
-      // Only the gate's BAD_REQUEST verdicts (no subscription / no seats) are a
-      // client error; anything else stays a 500 so real failures aren't hidden.
-      if (error instanceof APIError && error.status === "BAD_REQUEST") {
-        const message =
-          typeof error.body?.message === "string"
-            ? error.body.message
-            : "An active organization subscription is required before adding members.";
-        throw badRequest(message);
-      }
-      throw error;
     }
 
     let outcome: "joined" | "already_member" | "depleted";
