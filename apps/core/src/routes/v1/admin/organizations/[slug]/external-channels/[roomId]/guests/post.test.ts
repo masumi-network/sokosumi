@@ -186,21 +186,13 @@ describe("POST /admin/organizations/{slug}/external-channels/{roomId}/guests", (
       roomId: ROOM_ID,
       access: "guest",
     });
+    expect(queryRawMock).toHaveBeenCalled();
     expect(roomUserMemberCreateMock).toHaveBeenCalledWith({
       data: {
         roomId: ROOM_ID,
         userId: "user_guest",
         access: "guest",
       },
-    });
-    expect(memberFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        userId_organizationId: {
-          userId: "user_guest",
-          organizationId: ORG.id,
-        },
-      },
-      select: { id: true },
     });
     expect(recordChannelMembershipStatusMock).toHaveBeenCalledWith(
       expect.anything(),

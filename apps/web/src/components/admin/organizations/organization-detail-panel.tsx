@@ -45,11 +45,13 @@ import {
 } from "@/lib/actions/admin-organizations/member-actions";
 import { searchUsersClient } from "@/lib/actions/admin-search/client";
 import type { ActionError } from "@/lib/actions/errors";
-import { MemberRole } from "@/lib/clients/generated/core";
+import {
+  type AdminOrganizationOverviewDetail,
+  MemberRole,
+} from "@/lib/clients/generated/core";
 import type {
   AdminOrganizationMemberOverviewItem,
   AdminOrganizationMemberOverviewPage,
-  AdminOrganizationOverviewDetail,
 } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";

@@ -41,4 +41,30 @@ describe("listAdminExternalChannels", () => {
       orderBy: { name: "asc" },
     });
   });
+
+  it("omits rows with no channel slug", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        name: "Partners",
+        slug: "partners",
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440001",
+        name: "Broken",
+        slug: null,
+      },
+    ]);
+
+    const tx = { chatRoom: { findMany: findManyMock } };
+    await expect(
+      listAdminExternalChannels("org_1", tx as never),
+    ).resolves.toEqual([
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        name: "Partners",
+        slug: "partners",
+      },
+    ]);
+  });
 });

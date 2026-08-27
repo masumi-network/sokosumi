@@ -1,6 +1,7 @@
 import "server-only";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { AdminOrganizationOverviewDetail } from "@/lib/clients/generated/core";
 
 export interface AdminOrganizationOption {
   id: string;
@@ -42,52 +43,6 @@ export interface AdminOrganizationMemberOverviewItem {
   credits: number;
   subscriptionPlan: string | null;
   subscriptionStatus: string | null;
-}
-
-export interface AdminOrganizationOverviewDetail {
-  organization: {
-    id: string;
-    name: string;
-    slug: string;
-    createdAt: Date;
-    stripeCustomerId: string | null;
-  };
-  billingPlan: {
-    mode: "enterprise_contract" | "self_serve";
-    plan: "free" | "starter" | "standard" | "pro" | "enterprise";
-    isConsumable: boolean;
-    purchasedSeats: number;
-    cancelAtPeriodEnd: boolean;
-    periodEnd: Date | null;
-  };
-  subscription: {
-    plan: string;
-    status: string;
-    cancelAtPeriodEnd: boolean;
-    periodStart: Date | null;
-    periodEnd: Date | null;
-    seats: number;
-  } | null;
-  enterpriseContract: {
-    poolRemainingCredits: number;
-    monthlyCredits: number | null;
-    purchasedSeats: number;
-    isConsumable: boolean;
-  } | null;
-  seatSummary: {
-    assignedCount: number;
-    memberCount: number;
-    purchasedSeats: number;
-    unusedSeats: number;
-    paidPlan: string | null;
-    isEnterpriseContract: boolean;
-  };
-  totalCredits: number | null;
-  externalChannels: Array<{
-    id: string;
-    name: string;
-    slug: string;
-  }>;
 }
 
 export interface AdminOrganizationMemberOverviewPage {
@@ -161,17 +116,7 @@ export const adminOrganizationService = {
   ): Promise<AdminOrganizationOverviewDetail | null> {
     try {
       const result = await coreClient.getAdminOrganizationBySlug(slug);
-      const detail = result.data;
-
-      return {
-        organization: detail.organization,
-        billingPlan: detail.billingPlan,
-        subscription: detail.subscription,
-        enterpriseContract: detail.enterpriseContract,
-        seatSummary: detail.seatSummary,
-        totalCredits: detail.totalCredits,
-        externalChannels: detail.externalChannels,
-      };
+      return result.data;
     } catch (error) {
       if (error instanceof CoreApiRequestError && error.status === 404) {
         return null;
