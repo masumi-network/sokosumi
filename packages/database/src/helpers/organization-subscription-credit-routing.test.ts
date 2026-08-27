@@ -4,7 +4,7 @@ import { describe, it, vi } from "vitest";
 import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 
 import {
-  buildLocalFreeOrganizationMemberSubscriptionReferenceId,
+  buildLocalFreeOrganizationSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
   type EnsureLocalFreeSubscriptionPeriodParams,
   ensureLocalFreeSubscriptionPeriod,
@@ -13,7 +13,7 @@ import {
 
 interface LocalFreePeriodGrantMatrixCase {
   expectedGrantCount: number;
-  expectedGrantUserIds: string[];
+  expectedGrantUserIds: Array<string | null>;
   expectedReferenceIds: string[];
   name: string;
   params: EnsureLocalFreeSubscriptionPeriodParams;
@@ -116,7 +116,7 @@ const LOCAL_FREE_PERIOD_GRANT_MATRIX: LocalFreePeriodGrantMatrixCase[] = [
     ],
   },
   {
-    name: "org local free — assigned and unassigned members both receive grants",
+    name: "org local free — one org-owned 250 bucket for the pool",
     params: {
       billingAnchorDate: PERIOD_START,
       memberUserIds: ["assigned-1", "unassigned-1"],
@@ -126,19 +126,10 @@ const LOCAL_FREE_PERIOD_GRANT_MATRIX: LocalFreePeriodGrantMatrixCase[] = [
       purchasedSeats: 2,
       referenceId: "org-1",
     },
-    expectedGrantCount: 2,
-    expectedGrantUserIds: ["assigned-1", "unassigned-1"],
+    expectedGrantCount: 1,
+    expectedGrantUserIds: [null],
     expectedReferenceIds: [
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "assigned-1",
-        "org-1",
-        PERIOD_END,
-      ),
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "unassigned-1",
-        "org-1",
-        PERIOD_END,
-      ),
+      buildLocalFreeOrganizationSubscriptionReferenceId("org-1", PERIOD_END),
     ],
   },
 ];
@@ -185,7 +176,7 @@ describe("organization subscription credit routing matrix", () => {
               {
                 data: {
                   sourceCreditBucket: {
-                    create: { userId: string; referenceId: string };
+                    create: { userId: string | null; referenceId: string };
                   };
                 };
               },
