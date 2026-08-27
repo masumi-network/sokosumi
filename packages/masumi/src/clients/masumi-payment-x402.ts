@@ -36,6 +36,33 @@ export type X402AvailableNetwork =
 export type X402Budget =
   GetX402BudgetsResponses["200"]["data"]["Budgets"][number];
 
+/**
+ * The calling key's x402 spend cap, read from `GET /api-key-status`.
+ *
+ * The node caps x402 spend on the API KEY, never on a wallet: one credit
+ * ledger per key, keyed by `eip155:<chainId>:<asset>` units, gated by
+ * `usageLimited` (masumi ADR 0016). The unit string is byte-identical to the
+ * `<caip2Network>:<asset>` pair key Core composes readiness on, so a cap
+ * lookup is a plain map get.
+ */
+export interface X402KeySpendCaps {
+  /** The node enforces a cap only when true. */
+  usageLimited: boolean;
+  /**
+   * Remaining credit per lowercased `eip155:<chainId>:<asset>` unit, summed
+   * across rows: nothing enforces one row per (key, unit) on the node, so a
+   * split ledger must be judged by its total, exactly as the node's own
+   * debit path does.
+   */
+  creditsByUnit: ReadonlyMap<string, bigint>;
+  /**
+   * The key is `usageLimited` but holds NO `eip155:` row at all, so the node
+   * grandfathers it to uncapped x402 spend and warns per payment. Distinct
+   * from "capped at zero": this key can pay, a zero-credit one cannot.
+   */
+  grandfatheredUncapped: boolean;
+}
+
 /** One managed EVM wallet visible to the calling key (`GET /x402/wallets`). */
 export type X402Wallet =
   GetX402WalletsResponses["200"]["data"]["Wallets"][number];
@@ -383,6 +410,76 @@ export function createX402PaymentMethods(
   }
 
   return {
+    /**
+     * The calling key's x402 spend cap.
+     *
+     * Reads the SAME memoized `GET /api-key-status` every other scoped call
+     * here already resolves, so this costs no extra request. It supersedes
+     * `GET /x402/budgets`: masumi ADR 0016 makes per-key usage credits the
+     * only x402 spend cap and removes per-wallet budgets from the node.
+     *
+     * Scoping is structural rather than filtered. `api-key-status` answers
+     * for the CALLING key only, so there is no foreign-row hazard of the kind
+     * the budgets read defended against with an explicit `apiKeyId` query
+     * filter plus a re-filter of the response.
+     *
+     * Non-`eip155:` rows are dropped: those are the Cardano rail's credits on
+     * the same shared ledger and must never make an EVM pair look payable. A
+     * non-numeric amount contributes nothing to its unit's sum, so a unit
+     * whose only row is unparsable reads as zero and its pair is delisted —
+     * fail closed, since a malformed amount is not evidence of funding.
+     */
+    async getX402KeySpendCaps(
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<X402KeySpendCaps, string>> {
+      try {
+        const statusResult = await resolveApiKeyStatus(options);
+        if (statusResult.isErr()) {
+          return err(statusResult.error);
+        }
+        const status = statusResult.value;
+        // Version-skew guard, same posture as the wallet listing's strict
+        // flag read: a node answering 200 without the flag must not read as
+        // "uncapped" and mark pairs ready that a capped key cannot pay.
+        if (typeof status?.usageLimited !== "boolean") {
+          return err(
+            "api-key-status returned no usageLimited flag; refusing to judge x402 spend caps",
+          );
+        }
+        const rows = Array.isArray(status.RemainingUsageCredits)
+          ? status.RemainingUsageCredits
+          : [];
+        const creditsByUnit = new Map<string, bigint>();
+        let sawEvmRow = false;
+        for (const row of rows) {
+          const unit =
+            typeof row?.unit === "string" ? row.unit.toLowerCase() : "";
+          if (!unit.startsWith("eip155:")) {
+            continue;
+          }
+          // Any eip155 row at all ends grandfathering on the node, including
+          // one this loop then drops as unparsable: the node COUNTS those
+          // rows, it does not parse them. Reading that as still-grandfathered
+          // would call a hard-capped key uncapped.
+          sawEvmRow = true;
+          if (typeof row.amount !== "string" || !/^\d+$/.test(row.amount)) {
+            continue;
+          }
+          creditsByUnit.set(
+            unit,
+            (creditsByUnit.get(unit) ?? 0n) + BigInt(row.amount),
+          );
+        }
+        return ok({
+          usageLimited: status.usageLimited,
+          creditsByUnit,
+          grandfatheredUncapped: status.usageLimited && !sawEvmRow,
+        });
+      } catch (error) {
+        return err(String(error) || "Failed to get x402 key spend caps");
+      }
+    },
+
     /**
      * x402 EVM chains the node reports accessible for this environment.
      * Filtered node-side to the client's environment: the Cardano

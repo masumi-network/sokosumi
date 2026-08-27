@@ -53,6 +53,24 @@ function budget(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function keyStatus(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "apikey_own",
+    canAdmin: true,
+    usageLimited: false,
+    RemainingUsageCredits: [] as { unit: string; amount: string }[],
+    ...overrides,
+  };
+}
+
+function statusResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    data: { status: "success", data: keyStatus(overrides) },
+    error: undefined,
+    response: { status: 200 },
+  };
+}
+
 function purchasingWallet(overrides: Record<string, unknown> = {}) {
   return {
     id: "wallet_1",
@@ -397,6 +415,135 @@ describe("getX402Budgets", () => {
 
     expect(result.isErr()).toBe(true);
     expect(result.isErr() && result.error).toMatch(/socket hang up/);
+  });
+});
+
+describe("getX402KeySpendCaps", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sums credits per eip155 unit and lowercases the unit", async () => {
+    // Nothing on the node enforces one row per (key, unit), and its own debit
+    // path judges the SUM, so a split ledger must not read as the first row.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "400000" },
+          {
+            unit: `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
+            amount: "600000",
+          },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isOk()).toBe(true);
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(true);
+    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(
+      caps?.creditsByUnit.get(
+        `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
+      ),
+    ).toBe(1000000n);
+  });
+
+  it("drops the Cardano rail's rows from the same shared ledger", async () => {
+    // lovelace and native-asset units live on the SAME UnitValue ledger. A
+    // Cardano-funded key must never make an EVM pair look payable.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: "lovelace", amount: "5000000" },
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "1" },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.creditsByUnit.size).toBe(1);
+    expect(caps?.creditsByUnit.has("lovelace")).toBe(false);
+  });
+
+  it("reports a usage-limited key with no eip155 row as grandfathered uncapped", async () => {
+    // The node keeps such a key payable and only warns, so calling it capped
+    // would hide agents the node would settle.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [{ unit: "lovelace", amount: "5000000" }],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isOk() && result.value.grandfatheredUncapped).toBe(true);
+  });
+
+  it("ends grandfathering on an eip155 row it cannot parse", async () => {
+    // The node COUNTS eip155 rows to decide grandfathering, it does not parse
+    // them. Reading an unparsable row as "still grandfathered" would call a
+    // hard-capped key uncapped and mark an unpayable pair ready.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "not-a-number" },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("reports an unlimited key as uncapped and not grandfathered", async () => {
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ usageLimited: false }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(false);
+    expect(caps?.grandfatheredUncapped).toBe(false);
+  });
+
+  it("fails closed when the node answers 200 without the usageLimited flag", async () => {
+    // Version skew must not read as "uncapped" and mark pairs ready that a
+    // capped key cannot actually pay.
+    getApiKeyStatusMock.mockResolvedValue({
+      data: { status: "success", data: { id: "apikey_own" } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("usageLimited");
+  });
+
+  it("propagates a failed key-status resolution", async () => {
+    getApiKeyStatusMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "unauthorized" } },
+      response: { status: 401 },
+    });
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
   });
 });
 
