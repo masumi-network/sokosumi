@@ -1,8 +1,7 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
@@ -15,12 +14,18 @@ const {
   provisionOrganizationStripeCustomerMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", async () => {
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
   const { mockRequireOwnerUserContext } = await import(
     "@/test-fixtures/require-owner-user-context.mock.js"
   );
   const { HTTPException } = await import("hono/http-exception");
   return {
+    ...actual,
+    authMiddleware: stubAuthMiddleware,
     requireUserContext: (authContext: AuthenticationContext | null) => {
       if (!authContext || authContext.actor !== "user") {
         throw new HTTPException(403, {
@@ -63,9 +68,7 @@ let mountPostOrganizationStripeCustomer: (app: OpenAPIHonoWithAuth) => void;
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -77,7 +80,7 @@ function createApp(
     return await next();
   });
 
-  mountPostOrganizationStripeCustomer(app as unknown as OpenAPIHonoWithAuth);
+  mountPostOrganizationStripeCustomer(app);
   return app;
 }
 

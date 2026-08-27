@@ -1,12 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceVariables } from "@/middleware/workspace";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetTaskJobs from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   jobFindManyMock,
@@ -31,9 +36,7 @@ vi.mock("@/lib/db/prisma", () => ({
 const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -52,7 +55,7 @@ function createApp() {
     return await next();
   });
 
-  mountGetTaskJobs(app as unknown as OpenAPIHonoWithAuth);
+  mountGetTaskJobs(app);
 
   return app;
 }

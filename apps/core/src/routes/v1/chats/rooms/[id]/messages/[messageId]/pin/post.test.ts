@@ -1,13 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { publishChatRoomPinnedMessageRealtime } from "@/helpers/chat-room-pinned-message-realtime";
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { defaultValidationHook } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountPinChatRoomMessage from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   roomFindFirstMock,
@@ -62,11 +67,7 @@ const tx = {
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_pin_message");
@@ -76,7 +77,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.onError(errorHandler);
-  mountPinChatRoomMessage(app as unknown as OpenAPIHonoWithAuth);
+  mountPinChatRoomMessage(app);
   return app;
 }
 

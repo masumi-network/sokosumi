@@ -85,6 +85,8 @@ apps/web
 
 ## Testing
 
+Place `foo.test.ts(x)` next to `foo.ts(x)`. Use `__tests__/` only for tests that do not map 1:1 to a source file.
+
 Run tests using Vitest with the `happy-dom` browser-like environment:
 
 ```bash

@@ -1,12 +1,19 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -66,9 +73,7 @@ const SESSION_USER: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = SESSION_USER) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -76,13 +81,9 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountDeleteUserOauthConsent(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountDeleteUserOauthConsent(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;
 }
@@ -111,14 +112,14 @@ describe("DELETE /users/{id}/oauth-consents/{consentId}", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when clientId is missing", async () => {
+  it("returns 422 when clientId is missing", async () => {
     const response = await createApp().request(
       new Request("http://localhost/me/oauth-consents/consent_1", {
         method: "DELETE",
       }),
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(transactionMock).not.toHaveBeenCalled();
   });
 

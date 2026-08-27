@@ -1,13 +1,20 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import { createProjectListCountsInclude } from "@/types/project";
 
 import mountListProjects from "./get.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { projectCountMock, projectFindManyMock, prismaTransactionMock } =
   vi.hoisted(() => ({
@@ -45,9 +52,7 @@ function createApp(
     | WorkspaceVariables["workspaceContext"]
     | null = WORKSPACE_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -58,7 +63,7 @@ function createApp(
     return await next();
   });
 
-  mountListProjects(app as unknown as OpenAPIHonoWithAuth);
+  mountListProjects(app);
   return app;
 }
 

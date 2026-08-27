@@ -1,13 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID, testVendor } from "@/test-fixtures/vendor.js";
 
 import mountDeleteCoworkerImage from "./delete";
 import mountPostCoworkerImage from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   findFirstMock,
@@ -82,9 +87,7 @@ interface AppOptions {
 
 function createApp(options: AppOptions = {}) {
   const { role = "admin", userId = "admin_1" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_coworker_image_test");
@@ -98,8 +101,8 @@ function createApp(options: AppOptions = {}) {
     return await next();
   });
 
-  mountPostCoworkerImage(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteCoworkerImage(app as unknown as OpenAPIHonoWithAuth);
+  mountPostCoworkerImage(app);
+  mountDeleteCoworkerImage(app);
 
   return app;
 }
@@ -177,14 +180,14 @@ describe("POST /coworkers/{id}/image", () => {
     );
   });
 
-  it("returns 400 when file is missing", async () => {
+  it("returns 422 when file is missing", async () => {
     const app = createApp();
     const response = await app.request(`/${COWORKER_ID}/image`, {
       method: "POST",
       body: new FormData(),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(uploadCoworkerImageMock).not.toHaveBeenCalled();
   });
 

@@ -1,13 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { resolveMemberOrganizationByIdMock, evaluateOrganizationDeletionMock } =
   vi.hoisted(() => ({
@@ -50,11 +55,7 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_org_deletion_test");
@@ -64,7 +65,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   });
 
   app.onError(errorHandler);
-  mountGetOrganizationDeletion(app as unknown as OpenAPIHonoWithAuth);
+  mountGetOrganizationDeletion(app);
 
   return app;
 }

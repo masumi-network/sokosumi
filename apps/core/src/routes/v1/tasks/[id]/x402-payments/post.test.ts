@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import {
   normalizeX402PaymentRequiredWithSources,
@@ -10,14 +9,22 @@ import { err, ok } from "neverthrow";
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import { unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TASK_X402_MAX_SIGN_DISPATCH_DELAY_MS } from "@/services/task-x402-payment.replay";
 import { createX402DemandFingerprint } from "@/services/task-x402-payment.replay-demand";
 
 import mountPostTaskX402Payment, { X402_PAY_MAX_BODY_BYTES } from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   captureExceptionMock,
@@ -495,15 +502,7 @@ function createTxMock(): TxMock {
 }
 
 function createApp(authContext: AuthenticationContext) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   // The real app serializes HTTPExceptions to the JSON error envelope in its
   // onError handler; error-body assertions below need the same.
@@ -516,7 +515,7 @@ function createApp(authContext: AuthenticationContext) {
     return await next();
   });
 
-  mountPostTaskX402Payment(app as unknown as OpenAPIHonoWithAuth);
+  mountPostTaskX402Payment(app);
   return app;
 }
 

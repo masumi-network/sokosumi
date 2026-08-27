@@ -1,15 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  formatZodErrorMessage,
-  notFound,
-  unprocessableEntity,
-} from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { notFound } from "@/helpers/error";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetAgentRatingEligibility from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   doesUserHaveFinishedJobWithAgentMock,
@@ -45,15 +48,7 @@ function createApp(
     role: "user",
   },
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "test-req-id");
@@ -62,7 +57,7 @@ function createApp(
     return await next();
   });
 
-  mountGetAgentRatingEligibility(app as unknown as OpenAPIHonoWithAuth);
+  mountGetAgentRatingEligibility(app);
   return app;
 }
 
