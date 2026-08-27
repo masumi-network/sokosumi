@@ -27,15 +27,15 @@ vi.mock("./use-open-coworker-room", () => ({
   }),
 }));
 
-import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 
 function renderSeated(ui: ReactElement) {
   return render(
-    <OrganizationWorkstationProvider canUseWorkstation={true}>
+    <OrganizationSeatProvider hasAssignedSeat={true}>
       {ui}
-    </OrganizationWorkstationProvider>,
+    </OrganizationSeatProvider>,
   );
 }
 
@@ -329,14 +329,14 @@ describe("LandingCoworkerPicker", () => {
     expect(openCoworkerRoom).toHaveBeenCalledWith("hannah");
   });
 
-  it("hides Start chat when the viewer has no paid workstation", () => {
+  it("hides Start chat when the viewer has no assigned seat", () => {
     render(
-      <OrganizationWorkstationProvider canUseWorkstation={false}>
+      <OrganizationSeatProvider hasAssignedSeat={false}>
         <LandingCoworkerPicker
           coworkers={coworkers}
           initialSelectedId="elena"
         />
-      </OrganizationWorkstationProvider>,
+      </OrganizationSeatProvider>,
     );
 
     expect(
@@ -344,6 +344,6 @@ describe("LandingCoworkerPicker", () => {
         name: 'cta.button:{"name":"Elena"}',
       }),
     ).toBeNull();
-    expect(screen.getByText("Workstation.coworkerDirectDisabled")).toBeTruthy();
+    expect(screen.getByText("Seat.coworkerDirectDisabled")).toBeTruthy();
   });
 });

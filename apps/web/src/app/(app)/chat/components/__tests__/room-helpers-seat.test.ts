@@ -21,30 +21,30 @@ function mentionedCoworkerMessage() {
 }
 
 describe("shouldDisableCoworkerThreadComposer", () => {
-  it("keeps the composer when the member may use the workstation", () => {
+  it("keeps the composer when the member may use an assigned seat", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
         isCoworkerStreamRoom: true,
         threadMessages: [coworkerMessage()],
       }),
     ).toBe(false);
   });
 
-  it("disables coworker 1:1 threads when the member has no workstation", () => {
+  it("disables coworker 1:1 threads when the member has no assigned seat", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
         isCoworkerStreamRoom: true,
         threadMessages: [humanMessage()],
       }),
     ).toBe(true);
   });
 
-  it("keeps human-only channel threads when the member has no workstation", () => {
+  it("keeps human-only channel threads when the member has no assigned seat", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
         isCoworkerStreamRoom: false,
         threadMessages: [humanMessage(), humanMessage()],
       }),
@@ -54,7 +54,7 @@ describe("shouldDisableCoworkerThreadComposer", () => {
   it("disables a channel thread that already has a coworker sender", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
         isCoworkerStreamRoom: false,
         threadMessages: [humanMessage(), coworkerMessage()],
       }),
@@ -64,17 +64,17 @@ describe("shouldDisableCoworkerThreadComposer", () => {
   it("disables a channel thread that would auto-dispatch a coworker mention", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
         isCoworkerStreamRoom: false,
         threadMessages: [mentionedCoworkerMessage()],
       }),
     ).toBe(true);
   });
 
-  it("disables channel threads while replies are loading when the member has no workstation", () => {
+  it("disables channel threads while replies are loading when the member has no assigned seat", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
         isCoworkerStreamRoom: false,
         isThreadLoading: true,
         threadMessages: [humanMessage()],
@@ -82,10 +82,10 @@ describe("shouldDisableCoworkerThreadComposer", () => {
     ).toBe(true);
   });
 
-  it("keeps the composer while loading when the member may use the workstation", () => {
+  it("keeps the composer while loading when the member may use an assigned seat", () => {
     expect(
       shouldDisableCoworkerThreadComposer({
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
         isCoworkerStreamRoom: false,
         isThreadLoading: true,
         threadMessages: [humanMessage()],
@@ -95,20 +95,20 @@ describe("shouldDisableCoworkerThreadComposer", () => {
 });
 
 describe("shouldConsumePendingCoworkerStream", () => {
-  it("consumes a pending 1:1 draft when the member may use the workstation", () => {
+  it("consumes a pending 1:1 draft when the member may use an assigned seat", () => {
     expect(
       shouldConsumePendingCoworkerStream({
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
         isCoworkerStreamRoom: true,
         hasPendingMessage: true,
       }),
     ).toBe(true);
   });
 
-  it("does not auto-stream a pending 1:1 draft when the member has no workstation", () => {
+  it("does not auto-stream a pending 1:1 draft when the member has no assigned seat", () => {
     expect(
       shouldConsumePendingCoworkerStream({
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
         isCoworkerStreamRoom: true,
         hasPendingMessage: true,
       }),
@@ -118,7 +118,7 @@ describe("shouldConsumePendingCoworkerStream", () => {
   it("does not consume when there is no pending draft", () => {
     expect(
       shouldConsumePendingCoworkerStream({
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
         isCoworkerStreamRoom: true,
         hasPendingMessage: false,
       }),

@@ -30,12 +30,12 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
   });
 
-  it("defaults to read-only when workstation access is omitted", () => {
+  it("defaults to read-only when assigned seat is omitted", () => {
     expect(
       isReadOnlyForViewer({
         taskWorkspaceOrganizationId: "org_1",
@@ -55,7 +55,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
       }),
     ).toBe(true);
   });
@@ -80,7 +80,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
   });
@@ -93,7 +93,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
-        canUseWorkstation: true,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
   });
@@ -299,7 +299,7 @@ describe("canCommentOnTaskForViewer", () => {
     ).toBe(false);
   });
 
-  it("blocks comments when the viewer has no paid workstation", () => {
+  it("blocks comments when the viewer has no assigned seat", () => {
     expect(
       canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: "org_1",
@@ -307,7 +307,7 @@ describe("canCommentOnTaskForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
-        canUseWorkstation: false,
+        hasAssignedSeat: false,
       }),
     ).toBe(false);
   });

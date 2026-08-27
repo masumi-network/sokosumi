@@ -48,7 +48,7 @@ const {
   clearPendingResponseMirrorMock,
   renewPendingResponseMirrorMock,
   pollCoworkerResponseStatusMock,
-  canUseOrganizationWorkstationMock,
+  hasAssignedOrganizationSeatMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
@@ -85,7 +85,7 @@ const {
   clearPendingResponseMirrorMock: vi.fn(),
   renewPendingResponseMirrorMock: vi.fn(),
   pollCoworkerResponseStatusMock: vi.fn(),
-  canUseOrganizationWorkstationMock: vi.fn(),
+  hasAssignedOrganizationSeatMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -93,8 +93,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
-    canUseOrganizationWorkstation: (...args: unknown[]) =>
-      canUseOrganizationWorkstationMock(...args),
+    hasAssignedOrganizationSeat: (...args: unknown[]) =>
+      hasAssignedOrganizationSeatMock(...args),
   };
 });
 
@@ -314,7 +314,7 @@ async function postStream(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  canUseOrganizationWorkstationMock.mockResolvedValue(true);
+  hasAssignedOrganizationSeatMock.mockResolvedValue(true);
   prismaTransactionMock.mockImplementation(async (callback) =>
     callback({
       chatRoom: {
@@ -492,8 +492,8 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the member has no organization workstation", async () => {
-    canUseOrganizationWorkstationMock.mockResolvedValue(false);
+  it("returns 403 when the member has no assigned organization seat", async () => {
+    hasAssignedOrganizationSeatMock.mockResolvedValue(false);
     roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
 
     const response = await postStream();

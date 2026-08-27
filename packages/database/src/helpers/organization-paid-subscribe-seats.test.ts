@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { describe, it, vi } from "vitest";
 import { memberRepository } from "../repositories/member.repository.js";
-import { canUseOrganizationWorkstation } from "./credit-bucket-scope.js";
+import { hasAssignedOrganizationSeat } from "./credit-bucket-scope.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
 import { autoAssignSeatsOnPaidSubscribe } from "./organization-paid-subscribe-seats.js";
 
@@ -142,7 +142,7 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
     getMemberMock.mockResolvedValue({ seatAssignedAt: null } as never);
 
     assert.equal(
-      await canUseOrganizationWorkstation("m-overflow", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("m-overflow", "org-1", {} as never),
       true,
     );
 
@@ -164,15 +164,15 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
     );
 
     assert.equal(
-      await canUseOrganizationWorkstation("m-owner", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("m-owner", "org-1", {} as never),
       true,
     );
     assert.equal(
-      await canUseOrganizationWorkstation("m-old", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("m-old", "org-1", {} as never),
       true,
     );
     assert.equal(
-      await canUseOrganizationWorkstation("m-overflow", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("m-overflow", "org-1", {} as never),
       false,
     );
   });

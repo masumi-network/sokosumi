@@ -5102,7 +5102,7 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
-      "Workstation": {
+      "Seat": {
         "coworkerDirectDisabled": "Se requiere un asiento asignado para escribir a compañeros de IA."
       },
       "Draft": {

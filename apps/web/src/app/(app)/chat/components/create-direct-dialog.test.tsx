@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "./create-direct-dialog";
 
@@ -49,9 +49,9 @@ vi.mock("@/components/chat/organization-chat-events", () => ({
 
 function renderSeated(ui: ReactElement) {
   return render(
-    <OrganizationWorkstationProvider canUseWorkstation={true}>
+    <OrganizationSeatProvider hasAssignedSeat={true}>
       {ui}
-    </OrganizationWorkstationProvider>,
+    </OrganizationSeatProvider>,
   );
 }
 
@@ -277,7 +277,7 @@ describe("CreateDirectDialog", () => {
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 
-  it("hides AI coworkers when the viewer has no paid workstation", async () => {
+  it("hides AI coworkers when the viewer has no assigned seat", async () => {
     loadChatComposeRosterActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -292,9 +292,9 @@ describe("CreateDirectDialog", () => {
     });
     const user = userEvent.setup();
     render(
-      <OrganizationWorkstationProvider canUseWorkstation={false}>
+      <OrganizationSeatProvider hasAssignedSeat={false}>
         <CreateDirectDialog />
-      </OrganizationWorkstationProvider>,
+      </OrganizationSeatProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));

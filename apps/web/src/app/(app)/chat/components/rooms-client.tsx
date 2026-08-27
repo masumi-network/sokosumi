@@ -114,7 +114,7 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { useCanUseOrganizationWorkstation } from "@/contexts/organization-workstation-context";
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -512,7 +512,7 @@ export function RoomsClient({
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
-  const canUseWorkstation = useCanUseOrganizationWorkstation();
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -1299,7 +1299,7 @@ export function RoomsClient({
     }
     if (
       !shouldConsumePendingCoworkerStream({
-        canUseWorkstation,
+        hasAssignedSeat,
         isCoworkerStreamRoom,
         hasPendingMessage: true,
       })
@@ -1308,7 +1308,7 @@ export function RoomsClient({
     }
     consumePendingStreamMessage(pending);
   }, [
-    canUseWorkstation,
+    hasAssignedSeat,
     consumePendingStreamMessage,
     isCoworkerStreamRoom,
     selectedRoomId,
@@ -1450,8 +1450,8 @@ export function RoomsClient({
       ] as const);
     }
     const records = Object.fromEntries(entries);
-    return canUseWorkstation ? records : omitCoworkerMentionRecords(records);
-  }, [canUseWorkstation, currentUserId, selectedRoom, t]);
+    return hasAssignedSeat ? records : omitCoworkerMentionRecords(records);
+  }, [hasAssignedSeat, currentUserId, selectedRoom, t]);
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];
@@ -2895,7 +2895,7 @@ export function RoomsClient({
                       }
                       onRetryOutbound={handleRetryOutbound}
                       onRetryMention={
-                        canUseWorkstation &&
+                        hasAssignedSeat &&
                         isCurrentUserMentionerOfFailedShell({
                           shell: message,
                           currentUserId,
@@ -3017,9 +3017,9 @@ export function RoomsClient({
           }
           listContent={openRoomListBody}
           composer={
-            isCoworkerStreamRoom && !canUseWorkstation ? (
+            isCoworkerStreamRoom && !hasAssignedSeat ? (
               <p className="text-muted-foreground px-1 py-3 text-sm">
-                {t("Workstation.coworkerDirectDisabled")}
+                {t("Seat.coworkerDirectDisabled")}
               </p>
             ) : (
               <RoomSessionComposer
@@ -3092,7 +3092,7 @@ export function RoomsClient({
                 }
                 onRetryOutbound={handleRetryOutbound}
                 onRetryMention={
-                  canUseWorkstation ? handleRetryMention : undefined
+                  hasAssignedSeat ? handleRetryMention : undefined
                 }
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
@@ -3122,14 +3122,14 @@ export function RoomsClient({
                 roomId={selectedRoom.id}
                 composerDisabledMessage={
                   shouldDisableCoworkerThreadComposer({
-                    canUseWorkstation,
+                    hasAssignedSeat,
                     isCoworkerStreamRoom,
                     isThreadLoading,
                     threadMessages: threadParentMessage
                       ? [threadParentMessage, ...displayThreadMessages]
                       : [],
                   })
-                    ? t("Workstation.coworkerDirectDisabled")
+                    ? t("Seat.coworkerDirectDisabled")
                     : undefined
                 }
               />

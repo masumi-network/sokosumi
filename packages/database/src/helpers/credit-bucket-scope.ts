@@ -70,7 +70,7 @@ export async function resolveCreditBucketScopeContext(
   };
 }
 
-export async function canUseOrganizationWorkstation(
+export async function hasAssignedOrganizationSeat(
   userId: string,
   organizationId: string | null,
   tx: Prisma.TransactionClient,

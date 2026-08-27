@@ -26,7 +26,7 @@ import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
-import { useCanUseOrganizationWorkstation } from "@/contexts/organization-workstation-context";
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
@@ -207,8 +207,8 @@ function VendorDashboard({
   onStartTask: (assigneeId: string, prompt?: string) => void;
   isFirst: boolean;
 }) {
-  const canUseWorkstation = useCanUseOrganizationWorkstation();
-  const tWorkstation = useTranslations("App.Channels");
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
+  const tSeat = useTranslations("App.Channels");
   const [activeId, setActiveId] = useState(members[0]?.id);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const active = members.find((member) => member.id === activeId) ?? members[0];
@@ -337,7 +337,7 @@ function VendorDashboard({
               </div>
             </div>
             <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-              {canUseWorkstation ? (
+              {hasAssignedSeat ? (
                 <>
                   {coworkerCanChat(active) ? (
                     <StartChatButton
@@ -360,7 +360,7 @@ function VendorDashboard({
                 </>
               ) : (
                 <p className="text-muted-foreground text-sm">
-                  {tWorkstation("Workstation.coworkerDirectDisabled")}
+                  {tSeat("Seat.coworkerDirectDisabled")}
                 </p>
               )}
             </div>
@@ -445,7 +445,7 @@ function CoworkerGallerySectionInner({
   coworkers,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
-  const canUseWorkstation = useCanUseOrganizationWorkstation();
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
   // Gallery search query (URL-backed) filters coworker offers below.
   const { query, setQuery } = useGalleryFilter();
@@ -721,7 +721,7 @@ function CoworkerGallerySectionInner({
         }
         onClose={() => setSelected(null)}
         onStart={
-          canUseWorkstation
+          hasAssignedSeat
             ? () => {
                 if (selected) {
                   handleOpenWith(selected.coworker.id, selected.offer.prompt);

@@ -9,7 +9,7 @@ import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { findOrchestratorForUser } from "@/helpers/orchestrator-instance";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -164,7 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      await requireOrganizationWorkstation(userId, organizationId, tx);
+      await requireAssignedOrganizationSeat(userId, organizationId, tx);
 
       const cents = convertCreditsToCents(credits);
       const consumptions = await prepareOrchestratorConsumptions(

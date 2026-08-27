@@ -13,17 +13,17 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-describe("canUseOrganizationWorkstation", () => {
+describe("hasAssignedOrganizationSeat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("allows a personal workspace", async () => {
-    const { canUseOrganizationWorkstation } = await import(
-      "./organization-workstation.service"
+    const { hasAssignedOrganizationSeat } = await import(
+      "./organization-assigned-seat.service"
     );
 
-    await expect(canUseOrganizationWorkstation(null)).resolves.toBe(true);
+    await expect(hasAssignedOrganizationSeat(null)).resolves.toBe(true);
     expect(getOrganizationCallerSeatMock).not.toHaveBeenCalled();
   });
 
@@ -32,11 +32,11 @@ describe("canUseOrganizationWorkstation", () => {
       data: { assigned: false },
     });
 
-    const { canUseOrganizationWorkstation } = await import(
-      "./organization-workstation.service"
+    const { hasAssignedOrganizationSeat } = await import(
+      "./organization-assigned-seat.service"
     );
 
-    await expect(canUseOrganizationWorkstation("org-1")).resolves.toBe(false);
+    await expect(hasAssignedOrganizationSeat("org-1")).resolves.toBe(false);
     expect(getOrganizationCallerSeatMock).toHaveBeenCalledWith("org-1");
   });
 });

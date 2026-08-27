@@ -37,8 +37,8 @@ const {
   waitUntilMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/organization-workstation", () => ({
-  requireOrganizationWorkstation: vi.fn().mockResolvedValue(undefined),
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

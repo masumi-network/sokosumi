@@ -5102,7 +5102,7 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
-      "Workstation": {
+      "Seat": {
         "coworkerDirectDisabled": "Für Nachrichten an KI-Coworker ist ein zugewiesener Sitzplatz nötig."
       },
       "Draft": {

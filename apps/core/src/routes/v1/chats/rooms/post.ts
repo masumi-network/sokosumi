@@ -5,7 +5,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import {
   isDirectKeyUniqueConstraintError,
   isSlugUniqueConstraintError,
@@ -107,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (body.kind === "direct") {
       if ((body.coworkerIds ?? []).length > 0) {
-        await requireOrganizationWorkstation(
+        await requireAssignedOrganizationSeat(
           userContext.userId,
           userContext.organizationId,
         );

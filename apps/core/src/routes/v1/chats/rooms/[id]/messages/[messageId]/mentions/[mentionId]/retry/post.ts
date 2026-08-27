@@ -4,7 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -82,7 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userContext.userId,
         tx,
       );
-      await requireOrganizationWorkstation(
+      await requireAssignedOrganizationSeat(
         userContext.userId,
         room.organizationId,
         tx,

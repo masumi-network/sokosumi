@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useCanUseOrganizationWorkstation } from "@/contexts/organization-workstation-context";
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { getInitials } from "@/lib/utils/text";
 import {
   CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
@@ -38,7 +38,7 @@ import {
 
 export function CreateDirectDialog() {
   const t = useTranslations("App.Channels");
-  const canUseWorkstation = useCanUseOrganizationWorkstation();
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const rosterScrollRef = useRef<HTMLDivElement | null>(null);
   const inFlightRef = useRef(false);
@@ -53,10 +53,10 @@ export function CreateDirectDialog() {
     () =>
       buildDirectDraftTargets(
         roster.members,
-        canUseWorkstation ? roster.coworkers : [],
+        hasAssignedSeat ? roster.coworkers : [],
         roster.currentUserId,
       ),
-    [canUseWorkstation, roster.coworkers, roster.currentUserId, roster.members],
+    [hasAssignedSeat, roster.coworkers, roster.currentUserId, roster.members],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -242,7 +242,7 @@ export function CreateDirectDialog() {
             placeholder={
               selectedTargets.length === 0
                 ? t(
-                    canUseWorkstation
+                    hasAssignedSeat
                       ? "Draft.searchPlaceholder"
                       : "Draft.searchPlaceholderHumansOnly",
                   )
@@ -251,7 +251,7 @@ export function CreateDirectDialog() {
                   : t("Draft.searchPlaceholderReplace")
             }
             aria-label={t(
-              canUseWorkstation
+              hasAssignedSeat
                 ? "Draft.searchPlaceholder"
                 : "Draft.searchPlaceholderHumansOnly",
             )}

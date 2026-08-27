@@ -13,10 +13,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { resolveMemberOrganizationByIdMock, canUseOrganizationWorkstationMock } =
+const { resolveMemberOrganizationByIdMock, hasAssignedOrganizationSeatMock } =
   vi.hoisted(() => ({
     resolveMemberOrganizationByIdMock: vi.fn(),
-    canUseOrganizationWorkstationMock: vi.fn(),
+    hasAssignedOrganizationSeatMock: vi.fn(),
   }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -30,7 +30,7 @@ vi.mock("@/helpers/organization", async (importOriginal) => ({
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/database/helpers")>()),
-  canUseOrganizationWorkstation: canUseOrganizationWorkstationMock,
+  hasAssignedOrganizationSeat: hasAssignedOrganizationSeatMock,
 }));
 
 const { default: mountGetOrganizationCallerSeat } = await import("./get.js");
@@ -79,7 +79,7 @@ describe("GET /organizations/{id}/members/me/seat", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(canUseOrganizationWorkstationMock).not.toHaveBeenCalled();
+    expect(hasAssignedOrganizationSeatMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization does not exist", async () => {
@@ -104,11 +104,11 @@ describe("GET /organizations/{id}/members/me/seat", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(canUseOrganizationWorkstationMock).not.toHaveBeenCalled();
+    expect(hasAssignedOrganizationSeatMock).not.toHaveBeenCalled();
   });
 
   it("returns whether the caller is treated as seated", async () => {
-    canUseOrganizationWorkstationMock.mockResolvedValue(false);
+    hasAssignedOrganizationSeatMock.mockResolvedValue(false);
 
     const response = await createApp().request(
       "http://localhost/org_1/members/me/seat",
@@ -117,7 +117,7 @@ describe("GET /organizations/{id}/members/me/seat", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({ assigned: false });
-    expect(canUseOrganizationWorkstationMock).toHaveBeenCalledWith(
+    expect(hasAssignedOrganizationSeatMock).toHaveBeenCalledWith(
       "user_1",
       "org_1",
       expect.anything(),

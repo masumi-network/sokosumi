@@ -9,7 +9,7 @@ import {
 } from "@/helpers/access-control";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -116,7 +116,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(async (tx) => {
       const task = await requireMutableTaskOwnership(userContext, id, tx);
-      await requireOrganizationWorkstation(
+      await requireAssignedOrganizationSeat(
         userContext.userId,
         task.organizationId,
         tx,

@@ -19,12 +19,12 @@ const {
   prismaTransactionMock,
   taskUpdateMock,
   requireTaskCollaborationMock,
-  canUseOrganizationWorkstationMock,
+  hasAssignedOrganizationSeatMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
-  canUseOrganizationWorkstationMock: vi.fn(),
+  hasAssignedOrganizationSeatMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -36,8 +36,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
-    canUseOrganizationWorkstation: (...args: unknown[]) =>
-      canUseOrganizationWorkstationMock(...args),
+    hasAssignedOrganizationSeat: (...args: unknown[]) =>
+      hasAssignedOrganizationSeatMock(...args),
   };
 });
 
@@ -83,7 +83,7 @@ function createApp(
 describe("PUT /tasks/{id}/schedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    canUseOrganizationWorkstationMock.mockResolvedValue(true);
+    hasAssignedOrganizationSeatMock.mockResolvedValue(true);
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
@@ -106,8 +106,8 @@ describe("PUT /tasks/{id}/schedule", () => {
     });
   });
 
-  it("returns 403 when the member has no organization workstation", async () => {
-    canUseOrganizationWorkstationMock.mockResolvedValue(false);
+  it("returns 403 when the member has no assigned organization seat", async () => {
+    hasAssignedOrganizationSeatMock.mockResolvedValue(false);
 
     const app = createApp();
     const response = await app.request(`http://localhost/${TASK_ID}/schedule`, {

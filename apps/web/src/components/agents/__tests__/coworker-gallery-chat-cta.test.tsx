@@ -35,7 +35,7 @@ vi.mock("next-intl", () => ({
         return key;
       },
       "App.Channels": (key) => {
-        if (key === "Workstation.coworkerDirectDisabled") {
+        if (key === "Seat.coworkerDirectDisabled") {
           return "An assigned seat is required to message AI coworkers.";
         }
         return key;
@@ -69,7 +69,7 @@ vi.mock("@/app/chat/components/landing/use-open-coworker-room", () => ({
   }),
 }));
 
-import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
 import { CoworkerGallerySection } from "../coworker-gallery-section";
 
@@ -110,9 +110,9 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("shows Chat with {name} next to Start New Task when coworker can chat", () => {
     render(
-      <OrganizationWorkstationProvider canUseWorkstation={true}>
+      <OrganizationSeatProvider hasAssignedSeat={true}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
-      </OrganizationWorkstationProvider>,
+      </OrganizationSeatProvider>,
     );
 
     expect(
@@ -125,7 +125,7 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("hides chat CTA when coworker is not chat-capable", () => {
     render(
-      <OrganizationWorkstationProvider canUseWorkstation={true}>
+      <OrganizationSeatProvider hasAssignedSeat={true}>
         <CoworkerGallerySection
           coworkers={[
             makeCoworker({
@@ -137,7 +137,7 @@ describe("CoworkerGallerySection chat CTA", () => {
             }),
           ]}
         />
-      </OrganizationWorkstationProvider>,
+      </OrganizationSeatProvider>,
     );
 
     expect(
@@ -151,9 +151,9 @@ describe("CoworkerGallerySection chat CTA", () => {
   it("opens the coworker direct room when chat CTA is clicked", async () => {
     const user = userEvent.setup();
     render(
-      <OrganizationWorkstationProvider canUseWorkstation={true}>
+      <OrganizationSeatProvider hasAssignedSeat={true}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
-      </OrganizationWorkstationProvider>,
+      </OrganizationSeatProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: "Chat with Elena" }));
@@ -161,11 +161,11 @@ describe("CoworkerGallerySection chat CTA", () => {
     expect(openCoworkerRoomMock).toHaveBeenCalledWith("cow-elena");
   });
 
-  it("hides chat and Start New Task when the viewer has no paid workstation", () => {
+  it("hides chat and Start New Task when the viewer has no assigned seat", () => {
     render(
-      <OrganizationWorkstationProvider canUseWorkstation={false}>
+      <OrganizationSeatProvider hasAssignedSeat={false}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
-      </OrganizationWorkstationProvider>,
+      </OrganizationSeatProvider>,
     );
 
     expect(

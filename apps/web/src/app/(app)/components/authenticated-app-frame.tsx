@@ -8,12 +8,12 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
-import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
-import { canUseOrganizationWorkstation } from "@/lib/services/organization-workstation.service";
+import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
@@ -63,10 +63,10 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const canUseWorkstation = await canUseOrganizationWorkstation(
+  const hasAssignedSeat = await hasAssignedOrganizationSeat(
     activeOrganizationId,
   ).catch((error) => {
-    console.error("Failed to resolve organization workstation access", error);
+    console.error("Failed to resolve assigned organization seat", error);
     return activeOrganizationId == null;
   });
 
@@ -75,7 +75,7 @@ export default async function AuthenticatedAppFrame({
   return (
     <>
       <AuthSessionHydrator session={session} />
-      <OrganizationWorkstationProvider canUseWorkstation={canUseWorkstation}>
+      <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
         <NotificationProvider userId={session.user.id}>
           <OrgPresenceProvider organizationId={activeOrganizationId}>
             <AccountNoticeProvider notice={null} sessionId={session.session.id}>
@@ -140,7 +140,7 @@ export default async function AuthenticatedAppFrame({
             </AccountNoticeProvider>
           </OrgPresenceProvider>
         </NotificationProvider>
-      </OrganizationWorkstationProvider>
+      </OrganizationSeatProvider>
     </>
   );
 }

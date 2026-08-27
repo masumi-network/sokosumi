@@ -2,42 +2,42 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const canUseOrganizationWorkstationMock = vi.hoisted(() => vi.fn());
+const hasAssignedOrganizationSeatMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@sokosumi/database/helpers", () => ({
-  canUseOrganizationWorkstation: canUseOrganizationWorkstationMock,
+  hasAssignedOrganizationSeat: hasAssignedOrganizationSeatMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
 
-describe("requireOrganizationWorkstation", () => {
+describe("requireAssignedOrganizationSeat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("allows when the user may use the organization workstation", async () => {
-    canUseOrganizationWorkstationMock.mockResolvedValue(true);
+  it("allows when the user may use the assigned organization seat", async () => {
+    hasAssignedOrganizationSeatMock.mockResolvedValue(true);
 
-    const { requireOrganizationWorkstation } = await import(
-      "./organization-workstation"
+    const { requireAssignedOrganizationSeat } = await import(
+      "./organization-assigned-seat"
     );
 
     await expect(
-      requireOrganizationWorkstation("user-1", "org-1"),
+      requireAssignedOrganizationSeat("user-1", "org-1"),
     ).resolves.toBeUndefined();
   });
 
   it("forbids paid unseated members with organization_seat_required", async () => {
-    canUseOrganizationWorkstationMock.mockResolvedValue(false);
+    hasAssignedOrganizationSeatMock.mockResolvedValue(false);
 
-    const { requireOrganizationWorkstation } = await import(
-      "./organization-workstation"
+    const { requireAssignedOrganizationSeat } = await import(
+      "./organization-assigned-seat"
     );
 
     await expect(
-      requireOrganizationWorkstation("user-1", "org-1"),
+      requireAssignedOrganizationSeat("user-1", "org-1"),
     ).rejects.toMatchObject({
       status: 403,
       message:

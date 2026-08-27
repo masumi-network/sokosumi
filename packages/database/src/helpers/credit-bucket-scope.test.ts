@@ -8,7 +8,7 @@ import {
   buildCreditBucketScopeSql,
   buildCreditBucketScopeWhere,
   buildEnterprisePoolScopeWhere,
-  canUseOrganizationWorkstation,
+  hasAssignedOrganizationSeat,
   resolveCreditBucketScopeContext,
 } from "./credit-bucket-scope.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
@@ -200,13 +200,13 @@ describe("resolveCreditBucketScopeContext", () => {
   });
 });
 
-describe("canUseOrganizationWorkstation", () => {
+describe("hasAssignedOrganizationSeat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("allows personal workspace without org lookups", async () => {
-    const allowed = await canUseOrganizationWorkstation(
+    const allowed = await hasAssignedOrganizationSeat(
       "user-1",
       null,
       {} as never,
@@ -230,7 +230,7 @@ describe("canUseOrganizationWorkstation", () => {
     } as never);
 
     assert.equal(
-      await canUseOrganizationWorkstation("user-1", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("user-1", "org-1", {} as never),
       true,
     );
   });
@@ -247,7 +247,7 @@ describe("canUseOrganizationWorkstation", () => {
     getMemberMock.mockResolvedValue(null);
 
     assert.equal(
-      await canUseOrganizationWorkstation("user-1", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("user-1", "org-1", {} as never),
       false,
     );
   });
@@ -266,7 +266,7 @@ describe("canUseOrganizationWorkstation", () => {
     } as never);
 
     assert.equal(
-      await canUseOrganizationWorkstation("user-1", "org-1", {} as never),
+      await hasAssignedOrganizationSeat("user-1", "org-1", {} as never),
       false,
     );
   });

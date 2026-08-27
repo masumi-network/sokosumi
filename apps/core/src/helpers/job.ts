@@ -51,7 +51,7 @@ import {
   getAgentCost,
 } from "@/helpers/agent-cost";
 import { incrementAgentJobCount } from "@/helpers/agent-job-count";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
@@ -431,7 +431,7 @@ export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
-  await requireOrganizationWorkstation(owner.ownerId, owner.organizationId);
+  await requireAssignedOrganizationSeat(owner.ownerId, owner.organizationId);
   const maxCents =
     agentInput.maxAcceptedCents ??
     (agentInput.maxCredits
@@ -801,7 +801,7 @@ export async function createAgentJobForUser(
   }
 
   const job = await serializableTransaction(async (tx) => {
-    await requireOrganizationWorkstation(
+    await requireAssignedOrganizationSeat(
       owner.ownerId,
       owner.organizationId,
       tx,

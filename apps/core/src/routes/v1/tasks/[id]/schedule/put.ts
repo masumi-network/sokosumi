@@ -4,7 +4,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -95,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    await requireOrganizationWorkstation(
+    await requireAssignedOrganizationSeat(
       userContext.userId,
       existingTask.organizationId,
     );

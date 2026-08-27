@@ -32,7 +32,7 @@ import {
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
@@ -386,11 +386,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const isAgent = isCoworkerAgentContext(authContext);
 
       if (!isCancelOnlyWrite) {
-        const workstationUserId = isAgent
+        const assignedSeatUserId = isAgent
           ? task.ownerId
           : requireUserContext(authContext).userId;
-        await requireOrganizationWorkstation(
-          workstationUserId,
+        await requireAssignedOrganizationSeat(
+          assignedSeatUserId,
           task.organizationId,
           tx,
         );

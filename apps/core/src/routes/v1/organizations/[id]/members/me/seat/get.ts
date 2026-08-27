@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { canUseOrganizationWorkstation } from "@sokosumi/database/helpers";
+import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -60,7 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       tx: prisma,
     });
 
-    const assigned = await canUseOrganizationWorkstation(
+    const assigned = await hasAssignedOrganizationSeat(
       userContext.userId,
       organization.id,
       prisma,

@@ -36,7 +36,7 @@ import {
 } from "@/helpers/error";
 import { extractMessageText } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
-import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import {
   persistAssistantToChatRoom,
   persistUserMessageToChatRoom,
@@ -177,7 +177,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    await requireOrganizationWorkstation(
+    await requireAssignedOrganizationSeat(
       userContext.userId,
       room.organizationId,
     );

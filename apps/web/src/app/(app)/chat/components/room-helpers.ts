@@ -262,7 +262,7 @@ interface CoworkerThreadComposerMessage {
 }
 
 interface CoworkerThreadComposerDisableInput {
-  canUseWorkstation: boolean;
+  hasAssignedSeat: boolean;
   isCoworkerStreamRoom: boolean;
   isThreadLoading?: boolean;
   threadMessages: CoworkerThreadComposerMessage[];
@@ -271,7 +271,7 @@ interface CoworkerThreadComposerDisableInput {
 export function shouldDisableCoworkerThreadComposer(
   input: CoworkerThreadComposerDisableInput,
 ): boolean {
-  if (input.canUseWorkstation) {
+  if (input.hasAssignedSeat) {
     return false;
   }
   if (input.isCoworkerStreamRoom || input.isThreadLoading) {
@@ -284,7 +284,7 @@ export function shouldDisableCoworkerThreadComposer(
 }
 
 interface PendingCoworkerStreamInput {
-  canUseWorkstation: boolean;
+  hasAssignedSeat: boolean;
   isCoworkerStreamRoom: boolean;
   hasPendingMessage: boolean;
 }
@@ -293,7 +293,7 @@ export function shouldConsumePendingCoworkerStream(
   input: PendingCoworkerStreamInput,
 ): boolean {
   return (
-    input.canUseWorkstation &&
+    input.hasAssignedSeat &&
     input.isCoworkerStreamRoom &&
     input.hasPendingMessage
   );
