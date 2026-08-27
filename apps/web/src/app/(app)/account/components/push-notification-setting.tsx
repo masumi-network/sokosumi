@@ -60,7 +60,13 @@ export function PushNotificationSetting() {
     toast.promise(push.enable(), {
       loading: t("loading"),
       success: () => t("pushEnabledSuccess"),
-      error: () => t("pushError"),
+      // The reader gets one wording for every failure, so log the real reason:
+      // a browser that refuses a push subscription looks the same on screen as
+      // a Core write that failed.
+      error: (error) => {
+        console.error("Failed to enable push notifications", error);
+        return t("pushError");
+      },
     });
   };
 
@@ -72,7 +78,10 @@ export function PushNotificationSetting() {
         scope === "allDevices"
           ? t("pushDisabledEverywhereSuccess")
           : t("pushDisabledSuccess"),
-      error: () => t("pushError"),
+      error: (error) => {
+        console.error("Failed to disable push notifications", error);
+        return t("pushError");
+      },
     });
   };
 

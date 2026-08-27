@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushNotificationSetting } from "./push-notification-setting";
@@ -57,5 +59,30 @@ describe("PushNotificationSetting", () => {
     renderWith({ isSupported: false, isBlocked: true });
 
     expect(screen.getByText("pushUnsupported")).toBeInTheDocument();
+  });
+
+  /**
+   * Every failure reads the same on screen, so the reason has to reach the
+   * console. A browser that refuses a push subscription and a Core write that
+   * failed are one toast apart and worlds apart to debug.
+   */
+  it("logs why enabling failed, since the toast wording hides it", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderWith({ enabled: false });
+
+    await userEvent.click(screen.getByRole("switch"));
+
+    const options = vi.mocked(toast.promise).mock.calls.at(-1)?.[1] as {
+      error: (error: unknown) => string;
+    };
+    const reason = new Error("The browser created no push subscription");
+
+    expect(options.error(reason)).toBe("pushError");
+    expect(logged).toHaveBeenCalledWith(
+      "Failed to enable push notifications",
+      reason,
+    );
+
+    logged.mockRestore();
   });
 });
