@@ -104,23 +104,41 @@ export async function listSokoBotVersions(): Promise<
 }
 
 /**
- * What a non-admin may see and run: the built-ins plus the promoted default.
- * Unpromoted authored versions are drafts — their composed system prompt is
- * console-internal, and pinning a bot to one would bypass promotion.
+ * What a non-admin may see and run: the built-ins, the promoted default, and
+ * whatever their own bots are already pinned to. Other authored versions are
+ * console drafts — their composed system prompt is internal, and pinning a bot
+ * to one would bypass promotion.
  */
-export async function listSelectableSokoBotVersions(): Promise<
-  (SokoBotVersion & { authored: boolean })[]
-> {
-  const all = await listSokoBotVersions();
-  const defaultId = await getDefaultSokoBotVersionId();
-  return all.filter((version) => !version.authored || version.id === defaultId);
+export async function listSelectableSokoBotVersions(
+  userId: string,
+): Promise<(SokoBotVersion & { authored: boolean })[]> {
+  const [all, defaultId, pinned] = await Promise.all([
+    listSokoBotVersions(),
+    getDefaultSokoBotVersionId(),
+    ownPinnedVersionIds(userId),
+  ]);
+  return all.filter(
+    (version) =>
+      !version.authored || version.id === defaultId || pinned.has(version.id),
+  );
 }
 
 export async function isSelectableSokoBotVersionId(
   slug: string,
+  userId: string,
 ): Promise<boolean> {
   if (isBuiltInId(slug)) return true;
-  return slug === (await getDefaultSokoBotVersionId());
+  if (slug === (await getDefaultSokoBotVersionId())) return true;
+  return (await ownPinnedVersionIds(userId)).has(slug);
+}
+
+/** Versions this user's own live bots already run; never a leak back to them. */
+async function ownPinnedVersionIds(userId: string): Promise<Set<string>> {
+  const bots = await prisma.sokoBot.findMany({
+    where: { userId, archivedAt: null },
+    select: { versionId: true },
+  });
+  return new Set(bots.flatMap((bot) => (bot.versionId ? [bot.versionId] : [])));
 }
 
 export async function isKnownSokoBotVersionId(slug: string): Promise<boolean> {

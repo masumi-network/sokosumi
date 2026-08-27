@@ -2408,7 +2408,7 @@ export class SokoBotControlPlane {
     // versions are selectable only once promoted, except from the admin lab.
     const known = options.allowUnpromoted
       ? await isKnownSokoBotVersionId(versionId)
-      : await isSelectableSokoBotVersionId(versionId);
+      : await isSelectableSokoBotVersionId(versionId, userId);
     if (!known) {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }

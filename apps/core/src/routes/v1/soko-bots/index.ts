@@ -907,7 +907,7 @@ app.openapi(listVersionsRoute, async (c) => {
   // promoted, so only platform admins — who run the lab — see the full list.
   const versions = hasAdminRole(auth.role)
     ? await listSokoBotVersions()
-    : await listSelectableSokoBotVersions();
+    : await listSelectableSokoBotVersions(auth.userId);
   return ok(
     c,
     versions.map((version) => ({
