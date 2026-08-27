@@ -11,6 +11,10 @@ metadata:
 
 Read and analyze structured wide-event logs from the local `.evlog/logs/` directory to debug errors, investigate performance issues, and understand application behavior.
 
+## Sokosumi Core
+
+This app does **not** use `createFsDrain()`. Request events go to **stdout** (pretty locally, JSON in production) and optionally **Sentry Explore → Logs**. Do not run `evlog init --drain fs` here. If `.evlog/logs/` is empty, that is expected — use Sentry Logs or process stdout, not a new filesystem drain. The rest of this skill applies only when an app actually writes `.evlog/logs/`.
+
 ## When to Use
 
 - User asks to debug an error, investigate a bug, or understand why something failed

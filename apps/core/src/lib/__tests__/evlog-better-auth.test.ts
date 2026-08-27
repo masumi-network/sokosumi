@@ -87,6 +87,30 @@ describe("betterAuthEvlogMiddleware", () => {
     expect(captured[0]?.event.auth).toBeUndefined();
   });
 
+  it("skips cookie identify when an Authorization header is present", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "user_cookie",
+        email: "alice@example.com",
+        name: "Alice",
+      },
+      session: {
+        id: "sess_cookie",
+      },
+    });
+
+    const app = createApp(await loadMiddleware());
+    app.get("/v1/me", (c) => c.json({ ok: true }));
+
+    await app.request("http://localhost/v1/me", {
+      headers: { authorization: "Bearer coworker_key" },
+    });
+
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(captured[0]?.event.userId).toBeUndefined();
+    expect(captured[0]?.event.auth).toBeUndefined();
+  });
+
   it("skips Better Auth session resolution on /sync cron routes", async () => {
     const app = createApp(await loadMiddleware());
     app.get("/sync/jobs", (c) => c.json({ ok: true }));

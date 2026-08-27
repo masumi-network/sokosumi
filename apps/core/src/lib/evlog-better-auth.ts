@@ -17,7 +17,10 @@ const identify = createAuthMiddleware(auth, {
 export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {
   return async (c, next) => {
     const log = c.get("log");
-    if (log) {
+    // Bearer / API-key / coworker / orchestrator: auth middleware picks that
+    // actor. Cookie identify must not run first or user/session from the
+    // browser cookie land on a service-credential event.
+    if (log && !c.req.header("authorization")) {
       await identify(log, c.req.raw.headers, c.req.path);
     }
 
