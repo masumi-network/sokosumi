@@ -30,8 +30,21 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        canUseWorkstation: true,
       }),
     ).toBe(false);
+  });
+
+  it("defaults to read-only when workstation access is omitted", () => {
+    expect(
+      isReadOnlyForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+      }),
+    ).toBe(true);
   });
 
   it("makes an unseated paid owner read-only", () => {
@@ -67,6 +80,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        canUseWorkstation: true,
       }),
     ).toBe(false);
   });
@@ -79,6 +93,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        canUseWorkstation: true,
       }),
     ).toBe(false);
   });

@@ -41,7 +41,7 @@ export function isReadOnlyForViewer({
   sessionUserId,
   forceReadOnly,
   taskStatus,
-  canUseWorkstation = true,
+  canUseWorkstation = false,
 }: ReadOnlyForViewerParams): boolean {
   if (forceReadOnly || isGrantPendingStatus(taskStatus) || !canUseWorkstation) {
     return true;

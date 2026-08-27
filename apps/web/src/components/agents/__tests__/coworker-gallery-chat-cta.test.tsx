@@ -109,7 +109,11 @@ describe("CoworkerGallerySection chat CTA", () => {
   });
 
   it("shows Chat with {name} next to Start New Task when coworker can chat", () => {
-    render(<CoworkerGallerySection coworkers={[makeCoworker()]} />);
+    render(
+      <OrganizationWorkstationProvider canUseWorkstation={true}>
+        <CoworkerGallerySection coworkers={[makeCoworker()]} />
+      </OrganizationWorkstationProvider>,
+    );
 
     expect(
       screen.getByRole("button", { name: "Chat with Elena" }),
@@ -121,17 +125,19 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("hides chat CTA when coworker is not chat-capable", () => {
     render(
-      <CoworkerGallerySection
-        coworkers={[
-          makeCoworker({
-            id: "cow-tasks-only",
-            name: "Tasks Only",
-            slug: "tasks-only",
-            capabilities: ["tasks"],
-            baseURL: null,
-          }),
-        ]}
-      />,
+      <OrganizationWorkstationProvider canUseWorkstation={true}>
+        <CoworkerGallerySection
+          coworkers={[
+            makeCoworker({
+              id: "cow-tasks-only",
+              name: "Tasks Only",
+              slug: "tasks-only",
+              capabilities: ["tasks"],
+              baseURL: null,
+            }),
+          ]}
+        />
+      </OrganizationWorkstationProvider>,
     );
 
     expect(
@@ -144,7 +150,11 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("opens the coworker direct room when chat CTA is clicked", async () => {
     const user = userEvent.setup();
-    render(<CoworkerGallerySection coworkers={[makeCoworker()]} />);
+    render(
+      <OrganizationWorkstationProvider canUseWorkstation={true}>
+        <CoworkerGallerySection coworkers={[makeCoworker()]} />
+      </OrganizationWorkstationProvider>,
+    );
 
     await user.click(screen.getByRole("button", { name: "Chat with Elena" }));
 

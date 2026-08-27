@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Coworker } from "@/app/chat/utils/types";
@@ -29,6 +30,14 @@ vi.mock("./use-open-coworker-room", () => ({
 import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
 
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
+
+function renderSeated(ui: ReactElement) {
+  return render(
+    <OrganizationWorkstationProvider canUseWorkstation={true}>
+      {ui}
+    </OrganizationWorkstationProvider>,
+  );
+}
 
 function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
   return {
@@ -73,7 +82,7 @@ describe("LandingCoworkerPicker", () => {
   ];
 
   it("bounds the picker and featured CTA so the strip cannot widen them", () => {
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -95,7 +104,7 @@ describe("LandingCoworkerPicker", () => {
   });
 
   it("keeps the coworker strip full-bleed (no page px / max-w inset on the track)", () => {
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -152,7 +161,7 @@ describe("LandingCoworkerPicker", () => {
       }),
     ];
 
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={catalog} initialSelectedId="elena" />,
     );
 
@@ -163,7 +172,7 @@ describe("LandingCoworkerPicker", () => {
   });
 
   it("renders Start chat only in the detail block — no description or identity", () => {
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -180,7 +189,7 @@ describe("LandingCoworkerPicker", () => {
   });
 
   it("keeps strip name + role and does not repeat them below the strip", () => {
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -200,7 +209,7 @@ describe("LandingCoworkerPicker", () => {
   });
 
   it("top-aligns the selected stack with Start chat only", () => {
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -219,7 +228,7 @@ describe("LandingCoworkerPicker", () => {
   it("updates Start chat when a strip face is tapped", async () => {
     const user = userEvent.setup();
 
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -240,7 +249,7 @@ describe("LandingCoworkerPicker", () => {
   it("updates Start chat when scroll centers another coworker", () => {
     HTMLElement.prototype.scrollIntoView = vi.fn();
 
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
@@ -299,7 +308,7 @@ describe("LandingCoworkerPicker", () => {
   it("opens a DM only from Start chat after selection", async () => {
     const user = userEvent.setup();
 
-    render(
+    renderSeated(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 

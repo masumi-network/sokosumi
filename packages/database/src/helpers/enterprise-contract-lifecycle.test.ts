@@ -207,6 +207,7 @@ function createLifecycleClient(params?: {
     grantClient,
     resolveActiveSubscriptionMock,
     updateContractMock,
+    updateMemberMock,
     updateManyBucketsMock,
     updatePeriodMock,
     tx: {
@@ -477,6 +478,12 @@ describe("activateEnterpriseContract", () => {
     assert.equal(
       client.grantClient.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
       activatedAt.toISOString(),
+    );
+    assert.deepEqual(
+      client.updateMemberMock.mock.calls.map(
+        (call: [{ where: { id: string } }]) => call[0].where.id,
+      ),
+      ["member-owner", "member-1"],
     );
   });
 

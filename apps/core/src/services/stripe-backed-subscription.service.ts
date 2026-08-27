@@ -56,20 +56,52 @@ export async function reconcileActiveStripeBackedSubscription(
       );
     }
 
-    if (result.count > 0) {
-      const organization = await tx.organization.findUnique({
-        where: { id: localSubscription.referenceId },
-        select: { id: true },
-      });
-      if (organization) {
-        await autoAssignSeatsOnPaidSubscribe(
-          organization.id,
-          localSubscription.seats,
-          tx,
-        );
-      }
+    const organization = await tx.organization.findUnique({
+      where: { id: localSubscription.referenceId },
+      select: { id: true },
+    });
+    if (!organization) {
+      return;
     }
+
+    const assignedSeats = await tx.member.count({
+      where: {
+        organizationId: organization.id,
+        seatAssignedAt: {
+          not: null,
+        },
+      },
+    });
+    if (assignedSeats > 0) {
+      return;
+    }
+
+    await autoAssignSeatsOnPaidSubscribe(
+      organization.id,
+      localSubscription.seats,
+      tx,
+    );
   });
+}
+
+export async function handleCheckoutSessionCompletedEvent(
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const stripeSubscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+  if (!stripeSubscriptionId) {
+    return;
+  }
+
+  const localSubscription =
+    await subscriptionRepository.getSubscriptionByStripeSubscriptionId(
+      stripeSubscriptionId,
+      prisma,
+    );
+
+  await reconcileActiveStripeBackedSubscription(localSubscription);
 }
 
 export async function handleSubscriptionDeletedEvent(

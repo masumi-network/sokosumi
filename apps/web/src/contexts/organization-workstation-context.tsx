@@ -2,7 +2,7 @@
 
 import { createContext, type ReactNode, useContext } from "react";
 
-const OrganizationWorkstationContext = createContext(true);
+const OrganizationWorkstationContext = createContext(false);
 
 export function OrganizationWorkstationProvider({
   canUseWorkstation,
