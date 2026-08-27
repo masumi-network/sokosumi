@@ -683,6 +683,10 @@ describe("runPreviewDeployOpened", () => {
           createDeployment: async (input) => ({
             id: `dpl_${input.target.name}`,
             readyState: input.target.app === "core" ? "ERROR" : "READY",
+            errorMessage:
+              input.target.app === "core"
+                ? "Preview requires DATABASE_URL_UNPOOLED"
+                : undefined,
           }),
           pollDeployment: async (deployment) => deployment,
           fetchImpl: async (url) => {
@@ -690,7 +694,7 @@ describe("runPreviewDeployOpened", () => {
             throw new Error(`unexpected fetch ${url}`);
           },
         }),
-      /sokosumi-core-mainnet \(ERROR\)/,
+      /sokosumi-core-mainnet \(ERROR: Preview requires DATABASE_URL_UNPOOLED\)/,
     );
     assert.deepEqual(urls, []);
   });

@@ -249,13 +249,22 @@ async function githubJson(fetchImpl, token, url, init = {}) {
   return payload;
 }
 
+function formatFailedDeployment(target, deployment) {
+  const state = deployment?.readyState ?? "UNKNOWN";
+  const details = deployment?.errorMessage?.trim();
+  if (details) {
+    return `${target.name} (${state}: ${details})`;
+  }
+  return `${target.name} (${state})`;
+}
+
 function failedDeploymentNames(targets, deployments) {
   return targets.flatMap((target, index) => {
-    const state = deployments[index]?.readyState;
-    if (state === "READY") {
+    const deployment = deployments[index];
+    if (deployment?.readyState === "READY") {
       return [];
     }
-    return [`${target.name} (${state ?? "UNKNOWN"})`];
+    return [formatFailedDeployment(target, deployment)];
   });
 }
 

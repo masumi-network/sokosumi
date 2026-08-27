@@ -1,22 +1,24 @@
 import "dotenv/config";
 
 import type { PrismaConfig } from "prisma/config";
-
+import { resolveMigrateDatabaseUrl } from "./src/helpers/migrate-database-url.js";
 import {
   checkMigrateDeployEnv,
   isDbMutatingPrismaCommand,
 } from "./src/helpers/migrate-deploy-preflight.js";
 
 // Preflight only DB-mutating CLI commands (`migrate …`, `db …`): Preview
-// without DATABASE_URL_UNPOOLED fails closed so a raw `prisma migrate deploy`
-// cannot fall back to a shared/production DATABASE_URL. No-DB commands like
-// `prisma generate` (this package's prepare script) skip it: they have
-// nothing to guard and must not fail installs/builds.
+// without a resolvable direct migrate URL fails closed so a raw
+// `prisma migrate deploy` cannot fall back to a shared/production
+// DATABASE_URL. No-DB commands like `prisma generate` (this package's prepare
+// script) skip it: they have nothing to guard and must not fail installs/builds.
 const preflight = isDbMutatingPrismaCommand(process.argv)
   ? checkMigrateDeployEnv({
       VERCEL: process.env.VERCEL,
       VERCEL_ENV: process.env.VERCEL_ENV,
       DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
+      POSTGRES_URL_NON_POOLING: process.env.POSTGRES_URL_NON_POOLING,
+      DATABASE_URL: process.env.DATABASE_URL,
     })
   : { ok: true as const, messages: [] };
 
@@ -34,6 +36,12 @@ if (!preflight.ok) {
   );
 }
 
+const resolvedMigrateUrl = resolveMigrateDatabaseUrl({
+  DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
+  POSTGRES_URL_NON_POOLING: process.env.POSTGRES_URL_NON_POOLING,
+  DATABASE_URL: process.env.DATABASE_URL,
+});
+
 export default {
   schema: "prisma/schema.prisma",
   migrations: {
@@ -42,11 +50,10 @@ export default {
   datasource: {
     // Prefer non-pooler URL for migrate deploy (Neon DDL via PgBouncer fails).
     // Vercel Neon integration injects DATABASE_URL_UNPOOLED automatically
-    // (Production + per-preview branches). Fall back to DATABASE_URL for
-    // local/dev. Placeholder only for prisma generate.
+    // (Production + per-preview branches). When it is absent, derive a direct
+    // Neon URL from the pooled DATABASE_URL preview branch injection.
     url:
-      process.env.DATABASE_URL_UNPOOLED ||
-      process.env.DATABASE_URL ||
+      resolvedMigrateUrl?.url ||
       "postgresql://user:password@localhost:5432/sokosumi?schema=public",
   },
 } satisfies PrismaConfig;
