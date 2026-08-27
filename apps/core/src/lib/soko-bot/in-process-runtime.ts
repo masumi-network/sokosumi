@@ -34,6 +34,30 @@ async function runtimeService() {
 }
 
 /**
+ * Settles the turn as soon as the loop finishes.
+ *
+ * The `/sync/soko-bot-turns` cron also reconciles, but Vercel runs crons on
+ * production deployments only, so a preview would otherwise leave every turn
+ * showing "Thinking…" forever. Now that the agent runs inside Core there is no
+ * reason to wait for a poll to notice a turn ended: the cron stays as the
+ * safety net for turns whose invocation died mid-flight.
+ */
+async function settleNow(turnId: string): Promise<void> {
+  try {
+    const { sokoBotControlPlane } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    await sokoBotControlPlane.reconcileTurn(turnId);
+  } catch (error) {
+    // The cron will retry; a lost lease just means it got there first.
+    console.warn("Soko Bot inline settle failed", {
+      turnId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
+/**
  * Upper bound on tool calls in one turn. The loop also stops when the model
  * answers, so this only fences a bot that keeps calling tools.
  */
@@ -230,6 +254,7 @@ async function runTurn(
     );
   }
   await log.append(runtimeEvent("session.waiting", {}));
+  await settleNow(input.turnId);
 }
 
 /**

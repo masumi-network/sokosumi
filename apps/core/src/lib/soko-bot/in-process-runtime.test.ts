@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const pendingTurns: Promise<unknown>[] = [];
 
 const {
+  reconcileTurnMock,
   authorizeMock,
   createManyMock,
   executeToolMock,
@@ -12,6 +13,7 @@ const {
   getContextMock,
   waitUntilMock,
 } = vi.hoisted(() => ({
+  reconcileTurnMock: vi.fn(),
   authorizeMock: vi.fn(),
   createManyMock: vi.fn(),
   executeToolMock: vi.fn(),
@@ -41,6 +43,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotTurn: { findFirst: vi.fn() },
   },
+}));
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
@@ -138,6 +143,38 @@ describe("InProcessSokoBotRuntime", () => {
       cacheWriteTokens: 0,
       costUsd: 0.0136,
     });
+  });
+
+  it("settles the turn itself, since crons do not run on previews", async () => {
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Plan the launch",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+
+    await Promise.all(pendingTurns);
+
+    expect(reconcileTurnMock).toHaveBeenCalledWith(TURN_ID);
+  });
+
+  it("still settles a failed turn so it cannot hang on Thinking", async () => {
+    authorizeMock.mockRejectedValue(new Error("boom"));
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Plan the launch",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+
+    await Promise.all(pendingTurns);
+
+    expect(reconcileTurnMock).toHaveBeenCalledWith(TURN_ID);
   });
 
   it("offers only the capabilities the turn granted", async () => {
