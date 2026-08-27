@@ -1,0 +1,180 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  aggregateMasumiPaymentAmounts,
+  doMasumiPaymentAmountsMatch,
+  normalizeMasumiPaymentUnit,
+  toMasumiPaymentNodeAmounts,
+} from "./payment-amounts.js";
+
+const TOKEN_UNIT = "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde";
+
+describe("normalizeMasumiPaymentUnit", () => {
+  it("maps both ADA spellings onto lovelace", () => {
+    expect(normalizeMasumiPaymentUnit("")).toBe("lovelace");
+    expect(normalizeMasumiPaymentUnit("lovelace")).toBe("lovelace");
+    expect(normalizeMasumiPaymentUnit("Lovelace")).toBe("lovelace");
+    expect(normalizeMasumiPaymentUnit("\t Lovelace\r\n")).toBe("lovelace");
+  });
+
+  it("lowercases hex asset units", () => {
+    expect(normalizeMasumiPaymentUnit(TOKEN_UNIT)).toBe(TOKEN_UNIT);
+    expect(normalizeMasumiPaymentUnit(TOKEN_UNIT.toUpperCase())).toBe(
+      TOKEN_UNIT,
+    );
+    expect(normalizeMasumiPaymentUnit(`\n${TOKEN_UNIT.toUpperCase()}\t`)).toBe(
+      TOKEN_UNIT,
+    );
+  });
+
+  it("trims long ASCII padding in linear time", () => {
+    const padded = `${"\t".repeat(10_000)}lovelace${"\t".repeat(10_000)}`;
+    expect(normalizeMasumiPaymentUnit(padded)).toBe("lovelace");
+  });
+});
+
+describe("aggregateMasumiPaymentAmounts", () => {
+  it("sums duplicate units after normalization", () => {
+    expect(
+      aggregateMasumiPaymentAmounts([
+        { amount: "100", unit: "" },
+        { amount: "250", unit: "lovelace" },
+        { amount: "7", unit: TOKEN_UNIT },
+      ]),
+    ).toEqual(
+      new Map([
+        ["lovelace", 350n],
+        [TOKEN_UNIT, 7n],
+      ]),
+    );
+  });
+
+  it("keeps precision beyond Number.MAX_SAFE_INTEGER", () => {
+    expect(
+      aggregateMasumiPaymentAmounts([
+        { amount: "9007199254740993", unit: "lovelace" },
+      ])?.get("lovelace"),
+    ).toBe(9007199254740993n);
+  });
+
+  it("rejects payloads it cannot compare", () => {
+    expect(aggregateMasumiPaymentAmounts(undefined)).toBeNull();
+    expect(aggregateMasumiPaymentAmounts(null)).toBeNull();
+    expect(aggregateMasumiPaymentAmounts({ amount: "1", unit: "" })).toBeNull();
+    // Numeric (not string) amount, negative, decimal and non-numeric values are
+    // all refused rather than silently coerced.
+    expect(aggregateMasumiPaymentAmounts([{ amount: 1, unit: "" }])).toBeNull();
+    expect(
+      aggregateMasumiPaymentAmounts([{ amount: "-1", unit: "" }]),
+    ).toBeNull();
+    expect(
+      aggregateMasumiPaymentAmounts([{ amount: "1.5", unit: "" }]),
+    ).toBeNull();
+    expect(aggregateMasumiPaymentAmounts([{ amount: "1" }])).toBeNull();
+  });
+
+  it("treats an empty array as an empty total set", () => {
+    expect(aggregateMasumiPaymentAmounts([])).toEqual(new Map());
+  });
+});
+
+describe("doMasumiPaymentAmountsMatch", () => {
+  it("matches regardless of ADA spelling, order and per-unit splitting", () => {
+    expect(
+      doMasumiPaymentAmountsMatch(
+        [
+          { amount: "1000000", unit: "" },
+          { amount: "5", unit: TOKEN_UNIT },
+        ],
+        [
+          { amount: "5", unit: TOKEN_UNIT },
+          { amount: "400000", unit: "lovelace" },
+          { amount: "600000", unit: "lovelace" },
+        ],
+      ),
+    ).toBe(true);
+  });
+
+  it("matches hex asset units regardless of casing", () => {
+    expect(
+      doMasumiPaymentAmountsMatch(
+        [{ amount: "5", unit: TOKEN_UNIT.toUpperCase() }],
+        [{ amount: "5", unit: TOKEN_UNIT }],
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a drifted amount", () => {
+    expect(
+      doMasumiPaymentAmountsMatch(
+        [{ amount: "1000000", unit: "lovelace" }],
+        [{ amount: "1000001", unit: "lovelace" }],
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects an extra or missing unit", () => {
+    expect(
+      doMasumiPaymentAmountsMatch(
+        [{ amount: "1000000", unit: "lovelace" }],
+        [
+          { amount: "1000000", unit: "lovelace" },
+          { amount: "1", unit: TOKEN_UNIT },
+        ],
+      ),
+    ).toBe(false);
+    expect(
+      doMasumiPaymentAmountsMatch(
+        [
+          { amount: "1000000", unit: "lovelace" },
+          { amount: "1", unit: TOKEN_UNIT },
+        ],
+        [{ amount: "1000000", unit: "lovelace" }],
+      ),
+    ).toBe(false);
+  });
+
+  it("never matches when either side is unparseable", () => {
+    expect(doMasumiPaymentAmountsMatch([{ amount: "1", unit: "" }], null)).toBe(
+      false,
+    );
+    expect(
+      doMasumiPaymentAmountsMatch(undefined, [{ amount: "1", unit: "" }]),
+    ).toBe(false);
+    // Two unparseable sides must not compare equal either.
+    expect(doMasumiPaymentAmountsMatch(null, null)).toBe(false);
+  });
+});
+
+describe("toMasumiPaymentNodeAmounts", () => {
+  it("spells ADA as an empty string for the payment node", () => {
+    expect(
+      toMasumiPaymentNodeAmounts([{ unit: "lovelace", amount: "3000000" }]),
+    ).toEqual([{ unit: "", amount: "3000000" }]);
+  });
+
+  it("is idempotent for the empty-string spelling the registry also serves", () => {
+    // The registry emits ADA both ways; converting an already-converted value
+    // must not change it. Distinct from the lovelace case above, which is the
+    // one that actually converts.
+    const once = toMasumiPaymentNodeAmounts([
+      { unit: "lovelace", amount: "1" },
+    ]);
+    expect(toMasumiPaymentNodeAmounts(once)).toEqual(once);
+    expect(once).toEqual([{ unit: "", amount: "1" }]);
+  });
+
+  it("leaves policy+asset units untouched", () => {
+    const usdm =
+      "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde0014df10745553444d";
+    expect(
+      toMasumiPaymentNodeAmounts([{ unit: usdm, amount: "1000000" }]),
+    ).toEqual([{ unit: usdm, amount: "1000000" }]);
+  });
+
+  it("round-trips: what we send still reconciles against what we stored", () => {
+    const stored = [{ unit: "lovelace", amount: "3000000" }];
+    const sent = toMasumiPaymentNodeAmounts(stored);
+    expect(doMasumiPaymentAmountsMatch(stored, sent)).toBe(true);
+  });
+});
