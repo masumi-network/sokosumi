@@ -1,4 +1,3 @@
-import { convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -211,7 +210,7 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     expect(assignSeatMock).not.toHaveBeenCalled();
   });
 
-  it("assigns a seat and grants unused-seat credits for an owner", async () => {
+  it("assigns a seat without minting unused-seat credits", async () => {
     setMembership("owner");
     const response = await assignSeat("org_123", "member_456");
     const body = await response.json();
@@ -227,13 +226,10 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
       3,
       expect.anything(),
     );
-    expect(transactionCreateMock).toHaveBeenCalledOnce();
-    expect(transactionCreateMock.mock.calls[0]?.[0]?.data).toMatchObject({
-      amount: convertCreditsToCents(1000),
-    });
+    expect(transactionCreateMock).not.toHaveBeenCalled();
   });
 
-  it("fails when the Stripe catalog cannot be resolved", async () => {
+  it("assigns a seat even when the Stripe catalog cannot be resolved", async () => {
     setMembership("owner");
     getSubscriptionSeatCreditsMock.mockRejectedValue(
       new Error("Missing credits metadata for starter plan"),
@@ -241,7 +237,7 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
 
     const response = await assignSeat("org_123", "member_456");
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     expect(transactionCreateMock).not.toHaveBeenCalled();
   });
 

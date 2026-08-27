@@ -32,6 +32,7 @@ import {
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
@@ -56,6 +57,7 @@ import {
   isCoworkerAuthContext,
   isOrchestratorAuthContext,
   isUserAuthContext,
+  requireUserContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -382,6 +384,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
       const isAgent = isCoworkerAgentContext(authContext);
+
+      if (!isCancelOnlyWrite) {
+        const workstationUserId = isAgent
+          ? task.ownerId
+          : requireUserContext(authContext).userId;
+        await requireOrganizationWorkstation(
+          workstationUserId,
+          task.organizationId,
+          tx,
+        );
+      }
 
       if (!isAgent && credits != null) {
         throw unprocessableEntity(

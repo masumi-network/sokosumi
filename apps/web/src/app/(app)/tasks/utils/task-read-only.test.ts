@@ -34,6 +34,19 @@ describe("isReadOnlyForViewer", () => {
     ).toBe(false);
   });
 
+  it("makes an unseated paid owner read-only", () => {
+    expect(
+      isReadOnlyForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        canUseWorkstation: false,
+      }),
+    ).toBe(true);
+  });
+
   it("makes a non-owner collaborator on an organization task read-only", () => {
     expect(
       isReadOnlyForViewer({
@@ -267,6 +280,19 @@ describe("canCommentOnTaskForViewer", () => {
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks comments when the viewer has no paid workstation", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        canUseWorkstation: false,
       }),
     ).toBe(false);
   });

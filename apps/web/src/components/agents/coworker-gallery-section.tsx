@@ -26,6 +26,7 @@ import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
+import { useCanUseOrganizationWorkstation } from "@/contexts/organization-workstation-context";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
@@ -206,6 +207,8 @@ function VendorDashboard({
   onStartTask: (assigneeId: string, prompt?: string) => void;
   isFirst: boolean;
 }) {
+  const canUseWorkstation = useCanUseOrganizationWorkstation();
+  const tWorkstation = useTranslations("App.Channels");
   const [activeId, setActiveId] = useState(members[0]?.id);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const active = members.find((member) => member.id === activeId) ?? members[0];
@@ -334,24 +337,32 @@ function VendorDashboard({
               </div>
             </div>
             <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-              {coworkerCanChat(active) ? (
-                <StartChatButton
-                  coworkerId={active.id}
-                  coworkerName={active.name}
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                />
-              ) : null}
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                className="w-full sm:w-auto"
-                onClick={() => onStartTask(active.id)}
-              >
-                {labels.startForCoworker(active.name)}
-                <ArrowRight aria-hidden className="size-4" />
-              </Button>
+              {canUseWorkstation ? (
+                <>
+                  {coworkerCanChat(active) ? (
+                    <StartChatButton
+                      coworkerId={active.id}
+                      coworkerName={active.name}
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    />
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                    onClick={() => onStartTask(active.id)}
+                  >
+                    {labels.startForCoworker(active.name)}
+                    <ArrowRight aria-hidden className="size-4" />
+                  </Button>
+                </>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {tWorkstation("Workstation.coworkerDirectDisabled")}
+                </p>
+              )}
             </div>
           </div>
 
@@ -434,6 +445,7 @@ function CoworkerGallerySectionInner({
   coworkers,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const canUseWorkstation = useCanUseOrganizationWorkstation();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
   // Gallery search query (URL-backed) filters coworker offers below.
   const { query, setQuery } = useGalleryFilter();
@@ -708,12 +720,16 @@ function CoworkerGallerySectionInner({
             : null
         }
         onClose={() => setSelected(null)}
-        onStart={() => {
-          if (selected) {
-            handleOpenWith(selected.coworker.id, selected.offer.prompt);
-          }
-          setSelected(null);
-        }}
+        onStart={
+          canUseWorkstation
+            ? () => {
+                if (selected) {
+                  handleOpenWith(selected.coworker.id, selected.offer.prompt);
+                }
+                setSelected(null);
+              }
+            : undefined
+        }
         labels={{
           deliveredBy: t("deliveredByLabel"),
           deliverable: t("deliverableLabel"),

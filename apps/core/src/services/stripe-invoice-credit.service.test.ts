@@ -1,7 +1,5 @@
 import {
-  buildLocalFreeOrganizationMemberSubscriptionReferenceId,
   buildOrganizationInvoiceCreditReferenceId,
-  buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
   escapeStringForLike,
   getCreditExpiryDate,
@@ -128,7 +126,7 @@ interface CreatedTransactionCall {
         expiresAt?: Date | null;
         referenceId: string;
         referenceType?: string;
-        userId?: string;
+        userId?: string | null;
       };
     };
     organization: {
@@ -371,7 +369,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("splits organization subscription cycle credits equally with deterministic remainder", async () => {
+  it("grants organization subscription cycle credits as one org-owned period bucket", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "user-c" },
       { role: "owner", userId: "user-b" },
@@ -391,40 +389,26 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(3);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
     const callsByReference = getTransactionCallsByReferenceId();
-
-    const userAReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "user-a",
-      "in_org_cycle_split:subscription",
+    const orgReferenceId = buildOrganizationInvoiceCreditReferenceId(
+      "org-1",
+      "in_org_cycle_split",
+      "subscription",
     );
-    const userBReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "user-b",
-      "in_org_cycle_split:subscription",
-    );
-    const userCReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "user-c",
-      "in_org_cycle_split:subscription",
-    );
+    const orgCall = callsByReference.get(orgReferenceId);
 
-    const userACall = callsByReference.get(userAReferenceId);
-    const userBCall = callsByReference.get(userBReferenceId);
-    const userCCall = callsByReference.get(userCReferenceId);
-
-    expect(userACall?.data.amount).toBe(BigInt("5840000000000"));
-    expect(userBCall?.data.amount).toBe(BigInt("5830000000000"));
-    expect(userCCall?.data.amount).toBe(BigInt("5830000000000"));
-
-    expect(userACall?.data.sourceCreditBucket.create.referenceType).toBe(
+    expect(orgCall?.data.amount).toBe(BigInt("17500000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
     );
-    expect(userACall?.data.sourceCreditBucket.create.expiresAt).toEqual(
+    expect(orgCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
       new Date(1_735_689_600 * 1000),
     );
-    expect(userACall?.data.organization.connect.id).toBe("org-1");
-    expect(userACall?.data.user.connect.id).toBe("user-a");
-    expect(userACall?.data.sourceCreditBucket.create.userId).toBe("user-a");
+    expect(orgCall?.data.organization.connect.id).toBe("org-1");
+    expect(orgCall?.data.user.connect.id).toBe("user-b");
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
   it("keeps organization invoice grants stable on retry when membership changes", async () => {
@@ -456,12 +440,23 @@ describe("handleInvoicePaidEvent", () => {
       where: {
         organizationId: "org-1",
         referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-        referenceId: {
-          startsWith: "member:",
-          endsWith: escapeStringForLike(
-            ":in_org_cycle_retry_membership_changed:subscription",
-          ),
-        },
+        OR: [
+          {
+            referenceId: buildOrganizationInvoiceCreditReferenceId(
+              "org-1",
+              "in_org_cycle_retry_membership_changed",
+              "subscription",
+            ),
+          },
+          {
+            referenceId: {
+              startsWith: "member:",
+              endsWith: escapeStringForLike(
+                ":in_org_cycle_retry_membership_changed:subscription",
+              ),
+            },
+          },
+        ],
       },
       select: {
         id: true,
@@ -509,7 +504,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.userId).toBe("owner-2");
   });
 
-  it("splits paid organization proration credits after amount-based calculation", async () => {
+  it("grants paid organization proration credits as one org-owned period bucket", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
@@ -538,33 +533,27 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
-    const callsByReference = getTransactionCallsByReferenceId();
-
-    const memberReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "member-1",
-      "in_org_proration:subscription",
-    );
-    const ownerReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "owner-2",
-      "in_org_proration:subscription",
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_proration",
+        "subscription",
+      ),
     );
 
-    const memberCall = callsByReference.get(memberReferenceId);
-    const ownerCall = callsByReference.get(ownerReferenceId);
-
-    expect(memberCall?.data.amount).toBe(BigInt("4380000000000"));
-    expect(ownerCall?.data.amount).toBe(BigInt("4370000000000"));
-    expect(memberCall?.data.sourceCreditBucket.create.referenceType).toBe(
+    expect(orgCall?.data.amount).toBe(BigInt("8750000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
     );
-    expect(memberCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
+    expect(orgCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
       new Date(1_736_294_400 * 1000),
     );
   });
 
-  it("caps paid organization proration credits when billed seats exceed active members", async () => {
+  it("does not cap organization proration credits to assigned member count", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
@@ -593,29 +582,21 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
-    const callsByReference = getTransactionCallsByReferenceId();
-
-    const memberReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "member-1",
-      "in_org_proration_capped:subscription",
-    );
-    const ownerReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "owner-2",
-      "in_org_proration_capped:subscription",
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_proration_capped",
+        "subscription",
+      ),
     );
 
-    const memberCall = callsByReference.get(memberReferenceId);
-    const ownerCall = callsByReference.get(ownerReferenceId);
-
-    expect(memberCall?.data.amount).toBe(BigInt("1750000000000"));
-    expect(ownerCall?.data.amount).toBe(BigInt("1750000000000"));
+    expect(orgCall?.data.amount).toBe(BigInt("8750000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
-  it("logs seat-credit cap when billed organization seats exceed assigned members", async () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
+  it("grants billed organization seats even when they exceed assigned members", async () => {
     mockOrganizationInvoiceContext(
       [
         { role: "member", userId: "member-1" },
@@ -630,44 +611,27 @@ describe("handleInvoicePaidEvent", () => {
       "./stripe-invoice-credit.service"
     );
 
-    try {
-      await handleInvoicePaidEvent(
-        createInvoice({
-          billingReason: "subscription_cycle",
-          id: "in_org_cycle_cap_log",
-          lines: [{ productId: "prod_starter", quantity: 5 }],
-        }) as never,
-      );
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_cycle_cap_log",
+        lines: [{ productId: "prod_starter", quantity: 5 }],
+      }) as never,
+    );
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("seat_credit_cap_applied"),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("invoiceId=in_org_cycle_cap_log"),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("organizationId=org-1"),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("billedSeats=5"),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("activeMembers=1"),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("grantedSeats=1"),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("droppedSeats=4"),
-      );
-    } finally {
-      consoleLogSpy.mockRestore();
-    }
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_cycle_cap_log",
+        "subscription",
+      ),
+    );
+    expect(orgCall?.data.amount).toBe(BigInt("87500000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
-  it("grants only free monthly credits to unassigned members when no seats are assigned", async () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
+  it("grants billed organization seats into the pool when no seats are assigned", async () => {
     mockOrganizationInvoiceContext(
       [
         { role: "member", userId: "member-1" },
@@ -677,55 +641,29 @@ describe("handleInvoicePaidEvent", () => {
       [],
     );
     mockSubscriptionCatalog();
-    vi.setSystemTime(new Date(1_733_011_200 * 1000));
 
     const { handleInvoicePaidEvent } = await import(
       "./stripe-invoice-credit.service"
     );
 
-    try {
-      await handleInvoicePaidEvent(
-        createInvoice({
-          billingReason: "subscription_cycle",
-          id: "in_org_no_assigned_seats",
-          lines: [{ productId: "prod_starter", quantity: 5 }],
-        }) as never,
-      );
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_no_assigned_seats",
+        lines: [{ productId: "prod_starter", quantity: 5 }],
+      }) as never,
+    );
 
-      // Paid subscription credits are skipped (no assigned seats)...
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "Skipping subscription credits for invoice in_org_no_assigned_seats",
-        ),
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("organization org-1 has no assigned seats"),
-      );
-
-      // ...but both unassigned members receive the free monthly tier.
-      expect(createTransactionMock).toHaveBeenCalledTimes(2);
-
-      const periodEnd = new Date(1_735_689_600 * 1000);
-      const callsByReference = getTransactionCallsByReferenceId();
-      for (const memberUserId of ["member-1", "owner-2"]) {
-        const referenceId =
-          buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-            memberUserId,
-            "org-1",
-            periodEnd,
-          );
-        const call = callsByReference.get(referenceId);
-        expect(call?.data.amount).toBe(BigInt("2500000000000"));
-        expect(call?.data.sourceCreditBucket.create.referenceType).toBe(
-          "STRIPE_SUBSCRIPTION_PERIOD",
-        );
-        expect(call?.data.sourceCreditBucket.create.expiresAt).toEqual(
-          periodEnd,
-        );
-      }
-    } finally {
-      consoleLogSpy.mockRestore();
-    }
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_no_assigned_seats",
+        "subscription",
+      ),
+    );
+    expect(orgCall?.data.amount).toBe(BigInt("87500000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
   it("skips unassigned free credits while an enterprise contract is consumable", async () => {
@@ -777,7 +715,7 @@ describe("handleInvoicePaidEvent", () => {
     }
   });
 
-  it("grants unassigned free credits for post-term enterprise contracts", async () => {
+  it("grants Stripe period credits to the org pool for post-term enterprise contracts", async () => {
     mockOrganizationInvoiceContext(
       [
         { role: "member", userId: "member-1" },
@@ -812,10 +750,19 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_enterprise_post_term",
+        "subscription",
+      ),
+    );
+    expect(orgCall?.data.amount).toBe(BigInt("87500000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
-  it("grants only free monthly credits to unassigned members on subscription_update when no seats are assigned", async () => {
+  it("grants organization proration into the pool when no seats are assigned", async () => {
     mockOrganizationInvoiceContext(
       [
         { role: "member", userId: "member-1" },
@@ -848,24 +795,20 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
-    const periodEnd = new Date(1_736_294_400 * 1000);
-    const callsByReference = getTransactionCallsByReferenceId();
-    for (const memberUserId of ["member-1", "owner-2"]) {
-      const referenceId =
-        buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-          memberUserId,
-          "org-1",
-          periodEnd,
-        );
-      const call = callsByReference.get(referenceId);
-      expect(call?.data.amount).toBe(BigInt("2500000000000"));
-      expect(call?.data.sourceCreditBucket.create.expiresAt).toEqual(periodEnd);
-    }
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_update_no_assigned",
+        "subscription",
+      ),
+    );
+    expect(orgCall?.data.amount).toBe(BigInt("8750000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
-  it("grants paid credits to assigned members and free credits to unassigned members", async () => {
+  it("grants paid organization credits to the pool without a free-tier sidecar for unassigned members", async () => {
     mockOrganizationInvoiceContext(
       [
         { role: "owner", userId: "assigned-1" },
@@ -889,41 +832,30 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
-    const periodEnd = new Date(1_735_689_600 * 1000);
-    const callsByReference = getTransactionCallsByReferenceId();
-
-    const paidReferenceId = buildOrganizationMemberSubscriptionReferenceId(
-      "assigned-1",
-      "in_org_mixed_seats:subscription",
-    );
-    const freeReferenceId =
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "unassigned-2",
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
         "org-1",
-        periodEnd,
-      );
-
-    expect(callsByReference.get(paidReferenceId)?.data.amount).toBe(
-      BigInt("17500000000000"),
+        "in_org_mixed_seats",
+        "subscription",
+      ),
     );
-    expect(callsByReference.get(freeReferenceId)?.data.amount).toBe(
-      BigInt("2500000000000"),
-    );
+    expect(orgCall?.data.amount).toBe(BigInt("17500000000000"));
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
-  it("skips free monthly credits for unassigned members that already hold a current free grant", async () => {
+  it("does not mint a free-tier sidecar for unassigned members on a paid invoice", async () => {
     mockOrganizationInvoiceContext(
-      [{ role: "member", userId: "member-1" }],
+      [
+        { role: "owner", userId: "owner-1" },
+        { role: "member", userId: "member-1" },
+      ],
       "org-1",
-      [],
+      ["owner-1"],
     );
     mockSubscriptionCatalog();
     vi.setSystemTime(new Date(1_733_011_200 * 1000));
-    findExistingLocalFreeBucketMock.mockResolvedValue({
-      id: "existing-local-free-bucket",
-    });
 
     const { handleInvoicePaidEvent } = await import(
       "./stripe-invoice-credit.service"
@@ -937,7 +869,16 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(createTransactionMock).not.toHaveBeenCalled();
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    expect(
+      getTransactionCallsByReferenceId().get(
+        buildOrganizationInvoiceCreditReferenceId(
+          "org-1",
+          "in_org_free_idempotent",
+          "subscription",
+        ),
+      )?.data.sourceCreditBucket.create.userId,
+    ).toBeNull();
   });
 
   it("grants positive prorated credits for paid subscription_update invoices", async () => {

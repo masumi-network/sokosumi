@@ -35,6 +35,7 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
+import { canUseOrganizationWorkstation } from "@/lib/services/organization-workstation.service";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
@@ -97,6 +98,9 @@ export async function TaskDetailView({
   const currentPlanPromise = sessionPromise.then((session) =>
     resolveTaskDetailViewerPlan(forceReadOnly, session, task.organizationId),
   );
+  const canUseWorkstationPromise = forceReadOnly
+    ? Promise.resolve(false)
+    : canUseOrganizationWorkstation(task.workspace.organizationId ?? null);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
   const parentTask = linkedTasks.find(
@@ -145,6 +149,7 @@ export async function TaskDetailView({
                 taskId={taskId}
                 task={task}
                 forceReadOnly={forceReadOnly}
+                canUseWorkstationPromise={canUseWorkstationPromise}
                 coworkersPromise={coworkersPromise}
                 agentsPromise={agentsPromise}
                 membersPromise={membersPromise}
@@ -219,6 +224,7 @@ export async function TaskDetailView({
               taskId={taskId}
               task={task}
               forceReadOnly={forceReadOnly}
+              canUseWorkstationPromise={canUseWorkstationPromise}
               agentsPromise={agentsPromise}
               sessionPromise={sessionPromise}
               currentPlanPromise={currentPlanPromise}
@@ -422,6 +428,7 @@ async function TaskDetailActionsSlot({
   taskId,
   task,
   forceReadOnly,
+  canUseWorkstationPromise,
   coworkersPromise,
   agentsPromise,
   membersPromise,
@@ -431,6 +438,7 @@ async function TaskDetailActionsSlot({
   taskId: string;
   task: Task;
   forceReadOnly: boolean;
+  canUseWorkstationPromise: Promise<boolean>;
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
   membersPromise: Promise<MembersResult>;
@@ -445,6 +453,7 @@ async function TaskDetailActionsSlot({
     members,
     workspaceAccess,
     session,
+    canUseWorkstation,
     t,
     tMembersTableHeader,
   ] = await Promise.all([
@@ -453,6 +462,7 @@ async function TaskDetailActionsSlot({
     membersPromise,
     workspaceAccessPromise,
     sessionPromise,
+    canUseWorkstationPromise,
     getTranslations("App.Tasks.Detail"),
     getTranslations("Components.MembersTable.Header"),
   ]);
@@ -470,6 +480,7 @@ async function TaskDetailActionsSlot({
     sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
+    canUseWorkstation,
   });
   const canCancelTask = canCancelTaskForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
@@ -572,6 +583,7 @@ async function TaskActivitySectionContent({
   taskId,
   task,
   forceReadOnly,
+  canUseWorkstationPromise,
   agentsPromise,
   sessionPromise,
   currentPlanPromise,
@@ -579,16 +591,20 @@ async function TaskActivitySectionContent({
   taskId: string;
   task: Task;
   forceReadOnly: boolean;
+  canUseWorkstationPromise: Promise<boolean>;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
 }) {
-  const [agents, session, viewerPlan, t] = await Promise.all([
-    agentsPromise,
-    sessionPromise,
-    currentPlanPromise,
-    getTranslations("App.Tasks.Detail"),
-  ]);
+  const [agents, session, viewerPlan, canUseWorkstation, t] = await Promise.all(
+    [
+      agentsPromise,
+      sessionPromise,
+      currentPlanPromise,
+      canUseWorkstationPromise,
+      getTranslations("App.Tasks.Detail"),
+    ],
+  );
   const {
     userById: actorsUserById,
     coworkerById,
@@ -643,6 +659,7 @@ async function TaskActivitySectionContent({
         sessionUserId: session?.user.id,
         forceReadOnly,
         taskStatus: task.status,
+        canUseWorkstation,
       })}
     />
   );

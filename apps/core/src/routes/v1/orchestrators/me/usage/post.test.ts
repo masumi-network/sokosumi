@@ -29,6 +29,10 @@ vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock,
 }));
 
+vi.mock("@/helpers/organization-workstation", () => ({
+  requireOrganizationWorkstation: vi.fn().mockResolvedValue(undefined),
+}));
+
 const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
 const TARGET_USER_ID = "user_456";
 

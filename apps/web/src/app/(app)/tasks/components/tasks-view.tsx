@@ -261,6 +261,7 @@ interface TasksViewProps {
   initialAssigneeId?: string | null;
   initialCreateTaskPrompt?: string | null;
   createTaskModalResetKey?: string;
+  canCreateTask?: boolean;
   labels: {
     tabs: {
       tasks: string;
@@ -344,6 +345,7 @@ export function TasksView({
   initialAssigneeId = null,
   initialCreateTaskPrompt = null,
   createTaskModalResetKey = "default",
+  canCreateTask = true,
   labels,
 }: TasksViewProps) {
   const router = useRouter();
@@ -1306,7 +1308,7 @@ export function TasksView({
               }}
             />
           ) : null}
-          {activeTab === "tasks" ? (
+          {activeTab === "tasks" && canCreateTask ? (
             <HeaderAddButton label={labels.add} />
           ) : null}
         </div>
@@ -1474,7 +1476,9 @@ export function TasksView({
         </LazyAblyProvider>
       ) : null}
       {tabsContent}
-      {activeTab === "tasks" ? <TasksMobileCreateFabSlot /> : null}
+      {activeTab === "tasks" && canCreateTask ? (
+        <TasksMobileCreateFabSlot />
+      ) : null}
       {shouldShowEmptyStateOverlay ? (
         <TasksEmptyStateOverlay
           labels={labels.emptyState}

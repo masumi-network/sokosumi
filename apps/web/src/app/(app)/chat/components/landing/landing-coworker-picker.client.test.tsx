@@ -26,6 +26,8 @@ vi.mock("./use-open-coworker-room", () => ({
   }),
 }));
 
+import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
+
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 
 function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
@@ -316,5 +318,23 @@ describe("LandingCoworkerPicker", () => {
 
     expect(openCoworkerRoom).toHaveBeenCalledTimes(1);
     expect(openCoworkerRoom).toHaveBeenCalledWith("hannah");
+  });
+
+  it("hides Start chat when the viewer has no paid workstation", () => {
+    render(
+      <OrganizationWorkstationProvider canUseWorkstation={false}>
+        <LandingCoworkerPicker
+          coworkers={coworkers}
+          initialSelectedId="elena"
+        />
+      </OrganizationWorkstationProvider>,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: 'cta.button:{"name":"Elena"}',
+      }),
+    ).toBeNull();
+    expect(screen.getByText("Workstation.coworkerDirectDisabled")).toBeTruthy();
   });
 });

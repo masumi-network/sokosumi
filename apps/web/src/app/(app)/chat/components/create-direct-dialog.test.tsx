@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "./create-direct-dialog";
 
@@ -265,5 +266,32 @@ describe("CreateDirectDialog", () => {
     });
     expect(assignMock).not.toHaveBeenCalled();
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+  });
+
+  it("hides AI coworkers when the viewer has no paid workstation", async () => {
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        organizationName: "Acme",
+        hasOrganization: true,
+        canCreateExternal: false,
+        members: [member("user-self", "Ada"), member("user-2", "Francis")],
+        coworkers: [coworker("cow-1", "Hermes")],
+        membersLoadFailed: false,
+      },
+    });
+    const user = userEvent.setup();
+    render(
+      <OrganizationWorkstationProvider canUseWorkstation={false}>
+        <CreateDirectDialog />
+      </OrganizationWorkstationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await screen.findByRole("heading", { name: "Draft.title" });
+
+    expect(screen.queryByRole("button", { name: /Hermes/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Francis/ })).toBeTruthy();
   });
 });

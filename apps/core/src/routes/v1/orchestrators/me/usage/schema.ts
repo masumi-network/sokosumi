@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { LIMITS } from "@/config/constants";
 
-/** Personal-assistant usage is always billed to the user's personal credit scope. */
+/** Bills org pool when orchestrator context has an organization; otherwise personal credits. */
 export const createOrchestratorUsageRequestSchema = z
   .object({
     userId: z.string().min(1).openapi({ example: "user_123" }),

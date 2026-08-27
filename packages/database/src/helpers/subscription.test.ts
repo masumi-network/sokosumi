@@ -292,7 +292,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     );
   });
 
-  it("creates an organization subscription row and grants one bucket per member seat", async () => {
+  it("creates an organization subscription row and grants one org-owned free period bucket", async () => {
     const { createSubscriptionMock, createTransactionMock, tx } =
       createTransactionClient();
 
@@ -309,7 +309,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     );
 
     assert.deepEqual(result, {
-      grantsCreated: 2,
+      grantsCreated: 1,
       subscriptionCreated: true,
       subscriptionId: "subscription-local-free",
     });
@@ -319,7 +319,12 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
       "2026-04-01T00:00:00.000Z",
     );
     assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 1);
-    assert.equal(createTransactionMock.mock.calls.length, 2);
+    assert.equal(createTransactionMock.mock.calls.length, 1);
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .userId,
+      null,
+    );
   });
 
   it("allows organization periods with no unassigned members", async () => {
@@ -562,7 +567,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     );
 
     assert.deepEqual(result, {
-      grantsCreated: 3,
+      grantsCreated: 1,
       subscriptionCreated: true,
       subscriptionId: "subscription-local-free",
     });
@@ -592,7 +597,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       stripeCustomerId: "cus_org_1",
       stripeSubscriptionId: null,
     });
-    assert.equal(createTransactionMock.mock.calls.length, 3);
+    assert.equal(createTransactionMock.mock.calls.length, 1);
   });
 
   it("creates the initial organization free subscription period with no members", async () => {
@@ -867,7 +872,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
     vi.useRealTimers();
   });
 
-  it("creates the next organization local free period for all members", async () => {
+  it("creates the next organization local free period as one org-owned bucket", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-09T00:00:00.000Z"));
     const {
@@ -906,7 +911,12 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
       where: { organizationId: "org-1" },
     });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
-    assert.equal(createTransactionMock.mock.calls.length, 2);
+    assert.equal(createTransactionMock.mock.calls.length, 1);
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .userId,
+      null,
+    );
     assert.equal(updateSubscriptionMock.mock.calls.length, 1);
     vi.useRealTimers();
   });

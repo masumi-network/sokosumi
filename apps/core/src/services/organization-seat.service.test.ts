@@ -1,4 +1,3 @@
-import { buildOrganizationSeatAssignmentSubscriptionReferenceId } from "@sokosumi/database/helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -73,7 +72,7 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     tx.transaction.create.mockResolvedValue({});
   });
 
-  it("grants one seat of subscription credits when unused slots remain", async () => {
+  it("does not mint unused-seat credits; assignment is access only", async () => {
     const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
       "./organization-seat.service"
     );
@@ -85,27 +84,14 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     );
 
     expect(result).toEqual({
-      creditsGranted: 100,
-      granted: true,
+      creditsGranted: 0,
+      granted: false,
     });
-    expect(tx.transaction.create).toHaveBeenCalledOnce();
-    expect(
-      tx.transaction.create.mock.calls[0]?.[0]?.data.sourceCreditBucket,
-    ).toMatchObject({
-      create: expect.objectContaining({
-        referenceId: buildOrganizationSeatAssignmentSubscriptionReferenceId(
-          "user-2",
-          "org-1",
-          periodEnd,
-        ),
-        userId: "user-2",
-        organizationId: "org-1",
-        expiresAt: periodEnd,
-      }),
-    });
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(getSubscriptionSeatCreditsMock).not.toHaveBeenCalled();
   });
 
-  it("propagates Stripe catalog failures so the transaction aborts", async () => {
+  it("does not abort assignment when the Stripe catalog is unavailable", async () => {
     getSubscriptionSeatCreditsMock.mockRejectedValue(
       new Error("Missing credits metadata for starter plan"),
     );
@@ -120,7 +106,10 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
         "user-2",
         tx as never,
       ),
-    ).rejects.toThrow("Missing credits metadata for starter plan");
+    ).resolves.toEqual({
+      creditsGranted: 0,
+      granted: false,
+    });
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 

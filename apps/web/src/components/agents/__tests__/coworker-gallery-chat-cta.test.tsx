@@ -34,6 +34,12 @@ vi.mock("next-intl", () => ({
         if (key === "cta.error") return "Could not open the chat.";
         return key;
       },
+      "App.Channels": (key) => {
+        if (key === "Workstation.coworkerDirectDisabled") {
+          return "An assigned seat is required to message AI coworkers.";
+        }
+        return key;
+      },
     };
     return maps[namespace] ?? ((key: string) => key);
   },
@@ -62,6 +68,8 @@ vi.mock("@/app/chat/components/landing/use-open-coworker-room", () => ({
     openingId: null,
   }),
 }));
+
+import { OrganizationWorkstationProvider } from "@/contexts/organization-workstation-context";
 
 import { CoworkerGallerySection } from "../coworker-gallery-section";
 
@@ -141,5 +149,23 @@ describe("CoworkerGallerySection chat CTA", () => {
     await user.click(screen.getByRole("button", { name: "Chat with Elena" }));
 
     expect(openCoworkerRoomMock).toHaveBeenCalledWith("cow-elena");
+  });
+
+  it("hides chat and Start New Task when the viewer has no paid workstation", () => {
+    render(
+      <OrganizationWorkstationProvider canUseWorkstation={false}>
+        <CoworkerGallerySection coworkers={[makeCoworker()]} />
+      </OrganizationWorkstationProvider>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Chat with Elena" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Start New Task for Elena/ }),
+    ).toBeNull();
+    expect(
+      screen.getByText("An assigned seat is required to message AI coworkers."),
+    ).toBeTruthy();
   });
 });

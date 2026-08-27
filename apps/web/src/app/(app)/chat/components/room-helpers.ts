@@ -159,6 +159,16 @@ export function buildRoomAllMentionRecord(label: string): {
  * Partition filtered room mention suggestions into People (humans + @all)
  * and Coworkers. Omits empty sections. Preserves within-section filter order.
  */
+export function omitCoworkerMentionRecords<
+  T extends { data?: { kind?: string } },
+>(records: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(records).filter(
+      ([, entry]) => entry.data?.kind !== "coworker",
+    ),
+  );
+}
+
 export function partitionRoomMentionSuggestions(
   filtered: NormalizedMention<RoomMentionParticipant>[],
   labels: { peopleLabel: string; coworkersLabel: string },

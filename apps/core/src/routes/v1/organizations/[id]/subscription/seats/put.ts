@@ -174,18 +174,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     );
 
-    if (target.stripeSubscriptionId) {
-      if (target.currentSeats === seats) {
-        return ok(
-          c,
-          organizationSubscriptionSeatsSchema.parse({
-            seats: target.currentSeats,
-          }),
-        );
-      }
-
-      await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
+    if (!target.stripeSubscriptionId) {
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          seats: target.currentSeats,
+        }),
+      );
     }
+
+    if (target.currentSeats === seats) {
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          seats: target.currentSeats,
+        }),
+      );
+    }
+
+    await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
 
     await prisma.subscription.update({
       where: { id: target.subscriptionId },

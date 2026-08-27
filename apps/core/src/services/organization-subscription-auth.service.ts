@@ -1,7 +1,6 @@
 import type { Subscription } from "@sokosumi/database";
 import {
   ensureLocalFreeSubscriptionPeriod,
-  grantFreeOrganizationMemberSubscriptionCredits,
   resolveOrganizationBillingPlanWithActiveSubscription,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
@@ -53,31 +52,10 @@ function ensureSubscriptionPeriodDate(
 }
 
 async function syncPaidOrganizationUnassignedFreeCredits(
-  organizationId: string,
+  _organizationId: string,
   activeSubscription: ActiveOrganizationSubscription,
 ): Promise<number> {
-  const purchasedSeats = resolvePurchasedSeats(activeSubscription.seats);
-  const periodEnd = activeSubscription.periodEnd;
-
-  if (!periodEnd || periodEnd <= new Date()) {
-    return purchasedSeats;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    const unassignedMemberUserIds =
-      await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
-
-    await grantFreeOrganizationMemberSubscriptionCredits(
-      {
-        memberUserIds: unassignedMemberUserIds,
-        organizationId,
-        periodEnd,
-      },
-      tx,
-    );
-  });
-
-  return purchasedSeats;
+  return resolvePurchasedSeats(activeSubscription.seats);
 }
 
 async function syncLocalFreeOrganizationPeriodCredits(

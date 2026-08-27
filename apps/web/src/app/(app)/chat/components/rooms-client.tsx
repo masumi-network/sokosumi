@@ -114,6 +114,7 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useCanUseOrganizationWorkstation } from "@/contexts/organization-workstation-context";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -160,6 +161,7 @@ import {
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
   messageDayKey,
+  omitCoworkerMentionRecords,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
@@ -508,6 +510,7 @@ export function RoomsClient({
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const canUseWorkstation = useCanUseOrganizationWorkstation();
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -1430,8 +1433,9 @@ export function RoomsClient({
         buildRoomAllMentionRecord(t("MentionAll.label")),
       ] as const);
     }
-    return Object.fromEntries(entries);
-  }, [currentUserId, selectedRoom, t]);
+    const records = Object.fromEntries(entries);
+    return canUseWorkstation ? records : omitCoworkerMentionRecords(records);
+  }, [canUseWorkstation, currentUserId, selectedRoom, t]);
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];
@@ -2875,6 +2879,7 @@ export function RoomsClient({
                       }
                       onRetryOutbound={handleRetryOutbound}
                       onRetryMention={
+                        canUseWorkstation &&
                         isCurrentUserMentionerOfFailedShell({
                           shell: message,
                           currentUserId,
@@ -2996,44 +3001,52 @@ export function RoomsClient({
           }
           listContent={openRoomListBody}
           composer={
-            <RoomSessionComposer
-              key={selectedRoom.id}
-              ref={roomComposerRef}
-              roomId={selectedRoom.id}
-              draftKey={composeDraftKey.room(selectedRoom.id)}
-              mentions={mentionRecords}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              channels={channelOptions}
-              channelLinks={channelLinks}
-              placeholder={
-                isDirectRoom
-                  ? t("directComposerPlaceholder", {
-                      member: selectedRoomDisplayName,
-                    })
-                  : t("composerPlaceholderWithChannel", {
-                      channel: selectedRoomDisplayName,
-                    })
-              }
-              isSending={isCoworkerStreaming}
-              showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
-              allowAttachments={!isCoworkerStreamRoom}
-              pendingQuote={pendingQuote}
-              onClearPendingQuote={() => setPendingQuote(null)}
-              onRestorePendingQuote={setPendingQuote}
-              onChromeResize={scrollToBottomIfPinned}
-              // Autofocus only after history settles. Send stays enabled so
-              // optimistic posts work during progressive open (merge into list).
-              focusOnMount={!messagesPending}
-              onBeforeSend={handleChannelBeforeSend}
-              onSend={handleChannelSend}
-              currentUserId={currentUserId}
-              canOpenHumanDirect={canOpenHumanDirect}
-              onOpenDirectMessage={handleOpenDirectMessage}
-              openingDirectParticipantKey={openingDirectKey}
-            />
+            isCoworkerStreamRoom && !canUseWorkstation ? (
+              <p className="text-muted-foreground px-1 py-3 text-sm">
+                {t("Workstation.coworkerDirectDisabled")}
+              </p>
+            ) : (
+              <RoomSessionComposer
+                key={selectedRoom.id}
+                ref={roomComposerRef}
+                roomId={selectedRoom.id}
+                draftKey={composeDraftKey.room(selectedRoom.id)}
+                mentions={mentionRecords}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                channels={channelOptions}
+                channelLinks={channelLinks}
+                placeholder={
+                  isDirectRoom
+                    ? t("directComposerPlaceholder", {
+                        member: selectedRoomDisplayName,
+                      })
+                    : t("composerPlaceholderWithChannel", {
+                        channel: selectedRoomDisplayName,
+                      })
+                }
+                isSending={isCoworkerStreaming}
+                showMentionShortcut={shouldShowRoomMentionShortcut(
+                  selectedRoom,
+                )}
+                allowAttachments={!isCoworkerStreamRoom}
+                pendingQuote={pendingQuote}
+                onClearPendingQuote={() => setPendingQuote(null)}
+                onRestorePendingQuote={setPendingQuote}
+                onChromeResize={scrollToBottomIfPinned}
+                // Autofocus only after history settles. Send stays enabled so
+                // optimistic posts work during progressive open (merge into list).
+                focusOnMount={!messagesPending}
+                onBeforeSend={handleChannelBeforeSend}
+                onSend={handleChannelSend}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={handleOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectKey}
+              />
+            )
           }
           mainEnd={
             threadParentMessage ? (
@@ -3062,7 +3075,9 @@ export function RoomsClient({
                   isCoworkerStreaming && threadStreamOverlayMessages.length > 0
                 }
                 onRetryOutbound={handleRetryOutbound}
-                onRetryMention={handleRetryMention}
+                onRetryMention={
+                  canUseWorkstation ? handleRetryMention : undefined
+                }
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
@@ -3089,6 +3104,11 @@ export function RoomsClient({
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
                 roomId={selectedRoom.id}
+                composerDisabledMessage={
+                  isCoworkerStreamRoom && !canUseWorkstation
+                    ? t("Workstation.coworkerDirectDisabled")
+                    : undefined
+                }
               />
             ) : threadListOpen ? (
               <ThreadListPanel

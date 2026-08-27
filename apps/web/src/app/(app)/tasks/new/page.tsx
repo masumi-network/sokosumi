@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskForm } from "@/app/tasks/components/task-form";
@@ -7,6 +8,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
+import { canUseOrganizationWorkstation } from "@/lib/services/organization-workstation.service";
 
 export const metadata = {
   title: "New Task",
@@ -23,6 +25,12 @@ export default async function NewTaskPage() {
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
+  const canCreateTask = await canUseOrganizationWorkstation(
+    session?.session.activeOrganizationId ?? null,
+  );
+  if (!canCreateTask) {
+    redirect("/tasks");
+  }
   const agentNameById = buildAgentNameById(agents);
 
   return (

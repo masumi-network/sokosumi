@@ -30,6 +30,7 @@ import {
   jsonSuccessResponse,
 } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -505,6 +506,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
+
+    await requireOrganizationWorkstation(
+      userContext.userId,
+      workspaceContext.organizationId,
+    );
 
     const resolvedName = await resolveTaskName({
       name: body.name,

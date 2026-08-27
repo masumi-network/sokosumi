@@ -5102,8 +5102,12 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
+      "Workstation": {
+        "coworkerDirectDisabled": "Für Nachrichten an KI-Coworker ist ein zugewiesener Sitzplatz nötig."
+      },
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
+        "searchPlaceholderHumansOnly": "Personen suchen",
         "searchPlaceholderMore": "Weitere Personen hinzufügen",
         "searchPlaceholderReplace": "Empfänger ersetzen",
         "noResults": "No matches",

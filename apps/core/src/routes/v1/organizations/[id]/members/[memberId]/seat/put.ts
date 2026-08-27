@@ -19,7 +19,6 @@ import {
   mapSeatRepositoryError,
   syncLocalFreeOrganizationCreditsIfNeeded,
 } from "@/services/organization-seat.service";
-import { getSubscriptionSeatCredits } from "@/services/subscription-seat-credits.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -38,7 +37,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/members/{memberId}/seat",
   description:
-    "Assign a seat to an organization member. Only organization owners and admins may do this. The assignment, capacity check, and any resulting credit grants (with per-seat amounts resolved from the Stripe subscription catalog) happen in a single transaction.",
+    "Assign a seat to an organization member. Only organization owners and admins may do this. Assignment is access to the organization credit pool; it does not mint credits.",
   tags: ["Organizations"],
   request: {
     params,
@@ -72,14 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { id, memberId } = c.req.valid("param");
-
-    // Pre-warm the per-seat credits cache before opening the transaction: on
-    // a cold cache (every fresh deploy) the lookup makes three Stripe calls,
-    // which would otherwise run inside the interactive transaction and could
-    // exceed its timeout. The grant flow's in-transaction lookup then awaits
-    // the same cached promise. Failures are swallowed here on purpose — the
-    // in-transaction lookup keeps its abort-with-500 semantics.
-    void getSubscriptionSeatCredits().catch(() => {});
 
     try {
       const result = await prisma.$transaction(async (tx) => {

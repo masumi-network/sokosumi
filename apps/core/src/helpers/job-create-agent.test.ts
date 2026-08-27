@@ -104,6 +104,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/helpers/organization-workstation", () => ({
+  requireOrganizationWorkstation: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/helpers/user", () => ({
   getCents: vi.fn(),
 }));

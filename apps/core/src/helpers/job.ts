@@ -51,6 +51,7 @@ import {
   getAgentCost,
 } from "@/helpers/agent-cost";
 import { incrementAgentJobCount } from "@/helpers/agent-job-count";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
@@ -799,6 +800,11 @@ export async function createAgentJobForUser(
   }
 
   const job = await serializableTransaction(async (tx) => {
+    await requireOrganizationWorkstation(
+      owner.ownerId,
+      owner.organizationId,
+      tx,
+    );
     await validateCreditBalance(
       owner.ownerId,
       owner.organizationId,

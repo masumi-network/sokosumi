@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useCanUseOrganizationWorkstation } from "@/contexts/organization-workstation-context";
 import { getInitials } from "@/lib/utils/text";
 import {
   CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
@@ -37,6 +38,7 @@ import {
 
 export function CreateDirectDialog() {
   const t = useTranslations("App.Channels");
+  const canUseWorkstation = useCanUseOrganizationWorkstation();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const rosterScrollRef = useRef<HTMLDivElement | null>(null);
   const inFlightRef = useRef(false);
@@ -51,10 +53,10 @@ export function CreateDirectDialog() {
     () =>
       buildDirectDraftTargets(
         roster.members,
-        roster.coworkers,
+        canUseWorkstation ? roster.coworkers : [],
         roster.currentUserId,
       ),
-    [roster.coworkers, roster.currentUserId, roster.members],
+    [canUseWorkstation, roster.coworkers, roster.currentUserId, roster.members],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -239,12 +241,20 @@ export function CreateDirectDialog() {
             onClick={(event) => event.stopPropagation()}
             placeholder={
               selectedTargets.length === 0
-                ? t("Draft.searchPlaceholder")
+                ? t(
+                    canUseWorkstation
+                      ? "Draft.searchPlaceholder"
+                      : "Draft.searchPlaceholderHumansOnly",
+                  )
                 : hasSelectedHumans
                   ? t("Draft.searchPlaceholderMore")
                   : t("Draft.searchPlaceholderReplace")
             }
-            aria-label={t("Draft.searchPlaceholder")}
+            aria-label={t(
+              canUseWorkstation
+                ? "Draft.searchPlaceholder"
+                : "Draft.searchPlaceholderHumansOnly",
+            )}
             className="h-7 min-w-32 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
             autoComplete="off"
             spellCheck={false}

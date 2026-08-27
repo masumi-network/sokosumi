@@ -169,9 +169,23 @@ function createLifecycleClient(params?: {
   const findMemberMock = vi
     .fn()
     .mockResolvedValue({ userId: params?.ownerId ?? OWNER_ID });
-  const findManyMembersMock = vi
-    .fn()
-    .mockResolvedValue([{ userId: OWNER_ID }, { userId: "member-1" }]);
+  const findManyMembersMock = vi.fn().mockResolvedValue([
+    {
+      id: "member-owner",
+      userId: OWNER_ID,
+      role: "owner",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      seatAssignedAt: null,
+    },
+    {
+      id: "member-1",
+      userId: "member-1",
+      role: "member",
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      seatAssignedAt: null,
+    },
+  ]);
+  const updateMemberMock = vi.fn().mockResolvedValue({});
   const resolveActiveSubscriptionMock = vi.fn().mockResolvedValue(null);
   const findFirstBucketMock = vi.fn().mockResolvedValue(null);
   const updateManyBucketsMock = vi.fn().mockResolvedValue({ count: 0 });
@@ -217,6 +231,7 @@ function createLifecycleClient(params?: {
       member: {
         findFirst: findMemberMock,
         findMany: findManyMembersMock,
+        update: updateMemberMock,
       },
       subscription: {
         findFirst: resolveActiveSubscriptionMock,

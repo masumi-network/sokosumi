@@ -50,6 +50,10 @@ const {
   scheduleUnfurlsMock: vi.fn(),
 }));
 
+vi.mock("@/helpers/organization-workstation", () => ({
+  requireOrganizationWorkstation: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,

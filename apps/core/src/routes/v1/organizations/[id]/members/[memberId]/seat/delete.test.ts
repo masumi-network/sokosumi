@@ -163,7 +163,7 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
     expect(unassignSeatMock).not.toHaveBeenCalled();
   });
 
-  it("grants free monthly credits when unassigning in a paid organization", async () => {
+  it("does not grant a free-tier sidecar when unassigning in a paid organization", async () => {
     setMembership("owner");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: new Date("2026-06-01T00:00:00.000Z"),
@@ -184,14 +184,7 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
     );
     expect(
       grantFreeOrganizationMemberSubscriptionCreditsMock,
-    ).toHaveBeenCalledWith(
-      {
-        memberUserIds: ["user_456"],
-        organizationId: "org_123",
-        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
-      },
-      expect.anything(),
-    );
+    ).not.toHaveBeenCalled();
     expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 

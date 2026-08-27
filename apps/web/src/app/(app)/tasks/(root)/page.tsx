@@ -29,6 +29,7 @@ import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { canUseOrganizationWorkstation } from "@/lib/services/organization-workstation.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -247,6 +248,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         ) as Record<KanbanColumnId, string | null>);
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
+  const canCreateTask =
+    await canUseOrganizationWorkstation(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";
   const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
   const initialAssigneeId =
@@ -287,7 +290,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         initialJobsListFilters={activeJobsListFilters}
         defaultViewMode={defaultViewMode}
         defaultDensity={defaultDensity}
-        initialCreateTaskOpen={initialCreateTaskOpen}
+        initialCreateTaskOpen={initialCreateTaskOpen && canCreateTask}
+        canCreateTask={canCreateTask}
         initialAssigneeId={initialAssigneeId}
         initialCreateTaskPrompt={
           initialCreateTaskOpen ? (promptParam ?? null) : null

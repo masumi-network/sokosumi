@@ -280,7 +280,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("updates only the local seat count for local free subscriptions", async () => {
+  it("no-ops seat quantity updates for local free subscriptions", async () => {
     setMembership("owner");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       id: "sub-row-1",
@@ -293,13 +293,10 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 6 });
+    expect(body.data).toEqual({ seats: 2 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
-    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
-      where: { id: "sub-row-1" },
-      data: { seats: 6 },
-    });
+    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

@@ -9,6 +9,7 @@ import {
 } from "@/helpers/access-control";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -115,6 +116,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(async (tx) => {
       const task = await requireMutableTaskOwnership(userContext, id, tx);
+      await requireOrganizationWorkstation(
+        userContext.userId,
+        task.organizationId,
+        tx,
+      );
 
       if (!isTaskEditableStatus(task.status)) {
         throw forbidden("You can only update draft, queued, or ready tasks");

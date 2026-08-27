@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const autoAssignSeatsOnPaidSubscribeMock = vi.fn();
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const subscriptionUpdateManyMock = vi.fn();
 
+const organizationFindUniqueMock = vi.fn();
+
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     subscription: {
       updateMany: (...args: unknown[]) => subscriptionUpdateManyMock(...args),
+    },
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
     },
   }),
 );
@@ -18,6 +24,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
+    autoAssignSeatsOnPaidSubscribe: (...args: unknown[]) =>
+      autoAssignSeatsOnPaidSubscribeMock(...args),
     transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       transitionToNextLocalFreeSubscriptionPeriodMock(...args),
   };
@@ -44,6 +52,8 @@ describe("reconcileActiveStripeBackedSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     subscriptionUpdateManyMock.mockResolvedValue({ count: 2 });
+    organizationFindUniqueMock.mockResolvedValue(null);
+    autoAssignSeatsOnPaidSubscribeMock.mockResolvedValue(0);
   });
 
   it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
@@ -77,6 +87,29 @@ describe("reconcileActiveStripeBackedSubscription", () => {
         status: "canceled",
       },
     });
+  });
+
+  it("auto-assigns seats when the Stripe-backed subscription is for an organization", async () => {
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription({
+      id: "sub_local_paid",
+      plan: "pro",
+      referenceId: "org-enterprise",
+      seats: 5,
+      status: "active",
+      stripeSubscriptionId: "sub_enterprise",
+    });
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
   });
 
   it("does not cancel local free rows for non-active local subscription statuses", async () => {

@@ -4,6 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -76,7 +77,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, messageId, mentionId } = c.req.valid("param");
 
     const message = await prisma.$transaction(async (tx) => {
-      await requireChatRoomUserWriteAccess(id, userContext.userId, tx);
+      const room = await requireChatRoomUserWriteAccess(
+        id,
+        userContext.userId,
+        tx,
+      );
+      await requireOrganizationWorkstation(
+        userContext.userId,
+        room.organizationId,
+        tx,
+      );
 
       const existing = await tx.chatRoomMessage.findFirst({
         where: { id: messageId, roomId: id },

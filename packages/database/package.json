@@ -67,6 +67,7 @@
     "format:check": "biome format .",
     "data-migration:better-auth-1-7-harvest": "tsx --env-file=../../apps/core/.env scripts/better-auth-1-7-harvest.ts",
     "data-migration:org-only-personal-workspaces": "tsx scripts/backfill-org-only-personal-workspaces.ts",
+    "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"

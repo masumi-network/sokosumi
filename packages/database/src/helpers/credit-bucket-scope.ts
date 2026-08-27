@@ -49,6 +49,9 @@ export async function resolveCreditBucketScopeContext(
   );
   const isConsumableEnterprise =
     billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable;
+  const requiresAssignedSeat =
+    billingPlan.mode === "enterprise_contract" ||
+    (billingPlan.mode === "self_serve" && billingPlan.plan !== "free");
 
   const member = await memberRepository.getMemberByUserIdAndOrganizationId(
     userId,
@@ -60,10 +63,28 @@ export async function resolveCreditBucketScopeContext(
   return {
     userId,
     organizationId,
-    canAccessOrganizationSharedCredits:
-      !isConsumableEnterprise || hasAssignedSeat,
+    canAccessOrganizationSharedCredits: requiresAssignedSeat
+      ? hasAssignedSeat
+      : true,
     canAccessEnterprisePool: isConsumableEnterprise && hasAssignedSeat,
   };
+}
+
+export async function canUseOrganizationWorkstation(
+  userId: string,
+  organizationId: string | null,
+  tx: Prisma.TransactionClient,
+): Promise<boolean> {
+  if (!organizationId) {
+    return true;
+  }
+
+  const context = await resolveCreditBucketScopeContext(
+    userId,
+    organizationId,
+    tx,
+  );
+  return context.canAccessOrganizationSharedCredits;
 }
 
 function buildMemberSubscriptionScopeWhere(
@@ -93,6 +114,10 @@ function buildOrganizationScopeOr(
   const sharedBranches: Prisma.CreditBucketWhereInput[] = [
     {
       referenceType: null,
+    },
+    {
+      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+      userId: null,
     },
     {
       referenceType: {
@@ -144,6 +169,10 @@ export function buildCreditBucketScopeSql(
     ? Prisma.sql`
         OR (
           cb."referenceType" IS NULL
+          OR (
+            cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+            AND cb."userId" IS NULL
+          )
           OR (
             cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
             AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}

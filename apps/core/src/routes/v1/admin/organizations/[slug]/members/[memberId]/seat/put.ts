@@ -18,7 +18,6 @@ import {
   mapSeatRepositoryError,
   syncLocalFreeOrganizationCreditsIfNeeded,
 } from "@/services/organization-seat.service";
-import { getSubscriptionSeatCredits } from "@/services/subscription-seat-credits.service";
 
 const route = createRoute({
   method: "put",
@@ -50,8 +49,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!organization) {
       throw notFound("Organization not found");
     }
-
-    void getSubscriptionSeatCredits().catch(() => {});
 
     try {
       const result = await prisma.$transaction(async (tx) => {

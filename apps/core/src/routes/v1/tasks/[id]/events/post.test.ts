@@ -140,6 +140,10 @@ vi.mock("@/services/source-import.service", () => ({
   },
 }));
 
+vi.mock("@/helpers/organization-workstation", () => ({
+  requireOrganizationWorkstation: vi.fn().mockResolvedValue(undefined),
+}));
+
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
 const BOB_USER_ID = "user_bob";

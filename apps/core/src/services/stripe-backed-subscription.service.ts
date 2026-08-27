@@ -1,4 +1,5 @@
 import {
+  autoAssignSeatsOnPaidSubscribe,
   FREE_SUBSCRIPTION_PLAN,
   isActiveSubscriptionStatus,
   transitionToNextLocalFreeSubscriptionPeriod,
@@ -12,6 +13,7 @@ interface StripeBackedSubscriptionForReconciliation {
   id: string;
   plan: string;
   referenceId: string;
+  seats?: number | null;
   status: string;
   stripeSubscriptionId?: string | null;
 }
@@ -51,6 +53,18 @@ export async function reconcileActiveStripeBackedSubscription(
     if (result.count > 0) {
       console.log(
         `✅ Closed ${result.count} local free subscription(s) for reference ${localSubscription.referenceId} after Stripe subscription ${localSubscription.stripeSubscriptionId} became ${localSubscription.status}`,
+      );
+    }
+
+    const organization = await tx.organization.findUnique({
+      where: { id: localSubscription.referenceId },
+      select: { id: true },
+    });
+    if (organization) {
+      await autoAssignSeatsOnPaidSubscribe(
+        organization.id,
+        localSubscription.seats,
+        tx,
       );
     }
   });

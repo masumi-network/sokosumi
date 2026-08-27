@@ -8,6 +8,7 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
+  ORGANIZATION_CREDIT_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
 import {
@@ -47,6 +48,7 @@ export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
 export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS = ":local-free:";
 
 interface LocalFreeSubscriptionGrant {
+  bucketUserId: string | null;
   credits: number;
   referenceId: string;
   userId: string;
@@ -206,6 +208,13 @@ export function buildLocalFreeOrganizationMemberSubscriptionReferenceId(
   );
 }
 
+export function buildLocalFreeOrganizationSubscriptionReferenceId(
+  organizationId: string,
+  periodEnd: Date,
+): string {
+  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${periodEnd.toISOString()}:subscription`;
+}
+
 export interface GrantFreeOrganizationMemberSubscriptionCreditsParams {
   memberUserIds: string[];
   now?: Date;
@@ -315,6 +324,7 @@ function normalizeLocalFreeSubscriptionPeriod(
     return {
       grants: [
         {
+          bucketUserId: params.userId,
           credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
           referenceId: buildLocalFreeUserSubscriptionReferenceId(
             params.userId,
@@ -329,17 +339,23 @@ function normalizeLocalFreeSubscriptionPeriod(
   }
 
   const memberUserIds = getOrganizationMemberUserIds(params);
+  const transactionUserId = memberUserIds[0];
 
   return {
-    grants: memberUserIds.map((userId) => ({
-      credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
-      referenceId: buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        userId,
-        params.organizationId,
-        params.periodEnd,
-      ),
-      userId,
-    })),
+    grants:
+      transactionUserId === undefined
+        ? []
+        : [
+            {
+              bucketUserId: null,
+              credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+              referenceId: buildLocalFreeOrganizationSubscriptionReferenceId(
+                params.organizationId,
+                params.periodEnd,
+              ),
+              userId: transactionUserId,
+            },
+          ],
     organizationId: params.organizationId,
     seats: resolvePurchasedSeats(params.purchasedSeats),
   };
@@ -599,7 +615,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
             organizationId,
             referenceId: grant.referenceId,
             referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            userId: grant.userId,
+            userId: grant.bucketUserId,
           },
         },
         user: {

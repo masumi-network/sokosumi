@@ -96,6 +96,20 @@ _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboa
 The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
+### Billing
+
+**Seat**:
+A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is who may spend the organization credit pool, create or comment on Tasks, assign a Coworker to a Task, and originate coworker chat turns (@mention, coworker 1:1 send). It is not a private credit grant. On **free**, workstations are unlimited: every member is seated; there is nothing to assign. Unseated members on a paid org may use human chat and may read existing Tasks; they must not start coworker work.
+_Avoid_: License, slot (unless a UI label), treating a Seat as a personal credit balance, treating Task assignee as a human, unpaid seat flags, unlimited-on-free as an admin control
+
+**Organization credit pool**:
+Credits owned by an Organization. Free period grant is the free monthly amount (250), shared by every member. Paid self-serve period grant is purchased seats × credits per seat, spent by assigned Seats. Enterprise keeps its own shared pool. OTC/admin grants sit in the same pool. Distinct from personal credits.
+_Avoid_: Org balance (ambiguous with Stripe), member credits, seat credits (that reads as a private per-member grant), scaling the free 250 by member count
+
+**Personal credits**:
+Credits owned by a User with no Organization. Spent only in a personal workspace.
+_Avoid_: Account credits, default credits, treating these as spendable in an organization workspace
+
 ### Chat rooms
 
 **Channel**:
