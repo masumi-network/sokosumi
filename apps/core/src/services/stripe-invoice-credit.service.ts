@@ -6,10 +6,12 @@ import {
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   resolveOrganizationBillingPlan,
+  resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
   organizationRepository,
+  subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
@@ -208,8 +210,6 @@ function shouldGrantSubscriptionCreditsForLine(params: {
 async function calculateSubscriptionCreditTotals(params: {
   invoiceId: string;
   isSubscriptionUpdate: boolean;
-  maxSeatGrantQuantity: number | null;
-  organizationId: string | null;
   resolveDefaultQuantity: () => Promise<number>;
   subscriptionLines: SubscriptionLine[];
 }): Promise<SubscriptionCreditTotals> {
@@ -217,16 +217,6 @@ async function calculateSubscriptionCreditTotals(params: {
   let maxSubscriptionPeriodEndUnix: number | null = null;
 
   if (params.subscriptionLines.length === 0) {
-    return {
-      maxSubscriptionPeriodEndUnix,
-      paidOrCycleSubscriptionCredits,
-    };
-  }
-
-  if (params.organizationId !== null && params.maxSeatGrantQuantity === 0) {
-    console.log(
-      `Skipping subscription credits for invoice ${params.invoiceId}: organization ${params.organizationId} has no assigned seats`,
-    );
     return {
       maxSubscriptionPeriodEndUnix,
       paidOrCycleSubscriptionCredits,
@@ -250,38 +240,6 @@ async function calculateSubscriptionCreditTotals(params: {
     ]),
   );
 
-  function logSeatCreditCapApplied(data: {
-    activeMembers: number;
-    billedSeats: number;
-    grantedSeats: number;
-    productId: string;
-  }): void {
-    console.log(
-      `⚠️ seat_credit_cap_applied invoiceId=${params.invoiceId} organizationId=${params.organizationId ?? "none"} productId=${data.productId} billedSeats=${data.billedSeats} activeMembers=${data.activeMembers} grantedSeats=${data.grantedSeats} droppedSeats=${data.billedSeats - data.grantedSeats}`,
-    );
-  }
-
-  function capSeatsToActiveMembers(
-    billedSeats: number,
-    productId: string,
-  ): number {
-    if (params.maxSeatGrantQuantity === null) {
-      return billedSeats;
-    }
-
-    const grantedSeats = Math.min(billedSeats, params.maxSeatGrantQuantity);
-    if (billedSeats > grantedSeats) {
-      logSeatCreditCapApplied({
-        activeMembers: params.maxSeatGrantQuantity,
-        billedSeats,
-        grantedSeats,
-        productId,
-      });
-    }
-
-    return grantedSeats;
-  }
-
   for (const { lineItem, productId } of params.subscriptionLines) {
     const catalogPlan = catalogByProductId.get(productId);
     if (!catalogPlan) {
@@ -293,37 +251,18 @@ async function calculateSubscriptionCreditTotals(params: {
     const lineAmount = lineItem.amount ?? 0;
 
     if (params.isSubscriptionUpdate) {
-      let proratedCredits = calculateProratedSubscriptionCredits({
+      paidOrCycleSubscriptionCredits += calculateProratedSubscriptionCredits({
         invoiceId: params.invoiceId,
         lineAmount,
         monthlyAmount: catalogPlan.monthlyAmount,
         planCredits: catalogPlan.credits,
         productId,
       });
-
-      const billedQuantity = lineItem.quantity ?? 0;
-      if (billedQuantity > 0) {
-        const grantedQuantity = capSeatsToActiveMembers(
-          billedQuantity,
-          productId,
-        );
-        if (grantedQuantity <= 0) {
-          continue;
-        }
-
-        proratedCredits = Math.trunc(
-          (proratedCredits * grantedQuantity) / billedQuantity,
-        );
-      }
-
-      paidOrCycleSubscriptionCredits += proratedCredits;
     } else {
       let quantity = lineItem.quantity ?? 0;
       if (quantity <= 0) {
         quantity = await params.resolveDefaultQuantity();
       }
-
-      quantity = capSeatsToActiveMembers(quantity, productId);
 
       if (quantity <= 0) {
         continue;
@@ -472,7 +411,7 @@ export async function handleInvoicePaidEvent(
   // Look up the user or organization by stripeCustomerId
   let userId: string;
   let organizationId: string | null = null;
-  let organizationMemberUserIds: string[] = [];
+  let purchasedSeats = 1;
 
   // First, try to find a user with this stripeCustomerId
   const user = await userRepository.getUserByStripeCustomerId(
@@ -495,9 +434,12 @@ export async function handleInvoicePaidEvent(
       // This is an organization purchase
       organizationId = organization.id;
 
-      const [members, assignedMemberUserIds] = await Promise.all([
+      const [members, subscription] = await Promise.all([
         memberRepository.getMembersByOrganizationId(organizationId, prisma),
-        memberRepository.getAssignedMemberUserIds(organizationId, prisma),
+        subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+          organizationId,
+          prisma,
+        ),
       ]);
 
       if (members.length === 0) {
@@ -505,7 +447,7 @@ export async function handleInvoicePaidEvent(
         return;
       }
 
-      organizationMemberUserIds = assignedMemberUserIds;
+      purchasedSeats = resolvePurchasedSeats(subscription?.seats);
 
       const ownerUserId = await memberRepository.getOrganizationOwnerUserId(
         organizationId,
@@ -529,7 +471,7 @@ export async function handleInvoicePaidEvent(
 
   const creditScope: CreditScope = organizationId
     ? {
-        resolveDefaultQuantity: async () => organizationMemberUserIds.length,
+        resolveDefaultQuantity: async () => purchasedSeats,
       }
     : {
         resolveDefaultQuantity: async () => 1,
@@ -601,8 +543,6 @@ export async function handleInvoicePaidEvent(
   const subscriptionCreditTotals = await calculateSubscriptionCreditTotals({
     invoiceId,
     isSubscriptionUpdate,
-    maxSeatGrantQuantity: null,
-    organizationId,
     resolveDefaultQuantity: creditScope.resolveDefaultQuantity,
     subscriptionLines,
   });

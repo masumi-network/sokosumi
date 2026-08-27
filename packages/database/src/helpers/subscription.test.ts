@@ -9,48 +9,8 @@ import {
   ensureLocalFreeSubscriptionPeriod,
   ensureNextLocalFreeSubscriptionPeriod,
   getNextMonthlyPeriodEnd,
-  grantFreeOrganizationMemberSubscriptionCredits,
   transitionToNextLocalFreeSubscriptionPeriod,
 } from "./subscription.js";
-
-function createFreeGrantClient(params?: {
-  existingFreeBucketReferenceIds?: string[];
-}) {
-  const findUniqueBucketMock = vi.fn().mockImplementation(
-    ({
-      where,
-    }: {
-      where: {
-        referenceId_referenceType: {
-          referenceId: string;
-        };
-      };
-    }) => {
-      const referenceId = where.referenceId_referenceType.referenceId;
-      return Promise.resolve(
-        params?.existingFreeBucketReferenceIds?.includes(referenceId)
-          ? { id: "existing-free-bucket" }
-          : null,
-      );
-    },
-  );
-  const createTransactionMock = vi.fn().mockResolvedValue({
-    id: "tx_free",
-  });
-
-  return {
-    createTransactionMock,
-    findUniqueBucketMock,
-    tx: {
-      creditBucket: {
-        findUnique: findUniqueBucketMock,
-      },
-      transaction: {
-        create: createTransactionMock,
-      },
-    } as unknown as PrismaType.TransactionClient,
-  };
-}
 
 function createTransactionClient(params?: {
   members?: Array<{ role?: string; userId: string }>;
@@ -627,27 +587,6 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     });
     assert.equal(findManyMembersMock.mock.calls.length, 1);
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
-    assert.equal(createTransactionMock.mock.calls.length, 0);
-  });
-});
-
-describe("grantFreeOrganizationMemberSubscriptionCredits", () => {
-  it("does not mint per-member organization period buckets", async () => {
-    const { createTransactionMock, findUniqueBucketMock, tx } =
-      createFreeGrantClient();
-
-    const grantsCreated = await grantFreeOrganizationMemberSubscriptionCredits(
-      {
-        memberUserIds: ["member-1", "member-1", "owner-1"],
-        now: new Date("2026-04-01T00:00:00.000Z"),
-        organizationId: "org-1",
-        periodEnd: new Date("2026-05-01T00:00:00.000Z"),
-      },
-      tx,
-    );
-
-    assert.equal(grantsCreated, 0);
-    assert.equal(findUniqueBucketMock.mock.calls.length, 0);
     assert.equal(createTransactionMock.mock.calls.length, 0);
   });
 });

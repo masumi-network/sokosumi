@@ -11,6 +11,7 @@ const getOrganizationByStripeCustomerIdMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
 const getOrganizationOwnerUserIdMock = vi.fn();
 const getAssignedMemberUserIdsMock = vi.fn();
+const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
@@ -71,6 +72,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
       getOrganizationByStripeCustomerIdMock(...args),
+  },
+  subscriptionRepository: {
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
   },
   userRepository: {
     getUserByStripeCustomerId: (...args: unknown[]) =>
@@ -177,6 +182,9 @@ function mockOrganizationInvoiceContext(
   const assigned =
     assignedMemberUserIds ?? members.map((member) => member.userId).toSorted();
   getAssignedMemberUserIdsMock.mockResolvedValue(assigned);
+  resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    seats: assigned.length || 1,
+  });
   getUnassignedMemberUserIdsMock.mockResolvedValue(
     unassignedMemberUserIds ??
       members
@@ -629,6 +637,40 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(orgCall?.data.amount).toBe(BigInt("87500000000000"));
     expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
+  });
+
+  it("uses purchased seats when the invoice line has no quantity", async () => {
+    mockOrganizationInvoiceContext(
+      [
+        { role: "member", userId: "member-1" },
+        { role: "owner", userId: "owner-2" },
+      ],
+      "org-1",
+      ["member-1"],
+    );
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({ seats: 5 });
+    mockSubscriptionCatalog();
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_cycle_default_quantity",
+        lines: [{ productId: "prod_starter", quantity: 0 }],
+      }) as never,
+    );
+
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_cycle_default_quantity",
+        "subscription",
+      ),
+    );
+    expect(orgCall?.data.amount).toBe(BigInt("87500000000000"));
   });
 
   it("grants billed organization seats into the pool when no seats are assigned", async () => {

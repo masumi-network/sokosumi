@@ -215,24 +215,6 @@ export function buildLocalFreeOrganizationSubscriptionReferenceId(
   return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${periodEnd.toISOString()}:subscription`;
 }
 
-export interface GrantFreeOrganizationMemberSubscriptionCreditsParams {
-  memberUserIds: string[];
-  now?: Date;
-  organizationId: string;
-  periodEnd: Date;
-}
-
-/**
- * Paid organizations no longer mint per-member free-tier period buckets.
- * Organization credits belong on the shared pool (`userId: null`).
- */
-export async function grantFreeOrganizationMemberSubscriptionCredits(
-  _params: GrantFreeOrganizationMemberSubscriptionCreditsParams,
-  _tx: Prisma.TransactionClient,
-): Promise<number> {
-  return 0;
-}
-
 function getOrganizationMemberUserIds(
   params: EnsureLocalFreeOrganizationSubscriptionPeriodParams,
 ): string[] {

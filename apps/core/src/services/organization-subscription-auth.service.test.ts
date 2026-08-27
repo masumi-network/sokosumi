@@ -4,7 +4,6 @@ const {
   resolveOrganizationBillingPlanWithActiveSubscriptionMock,
   resolvePurchasedSeatsMock,
   ensureLocalFreeSubscriptionPeriodMock,
-  grantFreeOrganizationMemberSubscriptionCreditsMock,
   resolveActiveSubscriptionByReferenceIdMock,
   getUnassignedMemberUserIdsMock,
   getOrganizationMemberUserIdsMock,
@@ -12,7 +11,6 @@ const {
   resolveOrganizationBillingPlanWithActiveSubscriptionMock: vi.fn(),
   resolvePurchasedSeatsMock: vi.fn(),
   ensureLocalFreeSubscriptionPeriodMock: vi.fn(),
-  grantFreeOrganizationMemberSubscriptionCreditsMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getUnassignedMemberUserIdsMock: vi.fn(),
   getOrganizationMemberUserIdsMock: vi.fn(),
@@ -25,8 +23,6 @@ vi.mock("@sokosumi/database/helpers", () => ({
     resolvePurchasedSeatsMock(...args),
   ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
     ensureLocalFreeSubscriptionPeriodMock(...args),
-  grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
-    grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({

@@ -15,11 +15,6 @@ import { HTTPException } from "hono/http-exception";
 
 import { badRequest, notFound } from "@/helpers/error";
 
-export interface GrantUnusedSeatSubscriptionCreditsResult {
-  creditsGranted: number;
-  granted: boolean;
-}
-
 /**
  * Maps member-repository seat errors to HTTP exceptions; rethrows everything
  * else (including HTTP exceptions thrown by guards inside the transaction).
@@ -43,14 +38,6 @@ export function mapSeatRepositoryError(error: unknown): never {
   }
 
   throw error;
-}
-
-export async function grantUnusedSeatSubscriptionCreditsIfEligible(
-  _organizationId: string,
-  _userId: string,
-  _tx: Prisma.TransactionClient,
-): Promise<GrantUnusedSeatSubscriptionCreditsResult> {
-  return { creditsGranted: 0, granted: false };
 }
 
 export async function unassignOrganizationMemberSeatWithCreditSync(

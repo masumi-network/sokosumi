@@ -45,7 +45,6 @@ export * from "./organization-billing-plan.js";
 export * from "./organization-member-period-pool-transfer.js";
 export * from "./organization-owner.js";
 export * from "./organization-paid-subscribe-seats.js";
-export * from "./organization-seat-credits.js";
 export * from "./organization-seats.js";
 export * from "./organization-subscription-credit-audience.js";
 export * from "./organization-subscription-exclusivity.js";

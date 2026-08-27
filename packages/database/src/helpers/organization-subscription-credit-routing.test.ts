@@ -8,7 +8,6 @@ import {
   buildLocalFreeUserSubscriptionReferenceId,
   type EnsureLocalFreeSubscriptionPeriodParams,
   ensureLocalFreeSubscriptionPeriod,
-  grantFreeOrganizationMemberSubscriptionCredits,
 } from "./subscription.js";
 
 interface LocalFreePeriodGrantMatrixCase {
@@ -17,13 +16,6 @@ interface LocalFreePeriodGrantMatrixCase {
   expectedReferenceIds: string[];
   name: string;
   params: EnsureLocalFreeSubscriptionPeriodParams;
-}
-
-interface PaidOrgFreeTierGrantMatrixCase {
-  expectedGrantCount: number;
-  expectedGrantUserIds: string[];
-  memberUserIds: string[];
-  name: string;
 }
 
 function createLocalFreePeriodClient() {
@@ -48,45 +40,6 @@ function createLocalFreePeriodClient() {
       subscription: {
         create: createSubscriptionMock,
         findFirst: findSubscriptionMock,
-      },
-      transaction: {
-        create: createTransactionMock,
-      },
-    } as unknown as PrismaType.TransactionClient,
-  };
-}
-
-function createPaidOrgFreeGrantClient(params?: {
-  existingFreeBucketReferenceIds?: string[];
-}) {
-  const findUniqueBucketMock = vi.fn().mockImplementation(
-    ({
-      where,
-    }: {
-      where: {
-        referenceId_referenceType: {
-          referenceId: string;
-        };
-      };
-    }) => {
-      const referenceId = where.referenceId_referenceType.referenceId;
-      return Promise.resolve(
-        params?.existingFreeBucketReferenceIds?.includes(referenceId)
-          ? { id: "existing-free-bucket" }
-          : null,
-      );
-    },
-  );
-  const createTransactionMock = vi.fn().mockResolvedValue({
-    id: "tx_free",
-  });
-
-  return {
-    createTransactionMock,
-    findUniqueBucketMock,
-    tx: {
-      creditBucket: {
-        findUnique: findUniqueBucketMock,
       },
       transaction: {
         create: createTransactionMock,
@@ -131,15 +84,6 @@ const LOCAL_FREE_PERIOD_GRANT_MATRIX: LocalFreePeriodGrantMatrixCase[] = [
     expectedReferenceIds: [
       buildLocalFreeOrganizationSubscriptionReferenceId("org-1", PERIOD_END),
     ],
-  },
-];
-
-const PAID_ORG_FREE_TIER_GRANT_MATRIX: PaidOrgFreeTierGrantMatrixCase[] = [
-  {
-    name: "org paid — does not mint a per-member free-tier sidecar",
-    memberUserIds: ["unassigned-1"],
-    expectedGrantCount: 0,
-    expectedGrantUserIds: [],
   },
 ];
 
@@ -202,49 +146,6 @@ describe("organization subscription credit routing matrix", () => {
             BigInt(FREE_SUBSCRIPTION_MONTHLY_CREDITS * 10_000_000_000),
           );
         }
-      });
-    },
-  );
-
-  describe.each(PAID_ORG_FREE_TIER_GRANT_MATRIX)(
-    "paid org free-tier helper — $name",
-    (testCase: PaidOrgFreeTierGrantMatrixCase) => {
-      const { expectedGrantCount, expectedGrantUserIds, memberUserIds } =
-        testCase;
-      it("does not mint per-member organization credits", async () => {
-        const { createTransactionMock, tx } = createPaidOrgFreeGrantClient();
-
-        const grantsCreated =
-          await grantFreeOrganizationMemberSubscriptionCredits(
-            {
-              memberUserIds,
-              now: PERIOD_START,
-              organizationId: "org-1",
-              periodEnd: PERIOD_END,
-            },
-            tx,
-          );
-
-        assert.equal(grantsCreated, expectedGrantCount);
-        assert.equal(
-          createTransactionMock.mock.calls.length,
-          expectedGrantCount,
-        );
-
-        const grantUserIds = createTransactionMock.mock.calls.map(
-          (
-            call: [
-              {
-                data: {
-                  sourceCreditBucket: {
-                    create: { userId: string };
-                  };
-                };
-              },
-            ],
-          ) => call[0].data.sourceCreditBucket.create.userId,
-        );
-        assert.deepEqual(grantUserIds, expectedGrantUserIds);
       });
     },
   );

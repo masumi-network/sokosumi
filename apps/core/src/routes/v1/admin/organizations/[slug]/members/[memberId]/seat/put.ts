@@ -14,7 +14,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
 import {
-  grantUnusedSeatSubscriptionCreditsIfEligible,
   mapSeatRepositoryError,
   syncLocalFreeOrganizationCreditsIfNeeded,
 } from "@/services/organization-seat.service";
@@ -74,18 +73,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (!member.seatAssignedAt) {
           throw internalServerError("Failed to assign seat");
-        }
-
-        const suppressSelfServeSeatCredits =
-          billingPlan.mode === "enterprise_contract" &&
-          billingPlan.isConsumable;
-
-        if (!suppressSelfServeSeatCredits) {
-          await grantUnusedSeatSubscriptionCreditsIfEligible(
-            organization.id,
-            member.userId,
-            tx,
-          );
         }
 
         if (
