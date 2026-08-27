@@ -1302,6 +1302,63 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
+    "Calendar": {
+      "Metadata": {
+        "title": "Calendar",
+        "description": "Browse scheduled task releases in your workspace."
+      },
+      "title": "Calendar",
+      "description": "Scheduled task releases across this workspace.",
+      "previous": "Previous period",
+      "next": "Next period",
+      "view": {
+        "month": "Month",
+        "week": "Week",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Source",
+        "all": "All sources",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Project",
+        "LEGACY_UNKNOWN": "Legacy source"
+      },
+      "accuracy": {
+        "inferred": "Inferred source",
+        "unknown": "Unknown source",
+        "approximate": "Approximate time"
+      },
+      "status": {
+        "label": "Task status",
+        "all": "All statuses",
+        "DRAFT": "Draft",
+        "QUEUED": "Queued",
+        "READY": "Ready",
+        "GRANT_PENDING": "Grant pending",
+        "INPUT_REQUIRED": "Input required",
+        "APPROVAL_REQUIRED": "Approval required",
+        "AUTHENTICATION_REQUIRED": "Authentication required",
+        "OUT_OF_CREDITS": "Paused: credits needed",
+        "CREDITS_TOPPED_UP": "Credits topped up",
+        "RUNNING": "Running",
+        "AWAITING_EXTERNAL": "Awaiting external",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "All coworkers"
+      },
+      "empty": {
+        "title": "No scheduled releases match these filters."
+      },
+      "error": {
+        "title": "Unable to load the calendar",
+        "description": "Please try again in a moment.",
+        "retry": "Try again"
+      }
+    },
     "History": {
       "Metadata": {
         "title": "History",
@@ -2905,6 +2962,7 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
+          "calendar": "Calendar",
           "hermes": "Personal Assistant",
           "hermesNew": "New",
           "hermesUnread": "{count} unread",

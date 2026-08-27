@@ -15,6 +15,7 @@ const coreClientMock = {
   getTaskLinks: vi.fn(),
   getTasks: vi.fn(),
   getTasksSummary: vi.fn(),
+  getWorkspaceCalendar: vi.fn(),
   patchTask: vi.fn(),
 };
 
@@ -56,7 +57,7 @@ function buildTaskLink() {
 
 describe("task.service", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("lists tasks and normalizes status for the core client", async () => {
@@ -127,6 +128,187 @@ describe("task.service", () => {
         nextCursor: null,
       },
     });
+  });
+
+  it("loads the active workspace calendar and task filter context through Core", async () => {
+    coreClientMock.getWorkspaceCalendar.mockResolvedValue({
+      data: [
+        {
+          id: "occurrence-1",
+          taskId: "task-1",
+          taskName: "Test task",
+          scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
+        },
+      ],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [
+        {
+          ...buildTask(),
+          assigneeId: "coworker-1",
+          status: TaskStatus.QUEUED,
+        },
+      ],
+    });
+
+    const { taskService } = await import("./task.service");
+    const result = await taskService.getWorkspaceCalendar({
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-09-01T00:00:00.000Z"),
+      limit: 100,
+    });
+
+    expect(coreClientMock.getWorkspaceCalendar).toHaveBeenCalledWith({
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-09-01T00:00:00.000Z"),
+      limit: 100,
+    });
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      scope: "workspace",
+      limit: 100,
+    });
+    expect(result.taskContextById).toEqual({
+      "task-1": {
+        coworkerId: "coworker-1",
+        status: TaskStatus.QUEUED,
+      },
+    });
+  });
+
+  it("loads every calendar and task-context cursor page", async () => {
+    coreClientMock.getWorkspaceCalendar
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "occurrence-1",
+            taskId: "task-1",
+            taskName: "First task",
+            scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: null,
+            limit: 100,
+            total: 2,
+            nextCursor: "calendar-2",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "occurrence-2",
+            taskId: "task-2",
+            taskName: "Second task",
+            scheduledAt: new Date("2026-08-19T09:00:00.000Z"),
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: "calendar-2",
+            limit: 100,
+            total: 2,
+            nextCursor: null,
+          },
+        },
+      });
+    coreClientMock.getTasks
+      .mockResolvedValueOnce({
+        data: [
+          {
+            ...buildTask(),
+            id: "task-1",
+            assigneeId: "coworker-1",
+            status: TaskStatus.QUEUED,
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: null,
+            limit: 100,
+            total: 2,
+            nextCursor: "task-2",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            ...buildTask(),
+            id: "task-2",
+            assigneeId: "coworker-2",
+            status: TaskStatus.READY,
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: "task-2",
+            limit: 100,
+            total: 2,
+            nextCursor: null,
+          },
+        },
+      });
+
+    const { taskService } = await import("./task.service");
+    const result = await taskService.getWorkspaceCalendar({
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-09-01T00:00:00.000Z"),
+      limit: 100,
+    });
+
+    expect(result.items.map((item) => item.id)).toEqual([
+      "occurrence-1",
+      "occurrence-2",
+    ]);
+    expect(result.taskContextById).toEqual({
+      "task-1": { coworkerId: "coworker-1", status: TaskStatus.QUEUED },
+      "task-2": { coworkerId: "coworker-2", status: TaskStatus.READY },
+    });
+    expect(coreClientMock.getWorkspaceCalendar).toHaveBeenNthCalledWith(2, {
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-09-01T00:00:00.000Z"),
+      limit: 100,
+      cursor: "calendar-2",
+    });
+    expect(coreClientMock.getTasks).toHaveBeenNthCalledWith(2, {
+      scope: "workspace",
+      limit: 100,
+      cursor: "task-2",
+    });
+  });
+
+  it("keeps calendar items available when task filter context is missing", async () => {
+    coreClientMock.getWorkspaceCalendar.mockResolvedValue({
+      data: [
+        {
+          id: "occurrence-1",
+          taskId: "task-1",
+          taskName: "Test task",
+          scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
+        },
+      ],
+    });
+    coreClientMock.getTasks.mockResolvedValue({ data: undefined });
+
+    const { taskService } = await import("./task.service");
+    const result = await taskService.getWorkspaceCalendar({
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-09-01T00:00:00.000Z"),
+      limit: 100,
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.taskContextById).toEqual({});
   });
 
   it("passes through multiple statuses for the core client", async () => {

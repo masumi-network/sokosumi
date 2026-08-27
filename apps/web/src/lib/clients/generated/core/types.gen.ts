@@ -5294,6 +5294,35 @@ export type DesignMdOwnerInfo = {
     type: 'user';
 };
 
+export type WorkspaceCalendarItem = {
+    /**
+     * Stable Calendar item identity. Version 1 projections are display-only.
+     */
+    id: string;
+    taskId: string;
+    taskName: string;
+    /**
+     * Effective time at which the item appears in the Calendar
+     */
+    scheduledAt: Date;
+    /**
+     * Original scheduled time captured by the occurrence ledger, when known
+     */
+    originalScheduledAt: Date | null;
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * Workspace captured as the Calendar source
+     */
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    /**
+     * Project captured as the Calendar source, when applicable
+     */
+    sourceProjectId: string | null;
+    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
+    timeAccuracy: 'EXACT' | 'APPROXIMATE';
+};
+
 export type WorkspaceOrganization = {
     /**
      * Organization id for the workspace, or null for a personal workspace
@@ -38385,6 +38414,238 @@ export type GetWorkspacesDesignMdResponses = {
 };
 
 export type GetWorkspacesDesignMdResponse = GetWorkspacesDesignMdResponses[keyof GetWorkspacesDesignMdResponses];
+
+export type GetWorkspacesCalendarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Inclusive start of the calendar range
+         */
+        from: Date;
+        /**
+         * Exclusive end of the calendar range, at most 90 days after from
+         */
+        to: Date;
+        /**
+         * Opaque cursor for the next merged calendar page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/workspaces/calendar';
+};
+
+export type GetWorkspacesCalendarErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarError = GetWorkspacesCalendarErrors[keyof GetWorkspacesCalendarErrors];
+
+export type GetWorkspacesCalendarResponses = {
+    /**
+     * Active workspace Calendar items
+     */
+    200: {
+        data: Array<WorkspaceCalendarItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarResponse = GetWorkspacesCalendarResponses[keyof GetWorkspacesCalendarResponses];
+
+export type GetWorkspacesByIdCalendarData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Inclusive start of the calendar range
+         */
+        from: Date;
+        /**
+         * Exclusive end of the calendar range, at most 90 days after from
+         */
+        to: Date;
+        /**
+         * Opaque cursor for the next merged calendar page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/workspaces/{id}/calendar';
+};
+
+export type GetWorkspacesByIdCalendarErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdCalendarError = GetWorkspacesByIdCalendarErrors[keyof GetWorkspacesByIdCalendarErrors];
+
+export type GetWorkspacesByIdCalendarResponses = {
+    /**
+     * Workspace Calendar items
+     */
+    200: {
+        data: Array<WorkspaceCalendarItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdCalendarResponse = GetWorkspacesByIdCalendarResponses[keyof GetWorkspacesByIdCalendarResponses];
 
 export type GetWorkspacesByIdData = {
     body?: never;

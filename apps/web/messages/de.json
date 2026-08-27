@@ -1302,6 +1302,63 @@
     "delete": "Löschen",
     "cancel": "Abbrechen",
     "save": "Speichern",
+    "Calendar": {
+      "Metadata": {
+        "title": "Kalender",
+        "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
+      },
+      "title": "Kalender",
+      "description": "Geplante Aufgabenfreigaben in diesem Workspace.",
+      "previous": "Vorheriger Zeitraum",
+      "next": "Nächster Zeitraum",
+      "view": {
+        "month": "Monat",
+        "week": "Woche",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Quelle",
+        "all": "Alle Quellen",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Projekt",
+        "LEGACY_UNKNOWN": "Legacy-Quelle"
+      },
+      "accuracy": {
+        "inferred": "Abgeleitete Quelle",
+        "unknown": "Unbekannte Quelle",
+        "approximate": "Ungefähre Zeit"
+      },
+      "status": {
+        "label": "Aufgabenstatus",
+        "all": "Alle Status",
+        "DRAFT": "Entwurf",
+        "QUEUED": "In Warteschlange",
+        "READY": "Bereit",
+        "GRANT_PENDING": "Freigabe ausstehend",
+        "INPUT_REQUIRED": "Eingabe erforderlich",
+        "APPROVAL_REQUIRED": "Genehmigung erforderlich",
+        "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
+        "OUT_OF_CREDITS": "Pausiert: Credits erforderlich",
+        "CREDITS_TOPPED_UP": "Credits aufgeladen",
+        "RUNNING": "Läuft",
+        "AWAITING_EXTERNAL": "Wartet auf Externes",
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELED": "Abgebrochen"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "Alle Coworker"
+      },
+      "empty": {
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+      },
+      "error": {
+        "title": "Kalender konnte nicht geladen werden",
+        "description": "Bitte versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      }
+    },
     "History": {
       "Metadata": {
         "title": "Verlauf",
@@ -2905,6 +2962,7 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
+          "calendar": "Kalender",
           "hermes": "Persönlicher Assistent",
           "hermesNew": "Neu",
           "hermesUnread": "{count} ungelesen",

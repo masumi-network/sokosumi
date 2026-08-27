@@ -1302,6 +1302,63 @@
     "delete": "Eliminar",
     "cancel": "Cancelar",
     "save": "Guardar",
+    "Calendar": {
+      "Metadata": {
+        "title": "Calendario",
+        "description": "Consulta las ejecuciones programadas de tareas en tu espacio de trabajo."
+      },
+      "title": "Calendario",
+      "description": "Ejecuciones programadas de tareas en este espacio de trabajo.",
+      "previous": "Periodo anterior",
+      "next": "Periodo siguiente",
+      "view": {
+        "month": "Mes",
+        "week": "Semana",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Origen",
+        "all": "Todos los orígenes",
+        "WORKSPACE": "Espacio de trabajo",
+        "PROJECT": "Proyecto",
+        "LEGACY_UNKNOWN": "Origen heredado"
+      },
+      "accuracy": {
+        "inferred": "Origen inferido",
+        "unknown": "Origen desconocido",
+        "approximate": "Hora aproximada"
+      },
+      "status": {
+        "label": "Estado de la tarea",
+        "all": "Todos los estados",
+        "DRAFT": "Borrador",
+        "QUEUED": "En cola",
+        "READY": "Listo",
+        "GRANT_PENDING": "Aprobación pendiente",
+        "INPUT_REQUIRED": "Entrada requerida",
+        "APPROVAL_REQUIRED": "Aprobación requerida",
+        "AUTHENTICATION_REQUIRED": "Autenticación requerida",
+        "OUT_OF_CREDITS": "Pausada: se necesitan créditos",
+        "CREDITS_TOPPED_UP": "Créditos recargados",
+        "RUNNING": "En ejecución",
+        "AWAITING_EXTERNAL": "Esperando externo",
+        "COMPLETED": "Completado",
+        "FAILED": "Fallido",
+        "CANCELED": "Cancelado"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "Todos los coworkers"
+      },
+      "empty": {
+        "title": "Ninguna ejecución programada coincide con estos filtros."
+      },
+      "error": {
+        "title": "No se pudo cargar el calendario",
+        "description": "Vuelve a intentarlo en un momento.",
+        "retry": "Intentar de nuevo"
+      }
+    },
     "History": {
       "Metadata": {
         "title": "Historial",
@@ -2905,6 +2962,7 @@
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
           "projects": "Proyectos",
+          "calendar": "Calendario",
           "hermes": "Asistente personal",
           "hermesNew": "Nuevo",
           "hermesUnread": "{count} sin leer",

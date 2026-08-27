@@ -3,14 +3,17 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateTaskContext,
+  GetWorkspacesCalendarData,
   JobSummary,
   Task,
   TaskActivitySummary,
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
+  TaskListItem,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
+  WorkspaceCalendarItem,
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { AgentJobStatus } from "@/lib/types/core-dto";
@@ -62,6 +65,22 @@ interface CreateTaskLinkInput {
   note?: string | null;
 }
 
+export interface WorkspaceCalendarTaskContext {
+  coworkerId: string | null;
+  status: TaskStatus | null;
+}
+
+export interface WorkspaceCalendarPage {
+  items: WorkspaceCalendarItem[];
+  pagination: {
+    cursor: string | null;
+    limit: number;
+    total: number;
+    nextCursor: string | null;
+  } | null;
+  taskContextById: Record<string, WorkspaceCalendarTaskContext>;
+}
+
 export const taskService = (() => {
   async function listTasks(params: ListTasksParams = {}) {
     const result = await coreClient.getTasks({
@@ -82,6 +101,60 @@ export const taskService = (() => {
     return {
       tasks: result.data ?? [],
       pagination: result.meta?.pagination ?? null,
+    };
+  }
+
+  async function getWorkspaceCalendar(
+    query: GetWorkspacesCalendarData["query"],
+  ): Promise<WorkspaceCalendarPage> {
+    const [calendar, tasks] = await Promise.all([
+      (async () => {
+        const items: WorkspaceCalendarItem[] = [];
+        let pageQuery = query;
+        let pagination: WorkspaceCalendarPage["pagination"] = null;
+
+        do {
+          const result = await coreClient.getWorkspaceCalendar(pageQuery);
+          items.push(...result.data);
+          pagination = result.meta?.pagination ?? null;
+          pageQuery = pagination?.nextCursor
+            ? { ...query, cursor: pagination.nextCursor }
+            : pageQuery;
+        } while (pagination?.nextCursor);
+
+        return { items, pagination };
+      })(),
+      (async () => {
+        const tasks: TaskListItem[] = [];
+        let cursor: string | undefined;
+
+        do {
+          const result = await coreClient.getTasks({
+            scope: "workspace",
+            limit: 100,
+            cursor,
+          });
+          tasks.push(...(result.data ?? []));
+          cursor = result.meta?.pagination?.nextCursor ?? undefined;
+        } while (cursor);
+
+        return tasks;
+      })(),
+    ]);
+    const taskContextById = Object.fromEntries(
+      tasks.map((task) => [
+        task.id,
+        {
+          coworkerId: task.assigneeId,
+          status: task.status,
+        },
+      ]),
+    );
+
+    return {
+      items: calendar.items,
+      pagination: calendar.pagination,
+      taskContextById,
     };
   }
 
@@ -245,6 +318,7 @@ export const taskService = (() => {
 
   return {
     getActivitySummary,
+    getWorkspaceCalendar,
     listJobs,
     listTasks,
     getTaskById,

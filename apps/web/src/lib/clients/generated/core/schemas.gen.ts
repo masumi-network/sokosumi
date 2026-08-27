@@ -17033,6 +17033,102 @@ export const DesignMdOwnerInfoSchema = {
     ]
 } as const;
 
+export const WorkspaceCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Stable Calendar item identity. Version 1 projections are display-only.',
+            example: 'v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        taskName: {
+            type: 'string',
+            example: 'Prepare release notes'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Effective time at which the item appears in the Calendar'
+        },
+        originalScheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Original scheduled time captured by the occurrence ledger, when known'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'PLANNED',
+                'SKIPPED',
+                'CANCELED',
+                'RELEASED'
+            ],
+            example: 'PLANNED'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Workspace captured as the Calendar source'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT',
+                'LEGACY_UNKNOWN'
+            ],
+            example: 'WORKSPACE'
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project captured as the Calendar source, when applicable'
+        },
+        sourceAccuracy: {
+            type: 'string',
+            enum: [
+                'EXACT',
+                'INFERRED',
+                'UNKNOWN'
+            ],
+            example: 'EXACT'
+        },
+        timeAccuracy: {
+            type: 'string',
+            enum: [
+                'EXACT',
+                'APPROXIMATE'
+            ],
+            example: 'EXACT'
+        }
+    },
+    required: [
+        'id',
+        'taskId',
+        'taskName',
+        'scheduledAt',
+        'originalScheduledAt',
+        'state',
+        'sourceWorkspaceId',
+        'sourceType',
+        'sourceProjectId',
+        'sourceAccuracy',
+        'timeAccuracy'
+    ]
+} as const;
+
 export const WorkspaceOrganizationSchema = {
     type: 'object',
     properties: {

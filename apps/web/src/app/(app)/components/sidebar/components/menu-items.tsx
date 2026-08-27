@@ -2,6 +2,7 @@
 
 import {
   Bot,
+  CalendarDays,
   FolderKanban,
   History,
   ListTodo,
@@ -87,6 +88,12 @@ export default function MenuItems() {
       href: "/projects",
       label: t("projects"),
       Icon: FolderKanban,
+    },
+    {
+      key: "calendar",
+      href: "/calendar",
+      label: t("calendar"),
+      Icon: CalendarDays,
     },
     {
       key: "explore-agents",
