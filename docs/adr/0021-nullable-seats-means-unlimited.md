@@ -4,4 +4,6 @@ A **free** organization (local free subscription, including new orgs and OTC org
 
 The first **paid** subscribe (Stripe self-serve or activating a real enterprise contract) makes Seats finite. Auto-assign Seats up to purchased capacity, **owner first**, then oldest remaining members. Overflow members become unseated (chat + read Tasks only) until an admin assigns. Paid unseated members do not get a free-tier 250 sidecar.
 
+Purchased Seats are a hard cap on assigned Seats. An owner or admin may buy fewer Seats than members (minimum 1). If purchased count drops below currently assigned members, unassign immediately, keeping the **oldest** seated members (`createdAt`) and clearing `seatAssignedAt` on the newest overflow. Do not prefer the owner on that demote. In-flight Tasks stay (ADR 0020). Do not auto-fill unused Seats when quantity later increases.
+
 Rejected: unlimited as a nullable `seats` value on free that ops sets; enterprise contracts with 0 monthly credits just to unlock seats; letting free-org owners purchase seat capacity without Stripe; treating free `purchasedSeats` as 0 (that blocks everyone, including the creator).

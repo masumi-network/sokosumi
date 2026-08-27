@@ -3,6 +3,7 @@ import {
   FREE_SUBSCRIPTION_PLAN,
   isActiveSubscriptionStatus,
   transitionToNextLocalFreeSubscriptionPeriod,
+  unassignSeatsOverPurchasedCapacity,
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import type Stripe from "stripe";
@@ -73,6 +74,11 @@ export async function reconcileActiveStripeBackedSubscription(
       },
     });
     if (assignedSeats > 0) {
+      await unassignSeatsOverPurchasedCapacity(
+        organization.id,
+        localSubscription.seats,
+        tx,
+      );
       return;
     }
 

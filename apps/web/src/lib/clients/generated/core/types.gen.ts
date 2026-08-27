@@ -26994,7 +26994,7 @@ export type PutOrganizationsByIdSubscriptionSeatsData = {
 
 export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     /**
-     * Bad Request - No active subscription, seats below assigned members, or enterprise contract exclusivity
+     * Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity
      */
     400: {
         error: string;

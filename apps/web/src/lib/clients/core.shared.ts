@@ -2271,8 +2271,8 @@ export function createCoreClient(getClient: GetCoreClient) {
    * Immediately updates the purchased seat count on an organization's active
    * subscription. Core enforces that the caller is an organization owner or
    * admin, blocks self-serve changes while an enterprise contract is active,
-   * and keeps seats at or above the assigned member count. Stripe-backed
-   * subscriptions are invoiced for the change right away.
+   * and requires at least 1 purchased seat. Stripe-backed subscriptions are
+   * invoiced for the change right away.
    */
   async function updateOrganizationSubscriptionSeats(
     organizationId: string,

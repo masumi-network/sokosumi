@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const autoAssignSeatsOnPaidSubscribeMock = vi.fn();
+const unassignSeatsOverPurchasedCapacityMock = vi.fn();
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
@@ -30,6 +31,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     ...actual,
     autoAssignSeatsOnPaidSubscribe: (...args: unknown[]) =>
       autoAssignSeatsOnPaidSubscribeMock(...args),
+    unassignSeatsOverPurchasedCapacity: (...args: unknown[]) =>
+      unassignSeatsOverPurchasedCapacityMock(...args),
     transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       transitionToNextLocalFreeSubscriptionPeriodMock(...args),
   };
@@ -59,6 +62,7 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     organizationFindUniqueMock.mockResolvedValue(null);
     memberAssignedCountMock.mockResolvedValue(0);
     autoAssignSeatsOnPaidSubscribeMock.mockResolvedValue(0);
+    unassignSeatsOverPurchasedCapacityMock.mockResolvedValue(0);
   });
 
   it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
@@ -161,6 +165,11 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     });
 
     expect(autoAssignSeatsOnPaidSubscribeMock).not.toHaveBeenCalled();
+    expect(unassignSeatsOverPurchasedCapacityMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
   });
 
   it("does not cancel local free rows for non-active local subscription statuses", async () => {
@@ -203,6 +212,7 @@ describe("handleCheckoutSessionCompletedEvent", () => {
     organizationFindUniqueMock.mockResolvedValue({ id: "org-1" });
     memberAssignedCountMock.mockResolvedValue(0);
     autoAssignSeatsOnPaidSubscribeMock.mockResolvedValue(2);
+    unassignSeatsOverPurchasedCapacityMock.mockResolvedValue(0);
     getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
       id: "sub_local_paid",
       plan: "pro",

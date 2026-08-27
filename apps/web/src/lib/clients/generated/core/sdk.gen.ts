@@ -2191,7 +2191,7 @@ export const getOrganizationsByIdSubscription = <ThrowOnError extends boolean = 
 });
 
 /**
- * Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`); local free subscriptions only update the stored seat count. Seats cannot drop below the number of currently assigned members.
+ * Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`); local free subscriptions only update the stored seat count. Purchased seats must be at least 1 and may be lower than the current assigned or member count.
  */
 export const putOrganizationsByIdSubscriptionSeats = <ThrowOnError extends boolean = false>(options: Options<PutOrganizationsByIdSubscriptionSeatsData, ThrowOnError>): RequestResult<PutOrganizationsByIdSubscriptionSeatsResponses, PutOrganizationsByIdSubscriptionSeatsErrors, ThrowOnError> => (options.client ?? client).put<PutOrganizationsByIdSubscriptionSeatsResponses, PutOrganizationsByIdSubscriptionSeatsErrors, ThrowOnError>({
     responseTransformer: putOrganizationsByIdSubscriptionSeatsResponseTransformer,

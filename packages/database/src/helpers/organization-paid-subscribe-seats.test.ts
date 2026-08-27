@@ -4,7 +4,10 @@ import { describe, it, vi } from "vitest";
 import { memberRepository } from "../repositories/member.repository.js";
 import { hasAssignedOrganizationSeat } from "./credit-bucket-scope.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
-import { autoAssignSeatsOnPaidSubscribe } from "./organization-paid-subscribe-seats.js";
+import {
+  autoAssignSeatsOnPaidSubscribe,
+  unassignSeatsOverPurchasedCapacity,
+} from "./organization-paid-subscribe-seats.js";
 
 vi.mock("./organization-billing-plan.js", () => ({
   resolveOrganizationBillingPlan: vi.fn(),
@@ -175,5 +178,106 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
       await hasAssignedOrganizationSeat("m-overflow", "org-1", {} as never),
       false,
     );
+  });
+});
+
+describe("unassignSeatsOverPurchasedCapacity", () => {
+  it("unassigns the newest seated members until assigned matches purchased seats", async () => {
+    const updateMock = vi.fn();
+    const tx = {
+      member: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "m-oldest",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+          {
+            id: "m-middle",
+            createdAt: new Date("2026-02-01T00:00:00.000Z"),
+            seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+          {
+            id: "m-newest",
+            createdAt: new Date("2026-03-01T00:00:00.000Z"),
+            seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ]),
+        update: updateMock,
+      },
+    };
+
+    const unassigned = await unassignSeatsOverPurchasedCapacity(
+      "org-1",
+      1,
+      tx as never,
+    );
+
+    assert.equal(unassigned, 2);
+    assert.deepEqual(
+      updateMock.mock.calls.map(
+        (call: [{ where: { id: string }; data: { seatAssignedAt: null } }]) =>
+          call[0].where.id,
+      ),
+      ["m-newest", "m-middle"],
+    );
+    assert.equal(updateMock.mock.calls[0]?.[0].data.seatAssignedAt, null);
+  });
+
+  it("does not keep a newer owner over an older seated member", async () => {
+    const updateMock = vi.fn();
+    const tx = {
+      member: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "m-old-member",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            role: "member",
+            seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+          {
+            id: "m-new-owner",
+            createdAt: new Date("2026-03-01T00:00:00.000Z"),
+            role: "owner",
+            seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ]),
+        update: updateMock,
+      },
+    };
+
+    const unassigned = await unassignSeatsOverPurchasedCapacity(
+      "org-1",
+      1,
+      tx as never,
+    );
+
+    assert.equal(unassigned, 1);
+    assert.equal(updateMock.mock.calls[0]?.[0].where.id, "m-new-owner");
+  });
+
+  it("does nothing when assigned seats already fit purchased capacity", async () => {
+    const updateMock = vi.fn();
+    const tx = {
+      member: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "m-1",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+          },
+        ]),
+        update: updateMock,
+      },
+    };
+
+    const unassigned = await unassignSeatsOverPurchasedCapacity(
+      "org-1",
+      5,
+      tx as never,
+    );
+
+    assert.equal(unassigned, 0);
+    assert.equal(updateMock.mock.calls.length, 0);
   });
 });

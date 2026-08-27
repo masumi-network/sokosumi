@@ -55,3 +55,50 @@ export async function autoAssignSeatsOnPaidSubscribe(
 
   return newlyAssigned;
 }
+
+export async function unassignSeatsOverPurchasedCapacity(
+  organizationId: string,
+  purchasedSeats: number | null | undefined,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const capacity = resolvePurchasedSeats(purchasedSeats);
+  const seated = await tx.member.findMany({
+    where: {
+      organizationId,
+      seatAssignedAt: {
+        not: null,
+      },
+    },
+    select: {
+      createdAt: true,
+      id: true,
+      seatAssignedAt: true,
+    },
+  });
+
+  const assigned = seated.filter((member) => member.seatAssignedAt != null);
+  const overflowCount = assigned.length - capacity;
+  if (overflowCount <= 0) {
+    return 0;
+  }
+
+  const overflow = assigned
+    .toSorted((left, right) => {
+      const createdAtDelta =
+        right.createdAt.getTime() - left.createdAt.getTime();
+      if (createdAtDelta !== 0) {
+        return createdAtDelta;
+      }
+      return right.id.localeCompare(left.id);
+    })
+    .slice(0, overflowCount);
+
+  for (const member of overflow) {
+    await tx.member.update({
+      where: { id: member.id },
+      data: { seatAssignedAt: null },
+    });
+  }
+
+  return overflow.length;
+}

@@ -17,7 +17,6 @@ const {
   memberFindUniqueMock,
   assertOrganizationSubscriptionChangeAllowedMock,
   resolveActiveSubscriptionByReferenceIdMock,
-  getAssignedMemberCountMock,
   subscriptionUpdateMock,
   transactionMock,
   retrieveSubscriptionWithItemsMock,
@@ -27,7 +26,6 @@ const {
   memberFindUniqueMock: vi.fn(),
   assertOrganizationSubscriptionChangeAllowedMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
-  getAssignedMemberCountMock: vi.fn(),
   subscriptionUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
@@ -63,10 +61,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 });
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getAssignedMemberCount: (...args: unknown[]) =>
-      getAssignedMemberCountMock(...args),
-  },
   subscriptionRepository: {
     resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
       resolveActiveSubscriptionByReferenceIdMock(...args),
@@ -133,7 +127,14 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       async (callback: (tx: unknown) => unknown) =>
         callback({
           organization: { findUnique: organizationFindUniqueMock },
-          member: { findUnique: memberFindUniqueMock },
+          member: {
+            findMany: vi.fn().mockResolvedValue([]),
+            findUnique: memberFindUniqueMock,
+            update: vi.fn(),
+          },
+          subscription: {
+            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
+          },
         }),
     );
     assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
@@ -145,7 +146,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       seats: 2,
       stripeSubscriptionId: "sub_stripe_1",
     });
-    getAssignedMemberCountMock.mockResolvedValue(2);
     retrieveSubscriptionWithItemsMock.mockResolvedValue({
       items: { data: [{ id: "si_1" }] },
     });
@@ -205,9 +205,8 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when decreasing seats below the assigned member count", async () => {
+  it("allows decreasing purchased seats below the assigned member count", async () => {
     setMembership("owner");
-    getAssignedMemberCountMock.mockResolvedValue(4);
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       id: "sub-row-1",
       plan: "starter",
@@ -216,13 +215,19 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     });
 
     const response = await updateSeats("org_123", 3);
+    const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(await response.text()).toContain(
-      "Purchased seats (3) must be at least 4 to cover all assigned members",
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ seats: 3 });
+    expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      3,
     );
-    expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
-    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub-row-1" },
+      data: { seats: 3 },
+    });
   });
 
   it("returns the current seats without touching Stripe when unchanged", async () => {
@@ -233,7 +238,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       seats: 4,
       stripeSubscriptionId: "sub_stripe_1",
     });
-    getAssignedMemberCountMock.mockResolvedValue(2);
 
     const response = await updateSeats("org_123", 4);
     const body = await response.json();

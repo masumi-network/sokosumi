@@ -525,7 +525,6 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
         currentPlan: "free",
         currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
