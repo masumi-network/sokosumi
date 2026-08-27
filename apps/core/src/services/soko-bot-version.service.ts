@@ -181,11 +181,20 @@ export async function updateAuthoredVersion(
 }
 
 export async function archiveAuthoredVersion(slug: string): Promise<void> {
-  const row = await prisma.sokoBotAuthoredVersion.findFirst({
-    where: { slug, archivedAt: null },
-    select: { id: true },
-  });
+  const [row, setting] = await Promise.all([
+    prisma.sokoBotAuthoredVersion.findFirst({
+      where: { slug, archivedAt: null },
+      select: { id: true },
+    }),
+    prisma.sokoBotSetting.findUnique({
+      where: { id: "singleton" },
+      select: { defaultVersionId: true },
+    }),
+  ]);
   if (!row) throw notFound("Version not found");
+  if (setting?.defaultVersionId === slug) {
+    throw conflict("Promote another version before archiving this default");
+  }
   await prisma.sokoBotAuthoredVersion.update({
     where: { id: row.id },
     data: { archivedAt: new Date() },

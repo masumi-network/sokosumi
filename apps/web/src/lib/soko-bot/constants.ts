@@ -2,6 +2,7 @@ export const SOKO_BOT_ROUTE = "/personal-assistant";
 /** Team overview: everyone in the workspace and their Soko Bots. */
 export const SOKO_BOTS_ROUTE = "/soko-bots";
 export const ADMIN_SOKO_BOTS_ROUTE = "/admin/soko-bots";
+export const ADMIN_SOKO_BOT_VERSIONS_ROUTE = `${ADMIN_SOKO_BOTS_ROUTE}/versions`;
 
 /** Operator actions accepted by Core `POST /admin/soko-bots/{id}/actions`. */
 export const ADMIN_SOKO_BOT_ACTIONS = [

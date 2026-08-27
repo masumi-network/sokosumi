@@ -12,10 +12,16 @@ const { coreMock, MockCoreApiRequestError } = vi.hoisted(() => {
   }
   return {
     coreMock: {
+      archiveAdminSokoBotVersion: vi.fn(),
+      createAdminSokoBotVersion: vi.fn(),
       listAdminSokoBots: vi.fn(),
+      listAdminSokoBotGatewayModels: vi.fn(),
+      listAdminSokoBotVersions: vi.fn(),
       getAdminSokoBot: vi.fn(),
       getAdminSokoBotQuality: vi.fn(),
       performAdminSokoBotAction: vi.fn(),
+      promoteAdminSokoBotVersion: vi.fn(),
+      updateAdminSokoBotVersion: vi.fn(),
     },
     MockCoreApiRequestError,
   };
@@ -59,6 +65,102 @@ describe("adminSokoBotService", () => {
     expect(coreMock.getAdminSokoBotQuality).toHaveBeenCalledWith({
       versionId: "test-v2",
     });
+  });
+
+  it("loads the authored-version catalog and gateway models", async () => {
+    const catalog = {
+      versions: [],
+      defaultVersionId: "v11",
+      availableCapabilities: ["tasks.read"],
+      availableSkills: [
+        {
+          id: "project-manager",
+          name: "Project manager",
+          description: "Plans and follows up on work.",
+          installed: false,
+        },
+      ],
+    };
+    const models = {
+      models: [
+        {
+          id: "anthropic/claude-sonnet-4.5",
+          name: "Claude Sonnet 4.5",
+          regions: ["eu", "us"],
+        },
+      ],
+    };
+    coreMock.listAdminSokoBotVersions.mockResolvedValue({ data: catalog });
+    coreMock.listAdminSokoBotGatewayModels.mockResolvedValue({ data: models });
+
+    await expect(adminSokoBotService.listVersions()).resolves.toEqual(catalog);
+    await expect(adminSokoBotService.listGatewayModels()).resolves.toEqual(
+      models,
+    );
+  });
+
+  it("preserves every authored-version field on create and update", async () => {
+    const input = {
+      slug: "v12-operator",
+      name: "Operator",
+      summary: "Handles complex work.",
+      model: "anthropic/claude-sonnet-4.5",
+      inferenceRegion: "eu" as const,
+      systemPrompt: "You are the operator.",
+      skills: ["project-manager"],
+      capabilities: ["tasks.read", "tasks.write"],
+    };
+    const detail = {
+      id: input.slug,
+      name: input.name,
+      createdAt: "2026-08-27",
+      summary: input.summary,
+      model: input.model,
+      inferenceRegion: input.inferenceRegion,
+      systemPrompt: input.systemPrompt,
+      skills: input.skills,
+      capabilities: input.capabilities,
+      authored: true,
+      isDefault: false,
+    };
+    coreMock.createAdminSokoBotVersion.mockResolvedValue({ data: detail });
+    coreMock.updateAdminSokoBotVersion.mockResolvedValue({ data: detail });
+
+    await expect(adminSokoBotService.createVersion(input)).resolves.toEqual(
+      detail,
+    );
+    expect(coreMock.createAdminSokoBotVersion).toHaveBeenCalledWith(input);
+
+    const { slug, ...update } = input;
+    await expect(
+      adminSokoBotService.updateVersion(slug, update),
+    ).resolves.toEqual(detail);
+    expect(coreMock.updateAdminSokoBotVersion).toHaveBeenCalledWith(
+      slug,
+      update,
+    );
+  });
+
+  it("archives and promotes the requested authored version", async () => {
+    coreMock.archiveAdminSokoBotVersion.mockResolvedValue({
+      data: { archived: true },
+    });
+    coreMock.promoteAdminSokoBotVersion.mockResolvedValue({
+      data: { defaultVersionId: "v12-operator" },
+    });
+
+    await expect(
+      adminSokoBotService.archiveVersion("v12-operator"),
+    ).resolves.toBeUndefined();
+    await expect(
+      adminSokoBotService.promoteVersion("v12-operator"),
+    ).resolves.toEqual({ defaultVersionId: "v12-operator" });
+    expect(coreMock.archiveAdminSokoBotVersion).toHaveBeenCalledWith(
+      "v12-operator",
+    );
+    expect(coreMock.promoteAdminSokoBotVersion).toHaveBeenCalledWith(
+      "v12-operator",
+    );
   });
 
   it("returns null for an unknown bot (404) and rethrows other errors", async () => {

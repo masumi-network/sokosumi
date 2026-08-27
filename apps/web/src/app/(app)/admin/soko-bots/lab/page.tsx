@@ -19,9 +19,10 @@ export const metadata: Metadata = {
  * per version for the quality overview.
  */
 export default async function AdminSokoBotLabPage() {
-  const [t, bot] = await Promise.all([
+  const [t, bot, versions] = await Promise.all([
     getTranslations("App.Admin.SokoBots.Lab"),
     sokoBotService.getMine(),
+    sokoBotService.listVersions(),
   ]);
 
   return (
@@ -35,7 +36,10 @@ export default async function AdminSokoBotLabPage() {
         </div>
         {bot ? (
           <section className="bg-background rounded-lg border p-4">
-            <ScenarioLab versionId={bot.versionId ?? null} />
+            <ScenarioLab
+              versionId={bot.versionId ?? null}
+              versions={versions}
+            />
           </section>
         ) : (
           <Alert>

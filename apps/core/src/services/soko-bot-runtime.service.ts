@@ -14,7 +14,6 @@ import {
   containsSokoBotSensitiveMaterial,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
-  getSokoBotVersion,
   hasSokoBotNegatedMutationIntent,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,

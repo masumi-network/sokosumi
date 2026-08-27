@@ -84,10 +84,7 @@ export async function getSokoBotQualityOverview(
     ...SOKO_BOT_VERSIONS.map((version) => version.id),
     ...recentTurns.map((turn) => turn.versionId ?? "unknown"),
   ]);
-  const selectedVersionId =
-    options.versionId && versionIds.has(options.versionId)
-      ? options.versionId
-      : null;
+  const selectedVersionId = options.versionId ?? null;
   const panelTurns = selectedVersionId
     ? recentTurns.filter(
         (turn) => (turn.versionId ?? "unknown") === selectedVersionId,

@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createMock, findFirstMock, findManyMock, findUniqueMock, updateMock } =
-  vi.hoisted(() => ({
-    createMock: vi.fn(),
-    findFirstMock: vi.fn(),
-    findManyMock: vi.fn(),
-    findUniqueMock: vi.fn(),
-    updateMock: vi.fn(),
-  }));
+const {
+  createMock,
+  findFirstMock,
+  findManyMock,
+  findUniqueMock,
+  settingFindUniqueMock,
+  updateMock,
+} = vi.hoisted(() => ({
+  createMock: vi.fn(),
+  findFirstMock: vi.fn(),
+  findManyMock: vi.fn(),
+  findUniqueMock: vi.fn(),
+  settingFindUniqueMock: vi.fn(),
+  updateMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -18,10 +25,14 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: findUniqueMock,
       update: updateMock,
     },
+    sokoBotSetting: {
+      findUnique: settingFindUniqueMock,
+    },
   },
 }));
 
 import {
+  archiveAuthoredVersion,
   createAuthoredVersion,
   isKnownSokoBotVersionId,
   listSokoBotVersions,
@@ -53,6 +64,7 @@ describe("Soko Bot version resolution", () => {
     findFirstMock.mockResolvedValue(null);
     findManyMock.mockResolvedValue([]);
     findUniqueMock.mockResolvedValue(null);
+    settingFindUniqueMock.mockResolvedValue(null);
   });
 
   it("resolves a built-in without touching the database", async () => {
@@ -139,5 +151,17 @@ describe("Soko Bot version resolution", () => {
     expect(await isKnownSokoBotVersionId("inbox-tuned")).toBe(true);
     findFirstMock.mockResolvedValue(null);
     expect(await isKnownSokoBotVersionId("nope")).toBe(false);
+  });
+
+  it("refuses to archive the version currently promoted for new bots", async () => {
+    findFirstMock.mockResolvedValue(authoredRow());
+    settingFindUniqueMock.mockResolvedValue({
+      defaultVersionId: "inbox-tuned",
+    });
+
+    await expect(archiveAuthoredVersion("inbox-tuned")).rejects.toThrow(
+      /Promote another version/,
+    );
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

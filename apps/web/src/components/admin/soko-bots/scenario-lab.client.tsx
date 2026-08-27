@@ -9,13 +9,13 @@ import {
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import { parseAsString, useQueryState } from "nuqs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
-  listSokoBotVersionsAction,
   setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
@@ -130,28 +130,66 @@ async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
  */
 export function ScenarioLab({
   versionId,
+  versions,
   onTurnFinished,
 }: {
   versionId: string | null;
+  versions: SokoBotVersion[];
   onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Lab");
   const [history, setHistory] = useState<History>({});
-  const [versions, setVersions] = useState<SokoBotVersion[]>([]);
   const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
   const activeVersionRef = useRef<string | null>(versionId);
+  const [requestedVersionId, setRequestedVersionId] = useQueryState(
+    "version",
+    parseAsString.withOptions({ history: "replace" }),
+  );
   const [switching, setSwitching] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const current = versions.find((v) => v.id === activeVersion) ?? null;
 
   useEffect(() => {
-    void listSokoBotVersionsAction({}).then((result) => {
-      if (result.ok) {
-        setVersions(result.value);
-        setActiveVersion((current) => current ?? result.value[0]?.id ?? null);
-      }
-    });
-  }, []);
+    let cancelled = false;
+    const fallbackVersionId = versionId ?? versions[0]?.id ?? null;
+    const requested = versions.some(
+      (version) => version.id === requestedVersionId,
+    )
+      ? requestedVersionId
+      : null;
+    if (requestedVersionId && !requested) {
+      void setRequestedVersionId(null);
+    }
+    if (!requested || requested === activeVersionRef.current) {
+      activeVersionRef.current = requested ?? fallbackVersionId;
+      setActiveVersion(requested ?? fallbackVersionId);
+      return;
+    }
+
+    setSwitching(true);
+    void setSokoBotVersionAction({ versionId: requested }).then(
+      (switchResult) => {
+        if (cancelled) return;
+        setSwitching(false);
+        if (!switchResult.ok) {
+          void setRequestedVersionId(null);
+          return;
+        }
+        activeVersionRef.current = requested;
+        setActiveVersion(requested);
+        onTurnFinished?.();
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    onTurnFinished,
+    requestedVersionId,
+    setRequestedVersionId,
+    versionId,
+    versions,
+  ]);
 
   async function chooseVersion(id: string) {
     setSwitching(true);
@@ -160,6 +198,7 @@ export function ScenarioLab({
     if (result.ok) {
       activeVersionRef.current = id;
       setActiveVersion(id);
+      await setRequestedVersionId(id);
       onTurnFinished?.();
     }
   }
@@ -308,7 +347,11 @@ export function ScenarioLab({
                 : "—"}
             </dd>
             <dt className="text-muted-foreground">{t("overviewTools")}</dt>
-            <dd>{current.capabilities?.join(", ") ?? t("allTools")}</dd>
+            <dd>
+              {current.capabilities?.length
+                ? current.capabilities.join(", ")
+                : t("allTools")}
+            </dd>
             <dt className="text-muted-foreground">{t("overviewPrompt")}</dt>
             <dd>
               <button

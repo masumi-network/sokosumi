@@ -13,7 +13,6 @@ import {
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
   SOKO_BOT_SYSTEM_SCHEDULES,
-  SOKO_BOT_VERSIONS,
   type SokoBotLabTurn,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";

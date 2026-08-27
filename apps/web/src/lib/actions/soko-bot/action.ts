@@ -26,7 +26,6 @@ import {
   type SokoBotSchedule,
   type SokoBotSkillBrowse,
   type SokoBotSkillSearchResult,
-  type SokoBotVersion,
   type StartSokoBotTurnResponse,
 } from "@/lib/clients/generated/core";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
@@ -280,17 +279,6 @@ export const listSokoBotAvatarsAction = withSession<
 interface ClaimAvatarParams extends AuthenticatedRequest {
   avatarId: unknown;
 }
-
-export const listSokoBotVersionsAction = withSession<
-  AuthenticatedRequest,
-  ActionResultDto<SokoBotVersion[], ActionError>
->(async () => {
-  try {
-    return toActionResult(ok(await sokoBotService.listVersions()));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
 
 interface SetVersionParams extends AuthenticatedRequest {
   versionId: unknown;

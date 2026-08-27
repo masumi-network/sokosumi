@@ -210,17 +210,6 @@ const detailRoute = createRoute({
   },
 });
 
-app.openapi(detailRoute, async (c) => {
-  try {
-    const detail = await sokoBotControlPlane.getForAdmin(
-      c.req.valid("param").sokoBotId,
-    );
-    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
-  } catch (error) {
-    mapError(error);
-  }
-});
-
 const actionRoute = createRoute({
   method: "post",
   path: "/{sokoBotId}/actions",
@@ -245,52 +234,6 @@ const actionRoute = createRoute({
     409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
-});
-
-app.openapi(actionRoute, async (c) => {
-  const operator = requireAdminAuthContext(c.var.authContext);
-  try {
-    const action = c.req.valid("json");
-    const detail = await sokoBotControlPlane.performAdminAction({
-      sokoBotId: c.req.valid("param").sokoBotId,
-      operatorId: operator.userId,
-      ...action,
-      requestId: c.var.requestId,
-      traceId: traceIdFromTraceparent(c.req.header("traceparent")),
-    });
-    if (
-      action.action === "RETRY_LAST_FAILED" ||
-      action.action === "RETRY_SCHEDULE_RUN"
-    ) {
-      const scheduleRetry =
-        action.action === "RETRY_SCHEDULE_RUN"
-          ? detail.schedules
-              .flatMap((schedule) => schedule.runs)
-              .find((run) => run.id === action.targetId)?.turnId
-          : null;
-      const retry = detail.turns.find(
-        (turn) =>
-          (scheduleRetry ? turn.id === scheduleRetry : true) &&
-          turn.source === "ADMIN_RETRY" &&
-          (turn.status === "STARTING" || turn.status === "RUNNING"),
-      );
-      if (retry) {
-        waitUntil(
-          sokoBotControlPlane
-            .reconcileTurn(retry.id, undefined, retry.leaseToken ?? undefined)
-            .catch((error) => {
-              console.error("Admin Soko Bot retry reconciliation failed", {
-                turnId: retry.id,
-                error: error instanceof Error ? error.message : "unknown",
-              });
-            }),
-        );
-      }
-    }
-    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
-  } catch (error) {
-    mapError(error);
-  }
 });
 
 // ---------------------------------------------------------------------------
@@ -446,6 +389,7 @@ const archiveVersionRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -477,6 +421,63 @@ app.openapi(promoteVersionRoute, async (c) => {
   const { slug } = c.req.valid("param");
   await promoteSokoBotVersion(slug);
   return ok(c, { defaultVersionId: slug });
+});
+
+app.openapi(detailRoute, async (c) => {
+  try {
+    const detail = await sokoBotControlPlane.getForAdmin(
+      c.req.valid("param").sokoBotId,
+    );
+    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
+  } catch (error) {
+    mapError(error);
+  }
+});
+
+app.openapi(actionRoute, async (c) => {
+  const operator = requireAdminAuthContext(c.var.authContext);
+  try {
+    const action = c.req.valid("json");
+    const detail = await sokoBotControlPlane.performAdminAction({
+      sokoBotId: c.req.valid("param").sokoBotId,
+      operatorId: operator.userId,
+      ...action,
+      requestId: c.var.requestId,
+      traceId: traceIdFromTraceparent(c.req.header("traceparent")),
+    });
+    if (
+      action.action === "RETRY_LAST_FAILED" ||
+      action.action === "RETRY_SCHEDULE_RUN"
+    ) {
+      const scheduleRetry =
+        action.action === "RETRY_SCHEDULE_RUN"
+          ? detail.schedules
+              .flatMap((schedule) => schedule.runs)
+              .find((run) => run.id === action.targetId)?.turnId
+          : null;
+      const retry = detail.turns.find(
+        (turn) =>
+          (scheduleRetry ? turn.id === scheduleRetry : true) &&
+          turn.source === "ADMIN_RETRY" &&
+          (turn.status === "STARTING" || turn.status === "RUNNING"),
+      );
+      if (retry) {
+        waitUntil(
+          sokoBotControlPlane
+            .reconcileTurn(retry.id, undefined, retry.leaseToken ?? undefined)
+            .catch((error) => {
+              console.error("Admin Soko Bot retry reconciliation failed", {
+                turnId: retry.id,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+            }),
+        );
+      }
+    }
+    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
+  } catch (error) {
+    mapError(error);
+  }
 });
 
 export default app;

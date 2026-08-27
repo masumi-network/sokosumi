@@ -1,11 +1,6 @@
 import { ComposioError } from "@composio/core";
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  composeSystemPrompt,
-  getSokoBotSkill,
-  SOKO_BOT_SKILLS,
-  SOKO_BOT_VERSIONS,
-} from "@sokosumi/soko-bot";
+import { composeSystemPrompt, SOKO_BOT_SKILLS } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";

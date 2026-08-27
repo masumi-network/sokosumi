@@ -1025,6 +1025,229 @@ export const AdminSokoBotQualitySchema = {
     ]
 } as const;
 
+export const SokoBotVersionListSchema = {
+    type: 'object',
+    properties: {
+        versions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotVersionDetail'
+            }
+        },
+        defaultVersionId: {
+            type: 'string'
+        },
+        availableCapabilities: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        availableSkills: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    installed: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'description',
+                    'installed'
+                ]
+            }
+        }
+    },
+    required: [
+        'versions',
+        'defaultVersionId',
+        'availableCapabilities',
+        'availableSkills'
+    ]
+} as const;
+
+export const SokoBotVersionDetailSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        summary: {
+            type: 'string'
+        },
+        model: {
+            type: 'string'
+        },
+        inferenceRegion: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        systemPrompt: {
+            type: 'string'
+        },
+        skills: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        capabilities: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        authored: {
+            type: 'boolean'
+        },
+        isDefault: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'createdAt',
+        'summary',
+        'model',
+        'inferenceRegion',
+        'systemPrompt',
+        'skills',
+        'capabilities',
+        'authored',
+        'isDefault'
+    ]
+} as const;
+
+export const SokoBotGatewayModelListSchema = {
+    type: 'object',
+    properties: {
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotGatewayModel'
+            }
+        }
+    },
+    required: [
+        'models'
+    ]
+} as const;
+
+export const SokoBotGatewayModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        regions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'regions'
+    ]
+} as const;
+
+export const SokoBotVersionWriteSchema = {
+    type: 'object',
+    properties: {
+        slug: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 41,
+            pattern: '^[a-z0-9][a-z0-9-]*$'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        summary: {
+            type: 'string',
+            maxLength: 2000,
+            default: ''
+        },
+        model: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        inferenceRegion: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'eu',
+                'us',
+                null
+            ],
+            default: null
+        },
+        systemPrompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 60000
+        },
+        skills: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 120
+            },
+            maxItems: 50,
+            default: []
+        },
+        capabilities: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 80
+            },
+            maxItems: 60,
+            default: []
+        }
+    },
+    required: [
+        'slug',
+        'name',
+        'model',
+        'systemPrompt'
+    ]
+} as const;
+
 export const AdminSokoBotDetailSchema = {
     allOf: [
         {
@@ -2550,229 +2773,6 @@ export const AdminSokoBotActionRequestSchema = {
         'reason'
     ],
     additionalProperties: false
-} as const;
-
-export const SokoBotVersionListSchema = {
-    type: 'object',
-    properties: {
-        versions: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/SokoBotVersionDetail'
-            }
-        },
-        defaultVersionId: {
-            type: 'string'
-        },
-        availableCapabilities: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
-        },
-        availableSkills: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    id: {
-                        type: 'string'
-                    },
-                    name: {
-                        type: 'string'
-                    },
-                    description: {
-                        type: 'string'
-                    },
-                    installed: {
-                        type: 'boolean'
-                    }
-                },
-                required: [
-                    'id',
-                    'name',
-                    'description',
-                    'installed'
-                ]
-            }
-        }
-    },
-    required: [
-        'versions',
-        'defaultVersionId',
-        'availableCapabilities',
-        'availableSkills'
-    ]
-} as const;
-
-export const SokoBotVersionDetailSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string'
-        },
-        summary: {
-            type: 'string'
-        },
-        model: {
-            type: 'string'
-        },
-        inferenceRegion: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        systemPrompt: {
-            type: 'string'
-        },
-        skills: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
-        },
-        capabilities: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
-        },
-        authored: {
-            type: 'boolean'
-        },
-        isDefault: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'createdAt',
-        'summary',
-        'model',
-        'inferenceRegion',
-        'systemPrompt',
-        'skills',
-        'capabilities',
-        'authored',
-        'isDefault'
-    ]
-} as const;
-
-export const SokoBotGatewayModelListSchema = {
-    type: 'object',
-    properties: {
-        models: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/SokoBotGatewayModel'
-            }
-        }
-    },
-    required: [
-        'models'
-    ]
-} as const;
-
-export const SokoBotGatewayModelSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        regions: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'regions'
-    ]
-} as const;
-
-export const SokoBotVersionWriteSchema = {
-    type: 'object',
-    properties: {
-        slug: {
-            type: 'string',
-            minLength: 2,
-            maxLength: 41,
-            pattern: '^[a-z0-9][a-z0-9-]*$'
-        },
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 120
-        },
-        summary: {
-            type: 'string',
-            maxLength: 2000,
-            default: ''
-        },
-        model: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200
-        },
-        inferenceRegion: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'eu',
-                'us',
-                null
-            ],
-            default: null
-        },
-        systemPrompt: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 60000
-        },
-        skills: {
-            type: 'array',
-            items: {
-                type: 'string',
-                maxLength: 120
-            },
-            maxItems: 50,
-            default: []
-        },
-        capabilities: {
-            type: 'array',
-            items: {
-                type: 'string',
-                maxLength: 80
-            },
-            maxItems: 60,
-            default: []
-        }
-    },
-    required: [
-        'slug',
-        'name',
-        'model',
-        'systemPrompt'
-    ]
 } as const;
 
 export const AdminUserOverviewItemSchema = {

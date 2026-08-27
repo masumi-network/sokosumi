@@ -6,6 +6,10 @@ import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
   AdminSokoBotQuality,
+  SokoBotGatewayModelList,
+  SokoBotVersionDetail,
+  SokoBotVersionList,
+  SokoBotVersionWrite,
 } from "@/lib/clients/generated/core";
 
 export interface ListAdminSokoBotsParams {
@@ -35,6 +39,40 @@ export const adminSokoBotService = {
     const response = await coreClient.getAdminSokoBotQuality({
       versionId: params.versionId,
     });
+    return response.data;
+  },
+
+  async listVersions(): Promise<SokoBotVersionList> {
+    const response = await coreClient.listAdminSokoBotVersions();
+    return response.data;
+  },
+
+  async listGatewayModels(): Promise<SokoBotGatewayModelList> {
+    const response = await coreClient.listAdminSokoBotGatewayModels();
+    return response.data;
+  },
+
+  async createVersion(
+    input: SokoBotVersionWrite,
+  ): Promise<SokoBotVersionDetail> {
+    const response = await coreClient.createAdminSokoBotVersion(input);
+    return response.data;
+  },
+
+  async updateVersion(
+    slug: string,
+    input: Omit<SokoBotVersionWrite, "slug">,
+  ): Promise<SokoBotVersionDetail> {
+    const response = await coreClient.updateAdminSokoBotVersion(slug, input);
+    return response.data;
+  },
+
+  async archiveVersion(slug: string): Promise<void> {
+    await coreClient.archiveAdminSokoBotVersion(slug);
+  },
+
+  async promoteVersion(slug: string): Promise<{ defaultVersionId: string }> {
+    const response = await coreClient.promoteAdminSokoBotVersion(slug);
     return response.data;
   },
 

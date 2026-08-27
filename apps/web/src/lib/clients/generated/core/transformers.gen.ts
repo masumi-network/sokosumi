@@ -92,6 +92,36 @@ export const getAdminSokoBotQualityResponseTransformer = async (data: any): Prom
     return data;
 };
 
+export const listAdminSokoBotVersionsResponseTransformer = async (data: any): Promise<ListAdminSokoBotVersionsResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const createAdminSokoBotVersionResponseTransformer = async (data: any): Promise<CreateAdminSokoBotVersionResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const listAdminSokoBotGatewayModelsResponseTransformer = async (data: any): Promise<ListAdminSokoBotGatewayModelsResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const archiveAdminSokoBotVersionResponseTransformer = async (data: any): Promise<ArchiveAdminSokoBotVersionResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const updateAdminSokoBotVersionResponseTransformer = async (data: any): Promise<UpdateAdminSokoBotVersionResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const promoteAdminSokoBotVersionResponseTransformer = async (data: any): Promise<PromoteAdminSokoBotVersionResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
 const sokoBotMemorySchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     return data;
@@ -265,36 +295,6 @@ export const getAdminSokoBotResponseTransformer = async (data: any): Promise<Get
 
 export const performAdminSokoBotActionResponseTransformer = async (data: any): Promise<PerformAdminSokoBotActionResponse> => {
     data.data = adminSokoBotDetailSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const listAdminSokoBotVersionsResponseTransformer = async (data: any): Promise<ListAdminSokoBotVersionsResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const createAdminSokoBotVersionResponseTransformer = async (data: any): Promise<CreateAdminSokoBotVersionResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const listAdminSokoBotGatewayModelsResponseTransformer = async (data: any): Promise<ListAdminSokoBotGatewayModelsResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const archiveAdminSokoBotVersionResponseTransformer = async (data: any): Promise<ArchiveAdminSokoBotVersionResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const updateAdminSokoBotVersionResponseTransformer = async (data: any): Promise<UpdateAdminSokoBotVersionResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const promoteAdminSokoBotVersionResponseTransformer = async (data: any): Promise<PromoteAdminSokoBotVersionResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

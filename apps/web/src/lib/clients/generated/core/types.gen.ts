@@ -241,6 +241,53 @@ export type AdminSokoBotQuality = {
     }>;
 };
 
+export type SokoBotVersionList = {
+    versions: Array<SokoBotVersionDetail>;
+    defaultVersionId: string;
+    availableCapabilities: Array<string>;
+    availableSkills: Array<{
+        id: string;
+        name: string;
+        description: string;
+        installed: boolean;
+    }>;
+};
+
+export type SokoBotVersionDetail = {
+    id: string;
+    name: string;
+    createdAt: string;
+    summary: string;
+    model: string;
+    inferenceRegion: string | null;
+    systemPrompt: string;
+    skills: Array<string>;
+    capabilities: Array<string>;
+    authored: boolean;
+    isDefault: boolean;
+};
+
+export type SokoBotGatewayModelList = {
+    models: Array<SokoBotGatewayModel>;
+};
+
+export type SokoBotGatewayModel = {
+    id: string;
+    name: string | null;
+    regions: Array<string>;
+};
+
+export type SokoBotVersionWrite = {
+    slug: string;
+    name: string;
+    summary?: string;
+    model: string;
+    inferenceRegion?: 'eu' | 'us' | null;
+    systemPrompt: string;
+    skills?: Array<string>;
+    capabilities?: Array<string>;
+};
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -557,53 +604,6 @@ export type AdminSokoBotActionRequest = {
     action: 'PAUSE' | 'RESUME' | 'RESET_SESSION' | 'RESET_MEMORY' | 'RETRY_LAST_FAILED' | 'RETRY_SCHEDULE_RUN' | 'DISABLE_SCHEDULE';
     targetId?: string;
     reason: string;
-};
-
-export type SokoBotVersionList = {
-    versions: Array<SokoBotVersionDetail>;
-    defaultVersionId: string;
-    availableCapabilities: Array<string>;
-    availableSkills: Array<{
-        id: string;
-        name: string;
-        description: string;
-        installed: boolean;
-    }>;
-};
-
-export type SokoBotVersionDetail = {
-    id: string;
-    name: string;
-    createdAt: string;
-    summary: string;
-    model: string;
-    inferenceRegion: string | null;
-    systemPrompt: string;
-    skills: Array<string>;
-    capabilities: Array<string>;
-    authored: boolean;
-    isDefault: boolean;
-};
-
-export type SokoBotGatewayModelList = {
-    models: Array<SokoBotGatewayModel>;
-};
-
-export type SokoBotGatewayModel = {
-    id: string;
-    name: string | null;
-    regions: Array<string>;
-};
-
-export type SokoBotVersionWrite = {
-    slug: string;
-    name: string;
-    summary?: string;
-    model: string;
-    inferenceRegion?: 'eu' | 'us' | null;
-    systemPrompt: string;
-    skills?: Array<string>;
-    capabilities?: Array<string>;
 };
 
 export type AdminUserOverviewItem = {
@@ -5924,178 +5924,6 @@ export type GetAdminSokoBotQualityResponses = {
 
 export type GetAdminSokoBotQualityResponse = GetAdminSokoBotQualityResponses[keyof GetAdminSokoBotQualityResponses];
 
-export type GetAdminSokoBotData = {
-    body?: never;
-    path: {
-        sokoBotId: string;
-    };
-    query?: never;
-    url: '/admin/soko-bots/{sokoBotId}';
-};
-
-export type GetAdminSokoBotErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetAdminSokoBotError = GetAdminSokoBotErrors[keyof GetAdminSokoBotErrors];
-
-export type GetAdminSokoBotResponses = {
-    /**
-     * Soko Bot diagnostics
-     */
-    200: {
-        data: AdminSokoBotDetail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetAdminSokoBotResponse = GetAdminSokoBotResponses[keyof GetAdminSokoBotResponses];
-
-export type PerformAdminSokoBotActionData = {
-    body?: AdminSokoBotActionRequest;
-    path: {
-        sokoBotId: string;
-    };
-    query?: never;
-    url: '/admin/soko-bots/{sokoBotId}/actions';
-};
-
-export type PerformAdminSokoBotActionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PerformAdminSokoBotActionError = PerformAdminSokoBotActionErrors[keyof PerformAdminSokoBotActionErrors];
-
-export type PerformAdminSokoBotActionResponses = {
-    /**
-     * Updated Soko Bot diagnostics
-     */
-    200: {
-        data: AdminSokoBotDetail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
-
 export type ListAdminSokoBotVersionsData = {
     body?: never;
     path?: never;
@@ -6344,6 +6172,20 @@ export type ArchiveAdminSokoBotVersionErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ArchiveAdminSokoBotVersionError = ArchiveAdminSokoBotVersionErrors[keyof ArchiveAdminSokoBotVersionErrors];
@@ -6533,6 +6375,178 @@ export type PromoteAdminSokoBotVersionResponses = {
 };
 
 export type PromoteAdminSokoBotVersionResponse = PromoteAdminSokoBotVersionResponses[keyof PromoteAdminSokoBotVersionResponses];
+
+export type GetAdminSokoBotData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}';
+};
+
+export type GetAdminSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotError = GetAdminSokoBotErrors[keyof GetAdminSokoBotErrors];
+
+export type GetAdminSokoBotResponses = {
+    /**
+     * Soko Bot diagnostics
+     */
+    200: {
+        data: AdminSokoBotDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotResponse = GetAdminSokoBotResponses[keyof GetAdminSokoBotResponses];
+
+export type PerformAdminSokoBotActionData = {
+    body?: AdminSokoBotActionRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/actions';
+};
+
+export type PerformAdminSokoBotActionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PerformAdminSokoBotActionError = PerformAdminSokoBotActionErrors[keyof PerformAdminSokoBotActionErrors];
+
+export type PerformAdminSokoBotActionResponses = {
+    /**
+     * Updated Soko Bot diagnostics
+     */
+    200: {
+        data: AdminSokoBotDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
 
 export type ListAdminUsersData = {
     body?: never;

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  getSokoBotVersion,
   type IndexedRuntimeEvent,
   type RuntimeCancelInput,
   type RuntimeEvent,

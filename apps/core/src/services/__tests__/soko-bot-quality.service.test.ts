@@ -166,4 +166,21 @@ describe("getSokoBotQualityOverview", () => {
       quality.versions.find((version) => version.versionId === "test-v2"),
     ).toMatchObject({ turns: 1, avgScore: 1 });
   });
+
+  it("returns empty metrics for a requested version without recent turns", async () => {
+    turnFindManyMock.mockResolvedValue([turn({ versionId: "test-v1" })]);
+
+    const quality = await getSokoBotQualityOverview({
+      versionId: "new-authored-version",
+    });
+
+    expect(quality.overall).toEqual({ turns: 0, judged: 0, avgScore: null });
+    expect(quality.proactive).toMatchObject({
+      sent: 0,
+      actedOn: 0,
+      thumbsUp: 0,
+      thumbsDown: 0,
+    });
+    expect(quality.daily.every((day) => day.turns === 0)).toBe(true);
+  });
 });

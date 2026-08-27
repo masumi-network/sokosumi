@@ -89,22 +89,6 @@ export const getAdminSokoBotQuality = <ThrowOnError extends boolean = false>(opt
     ...options
 });
 
-export const getAdminSokoBot = <ThrowOnError extends boolean = false>(options: Options<GetAdminSokoBotData, ThrowOnError>): RequestResult<GetAdminSokoBotResponses, GetAdminSokoBotErrors, ThrowOnError> => (options.client ?? client).get<GetAdminSokoBotResponses, GetAdminSokoBotErrors, ThrowOnError>({
-    responseTransformer: getAdminSokoBotResponseTransformer,
-    url: '/admin/soko-bots/{sokoBotId}',
-    ...options
-});
-
-export const performAdminSokoBotAction = <ThrowOnError extends boolean = false>(options: Options<PerformAdminSokoBotActionData, ThrowOnError>): RequestResult<PerformAdminSokoBotActionResponses, PerformAdminSokoBotActionErrors, ThrowOnError> => (options.client ?? client).post<PerformAdminSokoBotActionResponses, PerformAdminSokoBotActionErrors, ThrowOnError>({
-    responseTransformer: performAdminSokoBotActionResponseTransformer,
-    url: '/admin/soko-bots/{sokoBotId}/actions',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
 export const listAdminSokoBotVersions = <ThrowOnError extends boolean = false>(options?: Options<ListAdminSokoBotVersionsData, ThrowOnError>): RequestResult<ListAdminSokoBotVersionsResponses, ListAdminSokoBotVersionsErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminSokoBotVersionsResponses, ListAdminSokoBotVersionsErrors, ThrowOnError>({
     responseTransformer: listAdminSokoBotVersionsResponseTransformer,
     url: '/admin/soko-bots/versions',
@@ -147,6 +131,22 @@ export const promoteAdminSokoBotVersion = <ThrowOnError extends boolean = false>
     responseTransformer: promoteAdminSokoBotVersionResponseTransformer,
     url: '/admin/soko-bots/versions/{slug}/promote',
     ...options
+});
+
+export const getAdminSokoBot = <ThrowOnError extends boolean = false>(options: Options<GetAdminSokoBotData, ThrowOnError>): RequestResult<GetAdminSokoBotResponses, GetAdminSokoBotErrors, ThrowOnError> => (options.client ?? client).get<GetAdminSokoBotResponses, GetAdminSokoBotErrors, ThrowOnError>({
+    responseTransformer: getAdminSokoBotResponseTransformer,
+    url: '/admin/soko-bots/{sokoBotId}',
+    ...options
+});
+
+export const performAdminSokoBotAction = <ThrowOnError extends boolean = false>(options: Options<PerformAdminSokoBotActionData, ThrowOnError>): RequestResult<PerformAdminSokoBotActionResponses, PerformAdminSokoBotActionErrors, ThrowOnError> => (options.client ?? client).post<PerformAdminSokoBotActionResponses, PerformAdminSokoBotActionErrors, ThrowOnError>({
+    responseTransformer: performAdminSokoBotActionResponseTransformer,
+    url: '/admin/soko-bots/{sokoBotId}/actions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

@@ -83,12 +83,14 @@ import type {
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
   ResolveSokoBotDecisionRequest,
+  SokoBotVersionWrite,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
+  archiveAdminSokoBotVersion as coreArchiveAdminSokoBotVersion,
   archiveMySokoBot as coreArchiveMySokoBot,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   assignCoworkerDeveloper as coreAssignCoworkerDeveloper,
@@ -99,6 +101,7 @@ import {
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
+  createAdminSokoBotVersion as coreCreateAdminSokoBotVersion,
   createAdminVendor as coreCreateAdminVendor,
   createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
@@ -231,7 +234,9 @@ import {
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
+  listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
   listAdminSokoBots as coreListAdminSokoBots,
+  listAdminSokoBotVersions as coreListAdminSokoBotVersions,
   listAdminTasks as coreListAdminTasks,
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
@@ -327,6 +332,7 @@ import {
   postVendorsByIdFiles as corePostVendorsByIdFiles,
   postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
+  promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -355,6 +361,7 @@ import {
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  updateAdminSokoBotVersion as coreUpdateAdminSokoBotVersion,
   updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
   updateMySokoBotProactive as coreUpdateMySokoBotProactive,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
@@ -4054,6 +4061,59 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listAdminSokoBotVersions() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreListAdminSokoBotVersions({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot versions",
+    );
+  }
+
+  async function listAdminSokoBotGatewayModels() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminSokoBotGatewayModels({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot gateway models",
+    );
+  }
+
+  async function createAdminSokoBotVersion(body: SokoBotVersionWrite) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreCreateAdminSokoBotVersion({ client, body }),
+      "Failed to create Soko Bot version",
+    );
+  }
+
+  async function updateAdminSokoBotVersion(
+    slug: string,
+    body: Omit<SokoBotVersionWrite, "slug">,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUpdateAdminSokoBotVersion({ client, path: { slug }, body }),
+      "Failed to update Soko Bot version",
+    );
+  }
+
+  async function archiveAdminSokoBotVersion(slug: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreArchiveAdminSokoBotVersion({ client, path: { slug } }),
+      "Failed to archive Soko Bot version",
+    );
+  }
+
+  async function promoteAdminSokoBotVersion(slug: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePromoteAdminSokoBotVersion({ client, path: { slug } }),
+      "Failed to promote Soko Bot version",
+    );
+  }
+
   async function createMyFileUploadSession(
     body: NonNullable<PostUsersByIdFilesData["body"]>,
   ) {
@@ -4734,6 +4794,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteMySokoBotSchedule,
     resolveMySokoBotDecision,
     listAdminSokoBots,
+    listAdminSokoBotVersions,
+    listAdminSokoBotGatewayModels,
+    createAdminSokoBotVersion,
+    updateAdminSokoBotVersion,
+    archiveAdminSokoBotVersion,
+    promoteAdminSokoBotVersion,
     getAdminSokoBot,
     getAdminSokoBotQuality,
     performAdminSokoBotAction,
