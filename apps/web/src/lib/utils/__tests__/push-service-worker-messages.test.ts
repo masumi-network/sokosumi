@@ -40,7 +40,8 @@ const CHAT_MESSAGE_KEYS = Object.keys(
  */
 function localeBlock(source: string, locale: string): string {
   return (
-    source.match(new RegExp(`\n  ${locale}: \{([\\s\\S]*?)\n  \\},`))?.[1] ?? ""
+    source.match(new RegExp(`\n  ${locale}: \\{([\\s\\S]*?)\n  \\},`))?.[1] ??
+    ""
   );
 }
 
