@@ -5524,7 +5524,12 @@
       "filterAll": "Todos",
       "filterCoworkerLabel": "Agente",
       "filterProjectLabel": "Proyecto",
-      "filterTaskLabel": "Tarea"
+      "filterTaskLabel": "Tarea",
+      "recentsTab": "Recientes",
+      "recentsEmptyTitle": "No hay archivos recientes",
+      "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
+      "loadRecentsError": "No se pudieron cargar los archivos recientes",
+      "loadMoreRecentsError": "No se pudieron cargar más archivos recientes"
     }
   },
   "Share": {

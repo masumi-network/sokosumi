@@ -30,6 +30,7 @@ vi.mock("next-intl", () => ({
     dateTime: formatDateTime,
     number: formatNumber,
   }),
+  useLocale: () => "en",
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
@@ -111,9 +112,15 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
 });
 
 const fetchDriveTasksPageMock = vi.fn();
+const fetchDriveRecentsPageMock = vi.fn();
 
 vi.mock("@/lib/utils/drive-tasks-list.client", () => ({
   fetchDriveTasksPage: (...args: unknown[]) => fetchDriveTasksPageMock(...args),
+}));
+
+vi.mock("@/lib/utils/drive-recents-list.client", () => ({
+  fetchDriveRecentsPage: (...args: unknown[]) =>
+    fetchDriveRecentsPageMock(...args),
 }));
 
 vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
@@ -183,7 +190,7 @@ function listedStore() {
 describe("DrivePage workspace remount", () => {
   beforeEach(() => {
     queryClient = createDriveQueryClient();
-    searchParams = new URLSearchParams();
+    searchParams = new URLSearchParams("view=browse");
     replaceMock.mockReset();
     pushMock.mockReset();
     useSessionMock.mockReset();
@@ -191,8 +198,13 @@ describe("DrivePage workspace remount", () => {
     patchDriveFoldersRenameMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
 
     fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
       items: [],
       nextCursor: null,
     });
@@ -237,7 +249,7 @@ describe("DrivePage workspace remount", () => {
   });
 
   it("drops the folder query when the active organization changes", async () => {
-    searchParams = new URLSearchParams("folder=Reports");
+    searchParams = new URLSearchParams("view=browse&folder=Reports");
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
     const { rerender } = renderDrive();
@@ -410,9 +422,14 @@ describe("DrivePage tasks mobile toolbar", () => {
     useSessionMock.mockReset();
     listDriveItemsMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
 
     fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
       items: [],
       nextCursor: null,
     });
@@ -444,5 +461,67 @@ describe("DrivePage tasks mobile toolbar", () => {
         name: "filterTitle",
       }),
     ).toBeVisible();
+  });
+});
+
+describe("DrivePage recents view", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams();
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: {
+        data: [{ id: "org_a", name: "Org A" }],
+      },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("loads recents by default and hides browse chrome", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+
+    expect(listDriveItemsMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "recentsTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("recentsEmptyTitle")).toBeVisible();
+    expect(
+      screen.queryByPlaceholderText("searchPlaceholder"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("switches to browse when the browse tab is selected", async () => {
+    const user = userEvent.setup();
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Org A" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/drive?view=browse");
   });
 });

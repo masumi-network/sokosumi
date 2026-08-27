@@ -32,7 +32,12 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
+import {
+  type DrivePrimaryView,
+  DriveViewTabs,
+} from "@/app/drive/components/drive-view-tabs";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -457,7 +462,11 @@ function DrivePageWorkspace({
   const scope = driveStore.scope;
   const folderParam = searchParams.get("folder") || "";
   const currentFolder = folderParam;
-  const isTasksView = searchParams.get("view") === "tasks";
+  const viewParam = searchParams.get("view");
+  const isTasksView = viewParam === "tasks";
+  const isBrowseView = viewParam === "browse";
+  const isRecentsView = !isTasksView && !isBrowseView;
+  const primaryView: DrivePrimaryView = isBrowseView ? "browse" : "recents";
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
@@ -491,10 +500,14 @@ function DrivePageWorkspace({
       folder: currentFolder,
       search: debouncedSearchQuery,
     }),
-    enabled: !isTasksView,
+    enabled: isBrowseView && !isTasksView,
   });
   const items = driveItemsQuery.data ?? [];
-  const loading = isTasksView ? tasksLoading : driveItemsQuery.isPending;
+  const loading = isRecentsView
+    ? false
+    : isTasksView
+      ? tasksLoading
+      : driveItemsQuery.isPending;
 
   useEffect(() => {
     if (!driveItemsQuery.isError) {
@@ -949,7 +962,7 @@ function DrivePageWorkspace({
       ? `${currentFolder}/${folderName}`
       : folderName;
     params.set("folder", newPath);
-    params.delete("view");
+    params.set("view", "browse");
     params.delete("projectId");
     params.delete("taskId");
     params.delete("assigneeId");
@@ -960,7 +973,7 @@ function DrivePageWorkspace({
     const params = withoutLegacyDriveScopeParam(searchParams);
     if (index === -1) {
       params.delete("folder");
-      params.delete("view");
+      params.set("view", "browse");
       params.delete("projectId");
       params.delete("taskId");
       params.delete("assigneeId");
@@ -968,12 +981,27 @@ function DrivePageWorkspace({
       const segments = currentFolder.split("/");
       const newPath = segments.slice(0, index + 1).join("/");
       params.set("folder", newPath);
-      params.delete("view");
+      params.set("view", "browse");
       params.delete("projectId");
       params.delete("taskId");
       params.delete("assigneeId");
     }
     router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToPrimaryView(view: DrivePrimaryView) {
+    const params = withoutLegacyDriveScopeParam(searchParams);
+    if (view === "recents") {
+      params.delete("view");
+    } else {
+      params.set("view", "browse");
+    }
+    params.delete("folder");
+    params.delete("projectId");
+    params.delete("taskId");
+    params.delete("assigneeId");
+    const query = params.toString();
+    router.push(query ? `/drive?${query}` : "/drive");
   }
 
   function navigateToTasksRoot() {
@@ -1364,6 +1392,13 @@ function DrivePageWorkspace({
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
+        {!isTasksView ? (
+          <DriveViewTabs
+            activeView={primaryView}
+            browseLabel={storeRootLabel}
+            onViewChange={navigateToPrimaryView}
+          />
+        ) : null}
         <div className="flex items-center justify-end gap-4">
           {isTasksView && (
             <>
@@ -1390,7 +1425,7 @@ function DrivePageWorkspace({
               </div>
             </>
           )}
-          {!isTasksView && (
+          {!isTasksView && isBrowseView && (
             <div className="hidden items-center gap-2 md:flex">
               <div className="relative">
                 <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
@@ -1439,31 +1474,30 @@ function DrivePageWorkspace({
           )}
         </div>
 
-        <nav
-          className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
-          aria-label={t("breadcrumbNavLabel")}
-        >
-          <button
-            type="button"
-            onClick={() => navigateToBreadcrumb(-1)}
-            className={cn(
-              "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
-              !isTasksView &&
-                breadcrumbSegments.length === 0 &&
-                "text-foreground font-medium",
-            )}
-            aria-label={storeRootLabel}
-            title={storeRootLabel}
+        {!isTasksView && isBrowseView ? (
+          <nav
+            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            aria-label={t("breadcrumbNavLabel")}
           >
-            {scope === "org" ? (
-              <Building2 className="size-4" aria-hidden />
-            ) : (
-              <Home className="size-4" aria-hidden />
-            )}
-            <span className="ml-1">{storeRootLabel}</span>
-          </button>
-          {!isTasksView &&
-            breadcrumbSegments.map((segment, index) => (
+            <button
+              type="button"
+              onClick={() => navigateToBreadcrumb(-1)}
+              className={cn(
+                "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
+                breadcrumbSegments.length === 0 &&
+                  "text-foreground font-medium",
+              )}
+              aria-label={storeRootLabel}
+              title={storeRootLabel}
+            >
+              {scope === "org" ? (
+                <Building2 className="size-4" aria-hidden />
+              ) : (
+                <Home className="size-4" aria-hidden />
+              )}
+              <span className="ml-1">{storeRootLabel}</span>
+            </button>
+            {breadcrumbSegments.map((segment, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
                 <ChevronRight className="size-4" aria-hidden />
                 <button
@@ -1480,8 +1514,28 @@ function DrivePageWorkspace({
                 </button>
               </span>
             ))}
-          {isTasksView &&
-            tasksBreadcrumbs.map((crumb, index) => (
+          </nav>
+        ) : null}
+        {isTasksView ? (
+          <nav
+            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            aria-label={t("breadcrumbNavLabel")}
+          >
+            <button
+              type="button"
+              onClick={() => navigateToBreadcrumb(-1)}
+              className="hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors"
+              aria-label={storeRootLabel}
+              title={storeRootLabel}
+            >
+              {scope === "org" ? (
+                <Building2 className="size-4" aria-hidden />
+              ) : (
+                <Home className="size-4" aria-hidden />
+              )}
+              <span className="ml-1">{storeRootLabel}</span>
+            </button>
+            {tasksBreadcrumbs.map((crumb, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
                 <ChevronRight className="size-4" aria-hidden />
                 <button
@@ -1498,7 +1552,8 @@ function DrivePageWorkspace({
                 </button>
               </span>
             ))}
-        </nav>
+          </nav>
+        ) : null}
       </div>
 
       {isTasksView && (
@@ -1523,7 +1578,7 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {!isTasksView && (
+      {!isTasksView && isBrowseView && (
         <div className="mb-6 flex items-center gap-2 md:hidden">
           <div className="relative flex-1">
             <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
@@ -1547,7 +1602,30 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {loading ? (
+      {isRecentsView ? (
+        <DriveRecentsPanel
+          driveStore={driveStore}
+          activeOrganizationId={activeOrganizationId}
+          onOpenMoveDialog={openMoveDialog}
+          onOpenDeleteDialog={openDeleteDialog}
+          onRenameFile={handleRename}
+          onOpenCopyDialog={(item) => {
+            setTaskFileToCopy({
+              type: "task-file",
+              id: item.taskFileId,
+              name: item.name,
+              fileUrl: item.fileUrl,
+              size: item.size,
+              mimeType: null,
+              updatedAt: item.activityAt,
+            });
+            setCopyDialogOpen(true);
+          }}
+          onItemsChanged={() => {
+            void refreshDriveItems();
+          }}
+        />
+      ) : loading ? (
         <DriveListSkeleton />
       ) : emptyState ? (
         <div
@@ -2114,7 +2192,7 @@ function DrivePageWorkspace({
         </div>
       ) : null}
 
-      {!isTasksView && (
+      {!isTasksView && isBrowseView && (
         <ListMobileCreateFab
           ariaLabel={t("uploadFab")}
           onOpen={handleFabOpen}

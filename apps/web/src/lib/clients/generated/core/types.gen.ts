@@ -2383,6 +2383,84 @@ export type RenameDriveFolderRequest = {
     organizationId?: string;
 };
 
+export type DriveRecentsList = Array<DriveRecentsItem>;
+
+export type DriveRecentsItem = ({
+    kind: 'drive-file';
+} & DriveRecentsDriveFileItem) | ({
+    kind: 'task-output';
+} & DriveRecentsTaskOutputItem);
+
+export type DriveRecentsDriveFileItem = {
+    /**
+     * Drive blob file at any folder depth
+     */
+    kind: 'drive-file';
+    /**
+     * File name
+     */
+    name: string;
+    /**
+     * Blob URL
+     */
+    fileUrl: string;
+    /**
+     * Blob pathname
+     */
+    pathname: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Latest activity timestamp (blob uploadedAt)
+     */
+    activityAt: Date;
+};
+
+export type DriveRecentsTaskOutputItem = {
+    /**
+     * READY TASK_OUTPUT TaskFile row
+     */
+    kind: 'task-output';
+    /**
+     * TaskFile name
+     */
+    name: string;
+    /**
+     * TaskFile blob URL
+     */
+    fileUrl: string;
+    /**
+     * File size in bytes (null if unknown)
+     */
+    size: number | null;
+    /**
+     * Latest activity timestamp (TaskFile updatedAt)
+     */
+    activityAt: Date;
+    /**
+     * TaskFile ID
+     */
+    taskFileId: string;
+    /**
+     * Parent task ID
+     */
+    taskId: string;
+    /**
+     * Parent task name
+     */
+    taskName: string;
+    /**
+     * Parent project ID, or null
+     */
+    projectId: string | null;
+    /**
+     * Parent project name, or null
+     */
+    projectName: string | null;
+};
+
 export type DriveTasksList = Array<DriveTasksListItem>;
 
 export type DriveTasksListItem = ({
@@ -17649,6 +17727,121 @@ export type PatchDriveFoldersRenameResponses = {
 };
 
 export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
+
+export type GetDriveRecentsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        /**
+         * Organization ID (required when scope=org)
+         */
+        organizationId?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/drive/recents';
+};
+
+export type GetDriveRecentsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveRecentsError = GetDriveRecentsErrors[keyof GetDriveRecentsErrors];
+
+export type GetDriveRecentsResponses = {
+    /**
+     * Drive recents retrieved
+     */
+    200: {
+        data: DriveRecentsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveRecentsResponse = GetDriveRecentsResponses[keyof GetDriveRecentsResponses];
 
 export type GetDriveTasksData = {
     body?: never;
