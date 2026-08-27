@@ -5,7 +5,7 @@ import { describe, it, vi } from "vitest";
 import { transferMemberPeriodBucketsToOrganizationPool } from "./organization-member-period-pool-transfer.js";
 
 describe("transferMemberPeriodBucketsToOrganizationPool", () => {
-  it("drains leftover member period buckets into one org-owned period bucket", async () => {
+  it("drains leftover member period buckets into org-owned buckets per expiry", async () => {
     const createTransactionMock = vi.fn();
     const tx = {
       creditBucket: {
@@ -36,21 +36,80 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
 
     const result = await transferMemberPeriodBucketsToOrganizationPool(
       tx as never,
+      undefined,
+      new Date("2026-07-01T00:00:00.000Z"),
     );
 
     assert.equal(result.organizations, 1);
     assert.equal(result.bucketsDrained, 2);
     assert.equal(result.centsTransferred, 110n);
-    assert.equal(createTransactionMock.mock.calls.length, 2);
-    assert.equal(
-      createTransactionMock.mock.calls[1]?.[0].data.sourceCreditBucket.create
-        .userId,
-      null,
-    );
-    assert.equal(
-      createTransactionMock.mock.calls[1]?.[0].data.sourceCreditBucket.create
-        .amount,
-      110n,
+    assert.equal(createTransactionMock.mock.calls.length, 4);
+
+    interface MigratedGrant {
+      amount: bigint;
+      expiresAt: Date;
+      userId: string | null;
+    }
+
+    const grantAmounts: MigratedGrant[] = createTransactionMock.mock.calls
+      .filter(
+        (
+          call: [
+            {
+              data: {
+                sourceCreditBucket?: {
+                  create: {
+                    amount: bigint;
+                    expiresAt: Date;
+                    userId: string | null;
+                  };
+                };
+              };
+            },
+          ],
+        ) => call[0].data.sourceCreditBucket != null,
+      )
+      .map(
+        (
+          call: [
+            {
+              data: {
+                sourceCreditBucket: {
+                  create: {
+                    amount: bigint;
+                    expiresAt: Date;
+                    userId: string | null;
+                  };
+                };
+              };
+            },
+          ],
+        ) => call[0].data.sourceCreditBucket.create,
+      );
+
+    assert.equal(grantAmounts.length, 2);
+    assert.deepEqual(
+      grantAmounts
+        .map((grant) => ({
+          amount: grant.amount,
+          expiresAt: grant.expiresAt.toISOString(),
+          userId: grant.userId,
+        }))
+        .toSorted((left, right) =>
+          left.expiresAt.localeCompare(right.expiresAt),
+        ),
+      [
+        {
+          amount: 50n,
+          expiresAt: "2026-08-01T00:00:00.000Z",
+          userId: null,
+        },
+        {
+          amount: 60n,
+          expiresAt: "2026-09-01T00:00:00.000Z",
+          userId: null,
+        },
+      ],
     );
   });
 });

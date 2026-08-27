@@ -112,6 +112,26 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     );
   });
 
+  it("does not auto-assign seats on later Stripe updates when no local-free rows close", async () => {
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription({
+      id: "sub_local_paid",
+      plan: "pro",
+      referenceId: "org-enterprise",
+      seats: 5,
+      status: "active",
+      stripeSubscriptionId: "sub_enterprise",
+    });
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).not.toHaveBeenCalled();
+  });
+
   it("does not cancel local free rows for non-active local subscription statuses", async () => {
     const { reconcileActiveStripeBackedSubscription } = await import(
       "./stripe-backed-subscription.service"

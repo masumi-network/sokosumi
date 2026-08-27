@@ -17,6 +17,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 import { isIdempotencyKeyUniqueConstraintError } from "@/helpers/prisma";
 import {
   applyGuardedTaskStatusUpdate,
@@ -327,6 +328,11 @@ async function runX402ChargePhase(
 
       // The charge draws from the same task pool as every other task charge,
       // through the exact machinery the task-events masumiPayment branch uses.
+      await requireOrganizationWorkstation(
+        task.ownerId,
+        task.organizationId,
+        tx,
+      );
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
         userId: task.ownerId,
         organizationId: task.organizationId,

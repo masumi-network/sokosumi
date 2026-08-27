@@ -65,7 +65,10 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
 
 function createApp(
   actor: "orchestrator" | "user" = "orchestrator",
-  authOverrides: { orchestratorId?: string } = {},
+  authOverrides: {
+    context?: { organizationId: string | null; userId: string };
+    orchestratorId?: string;
+  } = {},
 ) {
   const app = new OpenAPIHonoWithAuth();
 
@@ -99,6 +102,7 @@ function mockTxWithOrchestrator(options?: {
   createUsage?: UsageRecord;
   archivedAt?: Date | null;
   orchestrator?: null;
+  member?: { userId: string } | null;
 }) {
   const findUnique = vi.fn().mockResolvedValue(
     options?.orchestrator === null
@@ -115,6 +119,13 @@ function mockTxWithOrchestrator(options?: {
   const usageFindUnique = vi
     .fn()
     .mockResolvedValue(options?.existingUsage ?? null);
+  const memberFindUnique = vi
+    .fn()
+    .mockResolvedValue(
+      options?.member === undefined
+        ? { userId: TARGET_USER_ID }
+        : options.member,
+    );
 
   serializableTransactionMock.mockImplementation(async (callback) => {
     const tx = {
@@ -125,6 +136,9 @@ function mockTxWithOrchestrator(options?: {
         findUnique: usageFindUnique,
         create: usageCreate,
       },
+      member: {
+        findUnique: memberFindUnique,
+      },
       transaction: {
         create: vi.fn().mockResolvedValue({ id: "txn_123" }),
       },
@@ -132,7 +146,7 @@ function mockTxWithOrchestrator(options?: {
     return callback(tx);
   });
 
-  return { findUnique, usageCreate, usageFindUnique };
+  return { findUnique, memberFindUnique, usageCreate, usageFindUnique };
 }
 
 describe("POST /orchestrators/me/usage", () => {
@@ -275,6 +289,27 @@ describe("POST /orchestrators/me/usage", () => {
     const body = await response.json();
     expect(body.data.id).toBe(existing.id);
     expect(body.data.credits).toBe(2.5);
+    expect(usageCreate).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when X-Context organization is set but the user is not a member", async () => {
+    const { usageCreate } = mockTxWithOrchestrator({ member: null });
+
+    const app = createApp("orchestrator", {
+      context: { organizationId: "org_123", userId: TARGET_USER_ID },
+    });
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(400);
     expect(usageCreate).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });

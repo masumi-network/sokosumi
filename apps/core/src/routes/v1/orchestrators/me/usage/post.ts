@@ -146,6 +146,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Orchestrator instance not found for user");
       }
 
+      if (organizationId !== null) {
+        const member = await tx.member.findUnique({
+          where: {
+            userId_organizationId: {
+              userId,
+              organizationId,
+            },
+          },
+          select: { userId: true },
+        });
+
+        if (!member) {
+          throw badRequest(
+            "User is not a member of the specified organization",
+          );
+        }
+      }
+
       await requireOrganizationWorkstation(userId, organizationId, tx);
 
       const cents = convertCreditsToCents(credits);

@@ -32,19 +32,26 @@ function remainingOf(bucket: {
   return remaining > 0n ? remaining : 0n;
 }
 
+function expiryGroupKey(expiresAt: Date | null): string {
+  return expiresAt ? expiresAt.toISOString() : "none";
+}
+
 export function buildMigratedMemberPeriodPoolReferenceId(
   organizationId: string,
   transferredAt: Date,
+  expiresAt: Date | null = null,
 ): string {
-  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:migrated-member-period:${transferredAt.toISOString()}`;
+  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:migrated-member-period:${transferredAt.toISOString()}:${expiryGroupKey(expiresAt)}`;
 }
 
 export async function transferMemberPeriodBucketsToOrganizationPool(
   tx: Prisma.TransactionClient,
+  organizationId?: string,
+  now: Date = new Date(),
 ): Promise<MemberPeriodPoolTransferResult> {
   const buckets = await tx.creditBucket.findMany({
     where: {
-      organizationId: { not: null },
+      organizationId: organizationId ?? { not: null },
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       referenceId: {
         startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
@@ -62,32 +69,48 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
     },
   });
 
-  const byOrganization = new Map<string, BucketWithRemaining[]>();
+  const byOrganizationAndExpiry = new Map<
+    string,
+    {
+      buckets: BucketWithRemaining[];
+      expiresAt: Date | null;
+      organizationId: string;
+    }
+  >();
   for (const bucket of buckets) {
     if (!bucket.organizationId) {
+      continue;
+    }
+    if (bucket.expiresAt && bucket.expiresAt <= now) {
       continue;
     }
     const remaining = remainingOf(bucket);
     if (remaining <= 0n) {
       continue;
     }
-    const group = byOrganization.get(bucket.organizationId) ?? [];
-    group.push({
+    const key = `${bucket.organizationId}:${expiryGroupKey(bucket.expiresAt)}`;
+    const group = byOrganizationAndExpiry.get(key) ?? {
+      buckets: [],
+      expiresAt: bucket.expiresAt,
+      organizationId: bucket.organizationId,
+    };
+    group.buckets.push({
       amount: bucket.amount,
       expiresAt: bucket.expiresAt,
       id: bucket.id,
       remaining,
     });
-    byOrganization.set(bucket.organizationId, group);
+    byOrganizationAndExpiry.set(key, group);
   }
 
   let bucketsDrained = 0;
   let centsTransferred = 0n;
+  const transferredOrganizations = new Set<string>();
 
-  for (const [organizationId, group] of byOrganization) {
+  for (const group of byOrganizationAndExpiry.values()) {
     const owner = await tx.member.findFirst({
       where: {
-        organizationId,
+        organizationId: group.organizationId,
         role: "owner",
       },
       select: { userId: true },
@@ -96,7 +119,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       continue;
     }
 
-    const totalRemaining = group.reduce(
+    const totalRemaining = group.buckets.reduce(
       (sum, bucket) => sum + bucket.remaining,
       0n,
     );
@@ -104,25 +127,15 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       continue;
     }
 
-    const latestExpiry = group.reduce<Date | null>((latest, bucket) => {
-      if (!bucket.expiresAt) {
-        return latest;
-      }
-      if (!latest || bucket.expiresAt > latest) {
-        return bucket.expiresAt;
-      }
-      return latest;
-    }, null);
-
     const transferredAt = new Date();
     await tx.transaction.create({
       data: {
         amount: totalRemaining * -1n,
-        organizationId,
+        organizationId: group.organizationId,
         userId: owner.userId,
         creditConsumptions: {
           createMany: {
-            data: group.map((bucket) => ({
+            data: group.buckets.map((bucket) => ({
               bucketId: bucket.id,
               amount: bucket.remaining,
             })),
@@ -134,16 +147,17 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
     await tx.transaction.create({
       data: {
         amount: totalRemaining,
-        organizationId,
+        organizationId: group.organizationId,
         userId: owner.userId,
         sourceCreditBucket: {
           create: {
             amount: totalRemaining,
-            expiresAt: latestExpiry,
-            organizationId,
+            expiresAt: group.expiresAt,
+            organizationId: group.organizationId,
             referenceId: buildMigratedMemberPeriodPoolReferenceId(
-              organizationId,
+              group.organizationId,
               transferredAt,
+              group.expiresAt,
             ),
             referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
             userId: null,
@@ -152,12 +166,13 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       },
     });
 
-    bucketsDrained += group.length;
+    bucketsDrained += group.buckets.length;
     centsTransferred += totalRemaining;
+    transferredOrganizations.add(group.organizationId);
   }
 
   return {
-    organizations: [...byOrganization.keys()].length,
+    organizations: transferredOrganizations.size,
     bucketsDrained,
     centsTransferred,
   };

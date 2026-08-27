@@ -81,6 +81,10 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+vi.mock("@/helpers/organization-workstation", () => ({
+  requireOrganizationWorkstation: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
 }));

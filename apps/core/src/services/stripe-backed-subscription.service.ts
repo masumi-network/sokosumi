@@ -56,16 +56,18 @@ export async function reconcileActiveStripeBackedSubscription(
       );
     }
 
-    const organization = await tx.organization.findUnique({
-      where: { id: localSubscription.referenceId },
-      select: { id: true },
-    });
-    if (organization) {
-      await autoAssignSeatsOnPaidSubscribe(
-        organization.id,
-        localSubscription.seats,
-        tx,
-      );
+    if (result.count > 0) {
+      const organization = await tx.organization.findUnique({
+        where: { id: localSubscription.referenceId },
+        select: { id: true },
+      });
+      if (organization) {
+        await autoAssignSeatsOnPaidSubscribe(
+          organization.id,
+          localSubscription.seats,
+          tx,
+        );
+      }
     }
   });
 }
