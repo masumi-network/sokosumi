@@ -59,14 +59,14 @@ interface NotificationEventData {
 interface PublishNotificationEventInput {
   userId: string;
   notification: NotificationEventData;
-  /** Also deliver as a closed-app OS banner (ADR-0017 channel-based push). */
+  /** Also deliver as a closed-app OS banner (ADR-0019 channel-based push). */
   push?: boolean;
 }
 
 /**
  * The closed-app push payload the service worker receives. Data only, by
  * design: the worker renders title, body, and destination, so Core ships no
- * display strings (ADR-0018).
+ * display strings (ADR-0020).
  *
  * Flat, and every value a string: Ably documents push `data` as a
  * string-to-string map, and FCM's HTTP v1 API rejects nested JSON outright.

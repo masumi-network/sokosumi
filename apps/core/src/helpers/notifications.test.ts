@@ -370,7 +370,7 @@ describe("createNotification push gating", () => {
       createNotification(chatInput, prismaMock as unknown as typeof prisma),
     ).resolves.toEqual({ notification, created: true });
     // Push is additive: a consent-read failure must not cost the in-app toast
-    // or the live Notification Center event (ADR-0017).
+    // or the live Notification Center event (ADR-0019).
     expect(publishNotificationEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ push: false }),
     );

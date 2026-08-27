@@ -33,7 +33,7 @@ export interface BuildAblyClientCapabilityInput {
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
  *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
  * - Notifications: `subscribe` (realtime feed) + `push-subscribe` (register this
- *   device for closed-app OS banners; ADR-0017)
+ *   device for closed-app OS banners; ADR-0019)
  */
 export function buildAblySubscribeCapability(
   userId: string,
