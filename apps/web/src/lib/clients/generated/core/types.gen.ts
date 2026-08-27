@@ -277,6 +277,16 @@ export type AdminOrganizationOverviewDetail = {
      * Enterprise pool remaining credits; null for self-serve organizations where credits are per member
      */
     totalCredits: number | null;
+    /**
+     * Non-archived External channels owned by this organization. Used to add guests from /admin.
+     */
+    externalChannels: Array<AdminExternalChannelOption>;
+};
+
+export type AdminExternalChannelOption = {
+    id: string;
+    name: string;
+    slug: string;
 };
 
 export type AdminOrganizationMemberOverviewItem = {
@@ -325,6 +335,19 @@ export type AdminAddOrganizationMemberBody = {
      */
     userId: string;
     role?: MemberRole;
+};
+
+export type AdminExternalChannelGuest = {
+    userId: string;
+    roomId: string;
+    access: 'guest';
+};
+
+export type AdminAddExternalChannelGuestBody = {
+    /**
+     * Existing platform user to add as a guest
+     */
+    userId: string;
 };
 
 export type AdminUpdateOrganizationMemberRoleBody = {
@@ -5752,6 +5775,93 @@ export type AddAdminOrganizationMemberResponses = {
 };
 
 export type AddAdminOrganizationMemberResponse = AddAdminOrganizationMemberResponses[keyof AddAdminOrganizationMemberResponses];
+
+export type AddAdminExternalChannelGuestData = {
+    body?: AdminAddExternalChannelGuestBody;
+    path: {
+        slug: string;
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/external-channels/{roomId}/guests';
+};
+
+export type AddAdminExternalChannelGuestErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminExternalChannelGuestError = AddAdminExternalChannelGuestErrors[keyof AddAdminExternalChannelGuestErrors];
+
+export type AddAdminExternalChannelGuestResponses = {
+    /**
+     * Guest membership ensured
+     */
+    200: {
+        data: AdminExternalChannelGuest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminExternalChannelGuestResponse = AddAdminExternalChannelGuestResponses[keyof AddAdminExternalChannelGuestResponses];
 
 export type RemoveAdminOrganizationMemberData = {
     body?: never;

@@ -36,6 +36,7 @@ import {
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import { listAdminOrganizationMembersAction } from "@/lib/actions/admin-organizations/action";
 import {
+  addAdminExternalChannelGuestAction,
   addAdminOrganizationMemberAction,
   assignAdminOrganizationMemberSeatAction,
   removeAdminOrganizationMemberAction,
@@ -74,6 +75,11 @@ export function OrganizationDetailPanel({
   const latestMembersRequestId = useRef(0);
   const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
     null,
+  );
+  const [selectedGuestUser, setSelectedGuestUser] =
+    useState<AdminUserOption | null>(null);
+  const [selectedChannelId, setSelectedChannelId] = useState(
+    detail.externalChannels[0]?.id ?? "",
   );
   const [selectedRole, setSelectedRole] = useState<
     "owner" | "admin" | "member"
@@ -144,6 +150,27 @@ export function OrganizationDetailPanel({
           role: selectedRole,
         }),
       t("addMember.success"),
+    );
+  }
+
+  function handleAddGuest() {
+    if (!selectedGuestUser) {
+      toast.error(t("addGuest.userRequired"));
+      return;
+    }
+    if (!selectedChannelId) {
+      toast.error(t("addGuest.channelRequired"));
+      return;
+    }
+
+    runMemberAction(
+      () =>
+        addAdminExternalChannelGuestAction({
+          slug: detail.organization.slug,
+          roomId: selectedChannelId,
+          userId: selectedGuestUser.id,
+        }),
+      t("addGuest.success"),
     );
   }
 
@@ -218,6 +245,62 @@ export function OrganizationDetailPanel({
           )}
         </section>
       </div>
+
+      {detail.externalChannels.length > 0 ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="font-medium">{t("addGuest.title")}</h2>
+            <p className="text-muted-foreground text-sm">
+              {t("addGuest.description")}
+            </p>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-end gap-2">
+            <div className="min-w-0 w-72">
+              <AsyncSearchCombobox<AdminUserOption>
+                value={selectedGuestUser}
+                onChange={setSelectedGuestUser}
+                search={searchUsersClient}
+                getKey={(user) => user.id}
+                getTriggerLabel={(user) => `${user.name} (${user.email})`}
+                renderOption={(user) => (
+                  <span className="flex flex-col">
+                    <span>{user.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {user.email}
+                    </span>
+                  </span>
+                )}
+                labels={buildComboboxLabels(
+                  (key) => t(`addGuest.combobox.${key}`),
+                  { clear: t("addGuest.combobox.clear") },
+                )}
+                allowClear
+              />
+            </div>
+            <Select
+              value={selectedChannelId}
+              onValueChange={setSelectedChannelId}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder={t("addGuest.channelPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {detail.externalChannels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name} (#{channel.slug})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleAddGuest}
+              disabled={isPending || !selectedGuestUser || !selectedChannelId}
+            >
+              {t("addGuest.submit")}
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">

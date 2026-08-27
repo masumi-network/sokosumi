@@ -3346,6 +3346,24 @@
               "clear": "Auswahl löschen"
             }
           },
+          "addGuest": {
+            "title": "Gast zu einem External Channel hinzufügen",
+            "description": "Setzt einen bestehenden Plattformnutzer sofort auf die Channel-Liste. Die Person wird kein Organisationsmitglied und belegt keinen Seat.",
+            "submit": "Gast hinzufügen",
+            "success": "Gast hinzugefügt",
+            "userRequired": "Wähle einen Benutzer als Gast aus",
+            "channelRequired": "Wähle einen External Channel",
+            "channelPlaceholder": "Channel auswählen…",
+            "combobox": {
+              "placeholder": "Benutzer auswählen…",
+              "search": "Benutzer suchen…",
+              "empty": "Keine Benutzer gefunden.",
+              "loading": "Suche läuft…",
+              "error": "Suche fehlgeschlagen.",
+              "idle": "Tippe, um Benutzer zu suchen.",
+              "clear": "Auswahl löschen"
+            }
+          },
           "actions": {
             "makeOwner": "Zum Eigentümer machen",
             "makeAdmin": "Zum Admin machen",

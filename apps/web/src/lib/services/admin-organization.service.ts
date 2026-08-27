@@ -83,6 +83,11 @@ export interface AdminOrganizationOverviewDetail {
     isEnterpriseContract: boolean;
   };
   totalCredits: number | null;
+  externalChannels: Array<{
+    id: string;
+    name: string;
+    slug: string;
+  }>;
 }
 
 export interface AdminOrganizationMemberOverviewPage {
@@ -165,6 +170,7 @@ export const adminOrganizationService = {
         enterpriseContract: detail.enterpriseContract,
         seatSummary: detail.seatSummary,
         totalCredits: detail.totalCredits,
+        externalChannels: detail.externalChannels,
       };
     } catch (error) {
       if (error instanceof CoreApiRequestError && error.status === 404) {

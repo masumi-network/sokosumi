@@ -197,6 +197,13 @@ describe("GET /v1/admin/organizations/{slug}", () => {
         isEnterpriseContract: false,
       },
       totalCredits: null,
+      externalChannels: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          name: "Partners",
+          slug: "partners",
+        },
+      ],
     });
   });
 
@@ -209,6 +216,13 @@ describe("GET /v1/admin/organizations/{slug}", () => {
     expect(body.data.organization.slug).toBe("acme-corp");
     expect(body.data.totalCredits).toBeNull();
     expect(body.data.members).toBeUndefined();
+    expect(body.data.externalChannels).toEqual([
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        name: "Partners",
+        slug: "partners",
+      },
+    ]);
   });
 
   it("returns 404 when organization is missing", async () => {

@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountAddAdminExternalChannelGuest from "./[slug]/external-channels/[roomId]/guests/post.js";
 import mountGetAdminOrganizationBySlug from "./[slug]/get.js";
 import mountRemoveAdminOrganizationMember from "./[slug]/members/[memberId]/delete.js";
 import mountUpdateAdminOrganizationMemberRole from "./[slug]/members/[memberId]/role/patch.js";
@@ -14,6 +15,7 @@ mountListAdminOrganizations(app);
 mountGetAdminOrganizationBySlug(app);
 mountListAdminOrganizationMembers(app);
 mountAddAdminOrganizationMember(app);
+mountAddAdminExternalChannelGuest(app);
 mountRemoveAdminOrganizationMember(app);
 mountUpdateAdminOrganizationMemberRole(app);
 mountAssignAdminOrganizationMemberSeat(app);

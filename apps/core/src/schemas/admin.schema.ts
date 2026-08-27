@@ -213,6 +213,16 @@ export const adminOrganizationMemberOverviewListSchema = z.array(
   adminOrganizationMemberOverviewItemSchema,
 );
 
+export const adminExternalChannelOptionSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    name: z.string().openapi({ example: "External Channel" }),
+    slug: z.string().openapi({ example: "external-channel" }),
+  })
+  .openapi("AdminExternalChannelOption");
+
 export const adminOrganizationOverviewDetailSchema = z
   .object({
     organization: z.object({
@@ -263,6 +273,10 @@ export const adminOrganizationOverviewDetailSchema = z
         "Enterprise pool remaining credits; null for self-serve organizations where credits are per member",
       example: 1200,
     }),
+    externalChannels: z.array(adminExternalChannelOptionSchema).openapi({
+      description:
+        "Non-archived External channels owned by this organization. Used to add guests from /admin.",
+    }),
   })
   .openapi("AdminOrganizationOverviewDetail");
 
@@ -277,6 +291,36 @@ export const adminAddOrganizationMemberBodySchema = z
     }),
   })
   .openapi("AdminAddOrganizationMemberBody");
+
+export const adminAddExternalChannelGuestParamsSchema =
+  adminOrganizationSlugParamSchema.extend({
+    roomId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: { name: "roomId", in: "path" },
+        example: "550e8400-e29b-41d4-a716-446655440000",
+      }),
+  });
+
+export const adminAddExternalChannelGuestBodySchema = z
+  .object({
+    userId: z.string().min(1).openapi({
+      description: "Existing platform user to add as a guest",
+      example: "user_123",
+    }),
+  })
+  .openapi("AdminAddExternalChannelGuestBody");
+
+export const adminExternalChannelGuestSchema = z
+  .object({
+    userId: z.string().openapi({ example: "user_123" }),
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    access: z.literal("guest").openapi({ example: "guest" }),
+  })
+  .openapi("AdminExternalChannelGuest");
 
 export const adminUpdateOrganizationMemberRoleBodySchema = z
   .object({

@@ -24,6 +24,12 @@ const addMemberSchema = z.object({
   role: memberRoleSchema.default("member"),
 });
 
+const addGuestSchema = z.object({
+  slug: z.string().min(1),
+  roomId: z.string().uuid(),
+  userId: z.string().min(1),
+});
+
 const memberMutationSchema = z.object({
   slug: z.string().min(1),
   memberId: z.string().min(1),
@@ -81,6 +87,36 @@ export const addAdminOrganizationMemberAction = withSession<
   } catch (error) {
     return toActionResult(
       err(mapMemberActionError(error, "Failed to add member")),
+    );
+  }
+});
+
+interface AddAdminExternalChannelGuestRequest extends AuthenticatedRequest {
+  slug: string;
+  roomId: string;
+  userId: string;
+}
+
+export const addAdminExternalChannelGuestAction = withSession<
+  AddAdminExternalChannelGuestRequest,
+  ActionResultDto<void, ActionError>
+>(async ({ session, slug, roomId, userId }) => {
+  const parsed = addGuestSchema.safeParse({ slug, roomId, userId });
+  if (!parsed.success) {
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+
+  try {
+    assertAdminSession(session);
+    await coreClient.addAdminExternalChannelGuest(
+      parsed.data.slug,
+      parsed.data.roomId,
+      { userId: parsed.data.userId },
+    );
+    return toActionResult(ok(undefined));
+  } catch (error) {
+    return toActionResult(
+      err(mapMemberActionError(error, "Failed to add guest")),
     );
   }
 });

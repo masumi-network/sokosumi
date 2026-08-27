@@ -1095,6 +1095,13 @@ export const AdminOrganizationOverviewDetailSchema = {
             ],
             description: 'Enterprise pool remaining credits; null for self-serve organizations where credits are per member',
             example: 1200
+        },
+        externalChannels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminExternalChannelOption'
+            },
+            description: 'Non-archived External channels owned by this organization. Used to add guests from /admin.'
         }
     },
     required: [
@@ -1103,7 +1110,32 @@ export const AdminOrganizationOverviewDetailSchema = {
         'subscription',
         'enterpriseContract',
         'seatSummary',
-        'totalCredits'
+        'totalCredits',
+        'externalChannels'
+    ]
+} as const;
+
+export const AdminExternalChannelOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'External Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'external-channel'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
     ]
 } as const;
 
@@ -1226,6 +1258,48 @@ export const AdminAddOrganizationMemberBodySchema = {
         },
         role: {
             $ref: '#/components/schemas/MemberRole'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
+export const AdminExternalChannelGuestSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'guest'
+            ],
+            example: 'guest'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'access'
+    ]
+} as const;
+
+export const AdminAddExternalChannelGuestBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Existing platform user to add as a guest',
+            example: 'user_123'
         }
     },
     required: [

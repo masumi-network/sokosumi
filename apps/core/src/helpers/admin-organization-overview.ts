@@ -15,6 +15,26 @@ import { buildCreditsPayload } from "@/helpers/subscription.js";
 
 const ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY = 5;
 
+export async function listAdminExternalChannels(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+) {
+  const rooms = await tx.chatRoom.findMany({
+    where: {
+      organizationId,
+      kind: "channel",
+      discoverability: "external",
+      archivedAt: null,
+    },
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: "asc" },
+  });
+
+  return rooms.flatMap((room) =>
+    room.slug ? [{ id: room.id, name: room.name, slug: room.slug }] : [],
+  );
+}
+
 type AdminOrganizationMemberRecord = Awaited<
   ReturnType<typeof memberRepository.getMembersWithUserAndLastSeen>
 >[number];
@@ -171,7 +191,7 @@ export async function buildAdminOrganizationOverviewDetail(
     tx,
     now,
   );
-  const [assignedCount, subscription] = await Promise.all([
+  const [assignedCount, subscription, externalChannels] = await Promise.all([
     memberRepository.getAssignedMemberCount(organization.id, tx),
     billingPlan.mode === "self_serve"
       ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
@@ -179,6 +199,7 @@ export async function buildAdminOrganizationOverviewDetail(
           tx,
         )
       : Promise.resolve(null),
+    listAdminExternalChannels(organization.id, tx),
   ]);
 
   const paidPlan = billingPlan.plan === "free" ? null : billingPlan.plan;
@@ -238,6 +259,7 @@ export async function buildAdminOrganizationOverviewDetail(
       isEnterpriseContract: billingPlan.mode === "enterprise_contract",
     },
     totalCredits,
+    externalChannels,
   };
 }
 

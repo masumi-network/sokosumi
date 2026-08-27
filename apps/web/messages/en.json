@@ -3524,6 +3524,24 @@
               "clear": "Clear selection"
             }
           },
+          "addGuest": {
+            "title": "Add guest to an external channel",
+            "description": "Puts an existing platform user on the channel roster immediately. They do not join the organization and do not take a seat.",
+            "submit": "Add guest",
+            "success": "Guest added",
+            "userRequired": "Select a user to add as a guest",
+            "channelRequired": "Select an external channel",
+            "channelPlaceholder": "Select channel…",
+            "combobox": {
+              "placeholder": "Select user…",
+              "search": "Search users…",
+              "empty": "No users found.",
+              "loading": "Searching…",
+              "error": "Search failed.",
+              "idle": "Type to search users.",
+              "clear": "Clear selection"
+            }
+          },
           "actions": {
             "makeOwner": "Make owner",
             "makeAdmin": "Make admin",

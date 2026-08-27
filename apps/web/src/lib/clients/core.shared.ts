@@ -91,6 +91,7 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  addAdminExternalChannelGuest as coreAddAdminExternalChannelGuest,
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
@@ -1726,6 +1727,24 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to add organization member",
+    );
+  }
+
+  async function addAdminExternalChannelGuest(
+    slug: string,
+    roomId: string,
+    body: { userId: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAddAdminExternalChannelGuest({
+          client,
+          path: { slug, roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add guest to external channel",
     );
   }
 
@@ -4522,6 +4541,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listAdminOrganizations,
     listAdminOrganizationMembers,
     addAdminOrganizationMember,
+    addAdminExternalChannelGuest,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,
     assignAdminOrganizationMemberSeat,
