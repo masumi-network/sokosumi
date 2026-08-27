@@ -20,24 +20,63 @@ import { getAblyRealtimeClient } from "./realtime-singleton.client";
  * channel Core publishes the push payload on.
  */
 export async function activatePush(userId: string): Promise<void> {
-  const client = getAblyRealtimeClient();
-  await subscribeThisDevice(client, userId);
-  if (await hasWebPushSubscription()) {
-    return;
+  const restorePermissionRequest = answerPermissionFromStoredValue();
+  try {
+    const client = getAblyRealtimeClient();
+    await subscribeThisDevice(client, userId);
+    if (await hasWebPushSubscription()) {
+      return;
+    }
+
+    // `activate()` short-circuits when Ably's own stored state already says
+    // this browser is activated: in `ably@2.28.0` that state answers
+    // `CalledActivate` by calling the activated callback and nothing else
+    // (`build/push.js:850`). A browser whose subscription was cleared
+    // underneath it therefore reports success without ever subscribing. Clear
+    // that state and go round once, so the reader never gets a success toast
+    // over a browser that gets no pushes.
+    await client.push.deactivate();
+    await subscribeThisDevice(client, userId);
+
+    if (!(await hasWebPushSubscription())) {
+      throw new Error("The browser created no push subscription");
+    }
+  } finally {
+    restorePermissionRequest();
+  }
+}
+
+/**
+ * Stops `ably@2.28.0` asking for the notification permission a second time,
+ * and returns the call that puts the browser's own request back.
+ *
+ * `getW3CPushDeviceDetails` opens with `await Notification.requestPermission()`
+ * and fails the activation on anything but `granted` (`build/push.js:194`).
+ * WebKit answers `denied` to a request that does not run inside the user
+ * gesture, and Ably's `activate()` awaits `getDevice()` and
+ * `ensureInitialized()` before it ever reaches that line (`build/ably.js:3238`),
+ * so on an installed iOS web app the gesture is always gone by then. The
+ * reader saw `User denied permission to send notifications` while the stored
+ * permission read `granted`.
+ *
+ * Ably's own fix is to request only while the permission is still `default`
+ * (https://github.com/ably/ably-js/pull/2071, open since 2025-08-19 and
+ * unreleased as of `2.28.0`). The caller has already asked inside the gesture,
+ * so answer from the stored permission and prompt nothing. This tells the SDK
+ * the truth; it only declines to re-prompt. Delete it when that PR ships.
+ */
+function answerPermissionFromStoredValue(): () => void {
+  if (typeof Notification === "undefined") {
+    return () => {};
   }
 
-  // `activate()` short-circuits when Ably's own stored state already says this
-  // browser is activated: in `ably@2.28.0` that state answers `CalledActivate`
-  // by calling the activated callback and nothing else (`build/push.js:850`).
-  // A browser whose subscription was cleared underneath it therefore reports
-  // success without ever subscribing. Clear that state and go round once, so
-  // the reader never gets a success toast over a browser that gets no pushes.
-  await client.push.deactivate();
-  await subscribeThisDevice(client, userId);
+  const request = Notification.requestPermission;
+  Notification.requestPermission = () =>
+    Promise.resolve(Notification.permission);
 
-  if (!(await hasWebPushSubscription())) {
-    throw new Error("The browser created no push subscription");
-  }
+  return () => {
+    Notification.requestPermission = request;
+  };
 }
 
 async function subscribeThisDevice(

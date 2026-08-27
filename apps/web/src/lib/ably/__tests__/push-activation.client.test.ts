@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const unsubscribeDeviceMock = vi.fn();
 const subscribeDeviceMock = vi.fn();
@@ -107,6 +107,8 @@ describe("deactivatePush", () => {
 });
 
 describe("activatePush", () => {
+  let browserRequestPermission: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     calls.length = 0;
@@ -114,6 +116,15 @@ describe("activatePush", () => {
     subscribeDeviceMock.mockResolvedValue(undefined);
     deactivateMock.mockResolvedValue(undefined);
     hasWebPushSubscriptionMock.mockResolvedValue(true);
+    browserRequestPermission = vi.fn().mockResolvedValue("granted");
+    vi.stubGlobal("Notification", {
+      permission: "granted",
+      requestPermission: browserRequestPermission,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   /**
@@ -166,5 +177,41 @@ describe("activatePush", () => {
     await activatePush("user_1");
 
     expect(deactivateMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `ably@2.28.0` asks for the permission a second time inside `activate()`,
+   * by then outside the user gesture, and WebKit answers `denied` to that.
+   * The caller has already asked, so the SDK reads the stored permission.
+   *
+   * Both assertions matter together: without the swap the "restored" check
+   * passes on its own, because nothing ever replaced the browser's own call.
+   */
+  it("answers Ably's permission request itself, then restores the browser's", async () => {
+    let answered: string | undefined;
+    let duringActivation: unknown;
+    activateMock.mockImplementation(async () => {
+      duringActivation = Notification.requestPermission;
+      answered = await Notification.requestPermission();
+    });
+
+    await activatePush("user_1");
+
+    expect(duringActivation).not.toBe(browserRequestPermission);
+    expect(answered).toBe("granted");
+    expect(browserRequestPermission).not.toHaveBeenCalled();
+    expect(Notification.requestPermission).toBe(browserRequestPermission);
+  });
+
+  it("restores the browser's permission request when activation fails", async () => {
+    let duringActivation: unknown;
+    activateMock.mockImplementation(async () => {
+      duringActivation = Notification.requestPermission;
+      throw new Error("denied");
+    });
+
+    await expect(activatePush("user_1")).rejects.toThrow("denied");
+    expect(duringActivation).not.toBe(browserRequestPermission);
+    expect(Notification.requestPermission).toBe(browserRequestPermission);
   });
 });
