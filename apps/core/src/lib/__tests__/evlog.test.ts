@@ -11,7 +11,6 @@ import {
   attachWorkspaceToLogger,
   bindCoreRequestId,
   coreEvlogMiddleware,
-  identifyBetterAuthSession,
   initCoreLogger,
 } from "@/lib/evlog";
 import type { AuthVariables } from "@/middleware/auth";
@@ -139,34 +138,6 @@ describe("core evlog request events", () => {
     expect(captured[0]?.event.actor).toBe("user");
     expect(captured[0]?.event.user).toEqual({ id: "user_123" });
     expect(captured[0]?.event.organization).toEqual({ id: "org_456" });
-  });
-
-  it("identifies a Better Auth session with a masked email", async () => {
-    const app = createApp();
-    app.use(async (_c, next) => {
-      identifyBetterAuthSession({
-        user: {
-          id: "user_123",
-          email: "alice@example.com",
-          name: "Alice",
-        },
-        session: {
-          id: "sess_1",
-        },
-      });
-      return await next();
-    });
-    app.get("/v1/me", (c) => c.json({ ok: true }));
-
-    await app.request("http://localhost/v1/me");
-
-    expect(captured[0]?.event.userId).toBe("user_123");
-    expect(captured[0]?.event.user).toMatchObject({
-      id: "user_123",
-      email: "a***@example.com",
-      name: "Alice",
-    });
-    expect(captured[0]?.event.session).toMatchObject({ id: "sess_1" });
   });
 
   it("records a thrown HTTPException on the wide event", async () => {

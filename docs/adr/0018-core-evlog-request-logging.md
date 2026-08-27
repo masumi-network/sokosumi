@@ -14,4 +14,4 @@ Web does not run evlog. It forwards `X-Request-Id` on Core client calls (and the
 
 When `SENTRY_DSN` is set, the same wide events also drain to Sentry Logs (`createSentryDrain`). Stdout stays. The Sentry SDK still owns exceptions and traces.
 
-`evlog/better-auth` is not a Better Auth `plugins[]` entry and does not emit sign-in/sign-up events. Cookie sessions call `identifyUser` on the session we already loaded (`maskEmail: true`). We do not call `createAuthMiddleware` — that would `getSession` a second time. API keys, coworker keys, and the orchestrator token stay on the existing actor/id enrichers.
+`evlog/better-auth` is not a Better Auth `plugins[]` entry and does not emit sign-in/sign-up events. Core uses the documented Hono pattern: `createAuthMiddleware(auth)` after `evlog()`, with `exclude: ["/auth/**"]` (Sokosumi auth is `/auth`, not `/api/auth`) and `maskEmail: true`. Cookie-session routes therefore call `getSession` twice (evlog identify + Core `sessionMiddleware`); Better Auth cookie cache keeps that cheap. API keys, coworker keys, and the orchestrator token still use the actor/id enrichers.

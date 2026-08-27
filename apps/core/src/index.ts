@@ -16,6 +16,7 @@ import {
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
+import { betterAuthEvlogMiddleware } from "@/lib/evlog-better-auth";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
@@ -45,6 +46,7 @@ const app = new OpenAPIHono<{
 app.use(requestId());
 app.use(coreEvlogMiddleware());
 app.use(bindCoreRequestId());
+app.use(betterAuthEvlogMiddleware());
 app.use(maintenanceMiddleware());
 app.use(sentryMiddleware());
 
