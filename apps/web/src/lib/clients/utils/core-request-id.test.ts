@@ -56,6 +56,26 @@ describe("attachCoreRequestIdInterceptor", () => {
     expect(seen[0]).not.toBe(seen[1]);
   });
 
+  it("invokes use with the interceptor object as this", () => {
+    class RequestInterceptors {
+      fns: Array<(options: { headers: Headers }) => void> = [];
+
+      use(fn: (options: { headers: Headers }) => void) {
+        this.fns.push(fn);
+      }
+    }
+
+    const request = new RequestInterceptors();
+    const client = { interceptors: { request } };
+
+    attachCoreRequestIdInterceptor(client);
+
+    expect(request.fns).toHaveLength(1);
+    const headers = new Headers();
+    request.fns[0]?.({ headers });
+    expect(headers.get(CORE_REQUEST_ID_HEADER)).toEqual(expect.any(String));
+  });
+
   it("does not attach twice to the same client", () => {
     let useCount = 0;
     const client = {

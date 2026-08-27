@@ -28,14 +28,19 @@ export function applyCoreRequestIdHeader(headers: Headers): string {
 }
 
 export function attachCoreRequestIdInterceptor<T extends object>(client: T): T {
-  const use = (client as CoreRequestInterceptable).interceptors?.request?.use;
+  const requestInterceptors = (client as CoreRequestInterceptable).interceptors
+    ?.request;
 
-  if (typeof use !== "function" || instrumentedClients.has(client)) {
+  if (
+    !requestInterceptors ||
+    typeof requestInterceptors.use !== "function" ||
+    instrumentedClients.has(client)
+  ) {
     return client;
   }
 
   instrumentedClients.add(client);
-  use((options) => {
+  requestInterceptors.use((options) => {
     applyCoreRequestIdHeader(options.headers);
   });
 
