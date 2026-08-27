@@ -124,7 +124,6 @@ describe("publishNotificationEvent", () => {
       data: notification,
       extras: {
         push: {
-          notification: { ttl: 3600 },
           data: {
             id: notification.id,
             kind: notification.kind,
@@ -136,12 +135,20 @@ describe("publishNotificationEvent", () => {
         },
       },
     });
-    // ADR-0018: the notification part carries the ttl transport knob only.
-    // The service worker renders text, so Core ships no display strings.
-    const pushExtras = publishMock.mock.calls[0]?.[0]?.extras?.push;
-    expect(pushExtras?.notification).toEqual({ ttl: 3600 });
-    expect(pushExtras?.notification).not.toHaveProperty("title");
-    expect(pushExtras?.notification).not.toHaveProperty("body");
+    // ADR-0018: the service worker renders text, so Core ships no display part.
+    //
+    // The part must be absent, not empty. Ably defines `notification` as
+    // title, body, icon, sound and collapseKey, so a `notification` holding
+    // only a `ttl` carries no field Ably reads. An earlier revision sent
+    // exactly that, and this guard keeps it from coming back.
+    //
+    // It was removed as undefined input, not as a proven delivery failure.
+    // The silence that prompted the change was macOS: it suppresses banners
+    // while the display is shared, and files them into Notification Centre
+    // instead. Push delivery itself was working the whole time.
+    expect(publishMock.mock.calls[0]?.[0]?.extras?.push).not.toHaveProperty(
+      "notification",
+    );
   });
 
   it("keeps every push data value a string", async () => {

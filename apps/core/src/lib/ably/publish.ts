@@ -56,14 +56,6 @@ interface NotificationEventData {
   createdAt: string;
 }
 
-/**
- * How long a push may wait for a device that is offline, in seconds.
- *
- * Ably maps this to the RFC 8030 `TTL` header, which Edge/WNS requires for
- * Web Push. One hour: a chat notification is stale past that.
- */
-const PUSH_TTL_SECONDS = 3600;
-
 interface PublishNotificationEventInput {
   userId: string;
   notification: NotificationEventData;
@@ -146,15 +138,7 @@ export async function publishNotificationEvent({
     name: "notification_created",
     data: notification,
     ...(push && {
-      extras: {
-        push: {
-          // `notification` carries the transport knob only. No title or body:
-          // the service worker renders those, because it knows the reader's
-          // locale and Core does not (ADR-0018).
-          notification: { ttl: PUSH_TTL_SECONDS },
-          data: toNotificationPushData(notification),
-        },
-      },
+      extras: { push: { data: toNotificationPushData(notification) } },
     }),
   });
 }
