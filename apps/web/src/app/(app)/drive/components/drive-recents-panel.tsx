@@ -20,6 +20,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
@@ -36,7 +37,6 @@ import {
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { DriveItem, DriveRecentsItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -310,13 +310,7 @@ export function DriveRecentsPanel({
   }
 
   if (loading) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-14 w-full rounded-lg" />
-        ))}
-      </div>
-    );
+    return <DriveListSkeleton />;
   }
 
   if (items.length === 0) {
