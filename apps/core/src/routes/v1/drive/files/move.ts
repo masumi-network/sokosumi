@@ -12,6 +12,10 @@ import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import {
+  assertDriveFolderPathNotReserved,
+  resolveMovedFolderPath,
+} from "@/helpers/drive-folder-reserved-names";
+import {
   badRequest,
   conflict,
   notFound,
@@ -171,6 +175,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Source folder path cannot be empty");
       }
 
+      const sourceFolderSegments = sourceFolderPath.split("/").filter((s) => s);
+      const folderName =
+        sourceFolderSegments[sourceFolderSegments.length - 1] || "";
+
+      if (!folderName) {
+        throw badRequest("Cannot determine folder name from source path");
+      }
+
+      const newFolderPath = resolveMovedFolderPath(
+        targetFolderPath,
+        folderName,
+      );
+      assertDriveFolderPathNotReserved(newFolderPath);
+
       let scope: "user" | "organization";
       let ownerId: string;
       let oldPrefix: string;
@@ -209,18 +227,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Source folder not found");
       }
 
-      // Extract folder name from source
-      const sourceFolderSegments = sourceFolderPath.split("/").filter((s) => s);
-      const folderName =
-        sourceFolderSegments[sourceFolderSegments.length - 1] || "";
-
-      if (!folderName) {
-        throw badRequest("Cannot determine folder name from source path");
-      }
-
-      const newFolderPath = targetFolderPath
-        ? `${targetFolderPath}/${folderName}`
-        : folderName;
       newPrefix =
         scope === "user"
           ? buildUserDriveFolderPrefix(ownerId, newFolderPath)
