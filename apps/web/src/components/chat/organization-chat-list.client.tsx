@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  Ellipsis,
-  Globe2,
-  Plus,
-  RotateCcw,
-  Trash2,
-} from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, Ellipsis, Globe2, RotateCcw, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -27,6 +19,8 @@ import {
   restoreRoomAction,
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
+import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
+import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
 import { publishMembershipVisibleRooms } from "@/components/chat/membership-visible-rooms-store";
 import {
@@ -51,7 +45,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -111,45 +104,27 @@ interface OrganizationChatListProps {
 
 function SectionHeader({
   children,
-  href,
   isOpen,
-  label,
+  createAction,
   secondaryAction,
-  dismissSheetOnNavigate = true,
 }: {
   children: ReactNode;
-  href?: string;
   isOpen: boolean;
-  label?: string;
+  createAction?: ReactNode;
   secondaryAction?: ReactNode;
-  dismissSheetOnNavigate?: boolean;
 }) {
-  // Create `+` visible on mobile → `?create=channel` / `?dm=new`; Browse stays.
-  const createHref = href && label ? href : null;
-  const mobileTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);
-  const desktopTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);
-  const hasTrailing = mobileTrailingCount > 0 || desktopTrailingCount > 0;
-
-  const createLink = createHref ? (
-    <Link
-      aria-label={label}
-      className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-      href={createHref}
-    >
-      <Plus className="size-4 md:size-3.5" aria-hidden />
-    </Link>
-  ) : null;
+  const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
 
   return (
     <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
       <CollapsibleTrigger
         className={cn(
           "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
-          mobileTrailingCount === 1 && "pr-9",
-          mobileTrailingCount >= 2 && "pr-16",
-          desktopTrailingCount === 0 && "md:pr-0",
-          desktopTrailingCount === 1 && "md:pr-8",
-          desktopTrailingCount >= 2 && "md:pr-14",
+          trailingCount === 1 && "pr-9",
+          trailingCount >= 2 && "pr-16",
+          trailingCount === 0 && "md:pr-0",
+          trailingCount === 1 && "md:pr-8",
+          trailingCount >= 2 && "md:pr-14",
         )}
       >
         <ChevronDown
@@ -161,16 +136,10 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      {hasTrailing ? (
+      {trailingCount > 0 ? (
         <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
           {secondaryAction}
-          {createLink ? (
-            dismissSheetOnNavigate ? (
-              <SheetClose asChild>{createLink}</SheetClose>
-            ) : (
-              createLink
-            )
-          ) : null}
+          {createAction}
         </div>
       ) : null}
     </div>
@@ -554,11 +523,9 @@ export function OrganizationChatList({
             onOpenChange={setChannelSectionOpen}
           >
             <SectionHeader
-              href="/?create=channel"
               isOpen={channelSectionOpen}
-              label={t("createChannel")}
+              createAction={<CreateChannelDialog />}
               secondaryAction={<BrowseChannelsDialog />}
-              dismissSheetOnNavigate={dismissSheetOnNavigate}
             >
               {t("title")}
             </SectionHeader>
@@ -842,16 +809,14 @@ export function OrganizationChatList({
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
-            Sidebar rows = messaged history only. `+` opens Start New DM
-            (`/?dm=new`): org members + coworkers (1:1 only). Personal
-            workspace soft-gates named channels but still mounts the same draft
-            with empty members (coworkers only).
+            Sidebar rows = messaged history only. `+` opens Start New Direct
+            in place (org members + coworkers, 1:1 coworker / group humans).
+            Personal workspace still mounts the picker with empty members
+            (coworkers only).
           */}
           <SectionHeader
-            href="/?dm=new"
             isOpen={directOpen}
-            label={t("Draft.title")}
-            dismissSheetOnNavigate={dismissSheetOnNavigate}
+            createAction={<CreateDirectDialog />}
           >
             {t("directMessages")}
           </SectionHeader>

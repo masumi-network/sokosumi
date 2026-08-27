@@ -184,14 +184,6 @@ vi.mock("../thread-list-panel", () => ({
   ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
 }));
 
-vi.mock("../create-channel-dialog", () => ({
-  CreateChannelDialog: () => null,
-}));
-
-vi.mock("../draft-direct-message", () => ({
-  DraftDirectMessage: () => null,
-}));
-
 vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: ({ children }: { children?: ReactNode }) => (
     <>
@@ -295,8 +287,6 @@ function roomClientProps(room: ChatRoom) {
     currentUserId: "user-1",
     coworkers: [] as [],
     selectedRoomId: room.id,
-    isCreateChannelRequested: false,
-    isNewDirectMessage: false,
     messageLoadFailed: false,
     membersLoadFailed: false,
     messages: [] as [],

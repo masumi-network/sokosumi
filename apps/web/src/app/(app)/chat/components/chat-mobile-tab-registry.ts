@@ -55,7 +55,7 @@ export function chatMobileTabBarBottomOffset(isApple: boolean): string {
 }
 
 /**
- * Composer outer `pb-*` when the mobile tab is hidden (room / draft).
+ * Composer outer `pb-*` when the mobile tab is hidden (room).
  * Matches Apple float bottom inset: `max(0.75rem, env(safe-area-inset-bottom))`.
  * Drop on soft-keyboard open — layout already clears the home indicator.
  */
@@ -91,21 +91,21 @@ export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
   "h-[calc(100svh-4rem-env(safe-area-inset-top))] max-md:h-full" as const;
 
 /**
- * Full shell height when the mobile tab bar is hidden (room / draft compose).
+ * Full shell height when the mobile tab bar is hidden (room).
  * Matches desktop/`md` height — no tab-bar spacer below.
  * Same below-header calc as `APP_SHELL_BELOW_HEADER_HEIGHT_CLASS`.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
   "h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
 
-/** Height class for chat views: room and draft compose drop tab-bar spacer offset. */
+/** Height class for chat views: rooms drop tab-bar spacer offset. */
 export function chatMobileHeightShellClass(
   pathname: string | null | undefined,
   _isApple = false,
   searchParams?: SearchParamsLike,
 ): string {
   const surface = classifyChatChromeSurface(pathname, searchParams);
-  if (surface === "room" || surface === "draft") {
+  if (surface === "room") {
     return CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS;
   }
   return CHAT_MOBILE_HEIGHT_SHELL_CLASS;

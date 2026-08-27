@@ -133,7 +133,7 @@ describe("AppMobileChrome", () => {
     expect(getTabBarSpacer(container)).toBeNull();
   });
 
-  it("hides bottom nav and clearance on draft DM compose", () => {
+  it("keeps bottom nav on leftover compose queries on the chats list", () => {
     mockPathname = "/chat";
     mockSearchParams = new URLSearchParams("dm=new");
 
@@ -143,9 +143,8 @@ describe("AppMobileChrome", () => {
       </AppMobileChrome>,
     );
 
-    expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
-    expect(getTabBarSpacer(container)).toBeNull();
-    expect(screen.queryByRole("link", { name: "openFab" })).toBeNull();
+    expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+    expect(getTabBarSpacer(container)).toBeTruthy();
   });
 
   it("hides bottom nav on nested detail routes", () => {

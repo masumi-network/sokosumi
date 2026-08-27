@@ -5065,8 +5065,10 @@
         "membersLoadFailedTitle": "Members could not be loaded",
         "membersLoadFailedDescription": "Organization members are temporarily unavailable. Try again in a moment.",
         "membersLoadFailedRetry": "Retry",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Channels are for conversations around a topic. Create one to get started."
+        "rosterLoadFailedTitle": "Could not load people",
+        "rosterLoadFailedDescription": "Recipients are temporarily unavailable. Try again in a moment.",
+        "noChannelTitle": "No chat selected",
+        "noChannelDescription": "Choose a channel or direct message from the sidebar."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -5101,22 +5103,16 @@
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
-        "breadcrumb": "New direct message",
-        "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Add more people",
         "searchPlaceholderReplace": "Replace recipient",
         "noResults": "No matches",
         "title": "New direct message",
         "empty": "Choose who to message.",
-        "ready": "Recipient selected",
         "chooseRecipientError": "Choose a recipient.",
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
-        "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Add a recipient to start",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
-        "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
       "RoomSearch": {

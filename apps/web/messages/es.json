@@ -5065,8 +5065,10 @@
         "membersLoadFailedTitle": "No se pudieron cargar los miembros",
         "membersLoadFailedDescription": "Los miembros de la organización no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
         "membersLoadFailedRetry": "Reintentar",
-        "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Los canales sirven para conversar sobre un tema. Crea uno para empezar."
+        "rosterLoadFailedTitle": "No se pudieron cargar las personas",
+        "rosterLoadFailedDescription": "Los destinatarios no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
+        "noChannelTitle": "Ningún chat seleccionado",
+        "noChannelDescription": "Elige un canal o un mensaje directo en la barra lateral."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -5101,22 +5103,16 @@
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
-        "breadcrumb": "New direct message",
-        "to": "To:",
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Añadir más personas",
+        "searchPlaceholderReplace": "Reemplazar destinatario",
         "noResults": "No matches",
         "title": "New direct message",
         "empty": "Elige a quién escribir.",
-        "ready": "Destinatario seleccionado",
         "chooseRecipientError": "Elige un destinatario.",
         "organizationRequiredForGroup": "Cambia a una organización para escribir a un compañero.",
         "removeRecipient": "Remove {name}",
-        "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Añade un destinatario para empezar",
-        "searchPlaceholderReplace": "Reemplazar destinatario",
         "groupDirectHumansOnly": "Los mensajes directos de grupo son solo entre personas.",
-        "groupDirectNoCoworkersError": "Los mensajes directos de grupo no pueden incluir coworkers.",
         "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1."
       },
       "RoomSearch": {

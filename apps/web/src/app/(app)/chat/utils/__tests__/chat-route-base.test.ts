@@ -6,8 +6,8 @@ import {
   CHAT_CHATS_LIST_PATH,
   CHAT_WELCOME_PATH,
   classifyChatChromeSurface,
-  hasChatDraftOrNoticeFromRecord,
-  hasChatDraftOrNoticeQuery,
+  hasChatNoticeFromRecord,
+  hasChatNoticeQuery,
   isChatChatsPathname,
   isChatRoomPathname,
   isChatShellPathname,
@@ -48,39 +48,28 @@ describe("chat-route-base", () => {
     expect(isChatChatsPathname(null)).toBe(false);
   });
 
-  describe("draft/notice redirect helpers", () => {
-    it("detects dm=new, create=channel, and notice", () => {
-      expect(hasChatDraftOrNoticeQuery(new URLSearchParams("dm=new"))).toBe(
-        true,
-      );
-      expect(
-        hasChatDraftOrNoticeQuery(new URLSearchParams("create=channel")),
-      ).toBe(true);
-      expect(
-        hasChatDraftOrNoticeQuery(
-          new URLSearchParams("notice=room-unavailable"),
-        ),
-      ).toBe(true);
-      expect(hasChatDraftOrNoticeQuery(new URLSearchParams("notice="))).toBe(
-        true,
-      );
-      expect(hasChatDraftOrNoticeQuery(new URLSearchParams())).toBe(false);
-      expect(hasChatDraftOrNoticeQuery(new URLSearchParams("welcome=1"))).toBe(
+  describe("notice redirect helpers", () => {
+    it("detects notice and ignores retired compose queries", () => {
+      expect(hasChatNoticeQuery(new URLSearchParams("dm=new"))).toBe(false);
+      expect(hasChatNoticeQuery(new URLSearchParams("create=channel"))).toBe(
         false,
       );
-      expect(hasChatDraftOrNoticeQuery(new URLSearchParams("dm=other"))).toBe(
-        false,
-      );
+      expect(
+        hasChatNoticeQuery(new URLSearchParams("notice=room-unavailable")),
+      ).toBe(true);
+      expect(hasChatNoticeQuery(new URLSearchParams("notice="))).toBe(true);
+      expect(hasChatNoticeQuery(new URLSearchParams())).toBe(false);
+      expect(hasChatNoticeQuery(new URLSearchParams("welcome=1"))).toBe(false);
     });
 
-    it("detects draft/notice from Next searchParams records", () => {
-      expect(hasChatDraftOrNoticeFromRecord({ dm: "new" })).toBe(true);
-      expect(hasChatDraftOrNoticeFromRecord({ create: "channel" })).toBe(true);
-      expect(
-        hasChatDraftOrNoticeFromRecord({ notice: "room-unavailable" }),
-      ).toBe(true);
-      expect(hasChatDraftOrNoticeFromRecord({ foo: "bar" })).toBe(false);
-      expect(hasChatDraftOrNoticeFromRecord({})).toBe(false);
+    it("detects notice from Next searchParams records", () => {
+      expect(hasChatNoticeFromRecord({ dm: "new" })).toBe(false);
+      expect(hasChatNoticeFromRecord({ create: "channel" })).toBe(false);
+      expect(hasChatNoticeFromRecord({ notice: "room-unavailable" })).toBe(
+        true,
+      );
+      expect(hasChatNoticeFromRecord({ foo: "bar" })).toBe(false);
+      expect(hasChatNoticeFromRecord({})).toBe(false);
     });
 
     it("pathWithSearch preserves query strings", () => {
@@ -124,27 +113,22 @@ describe("chat-route-base", () => {
       );
     });
 
-    it("returns draft for compose query on Welcome or bare /chat", () => {
+    it("ignores retired compose queries on Welcome and bare /chat", () => {
       expect(
         classifyChatChromeSurface("/", new URLSearchParams("create=channel")),
-      ).toBe("draft");
+      ).toBe("home");
       expect(
         classifyChatChromeSurface("/", new URLSearchParams("dm=new")),
-      ).toBe("draft");
-      expect(
-        classifyChatChromeSurface("/", {
-          get: (k) => (k === "dm" ? "new" : null),
-        }),
-      ).toBe("draft");
+      ).toBe("home");
       expect(
         classifyChatChromeSurface(
           "/chat",
           new URLSearchParams("create=channel"),
         ),
-      ).toBe("draft");
+      ).toBe("chats");
       expect(
         classifyChatChromeSurface("/chat", new URLSearchParams("dm=new")),
-      ).toBe("draft");
+      ).toBe("chats");
     });
 
     it("returns other-chat for nested non-room chat and non-chat", () => {

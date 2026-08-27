@@ -9,9 +9,8 @@ import { ChatErrorFallback } from "./chat-error-fallback";
 type SearchParamsLike = { toString(): string } | null | undefined;
 
 /**
- * Remount key for the page error boundary. Pathname alone is not enough:
- * `/`, `/?create=channel`, and `/?dm=new` share a pathname but
- * are distinct soft-navigations within the welcome layout.
+ * Remount key for the page error boundary. Pathname + search so a notice
+ * query on Welcome remounts separately from bare `/`.
  */
 export function chatRouteErrorBoundaryKey(
   pathname: string,
