@@ -1,6 +1,7 @@
 import type { DrainContext } from "evlog";
 import { initLogger } from "evlog";
 import { evlog, useLogger } from "evlog/hono";
+import { createSentryDrain } from "evlog/sentry";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
@@ -22,6 +23,7 @@ export function initCoreLogger(options: InitCoreLoggerOptions = {}) {
 export function coreEvlogMiddleware() {
   return evlog({
     exclude: [OPENAPI_SPEC_PATH],
+    drain: process.env.SENTRY_DSN ? createSentryDrain() : undefined,
   });
 }
 
