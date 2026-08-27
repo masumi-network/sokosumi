@@ -1,8 +1,7 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountGetProjectContextMd from "./context-md/get.js";
@@ -11,6 +10,14 @@ import mountGetProject from "./get.js";
 import mountDeleteProjectJob from "./jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./jobs/post.js";
 import mountPatchProject from "./patch.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   projectFindFirstMock,
@@ -106,9 +113,7 @@ const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -130,7 +135,7 @@ describe("GET /projects/{id}", () => {
   it("returns 404 when project is missing", async () => {
     projectFindFirstMock.mockResolvedValue(null);
     const app = createApp();
-    mountGetProject(app as unknown as OpenAPIHonoWithAuth);
+    mountGetProject(app);
     const res = await app.request(`http://localhost/${UNKNOWN_PROJECT_ID}`);
     expect(res.status).toBe(404);
   });
@@ -138,7 +143,7 @@ describe("GET /projects/{id}", () => {
   it("returns the project when found", async () => {
     projectFindFirstMock.mockResolvedValue(sampleProject);
     const app = createApp();
-    mountGetProject(app as unknown as OpenAPIHonoWithAuth);
+    mountGetProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { id: string } };
@@ -154,7 +159,7 @@ describe("GET /projects/{id}/context-md", () => {
   it("returns 404 when project has no memory", async () => {
     projectFindFirstMock.mockResolvedValue(sampleProject);
     const app = createApp();
-    mountGetProjectContextMd(app as unknown as OpenAPIHonoWithAuth);
+    mountGetProjectContextMd(app);
 
     const res = await app.request(`http://localhost/${PROJECT_ID}/context-md`);
 
@@ -171,7 +176,7 @@ describe("GET /projects/{id}/context-md", () => {
       contextMdVersion: 2,
     });
     const app = createApp();
-    mountGetProjectContextMd(app as unknown as OpenAPIHonoWithAuth);
+    mountGetProjectContextMd(app);
 
     const res = await app.request(`http://localhost/${PROJECT_ID}/context-md`);
 
@@ -208,7 +213,7 @@ describe("PATCH /projects/{id}", () => {
     projectFindFirstMock.mockResolvedValue(sampleProject);
     projectUpdateManyMock.mockResolvedValue({ count: 0 });
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -224,7 +229,7 @@ describe("PATCH /projects/{id}", () => {
       name: "New",
     });
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -246,7 +251,7 @@ describe("PATCH /projects/{id}", () => {
           "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
       });
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
 
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
@@ -284,7 +289,7 @@ describe("PATCH /projects/{id}", () => {
       .mockResolvedValueOnce(sampleProject);
 
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -318,7 +323,7 @@ describe("PATCH /projects/{id}", () => {
     uploadProjectBriefingFileMock.mockResolvedValue(null);
 
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -336,7 +341,7 @@ describe("PATCH /projects/{id}", () => {
   it("does not upload a briefing when the scoped project lookup misses", async () => {
     projectFindFirstMock.mockResolvedValue(null);
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
 
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
@@ -356,7 +361,7 @@ describe("PATCH /projects/{id}", () => {
       websiteUrl: "https://new.example.com",
     });
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
 
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
@@ -373,7 +378,7 @@ describe("PATCH /projects/{id}", () => {
 
   it("rejects a logo owned by another project", async () => {
     const app = createApp();
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
 
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
@@ -389,7 +394,7 @@ describe("PATCH /projects/{id}", () => {
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
     const app = createApp(COWORKER_CONTEXT_AUTH);
-    mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
+    mountPatchProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -408,7 +413,7 @@ describe("DELETE /projects/{id}", () => {
   it("returns 404 when nothing deleted", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 0 });
     const app = createApp();
-    mountDeleteProject(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
     });
@@ -419,7 +424,7 @@ describe("DELETE /projects/{id}", () => {
   it("returns deleted payload", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 1 });
     const app = createApp();
-    mountDeleteProject(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
     });
@@ -431,7 +436,7 @@ describe("DELETE /projects/{id}", () => {
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
     const app = createApp(COWORKER_CONTEXT_AUTH);
-    mountDeleteProject(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
     });
@@ -452,7 +457,7 @@ describe("POST /projects/{id}/jobs", () => {
       projectId: "99999999-9999-4999-8999-999999999999",
     });
     const app = createApp();
-    mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    mountPostProjectJob(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -466,7 +471,7 @@ describe("POST /projects/{id}/jobs", () => {
     jobFindFirstMock.mockResolvedValue({ id: "job_1", projectId: null });
     jobUpdateMock.mockResolvedValue({});
     const app = createApp();
-    mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    mountPostProjectJob(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -492,7 +497,7 @@ describe("POST /projects/{id}/jobs", () => {
       projectId: PROJECT_ID,
     });
     const app = createApp();
-    mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    mountPostProjectJob(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -504,7 +509,7 @@ describe("POST /projects/{id}/jobs", () => {
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
     const app = createApp(COWORKER_CONTEXT_AUTH);
-    mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    mountPostProjectJob(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -523,7 +528,7 @@ describe("DELETE /projects/{id}/jobs/{jobId}", () => {
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
     const app = createApp(COWORKER_CONTEXT_AUTH);
-    mountDeleteProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    mountDeleteProjectJob(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs/job_1`, {
       method: "DELETE",
     });

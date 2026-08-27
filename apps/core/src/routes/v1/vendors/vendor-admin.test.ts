@@ -1,9 +1,6 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import { testVendor } from "@/test-fixtures/vendor";
 import mountDeleteCoworkerAssignment from "./[id]/coworkers/[coworkerId]/assignments/[userId]/delete";
@@ -15,6 +12,14 @@ import mountListVendorMembers from "./[id]/members/get";
 import mountAddVendorMember from "./[id]/members/post";
 import mountPatchVendor from "./[id]/patch";
 import mountListMyVendorMemberships from "./me/get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   vendorFindUniqueMock,
@@ -84,11 +89,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_vendor_admin_test");
@@ -98,15 +99,15 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.onError(errorHandler);
-  mountListMyVendorMemberships(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchVendor(app as unknown as OpenAPIHonoWithAuth);
-  mountListVendorMembers(app as unknown as OpenAPIHonoWithAuth);
-  mountAddVendorMember(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchVendorMemberRole(app as unknown as OpenAPIHonoWithAuth);
-  mountRemoveVendorMember(app as unknown as OpenAPIHonoWithAuth);
-  mountListCoworkerAssignments(app as unknown as OpenAPIHonoWithAuth);
-  mountPutCoworkerAssignment(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteCoworkerAssignment(app as unknown as OpenAPIHonoWithAuth);
+  mountListMyVendorMemberships(app);
+  mountPatchVendor(app);
+  mountListVendorMembers(app);
+  mountAddVendorMember(app);
+  mountPatchVendorMemberRole(app);
+  mountRemoveVendorMember(app);
+  mountListCoworkerAssignments(app);
+  mountPutCoworkerAssignment(app);
+  mountDeleteCoworkerAssignment(app);
 
   return app;
 }

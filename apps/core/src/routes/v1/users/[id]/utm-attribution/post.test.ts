@@ -1,8 +1,6 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
@@ -10,6 +8,14 @@ import {
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostUtmAttribution from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { createUTMAttributionMock, userFindUniqueMock } = vi.hoisted(() => ({
   createUTMAttributionMock: vi.fn(),
@@ -45,9 +51,7 @@ function validBody() {
 }
 
 function createApp(actor: "user" | "coworker" | "unauthenticated" = "user") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     if (actor === "unauthenticated") {
@@ -73,13 +77,9 @@ function createApp(actor: "user" | "coworker" | "unauthenticated" = "user") {
     return await next();
   });
 
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
+  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountPostUtmAttribution(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
+  mountPostUtmAttribution(userByIdApp);
   app.route("/:id", userByIdApp);
 
   return app;
@@ -126,11 +126,11 @@ describe("POST /users/{id}/utm-attribution", () => {
     });
   });
 
-  it("returns 400 when utm_source is missing", async () => {
+  it("returns 422 when utm_source is missing", async () => {
     const app = createApp();
     const response = await post(app, { capturedAt: CAPTURED_AT });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(createUTMAttributionMock).not.toHaveBeenCalled();
   });
 

@@ -1,14 +1,21 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountGetOrganization from "./[id]/get";
 import mountGetOrganizationStripeCustomer from "./[id]/stripe-customer/get";
 import mountGetOrganizationSubscription from "./[id]/subscription/get";
 import mountGetOrganizationBySlug from "./slug/[slug]/get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 /**
  * Shared matrix: bare orch must fail requireUserContext; orch+ctx may pass
@@ -78,9 +85,7 @@ function createApp(
   mount: (app: OpenAPIHonoWithAuth) => void,
   authContext: AuthenticationContext,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_orch_org_matrix");
@@ -89,7 +94,7 @@ function createApp(
     return await next();
   });
   app.onError(errorHandler);
-  mount(app as unknown as OpenAPIHonoWithAuth);
+  mount(app);
   return app;
 }
 

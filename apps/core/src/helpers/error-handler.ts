@@ -1,9 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { isAPIError } from "better-auth/api";
-import type { Context } from "hono";
+import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import type { RequestIdVariables } from "hono/request-id";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { recordCoreRequestError } from "@/lib/evlog";
@@ -73,10 +72,7 @@ function resolveBetterAuthApiErrorStatus(
  * Formats HTTPExceptions into consistent error responses
  * Logs parsing errors for debugging
  */
-export function errorHandler<E extends { Variables: RequestIdVariables }>(
-  error: Error,
-  c: Context<E>,
-): Response {
+export const errorHandler: ErrorHandler = (error, c) => {
   if (shouldMarkWideEventError(error)) {
     recordCoreRequestError(error);
   }
@@ -214,4 +210,4 @@ export function errorHandler<E extends { Variables: RequestIdVariables }>(
     },
     500,
   );
-}
+};

@@ -1,8 +1,7 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountDeleteCoworkerApiKey from "./[id]/api-keys/delete";
 import mountGetCoworkerApiKeys from "./[id]/api-keys/get";
@@ -12,6 +11,14 @@ import mountDeleteCoworkerById from "./[id]/delete";
 import mountPatchCoworkerById from "./[id]/patch";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch";
 import mountPostCoworker from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   userFindUniqueMock,
@@ -45,9 +52,7 @@ vi.mock("@/lib/db/prisma", () => ({
 const vendorId = "01960001-0001-7001-8001-000000000001";
 
 function createApp(authContext: AuthenticationContext) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -55,14 +60,14 @@ function createApp(authContext: AuthenticationContext) {
     return await next();
   });
 
-  mountPostCoworker(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchCoworkerById(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteCoworkerById(app as unknown as OpenAPIHonoWithAuth);
-  mountGetCoworkerApiKeys(app as unknown as OpenAPIHonoWithAuth);
-  mountPostCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
-  mountDeleteCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
-  mountPatchCoworkerWhitelistById(app as unknown as OpenAPIHonoWithAuth);
+  mountPostCoworker(app);
+  mountPatchCoworkerById(app);
+  mountDeleteCoworkerById(app);
+  mountGetCoworkerApiKeys(app);
+  mountPostCoworkerApiKey(app);
+  mountPatchCoworkerApiKey(app);
+  mountDeleteCoworkerApiKey(app);
+  mountPatchCoworkerWhitelistById(app);
 
   return app;
 }
