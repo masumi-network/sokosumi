@@ -22,9 +22,9 @@ interface BucketWithRemaining {
 
 function remainingOf(bucket: {
   amount: bigint;
-  creditConsumptions: Array<{ amount: bigint }>;
+  consumptions: Array<{ amount: bigint }>;
 }): bigint {
-  const consumed = bucket.creditConsumptions.reduce(
+  const consumed = bucket.consumptions.reduce(
     (sum, consumption) => sum + consumption.amount,
     0n,
   );
@@ -63,7 +63,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       expiresAt: true,
       id: true,
       organizationId: true,
-      creditConsumptions: {
+      consumptions: {
         select: { amount: true },
       },
     },
