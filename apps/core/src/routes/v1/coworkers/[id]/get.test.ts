@@ -1,11 +1,18 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { coworkerInclude } from "@/helpers/coworker";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { testVendor } from "@/test-fixtures/vendor";
 import mountGetCoworkerById from "./get";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { coworkerFindFirstMock } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
@@ -33,9 +40,7 @@ function createApp(
     role: "user",
   },
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -43,7 +48,7 @@ function createApp(
     return await next();
   });
 
-  mountGetCoworkerById(app as unknown as OpenAPIHonoWithAuth);
+  mountGetCoworkerById(app);
   return app;
 }
 

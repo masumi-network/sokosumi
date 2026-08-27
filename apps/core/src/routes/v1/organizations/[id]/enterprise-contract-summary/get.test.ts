@@ -1,10 +1,15 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   resolveMemberOrganizationByIdMock,
@@ -40,11 +45,7 @@ vi.mock("@/helpers/enterprise-contract-summary.js", () => ({
 const { default: mountSummary } = await import("./get.js");
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_summary_test");
@@ -59,7 +60,7 @@ function createApp() {
   });
 
   app.onError(errorHandler);
-  mountSummary(app as unknown as OpenAPIHonoWithAuth);
+  mountSummary(app);
 
   return app;
 }

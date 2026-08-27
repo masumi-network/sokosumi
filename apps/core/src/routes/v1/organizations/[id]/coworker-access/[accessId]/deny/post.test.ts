@@ -1,10 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { CoworkerWorkspaceAccessStatus, MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   denyMock,
@@ -56,16 +63,14 @@ const orgId = "org_123";
 const now = new Date("2026-08-05T12:00:00.000Z");
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
-  mountDenyOrganizationCoworkerAccess(app as unknown as OpenAPIHonoWithAuth);
+  mountDenyOrganizationCoworkerAccess(app);
   return app;
 }
 

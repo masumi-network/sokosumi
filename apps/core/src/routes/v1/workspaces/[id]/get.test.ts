@@ -1,9 +1,8 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 const { workspaceFindUniqueMock, resolveMemberOrganizationByIdMock } =
   vi.hoisted(() => ({
@@ -11,7 +10,10 @@ const { workspaceFindUniqueMock, resolveMemberOrganizationByIdMock } =
     resolveMemberOrganizationByIdMock: vi.fn(),
   }));
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, { message: "User authentication required" });
@@ -45,16 +47,14 @@ const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 let mountGetWorkspaceById: (app: OpenAPIHonoWithAuth) => void;
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
-  mountGetWorkspaceById(app as unknown as OpenAPIHonoWithAuth);
+  mountGetWorkspaceById(app);
   return app;
 }
 

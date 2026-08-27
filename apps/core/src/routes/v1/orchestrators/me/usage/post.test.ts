@@ -1,10 +1,16 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostOrchestratorMeUsage from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const { prepareConsumptionMock, serializableTransactionMock } = vi.hoisted(
   () => ({
@@ -57,9 +63,7 @@ function createApp(
   actor: "orchestrator" | "user" = "orchestrator",
   authOverrides: { orchestratorId?: string } = {},
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -81,7 +85,7 @@ function createApp(
     return await next();
   });
 
-  mountPostOrchestratorMeUsage(app as unknown as OpenAPIHonoWithAuth);
+  mountPostOrchestratorMeUsage(app);
 
   return app;
 }
@@ -163,7 +167,7 @@ describe("POST /orchestrators/me/usage", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(serializableTransactionMock).not.toHaveBeenCalled();
   });
 

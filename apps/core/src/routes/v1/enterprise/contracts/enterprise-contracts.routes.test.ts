@@ -1,4 +1,3 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { EnterpriseContractStatus } from "@sokosumi/database";
 import {
   EnterpriseContractActivationError,
@@ -7,11 +6,9 @@ import {
 } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { createMiddleware } from "hono/factory";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler.js";
-import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
-import type { AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
@@ -22,6 +19,14 @@ import mountPatchEnterpriseContract from "./[id]/patch.js";
 import mountPreviewEnterpriseContractPeriods from "./[id]/periods/preview/get.js";
 import mountGetEnterpriseContracts from "./get.js";
 import mountPostEnterpriseContract from "./post.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const CONTRACT_ID = "01960000-0000-7000-8000-000000000001";
 const ORG_ID = "org_123";
@@ -118,11 +123,7 @@ function mountContractRoutes(app: OpenAPIHonoWithAuth) {
 
 function createContractsApp(options: AppOptions = {}) {
   const { role = "admin", actor = "user" } = options;
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>({
-    defaultHook: defaultValidationHook,
-  });
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_enterprise_test");
@@ -155,7 +156,7 @@ function createContractsApp(options: AppOptions = {}) {
   );
 
   app.onError(errorHandler);
-  mountContractRoutes(app as unknown as OpenAPIHonoWithAuth);
+  mountContractRoutes(app);
 
   return app;
 }

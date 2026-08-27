@@ -1,10 +1,9 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
@@ -16,7 +15,10 @@ const { projectFindFirstMock, taskFindFirstMock, taskUpdateMock } = vi.hoisted(
   }),
 );
 
-vi.mock("@/middleware/auth", () => ({
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
   requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor === "coworker") {
       throw new HTTPException(403, {
@@ -30,7 +32,8 @@ vi.mock("@/middleware/auth", () => ({
   },
 }));
 
-vi.mock("@/middleware/workspace", () => ({
+vi.mock("@/middleware/workspace", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/workspace")>()),
   requireWorkspaceContext: (
     workspaceContext: { workspaceId: string } | null,
   ) => {
@@ -98,9 +101,7 @@ const sampleProject = {
 let mountPostProjectTask: (app: OpenAPIHonoWithAuth) => void;
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables & { requestId: string };
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -110,7 +111,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
     return await next();
   });
 
-  mountPostProjectTask(app as unknown as OpenAPIHonoWithAuth);
+  mountPostProjectTask(app);
   return app;
 }
 
