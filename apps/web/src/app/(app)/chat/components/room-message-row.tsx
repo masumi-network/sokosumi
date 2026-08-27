@@ -2286,7 +2286,7 @@ export function ChatMessageRow({
                       isContinuation && showEdited && editedAt != null ? (
                         <MessageEditedLabel
                           editedAt={editedAt}
-                          className="ms-1.5 inline"
+                          className="ms-1.5 inline-flex h-6 items-center"
                         />
                       ) : null
                     }
