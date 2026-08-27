@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   composeSystemPrompt,
   getSokoBotSkill,
+  SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
@@ -122,6 +123,7 @@ import {
   searchSkillsSh,
 } from "@/services/soko-bot-skills.service";
 import { getSokoBotDailyStats } from "@/services/soko-bot-stats.service";
+import { listSokoBotVersions } from "@/services/soko-bot-version.service";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -903,20 +905,24 @@ const listVersionsRoute = createRoute({
 
 app.openapi(listVersionsRoute, async (c) => {
   requireUserAuthContext(c.var.authContext);
+  // Built-ins plus console-authored versions, so the lab can test a new one.
+  const versions = await listSokoBotVersions();
   return ok(
     c,
-    SOKO_BOT_VERSIONS.map((version) => ({
+    versions.map((version) => ({
       id: version.id,
       name: version.name,
       createdAt: version.createdAt,
       summary: version.summary,
       model: version.model,
       skills: version.skills.map((id) => {
-        const skill = getSokoBotSkill(id);
+        // An authored version may reference a skills.sh install, which has no
+        // built-in definition; show the id rather than failing the listing.
+        const skill = SOKO_BOT_SKILLS.find((candidate) => candidate.id === id);
         return {
-          id: skill.id,
-          name: skill.name,
-          description: skill.description,
+          id,
+          name: skill?.name ?? id,
+          description: skill?.description ?? "",
         };
       }),
       capabilities: version.capabilities ? [...version.capabilities] : null,

@@ -25,6 +25,7 @@ import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.servic
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
 import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
+import { listSokoBotVersions } from "@/services/soko-bot-version.service";
 
 const args = process.argv.slice(2);
 function flag(name: string): string | undefined {
@@ -230,7 +231,8 @@ async function startScenario(
 const owner = await resolveOwner();
 const versionArg = flag("version");
 const versionIds = args.includes("--all-versions")
-  ? SOKO_BOT_VERSIONS.map((v) => v.id)
+  ? // Built-ins plus anything authored in the console.
+    (await listSokoBotVersions()).map((v) => v.id)
   : versionArg
     ? [versionArg]
     : [null];
