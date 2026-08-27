@@ -1,6 +1,6 @@
 import {
   CreditBucketReferenceType,
-  type Prisma,
+  Prisma,
 } from "../generated/prisma/client.js";
 import {
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
@@ -13,23 +13,12 @@ export interface MemberPeriodPoolTransferResult {
   centsTransferred: bigint;
 }
 
-interface BucketWithRemaining {
+interface LeftoverMemberPeriodBucket {
   amount: bigint;
   expiresAt: Date | null;
   id: string;
+  organizationId: string;
   remaining: bigint;
-}
-
-function remainingOf(bucket: {
-  amount: bigint;
-  consumptions: Array<{ amount: bigint }>;
-}): bigint {
-  const consumed = bucket.consumptions.reduce(
-    (sum, consumption) => sum + consumption.amount,
-    0n,
-  );
-  const remaining = bucket.amount - consumed;
-  return remaining > 0n ? remaining : 0n;
 }
 
 function expiryGroupKey(expiresAt: Date | null): string {
@@ -44,63 +33,104 @@ export function buildMigratedMemberPeriodPoolReferenceId(
   return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:migrated-member-period:${transferredAt.toISOString()}:${expiryGroupKey(expiresAt)}`;
 }
 
+const leftoverMemberPeriodWhereSql = Prisma.sql`
+  cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+  AND cb."referenceId" LIKE ${`${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%`}
+  AND cb."userId" IS NOT NULL
+`;
+
+export async function listOrganizationIdsWithLeftoverMemberPeriodRemaining(
+  tx: Prisma.TransactionClient,
+  now: Date = new Date(),
+): Promise<string[]> {
+  const rows = await tx.$queryRaw<Array<{ organizationId: string }>>`
+    SELECT DISTINCT leftover."organizationId"
+    FROM (
+      SELECT
+        cb."organizationId"
+      FROM credit_bucket cb
+      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      WHERE cb."organizationId" IS NOT NULL
+        AND ${leftoverMemberPeriodWhereSql}
+        AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+      GROUP BY cb.id, cb."organizationId", cb.amount
+      HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+    ) AS leftover
+  `;
+
+  return rows.map((row) => row.organizationId);
+}
+
+async function listLeftoverMemberPeriodBucketsWithRemaining(
+  tx: Prisma.TransactionClient,
+  now: Date,
+  organizationId?: string,
+): Promise<LeftoverMemberPeriodBucket[]> {
+  const organizationFilter = organizationId
+    ? Prisma.sql`cb."organizationId" = ${organizationId}`
+    : Prisma.sql`cb."organizationId" IS NOT NULL`;
+
+  return await tx.$queryRaw<LeftoverMemberPeriodBucket[]>`
+    SELECT
+      cb.id,
+      cb.amount,
+      cb."expiresAt",
+      cb."organizationId",
+      (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
+    FROM credit_bucket cb
+    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    WHERE ${organizationFilter}
+      AND ${leftoverMemberPeriodWhereSql}
+      AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+    GROUP BY cb.id, cb.amount, cb."expiresAt", cb."organizationId"
+    HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+  `;
+}
+
 export async function transferMemberPeriodBucketsToOrganizationPool(
   tx: Prisma.TransactionClient,
   organizationId?: string,
   now: Date = new Date(),
 ): Promise<MemberPeriodPoolTransferResult> {
-  const buckets = await tx.creditBucket.findMany({
-    where: {
-      organizationId: organizationId ?? { not: null },
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      referenceId: {
-        startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-      },
-      userId: { not: null },
-    },
-    select: {
-      amount: true,
-      expiresAt: true,
-      id: true,
-      organizationId: true,
-      consumptions: {
-        select: { amount: true },
-      },
-    },
-  });
+  const buckets = await listLeftoverMemberPeriodBucketsWithRemaining(
+    tx,
+    now,
+    organizationId,
+  );
 
   const byOrganizationAndExpiry = new Map<
     string,
     {
-      buckets: BucketWithRemaining[];
+      buckets: LeftoverMemberPeriodBucket[];
       expiresAt: Date | null;
       organizationId: string;
     }
   >();
   for (const bucket of buckets) {
-    if (!bucket.organizationId) {
-      continue;
-    }
-    if (bucket.expiresAt && bucket.expiresAt <= now) {
-      continue;
-    }
-    const remaining = remainingOf(bucket);
-    if (remaining <= 0n) {
-      continue;
-    }
     const key = `${bucket.organizationId}:${expiryGroupKey(bucket.expiresAt)}`;
     const group = byOrganizationAndExpiry.get(key) ?? {
       buckets: [],
       expiresAt: bucket.expiresAt,
       organizationId: bucket.organizationId,
     };
-    group.buckets.push({
-      amount: bucket.amount,
-      expiresAt: bucket.expiresAt,
-      id: bucket.id,
-      remaining,
-    });
+    group.buckets.push(bucket);
     byOrganizationAndExpiry.set(key, group);
+  }
+
+  const ownerByOrganization = new Map<string, string>();
+  for (const organization of new Set(
+    buckets.map((bucket) => bucket.organizationId),
+  )) {
+    const owner = await tx.member.findFirst({
+      where: {
+        organizationId: organization,
+        role: "owner",
+      },
+      select: { userId: true },
+    });
+    if (owner) {
+      ownerByOrganization.set(organization, owner.userId);
+    }
   }
 
   let bucketsDrained = 0;
@@ -108,14 +138,8 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
   const transferredOrganizations = new Set<string>();
 
   for (const group of byOrganizationAndExpiry.values()) {
-    const owner = await tx.member.findFirst({
-      where: {
-        organizationId: group.organizationId,
-        role: "owner",
-      },
-      select: { userId: true },
-    });
-    if (!owner) {
+    const ownerUserId = ownerByOrganization.get(group.organizationId);
+    if (!ownerUserId) {
       continue;
     }
 
@@ -132,7 +156,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       data: {
         amount: totalRemaining * -1n,
         organizationId: group.organizationId,
-        userId: owner.userId,
+        userId: ownerUserId,
         creditConsumptions: {
           createMany: {
             data: group.buckets.map((bucket) => ({
@@ -148,7 +172,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       data: {
         amount: totalRemaining,
         organizationId: group.organizationId,
-        userId: owner.userId,
+        userId: ownerUserId,
         sourceCreditBucket: {
           create: {
             amount: totalRemaining,

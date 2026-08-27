@@ -8,24 +8,22 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
   it("drains leftover member period buckets into org-owned buckets per expiry", async () => {
     const createTransactionMock = vi.fn();
     const tx = {
-      creditBucket: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            id: "b-1",
-            amount: 100n,
-            expiresAt: new Date("2026-09-01T00:00:00.000Z"),
-            organizationId: "org-1",
-            consumptions: [{ amount: 40n }],
-          },
-          {
-            id: "b-2",
-            amount: 50n,
-            expiresAt: new Date("2026-08-01T00:00:00.000Z"),
-            organizationId: "org-1",
-            consumptions: [],
-          },
-        ]),
-      },
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: "b-1",
+          amount: 100n,
+          expiresAt: new Date("2026-09-01T00:00:00.000Z"),
+          organizationId: "org-1",
+          remaining: 60n,
+        },
+        {
+          id: "b-2",
+          amount: 50n,
+          expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+          organizationId: "org-1",
+          remaining: 50n,
+        },
+      ]),
       member: {
         findFirst: vi.fn().mockResolvedValue({ userId: "owner-1" }),
       },
