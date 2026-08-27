@@ -103,13 +103,21 @@ function interpolate(template, params) {
 }
 
 /**
- * Ably's exact web push envelope is not yet observed live, so accept both the
- * documented `{ data: … }` wrapper and a flat map, and never throw.
+ * Ably's exact web push envelope is not yet observed live, so accept the
+ * documented `{ data: … }` wrapper, the same wrapper with `data` delivered as a
+ * JSON string, and a flat map. Never throw: a push that throws here shows the
+ * generic banner instead of the notification the reader was sent.
  */
 function readPushData(data) {
   try {
     const payload = data ? data.json() : null;
     if (payload && typeof payload === "object") {
+      // Web Push carries text, and a transport that re-encodes the map hands
+      // it over as a string rather than an object.
+      if (typeof payload.data === "string") {
+        return parseParams(payload.data);
+      }
+
       return payload.data && typeof payload.data === "object"
         ? payload.data
         : payload;

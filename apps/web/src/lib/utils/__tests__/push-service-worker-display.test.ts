@@ -154,7 +154,7 @@ function loadServiceWorker({
     }),
   );
 
-  async function dispatchPush(data: Record<string, string>) {
+  async function dispatchPush(data: unknown) {
     const pending: Promise<unknown>[] = [];
     listeners.get("push")?.({
       data: { json: () => data },
@@ -355,6 +355,29 @@ describe("ably-push-sw display", () => {
 
     expect(worker.shown).toHaveLength(1);
     expect(worker.shown[0]?.options.body).toBeUndefined();
+  });
+  /**
+   * Ably documents the payload as `{ data: … }`, and a transport that
+   * re-encodes the map hands `data` over as a string rather than an object.
+   * Both shapes must render the reader's own notification, not the generic
+   * banner that an unreadable payload falls back to.
+   */
+  it("reads push data from a wrapper whose data is a JSON string", async () => {
+    const worker = loadServiceWorker({ isChromium: false });
+
+    await worker.dispatchPush({ data: JSON.stringify(MENTION_PUSH) });
+
+    expect(worker.shown).toEqual([
+      {
+        title: "Sokosumi",
+        options: {
+          body: "Ada mentioned you in General",
+          tag: "notification-1",
+          icon: "/images/app-icons/apple-icon-180.png",
+          data: MENTION_TARGET,
+        },
+      },
+    ]);
   });
 });
 
