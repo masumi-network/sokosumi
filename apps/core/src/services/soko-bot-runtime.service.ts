@@ -17,6 +17,7 @@ import {
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
+  isSokoBotNegatableWrite,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
@@ -1799,10 +1800,11 @@ export class SokoBotRuntimeService {
     if (
       authorized.hasNegatedMutationIntent &&
       (isSokoBotDecisionTarget(input.capability) ||
-        input.capability === "request_user_decision")
+        input.capability === "request_user_decision" ||
+        isSokoBotNegatableWrite(input.capability))
     ) {
       throw new SokoBotRuntimeAuthorizationError(
-        "User explicitly asked not to create, assign, or hire work",
+        "User explicitly asked for this not to happen yet",
       );
     }
     switch (input.capability) {

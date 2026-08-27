@@ -160,11 +160,32 @@ export interface TurnClassification {
 }
 
 const NEGATED_MUTATION_INTENT =
-  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use)\b/i;
+  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file)\b/i;
 
-/** True when user explicitly says a work mutation must not happen yet. */
+/** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {
   return NEGATED_MUTATION_INTENT.test(message);
+}
+
+/**
+ * Tools a negated instruction must also block. "Don't post this yet, just draft
+ * it here" routes to DIRECT_RESPONSE, which grants chat, Drive, and connected
+ * account writes; without this the model may do the very thing it was told not
+ * to. Reads stay available so it can still answer.
+ */
+const NEGATABLE_WRITE_CAPABILITIES = new Set<string>([
+  "post_chat",
+  "upload_file",
+  "run_integration_tool",
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
+  "reply_to_task",
+  "update_assigned_task",
+]);
+
+export function isSokoBotNegatableWrite(capability: string): boolean {
+  return NEGATABLE_WRITE_CAPABILITIES.has(capability);
 }
 
 export function isSokoBotRoute(value: string): value is SokoBotRoute {

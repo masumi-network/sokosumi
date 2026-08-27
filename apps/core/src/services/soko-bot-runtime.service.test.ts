@@ -1086,7 +1086,7 @@ describe("SokoBotRuntimeService authorization", () => {
         toolCallId: "call_negated",
         input: { name: "Forbidden", status: "DRAFT" },
       }),
-    ).rejects.toThrow("explicitly asked not to");
+    ).rejects.toThrow("explicitly asked for this not to");
 
     expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
     expect(transactionTaskCreateMock).not.toHaveBeenCalled();

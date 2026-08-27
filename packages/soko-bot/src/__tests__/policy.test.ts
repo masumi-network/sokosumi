@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hasSokoBotNegatedMutationIntent,
+  isSokoBotNegatableWrite,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
 } from "../policy.js";
@@ -72,5 +74,27 @@ describe("Soko Bot route capability ceilings", () => {
     for (const capability of SOKO_BOT_TEAMMATE_CAPABILITIES) {
       expect(clarify).toContain(capability);
     }
+  });
+
+  it("treats an explicit refusal as covering chat, Drive and account writes", () => {
+    // DIRECT_RESPONSE still grants these, so the refusal has to be enforced at
+    // the tool rather than only by the route.
+    expect(
+      hasSokoBotNegatedMutationIntent(
+        "Don't post this to the launch channel; just draft it here",
+      ),
+    ).toBe(true);
+    expect(
+      hasSokoBotNegatedMutationIntent("Do not upload anything to Drive yet"),
+    ).toBe(true);
+    for (const capability of [
+      "post_chat",
+      "upload_file",
+      "run_integration_tool",
+    ]) {
+      expect(isSokoBotNegatableWrite(capability)).toBe(true);
+    }
+    expect(isSokoBotNegatableWrite("read_chat")).toBe(false);
+    expect(isSokoBotNegatableWrite("list_files")).toBe(false);
   });
 });

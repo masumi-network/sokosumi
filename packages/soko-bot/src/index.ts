@@ -33,6 +33,7 @@ export {
 export {
   hasSokoBotNegatedMutationIntent,
   isSokoBotCapability,
+  isSokoBotNegatableWrite,
   isSokoBotRoute,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_MEMORY_LIMITS,
