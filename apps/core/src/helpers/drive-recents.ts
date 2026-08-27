@@ -508,8 +508,22 @@ export async function fetchDriveRecentsPage(input: {
     return true;
   }
 
-  function addItemsToPool(items: DriveRecentsItem[]): void {
-    for (const item of items) {
+  function countEligibleItems(): number {
+    return pool.filter((item) => shouldIncludeItem(item)).length;
+  }
+
+  function hasReachedPendingRefCap(): boolean {
+    return countEligibleItems() >= input.limit + MAX_PENDING_REFS;
+  }
+
+  function addItemsToPool(items: DriveRecentsItem[]): boolean {
+    const sortedItems = [...items].sort(compareDriveRecentsItems);
+
+    for (const item of sortedItems) {
+      if (hasReachedPendingRefCap()) {
+        return false;
+      }
+
       const itemId = recentsItemId(item);
       if (poolItemIds.has(itemId)) {
         continue;
@@ -517,6 +531,8 @@ export async function fetchDriveRecentsPage(input: {
       poolItemIds.add(itemId);
       pool.push(item);
     }
+
+    return true;
   }
 
   addItemsToPool(validatedPending);
@@ -540,12 +556,28 @@ export async function fetchDriveRecentsPage(input: {
   }
 
   while (driveHasMore || taskHasMore) {
+    pool.sort(compareDriveRecentsItems);
+
+    const eligibleCount = countEligibleItems();
+    if (!driveHasMore && !taskHasMore) {
+      break;
+    }
+    if (eligibleCount >= input.limit + MAX_PENDING_REFS) {
+      break;
+    }
+    if (!driveHasMore && eligibleCount >= input.limit + 1) {
+      break;
+    }
+
     type DriveBlobRecentsBatch = Awaited<
       ReturnType<typeof fetchDriveBlobRecentsBatch>
     >;
     type TaskOutputRecentsBatch = Awaited<
       ReturnType<typeof input.fetchTaskOutputs>
     >;
+
+    const driveCursorBeforeBatch = driveBlobCursor;
+    const taskCursorBeforeBatch = taskFileCursor;
 
     const [driveBatch, taskBatch]: [
       DriveBlobRecentsBatch,
@@ -575,21 +607,27 @@ export async function fetchDriveRecentsPage(input: {
           }),
     ]);
 
-    driveHasMore = driveBatch.hasMore;
-    taskHasMore = taskBatch.hasMore;
-    driveBlobCursor = driveBatch.nextCursor;
-    taskFileCursor = taskBatch.nextCursor;
-
-    addItemsToPool(driveBatch.items);
-    addItemsToPool(taskBatch.rows.map(mapTaskOutputRowToRecentsItem));
-
-    pool.sort(compareDriveRecentsItems);
-
-    const eligibleCount = pool.filter((item) => shouldIncludeItem(item)).length;
-    if (!driveHasMore && !taskHasMore) {
-      break;
+    const driveItemsFullyConsumed = addItemsToPool(driveBatch.items);
+    if (driveItemsFullyConsumed) {
+      driveHasMore = driveBatch.hasMore;
+      driveBlobCursor = driveBatch.nextCursor;
+    } else {
+      driveHasMore = true;
+      driveBlobCursor = driveCursorBeforeBatch;
     }
-    if (!driveHasMore && eligibleCount >= input.limit + 1) {
+
+    const taskItemsFullyConsumed = addItemsToPool(
+      taskBatch.rows.map(mapTaskOutputRowToRecentsItem),
+    );
+    if (taskItemsFullyConsumed) {
+      taskHasMore = taskBatch.hasMore;
+      taskFileCursor = taskBatch.nextCursor;
+    } else {
+      taskHasMore = true;
+      taskFileCursor = taskCursorBeforeBatch;
+    }
+
+    if (!driveItemsFullyConsumed || !taskItemsFullyConsumed) {
       break;
     }
   }
@@ -610,9 +648,7 @@ export async function fetchDriveRecentsPage(input: {
   const hasMore = merged.length > input.limit;
   const items = merged.slice(0, input.limit);
   const lastItem = items[items.length - 1] ?? null;
-  const pendingRefs = hasMore
-    ? collectPendingRefs(items).slice(0, MAX_PENDING_REFS)
-    : [];
+  const pendingRefs = hasMore ? collectPendingRefs(items) : [];
 
   return {
     items,

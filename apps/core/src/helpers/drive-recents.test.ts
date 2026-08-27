@@ -537,6 +537,82 @@ describe("fetchDriveRecentsPage", () => {
     expect(secondPage.items[0]?.name).toBe("c-old.pdf");
   });
 
+  it("does not drop buffered items when pending refs exceed the cursor cap", async () => {
+    const files = Array.from({ length: 155 }, (_, index) => {
+      const rank = String(index).padStart(3, "0");
+      return {
+        url: `https://blob.example/f-${rank}.pdf`,
+        pathname: `drive/users/u/f-${rank}.pdf`,
+        size: 100,
+        uploadedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
+      };
+    });
+
+    listMock.mockImplementation(async (options?: { cursor?: string }) => {
+      if (options?.cursor) {
+        return {
+          blobs: [],
+          hasMore: false,
+        };
+      }
+
+      return {
+        blobs: files,
+        hasMore: true,
+        cursor: "blob-page-2",
+      };
+    });
+
+    headMock.mockImplementation(async (pathname: string) => {
+      const uploadedAtMatch = pathname.match(/f-(\d+)\.pdf$/);
+      const index = uploadedAtMatch
+        ? Number.parseInt(uploadedAtMatch[1] ?? "0", 10)
+        : 0;
+      return {
+        url: `https://blob.example/${pathname}`,
+        pathname,
+        size: 100,
+        uploadedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
+      };
+    });
+
+    const fetchTaskOutputs = vi.fn(async () => ({
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+    }));
+
+    const limit = 50;
+    const seenNames = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < 4; page += 1) {
+      const pageResult = await fetchDriveRecentsPage({
+        prefix: PREFIX,
+        token: "test-token",
+        limit,
+        cursor,
+        cursorSecret: CURSOR_SECRET,
+        cursorBinding: CURSOR_BINDING,
+        fetchTaskOutputs,
+        fetchTaskOutputsByIds: fetchTaskOutputsByIds([]),
+      });
+
+      for (const item of pageResult.items) {
+        seenNames.add(item.name);
+      }
+
+      if (!pageResult.hasMore) {
+        expect(page).toBeGreaterThan(0);
+        break;
+      }
+
+      cursor = pageResult.nextCursor ?? undefined;
+    }
+
+    expect(seenNames.size).toBe(155);
+  });
+
   it("continues scanning blob pages when the newest match appears on page three", async () => {
     let drivePage = 0;
     listMock.mockImplementation(async () => {
