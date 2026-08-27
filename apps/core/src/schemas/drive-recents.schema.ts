@@ -105,6 +105,15 @@ export const driveRecentsQuerySchema = z
         example: "org_123",
         description: "Organization ID (required when scope=org)",
       }),
+    q: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        example: "report",
+        description:
+          "Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.",
+      }),
   })
   .merge(cursorPaginationQuerySchema)
   .refine((data) => data.scope !== "org" || Boolean(data.organizationId), {

@@ -64,6 +64,7 @@ function handleDownload(fileUrl: string, fileName: string) {
 interface DriveRecentsPanelProps {
   driveStore: DriveWorkspaceStore;
   activeOrganizationId: string | null;
+  searchQuery: string;
   onOpenMoveDialog: (item: DriveItem) => void;
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
@@ -148,6 +149,7 @@ function toDriveFileItem(
 export function DriveRecentsPanel({
   driveStore,
   activeOrganizationId,
+  searchQuery,
   onOpenMoveDialog,
   onOpenDeleteDialog,
   onRenameFile,
@@ -167,6 +169,7 @@ export function DriveRecentsPanel({
   const loadMoreAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(activeOrganizationId);
   workspaceIdRef.current = activeOrganizationId;
+  const trimmedSearchQuery = searchQuery.trim();
 
   const dayGroups = useMemo(
     () => buildDriveRecentsDayGroups(items, locale),
@@ -203,6 +206,7 @@ export function DriveRecentsPanel({
         ...(driveStore.scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
+        ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
         signal: controller.signal,
       });
 
@@ -233,7 +237,7 @@ export function DriveRecentsPanel({
         setLoading(false);
       }
     }
-  }, [activeOrganizationId, driveStore.scope, t]);
+  }, [activeOrganizationId, driveStore.scope, t, trimmedSearchQuery]);
 
   useEffect(() => {
     void loadRecents();
@@ -252,6 +256,7 @@ export function DriveRecentsPanel({
     const controller = new AbortController();
     loadMoreAbortRef.current = controller;
     const requestedWorkspaceId = activeOrganizationId;
+    const searchQueryAtRequest = trimmedSearchQuery;
     setLoadingMore(true);
 
     try {
@@ -261,13 +266,15 @@ export function DriveRecentsPanel({
           ? { organizationId: activeOrganizationId }
           : {}),
         cursor: nextCursor,
+        ...(searchQueryAtRequest ? { q: searchQueryAtRequest } : {}),
         signal: controller.signal,
       });
 
-      if (
-        controller.signal.aborted ||
-        workspaceIdRef.current !== requestedWorkspaceId
-      ) {
+      const queryStillMatches =
+        workspaceIdRef.current === requestedWorkspaceId &&
+        trimmedSearchQuery === searchQueryAtRequest;
+
+      if (controller.signal.aborted || !queryStillMatches) {
         return;
       }
 
@@ -323,10 +330,12 @@ export function DriveRecentsPanel({
       >
         <div className="max-w-sm">
           <h2 className="text-foreground text-lg font-semibold">
-            {t("recentsEmptyTitle")}
+            {trimmedSearchQuery ? t("noMatchTitle") : t("recentsEmptyTitle")}
           </h2>
           <p className="text-muted-foreground mt-2 text-sm">
-            {t("recentsEmptyDescription")}
+            {trimmedSearchQuery
+              ? t("noMatchDescription")
+              : t("recentsEmptyDescription")}
           </p>
         </div>
       </div>

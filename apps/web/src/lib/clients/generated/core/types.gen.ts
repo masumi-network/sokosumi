@@ -17741,6 +17741,10 @@ export type GetDriveRecentsData = {
          */
         organizationId?: string;
         /**
+         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
+         */
+        q?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;

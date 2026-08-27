@@ -506,7 +506,7 @@ describe("DrivePage recents view", () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
   });
 
-  it("loads recents by default and hides browse chrome", async () => {
+  it("loads recents by default and shows search without browse actions", async () => {
     renderDrive();
 
     await waitFor(() => {
@@ -519,9 +519,46 @@ describe("DrivePage recents view", () => {
       "true",
     );
     expect(screen.getByText("recentsEmptyTitle")).toBeVisible();
+    expect(screen.getAllByPlaceholderText("searchPlaceholder")).toHaveLength(2);
     expect(
-      screen.queryByPlaceholderText("searchPlaceholder"),
+      screen.queryByRole("button", { name: "createFolder" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("passes search query to recents fetch", async () => {
+    const user = userEvent.setup();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+
+    fetchDriveRecentsPageMock.mockClear();
+    const [searchInput] = screen.getAllByPlaceholderText("searchPlaceholder");
+    await user.type(searchInput, "report");
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "report" }),
+      );
+    });
+  });
+
+  it("opens browse for legacy folder links without view=browse", async () => {
+    searchParams = new URLSearchParams("folder=Reports");
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(fetchDriveRecentsPageMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("switches to browse when the browse tab is selected", async () => {
