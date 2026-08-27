@@ -108,7 +108,10 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
-import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
+import {
+  forgetRoomRead,
+  rememberRoomRead,
+} from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -188,6 +191,17 @@ import {
 } from "./room-shell-layout";
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { ThreadPanel } from "./thread-panel";
+
+function dispatchOrganizationChatRoomRead(
+  roomId: string,
+  room: ChatRoom,
+): void {
+  window.dispatchEvent(
+    new CustomEvent("organization-chat-room-read", {
+      detail: { room, roomId },
+    }),
+  );
+}
 
 interface RoomsClientProps {
   /** Null in personal workspace. */
@@ -1500,7 +1514,12 @@ export function RoomsClient({
   const selectedRoomReadId = selectedRoom?.id ?? null;
 
   useEffect(() => {
-    if (!selectedRoomReadId) {
+    if (!selectedRoomReadId || !selectedRoom) {
+      return;
+    }
+    // Empty rooms keep marker `room:empty`; skip while pending/failed so
+    // hydrate can still advance last-read.
+    if (messagesPending || effectiveMessageLoadFailed) {
       return;
     }
 
@@ -1517,29 +1536,41 @@ export function RoomsClient({
     }
     readMarkerRef.current = marker;
 
+    const roomId = selectedRoomReadId;
+    const restoreRoom = selectedRoom;
+    const optimisticRoom = {
+      ...selectedRoom,
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    };
+    rememberRoomRead(optimisticRoom);
+    dispatchOrganizationChatRoomRead(roomId, optimisticRoom);
+
     let cancelled = false;
-    markOrganizationChatRoomReadAction(selectedRoomReadId).then((result) => {
+    markOrganizationChatRoomReadAction(roomId).then((result) => {
       if (!result.ok) {
+        forgetRoomRead(roomId);
+        if (cancelled) {
+          return;
+        }
+        dispatchOrganizationChatRoomRead(roomId, restoreRoom);
         return;
       }
-      applyRoomReadResultToOverlay(result.value);
-      if (cancelled) {
-        return;
-      }
-      window.dispatchEvent(
-        new CustomEvent("organization-chat-room-read", {
-          detail: { room: result.value, roomId: selectedRoomReadId },
-        }),
-      );
+      rememberRoomRead(result.value);
+      dispatchOrganizationChatRoomRead(roomId, result.value);
     });
 
     return () => {
       cancelled = true;
     };
   }, [
+    effectiveMessageLoadFailed,
     latestOpenThreadMessageId,
     latestTopLevelMessageId,
+    messagesPending,
     openThreadParentId,
+    selectedRoom,
     selectedRoomReadId,
   ]);
 
@@ -1873,12 +1904,8 @@ export function RoomsClient({
     if (!roomResult.ok) {
       return;
     }
-    applyRoomReadResultToOverlay(roomResult.value);
-    window.dispatchEvent(
-      new CustomEvent("organization-chat-room-read", {
-        detail: { room: roomResult.value, roomId },
-      }),
-    );
+    rememberRoomRead(roomResult.value);
+    dispatchOrganizationChatRoomRead(roomId, roomResult.value);
   }
   syncRoomAttentionAfterThreadLookRef.current =
     syncRoomAttentionAfterThreadLook;

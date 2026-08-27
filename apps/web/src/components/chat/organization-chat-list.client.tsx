@@ -73,10 +73,7 @@ import {
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import {
-  applyRoomReadOverlays,
-  applyRoomReadResultToOverlay,
-} from "./room-read-overlay";
+import { applyRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
@@ -299,9 +296,8 @@ export function OrganizationChatList({
       }
 
       if (detail.room) {
-        // Dual-baseline: room mark-read may still leave unlooked threads.
-        // Only sticky-clear when the server row is fully clear.
-        applyRoomReadResultToOverlay(detail.room);
+        // Dual-baseline: leftover Participant Thread unread stays on the row.
+        rememberRoomRead(detail.room);
       }
 
       setRoomRows((current) =>
@@ -442,7 +438,7 @@ export function OrganizationChatList({
   }
 
   function handleRoomUpdated(updated: ChatRoom) {
-    applyRoomReadResultToOverlay(updated);
+    rememberRoomRead(updated);
     setRoomRows((current) =>
       applyRoomReadOverlays(
         current.map((room) => (room.id === updated.id ? updated : room)),

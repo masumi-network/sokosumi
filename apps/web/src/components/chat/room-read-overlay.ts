@@ -1,15 +1,18 @@
 /**
- * Session memory for rooms the client has successfully marked read.
+ * Session memory for rooms this client has marked read.
  *
- * Mobile sidebar mounts OrganizationChatList inside a Sheet that unmounts when
- * closed. Mark-read then dispatches `organization-chat-room-read` with no
- * listener, and remount rehydrates from stale RSC props so unread flash back.
- * This overlay survives unmount and is reapplied on every list hydrate/poll.
+ * Mobile Chats unmounts the list while a room is open. Remount hydrates from
+ * stale RSC unread. Overlay survives unmount and is reapplied on every list
+ * hydrate/poll. Stores post-read attention (including leftover Participant
+ * Thread unread), not only a full clear.
  */
 
 interface RoomReadOverlay {
   /** Room `updatedAt` at mark-read time. Newer activity invalidates the overlay. */
   updatedAtMs: number;
+  unreadCount: number;
+  unreadMentionCount: number;
+  markedUnread: boolean;
 }
 
 const overlaysByRoomId = new Map<string, RoomReadOverlay>();
@@ -22,37 +25,20 @@ function toUpdatedAtMs(updatedAt: string | Date): number {
 export function rememberRoomRead(room: {
   id: string;
   updatedAt: string | Date;
+  unreadCount: number;
+  unreadMentionCount: number;
+  markedUnread: boolean;
 }): void {
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
+    unreadCount: room.unreadCount,
+    unreadMentionCount: room.unreadMentionCount,
+    markedUnread: room.markedUnread,
   });
 }
 
 export function forgetRoomRead(roomId: string): void {
   overlaysByRoomId.delete(roomId);
-}
-
-/**
- * Persist full-clear overlay only when dual-baseline attention is actually
- * clear. Partial room mark-read (top-level only; unlooked threads remain)
- * must forget any sticky overlay so the real unreadCount stays visible.
- */
-export function applyRoomReadResultToOverlay(room: {
-  id: string;
-  updatedAt: string | Date;
-  unreadCount: number;
-  unreadMentionCount: number;
-  markedUnread?: boolean;
-}): void {
-  if (
-    room.unreadCount === 0 &&
-    room.unreadMentionCount === 0 &&
-    room.markedUnread !== true
-  ) {
-    rememberRoomRead(room);
-    return;
-  }
-  forgetRoomRead(room.id);
 }
 
 export function clearRoomReadOverlays(): void {
@@ -68,7 +54,7 @@ interface RoomAttentionFields {
 }
 
 /**
- * Reapply cleared attention for rooms marked read this session when the
+ * Reapply post-read attention for rooms marked read this session when the
  * incoming list is stale (same or older `updatedAt`). Real new activity
  * (newer `updatedAt`) drops the overlay and trusts the server row.
  */
@@ -92,9 +78,12 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
     }
 
     if (
-      room.unreadCount === 0 &&
-      room.unreadMentionCount === 0 &&
-      room.markedUnread === false
+      (room.unreadCount === 0 &&
+        room.unreadMentionCount === 0 &&
+        room.markedUnread === false) ||
+      (room.unreadCount === overlay.unreadCount &&
+        room.unreadMentionCount === overlay.unreadMentionCount &&
+        room.markedUnread === overlay.markedUnread)
     ) {
       overlaysByRoomId.delete(room.id);
       return room;
@@ -102,9 +91,9 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
 
     return {
       ...room,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
+      unreadCount: overlay.unreadCount,
+      unreadMentionCount: overlay.unreadMentionCount,
+      markedUnread: overlay.markedUnread,
     };
   });
 }

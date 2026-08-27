@@ -10,7 +10,7 @@ import {
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
-  applyRoomReadResultToOverlay,
+  rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
@@ -75,7 +75,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
       }
 
       if (detail.room) {
-        applyRoomReadResultToOverlay(detail.room);
+        rememberRoomRead(detail.room);
       }
 
       setRooms((current) =>
