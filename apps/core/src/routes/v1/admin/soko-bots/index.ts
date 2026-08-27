@@ -128,6 +128,11 @@ const qualityRoute = createRoute({
   path: "/quality",
   operationId: "getAdminSokoBotQuality",
   tags: ["Admin"],
+  request: {
+    query: z.object({
+      versionId: z.string().trim().min(1).max(64).optional(),
+    }),
+  },
   responses: {
     200: jsonSuccessResponse(
       adminSokoBotQualitySchema,
@@ -141,7 +146,9 @@ const qualityRoute = createRoute({
 app.openapi(qualityRoute, async (c) => {
   return ok(
     c,
-    adminSokoBotQualitySchema.parse(await getSokoBotQualityOverview()),
+    adminSokoBotQualitySchema.parse(
+      await getSokoBotQualityOverview(c.req.valid("query")),
+    ),
   );
 });
 

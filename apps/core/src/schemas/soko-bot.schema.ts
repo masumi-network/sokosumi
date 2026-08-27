@@ -670,6 +670,8 @@ export const adminSokoBotQualitySchema = z
         date: z.string(),
         turns: z.number().int(),
         avgScore: z.number().nullable(),
+        thumbsUp: z.number().int(),
+        thumbsDown: z.number().int(),
       }),
     ),
     versions: z.array(

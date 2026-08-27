@@ -967,12 +967,20 @@ export const AdminSokoBotQualitySchema = {
                             'number',
                             'null'
                         ]
+                    },
+                    thumbsUp: {
+                        type: 'integer'
+                    },
+                    thumbsDown: {
+                        type: 'integer'
                     }
                 },
                 required: [
                     'date',
                     'turns',
-                    'avgScore'
+                    'avgScore',
+                    'thumbsUp',
+                    'thumbsDown'
                 ]
             }
         },

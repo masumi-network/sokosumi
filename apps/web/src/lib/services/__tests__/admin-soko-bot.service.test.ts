@@ -14,6 +14,7 @@ const { coreMock, MockCoreApiRequestError } = vi.hoisted(() => {
     coreMock: {
       listAdminSokoBots: vi.fn(),
       getAdminSokoBot: vi.fn(),
+      getAdminSokoBotQuality: vi.fn(),
       performAdminSokoBotAction: vi.fn(),
     },
     MockCoreApiRequestError,
@@ -45,6 +46,18 @@ describe("adminSokoBotService", () => {
     expect(coreMock.listAdminSokoBots).toHaveBeenLastCalledWith({
       query: "ada",
       limit: undefined,
+    });
+  });
+
+  it("passes the selected version to the quality endpoint", async () => {
+    coreMock.getAdminSokoBotQuality.mockResolvedValue({
+      data: { overall: { turns: 0 } },
+    });
+
+    await adminSokoBotService.quality({ versionId: "test-v2" });
+
+    expect(coreMock.getAdminSokoBotQuality).toHaveBeenCalledWith({
+      versionId: "test-v2",
     });
   });
 

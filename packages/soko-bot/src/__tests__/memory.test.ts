@@ -4,6 +4,7 @@ import {
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   parseSokoBotMemory,
+  redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SokoBotMemorySecretError,
 } from "../memory.js";
@@ -35,6 +36,24 @@ describe("Soko Bot memory", () => {
     expect(() =>
       parseSokoBotMemory(markdown, { secretHandling: "reject" }),
     ).toThrow(SokoBotMemorySecretError);
+  });
+
+  it.each([
+    // A UUIDv7 whose digit run passes Luhn: "5-9572-30751931" is 13 digits.
+    "01a03f23-0fd8-72c5-9572-30751931fe0b",
+    "Created task 01a03f23-0fd8-72c5-9572-30751931fe0b for Hannah",
+    "sha 9f8e1d2c3b4a5968778695a4b3c2d1e0f9a8b7c6",
+  ])("keeps identifiers that merely contain digits: %s", (entry) => {
+    expect(containsSokoBotSensitiveMaterial(entry)).toBe(false);
+    expect(redactSokoBotSensitiveText(entry)).toBe(entry);
+  });
+
+  it.each([
+    "card 4242 4242 4242 4242",
+    "4242424242424242",
+    "pay with 4111-1111-1111-1111 today",
+  ])("still catches real card numbers: %s", (entry) => {
+    expect(containsSokoBotSensitiveMaterial(entry)).toBe(true);
   });
 
   it("rejects and redacts short Bearer credential values", () => {

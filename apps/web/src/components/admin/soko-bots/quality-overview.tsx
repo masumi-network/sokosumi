@@ -1,11 +1,15 @@
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
+import { QualityVersionFilter } from "@/components/admin/soko-bots/quality-version-filter.client";
 import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 const WIDTH = 640;
-const HEIGHT = 140;
-const PAD = 16;
+const HEIGHT = 184;
+const PLOT_TOP = 12;
+const PLOT_BOTTOM = 152;
+const PLOT_LEFT = 28;
+const PLOT_RIGHT = 608;
 
 function scoreTone(score: number | null): string {
   if (score === null) return "text-muted-foreground";
@@ -14,11 +18,42 @@ function scoreTone(score: number | null): string {
   return "text-semantic-destructive";
 }
 
-/** Average judge score per day, drawn inline; gaps for days without judged turns. */
-function ScoreChart({ daily }: { daily: AdminSokoBotQuality["daily"] }) {
-  const step = (WIDTH - PAD * 2) / Math.max(1, daily.length - 1);
-  const y = (score: number) =>
-    HEIGHT - PAD - ((score - 1) / 4) * (HEIGHT - PAD * 2);
+interface ScoreChartLabels {
+  chart: string;
+  countAxis: string;
+  scoreLegend: string;
+  thumbsDownLegend: string;
+  thumbsUpLegend: string;
+  scorePoint: (date: string, score: number, turns: number) => string;
+  thumbsDownPoint: (date: string, count: number) => string;
+  thumbsUpPoint: (date: string, count: number) => string;
+}
+
+interface ScoreChartProps {
+  daily: AdminSokoBotQuality["daily"];
+  formatDate: (date: string) => string;
+  labels: ScoreChartLabels;
+}
+
+function dateTickIndexes(length: number): number[] {
+  if (length <= 6) return Array.from({ length }, (_, index) => index);
+  return Array.from({ length: 6 }, (_, index) =>
+    Math.round((index * (length - 1)) / 5),
+  );
+}
+
+/** Judge score and owner feedback per day, with independent score and count axes. */
+function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
+  const step = (PLOT_RIGHT - PLOT_LEFT) / Math.max(1, daily.length - 1);
+  const x = (index: number) => PLOT_LEFT + index * step;
+  const scoreY = (score: number) =>
+    PLOT_BOTTOM - ((score - 1) / 4) * (PLOT_BOTTOM - PLOT_TOP);
+  const maxThumbs = Math.max(
+    1,
+    ...daily.flatMap((day) => [day.thumbsUp, day.thumbsDown]),
+  );
+  const thumbsY = (count: number) =>
+    PLOT_BOTTOM - (count / maxThumbs) * (PLOT_BOTTOM - PLOT_TOP);
   const segments: string[] = [];
   let current: string[] = [];
   daily.forEach((day, index) => {
@@ -27,75 +62,210 @@ function ScoreChart({ daily }: { daily: AdminSokoBotQuality["daily"] }) {
       current = [];
       return;
     }
-    current.push(`${PAD + index * step},${y(day.avgScore)}`);
+    current.push(`${x(index)},${scoreY(day.avgScore)}`);
   });
   if (current.length) segments.push(current.join(" "));
+  const thumbsUpPoints = daily
+    .map((day, index) => `${x(index)},${thumbsY(day.thumbsUp)}`)
+    .join(" ");
+  const thumbsDownPoints = daily
+    .map((day, index) => `${x(index)},${thumbsY(day.thumbsDown)}`)
+    .join(" ");
+  const countTicks = Array.from(
+    new Set([0, Math.ceil(maxThumbs / 2), maxThumbs]),
+  );
+  const dateTicks = dateTickIndexes(daily.length);
+
   return (
-    <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      className="h-36 w-full"
-      role="img"
-      aria-label="Average judge score per day"
-    >
-      {[1, 2, 3, 4, 5].map((score) => (
-        <g key={score}>
-          <line
-            x1={PAD}
-            x2={WIDTH - PAD}
-            y1={y(score)}
-            y2={y(score)}
-            className="stroke-border"
-            strokeWidth={0.5}
-          />
+    <div className="space-y-2">
+      <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden className="bg-primary h-px w-4" />
+          {labels.scoreLegend}
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden className="bg-semantic-success h-px w-4" />
+          {labels.thumbsUpLegend}
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden className="bg-semantic-destructive h-px w-4" />
+          {labels.thumbsDownLegend}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="h-44 w-full"
+        role="img"
+        aria-label={labels.chart}
+      >
+        {[1, 2, 3, 4, 5].map((score) => (
+          <g key={score}>
+            <line
+              x1={PLOT_LEFT}
+              x2={PLOT_RIGHT}
+              y1={scoreY(score)}
+              y2={scoreY(score)}
+              className="stroke-border"
+              strokeWidth={0.5}
+            />
+            <text
+              x={2}
+              y={scoreY(score) + 3}
+              className="fill-muted-foreground text-[0.5625rem]"
+            >
+              {score}
+            </text>
+          </g>
+        ))}
+        <text
+          x={WIDTH - 2}
+          y={9}
+          textAnchor="end"
+          className="fill-muted-foreground text-[0.5625rem]"
+        >
+          {labels.countAxis}
+        </text>
+        {countTicks.map((count) => (
           <text
-            x={2}
-            y={y(score) + 3}
+            key={count}
+            x={WIDTH - 2}
+            y={thumbsY(count) + 3}
+            textAnchor="end"
             className="fill-muted-foreground text-[0.5625rem]"
           >
-            {score}
+            {count}
           </text>
-        </g>
-      ))}
-      {segments.map((points) => (
+        ))}
+        {segments.map((points) => (
+          <polyline
+            key={points}
+            data-series="judge-score"
+            points={points}
+            fill="none"
+            className="stroke-primary"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+        ))}
         <polyline
-          key={points}
-          points={points}
+          data-series="thumbs-up"
+          points={thumbsUpPoints}
           fill="none"
-          className="stroke-primary"
+          className="stroke-semantic-success"
           strokeWidth={1.5}
           strokeLinejoin="round"
         />
-      ))}
-      {daily.map((day, index) =>
-        day.avgScore === null ? null : (
-          <circle
-            key={day.date}
-            cx={PAD + index * step}
-            cy={y(day.avgScore)}
-            r={2}
-            className="fill-primary"
-          >
-            <title>{`${day.date}: ${day.avgScore} (${day.turns} turns)`}</title>
-          </circle>
-        ),
-      )}
-    </svg>
+        <polyline
+          data-series="thumbs-down"
+          points={thumbsDownPoints}
+          fill="none"
+          className="stroke-semantic-destructive"
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+        />
+        {daily.map((day, index) => {
+          const date = formatDate(day.date);
+          return (
+            <g key={day.date}>
+              {day.avgScore === null ? null : (
+                <circle
+                  cx={x(index)}
+                  cy={scoreY(day.avgScore)}
+                  r={2}
+                  className="fill-primary"
+                >
+                  <title>
+                    {labels.scorePoint(date, day.avgScore, day.turns)}
+                  </title>
+                </circle>
+              )}
+              {day.thumbsUp === 0 ? null : (
+                <circle
+                  cx={x(index)}
+                  cy={thumbsY(day.thumbsUp)}
+                  r={2}
+                  className="fill-semantic-success"
+                >
+                  <title>{labels.thumbsUpPoint(date, day.thumbsUp)}</title>
+                </circle>
+              )}
+              {day.thumbsDown === 0 ? null : (
+                <circle
+                  cx={x(index)}
+                  cy={thumbsY(day.thumbsDown)}
+                  r={2}
+                  className="fill-semantic-destructive"
+                >
+                  <title>{labels.thumbsDownPoint(date, day.thumbsDown)}</title>
+                </circle>
+              )}
+            </g>
+          );
+        })}
+        {dateTicks.map((index) => {
+          const day = daily[index];
+          if (!day) return null;
+          return (
+            <text
+              key={day.date}
+              x={x(index)}
+              y={HEIGHT - 5}
+              textAnchor={
+                index === 0
+                  ? "start"
+                  : index === daily.length - 1
+                    ? "end"
+                    : "middle"
+              }
+              className="fill-muted-foreground text-[0.5625rem]"
+            >
+              {formatDate(day.date)}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 
 /** Fleet-wide judge scores: trend over 30 days, then per agent version. */
 export async function QualityOverview({
   quality,
+  selectedVersionId = null,
 }: {
   quality: AdminSokoBotQuality;
+  selectedVersionId?: string | null;
 }) {
-  const t = await getTranslations("App.Admin.SokoBots.Quality");
+  const [t, formatter] = await Promise.all([
+    getTranslations("App.Admin.SokoBots.Quality"),
+    getFormatter(),
+  ]);
+  function formatDate(date: string): string {
+    return formatter.dateTime(new Date(`${date}T00:00:00.000Z`), {
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    });
+  }
+  const visibleVersions = selectedVersionId
+    ? quality.versions.filter(
+        (version) => version.versionId === selectedVersionId,
+      )
+    : quality.versions;
   return (
     <section className="bg-background rounded-lg border">
-      <header className="flex items-start justify-between gap-3 border-b px-4 py-3">
-        <div className="space-y-0.5">
-          <h2 className="text-sm font-semibold leading-5">{t("title")}</h2>
-          <p className="text-muted-foreground text-xs">{t("description")}</p>
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
+        <div className="space-y-2">
+          <div className="space-y-0.5">
+            <h2 className="text-sm font-semibold leading-5">{t("title")}</h2>
+            <p className="text-muted-foreground text-xs">
+              {t("description")}
+            </p>
+          </div>
+          <QualityVersionFilter
+            selectedVersionId={selectedVersionId}
+            versions={quality.versions}
+          />
         </div>
         <p className="text-right text-xs tabular-nums">
           <span
@@ -126,7 +296,23 @@ export async function QualityOverview({
         </p>
       </header>
       <div className="px-4 py-3">
-        <ScoreChart daily={quality.daily} />
+        <ScoreChart
+          daily={quality.daily}
+          formatDate={formatDate}
+          labels={{
+            chart: t("chartLabel"),
+            countAxis: t("countAxis"),
+            scoreLegend: t("legendScore"),
+            thumbsDownLegend: t("legendThumbsDown"),
+            thumbsUpLegend: t("legendThumbsUp"),
+            scorePoint: (date, score, turns) =>
+              t("scorePoint", { date, score, turns }),
+            thumbsDownPoint: (date, count) =>
+              t("thumbsDownPoint", { date, count }),
+            thumbsUpPoint: (date, count) =>
+              t("thumbsUpPoint", { date, count }),
+          }}
+        />
       </div>
       <div className="overflow-x-auto border-t">
         <table className="w-full text-xs">
@@ -142,7 +328,7 @@ export async function QualityOverview({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {quality.versions.map((version) => (
+            {visibleVersions.map((version) => (
               <tr
                 key={version.versionId}
                 className="[&>td]:px-4 [&>td]:py-2 [&>td]:tabular-nums"

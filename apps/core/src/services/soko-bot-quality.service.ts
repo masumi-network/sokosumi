@@ -14,7 +14,13 @@ export interface SokoBotQualityOverview {
     thumbsUp: number;
     thumbsDown: number;
   };
-  daily: { date: string; turns: number; avgScore: number | null }[];
+  daily: {
+    date: string;
+    turns: number;
+    avgScore: number | null;
+    thumbsUp: number;
+    thumbsDown: number;
+  }[];
   versions: {
     versionId: string;
     name: string | null;
@@ -27,6 +33,10 @@ export interface SokoBotQualityOverview {
   }[];
 }
 
+export interface SokoBotQualityOverviewOptions {
+  versionId?: string;
+}
+
 function avg(values: number[]): number | null {
   if (values.length === 0) return null;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
@@ -34,9 +44,11 @@ function avg(values: number[]): number | null {
 }
 
 /** Fleet-wide judge scores over time and per version; lab runs per version. */
-export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOverview> {
+export async function getSokoBotQualityOverview(
+  options: SokoBotQualityOverviewOptions = {},
+): Promise<SokoBotQualityOverview> {
   const since = new Date(Date.now() - DAYS * DAY_MS);
-  const [turns, labRuns] = await Promise.all([
+  const [allTurns, labRuns] = await Promise.all([
     prisma.sokoBotTurn.findMany({
       where: {
         createdAt: { gte: since },
@@ -50,6 +62,7 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
         sokoBotId: true,
         finalAnswer: true,
         ownerFeedback: true,
+        ownerFeedbackAt: true,
       },
     }),
     prisma.sokoBotLabRun.findMany({
@@ -57,6 +70,21 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
       select: { versionId: true, passed: true, total: true, judge: true },
     }),
   ]);
+
+  const versionIds = new Set<string>([
+    ...SOKO_BOT_VERSIONS.map((version) => version.id),
+    ...allTurns.map((turn) => turn.versionId ?? "unknown"),
+    ...labRuns.map((run) => run.versionId),
+  ]);
+  const selectedVersionId =
+    options.versionId && versionIds.has(options.versionId)
+      ? options.versionId
+      : null;
+  const turns = selectedVersionId
+    ? allTurns.filter(
+        (turn) => (turn.versionId ?? "unknown") === selectedVersionId,
+      )
+    : allTurns;
 
   const scoresByDay = new Map<string, number[]>();
   const turnsByDay = new Map<string, number>();
@@ -70,6 +98,24 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
       ]);
     }
   }
+  const proactiveTurns = turns.filter(
+    (turn) =>
+      turn.source !== "CHAT" &&
+      turn.source !== "ADMIN_RETRY" &&
+      turn.finalAnswer &&
+      !/^nothing (new worth flagging|to add)\.?$/i.test(
+        turn.finalAnswer.trim(),
+      ),
+  );
+  const thumbsByDay = new Map<string, { up: number; down: number }>();
+  for (const turn of proactiveTurns) {
+    if (turn.ownerFeedbackAt === null || turn.ownerFeedback === null) continue;
+    const date = turn.ownerFeedbackAt.toISOString().slice(0, 10);
+    const thumbs = thumbsByDay.get(date) ?? { up: 0, down: 0 };
+    if (turn.ownerFeedback === 1) thumbs.up += 1;
+    if (turn.ownerFeedback === -1) thumbs.down += 1;
+    thumbsByDay.set(date, thumbs);
+  }
   const daily: SokoBotQualityOverview["daily"] = [];
   for (let i = DAYS - 1; i >= 0; i -= 1) {
     const date = new Date(Date.now() - i * DAY_MS).toISOString().slice(0, 10);
@@ -77,16 +123,13 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
       date,
       turns: turnsByDay.get(date) ?? 0,
       avgScore: avg(scoresByDay.get(date) ?? []),
+      thumbsUp: thumbsByDay.get(date)?.up ?? 0,
+      thumbsDown: thumbsByDay.get(date)?.down ?? 0,
     });
   }
 
-  const versionIds = new Set<string>([
-    ...SOKO_BOT_VERSIONS.map((v) => v.id),
-    ...turns.map((t) => t.versionId ?? "unknown"),
-    ...labRuns.map((r) => r.versionId),
-  ]);
   const versions = Array.from(versionIds).map((versionId) => {
-    const versionTurns = turns.filter(
+    const versionTurns = allTurns.filter(
       (t) => (t.versionId ?? "unknown") === versionId,
     );
     const runs = labRuns.filter((r) => r.versionId === versionId);
@@ -127,13 +170,6 @@ export async function getSokoBotQualityOverview(): Promise<SokoBotQualityOvervie
 
   const judged = turns.flatMap((t) =>
     t.qualityScore === null ? [] : [t.qualityScore],
-  );
-  const proactiveTurns = turns.filter(
-    (t) =>
-      t.source !== "CHAT" &&
-      t.source !== "ADMIN_RETRY" &&
-      t.finalAnswer &&
-      !/^nothing (new worth flagging|to add)\.?$/i.test(t.finalAnswer.trim()),
   );
   const chatTurns = turns.filter((t) => t.source === "CHAT");
   const actedOn = proactiveTurns.filter((p) =>

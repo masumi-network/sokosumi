@@ -230,6 +230,8 @@ export type AdminSokoBotQuality = {
         date: string;
         turns: number;
         avgScore: number | null;
+        thumbsUp: number;
+        thumbsDown: number;
     }>;
     versions: Array<{
         versionId: string;
@@ -5828,7 +5830,9 @@ export type ListAdminSokoBotsResponse = ListAdminSokoBotsResponses[keyof ListAdm
 export type GetAdminSokoBotQualityData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        versionId?: string;
+    };
     url: '/admin/soko-bots/quality';
 };
 

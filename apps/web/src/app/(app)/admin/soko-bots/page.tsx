@@ -16,12 +16,30 @@ export const metadata: Metadata = {
 
 const FLEET_PAGE_LIMIT = 100;
 
-export default async function AdminSokoBotsPage() {
+interface AdminSokoBotsPageProps {
+  searchParams: Promise<{
+    qualityVersion?: string | string[];
+  }>;
+}
+
+export default async function AdminSokoBotsPage({
+  searchParams,
+}: AdminSokoBotsPageProps) {
+  const params = await searchParams;
+  const qualityVersion =
+    typeof params.qualityVersion === "string"
+      ? params.qualityVersion.trim() || undefined
+      : undefined;
   const [t, list, quality] = await Promise.all([
     getTranslations("App.Admin.SokoBots"),
     adminSokoBotService.list({ limit: FLEET_PAGE_LIMIT }),
-    adminSokoBotService.quality(),
+    adminSokoBotService.quality({ versionId: qualityVersion }),
   ]);
+  const selectedVersionId = quality.versions.some(
+    (version) => version.versionId === qualityVersion,
+  )
+    ? qualityVersion
+    : null;
 
   return (
     <div className="min-h-full w-full">
@@ -42,7 +60,10 @@ export default async function AdminSokoBotsPage() {
         </div>
 
         <FleetHealthSummary items={list.items} total={list.total} />
-        <QualityOverview quality={quality} />
+        <QualityOverview
+          quality={quality}
+          selectedVersionId={selectedVersionId}
+        />
         <SokoBotFleetTable initialList={list} limit={FLEET_PAGE_LIMIT} />
       </div>
     </div>

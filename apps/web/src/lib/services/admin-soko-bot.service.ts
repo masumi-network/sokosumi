@@ -14,6 +14,10 @@ export interface ListAdminSokoBotsParams {
   limit?: number;
 }
 
+export interface AdminSokoBotQualityParams {
+  versionId?: string;
+}
+
 /** Platform-admin Soko Bot fleet reads and audited operator actions. */
 export const adminSokoBotService = {
   async list(params: ListAdminSokoBotsParams = {}): Promise<AdminSokoBotList> {
@@ -25,8 +29,12 @@ export const adminSokoBotService = {
     return response.data;
   },
 
-  async quality(): Promise<AdminSokoBotQuality> {
-    const response = await coreClient.getAdminSokoBotQuality();
+  async quality(
+    params: AdminSokoBotQualityParams = {},
+  ): Promise<AdminSokoBotQuality> {
+    const response = await coreClient.getAdminSokoBotQuality({
+      versionId: params.versionId,
+    });
     return response.data;
   },
 

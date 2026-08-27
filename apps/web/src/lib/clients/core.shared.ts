@@ -4024,10 +4024,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getAdminSokoBotQuality() {
+  async function getAdminSokoBotQuality(query?: { versionId?: string }) {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetAdminSokoBotQuality({ client, cache: "no-store" }),
+      (client) =>
+        coreGetAdminSokoBotQuality({ client, query, cache: "no-store" }),
       "Failed to fetch Soko Bot quality",
     );
   }

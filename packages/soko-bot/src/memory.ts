@@ -130,10 +130,25 @@ function isValidCardNumber(value: string): boolean {
   return sum % 10 === 0;
 }
 
+/**
+ * A card number stands on its own; a digit run sitting inside a longer
+ * alphanumeric token is an identifier, not a card. UUIDs are the common case:
+ * `01a03f23-0fd8-72c5-9572-30751931fe0b` contains the 13-digit dash-separated
+ * run `5-9572-30751931`, which passes Luhn. Treating that as a card blanked
+ * event ids out of admin payloads and task ids out of the bot's own answers.
+ */
 function containsCardNumber(value: string): boolean {
-  return [...value.matchAll(CARD_NUMBER_CANDIDATE)].some((match) =>
-    isValidCardNumber(match[0]),
-  );
+  for (const match of value.matchAll(CARD_NUMBER_CANDIDATE)) {
+    // The pattern can swallow a trailing separator, which would push the
+    // boundary check onto the following word.
+    const candidate = match[0].replace(/[ -]+$/, "");
+    const start = match.index ?? 0;
+    const before = value[start - 1];
+    const after = value[start + candidate.length];
+    if (isAsciiLetter(before) || isAsciiLetter(after)) continue;
+    if (isValidCardNumber(candidate)) return true;
+  }
+  return false;
 }
 
 function skipWhitespace(value: string, start: number): number {
