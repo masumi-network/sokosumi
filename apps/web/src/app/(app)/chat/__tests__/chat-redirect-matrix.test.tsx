@@ -61,16 +61,19 @@ describe("SOK-795 chat redirect matrix", () => {
     redirectMock.mockClear();
   });
 
-  it("bare /chat with dm=new redirects to Welcome", async () => {
-    await expect(
-      ChatPage({ searchParams: Promise.resolve({ dm: "new" }) }),
-    ).rejects.toThrow("REDIRECT:/?dm=new");
-  });
+  it("bare /chat with retired compose queries stays on the list", async () => {
+    const dm = await ChatPage({
+      searchParams: Promise.resolve({ dm: "new" }),
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(dm).toBeTruthy();
 
-  it("bare /chat with create=channel redirects to Welcome", async () => {
-    await expect(
-      ChatPage({ searchParams: Promise.resolve({ create: "channel" }) }),
-    ).rejects.toThrow("REDIRECT:/?create=channel");
+    redirectMock.mockClear();
+    const create = await ChatPage({
+      searchParams: Promise.resolve({ create: "channel" }),
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(create).toBeTruthy();
   });
 
   it("bare /chat with notice redirects to Welcome preserving query", async () => {

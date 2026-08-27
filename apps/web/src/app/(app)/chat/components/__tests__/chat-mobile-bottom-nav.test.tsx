@@ -52,16 +52,16 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/history")).toBe("search");
   });
 
-  it("returns null on drafts, rooms, and nested routes", () => {
+  it("returns null on rooms and nested routes", () => {
     expect(
       resolveChatMobileActiveTabId(
         "/chat",
         new URLSearchParams("create=channel"),
       ),
-    ).toBeNull();
+    ).toBe("chats");
     expect(
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
-    ).toBeNull();
+    ).toBe("chats");
     // Retired param: bare /chat list stays the Chats tab.
     expect(
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),

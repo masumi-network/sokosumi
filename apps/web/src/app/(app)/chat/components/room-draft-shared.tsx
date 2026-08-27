@@ -57,7 +57,17 @@ export function AiCoworkerAvatarBadge({
 }
 
 /** Parity with rooms-client messageLoadFailed empty-state; reload re-fetches RSC props. */
-export function MembersRosterLoadFailed({ className }: { className?: string }) {
+export function MembersRosterLoadFailed({
+  className,
+  onRetry,
+  title,
+  description,
+}: {
+  className?: string;
+  onRetry?: () => void;
+  title?: string;
+  description?: string;
+}) {
   const t = useTranslations("App.Channels");
   const router = useRouter();
 
@@ -69,9 +79,11 @@ export function MembersRosterLoadFailed({ className }: { className?: string }) {
       )}
       role="status"
     >
-      <p className="font-medium">{t("Empty.membersLoadFailedTitle")}</p>
+      <p className="font-medium">
+        {title ?? t("Empty.membersLoadFailedTitle")}
+      </p>
       <p className="text-muted-foreground mt-1 text-sm">
-        {t("Empty.membersLoadFailedDescription")}
+        {description ?? t("Empty.membersLoadFailedDescription")}
       </p>
       <Button
         type="button"
@@ -79,6 +91,10 @@ export function MembersRosterLoadFailed({ className }: { className?: string }) {
         size="sm"
         className="mt-4"
         onClick={() => {
+          if (onRetry) {
+            onRetry();
+            return;
+          }
           router.refresh();
         }}
       >

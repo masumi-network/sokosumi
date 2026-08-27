@@ -138,8 +138,6 @@ import type {
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
-import { CreateChannelDialog } from "./create-channel-dialog";
-import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
@@ -192,15 +190,13 @@ import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { ThreadPanel } from "./thread-panel";
 
 interface RoomsClientProps {
-  /** Null in personal workspace when mounting Start New DM only. */
+  /** Null in personal workspace. */
   activeOrganization: Organization | null;
   rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
   coworkers: Coworker[];
   selectedRoomId: string | null;
-  isCreateChannelRequested: boolean;
-  isNewDirectMessage: boolean;
   messageLoadFailed: boolean;
   /** Org roster soft-fail; false for personal workspace (no org roster). */
   membersLoadFailed: boolean;
@@ -503,8 +499,6 @@ export function RoomsClient({
   currentUserId,
   coworkers: coworkersProp,
   selectedRoomId,
-  isCreateChannelRequested,
-  isNewDirectMessage,
   messageLoadFailed,
   membersLoadFailed: membersLoadFailedProp,
   messages,
@@ -690,7 +684,7 @@ export function RoomsClient({
   // "No replies yet" blink. Generation invalidates in-flight opens/closes.
   const [isThreadLoading, setIsThreadLoading] = useState(false);
   const threadLoadGenerationRef = useRef(0);
-  const composeSurfaceEpoch = `${selectedRoomId}:${isNewDirectMessage}:${isCreateChannelRequested}`;
+  const composeSurfaceEpoch = selectedRoomId ?? "";
   const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
     useState(composeSurfaceEpoch);
   if (composeSurfaceEpoch !== syncedComposeSurfaceEpoch) {
@@ -867,9 +861,7 @@ export function RoomsClient({
     }
   }
 
-  const selectedRoom = isNewDirectMessage
-    ? null
-    : (rooms.find((room) => room.id === selectedRoomId) ?? null);
+  const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
 
   useEffect(() => {
     if (!selectedRoom || selectedRoom.kind !== "channel") {
@@ -1351,31 +1343,10 @@ export function RoomsClient({
                 href: `/chat/rooms/${selectedRoom.id}`,
               },
             ]
-          : isCreateChannelRequested
-            ? [
-                {
-                  label: t("CreateWizard.title"),
-                  href: "/?create=channel",
-                },
-              ]
-            : isNewDirectMessage
-              ? [
-                  {
-                    label: t("Draft.breadcrumb"),
-                    href: "/?dm=new",
-                  },
-                ]
-              : []),
+          : []),
       ],
     }),
-    [
-      selectedRoom,
-      selectedRoomDisplayName,
-      isCreateChannelRequested,
-      isNewDirectMessage,
-      t,
-      tBreadcrumb,
-    ],
+    [selectedRoom, selectedRoomDisplayName, tBreadcrumb],
   );
   useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
@@ -3215,7 +3186,6 @@ export function RoomsClient({
     );
   }
 
-  // Create-channel / new-DM / empty selection — unchanged non-room surfaces.
   return (
     <div
       className={cn(
@@ -3225,60 +3195,17 @@ export function RoomsClient({
     >
       <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {isCreateChannelRequested ? (
-            <>
-              <div className="flex flex-1 items-center justify-center p-6">
-                <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
-                  <Hash className="text-muted-foreground mx-auto size-8" />
-                  <h2 className="mt-4 text-lg font-semibold">
-                    {t("Empty.noChannelTitle")}
-                  </h2>
-                  <p className="text-muted-foreground mt-2 text-sm">
-                    {t("Empty.noChannelDescription")}
-                  </p>
-                </div>
-              </div>
-              <CreateChannelDialog
-                key="create-channel"
-                open={isCreateChannelRequested}
-                members={organizationMembers}
-                coworkers={coworkers}
-                currentUserId={currentUserId}
-                organizationName={activeOrganization?.name ?? ""}
-                membersLoadFailed={membersLoadFailed}
-                canCreateExternal={isOrgOwnerOrAdmin}
-              />
-            </>
-          ) : isNewDirectMessage ? (
-            <DraftDirectMessage
-              members={organizationMembers}
-              coworkers={coworkers}
-              currentUserId={currentUserId}
-              canCreateRoomDirect={activeOrganization != null}
-              membersLoadFailed={membersLoadFailed}
-            />
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-6">
-              <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
-                <Hash className="text-muted-foreground mx-auto size-8" />
-                <h2 className="mt-4 text-lg font-semibold">
-                  {t("Empty.noChannelTitle")}
-                </h2>
-                <p className="text-muted-foreground mt-2 text-sm">
-                  {t("Empty.noChannelDescription")}
-                </p>
-                <div className="mt-5">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => router.push("/?create=channel")}
-                  >
-                    {t("createChannel")}
-                  </Button>
-                </div>
-              </div>
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
+              <Hash className="text-muted-foreground mx-auto size-8" />
+              <h2 className="mt-4 text-lg font-semibold">
+                {t("Empty.noChannelTitle")}
+              </h2>
+              <p className="text-muted-foreground mt-2 text-sm">
+                {t("Empty.noChannelDescription")}
+              </p>
             </div>
-          )}
+          </div>
         </section>
       </main>
     </div>

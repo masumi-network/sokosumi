@@ -25,7 +25,7 @@ Preconditions:
 - **Cookie banner.** If **Accept all** / consent UI covers the form, dismiss it first — it can block the terms checkbox click.
 - **Fill required fields.** Prefer refs from that **fresh** snapshot (`textbox "Name"` / `"Email"` / `"Password"`). CSS `[data-testid="auth-field-name|email|password"]` works once the form is interactive; they fail if you fill before the fields appear. Optional marketing checkbox can stay unchecked.
 - **Accept terms.** Prefer `agent-browser check` on the snapshot checkbox ref (accessible name about Terms / Nutzungsbedingungen). `#termsAccepted` often fails when an overlay covers the input. Submit stays **disabled** until terms are accepted.
-- **Submit.** When `Register` / `Registrieren` is enabled, **click** the snapshot ref (`@eN`, not bare `@N` — agent-browser needs the `e` prefix). Prefer click over Enter — Enter can leave the form unchanged. Wait for navigation away from `/signup` to **Welcome `/`**. Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
+- **Submit.** Re-snapshot after terms. Google / Microsoft / Magic Link sit above the email form, so **Register** is often below the fold — `agent-browser get box` may show `y` past the viewport (~600px+). Run `agent-browser scrollintoview @eN` on the Register ref, then **click** that `@eN` (not bare `@N`). A click without scroll reports success but the form stays on `/signup`. Prefer click over Enter. Wait for navigation away from `/signup` to **Welcome `/`**. Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
 - **Confirm session.** Open `/agents`. Expect either `/agents` (workspace ready) or `/setup` (identity / temporary workspace onboarding). Must **not** bounce to `/signin`. Do not wait `networkidle` on Welcome/chat.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view (`/` or `/setup` or `/agents`). Record the email in `account.txt` (no password).
 
@@ -52,3 +52,4 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 - On cloud-agent branches, prefer fixtures over signup unless testing signup itself. On a coworker / shared Neon, prefer the vault over creating another disposable user.
 - Origin must be `$WEB_URL` for Core auth API calls (`INVALID_ORIGIN` otherwise).
 - Submit button stays disabled until terms are accepted.
+- OAuth / Magic Link buttons push **Register** below the default viewport. Clicking the snapshot ref without `scrollintoview` is a no-op; scroll the button into view first.

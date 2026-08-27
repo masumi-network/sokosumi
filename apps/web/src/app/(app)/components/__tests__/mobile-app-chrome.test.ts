@@ -108,10 +108,10 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBottomNav("/", new URLSearchParams("dm=new")),
-      ).toBe(false);
+      ).toBe(true);
       expect(
         shouldShowMobileBottomNav("/", new URLSearchParams("create=channel")),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it("shows on main hub list routes", () => {
@@ -146,17 +146,17 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
-    it("hides brand for rooms, drafts, hubs, nested detail, and agents", () => {
+    it("hides brand for rooms, hubs, nested detail, and agents", () => {
       expect(shouldShowMobileBrandLeading("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBrandLeading(
           "/",
           new URLSearchParams("create=channel"),
         ),
-      ).toBe(false);
+      ).toBe(true);
       expect(
         shouldShowMobileBrandLeading("/", new URLSearchParams("dm=new")),
-      ).toBe(false);
+      ).toBe(true);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBrandLeading("/agents")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);

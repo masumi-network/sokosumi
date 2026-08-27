@@ -161,14 +161,6 @@ vi.mock("../thread-panel", () => ({
   ThreadPanel: () => null,
 }));
 
-vi.mock("../create-channel-dialog", () => ({
-  CreateChannelDialog: () => null,
-}));
-
-vi.mock("../draft-direct-message", () => ({
-  DraftDirectMessage: () => null,
-}));
-
 vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: ({
     membersLoadFailed,
@@ -287,8 +279,6 @@ const baseProps = {
   currentUserId: "user-1",
   coworkers: [] as [],
   selectedRoomId: "room-channel",
-  isCreateChannelRequested: false,
-  isNewDirectMessage: false,
   messageLoadFailed: false,
   membersLoadFailed: false,
   messages: [] as ChatRoomMessage[],
