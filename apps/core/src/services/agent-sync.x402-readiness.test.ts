@@ -11,8 +11,8 @@ const {
   captureMessageMock,
   envState,
   getX402AvailableNetworksMock,
-  getX402AdminPurchasingWalletsMock,
-  getX402BudgetsMock,
+  getX402KeySpendCapsMock,
+  getX402PurchasingWalletsMock,
   getX402WalletBalancesMock,
   syncMetadataCreateManyMock,
   syncMetadataDeleteManyMock,
@@ -31,8 +31,8 @@ const {
       | undefined,
   },
   getX402AvailableNetworksMock: vi.fn(),
-  getX402AdminPurchasingWalletsMock: vi.fn(),
-  getX402BudgetsMock: vi.fn(),
+  getX402KeySpendCapsMock: vi.fn(),
+  getX402PurchasingWalletsMock: vi.fn(),
   getX402WalletBalancesMock: vi.fn(),
   syncMetadataCreateManyMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
@@ -52,8 +52,8 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/clients/masumi-payment.client", () => ({
   paymentClient: () => ({
     getX402AvailableNetworks: getX402AvailableNetworksMock,
-    getX402AdminPurchasingWallets: getX402AdminPurchasingWalletsMock,
-    getX402Budgets: getX402BudgetsMock,
+    getX402KeySpendCaps: getX402KeySpendCapsMock,
+    getX402PurchasingWallets: getX402PurchasingWalletsMock,
     getX402WalletBalances: getX402WalletBalancesMock,
   }),
 }));
@@ -74,12 +74,12 @@ import {
   syncX402BuySideReadiness,
 } from "./agent-sync.x402-readiness";
 import {
-  ADMIN_WALLET_ADDRESS,
   availableNetwork,
-  budget,
+  cappedWith,
   fundedWalletBalances,
-  mainnetBudget,
+  keySpendCaps,
   mainnetNetwork,
+  PURCHASING_WALLET_ADDRESS,
   purchasingWallet,
   READY_SOURCE,
   USDC_BASE_SEPOLIA,
@@ -94,23 +94,46 @@ describe("syncX402BuySideReadiness", () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     syncMetadataUpsertMock.mockResolvedValue(undefined);
     getX402AvailableNetworksMock.mockResolvedValue(ok([availableNetwork()]));
-    getX402AdminPurchasingWalletsMock.mockResolvedValue(
-      ok([
-        purchasingWallet({
-          id: budget().evmWalletId,
-          address: budget().evmWalletAddress,
-        }),
-      ]),
-    );
-    getX402BudgetsMock.mockResolvedValue(ok([budget()]));
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
+    getX402KeySpendCapsMock.mockResolvedValue(ok(keySpendCaps()));
     getX402WalletBalancesMock.mockResolvedValue(ok(fundedWalletBalances()));
   });
 
-  it("caches an uncapped admin wallet as ready", async () => {
-    getX402BudgetsMock.mockResolvedValue(ok([]));
-    getX402AdminPurchasingWalletsMock.mockResolvedValue(
-      ok([purchasingWallet()]),
+  it("caches nothing when the key is capped with no credits for the pair", async () => {
+    // End to end through the sync: the wallet is listed and funded, so only
+    // the key's spend cap can stop this pair. A capped key at zero cannot pay,
+    // and listed must mean payable.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(0n)));
+
+    await syncX402BuySideReadiness();
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ cursorId: "[]" }),
+      }),
     );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("caches the pair when the capped key still holds credits for it", async () => {
+    getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(1_000_000n)));
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          cursorId: JSON.stringify([READY_SOURCE]),
+        }),
+      }),
+    );
+  });
+
+  it("caches an uncapped wallet as ready", async () => {
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(true);
 
@@ -121,7 +144,7 @@ describe("syncX402BuySideReadiness", () => {
             {
               ...READY_SOURCE,
               evmWalletId: "wallet_admin",
-              evmWalletAddress: ADMIN_WALLET_ADDRESS,
+              evmWalletAddress: PURCHASING_WALLET_ADDRESS,
             },
           ]),
         }),
@@ -153,10 +176,7 @@ describe("syncX402BuySideReadiness", () => {
   ])(
     "does not cache an admin wallet with no %s balance",
     async (_label, overrides) => {
-      getX402BudgetsMock.mockResolvedValue(ok([]));
-      getX402AdminPurchasingWalletsMock.mockResolvedValue(
-        ok([purchasingWallet()]),
-      );
+      getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
       getX402WalletBalancesMock.mockResolvedValue(
         ok(fundedWalletBalances(overrides)),
       );
@@ -175,10 +195,7 @@ describe("syncX402BuySideReadiness", () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
-    getX402BudgetsMock.mockResolvedValue(ok([]));
-    getX402AdminPurchasingWalletsMock.mockResolvedValue(
-      ok([purchasingWallet()]),
-    );
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
     getX402WalletBalancesMock.mockResolvedValue(err("balance down"));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
@@ -205,10 +222,7 @@ describe("syncX402BuySideReadiness", () => {
         }),
       ]),
     );
-    getX402BudgetsMock.mockResolvedValue(ok([]));
-    getX402AdminPurchasingWalletsMock.mockResolvedValue(
-      ok([purchasingWallet()]),
-    );
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
     // A flaky balance backend must be irrelevant: the sweep never asks.
     getX402WalletBalancesMock.mockResolvedValue(err("balance down"));
 
@@ -253,7 +267,15 @@ describe("syncX402BuySideReadiness", () => {
     getX402AvailableNetworksMock.mockResolvedValue(
       ok([availableNetwork(), mainnetNetwork()]),
     );
-    getX402BudgetsMock.mockResolvedValue(ok([budget(), mainnetBudget()]));
+    getX402PurchasingWalletsMock.mockResolvedValue(
+      ok([
+        purchasingWallet(),
+        purchasingWallet({
+          id: "wallet_mainnet",
+          caip2Network: "eip155:8453",
+        }),
+      ]),
+    );
 
     await syncX402BuySideReadiness();
 
@@ -279,8 +301,7 @@ describe("syncX402BuySideReadiness", () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
-    getX402BudgetsMock.mockResolvedValue(ok([]));
-    getX402AdminPurchasingWalletsMock.mockResolvedValue(ok([]));
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date(),
@@ -307,10 +328,11 @@ describe("syncX402BuySideReadiness", () => {
             defaultAssetDecimals: 6,
           },
         ],
-        budgetCount: 0,
-        budgets: [],
-        adminPurchasingWalletCount: 0,
-        adminPurchasingWalletNetworks: [],
+        usageLimited: false,
+        grandfatheredUncapped: false,
+        creditUnits: [],
+        purchasingWalletCount: 0,
+        purchasingWalletNetworks: [],
         truncated: false,
       },
     );
@@ -331,16 +353,16 @@ describe("syncX402BuySideReadiness", () => {
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
 
-    for (const [networks, budgets, wallets] of [
-      [err("networks down"), ok([budget()]), ok([])],
-      [ok([availableNetwork()]), err("budgets down"), ok([])],
-      [ok([availableNetwork()]), ok([]), err("wallets down")],
+    for (const [networks, caps, wallets] of [
+      [err("networks down"), ok(keySpendCaps()), ok([])],
+      [ok([availableNetwork()]), err("spend caps down"), ok([])],
+      [ok([availableNetwork()]), ok(keySpendCaps()), err("wallets down")],
     ] as const) {
       syncMetadataUpsertMock.mockClear();
       syncMetadataCreateManyMock.mockClear();
       getX402AvailableNetworksMock.mockResolvedValue(networks);
-      getX402BudgetsMock.mockResolvedValue(budgets);
-      getX402AdminPurchasingWalletsMock.mockResolvedValue(wallets);
+      getX402KeySpendCapsMock.mockResolvedValue(caps);
+      getX402PurchasingWalletsMock.mockResolvedValue(wallets);
 
       await expect(syncX402BuySideReadiness()).resolves.toBe(false);
 
@@ -360,11 +382,11 @@ describe("syncX402BuySideReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("keeps cached readiness when budget wallet discovery fails", async () => {
+  it("keeps cached readiness when wallet discovery fails", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
-    getX402AdminPurchasingWalletsMock.mockResolvedValue(err("wallets down"));
+    getX402PurchasingWalletsMock.mockResolvedValue(err("wallets down"));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
 
@@ -414,17 +436,17 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
     });
     // extractNodeErrorMessage can stringify an entire proxy body; unbounded,
-    // the Sentry SDK's own truncation would then drop "budgets down" from
+    // the Sentry SDK's own truncation would then drop "spend caps down" from
     // the page entirely.
     getX402AvailableNetworksMock.mockResolvedValue(err("x".repeat(10_000)));
-    getX402BudgetsMock.mockResolvedValue(err("budgets down"));
+    getX402KeySpendCapsMock.mockResolvedValue(err("spend caps down"));
 
     await syncX402BuySideReadiness();
 
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     const [pagedError] = captureExceptionMock.mock.calls[0] as [Error];
     expect(pagedError.message.length).toBeLessThan(2_500);
-    expect(pagedError.message).toContain("budgets down");
+    expect(pagedError.message).toContain("spend caps down");
 
     consoleWarnSpy.mockRestore();
   });
@@ -456,7 +478,7 @@ describe("syncX402BuySideReadiness", () => {
     // still page — including the latch bypass.
     envState.VERCEL_ENV = "production";
     syncMetadataFindUniqueMock.mockResolvedValue(null);
-    getX402BudgetsMock.mockResolvedValue(err("node unavailable"));
+    getX402KeySpendCapsMock.mockResolvedValue(err("node unavailable"));
 
     await syncX402BuySideReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
@@ -489,8 +511,8 @@ describe("syncX402BuySideReadiness", () => {
 
     envState.VERCEL_ENV = "preview";
     syncMetadataFindUniqueMock.mockResolvedValue(null);
-    getX402BudgetsMock.mockResolvedValue(
-      err("x402 budgets 401: Unauthorized, admin access required"),
+    getX402KeySpendCapsMock.mockResolvedValue(
+      err("api-key-status 401: Unauthorized"),
     );
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
@@ -509,7 +531,7 @@ describe("syncX402BuySideReadiness", () => {
     });
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "[sync/agents] x402 buy-side readiness check failed:",
-      expect.stringContaining("admin access required"),
+      expect.stringContaining("api-key-status 401"),
     );
 
     consoleWarnSpy.mockRestore();
@@ -654,7 +676,7 @@ describe("syncX402BuySideReadiness", () => {
     expect(getX402AvailableNetworksMock).toHaveBeenCalledWith(
       expect.objectContaining({ signal }),
     );
-    expect(getX402BudgetsMock).toHaveBeenCalledWith(
+    expect(getX402KeySpendCapsMock).toHaveBeenCalledWith(
       expect.objectContaining({ signal }),
     );
   });
