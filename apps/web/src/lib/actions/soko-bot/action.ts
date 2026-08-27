@@ -269,6 +269,7 @@ export const listSokoBotAvatarsAction = withSession<
     const avatars = await sokoBotService.listAvatars(
       parsed.data.take,
       parsed.data.excludeIds,
+      true,
     );
     return toActionResult(ok(avatars));
   } catch (error) {

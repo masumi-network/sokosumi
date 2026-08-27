@@ -54,13 +54,24 @@ describe("Soko Bot avatar pool", () => {
     });
   });
 
-  it("never generates while reading, so a page render cannot stall on fal.ai", async () => {
+  it("never generates for a plain read, so a page render cannot stall on fal.ai", async () => {
     avatarCountMock.mockResolvedValue(0);
 
     await listAvailableAvatars(12);
 
-    // A short pool returns fewer choices; stocking is the cron's job.
+    // The sidebar reads on every route; stocking is the cron's job there.
+    expect(avatarCountMock).not.toHaveBeenCalled();
     expect(putMock).not.toHaveBeenCalled();
     expect(avatarFindManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fills a short pool when the caller opts in", async () => {
+    // Vercel runs crons on production only, so the creation picker asks for
+    // this explicitly rather than showing an empty grid on a preview.
+    avatarCountMock.mockResolvedValue(0);
+
+    await listAvailableAvatars(6, { topUp: true });
+
+    expect(avatarCountMock).toHaveBeenCalled();
   });
 });

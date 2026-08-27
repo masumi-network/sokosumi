@@ -623,14 +623,14 @@ const listAvatarsRoute = createRoute({
 
 app.openapi(listAvatarsRoute, async (c) => {
   requireUserAuthContext(c.var.authContext);
-  const { take, exclude } = c.req.valid("query");
+  const { take, exclude, topUp } = c.req.valid("query");
   const excludeIds = exclude
     ? exclude
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean)
     : [];
-  const avatars = await listAvailableAvatars(take, { excludeIds });
+  const avatars = await listAvailableAvatars(take, { excludeIds, topUp });
   return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));
 });
 

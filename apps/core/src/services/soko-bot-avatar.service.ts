@@ -317,8 +317,10 @@ export async function stockAvatarPool(): Promise<{
 }
 
 /**
- * Unclaimed avatars for a picker. Reads only — {@link stockAvatarPool} keeps
- * the pool full, so a short pool shows fewer choices rather than stalling.
+ * Unclaimed avatars for a picker. Reads only unless `topUp` is set: the cron
+ * keeps the pool full in production, but Vercel runs crons on production
+ * deployments only, so the creation picker asks to fill it explicitly rather
+ * than showing an empty grid on every preview.
  */
 export async function listAvailableAvatars(
   take: number,
@@ -330,6 +332,10 @@ export async function listAvailableAvatars(
       ? { id: { notIn: options.excludeIds } }
       : {}),
   };
+  if (options.topUp && getEnv().FAL_KEY) {
+    const available = await prisma.sokoBotAvatar.count({ where });
+    if (available < take) await generateAvatars(take - available);
+  }
   const rows = await prisma.sokoBotAvatar.findMany({
     where,
     orderBy: [{ createdAt: "desc" }],

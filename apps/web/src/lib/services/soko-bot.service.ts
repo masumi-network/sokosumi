@@ -57,13 +57,19 @@ export const sokoBotService = {
     await coreClient.archiveMySokoBot();
   },
 
+  /**
+   * `topUp` generates missing mascots before answering, so only the creation
+   * picker sets it — the sidebar must never wait on image generation.
+   */
   async listAvatars(
     take: number,
     excludeIds: string[],
+    topUp = false,
   ): Promise<SokoBotAvatar[]> {
     const response = await coreClient.listSokoBotAvatars({
       take,
       exclude: excludeIds.length > 0 ? excludeIds.join(",") : undefined,
+      ...(topUp ? { topUp: "true" as const } : {}),
     });
     return response.data;
   },

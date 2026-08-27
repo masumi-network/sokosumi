@@ -29686,6 +29686,7 @@ export type ListSokoBotAvatarsData = {
     query?: {
         take?: number;
         exclude?: string;
+        topUp?: 'true' | 'false';
     };
     url: '/soko-bots/avatars';
 };
