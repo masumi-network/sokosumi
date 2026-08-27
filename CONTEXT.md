@@ -247,8 +247,12 @@ The per-room list of that room’s threads, shown in the thread side panel. Ever
 _Avoid_: Unread threads (as the name of this list), inbox, treating this as a cross-room surface, Threads badge as a separate count
 
 **Look**:
-The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from room read state and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Marking the room as read does not.
+The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from Room last-read and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Advancing Room last-read does not Look.
 _Avoid_: Replied, Participant, lastLookedAt, read receipt. Do not use “looked” in product UI (say unread / mark as read)
+
+**Room last-read**:
+The user’s high-water mark on a room’s main transcript. Distinct from Look. Advancing it clears top-level Room unread and that room’s mention badge; leftover Participant Thread unread stays.
+_Avoid_: Look, lastReadAt (storage), treating this as reading Threads
 
 **User mention**:
 A human @-reference to a user on a room message (main transcript or Thread). Distinct from Mention status (coworker turn lifecycle).
@@ -259,7 +263,7 @@ A user of a Thread who authored the parent, has a remaining reply in that Thread
 _Avoid_: Follower, subscriber, treating Look (opened it) as participation
 
 **Room unread**:
-The count of unseen messages that page the user in this room: non-self top-level messages after room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**. Not the mention badge.
+The count of unseen messages that page the user in this room: non-self top-level messages after Room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**. Not the mention badge.
 _Avoid_: Attention, attentionReplyCount, counting lurker thread replies, a separate Threads badge, using the mention badge as the message unread count
 
 **Unread thread**:
