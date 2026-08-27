@@ -957,13 +957,16 @@ function DrivePageWorkspace({
   }
 
   function navigateToPrimaryView(view: DrivePrimaryView) {
-    void setDriveNavQuery({
-      view: view === "recents" ? null : "browse",
-      folder: null,
-      projectId: null,
-      taskId: null,
-      assigneeId: null,
-    });
+    void setDriveNavQuery(
+      {
+        view: view === "recents" ? null : "browse",
+        folder: null,
+        projectId: null,
+        taskId: null,
+        assigneeId: null,
+      },
+      { history: "push" },
+    );
   }
 
   function navigateToTasksRoot() {
