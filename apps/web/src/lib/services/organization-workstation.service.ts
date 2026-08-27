@@ -9,17 +9,6 @@ export async function canUseOrganizationWorkstation(
     return true;
   }
 
-  const [billingPlan, member] = await Promise.all([
-    coreClient.getOrganizationBillingPlan(organizationId),
-    coreClient.getMyMemberInOrganization(organizationId),
-  ]);
-
-  if (
-    billingPlan.data.mode === "self_serve" &&
-    billingPlan.data.plan === "free"
-  ) {
-    return true;
-  }
-
-  return member?.data.seatAssignedAt != null;
+  const { data } = await coreClient.getOrganizationWorkstation(organizationId);
+  return data.canUse;
 }

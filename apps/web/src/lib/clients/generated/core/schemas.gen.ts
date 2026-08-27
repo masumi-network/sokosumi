@@ -11990,6 +11990,20 @@ export const OrganizationSeatSummarySchema = {
     ]
 } as const;
 
+export const OrganizationWorkstationSchema = {
+    type: 'object',
+    properties: {
+        canUse: {
+            type: 'boolean',
+            description: 'Whether the caller may use the organization workstation (free orgs: all members; paid/enterprise: assigned Seat)',
+            example: true
+        }
+    },
+    required: [
+        'canUse'
+    ]
+} as const;
+
 export const OrganizationBillingPlanSchema = {
     type: 'object',
     properties: {

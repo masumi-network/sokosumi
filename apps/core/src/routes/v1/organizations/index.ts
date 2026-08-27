@@ -29,6 +29,7 @@ import mountDenyOrganizationVendorGrant from "./[id]/vendor-grants/[grantId]/den
 import mountRevokeOrganizationVendorGrant from "./[id]/vendor-grants/[grantId]/revoke/post.js";
 import mountGetOrganizationVendorGrants from "./[id]/vendor-grants/get.js";
 import mountPostOrganizationVendorGrants from "./[id]/vendor-grants/post.js";
+import mountGetOrganizationWorkstation from "./[id]/workstation/get.js";
 import mountGetOrganizationBySlug from "./slug/[slug]/get.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -55,6 +56,7 @@ mountApproveOrganizationVendorGrant(app);
 mountDenyOrganizationVendorGrant(app);
 mountRevokeOrganizationVendorGrant(app);
 mountGetOrganizationSeatSummary(app);
+mountGetOrganizationWorkstation(app);
 mountGetOrganizationBillingPlan(app);
 mountGetOrganizationEnterpriseContractSummary(app);
 mountGetOrganizationStripeCustomer(app);

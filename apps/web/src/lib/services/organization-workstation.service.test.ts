@@ -2,18 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { getOrganizationBillingPlanMock, getMyMemberInOrganizationMock } =
-  vi.hoisted(() => ({
-    getOrganizationBillingPlanMock: vi.fn(),
-    getMyMemberInOrganizationMock: vi.fn(),
-  }));
+const { getOrganizationWorkstationMock } = vi.hoisted(() => ({
+  getOrganizationWorkstationMock: vi.fn(),
+}));
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
-    getOrganizationBillingPlan: (...args: unknown[]) =>
-      getOrganizationBillingPlanMock(...args),
-    getMyMemberInOrganization: (...args: unknown[]) =>
-      getMyMemberInOrganizationMock(...args),
+    getOrganizationWorkstation: (...args: unknown[]) =>
+      getOrganizationWorkstationMock(...args),
   },
 }));
 
@@ -28,30 +24,12 @@ describe("canUseOrganizationWorkstation", () => {
     );
 
     await expect(canUseOrganizationWorkstation(null)).resolves.toBe(true);
-    expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
+    expect(getOrganizationWorkstationMock).not.toHaveBeenCalled();
   });
 
-  it("allows unseated members of a free organization", async () => {
-    getOrganizationBillingPlanMock.mockResolvedValue({
-      data: { mode: "self_serve", plan: "free" },
-    });
-    getMyMemberInOrganizationMock.mockResolvedValue({
-      data: { seatAssignedAt: null },
-    });
-
-    const { canUseOrganizationWorkstation } = await import(
-      "./organization-workstation.service"
-    );
-
-    await expect(canUseOrganizationWorkstation("org-1")).resolves.toBe(true);
-  });
-
-  it("denies unseated members of a paid organization", async () => {
-    getOrganizationBillingPlanMock.mockResolvedValue({
-      data: { mode: "self_serve", plan: "starter" },
-    });
-    getMyMemberInOrganizationMock.mockResolvedValue({
-      data: { seatAssignedAt: null },
+  it("returns Core's workstation decision for an organization", async () => {
+    getOrganizationWorkstationMock.mockResolvedValue({
+      data: { canUse: false },
     });
 
     const { canUseOrganizationWorkstation } = await import(
@@ -59,5 +37,6 @@ describe("canUseOrganizationWorkstation", () => {
     );
 
     await expect(canUseOrganizationWorkstation("org-1")).resolves.toBe(false);
+    expect(getOrganizationWorkstationMock).toHaveBeenCalledWith("org-1");
   });
 });

@@ -199,6 +199,7 @@ import {
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
+  getOrganizationsByIdWorkstation as coreGetOrganizationsByIdWorkstation,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -2357,6 +2358,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization billing plan",
+    );
+  }
+
+  async function getOrganizationWorkstation(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdWorkstation({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization workstation access",
     );
   }
 
@@ -4562,6 +4576,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationActiveSubscription,
     getOrganizationBillingDetails,
     getOrganizationBillingPlan,
+    getOrganizationWorkstation,
     getOrganizationById,
     getOrganizationDeletion,
     getOrganizationBySlug,
