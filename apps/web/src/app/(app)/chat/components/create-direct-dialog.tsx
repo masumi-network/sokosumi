@@ -40,6 +40,7 @@ import {
 export function CreateDirectDialog() {
   const t = useTranslations("App.Channels");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const rosterScrollRef = useRef<HTMLDivElement | null>(null);
   const inFlightRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [roster, setRoster] = useState<ChatComposeRoster>(
@@ -116,11 +117,13 @@ export function CreateDirectDialog() {
       );
     }
     setRecipientQuery("");
+    rosterScrollRef.current?.scrollTo({ top: 0 });
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
   }
 
   function removeTarget(key: string) {
     setSelectedKeys((current) => current.filter((item) => item !== key));
+    rosterScrollRef.current?.scrollTo({ top: 0 });
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
   }
 
@@ -212,81 +215,96 @@ export function CreateDirectDialog() {
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-6 overflow-hidden shadow-none sm:max-w-lg">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden shadow-none sm:max-w-lg">
+        <DialogHeader className="gap-1">
           <DialogTitle>{t("Draft.title")}</DialogTitle>
           <DialogDescription>{t("Draft.empty")}</DialogDescription>
         </DialogHeader>
-        {!rosterLoaded ? (
-          <div className="text-muted-foreground flex items-center justify-center gap-2 py-10 text-sm">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            {t("loading")}
-          </div>
-        ) : rosterError ? (
-          <MembersRosterLoadFailed
-            className="m-1 px-3 py-6"
-            onRetry={loadRoster}
+        <div
+          data-testid="direct-recipient-composer"
+          className="border-input focus-within:border-ring focus-within:ring-ring/50 flex min-h-10 min-w-0 cursor-text flex-wrap items-center gap-2 rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          onClick={() => searchInputRef.current?.focus()}
+        >
+          <Search
+            className="text-muted-foreground size-4 shrink-0"
+            aria-hidden
           />
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-            <div className="flex min-h-10 min-w-0 shrink-0 flex-wrap items-center gap-1.5">
-              {selectedTargets.map((target) => (
-                <span
-                  key={target.key}
-                  className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full py-1 pr-1 pl-1.5 text-sm"
-                >
-                  <Avatar className="size-5">
-                    <AvatarImage src={target.image ?? undefined} alt="" />
-                    <AvatarFallback className="text-[0.5625rem]">
-                      {getInitials(target.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex min-w-0 items-center gap-1">
-                    <span className="truncate">{target.name}</span>
-                    {target.kind === "coworker" ? (
-                      <AiCoworkerIcon className="size-3" />
-                    ) : null}
-                  </span>
-                  <button
-                    type="button"
-                    className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
-                    onClick={() => removeTarget(target.key)}
-                    aria-label={t("Draft.removeRecipient", {
-                      name: target.name,
-                    })}
-                  >
-                    <X className="size-3" aria-hidden />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="relative shrink-0">
-              <Search
-                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-                aria-hidden
-              />
-              <Input
-                ref={searchInputRef}
-                value={recipientQuery}
-                onChange={(event) => setRecipientQuery(event.target.value)}
-                placeholder={
-                  selectedTargets.length === 0
-                    ? t("Draft.searchPlaceholder")
-                    : hasSelectedHumans
-                      ? t("Draft.searchPlaceholderMore")
-                      : t("Draft.searchPlaceholderReplace")
-                }
-                className="h-10 pl-9"
-                autoComplete="off"
-              />
-            </div>
-            <div
-              data-testid="direct-roster-scrollport"
-              className="max-h-[min(16rem,40svh)] overflow-y-auto overscroll-contain"
+          {selectedTargets.map((target) => (
+            <span
+              key={target.key}
+              className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full py-0.5 pr-0.5 pl-1.5 text-sm"
             >
+              <Avatar className="size-5">
+                <AvatarImage src={target.image ?? undefined} alt="" />
+                <AvatarFallback className="text-[0.5625rem]">
+                  {getInitials(target.name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="flex min-w-0 items-center gap-1">
+                <span className="truncate">{target.name}</span>
+                {target.kind === "coworker" ? (
+                  <AiCoworkerIcon className="size-3" />
+                ) : null}
+              </span>
+              <button
+                type="button"
+                className="hover:bg-background/80 flex size-5 items-center justify-center rounded-full"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeTarget(target.key);
+                }}
+                aria-label={t("Draft.removeRecipient", {
+                  name: target.name,
+                })}
+              >
+                <X className="size-3" aria-hidden />
+              </button>
+            </span>
+          ))}
+          <Input
+            ref={searchInputRef}
+            value={recipientQuery}
+            onChange={(event) => {
+              setRecipientQuery(event.target.value);
+              rosterScrollRef.current?.scrollTo({ top: 0 });
+            }}
+            onClick={(event) => event.stopPropagation()}
+            placeholder={
+              selectedTargets.length === 0
+                ? t("Draft.searchPlaceholder")
+                : hasSelectedHumans
+                  ? t("Draft.searchPlaceholderMore")
+                  : t("Draft.searchPlaceholderReplace")
+            }
+            aria-label={t("Draft.searchPlaceholder")}
+            className="h-7 min-w-32 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+        <div
+          ref={rosterScrollRef}
+          data-testid="direct-roster-scrollport"
+          className="h-[min(20rem,45svh)] overflow-y-auto overscroll-contain"
+          aria-busy={!rosterLoaded || undefined}
+        >
+          {!rosterLoaded ? (
+            <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {t("loading")}
+            </div>
+          ) : rosterError ? (
+            <div className="flex h-full items-center justify-center p-3">
+              <MembersRosterLoadFailed
+                className="w-full px-3 py-6"
+                onRetry={loadRoster}
+              />
+            </div>
+          ) : (
+            <>
               {roster.membersLoadFailed ? (
                 <MembersRosterLoadFailed
-                  className="m-1 px-3 py-6"
+                  className="mx-1 mt-1 px-3 py-4"
                   onRetry={loadRoster}
                 />
               ) : null}
@@ -298,14 +316,14 @@ export function CreateDirectDialog() {
                   disabledReason={extraHumanDisabledReason}
                 />
               ) : roster.membersLoadFailed ? null : (
-                <p className="text-muted-foreground px-3 py-4 text-sm">
+                <p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-sm">
                   {t("Draft.noResults")}
                 </p>
               )}
-            </div>
-          </div>
-        )}
-        <DialogFooter className="shrink-0">
+            </>
+          )}
+        </div>
+        <DialogFooter>
           <Button
             type="button"
             variant="primary"

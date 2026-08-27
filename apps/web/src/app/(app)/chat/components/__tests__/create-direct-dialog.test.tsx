@@ -208,7 +208,26 @@ describe("CreateDirectDialog", () => {
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 
-  it("scrolls the roster in its own overflow pane, not the dialog", async () => {
+  it("keeps the search composer visible while the roster loads", async () => {
+    loadChatComposeRosterActionMock.mockImplementation(
+      () => new Promise(() => {}),
+    );
+    const user = userEvent.setup();
+    render(<CreateDirectDialog />);
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await screen.findByRole("heading", { name: "Draft.title" });
+
+    expect(screen.getByPlaceholderText("Draft.searchPlaceholder")).toBeTruthy();
+    expect(screen.getByText("loading")).toBeTruthy();
+    expect(
+      screen
+        .getByTestId("direct-recipient-composer")
+        .contains(screen.getByPlaceholderText("Draft.searchPlaceholder")),
+    ).toBe(true);
+  });
+
+  it("scrolls a fixed-height roster pane and keeps chips in the composer", async () => {
     const user = userEvent.setup();
     render(<CreateDirectDialog />);
 
@@ -217,7 +236,18 @@ describe("CreateDirectDialog", () => {
 
     const scrollport = screen.getByTestId("direct-roster-scrollport");
     expect(scrollport).toHaveClass("overflow-y-auto");
+    expect(scrollport).toHaveClass("h-[min(20rem,45svh)]");
     expect(scrollport.contains(screen.getByText("Francis"))).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: /Francis/ }));
+    const composer = screen.getByTestId("direct-recipient-composer");
+    expect(composer.contains(screen.getByText("Francis"))).toBe(true);
+    expect(
+      composer.contains(
+        screen.getByPlaceholderText("Draft.searchPlaceholderMore"),
+      ),
+    ).toBe(true);
+    expect(scrollport).toHaveClass("h-[min(20rem,45svh)]");
   });
 
   it("closes without routing when dismissed", async () => {
