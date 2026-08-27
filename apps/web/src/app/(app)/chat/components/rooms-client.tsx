@@ -166,6 +166,7 @@ import {
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldConsumePendingCoworkerStream,
   shouldDisableCoworkerThreadComposer,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
@@ -1289,15 +1290,29 @@ export function RoomsClient({
   // Keep sessionStorage until stream actually starts so Strict Mode remount
   // cannot lose the draft before send begins.
   useEffect(() => {
-    if (!isCoworkerStreamRoom || !selectedRoomId) {
+    if (!selectedRoomId) {
       return;
     }
     const pending = peekPendingRoomMessage(selectedRoomId);
-    if (!pending) {
+    if (pending == null) {
+      return;
+    }
+    if (
+      !shouldConsumePendingCoworkerStream({
+        canUseWorkstation,
+        isCoworkerStreamRoom,
+        hasPendingMessage: true,
+      })
+    ) {
       return;
     }
     consumePendingStreamMessage(pending);
-  }, [isCoworkerStreamRoom, selectedRoomId, consumePendingStreamMessage]);
+  }, [
+    canUseWorkstation,
+    consumePendingStreamMessage,
+    isCoworkerStreamRoom,
+    selectedRoomId,
+  ]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.
@@ -3109,6 +3124,7 @@ export function RoomsClient({
                   shouldDisableCoworkerThreadComposer({
                     canUseWorkstation,
                     isCoworkerStreamRoom,
+                    isThreadLoading,
                     threadMessages: threadParentMessage
                       ? [threadParentMessage, ...displayThreadMessages]
                       : [],

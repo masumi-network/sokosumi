@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldDisableCoworkerThreadComposer } from "../room-helpers";
+import {
+  shouldConsumePendingCoworkerStream,
+  shouldDisableCoworkerThreadComposer,
+} from "../room-helpers";
 
 function humanMessage() {
   return { sender: { type: "user" as const }, mentions: [] };
@@ -66,5 +69,59 @@ describe("shouldDisableCoworkerThreadComposer", () => {
         threadMessages: [mentionedCoworkerMessage()],
       }),
     ).toBe(true);
+  });
+
+  it("disables channel threads while replies are loading when the member has no workstation", () => {
+    expect(
+      shouldDisableCoworkerThreadComposer({
+        canUseWorkstation: false,
+        isCoworkerStreamRoom: false,
+        isThreadLoading: true,
+        threadMessages: [humanMessage()],
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the composer while loading when the member may use the workstation", () => {
+    expect(
+      shouldDisableCoworkerThreadComposer({
+        canUseWorkstation: true,
+        isCoworkerStreamRoom: false,
+        isThreadLoading: true,
+        threadMessages: [humanMessage()],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("shouldConsumePendingCoworkerStream", () => {
+  it("consumes a pending 1:1 draft when the member may use the workstation", () => {
+    expect(
+      shouldConsumePendingCoworkerStream({
+        canUseWorkstation: true,
+        isCoworkerStreamRoom: true,
+        hasPendingMessage: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not auto-stream a pending 1:1 draft when the member has no workstation", () => {
+    expect(
+      shouldConsumePendingCoworkerStream({
+        canUseWorkstation: false,
+        isCoworkerStreamRoom: true,
+        hasPendingMessage: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not consume when there is no pending draft", () => {
+    expect(
+      shouldConsumePendingCoworkerStream({
+        canUseWorkstation: true,
+        isCoworkerStreamRoom: true,
+        hasPendingMessage: false,
+      }),
+    ).toBe(false);
   });
 });
