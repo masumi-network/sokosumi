@@ -51,9 +51,6 @@ const envDefaults: Record<string, string> = {
   SOKO_BOT_ENABLED: "true",
   SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
   SOKO_BOT_CLASSIFIER_MODE: "deterministic",
-  SOKO_BOT_EVE_PROJECT_ID: "prj_test_soko_bot",
-  SOKO_BOT_EVE_ENVIRONMENT: "development",
-  SOKO_BOT_SIGNING_PRIVATE_KEY: "test-private-key",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {

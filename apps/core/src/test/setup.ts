@@ -21,11 +21,6 @@ const envDefaults: Record<string, string> = {
   SOKO_BOT_ENABLED: "true",
   SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
   SOKO_BOT_CLASSIFIER_MODE: "deterministic",
-  SOKO_BOT_SIGNING_KEY_ID: "test-1",
-  SOKO_BOT_SIGNING_PRIVATE_KEY:
-    "-----BEGIN PRIVATE KEY-----\\nMC4CAQAwBQYDK2VwBCIEIEtAHIe/imf5Y2MGlER9BMAfL6LUipRTXorzq1h/e5eZ\\n-----END PRIVATE KEY-----",
-  SOKO_BOT_EVE_PROJECT_ID: "prj_test_soko_bot",
-  SOKO_BOT_EVE_ENVIRONMENT: "development",
   CRON_SECRET: "test-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_example",
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter_test",
