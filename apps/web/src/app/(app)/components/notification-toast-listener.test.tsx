@@ -123,7 +123,7 @@ describe("NotificationToastListener OS banner", () => {
   });
 
   /**
-   * ADR-0018 makes the worker's registration the single renderer, so the page
+   * ADR-0020 makes the worker's registration the single renderer, so the page
    * asks it for the banner rather than constructing one of its own.
    */
   it("renders the banner through the service worker", async () => {

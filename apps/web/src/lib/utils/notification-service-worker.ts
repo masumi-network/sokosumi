@@ -6,7 +6,7 @@ import { notificationEventDataSchema } from "@/lib/ably/schema";
 import { getBrowserNotificationPermission } from "./browser-notification";
 
 /**
- * The worker that renders every OS banner this app shows (ADR-0018).
+ * The worker that renders every OS banner this app shows (ADR-0020).
  *
  * It lives in `public/`, so its scope is the whole origin. Ably passes the
  * same URL as `pushServiceWorkerUrl` and registers it inside `push.activate()`;

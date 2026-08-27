@@ -176,7 +176,7 @@ export function NotificationToastListener({
       );
 
       if (showBrowser) {
-        // The worker is the only thing that renders an OS banner (ADR-0018),
+        // The worker is the only thing that renders an OS banner (ADR-0020),
         // so a push carrying this same notification replaces this banner by
         // tag rather than stacking a second one beside it.
         void showNotification({

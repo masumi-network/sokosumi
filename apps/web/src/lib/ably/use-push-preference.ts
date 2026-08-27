@@ -48,7 +48,7 @@ function isPushSupported(): boolean {
  * died outside the app (permission revoked, storage cleared, a half-failed
  * disable) shows as off instead of a stale on.
  *
- * This is the read half of ADR-0018's self-heal, and only the read half: it
+ * This is the read half of ADR-0020's self-heal, and only the read half: it
  * re-activates nothing, and it runs in the settings card rather than on app
  * open. It also cannot see whether the device is still subscribed to the
  * notifications channel on Ably's side. SOK-876 owns both gaps.

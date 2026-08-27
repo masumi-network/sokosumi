@@ -11,7 +11,7 @@ import {
 import { getAblyRealtimeClient } from "./realtime-singleton.client";
 
 /**
- * Turn closed-app push on for this browser (ADR-0017).
+ * Turn closed-app push on for this browser (ADR-0019).
  *
  * `activate()` asks for the OS notification permission, registers the service
  * worker, and registers the device with Ably. Call it only from an explicit
