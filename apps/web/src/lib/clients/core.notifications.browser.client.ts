@@ -16,16 +16,18 @@ import type {
   PatchNotificationsReadAllResponses,
 } from "@/lib/clients/generated/core/types.gen";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
-
+import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request-id";
 import { executeCoreOperation } from "./core.request";
 
 let notificationsGeneratedClient: ReturnType<typeof createClient> | undefined;
 
 function getNotificationsGeneratedClient() {
-  notificationsGeneratedClient ??= createClient({
-    baseUrl: getBrowserCoreApiBaseUrl(),
-    credentials: "include",
-  });
+  notificationsGeneratedClient ??= attachCoreRequestIdInterceptor(
+    createClient({
+      baseUrl: getBrowserCoreApiBaseUrl(),
+      credentials: "include",
+    }),
+  );
 
   return notificationsGeneratedClient;
 }

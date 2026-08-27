@@ -5,6 +5,7 @@ import {
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { attachWorkspaceToLogger } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import type { EnvVariables } from "@/lib/hono";
 import {
@@ -105,6 +106,7 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
       };
 
       c.set("workspaceContext", workspaceContext);
+      attachWorkspaceToLogger(workspaceContext);
     } catch (error) {
       if (isPersonalWorkspaceMissingError(error)) {
         c.set("workspaceContext", null);

@@ -1,5 +1,9 @@
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type { Client } from "@/lib/clients/generated/core/client";
+import {
+  attachCoreRequestIdInterceptor,
+  extractCoreRequestId,
+} from "@/lib/clients/utils/core-request-id";
 
 export class CoreApiRequestError extends Error {
   details?: unknown;
@@ -11,16 +15,23 @@ export class CoreApiRequestError extends Error {
    */
   kind?: string;
   status?: number;
+  requestId?: string;
 
   constructor(
     message: string,
-    options?: { details?: unknown; kind?: string; status?: number },
+    options?: {
+      details?: unknown;
+      kind?: string;
+      status?: number;
+      requestId?: string;
+    },
   ) {
     super(message);
     this.name = "CoreApiRequestError";
     this.details = options?.details;
     this.kind = options?.kind;
     this.status = options?.status;
+    this.requestId = options?.requestId;
   }
 }
 
@@ -80,7 +91,7 @@ export async function executeCoreOperation<TData, TError>(
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
   fallbackMessage: string,
 ): Promise<TData> {
-  const client = await getClient();
+  const client = attachCoreRequestIdInterceptor(await getClient());
 
   let result: CoreOperationResult<TData, TError>;
   try {
@@ -98,6 +109,10 @@ export async function executeCoreOperation<TData, TError>(
       details: result.error,
       kind: extractErrorKind(result.error),
       status: result.response?.status,
+      requestId: extractCoreRequestId({
+        error: result.error,
+        response: result.response,
+      }),
     });
   }
 
@@ -111,6 +126,10 @@ export async function executeCoreOperation<TData, TError>(
       details: result.error,
       kind: extractErrorKind(result.error),
       status: result.response?.status,
+      requestId: extractCoreRequestId({
+        error: result.error,
+        response: result.response,
+      }),
     });
   }
 
