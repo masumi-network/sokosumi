@@ -18,5 +18,5 @@
 
 ## Verification
 
-- Keep the locale-shape test in `src/__tests__/translate.test.ts` passing.
+- Keep the locale-shape test in `src/i18n/translate.test.ts` passing.
 - Before finishing translation changes, verify there are no missing or extra locale keys.
