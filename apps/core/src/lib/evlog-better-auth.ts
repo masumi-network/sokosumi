@@ -13,7 +13,7 @@ const identify = createAuthMiddleware(auth, {
   exclude: ["/auth/**", "/sync/**", "/debug/**"],
   maskEmail: true,
   session: false,
-  fields: ["id"],
+  fields: ["id", "email"],
 });
 
 export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {
