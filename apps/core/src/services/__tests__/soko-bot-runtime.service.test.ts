@@ -2189,7 +2189,7 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(where.coworkerMembers).toEqual({
       some: { coworkerId: "coworker_1" },
     });
-    expect(where.workspaceId).toBe(SCOPE.workspaceId);
+    // Membership is the boundary; ChatRoom has no workspaceId column.
     expect(where.archivedAt).toBeNull();
   });
 

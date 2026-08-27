@@ -112,6 +112,13 @@ export function classifyDeterministically(
   const workRequestSignal = includesAny(normalized, [
     /\b(research|analy[sz]e|investigate|draft|write|prepare|compile|summari[sz]e|compare|review|plan|outline|design|build|create|produce|put together|look into|dig into|find out)\b/,
   ]);
+  // Saying something in chat or writing a file is the owner asking for an
+  // action, not for clarification. Without this it fell through to CLARIFY,
+  // which is read-only, so the bot could not do what it was plainly told.
+  const chatOrFileWriteSignal = includesAny(normalized, [
+    /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
+    /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
+  ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
     /\b(tasks?|jobs?)\b.{0,30}\b(status|progress|reprioriti[sz]e)\b/,
@@ -141,6 +148,15 @@ export function classifyDeterministically(
       0.98,
     );
   }
+  if (chatOrFileWriteSignal && !delegateSignal && !hireSignal) {
+    return baseClassification(
+      "DIRECT_RESPONSE",
+      message,
+      "Message asks the assistant to say something in chat or write a file.",
+      1,
+    );
+  }
+
   if (delegateSignal) {
     return baseClassification(
       "DELEGATE_TASK",

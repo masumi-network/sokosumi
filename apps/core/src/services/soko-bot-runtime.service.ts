@@ -776,7 +776,8 @@ export class SokoBotRuntimeService {
     const rooms = await prisma.chatRoom.findMany({
       where: {
         archivedAt: null,
-        workspaceId: authorized.turn.workspaceId,
+        // Membership is the boundary: the bot's coworker only belongs to rooms
+        // someone added it to. ChatRoom has no workspaceId to filter on.
         coworkerMembers: { some: { coworkerId } },
       },
       orderBy: { updatedAt: "desc" },
@@ -819,7 +820,6 @@ export class SokoBotRuntimeService {
           where: {
             id: roomId,
             archivedAt: null,
-            workspaceId: authorized.turn.workspaceId,
             coworkerMembers: { some: { coworkerId } },
           },
           select: { id: true, name: true },
