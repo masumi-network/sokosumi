@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
-import type { SokoBotRuntime } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_TEAMMATE_CAPABILITIES,
+  type SokoBotRuntime,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -717,6 +720,104 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(resetSession).not.toHaveBeenCalled();
     expect(turnUpdateManyMock).toHaveBeenCalledOnce();
+  });
+
+  it("grants a teammate mention only the teammate ceiling", async () => {
+    // The bot answers into a shared room, so the owner's private reads must
+    // not be on the grant and the packet must be built for a teammate.
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "turn_teammate",
+      leaseToken: "turn_lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_teammate",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    const contextBuilder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+
+    await new SokoBotControlPlane(
+      runtime,
+      contextBuilder,
+      new ExternalTurnClassifier(false),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-teammate",
+      message: "What did Jane email yesterday, and what files are in Drive?",
+      chat: {
+        mentionId: "mention_1",
+        responseMessageId: "message_1",
+        requestedByUserId: "user_teammate",
+      },
+    });
+
+    const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(granted).toEqual([...SOKO_BOT_TEAMMATE_CAPABILITIES]);
+    for (const ownerPrivate of [
+      "search_inbox",
+      "read_email",
+      "list_calendar_events",
+      "list_files",
+      "read_memory",
+      "read_chat",
+    ]) {
+      expect(granted).not.toContain(ownerPrivate);
+    }
+    expect(contextBuilder.build).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: "TEAMMATE" }),
+    );
+  });
+
+  it("grants the owner their route ceiling and a full packet", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "turn_owner",
+      leaseToken: "turn_lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_owner",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    const contextBuilder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+
+    await new SokoBotControlPlane(
+      runtime,
+      contextBuilder,
+      new ExternalTurnClassifier(false),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-owner",
+      message: "What did Jane email yesterday?",
+      chat: {
+        mentionId: "mention_1",
+        responseMessageId: "message_1",
+        requestedByUserId: "user_1",
+      },
+    });
+
+    const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(granted).toContain("search_inbox");
+    expect(contextBuilder.build).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: "OWNER" }),
+    );
   });
 
   it("binds a claimed schedule run in the transaction reserving its turn", async () => {
