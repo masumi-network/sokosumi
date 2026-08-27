@@ -28,6 +28,10 @@ Optional, per network:
 - `COMPOSIO_API_KEY` — brokers OAuth for Gmail, Outlook and Calendar
   integrations. Without it, integrations are unavailable and the rest of the
   bot still works.
+- `FAL_KEY` — generates the mascot pool. Without it the pool stays empty, so
+  the avatar picker offers no pictures and the sidebar shows a plain icon
+  instead of the bot faces. `/sync/soko-bot-avatars` keeps the pool topped up
+  every 30 minutes and is a no-op while the key is unset.
 - `SOKO_BOT_CLASSIFIER_MODE=model` — route classification by model instead of
   the deterministic default.
 
