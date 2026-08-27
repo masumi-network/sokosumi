@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   applyRoomReadOverlays,
-  applyRoomReadResultToOverlay,
   clearRoomReadOverlays,
   forgetRoomRead,
   rememberRoomRead,
@@ -88,8 +87,8 @@ describe("room-read-overlay", () => {
     expect(rows[0]?.markedUnread).toBe(true);
   });
 
-  it("applyRoomReadResultToOverlay only sticky-clears fully clear rooms", () => {
-    applyRoomReadResultToOverlay(
+  it("keeps leftover thread unread on remount, not the stale full count", () => {
+    rememberRoomRead(
       room({
         unreadCount: 2,
         unreadMentionCount: 0,
@@ -97,15 +96,47 @@ describe("room-read-overlay", () => {
       }),
     );
 
-    const stillUnread = applyRoomReadOverlays([
+    const remounted = applyRoomReadOverlays([
+      room({
+        unreadCount: 10,
+        unreadMentionCount: 1,
+        markedUnread: true,
+      }),
+    ]);
+
+    expect(remounted[0]).toMatchObject({
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
+  it("does not let a stale fully-clear row wipe leftover thread unread", () => {
+    rememberRoomRead(
       room({
         unreadCount: 2,
         unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const staleFullyClear = applyRoomReadOverlays([
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
       }),
     ]);
-    expect(stillUnread[0]).toMatchObject({ unreadCount: 2 });
 
-    applyRoomReadResultToOverlay(
+    expect(staleFullyClear[0]).toMatchObject({
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
+  it("keeps a fully-clear overlay after a matching row so a later stale fetch stays read", () => {
+    rememberRoomRead(
       room({
         unreadCount: 0,
         unreadMentionCount: 0,
@@ -113,16 +144,106 @@ describe("room-read-overlay", () => {
       }),
     );
 
-    const cleared = applyRoomReadOverlays([
+    const matchingClear = applyRoomReadOverlays([
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    ]);
+    expect(matchingClear[0]).toMatchObject({ unreadCount: 0 });
+
+    const staleUnread = applyRoomReadOverlays([
       room({
         unreadCount: 4,
         unreadMentionCount: 1,
+        markedUnread: false,
       }),
     ]);
-    expect(cleared[0]).toMatchObject({
+    expect(staleUnread[0]).toMatchObject({
       unreadCount: 0,
       unreadMentionCount: 0,
       markedUnread: false,
+    });
+  });
+
+  it("keeps leftover overlay after a matching poll so a later stale fetch still overlays", () => {
+    rememberRoomRead(
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const caughtUp = applyRoomReadOverlays([
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    ]);
+    expect(caughtUp[0]).toMatchObject({ unreadCount: 2 });
+
+    const staleAgain = applyRoomReadOverlays([
+      room({
+        unreadCount: 10,
+        unreadMentionCount: 1,
+        markedUnread: false,
+      }),
+    ]);
+    expect(staleAgain[0]).toMatchObject({
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
+  it("optimistically clears stale remount chrome before the server row returns", () => {
+    rememberRoomRead(
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const remounted = applyRoomReadOverlays([
+      room({
+        unreadCount: 4,
+        unreadMentionCount: 1,
+        markedUnread: true,
+      }),
+    ]);
+
+    expect(remounted[0]).toMatchObject({
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
+  it("restores stale unread after a failed mark-read forgets the overlay", () => {
+    rememberRoomRead(
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+    forgetRoomRead("room-1");
+
+    const remounted = applyRoomReadOverlays([
+      room({
+        unreadCount: 4,
+        unreadMentionCount: 1,
+        markedUnread: false,
+      }),
+    ]);
+
+    expect(remounted[0]).toMatchObject({
+      unreadCount: 4,
+      unreadMentionCount: 1,
     });
   });
 });
