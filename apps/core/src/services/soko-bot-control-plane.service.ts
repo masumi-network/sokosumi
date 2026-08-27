@@ -55,6 +55,10 @@ import {
   type UpdateSokoBotScheduleInput,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
+import {
+  isKnownSokoBotVersionId,
+  resolveSokoBotVersion,
+} from "@/services/soko-bot-version.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
@@ -1619,7 +1623,9 @@ export class SokoBotControlPlane {
       input.chat.requestedByUserId !== input.userId;
     // A teammate may ask the owner's bot questions but never spend the
     // owner's credits or create work in their name: read-only ceiling.
-    const version = getSokoBotVersion(input.versionId ?? bot.versionId);
+    const version = await resolveSokoBotVersion(
+      input.versionId ?? bot.versionId,
+    );
     const capabilities = applyVersionCapabilities(
       version,
       (requestedByTeammate
@@ -2393,7 +2399,8 @@ export class SokoBotControlPlane {
   }
 
   async updateVersion(userId: string, workspaceId: string, versionId: string) {
-    if (!isSokoBotVersionId(versionId)) {
+    // Built-in or console-authored; both share one id namespace.
+    if (!(await isKnownSokoBotVersionId(versionId))) {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }
     const updated = await prisma.sokoBot.updateMany({

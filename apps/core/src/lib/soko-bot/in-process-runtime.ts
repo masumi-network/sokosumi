@@ -20,6 +20,7 @@ import { generateText, stepCountIs, type ToolSet, tool } from "ai";
 
 import prisma from "@/lib/db/prisma";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
  * Loaded when a turn actually runs. The control plane constructs this runtime
@@ -155,7 +156,9 @@ async function runTurn(
       sessionId,
       turnId: input.turnId,
     });
-    const version = getSokoBotVersion(authorized.turn.versionId ?? null);
+    const version = await resolveSokoBotVersion(
+      authorized.turn.versionId ?? null,
+    );
 
     const tools: ToolSet = {};
     for (const capability of authorized.grant.capabilities) {

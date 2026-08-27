@@ -109,6 +109,7 @@ model User {
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
+  authoredSokoBotVersions SokoBotAuthoredVersion[] @relation("SokoBotAuthoredVersionAuthor")
 }
 
 model Session {
@@ -2016,6 +2017,46 @@ model SokoBotEvent {
  * Serverless invocations share no memory, so the loop appends here and the
  * `/sync/soko-bot-turns` drain reads it back through `streamEvents`.
  */
+/**
+ * A Soko Bot version authored in the console, alongside the immutable
+ * built-ins in `packages/soko-bot/src/versions`. Built-ins stay the known-good
+ * baseline and keep their lab history comparable; an authored version can be
+ * edited, tested in the lab, and promoted to the default for new bots.
+ *
+ * `slug` shares a namespace with the built-in ids (v1, v2, …) so a bot's
+ * `versionId` resolves against either; creation rejects a slug a built-in
+ * already uses.
+ */
+model SokoBotAuthoredVersion {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Stable id a bot's `versionId` points at, e.g. "v13" or "inbox-tuned".
+  slug    String  @unique
+  name    String
+  summary String  @default("")
+
+  /// AI Gateway model id, e.g. "google/gemini-3.6-flash".
+  model           String
+  /// Pins inference to a gateway zone; null routes globally.
+  inferenceRegion String?
+  systemPrompt    String
+
+  /// Built-in skill ids plus installed skills.sh ids.
+  skills       String[]
+  /// Tool allowlist on top of the route ceiling; empty means every capability.
+  capabilities String[]
+
+  archivedAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("SokoBotAuthoredVersionAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([archivedAt, updatedAt])
+  @@map("soko_bot_authored_version")
+}
+
 model SokoBotRuntimeEvent {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())

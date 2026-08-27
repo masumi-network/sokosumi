@@ -51,6 +51,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
+import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
 
@@ -700,7 +701,7 @@ export class SokoBotRuntimeService {
         "Context snapshot is unavailable",
       );
     }
-    const version = getSokoBotVersion(authorized.turn.versionId);
+    const version = await resolveSokoBotVersion(authorized.turn.versionId);
     const bot = await prisma.sokoBot.findUnique({
       where: { id: authorized.turn.sokoBotId },
       select: { name: true, user: { select: { name: true } } },
