@@ -1286,7 +1286,14 @@ function DrivePageWorkspace({
 
     const result: ExploreItem[] = [];
     if (currentFolder === "") {
-      result.push({ kind: "tasks-root" });
+      const trimmedSearch = debouncedSearchQuery.trim();
+      const tasksLabel = t("tasksFolder");
+      const showTasksRoot =
+        trimmedSearch.length === 0 ||
+        tasksLabel.toLowerCase().includes(trimmedSearch.toLowerCase());
+      if (showTasksRoot) {
+        result.push({ kind: "tasks-root" });
+      }
     }
     return result.concat(
       items.map((item) => ({

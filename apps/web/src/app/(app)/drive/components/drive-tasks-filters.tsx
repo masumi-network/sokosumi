@@ -131,19 +131,28 @@ export function DriveTasksFilters({
   const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadCoworkers() {
       try {
         const response = await getCoworkers({
           client: getBrowserCoreClient(),
           query: { scope: "available", capability: ["tasks"] },
         });
-        setCoworkers(response.data?.data ?? []);
+        if (!controller.signal.aborted) {
+          setCoworkers(response.data?.data ?? []);
+        }
       } catch {
-        setCoworkers([]);
+        if (!controller.signal.aborted) {
+          setCoworkers([]);
+        }
       }
     }
     void loadCoworkers();
-  }, []);
+    return () => {
+      controller.abort();
+    };
+  }, [activeOrganizationId]);
 
   useEffect(() => {
     const store = driveStoreForActiveWorkspace(activeOrganizationId);

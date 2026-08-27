@@ -13,6 +13,7 @@ import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
 } from "@/helpers/drive-file-access";
+import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
 import {
   badRequest,
   conflict,
@@ -76,13 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Folder path cannot be empty");
     }
 
-    // Reserve "Tasks" as root segment (virtual folder)
-    const rootSegment = folderPath.split("/")[0];
-    if (rootSegment === "Tasks") {
-      throw conflict(
-        "Folder name 'Tasks' is reserved for the virtual Tasks folder",
-      );
-    }
+    assertDriveFolderPathNotReserved(folderPath);
 
     let markerPathname: string;
     let prefix: string;

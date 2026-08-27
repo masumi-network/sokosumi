@@ -17733,6 +17733,20 @@ export type GetDriveTasksErrors = {
             method: string;
         };
     };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type GetDriveTasksError = GetDriveTasksErrors[keyof GetDriveTasksErrors];

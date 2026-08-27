@@ -5,9 +5,30 @@ import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import mountMoveFile from "../files/move";
 import mountPostFolder from "../folders/post";
+import mountRenameFolder from "../folders/rename";
 import mountCopy from "./copy";
 import mountGet from "./get";
+
+function flattenPrismaSqlArgs(args: unknown[]): unknown[] {
+  const values: unknown[] = [];
+  for (const arg of args) {
+    if (
+      arg &&
+      typeof arg === "object" &&
+      "values" in arg &&
+      Array.isArray((arg as { values: unknown[] }).values)
+    ) {
+      values.push(
+        ...flattenPrismaSqlArgs((arg as { values: unknown[] }).values),
+      );
+    } else {
+      values.push(arg);
+    }
+  }
+  return values;
+}
 
 const {
   workspaceRepositoryMock,
@@ -20,6 +41,7 @@ const {
   prismaTaskCountMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
+  prismaQueryRawMock,
   requireTaskReadForRouteVarsMock,
   requireUserDriveFileUploadAccessMock,
   requireOrganizationDriveFileUploadAccessMock,
@@ -40,6 +62,7 @@ const {
   prismaTaskCountMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
+  prismaQueryRawMock: vi.fn(),
   requireTaskReadForRouteVarsMock: vi.fn(),
   requireUserDriveFileUploadAccessMock: vi.fn(),
   requireOrganizationDriveFileUploadAccessMock: vi.fn(),
@@ -77,6 +100,7 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findUnique: prismaMemberFindUniqueMock,
     },
+    $queryRaw: prismaQueryRawMock,
   },
 }));
 
@@ -201,6 +225,48 @@ function createFoldersApp(
   });
 
   mountPostFolder(app as unknown as OpenAPIHonoWithAuth);
+
+  return app;
+}
+
+function createRenameFolderApp(
+  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & RequestIdVariables;
+  }>();
+
+  app.onError(errorHandler);
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+    await next();
+  });
+
+  mountRenameFolder(app as unknown as OpenAPIHonoWithAuth);
+
+  return app;
+}
+
+function createMoveFileApp(
+  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & RequestIdVariables;
+  }>();
+
+  app.onError(errorHandler);
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+    await next();
+  });
+
+  mountMoveFile(app as unknown as OpenAPIHonoWithAuth);
 
   return app;
 }
@@ -488,7 +554,8 @@ describe("Drive Tasks Routes", () => {
           },
         ];
 
-        prismaTaskFileFindManyMock.mockResolvedValue(files);
+        prismaTaskFileFindFirstMock.mockResolvedValue({ id: "tf_1" });
+        prismaTaskFileFindManyMock.mockResolvedValue([files[1]]);
         prismaTaskFileCountMock.mockResolvedValue(2);
 
         const app = createDriveTasksApp();
@@ -500,10 +567,17 @@ describe("Drive Tasks Routes", () => {
         const json = await res.json();
         expect(json.data).toHaveLength(1);
         expect(json.data[0]).toMatchObject({ id: "tf_2" });
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            cursor: { id: "tf_1" },
+            skip: 1,
+            take: 2,
+          }),
+        );
       });
 
       it("returns 400 for an invalid search pagination cursor", async () => {
-        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaTaskFileFindFirstMock.mockResolvedValue(null);
 
         const app = createDriveTasksApp();
         const res = await app.request(
@@ -516,17 +590,15 @@ describe("Drive Tasks Routes", () => {
 
     describe("Level 2: Task rows", () => {
       it("lists tasks sorted by latest file updatedAt desc", async () => {
-        const tasks = [
-          {
-            id: "tsk_1",
-            name: "Task 1",
-            files: [{ updatedAt: new Date("2026-03-25T12:00:00.000Z") }],
-            jobs: [],
-          },
-        ];
-
-        prismaTaskFindManyMock.mockResolvedValue(tasks);
-        prismaTaskCountMock.mockResolvedValue(1);
+        prismaQueryRawMock
+          .mockResolvedValueOnce([
+            {
+              id: "tsk_1",
+              name: "Task 1",
+              latestFileUpdatedAt: new Date("2026-03-25T12:00:00.000Z"),
+            },
+          ])
+          .mockResolvedValueOnce([{ count: 1n }]);
 
         const app = createDriveTasksApp();
         const res = await app.request(
@@ -539,9 +611,10 @@ describe("Drive Tasks Routes", () => {
         expect(json.data[0].type).toBe("task");
       });
 
-      it("includes assigneeId in task where clause", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]);
-        prismaTaskCountMock.mockResolvedValue(0);
+      it("includes assigneeId in task query filters", async () => {
+        prismaQueryRawMock
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ count: 0n }]);
 
         const app = createDriveTasksApp();
         const res = await app.request(
@@ -549,19 +622,17 @@ describe("Drive Tasks Routes", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              assigneeId: "cow_456",
-            }),
-          }),
+        expect(prismaQueryRawMock).toHaveBeenCalled();
+        const queryValues = prismaQueryRawMock.mock.calls.flatMap((call) =>
+          flattenPrismaSqlArgs(Array.isArray(call) ? call.slice(1) : []),
         );
+        expect(queryValues).toContain("cow_456");
       });
 
-      it("excludes tasks with only PENDING/FAILED TaskFiles", async () => {
-        // Mock task query to check the where clause includes READY file filter
-        prismaTaskFindManyMock.mockResolvedValue([]);
-        prismaTaskCountMock.mockResolvedValue(0);
+      it("uses database-backed pagination for project task rows", async () => {
+        prismaQueryRawMock
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ count: 0n }]);
 
         const app = createDriveTasksApp();
         const res = await app.request(
@@ -569,45 +640,12 @@ describe("Drive Tasks Routes", () => {
         );
 
         expect(res.status).toBe(200);
-        // Verify that the base task where clause includes READY file filter
-        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              files: {
-                some: DRIVE_TASK_FILE_WHERE,
-              },
-            }),
-          }),
-        );
-      });
-
-      it("excludes tasks with only USER_UPLOAD TaskFiles", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]);
-        prismaTaskCountMock.mockResolvedValue(0);
-
-        const app = createDriveTasksApp();
-        const res = await app.request(
-          "http://localhost/?scope=me&projectId=550e8400-e29b-41d4-a716-446655440000",
-        );
-
-        expect(res.status).toBe(200);
-        const json = await res.json();
-        expect(json.data).toHaveLength(0);
-
-        expect(prismaTaskFindManyMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: expect.objectContaining({
-              files: {
-                some: DRIVE_TASK_FILE_WHERE,
-              },
-            }),
-          }),
-        );
+        expect(prismaQueryRawMock).toHaveBeenCalledTimes(2);
+        expect(prismaTaskFindManyMock).not.toHaveBeenCalled();
       });
 
       it("returns 400 for an invalid pagination cursor", async () => {
-        prismaTaskFindManyMock.mockResolvedValue([]);
-        prismaTaskCountMock.mockResolvedValue(0);
+        prismaQueryRawMock.mockResolvedValueOnce([]);
 
         const app = createDriveTasksApp();
         const res = await app.request(
@@ -1357,6 +1395,45 @@ describe("Drive Tasks Routes", () => {
       });
 
       expect(res.status).toBe(201);
+    });
+  });
+
+  describe("PATCH /v1/drive/folders/rename - Reserved 'Tasks' name", () => {
+    it("rejects renaming a folder to root 'Tasks'", async () => {
+      const app = createRenameFolderApp();
+      const res = await app.request("http://localhost/rename", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          oldFolderPath: "Documents",
+          newFolderPath: "Tasks",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.error?.message || json.message).toContain("reserved");
+    });
+  });
+
+  describe("PATCH /v1/drive/files/move - Reserved 'Tasks' name", () => {
+    it("rejects moving a nested 'Tasks' folder to drive root", async () => {
+      const app = createMoveFileApp();
+      const res = await app.request("http://localhost/move", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "folder",
+          sourcePathname: "Projects/Tasks",
+          targetFolderPath: "",
+          scope: "me",
+        }),
+      });
+
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.error?.message || json.message).toContain("reserved");
     });
   });
 });

@@ -5,6 +5,7 @@ import {
   requireCoworkerCapability,
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
+import { fetchProjectTasksPage } from "@/helpers/drive-tasks-project-list";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { badRequest, forbidden } from "@/helpers/error";
 import {
@@ -38,9 +39,6 @@ const DRIVE_TASK_FILE_WHERE = {
 
 /** Stable sort key when a row has no READY task-output files yet. */
 const NO_DRIVE_TASK_FILE_SORT_EPOCH = new Date(0).toISOString();
-
-/** Cap in-memory sort/paginate fetches for large workspaces. */
-const MAX_TASKS_FOR_SORT = 10000;
 
 const query = z
   .object({
@@ -127,6 +125,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
   },
 });
 
@@ -165,11 +164,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     };
 
     // Apply coworker access filter if needed
+    let coworkerAccess:
+      | {
+          coworkerId: string;
+          vendorId: string;
+          hasWorkspaceGrant: boolean;
+        }
+      | undefined;
+
     if (isCoworkerAuthContext(authContext) && authContext.context) {
       const hasWorkspaceGrant = await hasGrantedWorkspaceAccess({
         vendorId: authContext.vendorId,
         workspaceId,
       });
+
+      coworkerAccess = {
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        hasWorkspaceGrant,
+      };
 
       const listAccessFilter = buildCoworkerTaskListAccessFilter({
         coworkerId: authContext.coworkerId,
@@ -209,11 +222,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ],
       };
 
+      if (cursor) {
+        const cursorFile = await prisma.taskFile.findFirst({
+          where: {
+            id: cursor,
+            ...taskFileWhere,
+          },
+          select: { id: true },
+        });
+        if (!cursorFile) {
+          throw badRequest("Invalid pagination cursor");
+        }
+      }
+
+      const takePlusOne = take + 1;
       const [matchingFiles, totalCount] = await Promise.all([
         prisma.taskFile.findMany({
           where: taskFileWhere,
           orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-          take: MAX_TASKS_FOR_SORT,
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
           include: {
             task: {
               select: {
@@ -232,19 +261,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma.taskFile.count({ where: taskFileWhere }),
       ]);
 
-      let startIndex = 0;
-      if (cursor) {
-        const cursorIndex = matchingFiles.findIndex(
-          (file) => file.id === cursor,
-        );
-        if (cursorIndex < 0) {
-          throw badRequest("Invalid pagination cursor");
-        }
-        startIndex = cursorIndex + 1;
-      }
-
-      const pagedFiles = matchingFiles.slice(startIndex, startIndex + take);
-      const hasMore = startIndex + take < matchingFiles.length;
+      const hasMore = matchingFiles.length === takePlusOne;
+      const pagedFiles = matchingFiles.slice(0, take);
 
       const items: DriveTasksListItem[] = pagedFiles
         .map((file) => {
@@ -372,68 +390,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (projectId !== undefined) {
-      // Level 2: Task rows with files, sorted by latest file updatedAt desc
-      const projectFilter =
-        projectId === "null" ? { projectId: null } : { projectId };
-
-      const tasksWhere = {
-        ...baseTaskWhere,
-        ...projectFilter,
-      };
-
-      // Fetch all tasks (up to a reasonable limit for sorting)
-      // Cursor pagination requires knowing position in sorted order
-      const [allTasks, count] = await Promise.all([
-        prisma.task.findMany({
-          where: tasksWhere,
-          take: MAX_TASKS_FOR_SORT,
-          include: {
-            files: {
-              where: DRIVE_TASK_FILE_WHERE,
-              orderBy: { updatedAt: "desc" },
-              take: 1,
-            },
-          },
-        }),
-        prisma.task.count({ where: tasksWhere }),
-      ]);
-
-      // Sort by latest file updatedAt desc (spec requirement)
-      const sortedTasks = allTasks.sort((a, b) => {
-        const aFileTime = a.files[0]?.updatedAt.getTime() ?? 0;
-        const bFileTime = b.files[0]?.updatedAt.getTime() ?? 0;
-
-        if (bFileTime !== aFileTime) return bFileTime - aFileTime;
-        return b.id.localeCompare(a.id); // Stable sort by id desc
+      const pageResult = await fetchProjectTasksPage({
+        workspaceId,
+        projectId: projectId === "null" ? null : projectId,
+        ...(assigneeId ? { assigneeId } : {}),
+        ...(coworkerAccess ? { coworkerAccess } : {}),
+        ...(cursor ? { cursor } : {}),
+        take,
       });
 
-      // Apply cursor pagination on sorted list
-      let startIndex = 0;
-      if (cursor) {
-        const cursorIndex = sortedTasks.findIndex((t) => t.id === cursor);
-        if (cursorIndex < 0) {
-          throw badRequest("Invalid pagination cursor");
-        }
-        startIndex = cursorIndex + 1; // Skip cursor item
+      if (!pageResult.ok) {
+        throw badRequest("Invalid pagination cursor");
       }
 
-      const pagedTasks = sortedTasks.slice(startIndex, startIndex + take);
-      const hasMore = startIndex + take < sortedTasks.length;
+      const hasMore = pageResult.rows.length === take + 1;
+      const pagedTasks = pageResult.rows.slice(0, take);
 
-      const items: DriveTasksListItem[] = pagedTasks.map((task) => {
-        const fileTime = task.files[0]?.updatedAt.getTime() ?? 0;
-
-        return {
-          type: "task",
-          id: task.id,
-          name: task.name,
-          latestFileUpdatedAt: new Date(fileTime).toISOString(),
-        };
-      });
+      const items: DriveTasksListItem[] = pagedTasks.map((task) => ({
+        type: "task",
+        id: task.id,
+        name: task.name,
+        latestFileUpdatedAt: task.latestFileUpdatedAt.toISOString(),
+      }));
 
       const paginationMeta = createPaginationMeta(
         pagedTasks,
-        count,
+        pageResult.totalCount,
         take,
         hasMore,
         cursor,

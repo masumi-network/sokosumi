@@ -9,6 +9,7 @@ import pLimit from "p-limit";
 
 import { getEnv } from "@/config/env";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
 import {
   badRequest,
   conflict,
@@ -80,6 +81,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!oldFolderPath || !newFolderPath) {
       throw badRequest("Folder paths cannot be empty");
     }
+
+    assertDriveFolderPathNotReserved(newFolderPath);
 
     let oldPrefix: string;
     let newPrefix: string;
