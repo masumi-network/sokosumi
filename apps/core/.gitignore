@@ -6,3 +6,5 @@ fixtures/soko-bot-integrations/
 # editor and tooling backups of the local env (sed -i.bak, .env.local, ...)
 .env*
 !.env.example
+# behaviour lab result files (pnpm soko-bot:lab writes these to cwd)
+soko-bot-lab-*.json
