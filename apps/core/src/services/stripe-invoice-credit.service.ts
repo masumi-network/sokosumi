@@ -393,7 +393,7 @@ function buildInvoiceCreditGrants(
         );
 
     creditGrants.push({
-      bucketUserId: params.userId,
+      bucketUserId: params.organizationId ? null : params.userId,
       credits: params.oneTimeTopUpCredits,
       expiresAt: params.oneTimeTopUpExpiresAt,
       referenceId: topUpReferenceId,

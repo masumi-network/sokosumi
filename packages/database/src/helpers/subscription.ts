@@ -223,88 +223,14 @@ export interface GrantFreeOrganizationMemberSubscriptionCreditsParams {
 }
 
 /**
- * Grants free monthly subscription credits to organization members for the
- * current subscription period without creating a separate local-free
- * `Subscription` row. This lets unassigned members of a paid (Stripe-backed)
- * organization receive the free tier alongside assigned members' paid credits.
- *
- * Grants are idempotent per period: a member that already holds a free-tier
- * bucket that has not expired yet is skipped. This mirrors the drift-tolerant
- * matching used for paid seat grants, so invoice-driven and event-driven grants
- * for the same period do not double up.
+ * Paid organizations no longer mint per-member free-tier period buckets.
+ * Organization credits belong on the shared pool (`userId: null`).
  */
 export async function grantFreeOrganizationMemberSubscriptionCredits(
-  params: GrantFreeOrganizationMemberSubscriptionCreditsParams,
-  tx: Prisma.TransactionClient,
+  _params: GrantFreeOrganizationMemberSubscriptionCreditsParams,
+  _tx: Prisma.TransactionClient,
 ): Promise<number> {
-  const now = params.now ?? new Date();
-  if (params.periodEnd <= now) {
-    return 0;
-  }
-
-  const userIds = getSortedUniqueUserIds(params.memberUserIds);
-  if (userIds.length === 0) {
-    return 0;
-  }
-
-  const amount = convertCreditsToCents(FREE_SUBSCRIPTION_MONTHLY_CREDITS);
-  let grantsCreated = 0;
-
-  for (const userId of userIds) {
-    const referenceId = buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-      userId,
-      params.organizationId,
-      params.periodEnd,
-    );
-
-    // Idempotency: any bucket for this period (including future `activatesAt` from
-    // pre-create). Spendability is enforced separately via creditBucketActivatesAtOrBefore.
-    const existingForPeriod = await tx.creditBucket.findUnique({
-      where: {
-        referenceId_referenceType: {
-          referenceId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (existingForPeriod) {
-      continue;
-    }
-
-    await tx.transaction.create({
-      data: {
-        amount,
-        organization: {
-          connect: {
-            id: params.organizationId,
-          },
-        },
-        sourceCreditBucket: {
-          create: {
-            amount,
-            expiresAt: params.periodEnd,
-            organizationId: params.organizationId,
-            referenceId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            userId,
-          },
-        },
-        user: {
-          connect: {
-            id: userId,
-          },
-        },
-      },
-    });
-
-    grantsCreated += 1;
-  }
-
-  return grantsCreated;
+  return 0;
 }
 
 function getOrganizationMemberUserIds(

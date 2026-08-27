@@ -136,14 +136,8 @@ const LOCAL_FREE_PERIOD_GRANT_MATRIX: LocalFreePeriodGrantMatrixCase[] = [
 
 const PAID_ORG_FREE_TIER_GRANT_MATRIX: PaidOrgFreeTierGrantMatrixCase[] = [
   {
-    name: "org paid — free tier grants only the supplied unassigned member ids",
+    name: "org paid — does not mint a per-member free-tier sidecar",
     memberUserIds: ["unassigned-1"],
-    expectedGrantCount: 1,
-    expectedGrantUserIds: ["unassigned-1"],
-  },
-  {
-    name: "org paid — assigned member ids are not included in free-tier grant batch",
-    memberUserIds: [],
     expectedGrantCount: 0,
     expectedGrantUserIds: [],
   },
@@ -217,7 +211,7 @@ describe("organization subscription credit routing matrix", () => {
     (testCase: PaidOrgFreeTierGrantMatrixCase) => {
       const { expectedGrantCount, expectedGrantUserIds, memberUserIds } =
         testCase;
-      it("grants only to the supplied member user ids", async () => {
+      it("does not mint per-member organization credits", async () => {
         const { createTransactionMock, tx } = createPaidOrgFreeGrantClient();
 
         const grantsCreated =

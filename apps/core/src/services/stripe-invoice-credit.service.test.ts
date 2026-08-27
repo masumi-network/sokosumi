@@ -501,7 +501,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );
-    expect(createCall.data.sourceCreditBucket.create.userId).toBe("owner-2");
+    expect(createCall.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
   it("grants paid organization proration credits as one org-owned period bucket", async () => {

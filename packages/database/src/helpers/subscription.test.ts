@@ -632,154 +632,22 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
 });
 
 describe("grantFreeOrganizationMemberSubscriptionCredits", () => {
-  it("grants one free-tier bucket per unique member for a future period", async () => {
+  it("does not mint per-member organization period buckets", async () => {
     const { createTransactionMock, findUniqueBucketMock, tx } =
       createFreeGrantClient();
-    const periodEnd = new Date("2026-05-01T00:00:00.000Z");
 
     const grantsCreated = await grantFreeOrganizationMemberSubscriptionCredits(
       {
         memberUserIds: ["member-1", "member-1", "owner-1"],
         now: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: "org-1",
-        periodEnd,
-      },
-      tx,
-    );
-
-    assert.equal(grantsCreated, 2);
-    assert.equal(findUniqueBucketMock.mock.calls.length, 2);
-    assert.deepEqual(findUniqueBucketMock.mock.calls[0]?.[0].where, {
-      referenceId_referenceType: {
-        referenceId: buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-          "member-1",
-          "org-1",
-          periodEnd,
-        ),
-        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-      },
-    });
-    assert.equal(createTransactionMock.mock.calls.length, 2);
-
-    const createdReferenceIds = createTransactionMock.mock.calls.map(
-      (
-        call: [
-          { data: { sourceCreditBucket: { create: { referenceId: string } } } },
-        ],
-      ) => call[0].data.sourceCreditBucket.create.referenceId,
-    );
-    assert.deepEqual(createdReferenceIds, [
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "member-1",
-        "org-1",
-        new Date("2026-05-01T00:00:00.000Z"),
-      ),
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "owner-1",
-        "org-1",
-        new Date("2026-05-01T00:00:00.000Z"),
-      ),
-    ]);
-    assert.equal(
-      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
-        .referenceType,
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    assert.equal(
-      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.expiresAt.toISOString(),
-      "2026-05-01T00:00:00.000Z",
-    );
-  });
-
-  it("skips when a period bucket already exists even if not yet spendable", async () => {
-    const periodEnd = new Date("2026-05-01T00:00:00.000Z");
-    const referenceId = buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-      "member-1",
-      "org-1",
-      periodEnd,
-    );
-    const { createTransactionMock, findUniqueBucketMock, tx } =
-      createFreeGrantClient({
-        existingFreeBucketReferenceIds: [referenceId],
-      });
-
-    const grantsCreated = await grantFreeOrganizationMemberSubscriptionCredits(
-      {
-        memberUserIds: ["member-1"],
-        now: new Date("2026-04-01T00:00:00.000Z"),
-        organizationId: "org-1",
-        periodEnd,
-      },
-      tx,
-    );
-
-    assert.equal(grantsCreated, 0);
-    assert.equal(findUniqueBucketMock.mock.calls.length, 1);
-    assert.equal(createTransactionMock.mock.calls.length, 0);
-  });
-
-  it("skips members that already hold a bucket for the period", async () => {
-    const periodEnd = new Date("2026-05-01T00:00:00.000Z");
-    const { createTransactionMock, tx } = createFreeGrantClient({
-      existingFreeBucketReferenceIds: [
-        buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-          "member-1",
-          "org-1",
-          periodEnd,
-        ),
-      ],
-    });
-
-    const grantsCreated = await grantFreeOrganizationMemberSubscriptionCredits(
-      {
-        memberUserIds: ["member-1", "owner-1"],
-        now: new Date("2026-04-01T00:00:00.000Z"),
-        organizationId: "org-1",
-        periodEnd,
-      },
-      tx,
-    );
-
-    assert.equal(grantsCreated, 1);
-    assert.equal(createTransactionMock.mock.calls.length, 1);
-    assert.equal(
-      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
-        .userId,
-      "owner-1",
-    );
-  });
-
-  it("returns zero when the period has already ended", async () => {
-    const { createTransactionMock, tx } = createFreeGrantClient();
-
-    const grantsCreated = await grantFreeOrganizationMemberSubscriptionCredits(
-      {
-        memberUserIds: ["member-1"],
-        now: new Date("2026-05-02T00:00:00.000Z"),
-        organizationId: "org-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
       },
       tx,
     );
 
     assert.equal(grantsCreated, 0);
-    assert.equal(createTransactionMock.mock.calls.length, 0);
-  });
-
-  it("returns zero when there are no member user ids", async () => {
-    const { createTransactionMock, tx } = createFreeGrantClient();
-
-    const grantsCreated = await grantFreeOrganizationMemberSubscriptionCredits(
-      {
-        memberUserIds: [],
-        now: new Date("2026-04-01T00:00:00.000Z"),
-        organizationId: "org-1",
-        periodEnd: new Date("2026-05-01T00:00:00.000Z"),
-      },
-      tx,
-    );
-
-    assert.equal(grantsCreated, 0);
+    assert.equal(findUniqueBucketMock.mock.calls.length, 0);
     assert.equal(createTransactionMock.mock.calls.length, 0);
   });
 });
