@@ -16,6 +16,7 @@ import {
   HttpErrors,
 } from "@/lib/api/schemas/error";
 import { getSession, type Session } from "@/lib/auth/auth.server";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 export async function validateSession(): Promise<Session> {
   const session = await getSession();
@@ -40,7 +41,10 @@ export function handleApiError(
     requestId?: string;
   } = {},
 ): NextResponse {
-  const requestId = options.requestId ?? uuidv7();
+  const requestId =
+    options.requestId ??
+    (error instanceof CoreApiRequestError ? error.requestId : undefined) ??
+    uuidv7();
 
   console.error(`[${requestId}] Error in ${operation}:`, error);
 
