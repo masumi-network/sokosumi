@@ -33,6 +33,10 @@ async function main(): Promise<void> {
 
   const prisma = createPrismaClient(databaseUrl);
   try {
+    console.log(
+      "Connected. Listing organizations with leftover member: period buckets…",
+    );
+    const scanStartedAt = Date.now();
     const leftover = await prisma.creditBucket.findMany({
       where: {
         organizationId: { not: null },
@@ -48,12 +52,18 @@ async function main(): Promise<void> {
     const organizationIds = leftover
       .map((row) => row.organizationId)
       .filter((id): id is string => id != null);
+    console.log(
+      `Found ${organizationIds.length} organizations (${Date.now() - scanStartedAt}ms). Transferring one serializable transaction per org.`,
+    );
 
     let organizations = 0;
     let bucketsDrained = 0;
     let centsTransferred = 0n;
 
-    for (const organizationId of organizationIds) {
+    for (const [index, organizationId] of organizationIds.entries()) {
+      const step = `${index + 1}/${organizationIds.length}`;
+      console.log(`[${step}] starting ${organizationId}`);
+      const orgStartedAt = Date.now();
       const result = await prisma.$transaction(
         (tx) =>
           transferMemberPeriodBucketsToOrganizationPool(tx, organizationId),
@@ -64,10 +74,13 @@ async function main(): Promise<void> {
       organizations += result.organizations;
       bucketsDrained += result.bucketsDrained;
       centsTransferred += result.centsTransferred;
+      console.log(
+        `[${step}] ${organizationId} ${result.bucketsDrained === 0 ? "skipped (no remaining)" : "transferred"} in ${Date.now() - orgStartedAt}ms bucketsDrained=${result.bucketsDrained} centsTransferred=${result.centsTransferred.toString()}`,
+      );
     }
 
     console.log(
-      `Member period pool transfer: organizations=${organizations} bucketsDrained=${bucketsDrained} centsTransferred=${centsTransferred.toString()}`,
+      `Member period pool transfer done: organizationsTransferred=${organizations} bucketsDrained=${bucketsDrained} centsTransferred=${centsTransferred.toString()}`,
     );
   } finally {
     await prisma.$disconnect();
