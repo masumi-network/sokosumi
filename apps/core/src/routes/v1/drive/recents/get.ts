@@ -15,12 +15,7 @@ import {
   fetchDriveTaskOutputRecentsByIds,
 } from "@/helpers/drive-task-output-catalog";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import {
-  badRequest,
-  forbidden,
-  serviceUnavailable,
-  unprocessableEntity,
-} from "@/helpers/error";
+import { badRequest, forbidden, serviceUnavailable } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -59,7 +54,6 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
-    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -93,10 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireDriveFileAccess(authContext, scope, ownerId);
       prefix = buildUserDriveFilePrefix(ownerId);
     } else if (query.scope === "org") {
-      if (!query.organizationId) {
-        throw unprocessableEntity("organizationId is required when scope=org");
-      }
-      ownerId = query.organizationId;
+      ownerId = query.organizationId!;
       scope = "organization";
       await requireDriveFileAccess(authContext, scope, ownerId);
       prefix = buildOrganizationDriveFilePrefix(ownerId);

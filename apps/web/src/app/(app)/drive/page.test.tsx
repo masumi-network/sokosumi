@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -148,9 +149,11 @@ let queryClient = createDriveQueryClient();
 
 function driveTree() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <DrivePage />
-    </QueryClientProvider>
+    <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+      <QueryClientProvider client={queryClient}>
+        <DrivePage />
+      </QueryClientProvider>
+    </NuqsTestingAdapter>
   );
 }
 
@@ -573,6 +576,8 @@ describe("DrivePage recents view", () => {
 
     await user.click(screen.getByRole("tab", { name: "Org A" }));
 
-    expect(pushMock).toHaveBeenCalledWith("/drive?view=browse");
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
   });
 });

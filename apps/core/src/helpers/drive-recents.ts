@@ -9,6 +9,9 @@ import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
 import { driveRecentsItemSchema } from "@/schemas/drive-recents.schema";
 
 const RECENTS_CURSOR_VERSION = 2;
+/** Buffered beyond `limit` for signed-cursor pagination. Drive blobs are listed in
+ * pathname order (`@vercel/blob` `list()`); we scan pages until both sources are
+ * exhausted while keeping only the newest `limit + MAX_PENDING_REFS` items. */
 const MAX_PENDING_REFS = 100;
 
 const driveRecentsItemRefSchema = z.object({
@@ -257,43 +260,52 @@ export async function hydrateDriveRecentsPendingRefs(input: {
       : [];
   const taskRowById = new Map(taskRows.map((row) => [row.id, row]));
 
+  const driveFileRefs = input.refs.filter(
+    (ref) => ref.kind === "drive-file" && ref.id.startsWith(input.prefix),
+  );
+  const blobByRefId = new Map<string, Awaited<ReturnType<typeof head>>>();
+  const headResults = await Promise.allSettled(
+    driveFileRefs.map((ref) => head(ref.id, { token: input.token })),
+  );
+  headResults.forEach((result, index) => {
+    const ref = driveFileRefs[index];
+    if (result.status === "fulfilled" && ref) {
+      blobByRefId.set(ref.id, result.value);
+    }
+  });
+
   for (const ref of input.refs) {
     if (ref.kind === "drive-file") {
-      if (!ref.id.startsWith(input.prefix)) {
+      const blob = blobByRefId.get(ref.id);
+      if (!blob) {
         continue;
       }
-
-      try {
-        const blob = await head(ref.id, { token: input.token });
-        if (isDriveFolderMarker(blob.pathname)) {
-          continue;
-        }
-        if (!blob.uploadedAt) {
-          continue;
-        }
-        const segments = blob.pathname
-          .split("/")
-          .filter((segment) => segment.length > 0);
-        const name = segments[segments.length - 1];
-        if (!name) {
-          continue;
-        }
-        const activityAt = ref.activityAt;
-        const item: DriveRecentsItem = {
-          kind: "drive-file",
-          name,
-          fileUrl: blob.url,
-          pathname: blob.pathname,
-          size:
-            typeof blob.size === "number" && Number.isFinite(blob.size)
-              ? blob.size
-              : 0,
-          activityAt,
-        };
-        hydrated.push(item);
-      } catch {
+      if (isDriveFolderMarker(blob.pathname)) {
         continue;
       }
+      if (!blob.uploadedAt) {
+        continue;
+      }
+      const segments = blob.pathname
+        .split("/")
+        .filter((segment) => segment.length > 0);
+      const name = segments[segments.length - 1];
+      if (!name) {
+        continue;
+      }
+      const activityAt = ref.activityAt;
+      const item: DriveRecentsItem = {
+        kind: "drive-file",
+        name,
+        fileUrl: blob.url,
+        pathname: blob.pathname,
+        size:
+          typeof blob.size === "number" && Number.isFinite(blob.size)
+            ? blob.size
+            : 0,
+        activityAt,
+      };
+      hydrated.push(item);
       continue;
     }
 

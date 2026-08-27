@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
+import { parseAsString, useQueryStates } from "nuqs";
 import {
   type ReactElement,
   useCallback,
@@ -337,6 +338,13 @@ function DrivePageWorkspace({
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [driveNavQuery, setDriveNavQuery] = useQueryStates({
+    view: parseAsString,
+    folder: parseAsString,
+    projectId: parseAsString,
+    taskId: parseAsString,
+    assigneeId: parseAsString,
+  });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -417,9 +425,9 @@ function DrivePageWorkspace({
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
-  const folderParam = searchParams.get("folder") || "";
+  const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
   const currentFolder = folderParam;
-  const viewParam = searchParams.get("view");
+  const viewParam = driveNavQuery.view ?? searchParams.get("view");
   const isTasksView = viewParam === "tasks";
   const isBrowseView =
     !isTasksView && (viewParam === "browse" || folderParam.length > 0);
@@ -949,18 +957,13 @@ function DrivePageWorkspace({
   }
 
   function navigateToPrimaryView(view: DrivePrimaryView) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
-    if (view === "recents") {
-      params.delete("view");
-    } else {
-      params.set("view", "browse");
-    }
-    params.delete("folder");
-    params.delete("projectId");
-    params.delete("taskId");
-    params.delete("assigneeId");
-    const query = params.toString();
-    router.push(query ? `/drive?${query}` : "/drive");
+    void setDriveNavQuery({
+      view: view === "recents" ? null : "browse",
+      folder: null,
+      projectId: null,
+      taskId: null,
+      assigneeId: null,
+    });
   }
 
   function navigateToTasksRoot() {
