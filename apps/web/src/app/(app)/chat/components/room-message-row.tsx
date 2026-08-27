@@ -147,9 +147,9 @@ function MessageEditedLabel({ editedAt }: { editedAt: Date | string }) {
     <span
       className="text-muted-foreground text-xs leading-none"
       title={editedWhen}
-      aria-label={editedWhen ?? t("Edit.edited")}
     >
-      {t("Edit.edited")}
+      <span>{t("Edit.edited")}</span>
+      {editedWhen ? <span className="sr-only">{editedWhen}</span> : null}
     </span>
   );
 }

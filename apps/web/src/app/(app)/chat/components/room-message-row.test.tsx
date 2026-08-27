@@ -1433,16 +1433,6 @@ describe("ChatMessageRow", () => {
     );
   });
 
-  it("shows Edited when editedAt is set", () => {
-    renderRow({
-      message: userMessage({
-        editedAt: new Date("2026-07-01T15:00:00.000Z"),
-      }),
-    });
-
-    expect(screen.getByText("Edit.edited")).toBeInTheDocument();
-  });
-
   it("puts the edited cue next to the timestamp with a hover time", () => {
     renderRow({
       message: userMessage({
@@ -1451,12 +1441,13 @@ describe("ChatMessageRow", () => {
     });
 
     const label = screen.getByText("Edit.edited");
-    expect(label).toHaveAttribute("title", expect.stringMatching(/^Edited /));
-    expect(label).toHaveAttribute(
-      "aria-label",
+    expect(label.parentElement).toHaveAttribute(
+      "title",
       expect.stringMatching(/^Edited /),
     );
-    expect(label.parentElement).toContainElement(screen.getByRole("time"));
+    expect(label.parentElement).not.toHaveAttribute("aria-label");
+    expect(screen.getByText(/^Edited /)).toHaveClass("sr-only");
+    expect(screen.getByRole("time").parentElement).toContainElement(label);
   });
 
   it("puts the edited cue above the continuation body, not after a quote", () => {
@@ -1477,11 +1468,11 @@ describe("ChatMessageRow", () => {
     const quote = screen.getByRole("button", {
       name: "Jump to message from Bob",
     });
-    expect(label).toHaveAttribute("title", expect.stringMatching(/^Edited /));
-    expect(label).toHaveAttribute(
-      "aria-label",
+    expect(label.parentElement).toHaveAttribute(
+      "title",
       expect.stringMatching(/^Edited /),
     );
+    expect(screen.getByText(/^Edited /)).toHaveClass("sr-only");
     expect(
       screen.getByTestId("message-continuation-rail"),
     ).not.toContainElement(label);
