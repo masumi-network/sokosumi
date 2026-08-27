@@ -9,3 +9,5 @@ Core had Sentry plus Hono's unstructured `logger()`, and no queryable per-reques
 - Domain `log.set` on every Core handler — hundreds of files before we know the event shape is useful.
 
 Chose Core middleware + identity enrichers. Domain fields and a Sentry Logs drain wait until request events are in use.
+
+Web does not run evlog. It forwards `X-Request-Id` on Core client calls (and the chat proxy). Core's `requestId()` reuses that header, so Web errors and Core wide events share one id.

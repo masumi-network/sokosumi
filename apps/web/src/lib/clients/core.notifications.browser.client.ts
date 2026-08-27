@@ -18,14 +18,17 @@ import type {
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 
 import { executeCoreOperation } from "./core.request";
+import { attachCoreRequestIdInterceptor } from "./utils/core-request-id";
 
 let notificationsGeneratedClient: ReturnType<typeof createClient> | undefined;
 
 function getNotificationsGeneratedClient() {
-  notificationsGeneratedClient ??= createClient({
-    baseUrl: getBrowserCoreApiBaseUrl(),
-    credentials: "include",
-  });
+  notificationsGeneratedClient ??= attachCoreRequestIdInterceptor(
+    createClient({
+      baseUrl: getBrowserCoreApiBaseUrl(),
+      credentials: "include",
+    }),
+  );
 
   return notificationsGeneratedClient;
 }

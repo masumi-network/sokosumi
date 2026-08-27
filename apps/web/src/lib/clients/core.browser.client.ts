@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/clients/generated/core/client";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
-
 import { createCoreClient } from "./core.shared";
+import { attachCoreRequestIdInterceptor } from "./utils/core-request-id";
 
 export {
   CoreApiRequestError,
@@ -18,10 +18,12 @@ export {
 let browserGeneratedClient: ReturnType<typeof createClient> | undefined;
 
 function getBrowserGeneratedClient() {
-  browserGeneratedClient ??= createClient({
-    baseUrl: getBrowserCoreApiBaseUrl(),
-    credentials: "include",
-  });
+  browserGeneratedClient ??= attachCoreRequestIdInterceptor(
+    createClient({
+      baseUrl: getBrowserCoreApiBaseUrl(),
+      credentials: "include",
+    }),
+  );
 
   return browserGeneratedClient;
 }
