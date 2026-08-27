@@ -13,6 +13,7 @@ import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
 } from "@/helpers/drive-file-access";
+import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
 import {
   badRequest,
   conflict,
@@ -75,6 +76,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!folderPath) {
       throw badRequest("Folder path cannot be empty");
     }
+
+    assertDriveFolderPathNotReserved(folderPath);
 
     let markerPathname: string;
     let prefix: string;

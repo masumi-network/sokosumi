@@ -14,6 +14,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 import {
   requireDriveFileAccess,
+  requireDriveStoreMatchesActiveWorkspace,
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
 } from "./drive-file-access";
@@ -260,5 +261,47 @@ describe("requireOrganizationDriveFileUploadAccess", () => {
         "org_a",
       ),
     ).resolves.toEqual(organization);
+  });
+});
+
+describe("requireDriveStoreMatchesActiveWorkspace", () => {
+  it("rejects My Drive from an organization workspace", () => {
+    try {
+      requireDriveStoreMatchesActiveWorkspace(
+        {
+          source: "session",
+          actor: "user",
+          userId: "user_1",
+          organizationId: "org_a",
+          role: "user",
+          authenticationMethod: "session",
+        },
+        "user",
+        "user_1",
+      );
+      throw new Error("expected forbidden");
+    } catch (error) {
+      expect(error).toMatchObject({
+        status: 403,
+        message: "My Drive is only available in a personal workspace",
+      });
+    }
+  });
+
+  it("skips bind for API keys", () => {
+    expect(() =>
+      requireDriveStoreMatchesActiveWorkspace(
+        {
+          source: "session",
+          actor: "user",
+          userId: "user_1",
+          organizationId: "org_a",
+          role: "user",
+          authenticationMethod: "api_key",
+        },
+        "user",
+        "user_1",
+      ),
+    ).not.toThrow();
   });
 });
