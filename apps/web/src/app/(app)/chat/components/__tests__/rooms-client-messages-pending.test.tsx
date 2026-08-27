@@ -2,6 +2,11 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
+import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
+import {
+  forgetRoomRead,
+  rememberRoomRead,
+} from "@/components/chat/room-read-overlay";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -121,7 +126,8 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
 }));
 
 vi.mock("@/components/chat/room-read-overlay", () => ({
-  applyRoomReadResultToOverlay: vi.fn(),
+  rememberRoomRead: vi.fn(),
+  forgetRoomRead: vi.fn(),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -286,6 +292,44 @@ const baseProps = {
 };
 
 describe("RoomsClient progressive history (real composer + list skeleton)", () => {
+  beforeEach(() => {
+    vi.mocked(markOrganizationChatRoomReadAction).mockReset();
+    vi.mocked(markOrganizationChatRoomReadAction).mockImplementation(
+      async (roomId: string) => ({
+        ok: true as const,
+        value: {
+          ...channelRoom(),
+          id: roomId,
+          unreadCount: 0,
+          unreadMentionCount: 0,
+          markedUnread: false,
+        },
+      }),
+    );
+    vi.mocked(rememberRoomRead).mockClear();
+    vi.mocked(forgetRoomRead).mockClear();
+  });
+
+  it("does not advance Room last-read while history is still pending", () => {
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[{ ...channelRoom(), unreadCount: 4 }]}
+        messagesPromise={messagesPromise}
+      />,
+    );
+
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
+    expect(rememberRoomRead).not.toHaveBeenCalled();
+  });
+
   it("shows list skeleton and real composer while history is pending", () => {
     // Intentionally never settles — pending shell only.
     const messagesPromise = new Promise<{
@@ -340,6 +384,202 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     );
     expect(screen.getByTestId("room-session-composer")).toBe(composer);
     expect(composer).toHaveAttribute("data-focus-on-mount", "true");
+    expect(rememberRoomRead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "room-channel",
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+    expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith(
+      "room-channel",
+    );
+  });
+
+  it("remembers local Room last-read before mark-read returns", async () => {
+    let resolveRead!: (result: { ok: true; value: ChatRoom }) => void;
+    vi.mocked(markOrganizationChatRoomReadAction).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+
+    let resolvePage!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolvePage = resolve;
+    });
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[{ ...channelRoom(), unreadCount: 4, unreadMentionCount: 1 }]}
+        messagesPromise={messagesPromise}
+      />,
+    );
+
+    await act(async () => {
+      resolvePage({
+        messages: [sampleMessage("hydrated history body")],
+        nextCursor: null,
+        failed: false,
+      });
+      await messagesPromise;
+    });
+
+    await waitFor(() => {
+      expect(rememberRoomRead).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "room-channel",
+          unreadCount: 0,
+          unreadMentionCount: 0,
+          markedUnread: false,
+        }),
+      );
+    });
+    expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith(
+      "room-channel",
+    );
+    expect(rememberRoomRead).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "room-channel",
+        unreadCount: 0,
+      }),
+    );
+
+    await act(async () => {
+      resolveRead({
+        ok: true,
+        value: {
+          ...channelRoom(),
+          unreadCount: 2,
+          unreadMentionCount: 0,
+          markedUnread: false,
+        },
+      });
+    });
+
+    expect(rememberRoomRead).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "room-channel",
+        unreadCount: 2,
+      }),
+    );
+  });
+
+  it("advances Room last-read when history resolves empty", async () => {
+    render(<RoomsClient {...baseProps} messages={[]} />);
+
+    await waitFor(() => {
+      expect(rememberRoomRead).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "room-channel",
+          unreadCount: 0,
+          unreadMentionCount: 0,
+          markedUnread: false,
+        }),
+      );
+    });
+    expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith(
+      "room-channel",
+    );
+  });
+
+  it("forgets local Room last-read when mark-read fails", async () => {
+    vi.mocked(markOrganizationChatRoomReadAction).mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "fail" },
+    });
+
+    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+
+    await waitFor(() => {
+      expect(forgetRoomRead).toHaveBeenCalledWith("room-channel");
+    });
+    expect(rememberRoomRead).toHaveBeenCalled();
+  });
+
+  it("restores unread when mark-read transport rejects", async () => {
+    vi.mocked(markOrganizationChatRoomReadAction).mockRejectedValue(
+      new Error("network"),
+    );
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[{ ...channelRoom(), unreadCount: 4 }]}
+        messages={[sampleMessage()]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(forgetRoomRead).toHaveBeenCalledWith("room-channel");
+    });
+  });
+
+  it("restores unread after mark-read fails even if the room unmounted", async () => {
+    let resolveRead!: (result: {
+      ok: false;
+      error: { code: string; message: string };
+    }) => void;
+    vi.mocked(markOrganizationChatRoomReadAction).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    const unreadRoom = {
+      ...channelRoom(),
+      unreadCount: 4,
+      unreadMentionCount: 1,
+    };
+    const { unmount } = render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[unreadRoom]}
+        messages={[sampleMessage()]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(rememberRoomRead).toHaveBeenCalled();
+    });
+    dispatchSpy.mockClear();
+    unmount();
+
+    await act(async () => {
+      resolveRead({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "fail" },
+      });
+    });
+
+    expect(forgetRoomRead).toHaveBeenCalledWith("room-channel");
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "organization-chat-room-read",
+        detail: expect.objectContaining({
+          roomId: "room-channel",
+          room: expect.objectContaining({
+            id: "room-channel",
+            unreadCount: 4,
+            unreadMentionCount: 1,
+          }),
+        }),
+      }),
+    );
+    dispatchSpy.mockRestore();
   });
 
   it("shows load-failed empty state when deferred history fails", async () => {
@@ -376,6 +616,8 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     expect(screen.getByText("Empty.messagesLoadFailedTitle")).toBeTruthy();
     expect(screen.queryByTestId("chat-message-row")).toBeNull();
     expect(screen.getByTestId("room-session-composer")).toBe(composer);
+    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
+    expect(rememberRoomRead).not.toHaveBeenCalled();
   });
 
   it("settles to load-failed when deferred history promise rejects", async () => {
@@ -400,6 +642,8 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     });
     expect(screen.getByText("Empty.messagesLoadFailedTitle")).toBeTruthy();
     expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
+    expect(rememberRoomRead).not.toHaveBeenCalled();
   });
 
   it("clears prior room messages when progressive room switches", async () => {
