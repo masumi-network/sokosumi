@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   compareDriveRecentsItems,
   decodeDriveRecentsCursor,
+  driveRecentsDriveFileNameMatchesSearch,
   encodeDriveRecentsCursor,
   isRecentsItemOlderThanCursor,
 } from "@/helpers/drive-recents";
@@ -33,6 +34,26 @@ function taskOutput(taskFileId: string, activityAt: string): DriveRecentsItem {
     projectName: null,
   };
 }
+
+describe("driveRecentsDriveFileNameMatchesSearch", () => {
+  it("matches case-insensitive substrings", () => {
+    expect(driveRecentsDriveFileNameMatchesSearch("Report.pdf", "port")).toBe(
+      true,
+    );
+    expect(driveRecentsDriveFileNameMatchesSearch("Report.pdf", "PORT")).toBe(
+      true,
+    );
+    expect(
+      driveRecentsDriveFileNameMatchesSearch("Report.pdf", "invoice"),
+    ).toBe(false);
+  });
+
+  it("treats blank search as match-all", () => {
+    expect(driveRecentsDriveFileNameMatchesSearch("Report.pdf", "  ")).toBe(
+      true,
+    );
+  });
+});
 
 describe("compareDriveRecentsItems", () => {
   it("sorts by activityAt descending", () => {

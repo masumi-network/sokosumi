@@ -132,17 +132,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const { cursor, take } = parseCursorPagination(query);
+    const searchQuery = query.q?.trim();
 
     const page = await fetchDriveRecentsPage({
       prefix,
       token,
       limit: take,
       cursor,
+      ...(searchQuery ? { searchQuery } : {}),
       fetchTaskOutputs: ({ cursor: taskCursor, take: taskTake }) =>
         fetchDriveTaskOutputRecentsBatch({
           baseTaskWhere,
           cursor: taskCursor,
           take: taskTake,
+          ...(searchQuery ? { searchQuery } : {}),
         }),
     });
 

@@ -37,6 +37,17 @@ function recentsItemId(item: DriveRecentsItem): string {
   return item.taskFileId;
 }
 
+export function driveRecentsDriveFileNameMatchesSearch(
+  name: string,
+  searchQuery: string,
+): boolean {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+  return name.toLowerCase().includes(normalizedQuery);
+}
+
 export function compareDriveRecentsItems(
   left: DriveRecentsItem,
   right: DriveRecentsItem,
@@ -207,12 +218,14 @@ export async function fetchDriveRecentsPage(input: {
   token: string;
   limit: number;
   cursor?: string;
+  searchQuery?: string;
   fetchTaskOutputs: (options: { cursor?: string; take: number }) => Promise<{
     rows: DriveTaskOutputRecentsRow[];
     hasMore: boolean;
     nextCursor: string | null;
   }>;
 }): Promise<DriveRecentsPageResult> {
+  const searchQuery = input.searchQuery?.trim() ?? "";
   const pageState = input.cursor
     ? decodeDriveRecentsCursor(input.cursor)
     : {
@@ -279,6 +292,13 @@ export async function fetchDriveRecentsPage(input: {
       if (
         pageState.lastItem &&
         !isRecentsItemOlderThanCursor(item, pageState.lastItem)
+      ) {
+        continue;
+      }
+      if (
+        searchQuery &&
+        item.kind === "drive-file" &&
+        !driveRecentsDriveFileNameMatchesSearch(item.name, searchQuery)
       ) {
         continue;
       }

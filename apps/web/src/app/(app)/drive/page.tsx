@@ -1472,6 +1472,20 @@ function DrivePageWorkspace({
               />
             </div>
           )}
+          {!isTasksView && isRecentsView && (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="relative">
+                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder={t("searchPlaceholder")}
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-64 pl-8"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {!isTasksView && isBrowseView ? (
@@ -1602,10 +1616,26 @@ function DrivePageWorkspace({
         </div>
       )}
 
+      {!isTasksView && isRecentsView && (
+        <div className="mb-6 flex items-center gap-2 md:hidden">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+        </div>
+      )}
+
       {isRecentsView ? (
         <DriveRecentsPanel
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
+          searchQuery={debouncedSearchQuery}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
           onRenameFile={handleRename}

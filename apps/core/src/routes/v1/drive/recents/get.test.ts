@@ -175,4 +175,50 @@ describe("GET /v1/drive/recents", () => {
     const response = await app.request("/?scope=org&limit=20");
     expect(response.status).toBe(400);
   });
+
+  it("filters drive files and task outputs when q is set", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/report.pdf",
+          pathname: "drive/users/user_123/report.pdf",
+          size: 1000,
+          uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+        {
+          url: "https://blob.example/notes.pdf",
+          pathname: "drive/users/user_123/notes.pdf",
+          size: 500,
+          uploadedAt: new Date("2026-08-20T12:00:00.000Z"),
+        },
+      ],
+      hasMore: false,
+      cursor: undefined,
+    });
+    prismaTaskFileFindManyMock.mockResolvedValue([
+      {
+        id: "tf_mockup",
+        name: "output.pdf",
+        fileUrl: "https://blob.example/output.pdf",
+        size: BigInt(500),
+        updatedAt: new Date("2026-08-22T12:00:00.000Z"),
+        task: {
+          id: "task_1",
+          name: "Design mockup",
+          projectId: null,
+          project: null,
+        },
+      },
+    ]);
+
+    const app = createRecentsApp();
+    const response = await app.request("/?scope=me&limit=20&q=mockup");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].kind).toBe("task-output");
+    expect(body.data[0].taskName).toBe("Design mockup");
+    expect(prismaTaskFileFindManyMock).toHaveBeenCalled();
+  });
 });

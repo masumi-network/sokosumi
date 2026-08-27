@@ -15,6 +15,7 @@ export interface FetchDriveRecentsPageOptions {
   scope: "me" | "org";
   organizationId?: string;
   cursor?: string;
+  q?: string;
   signal?: AbortSignal;
 }
 
@@ -30,6 +31,7 @@ export async function fetchDriveRecentsPage(
         ? { organizationId: options.organizationId }
         : {}),
       ...(options.cursor ? { cursor: options.cursor } : {}),
+      ...(options.q?.trim() ? { q: options.q.trim() } : {}),
     },
     ...(options.signal ? { signal: options.signal } : {}),
     throwOnError: true,

@@ -20,22 +20,65 @@ export interface DriveTaskOutputRecentsRow {
   projectName: string | null;
 }
 
+function buildDriveTaskOutputRecentsWhere(input: {
+  baseTaskWhere: Prisma.TaskWhereInput;
+  searchQuery?: string;
+}): Prisma.TaskFileWhereInput {
+  const { baseTaskWhere, searchQuery } = input;
+  const trimmedSearch = searchQuery?.trim();
+  if (!trimmedSearch) {
+    return {
+      ...DRIVE_TASK_FILE_WHERE,
+      task: baseTaskWhere,
+    };
+  }
+
+  return {
+    ...DRIVE_TASK_FILE_WHERE,
+    OR: [
+      {
+        name: { contains: trimmedSearch, mode: "insensitive" },
+        task: baseTaskWhere,
+      },
+      {
+        task: {
+          AND: [
+            baseTaskWhere,
+            {
+              OR: [
+                { name: { contains: trimmedSearch, mode: "insensitive" } },
+                {
+                  description: {
+                    contains: trimmedSearch,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
 export async function fetchDriveTaskOutputRecentsBatch(input: {
   baseTaskWhere: Prisma.TaskWhereInput;
   cursor?: string;
   take: number;
+  searchQuery?: string;
 }): Promise<{
   rows: DriveTaskOutputRecentsRow[];
   hasMore: boolean;
   nextCursor: string | null;
 }> {
-  const { baseTaskWhere, cursor, take } = input;
+  const { baseTaskWhere, cursor, take, searchQuery } = input;
   const takePlusOne = take + 1;
 
-  const taskFileWhere: Prisma.TaskFileWhereInput = {
-    ...DRIVE_TASK_FILE_WHERE,
-    task: baseTaskWhere,
-  };
+  const taskFileWhere = buildDriveTaskOutputRecentsWhere({
+    baseTaskWhere,
+    searchQuery,
+  });
 
   if (cursor) {
     const cursorFile = await prisma.taskFile.findFirst({
