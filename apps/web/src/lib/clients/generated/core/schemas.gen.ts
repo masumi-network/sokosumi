@@ -11794,6 +11794,20 @@ export const MemberSchema = {
     ]
 } as const;
 
+export const OrganizationCallerSeatSchema = {
+    type: 'object',
+    properties: {
+        assigned: {
+            type: 'boolean',
+            description: 'Whether the caller is treated as seated in this organization (free: all members; paid/enterprise: assigned Seat)',
+            example: true
+        }
+    },
+    required: [
+        'assigned'
+    ]
+} as const;
+
 export const PendingInvitationSchema = {
     type: 'object',
     properties: {
@@ -11987,20 +12001,6 @@ export const OrganizationSeatSummarySchema = {
         'paidPlan',
         'purchasedSeats',
         'unusedSeats'
-    ]
-} as const;
-
-export const OrganizationWorkstationSchema = {
-    type: 'object',
-    properties: {
-        canUse: {
-            type: 'boolean',
-            description: 'Whether the caller may use the organization workstation (free orgs: all members; paid/enterprise: assigned Seat)',
-            example: true
-        }
-    },
-    required: [
-        'canUse'
     ]
 } as const;
 

@@ -195,11 +195,11 @@ import {
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdMembersMeSeat as coreGetOrganizationsByIdMembersMeSeat,
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
-  getOrganizationsByIdWorkstation as coreGetOrganizationsByIdWorkstation,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -2361,16 +2361,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getOrganizationWorkstation(organizationId: string) {
+  async function getOrganizationCallerSeat(organizationId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetOrganizationsByIdWorkstation({
+        coreGetOrganizationsByIdMembersMeSeat({
           client,
           path: { id: organizationId },
           cache: "no-store",
         }),
-      "Failed to fetch organization workstation access",
+      "Failed to fetch organization caller seat",
     );
   }
 
@@ -4576,7 +4576,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationActiveSubscription,
     getOrganizationBillingDetails,
     getOrganizationBillingPlan,
-    getOrganizationWorkstation,
+    getOrganizationCallerSeat,
     getOrganizationById,
     getOrganizationDeletion,
     getOrganizationBySlug,

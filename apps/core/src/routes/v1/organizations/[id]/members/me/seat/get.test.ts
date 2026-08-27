@@ -33,7 +33,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => ({
   canUseOrganizationWorkstation: canUseOrganizationWorkstationMock,
 }));
 
-const { default: mountGetOrganizationWorkstation } = await import("./get.js");
+const { default: mountGetOrganizationCallerSeat } = await import("./get.js");
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
@@ -52,19 +52,19 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_workstation_test");
+    c.set("requestId", "req_caller_seat_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     await next();
   });
 
   app.onError(errorHandler);
-  mountGetOrganizationWorkstation(app);
+  mountGetOrganizationCallerSeat(app);
 
   return app;
 }
 
-describe("GET /organizations/{id}/workstation", () => {
+describe("GET /organizations/{id}/members/me/seat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resolveMemberOrganizationByIdMock.mockResolvedValue({
@@ -75,7 +75,7 @@ describe("GET /organizations/{id}/workstation", () => {
 
   it("returns 403 for coworker authentication", async () => {
     const response = await createApp(COWORKER_AUTH_CONTEXT).request(
-      "http://localhost/org_1/workstation",
+      "http://localhost/org_1/members/me/seat",
     );
 
     expect(response.status).toBe(403);
@@ -88,7 +88,7 @@ describe("GET /organizations/{id}/workstation", () => {
     );
 
     const response = await createApp().request(
-      "http://localhost/missing/workstation",
+      "http://localhost/missing/members/me/seat",
     );
 
     expect(response.status).toBe(404);
@@ -100,23 +100,23 @@ describe("GET /organizations/{id}/workstation", () => {
     );
 
     const response = await createApp().request(
-      "http://localhost/org_1/workstation",
+      "http://localhost/org_1/members/me/seat",
     );
 
     expect(response.status).toBe(403);
     expect(canUseOrganizationWorkstationMock).not.toHaveBeenCalled();
   });
 
-  it("returns Core's workstation decision for a member", async () => {
+  it("returns whether the caller is treated as seated", async () => {
     canUseOrganizationWorkstationMock.mockResolvedValue(false);
 
     const response = await createApp().request(
-      "http://localhost/org_1/workstation",
+      "http://localhost/org_1/members/me/seat",
     );
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ canUse: false });
+    expect(body.data).toEqual({ assigned: false });
     expect(canUseOrganizationWorkstationMock).toHaveBeenCalledWith(
       "user_1",
       "org_1",

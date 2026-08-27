@@ -9,6 +9,6 @@ export async function canUseOrganizationWorkstation(
     return true;
   }
 
-  const { data } = await coreClient.getOrganizationWorkstation(organizationId);
-  return data.canUse;
+  const { data } = await coreClient.getOrganizationCallerSeat(organizationId);
+  return data.assigned;
 }

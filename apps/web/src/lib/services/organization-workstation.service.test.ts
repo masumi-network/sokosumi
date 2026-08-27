@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { getOrganizationWorkstationMock } = vi.hoisted(() => ({
-  getOrganizationWorkstationMock: vi.fn(),
+const { getOrganizationCallerSeatMock } = vi.hoisted(() => ({
+  getOrganizationCallerSeatMock: vi.fn(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
-    getOrganizationWorkstation: (...args: unknown[]) =>
-      getOrganizationWorkstationMock(...args),
+    getOrganizationCallerSeat: (...args: unknown[]) =>
+      getOrganizationCallerSeatMock(...args),
   },
 }));
 
@@ -24,12 +24,12 @@ describe("canUseOrganizationWorkstation", () => {
     );
 
     await expect(canUseOrganizationWorkstation(null)).resolves.toBe(true);
-    expect(getOrganizationWorkstationMock).not.toHaveBeenCalled();
+    expect(getOrganizationCallerSeatMock).not.toHaveBeenCalled();
   });
 
-  it("returns Core's workstation decision for an organization", async () => {
-    getOrganizationWorkstationMock.mockResolvedValue({
-      data: { canUse: false },
+  it("returns whether Core treats the caller as seated", async () => {
+    getOrganizationCallerSeatMock.mockResolvedValue({
+      data: { assigned: false },
     });
 
     const { canUseOrganizationWorkstation } = await import(
@@ -37,6 +37,6 @@ describe("canUseOrganizationWorkstation", () => {
     );
 
     await expect(canUseOrganizationWorkstation("org-1")).resolves.toBe(false);
-    expect(getOrganizationWorkstationMock).toHaveBeenCalledWith("org-1");
+    expect(getOrganizationCallerSeatMock).toHaveBeenCalledWith("org-1");
   });
 });

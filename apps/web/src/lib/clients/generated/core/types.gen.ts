@@ -3686,6 +3686,13 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
+export type OrganizationCallerSeat = {
+    /**
+     * Whether the caller is treated as seated in this organization (free: all members; paid/enterprise: assigned Seat)
+     */
+    assigned: boolean;
+};
+
 export type PendingInvitation = {
     id: string;
     organizationId: string;
@@ -3745,13 +3752,6 @@ export type OrganizationSeatSummary = {
      * Purchased seats without an assigned member (0 when the organization has no paid plan)
      */
     unusedSeats: number;
-};
-
-export type OrganizationWorkstation = {
-    /**
-     * Whether the caller may use the organization workstation (free orgs: all members; paid/enterprise: assigned Seat)
-     */
-    canUse: boolean;
 };
 
 export type OrganizationBillingPlan = {
@@ -24898,6 +24898,95 @@ export type GetOrganizationsByIdMembersResponses = {
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
 
+export type GetOrganizationsByIdMembersMeSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/me/seat';
+};
+
+export type GetOrganizationsByIdMembersMeSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdMembersMeSeatError = GetOrganizationsByIdMembersMeSeatErrors[keyof GetOrganizationsByIdMembersMeSeatErrors];
+
+export type GetOrganizationsByIdMembersMeSeatResponses = {
+    /**
+     * The caller's seat assignment in this organization
+     */
+    200: {
+        data: OrganizationCallerSeat;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdMembersMeSeatResponse = GetOrganizationsByIdMembersMeSeatResponses[keyof GetOrganizationsByIdMembersMeSeatResponses];
+
 export type DeleteOrganizationsByIdMembersByMemberIdSeatData = {
     body?: never;
     path: {
@@ -26356,95 +26445,6 @@ export type GetOrganizationsByIdSeatSummaryResponses = {
 };
 
 export type GetOrganizationsByIdSeatSummaryResponse = GetOrganizationsByIdSeatSummaryResponses[keyof GetOrganizationsByIdSeatSummaryResponses];
-
-export type GetOrganizationsByIdWorkstationData = {
-    body?: never;
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/organizations/{id}/workstation';
-};
-
-export type GetOrganizationsByIdWorkstationErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You are not a member of this organization
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrganizationsByIdWorkstationError = GetOrganizationsByIdWorkstationErrors[keyof GetOrganizationsByIdWorkstationErrors];
-
-export type GetOrganizationsByIdWorkstationResponses = {
-    /**
-     * The caller's organization workstation access
-     */
-    200: {
-        data: OrganizationWorkstation;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrganizationsByIdWorkstationResponse = GetOrganizationsByIdWorkstationResponses[keyof GetOrganizationsByIdWorkstationResponses];
 
 export type GetOrganizationsByIdBillingPlanData = {
     body?: never;

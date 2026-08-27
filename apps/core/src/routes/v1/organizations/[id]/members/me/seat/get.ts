@@ -7,7 +7,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
-import { organizationWorkstationSchema } from "@/schemas/organization-workstation.schema";
+import { organizationCallerSeatSchema } from "@/schemas/organization-seat.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -19,20 +19,20 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/workstation",
+  path: "/{id}/members/me/seat",
   description:
-    "Whether the caller may use this organization's workstation. Free organizations allow every member; paid and enterprise organizations require an assigned Seat.",
+    "Whether the caller is treated as seated in this organization. Free organizations treat every member as seated; paid and enterprise organizations require an assigned Seat.",
   tags: ["Organizations"],
   request: {
     params,
   },
   responses: {
     200: jsonSuccessResponse(
-      organizationWorkstationSchema,
-      "The caller's organization workstation access",
+      organizationCallerSeatSchema,
+      "The caller's seat assignment in this organization",
       {
         data: {
-          canUse: true,
+          assigned: true,
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -60,12 +60,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       tx: prisma,
     });
 
-    const canUse = await canUseOrganizationWorkstation(
+    const assigned = await canUseOrganizationWorkstation(
       userContext.userId,
       organization.id,
       prisma,
     );
 
-    return ok(c, organizationWorkstationSchema.parse({ canUse }));
+    return ok(c, organizationCallerSeatSchema.parse({ assigned }));
   });
 }
