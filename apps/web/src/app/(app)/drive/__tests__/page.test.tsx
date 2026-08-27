@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -110,6 +110,20 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
   };
 });
 
+const fetchDriveTasksPageMock = vi.fn();
+
+vi.mock("@/lib/utils/drive-tasks-list.client", () => ({
+  fetchDriveTasksPage: (...args: unknown[]) => fetchDriveTasksPageMock(...args),
+}));
+
+vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
+  DriveTasksFilters: () => (
+    <button type="button" aria-label="filterTitle">
+      filterTitle
+    </button>
+  ),
+}));
+
 import DrivePage from "@/app/drive/page";
 
 function createDriveQueryClient() {
@@ -176,6 +190,12 @@ describe("DrivePage workspace remount", () => {
     listDriveItemsMock.mockReset();
     patchDriveFoldersRenameMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
 
     listDriveItemsMock.mockResolvedValue([reportsFolder()]);
     patchDriveFoldersRenameMock.mockResolvedValue({});
@@ -378,5 +398,51 @@ describe("DrivePage workspace remount", () => {
 
     expect(screen.queryByText("OrgAOnly")).not.toBeInTheDocument();
     expect(screen.getByText("OrgBOnly")).toBeVisible();
+  });
+});
+
+describe("DrivePage tasks mobile toolbar", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=tasks");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: {
+        data: [{ id: "org_a", name: "Org A" }],
+      },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("places the tasks filter beside the mobile search input", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
+    });
+
+    const mobileSearchInput = screen
+      .getAllByPlaceholderText("tasksSearchPlaceholder")
+      .find((input) => input.closest(".md\\:hidden"));
+
+    expect(mobileSearchInput).toBeDefined();
+
+    const mobileToolbar = mobileSearchInput?.closest(".md\\:hidden");
+    expect(mobileToolbar).not.toBeNull();
+    expect(
+      within(mobileToolbar as HTMLElement).getByRole("button", {
+        name: "filterTitle",
+      }),
+    ).toBeVisible();
   });
 });
