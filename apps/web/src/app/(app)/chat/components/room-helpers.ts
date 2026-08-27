@@ -436,6 +436,17 @@ export function formatMessageTime(value: Date | string): string {
 }
 
 /**
+ * Date + time for hover/title chrome (edited-at). Same SOKOSUMI-A gate as
+ * `formatMessageTime`: only call after `useClientLocalCalendarReady()`.
+ */
+export function formatMessageDateTime(value: Date | string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+/**
  * Local calendar day bucket. Runtime-TZ sensitive — gate separator insertion
  * with `useClientLocalCalendarReady()` so SSR (UTC) and hydrate agree.
  */

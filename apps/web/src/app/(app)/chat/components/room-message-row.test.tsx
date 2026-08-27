@@ -53,6 +53,9 @@ vi.mock("next-intl", () => ({
       if (key === "reasoning.thoughtForDuration" && values?.duration != null) {
         return `Thought for ${String(values.duration)}`;
       }
+      if (key === "Edit.editedAt" && values?.when != null) {
+        return `Edited ${String(values.when)}`;
+      }
       return key;
     };
   },
@@ -1438,6 +1441,54 @@ describe("ChatMessageRow", () => {
     });
 
     expect(screen.getByText("Edit.edited")).toBeInTheDocument();
+  });
+
+  it("puts the edited cue next to the timestamp with a hover time", () => {
+    renderRow({
+      message: userMessage({
+        editedAt: new Date("2026-07-01T15:00:00.000Z"),
+      }),
+    });
+
+    const label = screen.getByText("Edit.edited");
+    expect(label).toHaveAttribute("title", expect.stringMatching(/^Edited /));
+    expect(label).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/^Edited /),
+    );
+    expect(label.parentElement).toContainElement(screen.getByRole("time"));
+  });
+
+  it("puts the edited cue above the continuation body, not after a quote", () => {
+    renderRow({
+      isContinuation: true,
+      message: userMessage({
+        content: "Follow-up",
+        editedAt: new Date("2026-07-01T15:00:00.000Z"),
+        quote: {
+          messageId: "original",
+          authorName: "Bob",
+          snippet: "quoted line",
+        },
+      }),
+    });
+
+    const label = screen.getByText("Edit.edited");
+    const quote = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(label).toHaveAttribute("title", expect.stringMatching(/^Edited /));
+    expect(label).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/^Edited /),
+    );
+    expect(
+      screen.getByTestId("message-continuation-rail"),
+    ).not.toContainElement(label);
+    expect(quote).not.toContainElement(label);
+    expect(
+      label.compareDocumentPosition(quote) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("renders inline editor when isEditing without Save/Cancel buttons", () => {

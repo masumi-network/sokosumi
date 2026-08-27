@@ -5227,7 +5227,8 @@
       "Edit": {
         "action": "Edit",
         "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
-        "edited": "Edited"
+        "edited": "(edited)",
+        "editedAt": "Edited {when}"
       },
       "Copy": {
         "action": "Copy",

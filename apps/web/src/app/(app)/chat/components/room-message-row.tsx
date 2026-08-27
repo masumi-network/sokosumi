@@ -120,6 +120,7 @@ import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
+  formatMessageDateTime,
   formatMessageTime,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
@@ -135,6 +136,23 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+function MessageEditedLabel({ editedAt }: { editedAt: Date | string }) {
+  const t = useTranslations("App.Channels");
+  const localCalendarReady = useClientLocalCalendarReady();
+  const when = localCalendarReady ? formatMessageDateTime(editedAt) : null;
+  const editedWhen = when ? t("Edit.editedAt", { when }) : undefined;
+
+  return (
+    <span
+      className="text-muted-foreground text-xs leading-none"
+      title={editedWhen}
+      aria-label={editedWhen ?? t("Edit.edited")}
+    >
+      {t("Edit.edited")}
+    </span>
+  );
+}
 
 /**
  * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
@@ -2028,7 +2046,8 @@ export function ChatMessageRow({
     !isOutboundLocal &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId;
-  const showEdited = !isDeleted && message.editedAt != null;
+  const editedAt = message.editedAt;
+  const showEdited = !isDeleted && editedAt != null;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2133,6 +2152,9 @@ export function ChatMessageRow({
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
+        {isContinuation && showEdited && editedAt != null ? (
+          <MessageEditedLabel editedAt={editedAt} />
+        ) : null}
         {isContinuation ? null : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
@@ -2157,10 +2179,8 @@ export function ChatMessageRow({
               reserveHeaderWidth
               className="text-muted-foreground text-xs leading-none"
             />
-            {showEdited ? (
-              <span className="text-muted-foreground text-xs leading-none">
-                {tChannels("Edit.edited")}
-              </span>
+            {showEdited && editedAt != null ? (
+              <MessageEditedLabel editedAt={editedAt} />
             ) : null}
           </div>
         )}
@@ -2254,11 +2274,6 @@ export function ChatMessageRow({
                     onOpenDirectMessage={onOpenDirectMessage}
                     openingDirectParticipantKey={openingDirectParticipantKey}
                   />
-                  {isContinuation && showEdited ? (
-                    <span className="text-muted-foreground ml-1.5 text-xs">
-                      {tChannels("Edit.edited")}
-                    </span>
-                  ) : null}
                   <MessageUnfurlList
                     unfurls={message.unfurls}
                     canRemove={canRemoveUnfurl}
