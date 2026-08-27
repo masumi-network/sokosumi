@@ -464,7 +464,8 @@ function DrivePageWorkspace({
   const currentFolder = folderParam;
   const viewParam = searchParams.get("view");
   const isTasksView = viewParam === "tasks";
-  const isBrowseView = viewParam === "browse";
+  const isBrowseView =
+    !isTasksView && (viewParam === "browse" || folderParam.length > 0);
   const isRecentsView = !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView = isBrowseView ? "browse" : "recents";
   const projectIdParam = searchParams.get("projectId");

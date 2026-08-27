@@ -530,6 +530,23 @@ describe("DrivePage recents view", () => {
     });
   });
 
+  it("opens browse for legacy folder links without view=browse", async () => {
+    searchParams = new URLSearchParams("folder=Reports");
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(fetchDriveRecentsPageMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("switches to browse when the browse tab is selected", async () => {
     const user = userEvent.setup();
     listDriveItemsMock.mockResolvedValue([reportsFolder()]);
