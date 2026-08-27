@@ -99,8 +99,8 @@ _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup p
 ### Billing
 
 **Seat**:
-A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is who may spend the organization credit pool, create or comment on Tasks, assign a Coworker to a Task, and originate coworker chat turns (@mention, coworker 1:1 send). It is not a private credit grant. On **free**, workstations are unlimited: every member is seated; there is nothing to assign. Unseated members on a paid org may use human chat and may read existing Tasks; they must not start coworker work.
-_Avoid_: License, slot (unless a UI label), treating a Seat as a personal credit balance, treating Task assignee as a human, unpaid seat flags, unlimited-on-free as an admin control
+A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is who may spend the organization credit pool, create or comment on Tasks, assign a Coworker to a Task, and originate coworker chat turns (@mention, coworker 1:1 send). It is not a private credit grant. On **free**, every member is seated; there is nothing to assign. Unseated members on a paid org may use human chat and may read existing Tasks; they must not start coworker work.
+_Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a personal credit balance, treating Task assignee as a human, unpaid seat flags, unlimited-on-free as an admin control
 
 **Organization credit pool**:
 Credits owned by an Organization. Free period grant is the free monthly amount (250), shared by every member. Paid self-serve period grant is purchased seats × credits per seat, spent by assigned Seats. Enterprise keeps its own shared pool. OTC/admin grants sit in the same pool. Distinct from personal credits.
