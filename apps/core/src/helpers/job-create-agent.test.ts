@@ -2,8 +2,11 @@ import { PaymentType, PricingType } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
+import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { requireOrganizationWorkstation } from "@/helpers/organization-workstation";
 
 import { createAgentJobForUser } from "./job";
 
@@ -286,6 +289,26 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     await expect(createAgentJobForUser(createInput())).rejects.toThrow(
       "Credit cost exceeds maximum accepted credits",
     );
+  });
+
+  it("does not call start_job when the owner has no organization workstation", async () => {
+    const startFreeAgentJobMock = vi
+      .fn()
+      .mockResolvedValue(ok({ id: "agent_job_1" }));
+    createAgentClientMock.mockReturnValue({
+      startFreeAgentJob: startFreeAgentJobMock,
+    });
+    vi.mocked(requireOrganizationWorkstation).mockRejectedValueOnce(
+      new HTTPException(403, {
+        message:
+          "An assigned seat is required to start coworker-paid work in this organization",
+      }),
+    );
+
+    await expect(createAgentJobForUser(createInput())).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(startFreeAgentJobMock).not.toHaveBeenCalled();
   });
 
   it("connects jobs to a project when projectId belongs to the workspace", async () => {

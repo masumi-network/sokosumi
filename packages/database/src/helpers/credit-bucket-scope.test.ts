@@ -235,6 +235,23 @@ describe("canUseOrganizationWorkstation", () => {
     );
   });
 
+  it("denies non-members on a free organization", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "free",
+      purchasedSeats: 0,
+      subscriptionId: "sub-free",
+      cancelAtPeriodEnd: false,
+      periodEnd: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    getMemberMock.mockResolvedValue(null);
+
+    assert.equal(
+      await canUseOrganizationWorkstation("user-1", "org-1", {} as never),
+      false,
+    );
+  });
+
   it("denies unassigned members on a paid organization", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",

@@ -14,7 +14,7 @@ import {
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAgentContext, requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -60,6 +60,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -94,11 +95,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    const workstationUserId = isCoworkerAgentContext(authContext)
-      ? existingTask.ownerId
-      : requireUserContext(authContext).userId;
     await requireOrganizationWorkstation(
-      workstationUserId,
+      userContext.userId,
       existingTask.organizationId,
     );
 
