@@ -54,9 +54,10 @@ interface RoomAttentionFields {
 }
 
 /**
- * Reapply post-read attention for rooms marked read this session when the
- * incoming list is stale (same or older `updatedAt`). Real new activity
- * (newer `updatedAt`) drops the overlay and trusts the server row.
+ * Reapply post-read attention when the incoming list is stale (same or older
+ * `updatedAt`). Newer activity or a fully-clear server row drops the overlay.
+ * Matching leftover counts must not drop it — a later stale fetch still needs
+ * the overlay.
  */
 export function applyRoomReadOverlays<T extends RoomAttentionFields>(
   rooms: readonly T[],
@@ -78,12 +79,9 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
     }
 
     if (
-      (room.unreadCount === 0 &&
-        room.unreadMentionCount === 0 &&
-        room.markedUnread === false) ||
-      (room.unreadCount === overlay.unreadCount &&
-        room.unreadMentionCount === overlay.unreadMentionCount &&
-        room.markedUnread === overlay.markedUnread)
+      room.unreadCount === 0 &&
+      room.unreadMentionCount === 0 &&
+      room.markedUnread === false
     ) {
       overlaysByRoomId.delete(room.id);
       return room;

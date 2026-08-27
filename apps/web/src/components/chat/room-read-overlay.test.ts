@@ -111,6 +111,38 @@ describe("room-read-overlay", () => {
     });
   });
 
+  it("keeps leftover overlay after a matching poll so a later stale fetch still overlays", () => {
+    rememberRoomRead(
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const caughtUp = applyRoomReadOverlays([
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    ]);
+    expect(caughtUp[0]).toMatchObject({ unreadCount: 2 });
+
+    const staleAgain = applyRoomReadOverlays([
+      room({
+        unreadCount: 10,
+        unreadMentionCount: 1,
+        markedUnread: false,
+      }),
+    ]);
+    expect(staleAgain[0]).toMatchObject({
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
   it("optimistically clears stale remount chrome before the server row returns", () => {
     rememberRoomRead(
       room({
