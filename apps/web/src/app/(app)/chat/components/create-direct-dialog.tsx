@@ -215,14 +215,14 @@ export function CreateDirectDialog() {
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden shadow-none sm:max-w-lg">
-        <DialogHeader className="gap-1">
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden shadow-none sm:max-w-lg">
+        <DialogHeader className="shrink-0 gap-1">
           <DialogTitle>{t("Draft.title")}</DialogTitle>
           <DialogDescription>{t("Draft.empty")}</DialogDescription>
         </DialogHeader>
         <div
           data-testid="direct-recipient-composer"
-          className="border-input focus-within:border-ring focus-within:ring-ring/50 flex min-h-10 min-w-0 cursor-text flex-wrap items-center gap-2 rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          className="border-input focus-within:border-ring focus-within:ring-ring/50 flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
           onClick={() => searchInputRef.current?.focus()}
         >
           <Search
@@ -282,11 +282,11 @@ export function CreateDirectDialog() {
             spellCheck={false}
           />
         </div>
-        <div className="relative">
+        <div className="relative min-h-0 flex-1 basis-[min(20rem,45svh)]">
           <div
             ref={rosterScrollRef}
             data-testid="direct-roster-scrollport"
-            className="h-[min(20rem,45svh)] overflow-y-auto overscroll-contain"
+            className="absolute inset-0 overflow-y-auto overscroll-contain"
             aria-busy={!rosterLoaded || undefined}
           >
             {!rosterLoaded ? (
@@ -332,7 +332,7 @@ export function CreateDirectDialog() {
             className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t to-transparent"
           />
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             type="button"
             variant="primary"

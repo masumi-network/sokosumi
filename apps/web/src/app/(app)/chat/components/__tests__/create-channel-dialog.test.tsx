@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatRoom, Member } from "@/lib/clients/generated/core";
@@ -83,7 +83,7 @@ describe("CreateChannelDialog", () => {
     });
     checkChannelSlugAvailabilityActionMock.mockResolvedValue({
       ok: true,
-      value: { status: "available" },
+      value: { status: "free" },
     });
     createChannelActionMock.mockResolvedValue({
       ok: true,
@@ -157,5 +157,33 @@ describe("CreateChannelDialog", () => {
     );
     await screen.findByLabelText("slugLabel");
     expect(loadChatComposeRosterActionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("creates a channel in place, then opens the room", async () => {
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await screen.findByLabelText("slugLabel");
+    await user.type(screen.getByLabelText("slugLabel"), "launch");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "next" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "next" }));
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => {
+      expect(createChannelActionMock).toHaveBeenCalledWith({
+        name: "Launch",
+        slug: "launch",
+        discoverability: "public",
+        memberUserIds: ["user-self"],
+        coworkerIds: [],
+      });
+    });
+    expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith({
+      id: "room-channel",
+    });
+    expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-channel");
   });
 });

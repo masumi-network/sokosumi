@@ -236,7 +236,8 @@ describe("CreateDirectDialog", () => {
 
     const scrollport = screen.getByTestId("direct-roster-scrollport");
     expect(scrollport).toHaveClass("overflow-y-auto");
-    expect(scrollport).toHaveClass("h-[min(20rem,45svh)]");
+    expect(scrollport.parentElement).toHaveClass("flex-1");
+    expect(scrollport.parentElement).toHaveClass("min-h-0");
     expect(scrollport.contains(screen.getByText("Francis"))).toBe(true);
     expect(screen.getByTestId("direct-roster-edge-fade")).toBeTruthy();
 
@@ -248,7 +249,7 @@ describe("CreateDirectDialog", () => {
         screen.getByPlaceholderText("Draft.searchPlaceholderMore"),
       ),
     ).toBe(true);
-    expect(scrollport).toHaveClass("h-[min(20rem,45svh)]");
+    expect(scrollport.parentElement).toHaveClass("flex-1");
   });
 
   it("closes without routing when dismissed", async () => {
