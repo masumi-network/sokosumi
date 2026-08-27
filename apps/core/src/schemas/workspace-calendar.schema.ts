@@ -4,6 +4,7 @@ import {
   CalendarSourceType,
   CalendarTimeAccuracy,
   TaskScheduleOccurrenceState,
+  TaskStatus,
 } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
@@ -49,10 +50,12 @@ export const workspaceCalendarItemSchema = z
     id: z.string().openapi({
       description:
         "Stable Calendar item identity. Version 1 projections are display-only.",
-      example: "v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+      example: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
     }),
     taskId: z.string().openapi({ example: "tsk_123" }),
     taskName: z.string().openapi({ example: "Prepare release notes" }),
+    taskStatus: z.enum(TaskStatus).openapi({ example: "QUEUED" }),
+    taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),
     scheduledAt: dateTimeSchema.openapi({
       description: "Effective time at which the item appears in the Calendar",
     }),

@@ -19,6 +19,8 @@ const ITEMS: WorkspaceCalendarItem[] = [
     id: "occurrence-1",
     taskId: "task-1",
     taskName: "Prepare release notes",
+    taskStatus: "QUEUED",
+    taskAssigneeId: "coworker-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     state: "PLANNED",
@@ -59,12 +61,6 @@ describe("WorkspaceCalendar", () => {
         <WorkspaceCalendar
           items={ITEMS}
           coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          taskContextById={{
-            "task-1": {
-              coworkerId: "coworker-1",
-              status: "QUEUED",
-            },
-          }}
         />
       </NuqsTestingAdapter>,
     );

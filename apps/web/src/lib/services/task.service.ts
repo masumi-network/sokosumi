@@ -10,7 +10,6 @@ import type {
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
-  TaskListItem,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarItem,
@@ -65,11 +64,6 @@ interface CreateTaskLinkInput {
   note?: string | null;
 }
 
-export interface WorkspaceCalendarTaskContext {
-  coworkerId: string | null;
-  status: TaskStatus | null;
-}
-
 export interface WorkspaceCalendarPage {
   items: WorkspaceCalendarItem[];
   pagination: {
@@ -78,7 +72,6 @@ export interface WorkspaceCalendarPage {
     total: number;
     nextCursor: string | null;
   } | null;
-  taskContextById: Record<string, WorkspaceCalendarTaskContext>;
 }
 
 export const taskService = (() => {
@@ -107,54 +100,22 @@ export const taskService = (() => {
   async function getWorkspaceCalendar(
     query: GetWorkspacesCalendarData["query"],
   ): Promise<WorkspaceCalendarPage> {
-    const [calendar, tasks] = await Promise.all([
-      (async () => {
-        const items: WorkspaceCalendarItem[] = [];
-        let pageQuery = query;
-        let pagination: WorkspaceCalendarPage["pagination"] = null;
+    const items: WorkspaceCalendarItem[] = [];
+    let pageQuery = query;
+    let pagination: WorkspaceCalendarPage["pagination"] = null;
 
-        do {
-          const result = await coreClient.getWorkspaceCalendar(pageQuery);
-          items.push(...result.data);
-          pagination = result.meta?.pagination ?? null;
-          pageQuery = pagination?.nextCursor
-            ? { ...query, cursor: pagination.nextCursor }
-            : pageQuery;
-        } while (pagination?.nextCursor);
-
-        return { items, pagination };
-      })(),
-      (async () => {
-        const tasks: TaskListItem[] = [];
-        let cursor: string | undefined;
-
-        do {
-          const result = await coreClient.getTasks({
-            scope: "workspace",
-            limit: 100,
-            cursor,
-          });
-          tasks.push(...(result.data ?? []));
-          cursor = result.meta?.pagination?.nextCursor ?? undefined;
-        } while (cursor);
-
-        return tasks;
-      })(),
-    ]);
-    const taskContextById = Object.fromEntries(
-      tasks.map((task) => [
-        task.id,
-        {
-          coworkerId: task.assigneeId,
-          status: task.status,
-        },
-      ]),
-    );
+    do {
+      const result = await coreClient.getWorkspaceCalendar(pageQuery);
+      items.push(...result.data);
+      pagination = result.meta?.pagination ?? null;
+      pageQuery = pagination?.nextCursor
+        ? { ...query, cursor: pagination.nextCursor }
+        : pageQuery;
+    } while (pagination?.nextCursor);
 
     return {
-      items: calendar.items,
-      pagination: calendar.pagination,
-      taskContextById,
+      items,
+      pagination,
     };
   }
 

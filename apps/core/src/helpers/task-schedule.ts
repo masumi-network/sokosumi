@@ -324,6 +324,7 @@ function getProjectedRecurringMetadata(
 }
 
 function getOccurrenceProjection(
+  taskId: string,
   metadata: TaskScheduleMetadata,
   scheduledAt: Date,
 ): TaskScheduleOccurrenceProjection {
@@ -333,7 +334,7 @@ function getOccurrenceProjection(
       : new Date(scheduledAt);
   const id =
     metadata.version === 1
-      ? `v1:${metadata.scheduledAt}:${originalScheduledAt.toISOString()}`
+      ? `v1:${taskId}:${metadata.scheduledAt}:${originalScheduledAt.toISOString()}`
       : `v2:${metadata.epochId}:${originalScheduledAt.toISOString()}`;
 
   return {
@@ -344,6 +345,7 @@ function getOccurrenceProjection(
 }
 
 export function projectTaskScheduleOccurrences(
+  taskId: string,
   metadata: TaskScheduleMetadata,
   nextRunAt: Date,
   from: Date,
@@ -352,7 +354,7 @@ export function projectTaskScheduleOccurrences(
 ): TaskScheduleOccurrenceProjection[] {
   if (metadata.mode === "once") {
     return nextRunAt >= from && nextRunAt < to
-      ? [getOccurrenceProjection(metadata, nextRunAt)]
+      ? [getOccurrenceProjection(taskId, metadata, nextRunAt)]
       : [];
   }
 
@@ -367,7 +369,7 @@ export function projectTaskScheduleOccurrences(
 
     if (projectedNextRunAt >= from) {
       projections.push(
-        getOccurrenceProjection(projectedMetadata, projectedNextRunAt),
+        getOccurrenceProjection(taskId, projectedMetadata, projectedNextRunAt),
       );
       if (projections.length === maxOccurrences) {
         break;

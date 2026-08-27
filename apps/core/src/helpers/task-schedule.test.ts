@@ -137,6 +137,7 @@ describe("task-schedule helpers", () => {
   it("projects a one-time version 1 schedule with a deterministic display key", () => {
     expect(
       projectTaskScheduleOccurrences(
+        "task-1",
         {
           version: 1,
           mode: "once",
@@ -149,7 +150,7 @@ describe("task-schedule helpers", () => {
       ),
     ).toEqual([
       {
-        id: "v1:2026-06-01T08:00:00.000Z:2026-06-02T09:00:00.000Z",
+        id: "v1:task-1:2026-06-01T08:00:00.000Z:2026-06-02T09:00:00.000Z",
         scheduledAt: new Date("2026-06-02T09:00:00.000Z"),
         originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
       },
@@ -159,6 +160,7 @@ describe("task-schedule helpers", () => {
   it("projects ordered recurring version 1 occurrences", () => {
     expect(
       projectTaskScheduleOccurrences(
+        "task-1",
         {
           version: 1,
           mode: "recurring",
@@ -173,17 +175,17 @@ describe("task-schedule helpers", () => {
       ),
     ).toEqual([
       {
-        id: "v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+        id: "v1:task-1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
         scheduledAt: new Date("2026-06-02T09:00:00.000Z"),
         originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
       },
       {
-        id: "v1:2026-06-01T09:00:00.000Z:2026-06-03T09:00:00.000Z",
+        id: "v1:task-1:2026-06-01T09:00:00.000Z:2026-06-03T09:00:00.000Z",
         scheduledAt: new Date("2026-06-03T09:00:00.000Z"),
         originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
       },
       {
-        id: "v1:2026-06-01T09:00:00.000Z:2026-06-04T09:00:00.000Z",
+        id: "v1:task-1:2026-06-01T09:00:00.000Z:2026-06-04T09:00:00.000Z",
         scheduledAt: new Date("2026-06-04T09:00:00.000Z"),
         originalScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
       },
@@ -193,6 +195,7 @@ describe("task-schedule helpers", () => {
   it("projects recurring version 2 occurrences with the persisted epoch identity", () => {
     expect(
       projectTaskScheduleOccurrences(
+        "task-1",
         {
           version: 2,
           epochId: "123e4567-e89b-42d3-a456-426614174001",
@@ -229,6 +232,7 @@ describe("task-schedule helpers", () => {
 
     expect(
       projectTaskScheduleOccurrences(
+        "task-1",
         {
           version: 1,
           mode: "recurring",
@@ -249,6 +253,7 @@ describe("task-schedule helpers", () => {
 
     expect(
       projectTaskScheduleOccurrences(
+        "task-1",
         {
           version: 2,
           epochId: "123e4567-e89b-42d3-a456-426614174002",
@@ -275,6 +280,7 @@ describe("task-schedule helpers", () => {
   it("projects interval schedules and excludes occurrences outside the half-open range", () => {
     expect(
       projectTaskScheduleOccurrences(
+        "task-1",
         {
           version: 2,
           epochId: "123e4567-e89b-42d3-a456-426614174003",

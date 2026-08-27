@@ -17039,7 +17039,7 @@ export const WorkspaceCalendarItemSchema = {
         id: {
             type: 'string',
             description: 'Stable Calendar item identity. Version 1 projections are display-only.',
-            example: 'v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z'
+            example: 'v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z'
         },
         taskId: {
             type: 'string',
@@ -17048,6 +17048,33 @@ export const WorkspaceCalendarItemSchema = {
         taskName: {
             type: 'string',
             example: 'Prepare release notes'
+        },
+        taskStatus: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'QUEUED',
+                'READY',
+                'GRANT_PENDING',
+                'INPUT_REQUIRED',
+                'APPROVAL_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCELED'
+            ],
+            example: 'QUEUED'
+        },
+        taskAssigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'coworker_123'
         },
         scheduledAt: {
             type: 'string',
@@ -17118,6 +17145,8 @@ export const WorkspaceCalendarItemSchema = {
         'id',
         'taskId',
         'taskName',
+        'taskStatus',
+        'taskAssigneeId',
         'scheduledAt',
         'originalScheduledAt',
         'state',

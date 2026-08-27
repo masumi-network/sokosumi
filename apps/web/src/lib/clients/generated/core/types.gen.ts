@@ -5301,6 +5301,8 @@ export type WorkspaceCalendarItem = {
     id: string;
     taskId: string;
     taskName: string;
+    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+    taskAssigneeId: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */

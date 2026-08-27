@@ -26,7 +26,6 @@ import {
 } from "@/schemas/workspace-calendar.schema";
 
 const MAX_CALENDAR_RANGE_MS = 90 * 24 * 60 * 60 * 1000;
-const CALENDAR_SOURCE_READ_MULTIPLIER = 10;
 
 const paramsSchema = z.object({
   id: z
@@ -55,9 +54,11 @@ const route = createRoute({
       {
         data: [
           {
-            id: "v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+            id: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
             taskId: "tsk_123",
             taskName: "Prepare release notes",
+            taskStatus: "QUEUED",
+            taskAssigneeId: null,
             scheduledAt: "2026-06-02T09:00:00.000Z",
             originalScheduledAt: "2026-06-02T09:00:00.000Z",
             state: "PLANNED",
@@ -174,11 +175,6 @@ export async function readWorkspaceCalendar(
   query: WorkspaceCalendarReadQuery,
 ) {
   const { cursor, from, to } = query;
-  // Calendar projections are calculated in application code. Keep every source
-  // collection and the merged result bounded by the requested page size.
-  const sourceReadLimit = query.limit * CALENDAR_SOURCE_READ_MULTIPLIER;
-  const sourceTake = sourceReadLimit + 1;
-
   const [scheduledTasks, occurrences] = await Promise.all([
     prisma.task.findMany({
       where: {
@@ -189,7 +185,6 @@ export async function readWorkspaceCalendar(
         nextRunAt: { not: null },
         scheduleQuarantine: null,
       },
-      take: sourceTake,
       orderBy: { id: "asc" },
       select: {
         id: true,
@@ -197,6 +192,7 @@ export async function readWorkspaceCalendar(
         workspaceId: true,
         projectId: true,
         status: true,
+        assigneeId: true,
         metadata: true,
         nextRunAt: true,
       },
@@ -206,7 +202,6 @@ export async function readWorkspaceCalendar(
         sourceWorkspaceId: workspaceId,
         effectiveScheduledAt: { gte: from, lt: to },
       },
-      take: sourceTake,
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
       select: {
         id: true,
@@ -224,20 +219,13 @@ export async function readWorkspaceCalendar(
           select: {
             id: true,
             name: true,
+            status: true,
+            assigneeId: true,
           },
         },
       },
     }),
   ]);
-
-  if (
-    scheduledTasks.length > sourceReadLimit ||
-    occurrences.length > sourceReadLimit
-  ) {
-    throw badRequest(
-      "Calendar range contains too many schedule sources; narrow the date range",
-    );
-  }
 
   const persistedEpochOccurrences = new Set(
     occurrences.flatMap((occurrence) =>
@@ -252,11 +240,6 @@ export async function readWorkspaceCalendar(
   const items: z.infer<typeof workspaceCalendarItemSchema>[] = [];
 
   function addItem(item: z.infer<typeof workspaceCalendarItemSchema>) {
-    if (items.length === sourceReadLimit) {
-      throw badRequest(
-        "Calendar range contains too many items; narrow the date range",
-      );
-    }
     items.push(item);
   }
 
@@ -267,11 +250,11 @@ export async function readWorkspaceCalendar(
     }
 
     const projections = projectTaskScheduleOccurrences(
+      task.id,
       validation.metadata,
       task.nextRunAt,
       from,
       to,
-      sourceReadLimit - items.length + 1,
     );
     for (const projection of projections) {
       if (
@@ -287,6 +270,8 @@ export async function readWorkspaceCalendar(
           id: projection.id,
           taskId: task.id,
           taskName: task.name,
+          taskStatus: task.status,
+          taskAssigneeId: task.assigneeId,
           scheduledAt: projection.scheduledAt.toISOString(),
           originalScheduledAt: projection.originalScheduledAt.toISOString(),
           state: TaskScheduleOccurrenceState.PLANNED,
@@ -308,6 +293,8 @@ export async function readWorkspaceCalendar(
         id: occurrence.id,
         taskId: occurrence.seriesTask.id,
         taskName: occurrence.seriesTask.name,
+        taskStatus: occurrence.seriesTask.status,
+        taskAssigneeId: occurrence.seriesTask.assigneeId,
         scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
         originalScheduledAt:
           occurrence.originalScheduledAt?.toISOString() ?? null,
@@ -337,7 +324,12 @@ export async function readWorkspaceCalendar(
       cursor: query.requestedCursor,
       limit: query.limit,
       total: sortedItems.length,
-      nextCursor: hasMore ? encodeCursor(page[page.length - 1]!) : null,
+      nextCursor: hasMore
+        ? encodeCursor({
+            id: page[page.length - 1]!.id,
+            scheduledAt: page[page.length - 1]!.scheduledAt,
+          })
+        : null,
     },
   };
 }

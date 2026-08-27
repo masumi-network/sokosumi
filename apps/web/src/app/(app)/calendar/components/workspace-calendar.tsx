@@ -8,6 +8,7 @@ import {
   endOfWeek,
   format,
   isSameDay,
+  isSameMonth,
   startOfMonth,
   startOfWeek,
 } from "date-fns";
@@ -39,15 +40,9 @@ interface CalendarCoworker {
   name: string;
 }
 
-interface CalendarTaskContext {
-  coworkerId: string | null;
-  status: string | null;
-}
-
 interface WorkspaceCalendarProps {
   items: WorkspaceCalendarItem[];
   coworkers?: CalendarCoworker[];
-  taskContextById?: Record<string, CalendarTaskContext>;
 }
 
 const calendarParsers = {
@@ -209,17 +204,26 @@ function WeekView({
   );
 }
 
-function AgendaView({ items }: { items: WorkspaceCalendarItem[] }) {
+function AgendaView({
+  date,
+  items,
+}: {
+  date: Date;
+  items: WorkspaceCalendarItem[];
+}) {
   const t = useTranslations("App.Calendar");
+  const agendaItems = items.filter((item) =>
+    isSameMonth(item.scheduledAt, date),
+  );
 
   return (
     <ul className="space-y-3" data-testid="calendar-agenda">
-      {items.map((item) => (
+      {agendaItems.map((item) => (
         <li key={item.id}>
           <CalendarItemDetails item={item} />
         </li>
       ))}
-      {items.length === 0 ? (
+      {agendaItems.length === 0 ? (
         <li className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
           {t("empty.title")}
         </li>
@@ -231,31 +235,21 @@ function AgendaView({ items }: { items: WorkspaceCalendarItem[] }) {
 export function WorkspaceCalendar({
   items,
   coworkers = [],
-  taskContextById = {},
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const [state, setState] = useQueryStates(calendarParsers);
   const date = parseCalendarDate(state.date);
-  const taskStatuses = [
-    ...new Set(
-      Object.values(taskContextById)
-        .map((context) => context.status)
-        .filter((status): status is string => status !== null),
-    ),
-  ];
+  const taskStatuses = [...new Set(items.map((item) => item.taskStatus))];
   const visibleItems = items
     .filter(
       (item) => state.source === "all" || state.source === item.sourceType,
     )
     .filter(
-      (item) =>
-        state.status === "all" ||
-        taskContextById[item.taskId]?.status === state.status,
+      (item) => state.status === "all" || item.taskStatus === state.status,
     )
     .filter(
       (item) =>
-        state.coworker === "all" ||
-        taskContextById[item.taskId]?.coworkerId === state.coworker,
+        state.coworker === "all" || item.taskAssigneeId === state.coworker,
     )
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -405,7 +399,7 @@ export function WorkspaceCalendar({
               <WeekView date={date} items={visibleItems} />
             ) : null}
             {state.view === "agenda" ? (
-              <AgendaView items={visibleItems} />
+              <AgendaView date={date} items={visibleItems} />
             ) : null}
           </div>
           <div className="md:hidden">
@@ -414,7 +408,7 @@ export function WorkspaceCalendar({
             ) : state.view === "week" ? (
               <WeekView date={date} items={visibleItems} />
             ) : (
-              <AgendaView items={visibleItems} />
+              <AgendaView date={date} items={visibleItems} />
             )}
           </div>
         </>

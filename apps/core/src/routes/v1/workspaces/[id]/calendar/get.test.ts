@@ -107,6 +107,7 @@ function createScheduledTask(overrides: Record<string, unknown> = {}) {
     name: "Schedule task",
     workspaceId: WORKSPACE_ID,
     projectId: null,
+    assigneeId: null,
     status: TaskStatus.QUEUED,
     metadata: JSON.stringify({
       version: 1,
@@ -134,6 +135,8 @@ function createLedgerOccurrence(overrides: Record<string, unknown> = {}) {
     seriesTask: {
       id: "tsk_history",
       name: "Released task",
+      status: TaskStatus.QUEUED,
+      assigneeId: null,
     },
     ...overrides,
   };
@@ -171,9 +174,11 @@ describe("GET /workspaces/{id}/calendar", () => {
     await expect(response.json()).resolves.toEqual({
       data: [
         {
-          id: "v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+          id: "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
           taskId: "tsk_schedule",
           taskName: "Schedule task",
+          taskStatus: "QUEUED",
+          taskAssigneeId: null,
           scheduledAt: "2026-06-02T09:00:00.000Z",
           originalScheduledAt: "2026-06-02T09:00:00.000Z",
           state: "PLANNED",
@@ -237,7 +242,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a calendar range whose source rows exceed its page-derived bound", async () => {
+  it("reads all scheduled sources in the requested range", async () => {
     taskFindManyMock.mockResolvedValue(
       Array.from({ length: 11 }, (_, index) =>
         createScheduledTask({ id: `tsk_schedule_${index}` }),
@@ -249,13 +254,13 @@ describe("GET /workspaces/{id}/calendar", () => {
       `from=${FROM}&to=${TO}&limit=1`,
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ take: 11 }),
+      expect.not.objectContaining({ take: expect.anything() }),
     );
   });
 
-  it("rejects a calendar range whose ledger rows exceed its page-derived bound", async () => {
+  it("reads all persisted occurrences in the requested range", async () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue(
       Array.from({ length: 11 }, (_, index) =>
         createLedgerOccurrence({
@@ -269,9 +274,9 @@ describe("GET /workspaces/{id}/calendar", () => {
       `from=${FROM}&to=${TO}&limit=1`,
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ take: 11 }),
+      expect.not.objectContaining({ take: expect.anything() }),
     );
   });
 
@@ -331,7 +336,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(body.data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+          id: "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
           taskId: "tsk_schedule",
           sourceType: "WORKSPACE",
         }),
@@ -424,7 +429,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(firstResponse.status).toBe(200);
     expect(firstPage.data.map((item: { id: string }) => item.id)).toEqual([
       "00000000-0000-7000-8000-000000000001",
-      "v1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+      "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
     ]);
     expect(firstPage.meta.pagination.nextCursor).toEqual(expect.any(String));
 
@@ -432,11 +437,14 @@ describe("GET /workspaces/{id}/calendar", () => {
       createApp(),
       `from=${FROM}&to=${TO}&limit=2&cursor=${encodeURIComponent(firstPage.meta.pagination.nextCursor)}`,
     );
+    expect(secondResponse.status).toBe(200);
     const secondPage = await secondResponse.json();
 
-    expect(secondResponse.status).toBe(200);
+    if (secondResponse.status !== 200) {
+      throw new Error(await secondResponse.text());
+    }
     expect(secondPage.data.map((item: { id: string }) => item.id)).toEqual([
-      "v1:2026-06-01T09:00:00.000Z:2026-06-04T09:00:00.000Z",
+      "v1:tsk_later:2026-06-01T09:00:00.000Z:2026-06-04T09:00:00.000Z",
     ]);
     expect(secondPage.meta.pagination).toEqual({
       cursor: firstPage.meta.pagination.nextCursor,
@@ -444,5 +452,31 @@ describe("GET /workspaces/{id}/calendar", () => {
       total: 3,
       nextCursor: null,
     });
+  });
+
+  it("keeps same-time version 1 projections on separate cursor pages", async () => {
+    taskFindManyMock.mockResolvedValue([
+      createScheduledTask(),
+      createScheduledTask({ id: "tsk_collision" }),
+    ]);
+
+    const firstResponse = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&limit=1`,
+    );
+    const firstPage = await firstResponse.json();
+    const secondResponse = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&limit=1&cursor=${encodeURIComponent(firstPage.meta.pagination.nextCursor)}`,
+    );
+    expect(secondResponse.status).toBe(200);
+    const secondPage = await secondResponse.json();
+
+    expect(firstPage.data.map((item: { id: string }) => item.id)).toEqual([
+      "v1:tsk_collision:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+    ]);
+    expect(secondPage.data.map((item: { id: string }) => item.id)).toEqual([
+      "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+    ]);
   });
 });

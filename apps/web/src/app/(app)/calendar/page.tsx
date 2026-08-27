@@ -1,3 +1,10 @@
+import {
+  addDays,
+  endOfMonth,
+  endOfWeek,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -21,8 +28,9 @@ export async function generateMetadata(): Promise<Metadata> {
 function getCalendarRange(dateParam: string | undefined) {
   const parsedDate = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date();
   const date = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-  const from = new Date(date.getFullYear(), date.getMonth(), 1);
-  const to = new Date(date.getFullYear(), date.getMonth() + 2, 1);
+  // Pad the rendered month grid by a day on each side for client timezones.
+  const from = addDays(startOfWeek(startOfMonth(date)), -1);
+  const to = addDays(endOfWeek(endOfMonth(date)), 2);
 
   return { from, to };
 }
@@ -33,7 +41,7 @@ export default async function CalendarPage({
   await connection();
 
   const { date } = await searchParams;
-  const [{ items, taskContextById }, coworkers] = await Promise.all([
+  const [{ items }, coworkers] = await Promise.all([
     taskService.getWorkspaceCalendar({ ...getCalendarRange(date), limit: 100 }),
     coworkerService.listCoworkers().catch(() => []),
   ]);
@@ -46,7 +54,6 @@ export default async function CalendarPage({
           id: coworker.id,
           name: coworker.name,
         }))}
-        taskContextById={taskContextById}
       />
     </div>
   );
