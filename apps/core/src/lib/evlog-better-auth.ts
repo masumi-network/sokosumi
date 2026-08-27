@@ -7,11 +7,13 @@ import { auth } from "@/lib/auth";
 /**
  * Documented Hono wiring: https://www.evlog.dev/use-cases/better-auth/overview
  *
- * Auth lives at `/auth`, not `/api/auth`. Mask emails before Sentry Logs.
+ * Auth lives at `/auth`, not `/api/auth`. Ids only — no avatar, session, or UA.
  */
 const identify = createAuthMiddleware(auth, {
   exclude: ["/auth/**", "/sync/**", "/debug/**"],
   maskEmail: true,
+  session: false,
+  fields: ["id"],
 });
 
 export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {

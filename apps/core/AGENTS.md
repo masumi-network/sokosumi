@@ -743,7 +743,7 @@ The evlog block above is the generic convention. This app narrows it:
 
 - Wide events come from Hono `evlog()` middleware (`src/lib/evlog.ts`, mounted in `src/index.ts`). Do not add per-handler `useLogger()` / `log.set` unless a ticket asks for a hot-path field.
 - Do **not** use `createError` from evlog in HTTP responses. The public envelope is `error` / `message` / `kind` / `meta.requestId` via `@/helpers/error`.
-- Identity is already on the event (auth/workspace middleware + `createAuthMiddleware` in `src/lib/evlog-better-auth.ts`). Cookie identify skips `/auth/**`, `/sync/**`, `/debug/**`, and any request with an `Authorization` header (bearer / API key / coworker / orchestrator).
+- Identity is already on the event (auth/workspace middleware + `createAuthMiddleware` in `src/lib/evlog-better-auth.ts`). Cookie identify is `user.id` / `userId` only (`session: false`, `fields: ["id"]`). Skip `/auth/**`, `/sync/**`, `/debug/**`, and any request with an `Authorization` header (bearer / API key / coworker / orchestrator).
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.

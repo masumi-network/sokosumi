@@ -67,11 +67,8 @@ describe("betterAuthEvlogMiddleware", () => {
 
     expect(getSessionMock).toHaveBeenCalledTimes(1);
     expect(captured[0]?.event.userId).toBe("user_123");
-    expect(captured[0]?.event.user).toMatchObject({
-      id: "user_123",
-      email: "a***@example.com",
-      name: "Alice",
-    });
+    expect(captured[0]?.event.user).toEqual({ id: "user_123" });
+    expect(captured[0]?.event.session).toBeUndefined();
     expect(captured[0]?.event.auth).toMatchObject({
       identified: true,
     });
