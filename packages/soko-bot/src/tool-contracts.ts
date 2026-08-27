@@ -178,6 +178,27 @@ export const sokoBotScheduleIdInputSchema = z
   .strict()
   .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
+export const sokoBotPostChatInputSchema = z.object({
+  /** Room id from `list_chats`. */
+  roomId: z.string().min(1),
+  content: z.string().min(1).max(4_000),
+});
+
+export const sokoBotListFilesInputSchema = z.object({
+  /** Narrow to names containing this text. */
+  query: z.string().max(200).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
+export const sokoBotUploadFileInputSchema = z.object({
+  /** File name including extension, e.g. "launch-brief.md". */
+  filename: z.string().min(1).max(200),
+  /** Text content to store. */
+  content: z.string().min(1).max(200_000),
+  /** MIME type; defaults to text/markdown. */
+  contentType: z.string().max(120).optional(),
+});
+
 export const sokoBotReadChatInputSchema = z.object({
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
@@ -233,6 +254,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_chats: emptyInputSchema,
   read_chat: sokoBotReadChatInputSchema,
+  post_chat: sokoBotPostChatInputSchema,
+  list_files: sokoBotListFilesInputSchema,
+  upload_file: sokoBotUploadFileInputSchema,
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
   read_email: sokoBotReadEmailInputSchema,
@@ -272,6 +296,12 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat.",
   read_chat:
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
+  post_chat:
+    "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
+  list_files:
+    "Files in the owner\u2019s Drive: name, size, type and when each was uploaded. Use it to find an existing document before writing a new one.",
+  upload_file:
+    "Write a text file into the owner\u2019s Drive (a brief, a summary, notes). Give a filename with an extension; the file appears in their Drive straight away.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:

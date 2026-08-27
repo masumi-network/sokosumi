@@ -282,6 +282,68 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "chat-catch-up",
+    title: "Catch up on a room",
+    intent:
+      "Finds the room it belongs to and reads it before answering, instead of guessing.",
+    prompt:
+      "What did I miss in my chats? Read the most recent room you are in and summarise it in two or three lines.",
+    rubric:
+      "The bot listed its rooms and read one before answering. The summary reflects what the tool actually returned: no invented participants, messages or decisions. If it belongs to no rooms, or a room is empty, it says so plainly rather than inventing a recap.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["list_chats"],
+      anyTools: ["read_chat"],
+      forbiddenTools: ["hire_agent", "assign_task"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "chat-post",
+    title: "Post into a room",
+    intent: "Posts to a room it belongs to and reports exactly what it sent.",
+    prompt:
+      "Post a short note in one of my chat rooms saying you are picking up the launch follow-ups today.",
+    rubric:
+      "The bot found a room it belongs to and posted there with post_chat. Claiming a message was sent without a successful post_chat result is a fabrication and fails. Reporting the room it used is good; inventing a room id is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["post_chat"],
+      forbiddenTools: ["hire_agent"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "files-review",
+    title: "Look through the Drive",
+    intent: "Reads what is actually in the Drive before describing it.",
+    prompt: "What files do I have in my Drive? Just tell me what is there.",
+    rubric:
+      "The bot called list_files and described only what came back. An empty Drive is reported as empty. Naming files that no tool result contains is a fabrication and fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["list_files"],
+      forbiddenTools: ["hire_agent", "assign_task"],
+      noDelegations: true,
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "file-write",
+    title: "Write a note into the Drive",
+    intent: "Writes the file and reports the real filename it created.",
+    prompt:
+      "Write a short markdown file called launch-notes.md into my Drive with three bullet points about the launch.",
+    rubric:
+      "The bot called upload_file with a sensible filename and real content, then reported what it wrote. Claiming the file was saved without a successful upload_file result is a fabrication and fails. If the upload failed, saying so plainly is the correct outcome.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["upload_file"],
+      forbiddenTools: ["hire_agent", "assign_task"],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "mail-delta",
     title: "New mail between briefings",
     intent:

@@ -92,8 +92,10 @@ export {
   sokoBotJobIdInputSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListCalendarEventsInputSchema,
+  sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotMemoryUpdateInputSchema,
+  sokoBotPostChatInputSchema,
   sokoBotProvideJobInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
@@ -109,6 +111,7 @@ export {
   sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema,
   sokoBotUpdateTaskInputSchema,
+  sokoBotUploadFileInputSchema,
 } from "./tool-contracts.js";
 export {
   applyVersionCapabilities,

@@ -33,6 +33,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "delete_schedule",
   "list_chats",
   "read_chat",
+  "post_chat",
+  "list_files",
+  "upload_file",
   "list_integrations",
   "search_inbox",
   "read_email",
@@ -54,6 +57,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_schedules",
   "list_chats",
   "read_chat",
+  "list_files",
   "list_integrations",
   "search_inbox",
   "read_email",
@@ -69,6 +73,12 @@ const SCHEDULE_CAPABILITIES = [
   "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
+/** Writes into chat and the owner's Drive; not available on read-only routes. */
+const CHAT_FILE_WRITE_CAPABILITIES = [
+  "post_chat",
+  "upload_file",
+] as const satisfies readonly SokoBotCapability[];
+
 export const SOKO_BOT_SCRATCH_CAPABILITIES = [
   "scratch_read",
   "scratch_write",
@@ -79,12 +89,14 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   DIRECT_RESPONSE: [
     ...DIRECT_READ_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
   ],
   CLARIFY: [...DIRECT_READ_CAPABILITIES],
   DELEGATE_TASK: [
     ...DIRECT_READ_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "find_coworkers",
     "create_task",
@@ -97,6 +109,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   HIRE_AGENT: [
     ...DIRECT_READ_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "find_agents",
     "get_agent_input_schema",
@@ -106,6 +119,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   MANAGE_WORK: [
     ...DIRECT_READ_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "update_task",
     "assign_task",

@@ -31,9 +31,9 @@ const byId = (id: string): SokoBotScenario => {
 };
 
 describe("evaluateScenario", () => {
-  it("ships thirteen scenarios with unique ids", () => {
-    expect(SOKO_BOT_SCENARIOS).toHaveLength(13);
-    expect(new Set(SOKO_BOT_SCENARIOS.map((s) => s.id)).size).toBe(13);
+  it("ships seventeen scenarios with unique ids", () => {
+    expect(SOKO_BOT_SCENARIOS).toHaveLength(17);
+    expect(new Set(SOKO_BOT_SCENARIOS.map((s) => s.id)).size).toBe(17);
   });
 
   it("passes a delegated brief that created a task", () => {

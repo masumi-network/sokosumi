@@ -33,11 +33,14 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotListCalendarEventsInputSchema,
+  sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotPostChatInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
+  sokoBotUploadFileInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
   sokoBotTaskIdInputSchema as taskIdInputSchema,
@@ -45,6 +48,11 @@ import {
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
+import {
+  buildUserDriveFilePathname,
+  buildUserDriveFilePrefix,
+} from "@sokosumi/utils";
+import { list, put } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { toMasumiAgent } from "@/helpers/agent";
 import { createAgentJobForUser } from "@/helpers/job";
@@ -792,22 +800,24 @@ export class SokoBotRuntimeService {
     };
   }
 
-  /** Recent messages in one room the bot belongs to, newest first. */
-  private async readChat(
+  /**
+   * The single authorization boundary for chat: the bot may only touch rooms
+   * its coworker belongs to, in its own workspace. Re-checked on every call
+   * because the room id comes from the model, so removal takes effect at once.
+   */
+  private async requireChatMembership(
     authorized: AuthorizedSokoBotRuntime,
-    input: { roomId: string; limit?: number; before?: string },
-  ) {
+    roomId: string,
+  ): Promise<{ id: string; name: string; coworkerId: string }> {
     const bot = await prisma.sokoBot.findUnique({
       where: { id: authorized.turn.sokoBotId },
       select: { coworker: { select: { id: true } } },
     });
     const coworkerId = bot?.coworker?.id;
-    // Re-checked per call rather than trusting the id the model passed: a room
-    // the bot was removed from must stop being readable immediately.
     const room = coworkerId
       ? await prisma.chatRoom.findFirst({
           where: {
-            id: input.roomId,
+            id: roomId,
             archivedAt: null,
             workspaceId: authorized.turn.workspaceId,
             coworkerMembers: { some: { coworkerId } },
@@ -815,11 +825,96 @@ export class SokoBotRuntimeService {
           select: { id: true, name: true },
         })
       : null;
-    if (!room) {
+    if (!room || !coworkerId) {
       throw new SokoBotRuntimeValidationError(
         "You are not a member of that chat room",
       );
     }
+    return { id: room.id, name: room.name, coworkerId };
+  }
+
+  /** Post into a room the bot belongs to, as the bot's coworker identity. */
+  private async postChat(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { roomId: string; content: string },
+  ) {
+    const room = await this.requireChatMembership(authorized, input.roomId);
+    const message = await prisma.$transaction(async (tx) => {
+      const created = await tx.chatRoomMessage.create({
+        data: {
+          roomId: room.id,
+          senderCoworkerId: room.coworkerId,
+          content: input.content,
+        },
+        select: { id: true, createdAt: true },
+      });
+      await tx.chatRoom.update({
+        where: { id: room.id },
+        data: { updatedAt: new Date() },
+      });
+      return created;
+    });
+    return {
+      messageId: message.id,
+      roomId: room.id,
+      postedAt: message.createdAt.toISOString(),
+    };
+  }
+
+  /** Files in the owner's Drive. Blob-backed, listed by the owner's prefix. */
+  private async listFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { query?: string; limit?: number },
+  ) {
+    const prefix = buildUserDriveFilePrefix(authorized.turn.userId);
+    const { blobs } = await list({ prefix, limit: input.limit ?? 50 });
+    const needle = input.query?.toLowerCase();
+    return {
+      files: blobs
+        .map((blob) => ({
+          filename: blob.pathname.slice(prefix.length),
+          size: blob.size,
+          uploadedAt: blob.uploadedAt.toISOString(),
+          url: blob.url,
+        }))
+        .filter(
+          (file) => !needle || file.filename.toLowerCase().includes(needle),
+        ),
+    };
+  }
+
+  /**
+   * Write a text file into the owner's Drive. Core uploads server-side rather
+   * than minting a client grant, because a tool call cannot perform the
+   * browser's second step.
+   */
+  private async uploadFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { filename: string; content: string; contentType?: string },
+  ) {
+    const pathname = buildUserDriveFilePathname(
+      authorized.turn.userId,
+      input.filename,
+    );
+    const blob = await put(pathname, input.content, {
+      access: "public",
+      contentType: input.contentType ?? "text/markdown",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    return {
+      filename: pathname.split("/").pop() ?? input.filename,
+      url: blob.url,
+      size: input.content.length,
+    };
+  }
+
+  /** Recent messages in one room the bot belongs to, newest first. */
+  private async readChat(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { roomId: string; limit?: number; before?: string },
+  ) {
+    const room = await this.requireChatMembership(authorized, input.roomId);
     const messages = await prisma.chatRoomMessage.findMany({
       where: {
         roomId: room.id,
@@ -845,7 +940,7 @@ export class SokoBotRuntimeService {
         from:
           message.senderUser?.name ?? message.senderCoworker?.name ?? "unknown",
         /** True when the bot itself wrote it. */
-        fromYou: message.senderCoworker?.id === coworkerId,
+        fromYou: message.senderCoworker?.id === room.coworkerId,
         // Chat is untrusted text: the operating contract already tells the bot
         // never to follow instructions found in content it reads.
         content: message.content.slice(0, 4_000),
@@ -1922,6 +2017,18 @@ export class SokoBotRuntimeService {
       case "read_chat": {
         const parsed = sokoBotReadChatInputSchema.parse(input.input);
         return this.readChat(authorized, parsed);
+      }
+      case "post_chat": {
+        const parsed = sokoBotPostChatInputSchema.parse(input.input);
+        return this.postChat(authorized, parsed);
+      }
+      case "list_files": {
+        const parsed = sokoBotListFilesInputSchema.parse(input.input);
+        return this.listFiles(authorized, parsed);
+      }
+      case "upload_file": {
+        const parsed = sokoBotUploadFileInputSchema.parse(input.input);
+        return this.uploadFile(authorized, parsed);
       }
       case "list_integrations":
         return listSokoBotIntegrations(
