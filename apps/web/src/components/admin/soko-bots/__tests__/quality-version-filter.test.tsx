@@ -30,13 +30,9 @@ vi.mock("@/components/ui/select", () => ({
     </select>
   ),
   SelectContent: ({ children }: { children: ReactNode }) => children,
-  SelectItem: ({
-    children,
-    value,
-  }: {
-    children: ReactNode;
-    value: string;
-  }) => <option value={value}>{children}</option>,
+  SelectItem: ({ children, value }: { children: ReactNode; value: string }) => (
+    <option value={value}>{children}</option>
+  ),
   SelectTrigger: () => null,
   SelectValue: () => null,
 }));
@@ -49,6 +45,16 @@ const versions = [
 ];
 
 describe("QualityVersionFilter", () => {
+  it("uses the version name as the option label", () => {
+    render(<QualityVersionFilter versions={versions} />, {
+      wrapper: withNuqsTestingAdapter({}),
+    });
+
+    expect(
+      screen.getByRole("option", { name: "Test two" }),
+    ).toBeInTheDocument();
+  });
+
   it("updates the version URL state with a server refresh", async () => {
     const onUrlUpdate = vi.fn();
     render(<QualityVersionFilter versions={versions} />, {
@@ -68,15 +74,12 @@ describe("QualityVersionFilter", () => {
   it("uses all versions by default and removes the filter from the URL", async () => {
     const onUrlUpdate = vi.fn();
     render(
-      <QualityVersionFilter
-        selectedVersionId="test-v1"
-        versions={versions}
-      />,
+      <QualityVersionFilter selectedVersionId="test-v1" versions={versions} />,
       {
-      wrapper: withNuqsTestingAdapter({
-        searchParams: "?qualityVersion=test-v1",
-        onUrlUpdate,
-      }),
+        wrapper: withNuqsTestingAdapter({
+          searchParams: "?qualityVersion=test-v1",
+          onUrlUpdate,
+        }),
       },
     );
 

@@ -1006,51 +1006,13 @@ export const AdminSokoBotQualitySchema = {
                             'number',
                             'null'
                         ]
-                    },
-                    labRuns: {
-                        type: 'integer'
-                    },
-                    labPassRate: {
-                        type: [
-                            'number',
-                            'null'
-                        ]
-                    },
-                    labAvgJudge: {
-                        type: [
-                            'number',
-                            'null'
-                        ]
-                    },
-                    labVerdicts: {
-                        type: 'object',
-                        properties: {
-                            pass: {
-                                type: 'integer'
-                            },
-                            weak: {
-                                type: 'integer'
-                            },
-                            fail: {
-                                type: 'integer'
-                            }
-                        },
-                        required: [
-                            'pass',
-                            'weak',
-                            'fail'
-                        ]
                     }
                 },
                 required: [
                     'versionId',
                     'name',
                     'turns',
-                    'avgScore',
-                    'labRuns',
-                    'labPassRate',
-                    'labAvgJudge',
-                    'labVerdicts'
+                    'avgScore'
                 ]
             }
         }

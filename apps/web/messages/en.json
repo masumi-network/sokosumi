@@ -4176,7 +4176,7 @@
         },
         "Quality": {
           "title": "Quality",
-          "description": "Judge scores (1–5) for every settled turn, fleet-wide, last 30 days.",
+          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days.",
           "overall": "{judged} of {turns} turns judged",
           "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4193,10 +4193,7 @@
           "version": "Version",
           "turns": "Turns",
           "avgScore": "Avg score",
-          "labRuns": "Lab runs",
-          "labPassRate": "Lab pass",
-          "labJudge": "Lab judge",
-          "verdicts": "pass / weak / fail"
+          "realRunsByVersion": "Real usage by version"
         },
         "labLink": "Behaviour lab",
         "Lab": {

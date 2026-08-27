@@ -1,20 +1,30 @@
+import type { SokoBotTurnSource } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { labRunFindManyMock, turnFindManyMock } = vi.hoisted(() => ({
-  labRunFindManyMock: vi.fn(),
+const { turnFindManyMock } = vi.hoisted(() => ({
   turnFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    sokoBotLabRun: { findMany: labRunFindManyMock },
     sokoBotTurn: { findMany: turnFindManyMock },
   },
 }));
 
 import { getSokoBotQualityOverview } from "@/services/soko-bot-quality.service";
 
-function turn(overrides: Record<string, unknown>) {
+interface QualityTurn {
+  createdAt: Date;
+  finalAnswer: string | null;
+  ownerFeedback: number | null;
+  ownerFeedbackAt: Date | null;
+  qualityScore: number | null;
+  sokoBotId: string;
+  source: SokoBotTurnSource;
+  versionId: string | null;
+}
+
+function turn(overrides: Partial<QualityTurn>): QualityTurn {
   return {
     createdAt: new Date("2026-08-25T09:00:00.000Z"),
     finalAnswer: "I completed the requested work.",
@@ -32,7 +42,6 @@ describe("getSokoBotQualityOverview", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-27T12:00:00.000Z"));
-    labRunFindManyMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -55,18 +64,63 @@ describe("getSokoBotQualityOverview", () => {
 
     const quality = await getSokoBotQualityOverview();
 
-    expect(quality.daily.find((day) => day.date === "2026-08-26")).toMatchObject(
-      {
-        thumbsUp: 1,
-        thumbsDown: 0,
-      },
+    expect(
+      quality.daily.find((day) => day.date === "2026-08-26"),
+    ).toMatchObject({
+      thumbsUp: 1,
+      thumbsDown: 0,
+    });
+    expect(
+      quality.daily.find((day) => day.date === "2026-08-27"),
+    ).toMatchObject({
+      thumbsUp: 0,
+      thumbsDown: 1,
+    });
+  });
+
+  it("queries only real turns", async () => {
+    turnFindManyMock.mockResolvedValue([]);
+
+    await getSokoBotQualityOverview();
+
+    expect(turnFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { clientTurnId: { startsWith: "lab:" } },
+        }),
+      }),
     );
-    expect(quality.daily.find((day) => day.date === "2026-08-27")).toMatchObject(
-      {
-        thumbsUp: 0,
-        thumbsDown: 1,
-      },
+  });
+
+  it("includes recent feedback from older turns without changing headline turn counts", async () => {
+    turnFindManyMock.mockResolvedValue([
+      turn({
+        createdAt: new Date("2026-07-01T09:00:00.000Z"),
+        ownerFeedback: -1,
+        ownerFeedbackAt: new Date("2026-08-27T08:00:00.000Z"),
+      }),
+    ]);
+
+    const quality = await getSokoBotQualityOverview();
+
+    expect(turnFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { createdAt: { gte: new Date("2026-07-28T12:00:00.000Z") } },
+            {
+              ownerFeedbackAt: {
+                gte: new Date("2026-07-28T12:00:00.000Z"),
+              },
+            },
+          ],
+        }),
+      }),
     );
+    expect(quality.overall.turns).toBe(0);
+    expect(
+      quality.daily.find((day) => day.date === "2026-08-27"),
+    ).toMatchObject({ thumbsDown: 1 });
   });
 
   it("scopes panel metrics to one version while preserving fleet version rows", async () => {
@@ -101,13 +155,13 @@ describe("getSokoBotQualityOverview", () => {
       thumbsUp: 1,
       thumbsDown: 0,
     });
-    expect(quality.daily.find((day) => day.date === "2026-08-27")).toMatchObject(
-      {
-        turns: 1,
-        avgScore: 2,
-        thumbsDown: 0,
-      },
-    );
+    expect(
+      quality.daily.find((day) => day.date === "2026-08-27"),
+    ).toMatchObject({
+      turns: 1,
+      avgScore: 2,
+      thumbsDown: 0,
+    });
     expect(
       quality.versions.find((version) => version.versionId === "test-v2"),
     ).toMatchObject({ turns: 1, avgScore: 1 });

@@ -4145,7 +4145,7 @@
         },
         "Quality": {
           "title": "Qualität",
-          "description": "Bewertungen (1–5) für jeden abgeschlossenen Durchlauf, flottenweit, letzte 30 Tage.",
+          "description": "Judge-Bewertungen (1–5) für echte Durchläufe außerhalb des Labs, flottenweit, letzte 30 Tage.",
           "overall": "{judged} von {turns} Durchläufen bewertet",
           "proactive": "{sent} proaktive Nachrichten, {actedOn} innerhalb eines Tages aufgegriffen",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4162,10 +4162,7 @@
           "version": "Version",
           "turns": "Durchläufe",
           "avgScore": "Ø Score",
-          "labRuns": "Lab-Läufe",
-          "labPassRate": "Lab bestanden",
-          "labJudge": "Lab-Bewertung",
-          "verdicts": "pass / weak / fail"
+          "realRunsByVersion": "Echte Nutzung nach Version"
         },
         "labLink": "Verhaltenslabor",
         "Lab": {

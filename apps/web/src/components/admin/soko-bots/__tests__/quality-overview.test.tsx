@@ -20,20 +20,19 @@ vi.mock("next-intl/server", () => ({
       legendThumbsUp: "Thumbs up (count)",
       overall: "Overall",
       proactive: "Proactive",
+      realRunsByVersion: "Real usage by version",
       thumbs: "Thumbs",
       title: "Quality",
       turns: "Turns",
-      verdicts: "pass / weak / fail",
       version: "Version",
     };
     return (key: string) => messages[key] ?? key;
   }),
 }));
 
-vi.mock(
-  "@/components/admin/soko-bots/quality-version-filter.client",
-  () => ({ QualityVersionFilter: () => null }),
-);
+vi.mock("@/components/admin/soko-bots/quality-version-filter.client", () => ({
+  QualityVersionFilter: () => null,
+}));
 
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
@@ -55,20 +54,12 @@ function qualityFixture(): AdminSokoBotQuality {
         name: "Test one",
         turns: 20,
         avgScore: 4,
-        labRuns: 2,
-        labPassRate: 100,
-        labAvgJudge: 4,
-        labVerdicts: { pass: 2, weak: 0, fail: 0 },
       },
       {
         versionId: "test-v2",
         name: "Test two",
         turns: 10,
         avgScore: 3,
-        labRuns: 1,
-        labPassRate: 0,
-        labAvgJudge: 2,
-        labVerdicts: { pass: 0, weak: 0, fail: 1 },
       },
     ],
   };
@@ -90,12 +81,12 @@ describe("QualityOverview", () => {
     expect(screen.getByText("Thumbs down (count)")).toBeInTheDocument();
 
     expect(container.querySelectorAll("polyline")).toHaveLength(3);
-    expect(
-      container.querySelector('[data-series="thumbs-up"]'),
-    ).toHaveClass("stroke-semantic-success");
-    expect(
-      container.querySelector('[data-series="thumbs-down"]'),
-    ).toHaveClass("stroke-semantic-destructive");
+    expect(container.querySelector('[data-series="thumbs-up"]')).toHaveClass(
+      "stroke-semantic-success",
+    );
+    expect(container.querySelector('[data-series="thumbs-down"]')).toHaveClass(
+      "stroke-semantic-destructive",
+    );
   });
 
   it("shows only the selected version in the quality table", async () => {
@@ -108,5 +99,14 @@ describe("QualityOverview", () => {
 
     expect(screen.getByText("Test two")).toBeInTheDocument();
     expect(screen.queryByText("Test one")).not.toBeInTheDocument();
+  });
+
+  it("keeps the version table focused on real usage", async () => {
+    render(await QualityOverview({ quality: qualityFixture() }));
+
+    expect(screen.getByText("Real usage by version")).toBeInTheDocument();
+    expect(screen.queryByText("Lab runs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Lab pass")).not.toBeInTheDocument();
+    expect(screen.queryByText("Lab judge")).not.toBeInTheDocument();
   });
 });

@@ -37,7 +37,7 @@ export function QualityVersionFilter({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
       <Label
         htmlFor="quality-version"
         className="text-muted-foreground text-xs"
@@ -48,16 +48,18 @@ export function QualityVersionFilter({
         value={selectedVersionId ?? "all"}
         onValueChange={handleVersionChange}
       >
-        <SelectTrigger id="quality-version" size="sm" className="min-w-48">
+        <SelectTrigger
+          id="quality-version"
+          size="sm"
+          className="w-full sm:min-w-48"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t("allVersions")}</SelectItem>
           {versions.map((version) => (
             <SelectItem key={version.versionId} value={version.versionId}>
-              {version.name
-                ? `${version.versionId} · ${version.name}`
-                : version.versionId}
+              {version.name ?? version.versionId}
             </SelectItem>
           ))}
         </SelectContent>

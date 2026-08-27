@@ -196,9 +196,7 @@ export const sokoBotTurnSchema = z
     /** Per-dimension scores, verdict and issues behind {@link qualityScore}. */
     // Named schemas must be unioned with null, not `.nullable()`, or the
     // generated client's transformer breaks.
-    qualityVerdict: z
-      .union([sokoBotQualityVerdictSchema, z.null()])
-      .optional(),
+    qualityVerdict: z.union([sokoBotQualityVerdictSchema, z.null()]).optional(),
     /** Judge model that graded the turn, e.g. "openai/gpt-5.5". */
     qualityModel: z.string().nullable().optional(),
     judgedAt: dateTimeSchema.nullable().optional(),
@@ -680,14 +678,6 @@ export const adminSokoBotQualitySchema = z
         name: z.string().nullable(),
         turns: z.number().int(),
         avgScore: z.number().nullable(),
-        labRuns: z.number().int(),
-        labPassRate: z.number().nullable(),
-        labAvgJudge: z.number().nullable(),
-        labVerdicts: z.object({
-          pass: z.number().int(),
-          weak: z.number().int(),
-          fail: z.number().int(),
-        }),
       }),
     ),
   })

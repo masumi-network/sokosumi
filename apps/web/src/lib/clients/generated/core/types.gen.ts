@@ -238,14 +238,6 @@ export type AdminSokoBotQuality = {
         name: string | null;
         turns: number;
         avgScore: number | null;
-        labRuns: number;
-        labPassRate: number | null;
-        labAvgJudge: number | null;
-        labVerdicts: {
-            pass: number;
-            weak: number;
-            fail: number;
-        };
     }>;
 };
 

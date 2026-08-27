@@ -4145,7 +4145,7 @@
         },
         "Quality": {
           "title": "Calidad",
-          "description": "Puntuaciones del evaluador (1–5) de cada turno finalizado, toda la flota, últimos 30 días.",
+          "description": "Evaluaciones del juez (1–5) de turnos reales fuera del laboratorio, en toda la flota, durante los últimos 30 días.",
           "overall": "{judged} de {turns} turnos evaluados",
           "proactive": "{sent} mensajes proactivos, {actedOn} atendidos en un día",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4162,10 +4162,7 @@
           "version": "Versión",
           "turns": "Turnos",
           "avgScore": "Media",
-          "labRuns": "Ejecuciones lab",
-          "labPassRate": "Lab superado",
-          "labJudge": "Evaluador lab",
-          "verdicts": "pass / weak / fail"
+          "realRunsByVersion": "Uso real por versión"
         },
         "labLink": "Laboratorio de comportamiento",
         "Lab": {

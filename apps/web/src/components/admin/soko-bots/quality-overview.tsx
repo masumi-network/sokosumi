@@ -1,8 +1,8 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
-import { QualityVersionFilter } from "@/components/admin/soko-bots/quality-version-filter.client";
 import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { QualityVersionFilter } from "./quality-version-filter.client";
 
 const WIDTH = 640;
 const HEIGHT = 184;
@@ -45,15 +45,19 @@ function dateTickIndexes(length: number): number[] {
 /** Judge score and owner feedback per day, with independent score and count axes. */
 function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
   const step = (PLOT_RIGHT - PLOT_LEFT) / Math.max(1, daily.length - 1);
-  const x = (index: number) => PLOT_LEFT + index * step;
-  const scoreY = (score: number) =>
-    PLOT_BOTTOM - ((score - 1) / 4) * (PLOT_BOTTOM - PLOT_TOP);
+  function x(index: number): number {
+    return PLOT_LEFT + index * step;
+  }
+  function scoreY(score: number): number {
+    return PLOT_BOTTOM - ((score - 1) / 4) * (PLOT_BOTTOM - PLOT_TOP);
+  }
   const maxThumbs = Math.max(
     1,
     ...daily.flatMap((day) => [day.thumbsUp, day.thumbsDown]),
   );
-  const thumbsY = (count: number) =>
-    PLOT_BOTTOM - (count / maxThumbs) * (PLOT_BOTTOM - PLOT_TOP);
+  function thumbsY(count: number): number {
+    return PLOT_BOTTOM - (count / maxThumbs) * (PLOT_BOTTOM - PLOT_TOP);
+  }
   const segments: string[] = [];
   let current: string[] = [];
   daily.forEach((day, index) => {
@@ -228,7 +232,6 @@ function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
   );
 }
 
-/** Fleet-wide judge scores: trend over 30 days, then per agent version. */
 export async function QualityOverview({
   quality,
   selectedVersionId = null,
@@ -258,9 +261,7 @@ export async function QualityOverview({
         <div className="space-y-2">
           <div className="space-y-0.5">
             <h2 className="text-sm font-semibold leading-5">{t("title")}</h2>
-            <p className="text-muted-foreground text-xs">
-              {t("description")}
-            </p>
+            <p className="text-muted-foreground text-xs">{t("description")}</p>
           </div>
           <QualityVersionFilter
             selectedVersionId={selectedVersionId}
@@ -309,22 +310,20 @@ export async function QualityOverview({
               t("scorePoint", { date, score, turns }),
             thumbsDownPoint: (date, count) =>
               t("thumbsDownPoint", { date, count }),
-            thumbsUpPoint: (date, count) =>
-              t("thumbsUpPoint", { date, count }),
+            thumbsUpPoint: (date, count) => t("thumbsUpPoint", { date, count }),
           }}
         />
       </div>
       <div className="overflow-x-auto border-t">
         <table className="w-full text-xs">
+          <caption className="text-muted-foreground px-4 py-2 text-left font-medium">
+            {t("realRunsByVersion")}
+          </caption>
           <thead className="text-muted-foreground">
             <tr className="[&>th]:px-4 [&>th]:py-2 [&>th]:text-left [&>th]:font-medium">
               <th>{t("version")}</th>
               <th className="text-right!">{t("turns")}</th>
               <th className="text-right!">{t("avgScore")}</th>
-              <th className="text-right!">{t("labRuns")}</th>
-              <th className="text-right!">{t("labPassRate")}</th>
-              <th className="text-right!">{t("labJudge")}</th>
-              <th>{t("verdicts")}</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -349,30 +348,6 @@ export async function QualityOverview({
                   )}
                 >
                   {version.avgScore ?? "—"}
-                </td>
-                <td className="text-right">{version.labRuns}</td>
-                <td className="text-right">
-                  {version.labPassRate === null
-                    ? "—"
-                    : `${version.labPassRate}%`}
-                </td>
-                <td
-                  className={cn("text-right", scoreTone(version.labAvgJudge))}
-                >
-                  {version.labAvgJudge ?? "—"}
-                </td>
-                <td className="text-muted-foreground">
-                  <span className="text-semantic-success">
-                    {version.labVerdicts.pass}
-                  </span>
-                  {" / "}
-                  <span className="text-semantic-warning">
-                    {version.labVerdicts.weak}
-                  </span>
-                  {" / "}
-                  <span className="text-semantic-destructive">
-                    {version.labVerdicts.fail}
-                  </span>
                 </td>
               </tr>
             ))}
