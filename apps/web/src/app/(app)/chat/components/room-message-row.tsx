@@ -21,6 +21,7 @@ import {
 import { useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -137,7 +138,13 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
 
-function MessageEditedLabel({ editedAt }: { editedAt: Date | string }) {
+function MessageEditedLabel({
+  editedAt,
+  className,
+}: {
+  editedAt: Date | string;
+  className?: string;
+}) {
   const t = useTranslations("App.Channels");
   const localCalendarReady = useClientLocalCalendarReady();
   const when = localCalendarReady ? formatMessageDateTime(editedAt) : null;
@@ -145,7 +152,7 @@ function MessageEditedLabel({ editedAt }: { editedAt: Date | string }) {
 
   return (
     <span
-      className="text-muted-foreground text-xs leading-none"
+      className={cn("text-muted-foreground text-xs leading-none", className)}
       title={editedWhen}
     >
       <span>{t("Edit.edited")}</span>
@@ -648,6 +655,7 @@ function ChannelMessageBody({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  trailing,
 }: {
   messageId: string;
   content: string;
@@ -660,6 +668,7 @@ function ChannelMessageBody({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
+  trailing?: ReactNode;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -681,6 +690,7 @@ function ChannelMessageBody({
         )}
       >
         {content.trim()}
+        {trailing}
       </div>
     );
   }
@@ -693,6 +703,7 @@ function ChannelMessageBody({
         className={cn(
           "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
+          trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
         )}
       >
         <ChannelMessageText
@@ -707,6 +718,7 @@ function ChannelMessageBody({
           onOpenDirectMessage={onOpenDirectMessage}
           openingDirectParticipantKey={openingDirectParticipantKey}
         />
+        {trailing}
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
         <button
@@ -2152,9 +2164,6 @@ export function ChatMessageRow({
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
-        {isContinuation && showEdited && editedAt != null ? (
-          <MessageEditedLabel editedAt={editedAt} />
-        ) : null}
         {isContinuation ? null : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
@@ -2273,6 +2282,14 @@ export function ChatMessageRow({
                     canOpenHumanDirect={canOpenHumanDirect}
                     onOpenDirectMessage={onOpenDirectMessage}
                     openingDirectParticipantKey={openingDirectParticipantKey}
+                    trailing={
+                      isContinuation && showEdited && editedAt != null ? (
+                        <MessageEditedLabel
+                          editedAt={editedAt}
+                          className="ms-1.5 inline"
+                        />
+                      ) : null
+                    }
                   />
                   <MessageUnfurlList
                     unfurls={message.unfurls}

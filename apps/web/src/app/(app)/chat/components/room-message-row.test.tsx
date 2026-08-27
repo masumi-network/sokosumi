@@ -1450,7 +1450,7 @@ describe("ChatMessageRow", () => {
     expect(screen.getByRole("time").parentElement).toContainElement(label);
   });
 
-  it("puts the edited cue above the continuation body, not after a quote", () => {
+  it("appends the edited cue after continuation body text, not above a quote", () => {
     renderRow({
       isContinuation: true,
       message: userMessage({
@@ -1465,6 +1465,7 @@ describe("ChatMessageRow", () => {
     });
 
     const label = screen.getByText("Edit.edited");
+    const body = screen.getByText("Follow-up");
     const quote = screen.getByRole("button", {
       name: "Jump to message from Bob",
     });
@@ -1478,7 +1479,10 @@ describe("ChatMessageRow", () => {
     ).not.toContainElement(label);
     expect(quote).not.toContainElement(label);
     expect(
-      label.compareDocumentPosition(quote) & Node.DOCUMENT_POSITION_FOLLOWING,
+      body.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      quote.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
