@@ -169,7 +169,7 @@ const resultHash = hashResult(resultString, purchaserId);
 
 ## Testing
 
-Tests are colocated in `__tests__/` next to the code they cover.
+Place `foo.test.ts` next to `foo.ts`. Use `__tests__/` only for tests that do not map 1:1 to a source file.
 
 Run tests with:
 
