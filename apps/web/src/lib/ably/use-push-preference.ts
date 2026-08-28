@@ -104,9 +104,9 @@ export interface PushPreference {
   canToggleAccount: boolean;
   /**
    * Whether the device row may be toggled. Adds to `canToggleAccount` that this
-   * browser can subscribe, and that there is something here to change: with the
-   * account gate closed and no subscription held, turning it on would spend a
-   * permission prompt on a browser the gate then silences.
+   * browser can subscribe, and that account consent stands. The account row is
+   * the master switch: with consent withdrawn, no device receives anything, so
+   * this row greys out rather than offering a change nobody could hear.
    */
   canToggleDevice: boolean;
   /** Whether a save is in flight. Each row refuses a second change until it lands. */
@@ -311,14 +311,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     isSupported,
     isBlocked,
     canToggleAccount,
-    // Unlocked while the account is off if this browser holds a subscription,
-    // so the reader can still drop this device (story 8). With nothing to drop
-    // and the account gate closed, turning it on would spend a permission
-    // prompt on a browser the gate then silences.
+    // The account row is the master switch: with consent withdrawn, no device
+    // receives anything, so this row greys out rather than offering a change
+    // that would alter nothing the reader can hear.
     canToggleDevice:
-      canToggleAccount &&
-      canSubscribeHere &&
-      (accountOptIn === true || hasPushSubscription),
+      canToggleAccount && canSubscribeHere && accountOptIn === true,
     isSaving,
     setAccountEnabled,
     setDeviceEnabled,

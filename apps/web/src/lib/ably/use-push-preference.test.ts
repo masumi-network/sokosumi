@@ -235,7 +235,7 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(false);
   });
 
-  it("still lets a subscribed browser drop itself while the account is off", async () => {
+  it("locks the device row while the account is off, subscribed or not", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(false);
 
@@ -245,23 +245,10 @@ describe("usePushPreference", () => {
 
     await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
     expect(result.current.isAccountEnabled).toBe(false);
-    // Reported honestly: this browser would wake up if consent came back, and
-    // story 8 says the reader may drop it without touching the others.
+    // Reported honestly: this browser would wake up if consent came back.
     expect(result.current.isDeviceEnabled).toBe(true);
-    expect(result.current.canToggleDevice).toBe(true);
-  });
-
-  it("locks the device row when the account is off and nothing is subscribed", async () => {
-    setDeviceSubscribed(false);
-    setAccountOptIn(false);
-
-    const { result } = renderHook(() => usePushPreference("user_1"), {
-      wrapper,
-    });
-
-    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
-    // Subscribing here would spend a permission prompt on a browser the
-    // account gate then silences.
+    // The account row is the master switch. With consent withdrawn, no device
+    // receives anything, so changing this one alters nothing the reader hears.
     expect(result.current.canToggleDevice).toBe(false);
   });
 
