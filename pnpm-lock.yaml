@@ -579,6 +579,9 @@ importers:
       '@sokosumi/utils':
         specifier: workspace:*
         version: link:../utils
+      neverthrow:
+        specifier: 8.2.0
+        version: 8.2.0
       pg:
         specifier: 8.23.0
         version: 8.23.0
