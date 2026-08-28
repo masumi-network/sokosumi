@@ -460,7 +460,7 @@ describe("handleInvoicePaidEvent", () => {
             referenceId: {
               startsWith: "member:",
               endsWith: escapeStringForLike(
-                ":in_org_cycle_retry_membership_changed:subscription",
+                `:in_org_cycle_retry_membership_changed:subscription`,
               ),
             },
           },
@@ -848,6 +848,53 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(orgCall?.data.amount).toBe(BigInt("8750000000000"));
     expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
+  });
+
+  it("does not mint an org-owned invoice grant when the org invoice sentinel fingerprint exists", async () => {
+    mockOrganizationInvoiceContext([{ role: "owner", userId: "owner-1" }]);
+    mockSubscriptionCatalog();
+    findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue({
+      id: "org-invoice-sentinel",
+    });
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_1Abc_sentinel",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
+    expect(
+      findExistingOrganizationInvoiceSubscriptionBucketMock,
+    ).toHaveBeenCalledWith({
+      select: { id: true },
+      where: {
+        organizationId: "org-1",
+        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+        OR: [
+          {
+            referenceId: buildOrganizationInvoiceCreditReferenceId(
+              "org-1",
+              "in_1Abc_sentinel",
+              "subscription",
+            ),
+          },
+          {
+            referenceId: {
+              startsWith: "member:",
+              endsWith: escapeStringForLike(`:in_1Abc_sentinel:subscription`),
+            },
+          },
+        ],
+      },
+    });
   });
 
   it("does not mint an org-owned invoice grant when leftover member invoice rows exist", async () => {
