@@ -219,7 +219,7 @@
             "unauthorizedAction": "Anmelden"
           },
           "unassignSeatTitle": "Seat entfernen",
-          "unassignSeatDescription": "Wenn du {member} den bezahlten Seat entziehst, erhält die Person künftig keine Subscription-Credits mehr und stattdessen kostenlose monatliche Credits. Bereits gutgeschriebene Credits aus dem laufenden Zeitraum bleiben bis zum Ablauf bestehen."
+          "unassignSeatDescription": "Wenn du {member} den zugewiesenen Seat entziehst, kann die Person den Organisations-Credit-Pool nicht mehr ausgeben und keine bezahlte Coworker-Arbeit starten. Menschlicher Chat und bestehende Tasks bleiben. Credits des laufenden Zeitraums bleiben im Organisations-Pool bis zum Ablauf."
         },
         "assignSeat": "Seat zuweisen",
         "unassignSeat": "Seat entfernen"
@@ -4495,7 +4495,7 @@
         },
         "Seats": {
           "title": "Seat Übersicht",
-          "description": "Gekaufte Seats sind die Kapazität deines bezahlten Plans. Mitglieder mit einem bezahlten Seat erhalten Subscription-Credits. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
+          "description": "Gekaufte Seats sind die Kapazität deines bezahlten Plans. Zugewiesene Seats geben den gemeinsamen Organisations-Credit-Pool aus. Mitglieder ohne zugewiesenen Seat behalten menschlichen Chat und können bestehende Tasks lesen.",
           "purchased": "Gekauft",
           "assigned": "Zugewiesen",
           "unused": "Ungenutzt",

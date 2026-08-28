@@ -105,14 +105,17 @@ describe("reconcileActiveStripeBackedSubscription", () => {
       "./stripe-backed-subscription.service"
     );
 
-    await reconcileActiveStripeBackedSubscription({
-      id: "sub_local_paid",
-      plan: "pro",
-      referenceId: "org-enterprise",
-      seats: 5,
-      status: "active",
-      stripeSubscriptionId: "sub_enterprise",
-    });
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: true },
+    );
 
     expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
       "org-enterprise",
@@ -130,16 +133,48 @@ describe("reconcileActiveStripeBackedSubscription", () => {
       "./stripe-backed-subscription.service"
     );
 
-    await reconcileActiveStripeBackedSubscription({
-      id: "sub_local_paid",
-      plan: "pro",
-      referenceId: "org-enterprise",
-      seats: 5,
-      status: "active",
-      stripeSubscriptionId: "sub_enterprise",
-    });
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: true },
+    );
 
     expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
+  });
+
+  it("does not auto-assign seats on later subscription updates when none are assigned", async () => {
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+    memberAssignedCountMock.mockResolvedValue(0);
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: false },
+    );
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).not.toHaveBeenCalled();
+    expect(unassignSeatsOverPurchasedCapacityMock).toHaveBeenCalledWith(
       "org-enterprise",
       5,
       expect.anything(),

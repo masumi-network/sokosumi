@@ -21,6 +21,9 @@ interface StripeBackedSubscriptionForReconciliation {
 
 export async function reconcileActiveStripeBackedSubscription(
   localSubscription: StripeBackedSubscriptionForReconciliation | null,
+  options: { autoAssignIfUnassigned: boolean } = {
+    autoAssignIfUnassigned: false,
+  },
 ): Promise<void> {
   if (
     !localSubscription?.stripeSubscriptionId ||
@@ -65,6 +68,16 @@ export async function reconcileActiveStripeBackedSubscription(
       return;
     }
 
+    await unassignSeatsOverPurchasedCapacity(
+      organization.id,
+      localSubscription.seats,
+      tx,
+    );
+
+    if (!options.autoAssignIfUnassigned) {
+      return;
+    }
+
     const assignedSeats = await tx.member.count({
       where: {
         organizationId: organization.id,
@@ -74,11 +87,6 @@ export async function reconcileActiveStripeBackedSubscription(
       },
     });
     if (assignedSeats > 0) {
-      await unassignSeatsOverPurchasedCapacity(
-        organization.id,
-        localSubscription.seats,
-        tx,
-      );
       return;
     }
 
@@ -107,7 +115,9 @@ export async function handleCheckoutSessionCompletedEvent(
       prisma,
     );
 
-  await reconcileActiveStripeBackedSubscription(localSubscription);
+  await reconcileActiveStripeBackedSubscription(localSubscription, {
+    autoAssignIfUnassigned: true,
+  });
 }
 
 export async function handleSubscriptionDeletedEvent(

@@ -18,6 +18,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -155,6 +156,7 @@ export function ChatParticipantHoverCard({
   closeDelay = 100,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
 
   if (!profile) {
     return children;
@@ -170,6 +172,7 @@ export function ChatParticipantHoverCard({
     profile,
     currentUserId,
     canOpenHumanDirect,
+    hasAssignedSeat,
     onOpenDirect,
   });
 

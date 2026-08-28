@@ -29,15 +29,23 @@ export function canShowOpenDirect(options: {
   profile: ChatParticipantHoverProfile;
   currentUserId: string | undefined;
   canOpenHumanDirect: boolean;
+  hasAssignedSeat?: boolean;
   onOpenDirect?: (profile: ChatParticipantHoverProfile) => void;
 }): boolean {
-  const { profile, currentUserId, canOpenHumanDirect, onOpenDirect } = options;
+  const {
+    profile,
+    currentUserId,
+    canOpenHumanDirect,
+    hasAssignedSeat = false,
+    onOpenDirect,
+  } = options;
   if (!onOpenDirect) return false;
   if (profile.kind === "human") {
     if (!canOpenHumanDirect) return false;
     if (currentUserId && profile.id === currentUserId) return false;
+    return true;
   }
-  return true;
+  return hasAssignedSeat;
 }
 
 export async function openDirectWithParticipant(options: {

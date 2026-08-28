@@ -35,6 +35,9 @@ export async function autoAssignSeatsOnPaidSubscribe(
   let assignedCount = members.filter(
     (member) => member.seatAssignedAt != null,
   ).length;
+  if (assignedCount > 0) {
+    return 0;
+  }
   let newlyAssigned = 0;
 
   for (const member of ordered) {

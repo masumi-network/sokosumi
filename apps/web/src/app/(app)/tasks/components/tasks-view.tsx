@@ -345,7 +345,7 @@ export function TasksView({
   initialAssigneeId = null,
   initialCreateTaskPrompt = null,
   createTaskModalResetKey = "default",
-  canCreateTask = true,
+  canCreateTask = false,
   labels,
 }: TasksViewProps) {
   const router = useRouter();
@@ -1342,6 +1342,7 @@ export function TasksView({
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
+                      canCreateTask &&
                       isTaskDnDDraggable(task) &&
                       isTaskDraggableForViewFilters(
                         task,

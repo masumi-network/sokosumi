@@ -895,6 +895,7 @@ export function RoomsClient({
   async function handleOpenDirectMessage(
     profile: ChatParticipantHoverProfile,
   ): Promise<void> {
+    if (profile.kind === "coworker" && !hasAssignedSeat) return;
     if (openingDirectKey) return;
     setOpeningDirectKey(participantDirectKey(profile));
     try {

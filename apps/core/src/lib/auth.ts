@@ -230,15 +230,19 @@ type StripeBackedLocalSubscription = NonNullable<
 async function handleStripeBackedSubscriptionLifecycle({
   event,
   subscription,
+  autoAssignIfUnassigned,
 }: {
   event: {
     id: string;
     type: string;
   };
   subscription: StripeBackedLocalSubscription;
+  autoAssignIfUnassigned: boolean;
 }): Promise<void> {
   try {
-    await reconcileActiveStripeBackedSubscription(subscription);
+    await reconcileActiveStripeBackedSubscription(subscription, {
+      autoAssignIfUnassigned,
+    });
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
@@ -827,8 +831,16 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(),
-        onSubscriptionCreated: handleStripeBackedSubscriptionLifecycle,
-        onSubscriptionUpdate: handleStripeBackedSubscriptionLifecycle,
+        onSubscriptionCreated: (params) =>
+          handleStripeBackedSubscriptionLifecycle({
+            ...params,
+            autoAssignIfUnassigned: true,
+          }),
+        onSubscriptionUpdate: (params) =>
+          handleStripeBackedSubscriptionLifecycle({
+            ...params,
+            autoAssignIfUnassigned: false,
+          }),
         getCheckoutSessionParams: async () => ({
           params: {
             automatic_tax: {

@@ -896,6 +896,9 @@ describe("core auth config", () => {
 
       expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
         subscription,
+        {
+          autoAssignIfUnassigned: callbackName === "onSubscriptionCreated",
+        },
       );
     },
   );

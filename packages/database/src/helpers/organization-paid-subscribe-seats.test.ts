@@ -70,6 +70,38 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
     );
   });
 
+  it("does not fill unused seats when some members are already seated", async () => {
+    const updateMock = vi.fn();
+    const tx = {
+      member: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "m-seated",
+            role: "member",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            seatAssignedAt: new Date("2026-01-02T00:00:00.000Z"),
+          },
+          {
+            id: "m-open",
+            role: "member",
+            createdAt: new Date("2026-01-03T00:00:00.000Z"),
+            seatAssignedAt: null,
+          },
+        ]),
+        update: updateMock,
+      },
+    };
+
+    const newlyAssigned = await autoAssignSeatsOnPaidSubscribe(
+      "org-1",
+      5,
+      tx as never,
+    );
+
+    assert.equal(newlyAssigned, 0);
+    assert.equal(updateMock.mock.calls.length, 0);
+  });
+
   it("does not unassign existing seats or exceed capacity", async () => {
     const updateMock = vi.fn();
     const tx = {

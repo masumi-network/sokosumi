@@ -219,7 +219,7 @@
             "unauthorizedAction": "Iniciar sesión"
           },
           "unassignSeatTitle": "Quitar Seat",
-          "unassignSeatDescription": "Al quitar el Seat de pago de {member}, dejará de recibir créditos de suscripción y pasará a recibir créditos mensuales gratuitos. Los créditos del periodo actual permanecen hasta que expiren."
+          "unassignSeatDescription": "Al quitar el Seat asignado de {member}, dejará de gastar el pool de créditos de la organización y de iniciar trabajo de coworker de pago. El chat humano y las Tasks existentes se mantienen. Los créditos del periodo actual permanecen en el pool de la organización hasta que expiren."
         },
         "assignSeat": "Asignar Seat",
         "unassignSeat": "Quitar Seat"
@@ -4495,7 +4495,7 @@
         },
         "Seats": {
           "title": "Resumen de Seats",
-          "description": "Los Seats comprados son la capacidad de tu plan de pago. Los miembros con un Seat de pago reciben créditos de suscripción. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
+          "description": "Los Seats comprados son la capacidad de tu plan de pago. Los Seats asignados gastan el pool compartido de créditos de la organización. Los miembros sin Seat asignado conservan el chat humano y pueden leer las Tasks existentes.",
           "purchased": "Comprados",
           "assigned": "Asignados",
           "unused": "Sin usar",

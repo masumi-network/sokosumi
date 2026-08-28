@@ -204,7 +204,7 @@
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
           "removeDescription": "Are you sure you want to remove {member} from the organization?",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire.",
+          "unassignSeatDescription": "Removing {member}'s assigned Seat stops them spending the organization credit pool and starting coworker-paid work. Human chat and existing Tasks stay. Current-period credits remain in the organization pool until they expire.",
           "confirm": "Confirm",
           "cancel": "Cancel",
           "Success": {
@@ -4526,7 +4526,7 @@
         },
         "Seats": {
           "title": "Seats overview",
-          "description": "Purchased seats are your paid plan capacity. Members with a paid seat receive subscription credits. Members without a paid seat receive free monthly credits.",
+          "description": "Purchased Seats are your paid plan capacity. Assigned Seats spend the shared organization credit pool. Members without an assigned Seat keep human chat and can read existing Tasks.",
           "purchased": "Purchased",
           "assigned": "Assigned",
           "unused": "Unused",
