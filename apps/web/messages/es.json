@@ -4657,6 +4657,7 @@
         "pushOtherDevicesHint": "Este interruptor sigue controlando tus otros dispositivos.",
         "pushAriaLabel": "Activar/desactivar las notificaciones push de la cuenta",
         "pushEnabledSuccess": "Notificaciones push activadas",
+        "pushEnabledOtherDevicesSuccess": "Notificaciones push activadas en tus otros dispositivos",
         "pushDisabledEverywhereSuccess": "Notificaciones push desactivadas en todos tus dispositivos",
         "pushDeviceTitle": "Este dispositivo",
         "pushDeviceDescription": "Muestra los avisos en este navegador.",

@@ -15,6 +15,7 @@ const DEFAULTS: PushPreference = {
   isBlocked: false,
   canToggleAccount: true,
   canToggleDevice: true,
+  canSubscribeHere: true,
   isSaving: false,
   setAccountEnabled: vi.fn(),
   setDeviceEnabled: vi.fn(),
@@ -144,6 +145,28 @@ describe("PushNotificationSetting", () => {
       false,
     );
     expect(vi.mocked(pushPreference.setAccountEnabled)).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The hook writes consent without subscribing when this browser cannot push,
+   * so a flat "enabled" would contradict the "not available in this browser"
+   * sitting in the row right under it.
+   */
+  it("says the account write reached only the other devices", async () => {
+    renderWith({
+      isAccountEnabled: false,
+      isSupported: false,
+      canSubscribeHere: false,
+    });
+
+    await userEvent.click(accountSwitch());
+
+    // The handler closes over the clicked value, so `success` takes nothing.
+    const options = vi.mocked(toast.promise).mock.calls.at(-1)?.[1] as {
+      success: () => string;
+    };
+
+    expect(options.success()).toBe("pushEnabledOtherDevicesSuccess");
   });
 
   /**

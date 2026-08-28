@@ -50,11 +50,6 @@ function isPushSupported(): boolean {
  * re-activates nothing, and it runs in the settings card rather than on app
  * open. It also cannot see whether the device is still subscribed to the
  * notifications channel on Ably's side. SOK-876 owns both gaps.
- *
- * One consequence until then: a device that lost its subscription reads as off
- * and so offers no "all devices" disable, leaving account-wide consent standing
- * until the reader turns push on again here. Self-heal closes that with the
- * rest.
  */
 async function readPushSubscription(): Promise<boolean> {
   if (!isPushSupported() || getBrowserNotificationPermission() !== "granted") {
@@ -109,6 +104,12 @@ export interface PushPreference {
    * this row greys out rather than offering a change nobody could hear.
    */
   canToggleDevice: boolean;
+  /**
+   * Whether this browser can become a push device right now. The account row
+   * reads it to say what its write actually did: with no push available here,
+   * turning consent on reaches only the reader's other devices.
+   */
+  canSubscribeHere: boolean;
   /** Whether a save is in flight. Each row refuses a second change until it lands. */
   isSaving: boolean;
   /** Rejects on failure so the view can surface its own error toast. */
@@ -249,7 +250,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    * rows read this, and neither may promise a subscription it cannot make.
    */
   const isBlocked = isSupported === true && permission === "denied";
-  const canSubscribeHere = isSupported === true && !isBlocked;
+  const canSubscribeHere = isSupported === true && permission !== "denied";
 
   const setAccountEnabled = useCallback(
     (next: boolean) => {
@@ -301,21 +302,22 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     [changePushSubscription, subscribeThisBrowser],
   );
 
-  const canToggleAccount = Boolean(userId) && accountOptIn !== null;
+  const hasSession = Boolean(userId);
+  const isAccountEnabled = accountOptIn === true;
 
   return {
-    isAccountEnabled: accountOptIn === true,
+    isAccountEnabled,
     // The browser's own state, reported even while account consent is off, so
     // the reader can see which of their devices would wake up when it returns.
     isDeviceEnabled: hasPushSubscription,
     isSupported,
     isBlocked,
-    canToggleAccount,
+    canToggleAccount: hasSession && accountOptIn !== null,
     // The account row is the master switch: with consent withdrawn, no device
     // receives anything, so this row greys out rather than offering a change
     // that would alter nothing the reader can hear.
-    canToggleDevice:
-      canToggleAccount && canSubscribeHere && accountOptIn === true,
+    canToggleDevice: hasSession && canSubscribeHere && isAccountEnabled,
+    canSubscribeHere,
     isSaving,
     setAccountEnabled,
     setDeviceEnabled,

@@ -4657,6 +4657,7 @@
         "pushOtherDevicesHint": "Dieser Schalter steuert weiterhin deine anderen Geräte.",
         "pushAriaLabel": "Push-Benachrichtigungen für das Konto umschalten",
         "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",
+        "pushEnabledOtherDevicesSuccess": "Push-Benachrichtigungen auf deinen anderen Geräten aktiviert",
         "pushDisabledEverywhereSuccess": "Push-Benachrichtigungen auf allen Geräten deaktiviert",
         "pushDeviceTitle": "Dieses Gerät",
         "pushDeviceDescription": "Zeige die Meldungen in diesem Browser.",

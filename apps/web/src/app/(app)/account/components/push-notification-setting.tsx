@@ -39,12 +39,16 @@ export function PushNotificationSetting() {
 
   // Both messages above describe this browser, next to a switch that writes the
   // account. Saying what the switch still does keeps it from reading as dead.
-  const cannotSubscribeHere = push.isSupported === false || push.isBlocked;
+  //
+  // Not `!push.canSubscribeHere`: that answers "may I subscribe right now", and
+  // says no while the mount read is still out. This says "we know this browser
+  // cannot", so an unread answer stays silent rather than claiming a block.
+  const knownUnableHere = push.isSupported === false || push.isBlocked;
 
   // The account-off wording waits for `canToggleAccount`, so a preference still
   // in flight does not read as an account that is switched off.
   let deviceDescription = t("pushDeviceDescription");
-  if (cannotSubscribeHere) {
+  if (knownUnableHere) {
     deviceDescription = t("pushDeviceUnavailableDescription");
   } else if (push.canToggleAccount && !push.isAccountEnabled) {
     deviceDescription = t("pushDeviceInactiveDescription");
@@ -86,8 +90,18 @@ export function PushNotificationSetting() {
   const handleAccountToggle = toggleHandler(
     push.canToggleAccount,
     push.setAccountEnabled,
-    (next) =>
-      next ? t("pushEnabledSuccess") : t("pushDisabledEverywhereSuccess"),
+    (next) => {
+      if (!next) {
+        return t("pushDisabledEverywhereSuccess");
+      }
+
+      // The same branch the hook took. With no push available here the write
+      // reached only the reader's other devices, and a flat "enabled" would
+      // contradict the "not available in this browser" sitting right under it.
+      return push.canSubscribeHere
+        ? t("pushEnabledSuccess")
+        : t("pushEnabledOtherDevicesSuccess");
+    },
   );
 
   const handleDeviceToggle = toggleHandler(
@@ -106,7 +120,7 @@ export function PushNotificationSetting() {
             className="text-muted-foreground text-sm leading-6"
             id={accountDescriptionId}
           >
-            {cannotSubscribeHere
+            {knownUnableHere
               ? `${accountDescription} ${t("pushOtherDevicesHint")}`
               : accountDescription}
           </p>

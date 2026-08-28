@@ -235,7 +235,7 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(false);
   });
 
-  it("locks the device row while the account is off, subscribed or not", async () => {
+  it("locks the device row while the account is off", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(false);
 
@@ -270,7 +270,9 @@ describe("usePushPreference", () => {
     expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
     expect(activatePushMock).not.toHaveBeenCalled();
     expect(result.current.isAccountEnabled).toBe(true);
-    // Nothing here to subscribe, so the device row stays locked.
+    // Nothing here to subscribe, so the device row stays locked and the view
+    // reports the write as reaching the reader's other devices.
+    expect(result.current.canSubscribeHere).toBe(false);
     expect(result.current.canToggleDevice).toBe(false);
   });
 
