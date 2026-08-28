@@ -26,6 +26,7 @@ import mountGetTaskSummary from "./summary/get.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
+  requireOrganizationProductSeat: true,
 });
 
 mountGetTasks(app);

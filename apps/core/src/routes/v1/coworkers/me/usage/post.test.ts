@@ -228,8 +228,7 @@ describe("POST /me/usage", () => {
   it("returns 403 when the member has no assigned organization seat", async () => {
     vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
       new HTTPException(403, {
-        message:
-          "An assigned seat is required to start coworker-paid work in this organization",
+        message: "An assigned seat is required to use this organization",
         cause: { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
       }),
     );

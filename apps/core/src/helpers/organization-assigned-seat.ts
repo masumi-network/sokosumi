@@ -15,8 +15,7 @@ export async function requireAssignedOrganizationSeat(
     return;
   }
 
-  throw forbidden(
-    "An assigned seat is required to start coworker-paid work in this organization",
-    { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
-  );
+  throw forbidden("An assigned seat is required to use this organization", {
+    kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
+  });
 }

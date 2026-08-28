@@ -2910,6 +2910,11 @@
           "back": "Atrás",
           "chat": "Chat"
         },
+        "SeatRequired": {
+          "title": "Se requiere un Seat asignado",
+          "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
+          "hint": "Pide a un propietario o admin que te asigne un Seat."
+        },
         "ChatLists": {
           "title": "Chats Recientes",
           "noChats": "Aún no hay chats",

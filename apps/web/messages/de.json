@@ -2910,6 +2910,11 @@
           "back": "Zurück",
           "chat": "Chat"
         },
+        "SeatRequired": {
+          "title": "Zugewiesener Seat erforderlich",
+          "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
+          "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
+        },
         "ChatLists": {
           "title": "Letzte Chats",
           "noChats": "Noch keine Chats",

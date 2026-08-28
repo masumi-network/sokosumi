@@ -40,8 +40,7 @@ describe("requireAssignedOrganizationSeat", () => {
       requireAssignedOrganizationSeat("user-1", "org-1"),
     ).rejects.toMatchObject({
       status: 403,
-      message:
-        "An assigned seat is required to start coworker-paid work in this organization",
+      message: "An assigned seat is required to use this organization",
       cause: { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
     } satisfies Partial<HTTPException>);
   });

@@ -300,8 +300,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     });
     vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
       new HTTPException(403, {
-        message:
-          "An assigned seat is required to start coworker-paid work in this organization",
+        message: "An assigned seat is required to use this organization",
       }),
     );
 

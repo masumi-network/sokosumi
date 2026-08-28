@@ -2910,6 +2910,11 @@
           "back": "Back",
           "chat": "Chat"
         },
+        "SeatRequired": {
+          "title": "Assigned seat required",
+          "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
+          "hint": "Ask an owner or admin to assign you a Seat."
+        },
         "ChatLists": {
           "title": "Recent Chats",
           "noChats": "No chats yet",
