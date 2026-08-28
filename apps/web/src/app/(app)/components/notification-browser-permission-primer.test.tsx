@@ -20,17 +20,26 @@ function setNotificationPermission(permission: NotificationPermission): void {
   );
 }
 
-/** What `isPushSupported` reads. Absent in happy-dom, so both are stubbed. */
+/** Both are absent in happy-dom, and the card reads them separately. */
 function setPushSupported(supported: boolean): void {
   if (supported) {
     vi.stubGlobal("PushManager", function PushManager() {});
   } else {
     Reflect.deleteProperty(globalThis, "PushManager");
   }
-  Object.defineProperty(window.navigator, "serviceWorker", {
-    configurable: true,
-    value: supported ? {} : undefined,
-  });
+}
+
+function setServiceWorkerSupported(supported: boolean): void {
+  if (supported) {
+    Object.defineProperty(window.navigator, "serviceWorker", {
+      configurable: true,
+      value: {},
+    });
+    return;
+  }
+
+  // Deleted, not undefined: the check is `"serviceWorker" in navigator`.
+  Reflect.deleteProperty(window.navigator, "serviceWorker");
 }
 
 /** Translations are mocked to the key, so the link text is the key. */
@@ -40,6 +49,7 @@ const settingsLink = () =>
 describe("NotificationBrowserPermissionPrimer", () => {
   beforeEach(() => {
     setPushSupported(true);
+    setServiceWorkerSupported(true);
   });
 
   afterEach(() => {
@@ -53,7 +63,7 @@ describe("NotificationBrowserPermissionPrimer", () => {
    * closed the app, and heard nothing. The account page runs the whole
    * gesture, so the card sends them there instead.
    */
-  it("sends the reader to the push settings without asking the browser", async () => {
+  it("sends a push-capable browser to the settings without asking it", async () => {
     setNotificationPermission("default");
     render(<NotificationBrowserPermissionPrimer />);
 
@@ -99,6 +109,7 @@ describe("NotificationBrowserPermissionPrimer", () => {
    */
   it("asks for the permission itself when this browser cannot push", async () => {
     setPushSupported(false);
+    setServiceWorkerSupported(true);
     setNotificationPermission("default");
     requestPermissionMock.mockResolvedValue("granted");
     render(<NotificationBrowserPermissionPrimer />);
@@ -109,6 +120,20 @@ describe("NotificationBrowserPermissionPrimer", () => {
     );
 
     expect(requestPermissionMock).toHaveBeenCalled();
+  });
+
+  /**
+   * The worker's registration is the only thing that renders a banner
+   * (ADR-0023). With no worker, the permission would show nothing, so the card
+   * asks for neither it nor a trip to a settings page that cannot help.
+   */
+  it("offers nothing when no worker can render a banner", () => {
+    setPushSupported(false);
+    setServiceWorkerSupported(false);
+    setNotificationPermission("default");
+    const { container } = render(<NotificationBrowserPermissionPrimer />);
+
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("stays out of the way once notifications are allowed", () => {
