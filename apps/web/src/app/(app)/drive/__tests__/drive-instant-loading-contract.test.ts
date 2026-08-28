@@ -9,7 +9,7 @@ const DYNAMIC_SHELL_API_RE =
   /\b(?:cookies|headers|draftMode|connection|getTranslations|getFormatter|getLocale|getMessages|getSession)\s*\(/;
 
 function readDrive(rel: string): string {
-  return readFileSync(join(here, rel), "utf8");
+  return readFileSync(join(here, "..", rel), "utf8");
 }
 
 function stripComments(source: string): string {
