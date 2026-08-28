@@ -28,10 +28,10 @@ interface JoinExternalChannelAsGuestArgs {
 }
 
 /**
- * Create-only guest membership on a live External channel. Same invariants as
- * invite accept / link claim: no host-org Member, no demotion of an existing
- * room member, idempotent when already a guest. Caller publishes realtime
- * after the transaction commits.
+ * Create-only guest membership on a live External channel. Same invariants for
+ * admin add, invite-link claim, and email invite accept: no host-org Member, no
+ * demotion of an existing room member, idempotent when already a guest. Caller
+ * publishes realtime after the transaction commits.
  */
 export async function joinExternalChannelAsGuest(
   tx: Prisma.TransactionClient,
