@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { Channel, TaskStatus } from "@sokosumi/database";
+import { Channel, TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
@@ -123,6 +123,21 @@ export const taskEventSchema = z
       .union([taskStatusSchema, z.null()])
       .optional()
       .openapi({ example: TaskStatus.RUNNING }),
+    scheduleKind: z.enum(TaskScheduleEventKind).nullish().openapi({
+      description: "Schedule activity represented by this event",
+      example: TaskScheduleEventKind.OCCURRENCE_SKIPPED,
+    }),
+    schedulePayload: z
+      .record(z.string(), z.unknown())
+      .nullish()
+      .openapi({
+        description: "Schedule activity details for audit and notifications",
+        example: { occurrenceKey: "occurrence-key" },
+      }),
+    scheduleOperationId: z.string().uuid().nullish().openapi({
+      description: "Idempotency identity for the schedule mutation",
+      example: "123e4567-e89b-42d3-a456-426614174000",
+    }),
   })
   .openapi("TaskEvent");
 
@@ -253,6 +268,10 @@ const taskBaseSchema = z.object({
   nextRunAt: dateTimeSchema.nullable().openapi({
     description: "Next scheduled run time for queued tasks",
     example: "2026-06-24T09:00:00.000Z",
+  }),
+  scheduleRevision: z.number().int().nonnegative().default(0).openapi({
+    description: "Revision used for optimistic schedule mutations",
+    example: 0,
   }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),

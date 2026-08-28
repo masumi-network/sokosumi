@@ -2,11 +2,17 @@
 
 import {
   buildAdHocDesignMdPrefix,
+  CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -63,6 +69,50 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   schedule?: TaskScheduleSelection;
   hadSchedule?: boolean;
   originalSchedule?: TaskScheduleSelection;
+}
+
+export interface CalendarClientUpgradeRequiredError {
+  kind: typeof CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED;
+}
+
+type TaskMutationActionResult<T> = ActionResultDto<
+  T,
+  CalendarClientUpgradeRequiredError
+>;
+
+export type CreateTaskResult = TaskMutationActionResult<{
+  taskId: string;
+  name: string;
+}>;
+export type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
+export type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
+export type CreateTaskAndLinkResult = TaskMutationActionResult<{
+  taskId: string;
+  createdTaskId: string;
+  linkId: string;
+  name: string;
+}>;
+
+function taskMutationSuccess<T>(value: T): TaskMutationActionResult<T> {
+  return toActionResult(ok(value));
+}
+
+function calendarClientUpgradeRequired<T>(): TaskMutationActionResult<T> {
+  return toActionResult(
+    err({
+      kind: CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED,
+    }),
+  );
+}
+
+function isCalendarClientUpgradeRequired(
+  error: unknown,
+): error is CoreApiRequestError {
+  return (
+    error instanceof CoreApiRequestError &&
+    error.status === 426 &&
+    error.kind === CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED
+  );
 }
 
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
@@ -429,10 +479,7 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
   }
 }
 
-export const createTask = withSession<
-  CreateTaskParameters,
-  { taskId: string; name: string }
->(
+export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     description,
     assigneeId,
@@ -455,8 +502,11 @@ export const createTask = withSession<
 
       revalidatePath("/tasks");
       revalidatePath("/projects");
-      return { taskId: task.id, name: task.name };
+      return taskMutationSuccess({ taskId: task.id, name: task.name });
     } catch (error) {
+      if (isCalendarClientUpgradeRequired(error)) {
+        return calendarClientUpgradeRequired();
+      }
       rethrowTaskActionError(
         error,
         "Failed to create task",
@@ -466,7 +516,7 @@ export const createTask = withSession<
   },
 );
 
-export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
+export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   async ({
     taskId,
     name,
@@ -563,8 +613,11 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
       }
-      return { taskId };
+      return taskMutationSuccess({ taskId });
     } catch (error) {
+      if (isCalendarClientUpgradeRequired(error)) {
+        return calendarClientUpgradeRequired();
+      }
       rethrowTaskActionError(
         error,
         "Failed to update task",
@@ -576,7 +629,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
 
 export const setTaskStatusFromDrag = withSession<
   SetTaskStatusFromDragParameters,
-  { taskId: string }
+  SetTaskStatusResult
 >(async ({ taskId, desiredStatus, comment }) => {
   try {
     const task = await taskService.getTaskById(taskId);
@@ -619,8 +672,11 @@ export const setTaskStatusFromDrag = withSession<
 
     revalidatePath("/tasks");
     revalidatePath(`/tasks/${taskId}`);
-    return { taskId };
+    return taskMutationSuccess({ taskId });
   } catch (error) {
+    if (isCalendarClientUpgradeRequired(error)) {
+      return calendarClientUpgradeRequired();
+    }
     rethrowTaskActionError(
       error,
       "Failed to update task status",
@@ -767,7 +823,7 @@ export const deleteTaskLink = withSession<
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
-  { taskId: string; createdTaskId: string; linkId: string; name: string }
+  CreateTaskAndLinkResult
 >(
   async ({
     taskId,
@@ -820,15 +876,18 @@ export const createTaskAndLink = withSession<
       });
 
       revalidateTaskMutationRoutes(normalizedTaskId, createdTask.id);
-      return {
+      return taskMutationSuccess({
         taskId: normalizedTaskId,
         createdTaskId: createdTask.id,
         linkId: link.id,
         name: createdTask.name,
-      };
+      });
     } catch (error) {
       if (createdTask) {
         await archiveCreatedTaskAfterFailure(createdTask.id);
+      }
+      if (isCalendarClientUpgradeRequired(error)) {
+        return calendarClientUpgradeRequired();
       }
       rethrowTaskActionError(
         error,

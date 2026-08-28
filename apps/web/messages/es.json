@@ -756,6 +756,11 @@
         "login": "Iniciar sesión",
         "register": "Registrarse"
       },
+      "CalendarClientUpgradeModal": {
+        "title": "Actualización necesaria",
+        "description": "Sokosumi se ha actualizado para proteger las tareas programadas. Recarga la página antes de hacer más cambios en el calendario.",
+        "reload": "Recargar Sokosumi"
+      },
       "LogoutModal": {
         "title": "¿Seguro que quieres cerrar sesión?",
         "description": "Cerrar sesión de \"{email}\" en Sokosumi.",

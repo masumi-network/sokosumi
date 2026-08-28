@@ -53,6 +53,55 @@ vi.mock("@/lib/db/prisma", () => ({
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const TASK_ID = "tsk_123";
 
+function createTaskResult(metadata: string, nextRunAt: Date) {
+  const owner = { id: "user-1", name: "Owner", image: null };
+  const assignee = {
+    id: "coworker-1",
+    name: "Coworker",
+    image: null,
+    slug: "coworker",
+  };
+
+  return {
+    id: TASK_ID,
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    ownerId: owner.id,
+    owner,
+    organizationId: null,
+    organization: null,
+    projectId: null,
+    assigneeId: assignee.id,
+    assignee,
+    creatorUserId: owner.id,
+    creatorUser: owner,
+    creatorCoworkerId: null,
+    creatorCoworker: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
+    name: "Scheduled task",
+    description: "Do scheduled work",
+    status: TaskStatus.QUEUED,
+    grantResumeStatus: null,
+    pendingVendorGrantId: null,
+    metadata,
+    nextRunAt,
+    scheduleRevision: 0,
+    events: [],
+    jobs: [],
+    files: [],
+    linksFrom: [],
+    linksTo: [],
+    share: null,
+    workspace: {
+      id: WORKSPACE_ID,
+      userId: owner.id,
+      organizationId: null,
+      organization: null,
+    },
+  };
+}
+
 function createApp(
   authContext: AuthenticationContext = {
     actor: "user",
@@ -144,5 +193,49 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(response.status).toBe(403);
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "legacy",
+      body: { mode: "once", runAt: "2099-09-24T09:00:00.000Z" },
+    },
+    {
+      name: "operation-aware",
+      body: {
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        expectedScheduleRevision: 0,
+        discardFutureExceptions: true,
+        schedule: { mode: "once", runAt: "2099-09-24T09:00:00.000Z" },
+      },
+    },
+  ])("persists $name requests as metadata version 1", async ({ body }) => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.DRAFT,
+      assigneeId: "coworker-1",
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+    });
+    taskUpdateMock.mockImplementation(async ({ data }) =>
+      createTaskResult(data.metadata, data.nextRunAt),
+    );
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const update = taskUpdateMock.mock.calls[0]?.[0];
+    expect(JSON.parse(update.data.metadata)).toMatchObject({
+      version: 1,
+      mode: "once",
+      runAt: "2099-09-24T09:00:00.000Z",
+    });
   });
 });

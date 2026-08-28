@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -101,6 +102,10 @@ const sampleProject = {
   contextMdModel: null,
   contextMdUpdatingSince: null,
   contextMdVersion: 0,
+  projectRevision: 0,
+  calendarRevision: 0,
+  closingAt: null,
+  closedAt: null,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
@@ -123,6 +128,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 
     return await next();
   });
+  app.onError(errorHandler);
 
   return app;
 }
@@ -410,14 +416,26 @@ describe("DELETE /projects/{id}", () => {
     vi.clearAllMocks();
   });
 
-  it("returns 404 when nothing deleted", async () => {
+  it("distinguishes a missing Project from a guarded Project", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 0 });
+    projectFindFirstMock.mockResolvedValue(null);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
+    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
+
+    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    const guardedResponse = await app.request(
+      `http://localhost/${PROJECT_ID}`,
+      { method: "DELETE" },
+    );
+    const guardedBody = (await guardedResponse.json()) as { kind?: string };
+
+    expect(guardedResponse.status).toBe(409);
+    expect(guardedBody.kind).toBe("project_has_calendar_history");
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 

@@ -118,7 +118,7 @@ export const getAdminMatchedChannel = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Snapshot all current Organization Members onto a live matched channel as members (admin only). Idempotent per user. Returns added / alreadyMember / totalMembers counts.
+ * Snapshot current Organization Members onto a live matched channel as members (admin only). Idempotent per user. Rejects when the organization has more than 200 Members — add in smaller waves or per user. Returns added / alreadyMember / totalMembers counts.
  */
 export const addAdminMatchedChannelParticipantsFromOrganization = <ThrowOnError extends boolean = false>(options: Options<AddAdminMatchedChannelParticipantsFromOrganizationData, ThrowOnError>): RequestResult<AddAdminMatchedChannelParticipantsFromOrganizationResponses, AddAdminMatchedChannelParticipantsFromOrganizationErrors, ThrowOnError> => (options.client ?? client).post<AddAdminMatchedChannelParticipantsFromOrganizationResponses, AddAdminMatchedChannelParticipantsFromOrganizationErrors, ThrowOnError>({
     responseTransformer: addAdminMatchedChannelParticipantsFromOrganizationResponseTransformer,
@@ -749,7 +749,7 @@ export const deleteChatsRoomsByIdInviteLinksByToken = <ThrowOnError extends bool
 });
 
 /**
- * Leave an organization chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave (ask an organization owner/admin to archive instead), and direct rooms cannot be left.
+ * Leave a chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave: ask an organization owner or admin to archive an organization room, or ask a platform admin to remove you from an org-less matched channel roster. Direct rooms cannot be left.
  */
 export const deleteChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = false>(options: Options<DeleteChatsRoomsByIdMembersMeData, ThrowOnError>): RequestResult<DeleteChatsRoomsByIdMembersMeResponses, DeleteChatsRoomsByIdMembersMeErrors, ThrowOnError> => (options.client ?? client).delete<DeleteChatsRoomsByIdMembersMeResponses, DeleteChatsRoomsByIdMembersMeErrors, ThrowOnError>({
     responseTransformer: deleteChatsRoomsByIdMembersMeResponseTransformer,

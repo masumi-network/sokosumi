@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import {
+  type CreateTaskResult,
   createTaskAndLink,
   createTaskLink,
   deleteTask,
@@ -24,15 +25,27 @@ import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
-const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =
-  vi.hoisted(() => ({
-    pushMock: vi.fn(),
-    refreshMock: vi.fn(),
-    browserCoreClientMock: {
-      getTasks: vi.fn(),
-    },
-    isMobileMock: vi.fn(),
-  }));
+const {
+  pushMock,
+  refreshMock,
+  browserCoreClientMock,
+  isMobileMock,
+  showCalendarClientUpgradeModalMock,
+} = vi.hoisted(() => ({
+  pushMock: vi.fn(),
+  refreshMock: vi.fn(),
+  browserCoreClientMock: {
+    getTasks: vi.fn(),
+  },
+  isMobileMock: vi.fn(),
+  showCalendarClientUpgradeModalMock: vi.fn(),
+}));
+
+vi.mock("@/components/modals/global-modals-context", () => ({
+  useGlobalModalsContext: () => ({
+    showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -390,7 +403,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
         briefingEnabled: boolean;
         contextMdEnabled: boolean;
       };
-    }) => Promise<{ taskId: string }>;
+    }) => Promise<CreateTaskResult>;
     onSuccess?: (taskId: string) => void;
   }) => (
     <div>
@@ -414,7 +427,9 @@ vi.mock("@/app/tasks/components/task-form", () => ({
               contextMdEnabled: true,
             },
           });
-          onSuccess?.(result.taskId);
+          if (result.ok) {
+            onSuccess?.(result.value.taskId);
+          }
         }}
       >
         Submit related task
@@ -431,6 +446,19 @@ function createDeferred<T>() {
   });
 
   return { promise, resolve };
+}
+
+function taskStatusSuccess(taskId = "task-1") {
+  return { ok: true as const, value: { taskId } };
+}
+
+function createTaskAndLinkSuccess(input: {
+  taskId: string;
+  createdTaskId: string;
+  linkId: string;
+  name: string;
+}) {
+  return { ok: true as const, value: input };
 }
 
 function buildTaskListItem(
@@ -651,7 +679,7 @@ describe("TaskDetailActions", () => {
   it("sets task status to canceled when cancel is chosen for a queued task", async () => {
     const user = userEvent.setup();
     const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
-    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+    setTaskStatusFromDragMock.mockResolvedValueOnce(taskStatusSuccess());
 
     renderActions({
       status: TaskStatus.QUEUED,
@@ -720,7 +748,7 @@ describe("TaskDetailActions", () => {
   it("sets task status to canceled when cancel is chosen", async () => {
     const user = userEvent.setup();
     const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
-    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+    setTaskStatusFromDragMock.mockResolvedValueOnce(taskStatusSuccess());
 
     renderActions({
       status: TaskStatus.RUNNING,
@@ -868,7 +896,7 @@ describe("TaskDetailActions", () => {
 
   it("disables the actions trigger while a status update is pending", async () => {
     const user = userEvent.setup();
-    const deferred = createDeferred<{ taskId: string }>();
+    const deferred = createDeferred<ReturnType<typeof taskStatusSuccess>>();
     const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
     setTaskStatusFromDragMock.mockReturnValueOnce(deferred.promise);
 
@@ -892,7 +920,7 @@ describe("TaskDetailActions", () => {
       desiredStatus: TaskStatus.READY,
     });
 
-    deferred.resolve({ taskId: "task-1" });
+    deferred.resolve(taskStatusSuccess());
 
     await waitFor(() => {
       expect(actionsButton).not.toBeDisabled();
@@ -902,7 +930,7 @@ describe("TaskDetailActions", () => {
   it("runs status actions from the overflow menu", async () => {
     const user = userEvent.setup();
     const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
-    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+    setTaskStatusFromDragMock.mockResolvedValueOnce(taskStatusSuccess());
 
     renderActions({
       status: TaskStatus.DRAFT,
@@ -920,10 +948,27 @@ describe("TaskDetailActions", () => {
     });
   });
 
+  it("opens the upgrade modal when a status action is gated", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce({
+      ok: false,
+      error: { kind: "calendar_client_upgrade_required" },
+    });
+
+    renderActions({ status: TaskStatus.DRAFT, organizations: undefined });
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
+
+    await waitFor(() => {
+      expect(showCalendarClientUpgradeModalMock).toHaveBeenCalledOnce();
+    });
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
   it("offers reopen-to-ready with a required comment for canceled tasks", async () => {
     const user = userEvent.setup();
     const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
-    setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
+    setTaskStatusFromDragMock.mockResolvedValueOnce(taskStatusSuccess());
 
     renderActions({
       status: TaskStatus.CANCELED,
@@ -1329,12 +1374,14 @@ describe("TaskDetailActions", () => {
   it("opens the create related modal and submits through createTaskAndLink", async () => {
     const user = userEvent.setup();
     const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
-    createTaskAndLinkMock.mockResolvedValue({
-      taskId: "task-1",
-      createdTaskId: "task-created",
-      linkId: "link-created",
-      name: "Created related task",
-    });
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
 
     renderActions();
 
@@ -1368,12 +1415,14 @@ describe("TaskDetailActions", () => {
   it("passes the DESIGN.md picker into create-related and forwards skip false", async () => {
     const user = userEvent.setup();
     const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
-    createTaskAndLinkMock.mockResolvedValue({
-      taskId: "task-1",
-      createdTaskId: "task-created",
-      linkId: "link-created",
-      name: "Created related task",
-    });
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
 
     renderActions({
       initialDesignMdAttachment: {
@@ -1674,12 +1723,14 @@ describe("TaskDetailActions", () => {
     const user = userEvent.setup();
     isMobileMock.mockReturnValue(true);
     const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
-    createTaskAndLinkMock.mockResolvedValue({
-      taskId: "task-1",
-      createdTaskId: "task-created",
-      linkId: "link-created",
-      name: "Created related task",
-    });
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
 
     renderActions();
 

@@ -1,12 +1,13 @@
 import {
+  hasReachedTaskScheduleReleaseTarget,
   type TaskScheduleMetadata,
-  taskScheduleMetadataSchema,
-} from "@sokosumi/database/types/task-schedule-metadata";
+  type TaskScheduleMetadataV1,
+} from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
 import { badRequest, unprocessableEntity } from "@/helpers/error";
 
-import type { PutTaskScheduleRequest } from "@/schemas/task-schedule.schema";
+import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -206,7 +207,7 @@ function resolveRecurringAnchorAt(
     return new Date(metadata.anchorAt);
   }
 
-  return new Date(metadata.scheduledAt);
+  return metadata.version === 1 ? new Date(metadata.scheduledAt) : null;
 }
 
 export function isValidTimezone(timezone: string): boolean {
@@ -218,25 +219,10 @@ export function isValidTimezone(timezone: string): boolean {
   }
 }
 
-export function parseTaskScheduleMetadata(
-  metadata: string | null | undefined,
-): TaskScheduleMetadata | null {
-  if (!metadata) {
-    return null;
-  }
-
-  try {
-    const parsed = taskScheduleMetadataSchema.safeParse(JSON.parse(metadata));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
 export function buildTaskScheduleMetadata(
-  input: PutTaskScheduleRequest,
+  input: TaskScheduleInput,
   scheduledAt: Date,
-): TaskScheduleMetadata {
+): TaskScheduleMetadataV1 {
   const scheduledAtIso = scheduledAt.toISOString();
 
   if (input.mode === "once") {
@@ -267,7 +253,9 @@ export function computeScheduleNextRun(
   from?: Date,
 ): Date | null {
   if (metadata.mode === "once") {
-    return new Date(metadata.runAt);
+    return new Date(
+      metadata.version === 1 ? metadata.runAt : metadata.effectiveRunAt,
+    );
   }
 
   const intervalDays = resolveRecurringIntervalDays(metadata);
@@ -292,7 +280,7 @@ export function computeScheduleNextRun(
   });
 }
 
-export function validateScheduleInput(input: PutTaskScheduleRequest): void {
+export function validateScheduleInput(input: TaskScheduleInput): void {
   if (input.mode === "once") {
     const runAt = new Date(input.runAt);
     if (Number.isNaN(runAt.getTime())) {
@@ -364,7 +352,7 @@ export function isRecurringScheduleEnded(
   }
 
   if (metadata.endsMode === "after") {
-    return metadata.occurrences != null && metadata.occurrences <= 0;
+    return hasReachedTaskScheduleReleaseTarget(metadata);
   }
 
   return false;
@@ -379,7 +367,7 @@ export function isDueRunPastScheduleEnd(
   }
 
   if (metadata.endsMode === "after") {
-    return metadata.occurrences != null && metadata.occurrences <= 0;
+    return hasReachedTaskScheduleReleaseTarget(metadata);
   }
 
   return false;

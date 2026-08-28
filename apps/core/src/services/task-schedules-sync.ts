@@ -5,12 +5,15 @@ import {
   TaskLinkType,
   TaskStatus,
 } from "@sokosumi/database";
-import type { TaskScheduleMetadata } from "@sokosumi/database/types/task-schedule-metadata";
+import {
+  hasReachedTaskScheduleReleaseTarget,
+  parseTaskScheduleMetadata,
+  type TaskScheduleMetadata,
+} from "@sokosumi/utils";
 
 import {
   computeScheduleNextRun,
   isDueRunPastScheduleEnd,
-  parseTaskScheduleMetadata,
 } from "@/helpers/task-schedule";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -184,6 +187,14 @@ function getUpdatedRecurringMetadata(
   metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
   lastRunAt: Date,
 ): Extract<TaskScheduleMetadata, { mode: "recurring" }> {
+  if (metadata.version === 2) {
+    return {
+      ...metadata,
+      lastProcessedSourceAt: lastRunAt.toISOString(),
+      epochReleaseCount: metadata.epochReleaseCount + 1,
+    };
+  }
+
   if (metadata.endsMode !== "after" || metadata.occurrences == null) {
     return {
       ...metadata,
@@ -203,7 +214,7 @@ function shouldEndRecurringAfterRun(
   nextRunAt: Date | null,
 ): boolean {
   if (metadata.endsMode === "after") {
-    return metadata.occurrences != null && metadata.occurrences <= 0;
+    return hasReachedTaskScheduleReleaseTarget(metadata);
   }
 
   if (metadata.endsMode === "on" && metadata.endsOn) {

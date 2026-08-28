@@ -35,6 +35,10 @@ function createDatabaseProject(
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,
+    projectRevision: 0,
+    calendarRevision: 0,
+    closingAt: null,
+    closedAt: null,
     createdAt: new Date("2026-08-16T10:00:00.000Z"),
     updatedAt: new Date("2026-08-16T10:00:00.000Z"),
     ...overrides,
@@ -137,6 +141,22 @@ describe("project schemas", () => {
       designMd: { url: designMdUrl, extractionId: "extract_123" },
     });
     expect(mapProjectForApi(createDatabaseProject()).designMd).toBeNull();
+  });
+
+  it("maps the Project lifecycle revision and terminal timestamps", () => {
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({
+          projectRevision: 4,
+          closingAt: new Date("2026-08-26T12:00:00.000Z"),
+          closedAt: new Date("2026-08-26T12:05:00.000Z"),
+        }),
+      ),
+    ).toMatchObject({
+      projectRevision: 4,
+      closingAt: "2026-08-26T12:00:00.000Z",
+      closedAt: "2026-08-26T12:05:00.000Z",
+    });
   });
 
   it("maps memory metadata and active update state", () => {

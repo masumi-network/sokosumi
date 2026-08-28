@@ -5,6 +5,7 @@ import {
   computeScheduleNextRun,
   inferLegacyIntervalDaysFromCron,
   isDueRunPastScheduleEnd,
+  isRecurringScheduleEnded,
 } from "@/helpers/task-schedule";
 
 describe("task-schedule helpers", () => {
@@ -56,6 +57,61 @@ describe("task-schedule helpers", () => {
     );
 
     expect(nextRun).toEqual(new Date("2026-06-05T09:00:00.000Z"));
+  });
+
+  it("uses effective version 2 one-time and recurring schedule fields", () => {
+    expect(
+      computeScheduleNextRun({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174000",
+        mode: "once",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        sourceRunAt: "2026-06-01T09:00:00.000Z",
+        effectiveRunAt: "2026-06-01T10:00:00.000Z",
+      }),
+    ).toEqual(new Date("2026-06-01T10:00:00.000Z"));
+
+    expect(
+      computeScheduleNextRun(
+        {
+          version: 2,
+          epochId: "123e4567-e89b-42d3-a456-426614174001",
+          mode: "recurring",
+          createdAt: "2026-06-01T08:00:00.000Z",
+          ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "never",
+          epochReleaseCount: 0,
+          intervalDays: 2,
+          anchorAt: "2026-06-01T09:00:00.000Z",
+        },
+        new Date("2026-06-04T10:00:00.000Z"),
+      ),
+    ).toEqual(new Date("2026-06-05T09:00:00.000Z"));
+  });
+
+  it("ends an after-count version 2 epoch at its release target", () => {
+    const metadata = {
+      version: 2 as const,
+      epochId: "123e4567-e89b-42d3-a456-426614174001",
+      mode: "recurring" as const,
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "after" as const,
+      targetReleaseCount: 5,
+      epochReleaseCount: 5,
+      anchorAt: "2026-06-01T09:00:00.000Z",
+    };
+
+    expect(isRecurringScheduleEnded(metadata, new Date())).toBe(true);
+    expect(
+      isDueRunPastScheduleEnd(metadata, new Date("2026-06-06T09:00:00.000Z")),
+    ).toBe(true);
   });
 
   it("allows a due run on the end date", () => {
