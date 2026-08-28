@@ -86,6 +86,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type {
@@ -105,6 +106,7 @@ import {
   postDriveTasksCopy,
 } from "@/lib/clients/generated/core";
 import {
+  effectiveFilesViewMode,
   type FilesViewMode,
   serializeFilesViewModeCookie,
 } from "@/lib/ui-preferences/files-view-mode";
@@ -162,6 +164,7 @@ export function DrivePageClient({
   defaultFilesViewMode,
 }: DrivePageClientProps): ReactElement {
   const { data: session } = useSession();
+  const isMobile = useIsMobile();
   // Unknown session is not personal. Hold the last known workspace so a
   // pending refetch cannot switch the list query to `{ scope: "me" }`.
   const workspaceFromSession = session
@@ -175,6 +178,10 @@ export function DrivePageClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
+  const skeletonViewMode = effectiveFilesViewMode(
+    defaultFilesViewMode,
+    isMobile,
+  );
 
   useEffect(() => {
     if (activeOrganizationId === undefined) {
@@ -210,7 +217,7 @@ export function DrivePageClient({
   if (activeOrganizationId === undefined) {
     return (
       <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
-        <DriveListSkeleton viewMode={defaultFilesViewMode} />
+        <DriveListSkeleton viewMode={skeletonViewMode} />
       </div>
     );
   }
@@ -245,6 +252,7 @@ function DrivePageWorkspace({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesViewMode, setFilesViewMode] =
     useState<FilesViewMode>(defaultFilesViewMode);
+  const isMobile = useIsMobile();
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [organizationName, setOrganizationName] = useState<string | null>(null);
@@ -332,7 +340,10 @@ function DrivePageWorkspace({
   const isRecentsView = !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView =
     isBrowseView || isTasksView ? "browse" : "recents";
-  const layoutMode: FilesViewMode = filesViewMode;
+  const layoutMode: FilesViewMode = effectiveFilesViewMode(
+    filesViewMode,
+    isMobile,
+  );
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
@@ -1518,7 +1529,7 @@ function DrivePageWorkspace({
           activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
           reloadToken={recentsReloadToken}
-          viewMode={filesViewMode}
+          viewMode={layoutMode}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
           onRenameFile={handleRename}

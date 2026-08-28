@@ -11,8 +11,15 @@ const patchDriveFoldersRenameMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
 const pushMock = vi.fn();
+const useIsMobileMock = vi.fn(() => false);
 
 let searchParams = new URLSearchParams();
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: (...args: unknown[]) => useIsMobileMock(...args),
+  useIsMobileMedia: (...args: unknown[]) => useIsMobileMock(...args),
+  MOBILE_BREAKPOINT: 768,
+}));
 
 vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => ({ NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 0 }),
@@ -217,6 +224,8 @@ describe("DrivePage workspace remount", () => {
     getUsersByIdOrganizationsMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
 
     fetchDriveTasksPageMock.mockResolvedValue({
       items: [],
@@ -442,6 +451,8 @@ describe("DrivePage tasks mobile toolbar", () => {
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
 
     fetchDriveTasksPageMock.mockResolvedValue({
       items: [],
@@ -507,6 +518,8 @@ describe("DrivePage recents view", () => {
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
 
     fetchDriveTasksPageMock.mockResolvedValue({
       items: [],
@@ -608,6 +621,8 @@ describe("DrivePage files view mode", () => {
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
     document.cookie = "files_view_mode=; path=/; max-age=0";
 
     fetchDriveTasksPageMock.mockResolvedValue({
@@ -796,6 +811,22 @@ describe("DrivePage files view mode", () => {
     expect(screen.getByTestId("files-layout-grid")).toBeVisible();
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(screen.getByText("Alpha")).toBeVisible();
+  });
+
+  it("hides the view switch and forces list on mobile even when grid is saved", async () => {
+    useIsMobileMock.mockReturnValue(true);
+    document.cookie = "files_view_mode=grid; path=/";
+
+    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    });
+    expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
+
+    const viewSwitch = screen.getByTestId("files-view-mode-switch");
+    expect(viewSwitch.className).toContain("hidden");
+    expect(viewSwitch.className).toContain("md:flex");
   });
 
   it("hides task/project path under the filename in grid", async () => {

@@ -38,6 +38,14 @@ export function resolveFilesViewModeFromClientCookie(
   );
 }
 
+/** Mobile viewports always render list; saved preference stays for desktop. */
+export function effectiveFilesViewMode(
+  preferred: FilesViewMode,
+  isMobile: boolean,
+): FilesViewMode {
+  return isMobile ? "list" : preferred;
+}
+
 export function serializeFilesViewModeCookie(mode: FilesViewMode): string {
   return `${FILES_VIEW_MODE_COOKIE_NAME}=${mode}; path=/; max-age=${FILES_VIEW_MODE_COOKIE_MAX_AGE}`;
 }
