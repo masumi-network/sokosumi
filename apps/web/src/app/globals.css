@@ -516,6 +516,15 @@
   }
 }
 
+.workspace-calendar-theme {
+  --fc-border-color: var(--border);
+  --fc-list-event-hover-bg-color: var(--accent);
+  --fc-neutral-bg-color: var(--muted);
+  --fc-neutral-text-color: var(--muted-foreground);
+  --fc-page-bg-color: var(--background);
+  --fc-today-bg-color: var(--primary-quinary);
+}
+
 /*
  * Agents full-bleed layout
  *

@@ -38459,6 +38459,14 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+        /**
+         * Only occurrences whose series task has this coworker
+         */
+        assigneeId?: string;
+        /**
          * Opaque cursor for the next merged calendar page
          */
         cursor?: string;
@@ -38645,6 +38653,14 @@ export type GetWorkspacesByIdCalendarData = {
          * Exclusive end of the calendar range, at most 90 days after from
          */
         to: Date;
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+        /**
+         * Only occurrences whose series task has this coworker
+         */
+        assigneeId?: string;
         /**
          * Opaque cursor for the next merged calendar page
          */

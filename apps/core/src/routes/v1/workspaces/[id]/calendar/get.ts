@@ -87,7 +87,9 @@ interface CalendarCursor {
 }
 
 export interface WorkspaceCalendarReadQuery {
+  assigneeId: string | null;
   from: Date;
+  scope: "owned" | "workspace";
   to: Date;
   cursor: CalendarCursor | null;
   requestedCursor: string | null;
@@ -149,7 +151,9 @@ export function parseWorkspaceCalendarQuery(
 ): WorkspaceCalendarReadQuery {
   const { from, to } = validateRange(query.from, query.to);
   return {
+    assigneeId: query.assigneeId ?? null,
     from,
+    scope: query.scope,
     to,
     cursor: query.cursor ? decodeCursor(query.cursor) : null,
     requestedCursor: query.cursor ?? null,
@@ -165,6 +169,7 @@ function isPersistedOccurrenceCursor(
 
 export async function readWorkspaceCalendar(
   workspaceId: string,
+  userId: string,
   query: WorkspaceCalendarReadQuery,
 ) {
   const { cursor, from, to } = query;
@@ -178,6 +183,14 @@ export async function readWorkspaceCalendar(
       ],
     },
     effectiveScheduledAt: { gte: from, lt: to },
+    ...(query.scope === "owned" || query.assigneeId
+      ? {
+          seriesTask: {
+            ...(query.scope === "owned" ? { ownerId: userId } : {}),
+            ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+          },
+        }
+      : {}),
   };
   const persistedOccurrenceWhere = {
     ...persistedOccurrenceBaseWhere,
@@ -309,6 +322,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { items, pagination } = await readWorkspaceCalendar(
       workspaceId,
+      userContext.userId,
       calendarQuery,
     );
 
