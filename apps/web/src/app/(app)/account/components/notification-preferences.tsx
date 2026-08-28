@@ -96,7 +96,7 @@ export function NotificationPreferences({
   );
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex h-full flex-col" id="notification-preferences">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
