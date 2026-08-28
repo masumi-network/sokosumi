@@ -53,6 +53,24 @@ function budget(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function keyStatus(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "apikey_own",
+    canAdmin: true,
+    usageLimited: false,
+    RemainingUsageCredits: [] as { unit: string; amount: string }[],
+    ...overrides,
+  };
+}
+
+function statusResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    data: { status: "success", data: keyStatus(overrides) },
+    error: undefined,
+    response: { status: 200 },
+  };
+}
+
 function purchasingWallet(overrides: Record<string, unknown> = {}) {
   return {
     id: "wallet_1",
@@ -400,6 +418,213 @@ describe("getX402Budgets", () => {
   });
 });
 
+describe("getX402KeySpendCaps", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sums credits per eip155 unit and lowercases the unit", async () => {
+    // Nothing on the node enforces one row per (key, unit), and its own debit
+    // path judges the SUM, so a split ledger must not read as the first row.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "400000" },
+          {
+            unit: `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
+            amount: "600000",
+          },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isOk()).toBe(true);
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(true);
+    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(
+      caps?.creditsByUnit.get(
+        `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
+      ),
+    ).toBe(1000000n);
+  });
+
+  it("drops the Cardano rail's rows from the same shared ledger", async () => {
+    // lovelace and native-asset units live on the SAME UnitValue ledger. A
+    // Cardano-funded key must never make an EVM pair look payable.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: "lovelace", amount: "5000000" },
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "1" },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.creditsByUnit.size).toBe(1);
+    expect(caps?.creditsByUnit.has("lovelace")).toBe(false);
+  });
+
+  it("reports a usage-limited key with no eip155 row as grandfathered uncapped", async () => {
+    // The node keeps such a key payable and only warns, so calling it capped
+    // would hide agents the node would settle.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [{ unit: "lovelace", amount: "5000000" }],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isOk() && result.value.grandfatheredUncapped).toBe(true);
+  });
+
+  it("ends grandfathering on an eip155 row it cannot parse", async () => {
+    // The node COUNTS eip155 rows to decide grandfathering, it does not parse
+    // them. Reading an unparsable row as "still grandfathered" would call a
+    // hard-capped key uncapped and mark an unpayable pair ready.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "not-a-number" },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("drops an eip155 row whose amount is longer than any real balance", async () => {
+    // 200 digits cannot be a uint256 balance, and BigInt() is superlinear in
+    // digit count. Dropping the row costs the sync worker nothing and still
+    // ends grandfathering, so the unit reads zero and the pair delists.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          {
+            unit: `eip155:84532:${USDC_BASE_SEPOLIA}`,
+            amount: "9".repeat(200),
+          },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("fails closed when the node returns more credit rows than a key can hold", async () => {
+    // A real key holds one row per unit it has credit in, so thousands is
+    // version skew or a node fault. Every row costs a BigInt parse.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: Array.from({ length: 1001 }, (_, index) => ({
+          unit: `eip155:84532:${USDC_BASE_SEPOLIA}${index}`,
+          amount: "1",
+        })),
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("reports an unlimited key as uncapped and not grandfathered", async () => {
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ usageLimited: false }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(false);
+    expect(caps?.grandfatheredUncapped).toBe(false);
+  });
+
+  it("fails closed when the node answers 200 without the credit rows", async () => {
+    // RemainingUsageCredits is required, so an absent array is version skew,
+    // never "this key holds no credits". Reading it as empty would call a
+    // usage-limited key grandfathered and mark every pair ready.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: undefined,
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("fails closed when a credit row has the wrong shape", async () => {
+    // Distinct from an unparsable AMOUNT, which is a string the node can
+    // really hold and is judged per unit. A row whose amount is not even a
+    // string is a contract break, and guessing at it could hide a real cap.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: 1000 },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("fails closed when the node answers 200 without the usageLimited flag", async () => {
+    // Version skew must not read as "uncapped" and mark pairs ready that a
+    // capped key cannot actually pay.
+    getApiKeyStatusMock.mockResolvedValue({
+      data: { status: "success", data: { id: "apikey_own" } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("usageLimited");
+  });
+
+  it("propagates a failed key-status resolution", async () => {
+    getApiKeyStatusMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "unauthorized" } },
+      response: { status: 401 },
+    });
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+  });
+});
+
 describe("getX402AdminPurchasingWallets", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -688,6 +913,35 @@ describe("getX402WalletBalances", () => {
           Balances: [
             walletBalance(),
             walletBalance({ native: { amount: -1 } }),
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402WalletBalances({
+      evmWalletId: "wallet_1",
+      evmWalletAddress: purchasingWallet().address,
+      caip2Network: "eip155:84532",
+    });
+
+    expect(result.isErr() && result.error).toContain("malformed row");
+  });
+
+  it("fails closed when a balance amount is longer than any real balance", async () => {
+    // Max uint256 is 78 digits. A longer amount is not a balance, and the
+    // bound keeps an unbounded digit string off the BigInt path.
+    getX402WalletsBalanceMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          evmWalletId: "wallet_1",
+          address: purchasingWallet().address,
+          Balances: [
+            walletBalance({
+              native: { symbol: "ETH", decimals: 18, amount: "9".repeat(200) },
+            }),
           ],
         },
       },
