@@ -258,24 +258,46 @@ export async function persistAvatarImage(
 }
 
 /** Draw `count` new unique avatars into the pool. Returns how many were added. */
+type AvatarDraw = Awaited<ReturnType<typeof nextAvatarDraws>>[number];
+
+async function drawAvatar(draw: AvatarDraw): Promise<void> {
+  const sourceUrl = await generateImage(buildAvatarPrompt(draw), draw.seed);
+  const key = `${draw.subject.subject.replaceAll(" ", "-")}-${draw.seed}`;
+  const imageUrl = await persistAvatarImage(sourceUrl, key);
+  await prisma.sokoBotAvatar.create({
+    data: {
+      subject: draw.subject.subject,
+      background: draw.background.name,
+      seed: draw.seed,
+      model: AVATAR_MODEL,
+      imageUrl,
+      sourceUrl,
+    },
+  });
+}
+
 export async function generateAvatars(count: number): Promise<number> {
   const draws = await nextAvatarDraws(Math.min(count, MAX_TOP_UP_PER_CALL));
+  if (draws.length === 0) return 0;
+
+  // Draw one before committing to the rest. fal bills for an image whether or
+  // not we manage to store it, so a misconfigured blob token would otherwise
+  // buy six images every cron run, for ever, while the pool never fills and
+  // nothing louder than a warning is written.
+  const [probe, ...rest] = draws;
+  try {
+    await drawAvatar(probe);
+  } catch (error) {
+    console.error("Soko Bot avatar generation failed; skipping this run", {
+      attempted: draws.length,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return 0;
+  }
+  if (rest.length === 0) return 1;
+
   const results = await Promise.allSettled(
-    draws.map(async (draw) => {
-      const sourceUrl = await generateImage(buildAvatarPrompt(draw), draw.seed);
-      const key = `${draw.subject.subject.replaceAll(" ", "-")}-${draw.seed}`;
-      const imageUrl = await persistAvatarImage(sourceUrl, key);
-      await prisma.sokoBotAvatar.create({
-        data: {
-          subject: draw.subject.subject,
-          background: draw.background.name,
-          seed: draw.seed,
-          model: AVATAR_MODEL,
-          imageUrl,
-          sourceUrl,
-        },
-      });
-    }),
+    rest.map((draw) => drawAvatar(draw)),
   );
   const failed = results.filter((result) => result.status === "rejected");
   for (const failure of failed) {
@@ -286,7 +308,7 @@ export async function generateAvatars(count: number): Promise<number> {
           : "unknown",
     });
   }
-  return results.length - failed.length;
+  return 1 + (results.length - failed.length);
 }
 
 export interface AvailableAvatar {

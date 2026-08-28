@@ -30,6 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import {
   AVATAR_POOL_FLOOR,
+  generateAvatars,
   listAvailableAvatars,
   stockAvatarPool,
 } from "@/services/soko-bot-avatar.service";
@@ -70,6 +71,35 @@ describe("Soko Bot avatar pool", () => {
     expect(avatarCountMock).not.toHaveBeenCalled();
     expect(putMock).not.toHaveBeenCalled();
     expect(avatarFindManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("buys one image, not six, when storing them is broken", async () => {
+    // fal bills for an image whether or not we store it. With a broken blob
+    // token the pool never fills, so an ungated run would buy six every cron
+    // tick for ever while writing nothing louder than a warning.
+    getEnvMock.mockReturnValue({
+      FAL_KEY: "key",
+      BLOB_READ_WRITE_TOKEN: "token",
+    });
+    avatarFindManyMock.mockResolvedValue([]);
+    // Two fetches per draw: the billed generation, then the download we store.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [{ url: "https://fal.test/a.png" }] }),
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    putMock.mockRejectedValue(new Error("blob token rejected"));
+
+    const generated = await generateAvatars(6);
+
+    expect(generated).toBe(0);
+    // One billed generation, then it stops rather than paying for five more.
+    const billed = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes("fal.run"),
+    );
+    expect(billed).toHaveLength(1);
+    vi.unstubAllGlobals();
   });
 
   it("fills a short pool when the caller opts in", async () => {
