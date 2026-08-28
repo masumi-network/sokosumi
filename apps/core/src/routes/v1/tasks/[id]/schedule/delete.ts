@@ -8,6 +8,7 @@ import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -81,7 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      return tx.task.update({
+      const task = await tx.task.update({
         where: { id },
         data: {
           metadata: null,
@@ -95,6 +96,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           currentTask.workspaceId,
         ),
       });
+      await removeTaskSchedulePlannedOccurrences(tx, id);
+      return task;
     });
 
     return ok(c, taskSchema.parse(mapTask(task)));

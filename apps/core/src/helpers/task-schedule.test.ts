@@ -192,6 +192,50 @@ describe("task-schedule helpers", () => {
     ]);
   });
 
+  it("fast-forwards overdue recurrences to the requested horizon", () => {
+    expect(
+      projectTaskScheduleOccurrences(
+        "task-1",
+        {
+          version: 1,
+          mode: "recurring",
+          scheduledAt: "2025-06-01T00:00:00.000Z",
+          expr: "* * * * *",
+          timezone: "UTC",
+          endsMode: "never",
+        },
+        new Date("2025-06-01T00:00:00.000Z"),
+        new Date("2026-06-01T00:00:00.000Z"),
+        new Date("2026-06-02T00:00:00.000Z"),
+        1,
+      ).map((occurrence) => occurrence.scheduledAt),
+    ).toEqual([new Date("2026-06-01T00:01:00.000Z")]);
+  }, 200);
+
+  it("does not project overdue finite recurrences before scheduler catch-up", () => {
+    expect(
+      projectTaskScheduleOccurrences(
+        "task-1",
+        {
+          version: 2,
+          epochId: "123e4567-e89b-42d3-a456-426614174004",
+          mode: "recurring",
+          createdAt: "2025-06-01T00:00:00.000Z",
+          ruleEffectiveFrom: "2025-06-01T00:00:00.000Z",
+          timezone: "UTC",
+          expr: "* * * * *",
+          endsMode: "after",
+          targetReleaseCount: 2,
+          epochReleaseCount: 0,
+          anchorAt: "2025-06-01T00:00:00.000Z",
+        },
+        new Date("2025-06-01T00:00:00.000Z"),
+        new Date("2026-06-01T00:00:00.000Z"),
+        new Date("2026-06-02T00:00:00.000Z"),
+      ),
+    ).toEqual([]);
+  });
+
   it("projects recurring version 2 occurrences with the persisted epoch identity", () => {
     expect(
       projectTaskScheduleOccurrences(

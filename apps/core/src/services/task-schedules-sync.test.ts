@@ -9,7 +9,10 @@ const mockTaskUpdateMany = vi.fn();
 const mockTaskLinkCreate = vi.fn();
 const mockTaskEventCreate = vi.fn();
 const mockTaskScheduleOccurrenceCreate = vi.fn();
+const mockTaskScheduleOccurrenceDeleteMany = vi.fn();
 const mockTaskScheduleQuarantineUpsert = vi.fn();
+const replaceTaskSchedulePlannedOccurrencesMock = vi.fn();
+const removeTaskSchedulePlannedOccurrencesMock = vi.fn();
 const publishTaskEventDataMock = vi.fn();
 const lockCalendarScopeMock = vi.fn();
 const lockTaskRowsMock = vi.fn();
@@ -19,6 +22,9 @@ vi.mock("@sokosumi/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/utils")>()),
   isNmkrEmail: isNmkrEmailMock,
 }));
+const TaskScheduleOccurrenceLimitErrorMock = vi.hoisted(
+  () => class TaskScheduleOccurrenceLimitError extends Error {},
+);
 
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventDataMock,
@@ -27,6 +33,14 @@ vi.mock("@/lib/ably/publish", () => ({
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  TaskScheduleOccurrenceLimitError: TaskScheduleOccurrenceLimitErrorMock,
+  replaceTaskSchedulePlannedOccurrences:
+    replaceTaskSchedulePlannedOccurrencesMock,
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -47,6 +61,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     taskScheduleOccurrence: {
       create: mockTaskScheduleOccurrenceCreate,
+      deleteMany: mockTaskScheduleOccurrenceDeleteMany,
     },
     taskScheduleQuarantine: {
       upsert: mockTaskScheduleQuarantineUpsert,
@@ -66,6 +81,7 @@ describe("taskSchedulesSyncService", () => {
     mockTaskLinkCreate.mockReset();
     mockTaskEventCreate.mockReset();
     mockTaskScheduleOccurrenceCreate.mockReset();
+    mockTaskScheduleOccurrenceDeleteMany.mockReset();
     mockTaskScheduleQuarantineUpsert.mockReset();
     lockCalendarScopeMock.mockReset();
     lockTaskRowsMock.mockReset();
@@ -73,6 +89,7 @@ describe("taskSchedulesSyncService", () => {
     publishTaskEventDataMock.mockResolvedValue(undefined);
     mockTaskLinkCreate.mockResolvedValue({ id: "schedule-link-1" });
     mockTaskScheduleOccurrenceCreate.mockResolvedValue({ id: "occurrence-1" });
+    mockTaskScheduleOccurrenceDeleteMany.mockResolvedValue({ count: 1 });
     mockTaskScheduleQuarantineUpsert.mockResolvedValue({ id: "quarantine-1" });
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
@@ -116,6 +133,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -351,6 +369,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: { create: mockTaskEventCreate },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -371,6 +390,9 @@ describe("taskSchedulesSyncService", () => {
     });
     mockTaskCreate.mockResolvedValue({ id: "clone-v2" });
     mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+    replaceTaskSchedulePlannedOccurrencesMock.mockRejectedValue(
+      new TaskScheduleOccurrenceLimitErrorMock(),
+    );
 
     const result = await taskSchedulesSyncService.syncDueSchedules({
       abortSignal: new AbortController().signal,
@@ -398,6 +420,26 @@ describe("taskSchedulesSyncService", () => {
         timeAccuracy: "EXACT",
       }),
     });
+    expect(mockTaskScheduleOccurrenceDeleteMany).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "template-v2",
+        epochId: "123e4567-e89b-42d3-a456-426614174001",
+        originalScheduledAt: new Date("2026-06-10T09:00:00.000Z"),
+        state: "PLANNED",
+      },
+    });
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        id: "template-v2",
+        nextRunAt: new Date("2026-06-11T09:00:00.000Z"),
+      }),
+      new Date("2026-06-10T12:00:00.000Z"),
+    );
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "template-v2",
+    );
   });
 
   it("processes version 2 recurring metadata without downgrading it", async () => {

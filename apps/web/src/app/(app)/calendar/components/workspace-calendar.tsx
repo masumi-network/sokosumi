@@ -1,21 +1,24 @@
 "use client";
 
+import dayGridPlugin from "@fullcalendar/daygrid";
+import listPlugin from "@fullcalendar/list";
+import FullCalendar from "@fullcalendar/react";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import { Temporal } from "@js-temporal/polyfill";
 import {
   addDays,
   addMonths,
-  eachDayOfInterval,
-  endOfMonth,
   endOfWeek,
   format,
-  isSameDay,
-  isSameMonth,
   startOfMonth,
   startOfWeek,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -24,16 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
-import { cn } from "@/lib/utils";
+import { coreClient } from "@/lib/clients/core.browser.client";
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@/lib/clients/generated/core";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
-const CALENDAR_SOURCES = [
-  "all",
-  "WORKSPACE",
-  "PROJECT",
-  "LEGACY_UNKNOWN",
-] as const;
+const CALENDAR_TIME_ZONE = "UTC";
+const SOURCE_PALETTE_CLASSES = {
+  blue: "bg-chart-1",
+  violet: "bg-chart-2",
+  amber: "bg-chart-4",
+} as const;
 
 interface CalendarCoworker {
   id: string;
@@ -41,208 +47,237 @@ interface CalendarCoworker {
 }
 
 interface WorkspaceCalendarProps {
+  initialDate: string;
   items: WorkspaceCalendarItem[];
+  latestDate?: string;
+  sources?: WorkspaceCalendarSource[];
+  pagination?: {
+    limit: number;
+    nextCursor: string | null;
+  } | null;
+  range?: {
+    from: Date;
+    to: Date;
+  };
   coworkers?: CalendarCoworker[];
 }
 
 const calendarParsers = {
   coworker: parseAsString.withDefault("all"),
-  date: parseAsString.withDefault(format(new Date(), "yyyy-MM-dd")),
-  source: parseAsStringLiteral(CALENDAR_SOURCES).withDefault("all"),
+  date: parseAsString,
+  source: parseAsString.withDefault(""),
   status: parseAsString.withDefault("all"),
   view: parseAsStringLiteral(CALENDAR_VIEWS).withDefault("month"),
 };
 
-function parseCalendarDate(value: string): Date {
-  const date = new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+function parseCalendarDate(value: string, fallback: string): Date {
+  try {
+    return new Date(`${Temporal.PlainDate.from(value).toString()}T12:00:00`);
+  } catch {
+    return new Date(`${Temporal.PlainDate.from(fallback).toString()}T12:00:00`);
+  }
 }
 
-function getRangeLabel(date: Date, view: (typeof CALENDAR_VIEWS)[number]) {
-  if (view === "week") {
-    return `${format(startOfWeek(date), "MMM d")} - ${format(endOfWeek(date), "MMM d, yyyy")}`;
+function getCalendarDayKey(date: Date): string {
+  return format(date, "yyyy-MM-dd");
+}
+
+export function getCalendarItemDateKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CALENDAR_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
   }
 
-  return format(date, "MMMM yyyy");
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
-function getCalendarItemLabel(item: WorkspaceCalendarItem) {
+function getRangeLabel(
+  formatDate: ReturnType<typeof useFormatter>["dateTime"],
+  date: Date,
+  view: (typeof CALENDAR_VIEWS)[number],
+) {
+  if (view === "week") {
+    return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
+  }
+
+  return formatDate(date, { month: "long", year: "numeric" });
+}
+
+function SourceMarker({
+  decorative = false,
+  source,
+  sourceName,
+}: {
+  decorative?: boolean;
+  source: WorkspaceCalendarSource | undefined;
+  sourceName: string;
+}) {
+  if (source?.logoUrl) {
+    return (
+      <Avatar
+        className="size-4 shrink-0 rounded-sm"
+        data-testid="calendar-source-marker"
+      >
+        <AvatarImage alt={decorative ? "" : sourceName} src={source.logoUrl} />
+        <AvatarFallback className="rounded-sm text-xs">
+          {sourceName.slice(0, 1).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
   return (
-    <Link
-      href={`/tasks/${item.taskId}`}
-      className="bg-primary/10 text-foreground hover:bg-primary/15 block truncate rounded px-1.5 py-1 text-xs font-medium"
-    >
-      {item.taskName}
-    </Link>
+    <span
+      aria-hidden={decorative}
+      aria-label={decorative ? undefined : sourceName}
+      className={`size-1.5 shrink-0 rounded-full ${
+        source ? SOURCE_PALETTE_CLASSES[source.paletteToken] : "bg-primary"
+      }`}
+      data-testid="calendar-source-marker"
+    />
   );
 }
 
-function CalendarItemDetails({ item }: { item: WorkspaceCalendarItem }) {
+function CalendarEvent({
+  item,
+  onNavigate,
+  source,
+}: {
+  item: WorkspaceCalendarItem;
+  onNavigate: () => void;
+  source: WorkspaceCalendarSource | undefined;
+}) {
   const t = useTranslations("App.Calendar");
-  const formatter = useFormatter();
+  const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
 
   return (
-    <Link
-      href={`/tasks/${item.taskId}`}
-      className="border-border hover:bg-accent flex flex-col gap-1 rounded-lg border p-3 transition-colors"
+    <span
+      role="link"
+      tabIndex={0}
+      className="bg-primary/10 text-foreground flex min-w-0 items-center gap-1 rounded px-1.5 py-1 text-xs font-medium"
+      onClick={(event) => {
+        event.stopPropagation();
+        onNavigate();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          onNavigate();
+        }
+      }}
     >
-      <span className="font-medium">{item.taskName}</span>
-      <span className="text-muted-foreground text-sm">
-        {formatter.dateTime(item.scheduledAt, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
-      </span>
-      <span className="flex flex-wrap gap-1 text-xs">
-        <span className="bg-muted rounded px-1.5 py-0.5">
-          {t(`source.${item.sourceType}`)}
+      <SourceMarker source={source} sourceName={sourceName} />
+      <span className="truncate">{item.taskName}</span>
+      <span className="text-muted-foreground shrink-0">{sourceName}</span>
+      {item.sourceAccuracy !== "EXACT" ? (
+        <span className="text-muted-foreground shrink-0">
+          {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
         </span>
-        {item.sourceAccuracy !== "EXACT" ? (
-          <span className="bg-muted rounded px-1.5 py-0.5">
-            {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-          </span>
-        ) : null}
-        {item.timeAccuracy === "APPROXIMATE" ? (
-          <span className="bg-muted rounded px-1.5 py-0.5">
-            {t("accuracy.approximate")}
-          </span>
-        ) : null}
-      </span>
-    </Link>
-  );
-}
-
-function MonthView({
-  date,
-  items,
-}: {
-  date: Date;
-  items: WorkspaceCalendarItem[];
-}) {
-  const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(date)),
-    end: endOfWeek(endOfMonth(date)),
-  });
-
-  return (
-    <div className="overflow-x-auto" data-testid="calendar-month">
-      <div className="grid min-w-160 grid-cols-7 border-l border-t">
-        {eachDayOfInterval({
-          start: startOfWeek(date),
-          end: endOfWeek(date),
-        }).map((day) => (
-          <div
-            key={day.toISOString()}
-            className="bg-muted/40 border-b border-r p-2 text-center text-xs font-medium"
-          >
-            {format(day, "EEE")}
-          </div>
-        ))}
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className={cn(
-              "min-h-28 border-b border-r p-2",
-              day.getMonth() !== date.getMonth() &&
-                "bg-muted/20 text-muted-foreground",
-            )}
-          >
-            <div className="mb-1 text-xs font-medium">{format(day, "d")}</div>
-            <div className="space-y-1">
-              {items
-                .filter((item) => isSameDay(item.scheduledAt, day))
-                .map((item) => (
-                  <div key={item.id}>{getCalendarItemLabel(item)}</div>
-                ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function WeekView({
-  date,
-  items,
-}: {
-  date: Date;
-  items: WorkspaceCalendarItem[];
-}) {
-  const days = eachDayOfInterval({
-    start: startOfWeek(date),
-    end: endOfWeek(date),
-  });
-
-  return (
-    <div className="overflow-x-auto" data-testid="calendar-week">
-      <div className="grid min-w-160 grid-cols-7 border-l border-t">
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="border-b border-r p-2 text-center text-sm font-medium"
-          >
-            {format(day, "EEE d")}
-          </div>
-        ))}
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="min-h-96 border-b border-r p-2"
-          >
-            <div className="space-y-1">
-              {items
-                .filter((item) => isSameDay(item.scheduledAt, day))
-                .map((item) => (
-                  <div key={item.id}>{getCalendarItemLabel(item)}</div>
-                ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AgendaView({
-  date,
-  items,
-}: {
-  date: Date;
-  items: WorkspaceCalendarItem[];
-}) {
-  const t = useTranslations("App.Calendar");
-  const agendaItems = items.filter((item) =>
-    isSameMonth(item.scheduledAt, date),
-  );
-
-  return (
-    <ul className="space-y-3" data-testid="calendar-agenda">
-      {agendaItems.map((item) => (
-        <li key={item.id}>
-          <CalendarItemDetails item={item} />
-        </li>
-      ))}
-      {agendaItems.length === 0 ? (
-        <li className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-          {t("empty.title")}
-        </li>
       ) : null}
-    </ul>
+      {item.timeAccuracy === "APPROXIMATE" ? (
+        <span className="text-muted-foreground shrink-0">
+          {t("accuracy.approximate")}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function CalendarView({
+  date,
+  items,
+  onNavigate,
+  sources,
+  view,
+}: {
+  date: Date;
+  items: WorkspaceCalendarItem[];
+  onNavigate: (taskId: string) => void;
+  sources: WorkspaceCalendarSource[];
+  view: (typeof CALENDAR_VIEWS)[number];
+}) {
+  const pluginView = {
+    month: "dayGridMonth",
+    week: "timeGridWeek",
+    agenda: "listMonth",
+  }[view];
+
+  return (
+    <div className="overflow-x-auto" data-testid={`calendar-${view}`}>
+      <FullCalendar
+        key={`${getCalendarDayKey(date)}-${view}`}
+        plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
+        initialDate={getCalendarDayKey(date)}
+        initialView={pluginView}
+        events={items.map((item) => ({
+          id: item.id,
+          title: item.taskName,
+          start: item.scheduledAt.toISOString(),
+        }))}
+        timeZone={CALENDAR_TIME_ZONE}
+        headerToolbar={false}
+        height="auto"
+        eventContent={(eventInfo) => {
+          const item = items.find(({ id }) => id === eventInfo.event.id);
+          return item ? (
+            <CalendarEvent
+              item={item}
+              onNavigate={() => onNavigate(item.taskId)}
+              source={sources.find(
+                ({ sourceId }) => sourceId === item.sourceId,
+              )}
+            />
+          ) : (
+            eventInfo.event.title
+          );
+        }}
+        eventClick={(eventInfo) => {
+          const item = items.find(({ id }) => id === eventInfo.event.id);
+          if (item) {
+            onNavigate(item.taskId);
+          }
+        }}
+      />
+    </div>
   );
 }
 
 export function WorkspaceCalendar({
+  initialDate,
   items,
+  latestDate,
+  sources = [],
+  pagination = null,
+  range,
   coworkers = [],
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
+  const formatDate = useFormatter().dateTime;
+  const router = useRouter();
   const [state, setState] = useQueryStates(calendarParsers);
-  const date = parseCalendarDate(state.date);
-  const taskStatuses = [...new Set(items.map((item) => item.taskStatus))];
-  const visibleItems = items
+  const [loadedItems, setLoadedItems] = useState(items);
+  const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const date = parseCalendarDate(state.date ?? initialDate, initialDate);
+  const latestCalendarDate = latestDate
+    ? parseCalendarDate(latestDate, initialDate)
+    : null;
+  const visibleSourceIds = state.source ? state.source.split(",") : null;
+  const taskStatuses = [...new Set(loadedItems.map((item) => item.taskStatus))];
+  const visibleItems = loadedItems
     .filter(
-      (item) => state.source === "all" || state.source === item.sourceType,
+      (item) =>
+        visibleSourceIds === null || visibleSourceIds.includes(item.sourceId),
     )
     .filter(
       (item) => state.status === "all" || item.taskStatus === state.status,
@@ -255,16 +290,65 @@ export function WorkspaceCalendar({
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
 
+  function getNavigatedDate(direction: -1 | 1): Date {
+    return state.view === "week"
+      ? addDays(date, direction * 7)
+      : addMonths(date, direction);
+  }
+
+  const canNavigateForward =
+    latestCalendarDate === null ||
+    startOfMonth(getNavigatedDate(1)).getTime() <=
+      startOfMonth(latestCalendarDate).getTime();
+
   function handleNavigate(direction: -1 | 1) {
-    const nextDate =
-      state.view === "week"
-        ? addDays(date, direction * 7)
-        : addMonths(date, direction);
+    if (direction === 1 && !canNavigateForward) {
+      return;
+    }
+
+    const nextDate = getNavigatedDate(direction);
     void setState({ date: format(nextDate, "yyyy-MM-dd") }, { shallow: false });
   }
 
   function handleViewChange(view: (typeof CALENDAR_VIEWS)[number]) {
     void setState({ view }, { shallow: false });
+  }
+
+  function handleSourceToggle(sourceId: string) {
+    const selectedSourceIds =
+      visibleSourceIds ?? sources.map((source) => source.sourceId);
+    const nextSourceIds = selectedSourceIds.includes(sourceId)
+      ? selectedSourceIds.filter((id) => id !== sourceId)
+      : [...selectedSourceIds, sourceId];
+    void setState({ source: nextSourceIds.join(",") });
+  }
+
+  async function handleLoadMore() {
+    if (!nextCursor || !range) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setLoadMoreError(false);
+    try {
+      const result = await coreClient.getWorkspaceCalendar({
+        from: range.from,
+        to: range.to,
+        cursor: nextCursor,
+        limit: pagination?.limit ?? 100,
+      });
+      setLoadedItems((currentItems) => [
+        ...currentItems,
+        ...result.data.filter(
+          (item) => !currentItems.some(({ id }) => id === item.id),
+        ),
+      ]);
+      setNextCursor(result.meta?.pagination?.nextCursor ?? null);
+    } catch {
+      setLoadMoreError(true);
+    } finally {
+      setIsLoadingMore(false);
+    }
   }
 
   return (
@@ -288,10 +372,11 @@ export function WorkspaceCalendar({
             <ChevronLeft aria-hidden />
           </Button>
           <span className="min-w-40 text-center text-sm font-medium">
-            {getRangeLabel(date, state.view)}
+            {getRangeLabel(formatDate, date, state.view)}
           </span>
           <Button
             aria-label={t("next")}
+            disabled={!canNavigateForward}
             size="icon"
             variant="outline"
             onClick={() => handleNavigate(1)}
@@ -332,25 +417,33 @@ export function WorkspaceCalendar({
             </Button>
           ))}
         </div>
-        <Select
-          value={state.source}
-          onValueChange={(source) =>
-            void setState({
-              source: source as (typeof CALENDAR_SOURCES)[number],
-            })
-          }
+        <div
+          aria-label={t("source.label")}
+          className="flex flex-wrap gap-1"
+          role="group"
         >
-          <SelectTrigger aria-label={t("source.label")} size="sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {CALENDAR_SOURCES.map((source) => (
-              <SelectItem key={source} value={source}>
-                {t(`source.${source}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {sources.map((source) => {
+            const isVisible =
+              visibleSourceIds === null ||
+              visibleSourceIds.includes(source.sourceId);
+            return (
+              <Button
+                aria-pressed={isVisible}
+                key={source.sourceId}
+                size="sm"
+                variant={isVisible ? "secondary" : "outline"}
+                onClick={() => handleSourceToggle(source.sourceId)}
+              >
+                <SourceMarker
+                  decorative
+                  source={source}
+                  sourceName={source.displayName}
+                />
+                {source.displayName}
+              </Button>
+            );
+          })}
+        </div>
         <Select
           value={state.status}
           onValueChange={(status) => void setState({ status })}
@@ -392,27 +485,41 @@ export function WorkspaceCalendar({
       ) : (
         <>
           <div className="hidden md:block">
-            {state.view === "month" ? (
-              <MonthView date={date} items={visibleItems} />
-            ) : null}
-            {state.view === "week" ? (
-              <WeekView date={date} items={visibleItems} />
-            ) : null}
-            {state.view === "agenda" ? (
-              <AgendaView date={date} items={visibleItems} />
-            ) : null}
+            <CalendarView
+              date={date}
+              items={visibleItems}
+              onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
+              sources={sources}
+              view={state.view}
+            />
           </div>
           <div className="md:hidden">
-            {state.view === "month" ? (
-              <MonthView date={date} items={visibleItems} />
-            ) : state.view === "week" ? (
-              <WeekView date={date} items={visibleItems} />
-            ) : (
-              <AgendaView date={date} items={visibleItems} />
-            )}
+            <CalendarView
+              date={date}
+              items={visibleItems}
+              onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
+              sources={sources}
+              view={state.view === "week" ? "month" : state.view}
+            />
           </div>
         </>
       )}
+      {nextCursor ? (
+        <div className="flex flex-col items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore || !range}
+          >
+            {isLoadingMore ? t("pagination.loading") : t("pagination.loadMore")}
+          </Button>
+          {loadMoreError ? (
+            <p className="text-destructive text-sm" role="alert">
+              {t("pagination.error")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

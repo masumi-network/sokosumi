@@ -1353,6 +1353,11 @@
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },
+      "pagination": {
+        "loadMore": "Weitere Ereignisse laden",
+        "loading": "Ereignisse werden geladen...",
+        "error": "Weitere Ereignisse konnten nicht geladen werden."
+      },
       "error": {
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",

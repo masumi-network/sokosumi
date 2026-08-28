@@ -16,6 +16,7 @@ const coreClientMock = {
   getTasks: vi.fn(),
   getTasksSummary: vi.fn(),
   getWorkspaceCalendar: vi.fn(),
+  getWorkspaceCalendarSources: vi.fn(),
   patchTask: vi.fn(),
 };
 
@@ -167,48 +168,53 @@ describe("task.service", () => {
     expect(result.items).toHaveLength(1);
   });
 
-  it("loads every calendar cursor page", async () => {
-    coreClientMock.getWorkspaceCalendar
-      .mockResolvedValueOnce({
-        data: [
-          {
-            id: "occurrence-1",
-            taskId: "task-1",
-            taskName: "First task",
-            taskStatus: TaskStatus.QUEUED,
-            taskAssigneeId: "coworker-1",
-            scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
-          },
-        ],
-        meta: {
-          pagination: {
-            cursor: null,
-            limit: 100,
-            total: 2,
-            nextCursor: "calendar-2",
-          },
+  it("loads the active workspace calendar source catalog through Core", async () => {
+    coreClientMock.getWorkspaceCalendarSources.mockResolvedValue({
+      data: [
+        {
+          sourceId: "workspace:workspace-1",
+          sourceType: "WORKSPACE",
+          displayName: "Ada's workspace",
+          logoUrl: null,
+          paletteToken: "blue",
         },
-      })
-      .mockResolvedValueOnce({
-        data: [
-          {
-            id: "occurrence-2",
-            taskId: "task-2",
-            taskName: "Second task",
-            taskStatus: TaskStatus.READY,
-            taskAssigneeId: "coworker-2",
-            scheduledAt: new Date("2026-08-19T09:00:00.000Z"),
-          },
-        ],
-        meta: {
-          pagination: {
-            cursor: "calendar-2",
-            limit: 100,
-            total: 2,
-            nextCursor: null,
-          },
+      ],
+    });
+    const { taskService } = await import("./task.service");
+
+    await expect(taskService.getWorkspaceCalendarSources()).resolves.toEqual([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        displayName: "Ada's workspace",
+        logoUrl: null,
+        paletteToken: "blue",
+      },
+    ]);
+    expect(coreClientMock.getWorkspaceCalendarSources).toHaveBeenCalledOnce();
+  });
+
+  it("loads one bounded calendar page", async () => {
+    coreClientMock.getWorkspaceCalendar.mockResolvedValueOnce({
+      data: [
+        {
+          id: "occurrence-1",
+          taskId: "task-1",
+          taskName: "First task",
+          taskStatus: TaskStatus.QUEUED,
+          taskAssigneeId: "coworker-1",
+          scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
         },
-      });
+      ],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 2,
+          nextCursor: "calendar-2",
+        },
+      },
+    });
     const { taskService } = await import("./task.service");
     const result = await taskService.getWorkspaceCalendar({
       from: new Date("2026-08-01T00:00:00.000Z"),
@@ -216,15 +222,12 @@ describe("task.service", () => {
       limit: 100,
     });
 
-    expect(result.items.map((item) => item.id)).toEqual([
-      "occurrence-1",
-      "occurrence-2",
-    ]);
-    expect(coreClientMock.getWorkspaceCalendar).toHaveBeenNthCalledWith(2, {
+    expect(result.items.map((item) => item.id)).toEqual(["occurrence-1"]);
+    expect(coreClientMock.getWorkspaceCalendar).toHaveBeenCalledOnce();
+    expect(coreClientMock.getWorkspaceCalendar).toHaveBeenCalledWith({
       from: new Date("2026-08-01T00:00:00.000Z"),
       to: new Date("2026-09-01T00:00:00.000Z"),
       limit: 100,
-      cursor: "calendar-2",
     });
     expect(coreClientMock.getTasks).not.toHaveBeenCalled();
   });

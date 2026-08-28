@@ -64,6 +64,10 @@ export const workspaceCalendarItemSchema = z
         "Original scheduled time captured by the occurrence ledger, when known",
     }),
     state: z.enum(TaskScheduleOccurrenceState).openapi({ example: "PLANNED" }),
+    sourceId: z.string().openapi({
+      description: "Canonical Calendar source identity",
+      example: "project:22222222-2222-7222-8222-222222222222",
+    }),
     sourceWorkspaceId: z.string().uuid().openapi({
       description: "Workspace captured as the Calendar source",
     }),
@@ -77,3 +81,18 @@ export const workspaceCalendarItemSchema = z
     timeAccuracy: z.enum(CalendarTimeAccuracy).openapi({ example: "EXACT" }),
   })
   .openapi("WorkspaceCalendarItem");
+
+export const workspaceCalendarSourceSchema = z
+  .object({
+    sourceId: z.string().openapi({
+      example: "project:22222222-2222-7222-8222-222222222222",
+    }),
+    sourceType: z.enum(CalendarSourceType).openapi({ example: "PROJECT" }),
+    displayName: z.string().openapi({ example: "Q1 research" }),
+    logoUrl: z.url().nullable().openapi({ example: null }),
+    paletteToken: z.enum(["blue", "violet", "amber"]).openapi({
+      description: "Bounded visual marker for Calendar source displays",
+      example: "violet",
+    }),
+  })
+  .openapi("WorkspaceCalendarSource");

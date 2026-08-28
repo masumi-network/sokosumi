@@ -344,23 +344,33 @@ function getOccurrenceProjection(
   };
 }
 
-export function projectTaskScheduleOccurrences(
+export function* iterateTaskScheduleOccurrences(
   taskId: string,
   metadata: TaskScheduleMetadata,
   nextRunAt: Date,
   from: Date,
   to: Date,
   maxOccurrences = Number.POSITIVE_INFINITY,
-): TaskScheduleOccurrenceProjection[] {
+): Generator<TaskScheduleOccurrenceProjection> {
   if (metadata.mode === "once") {
-    return nextRunAt >= from && nextRunAt < to
-      ? [getOccurrenceProjection(taskId, metadata, nextRunAt)]
-      : [];
+    if (nextRunAt >= from && nextRunAt < to) {
+      yield getOccurrenceProjection(taskId, metadata, nextRunAt);
+    }
+    return;
   }
 
-  const projections: TaskScheduleOccurrenceProjection[] = [];
+  // The scheduler must consume overdue finite recurrences before their
+  // remaining release count can be projected accurately.
+  if (nextRunAt < from && metadata.endsMode === "after") {
+    return;
+  }
+
+  let occurrenceCount = 0;
   let projectedMetadata = metadata;
-  let projectedNextRunAt: Date | null = new Date(nextRunAt);
+  let projectedNextRunAt: Date | null =
+    nextRunAt < from
+      ? computeScheduleNextRun(projectedMetadata, from)
+      : new Date(nextRunAt);
 
   while (projectedNextRunAt && projectedNextRunAt < to) {
     if (isDueRunPastScheduleEnd(projectedMetadata, projectedNextRunAt)) {
@@ -368,11 +378,14 @@ export function projectTaskScheduleOccurrences(
     }
 
     if (projectedNextRunAt >= from) {
-      projections.push(
-        getOccurrenceProjection(taskId, projectedMetadata, projectedNextRunAt),
+      yield getOccurrenceProjection(
+        taskId,
+        projectedMetadata,
+        projectedNextRunAt,
       );
-      if (projections.length === maxOccurrences) {
-        break;
+      occurrenceCount += 1;
+      if (occurrenceCount === maxOccurrences) {
+        return;
       }
     }
 
@@ -385,11 +398,25 @@ export function projectTaskScheduleOccurrences(
       projectedNextRunAt,
     );
   }
+}
 
-  return projections.sort(
-    (left, right) =>
-      left.scheduledAt.getTime() - right.scheduledAt.getTime() ||
-      left.id.localeCompare(right.id),
+export function projectTaskScheduleOccurrences(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  nextRunAt: Date,
+  from: Date,
+  to: Date,
+  maxOccurrences = Number.POSITIVE_INFINITY,
+): TaskScheduleOccurrenceProjection[] {
+  return Array.from(
+    iterateTaskScheduleOccurrences(
+      taskId,
+      metadata,
+      nextRunAt,
+      from,
+      to,
+      maxOccurrences,
+    ),
   );
 }
 

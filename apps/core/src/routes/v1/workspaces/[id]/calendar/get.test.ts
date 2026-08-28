@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskScheduleOccurrenceState, TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,11 +7,13 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
   taskFindManyMock,
+  taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
   taskFindManyMock: vi.fn(),
+  taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     task: { findMany: taskFindManyMock },
     taskScheduleOccurrence: {
+      count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
     workspace: { findUnique: workspaceFindUniqueMock },
@@ -101,25 +104,6 @@ function createApp(
   return app;
 }
 
-function createScheduledTask(overrides: Record<string, unknown> = {}) {
-  return {
-    id: "tsk_schedule",
-    name: "Schedule task",
-    workspaceId: WORKSPACE_ID,
-    projectId: null,
-    assigneeId: null,
-    status: TaskStatus.QUEUED,
-    metadata: JSON.stringify({
-      version: 1,
-      mode: "once",
-      scheduledAt: "2026-06-01T09:00:00.000Z",
-      runAt: "2026-06-02T09:00:00.000Z",
-    }),
-    nextRunAt: new Date("2026-06-02T09:00:00.000Z"),
-    ...overrides,
-  };
-}
-
 function createLedgerOccurrence(overrides: Record<string, unknown> = {}) {
   return {
     id: "00000000-0000-7000-8000-000000000001",
@@ -157,7 +141,11 @@ describe("GET /workspaces/{id}/calendar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    taskFindManyMock.mockReset();
+    taskScheduleOccurrenceCountMock.mockReset();
+    taskScheduleOccurrenceFindManyMock.mockReset();
     taskFindManyMock.mockResolvedValue([]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
     workspaceFindUniqueMock.mockResolvedValue({
       userId: "user_123",
@@ -166,7 +154,10 @@ describe("GET /workspaces/{id}/calendar", () => {
   });
 
   it("returns calendar items for the caller personal workspace", async () => {
-    taskFindManyMock.mockResolvedValue([createScheduledTask()]);
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence(),
+    ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(1);
 
     const response = await requestCalendar(createApp());
 
@@ -174,19 +165,20 @@ describe("GET /workspaces/{id}/calendar", () => {
     await expect(response.json()).resolves.toEqual({
       data: [
         {
-          id: "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
-          taskId: "tsk_schedule",
-          taskName: "Schedule task",
+          id: "00000000-0000-7000-8000-000000000001",
+          taskId: "tsk_history",
+          taskName: "Released task",
           taskStatus: "QUEUED",
           taskAssigneeId: null,
-          scheduledAt: "2026-06-02T09:00:00.000Z",
-          originalScheduledAt: "2026-06-02T09:00:00.000Z",
-          state: "PLANNED",
+          scheduledAt: "2026-06-03T09:00:00.000Z",
+          originalScheduledAt: "2026-06-03T09:00:00.000Z",
+          state: "RELEASED",
+          sourceId: "project:22222222-2222-7222-8222-222222222222",
           sourceWorkspaceId: WORKSPACE_ID,
-          sourceType: "WORKSPACE",
-          sourceProjectId: null,
-          sourceAccuracy: "EXACT",
-          timeAccuracy: "EXACT",
+          sourceType: "PROJECT",
+          sourceProjectId: "22222222-2222-7222-8222-222222222222",
+          sourceAccuracy: "INFERRED",
+          timeAccuracy: "APPROXIMATE",
         },
       ],
       meta: expect.objectContaining({
@@ -200,6 +192,35 @@ describe("GET /workspaces/{id}/calendar", () => {
       }),
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("excludes skipped and canceled occurrences", async () => {
+    const response = await requestCalendar(createApp());
+
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          state: {
+            in: [
+              TaskScheduleOccurrenceState.PLANNED,
+              TaskScheduleOccurrenceState.RELEASED,
+            ],
+          },
+        }),
+      }),
+    );
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        state: {
+          in: [
+            TaskScheduleOccurrenceState.PLANNED,
+            TaskScheduleOccurrenceState.RELEASED,
+          ],
+        },
+      }),
+    });
   });
 
   it("allows a member to read an organization workspace calendar", async () => {
@@ -242,25 +263,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("reads all scheduled sources in the requested range", async () => {
-    taskFindManyMock.mockResolvedValue(
-      Array.from({ length: 11 }, (_, index) =>
-        createScheduledTask({ id: `tsk_schedule_${index}` }),
-      ),
-    );
-
-    const response = await requestCalendar(
-      createApp(),
-      `from=${FROM}&to=${TO}&limit=1`,
-    );
-
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({ take: expect.anything() }),
-    );
-  });
-
-  it("reads all persisted occurrences in the requested range", async () => {
+  it("pages persisted occurrences in the requested range", async () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue(
       Array.from({ length: 11 }, (_, index) =>
         createLedgerOccurrence({
@@ -276,7 +279,37 @@ describe("GET /workspaces/{id}/calendar", () => {
 
     expect(response.status).toBe(200);
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({ take: expect.anything() }),
+      expect.objectContaining({ take: expect.any(Number) }),
+    );
+  });
+
+  it("does not use a projected item ID in the persisted occurrence cursor", async () => {
+    const cursor = Buffer.from(
+      JSON.stringify({
+        id: "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+        scheduledAt: "2026-06-02T09:00:00.000Z",
+      }),
+      "utf8",
+    ).toString("base64url");
+
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&cursor=${cursor}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              effectiveScheduledAt: {
+                gt: new Date("2026-06-02T09:00:00.000Z"),
+              },
+            },
+          ],
+        }),
+      }),
     );
   });
 
@@ -292,6 +325,11 @@ describe("GET /workspaces/{id}/calendar", () => {
       "from=2026-06-01T00:00:00.000Z&to=2026-08-31T00:00:00.001Z",
       400,
     ],
+    [
+      "range outside the rolling future horizon",
+      "from=2099-06-01T00:00:00.000Z&to=2099-06-08T00:00:00.000Z",
+      400,
+    ],
   ])("rejects an %s", async (_name, query, status) => {
     const response = await requestCalendar(createApp(), query);
 
@@ -299,33 +337,31 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("projects valid version 1 and version 2 schedules", async () => {
-    taskFindManyMock.mockResolvedValue([
-      createScheduledTask({
-        metadata: JSON.stringify({
-          version: 1,
-          mode: "recurring",
-          scheduledAt: "2026-06-01T09:00:00.000Z",
-          expr: "0 9 * * *",
-          timezone: "UTC",
-          endsMode: "never",
-        }),
+  it("returns indexed version 1 and version 2 plans", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({
+        id: "00000000-0000-7000-8000-000000000010",
+        state: "PLANNED",
+        sourceType: "WORKSPACE",
+        sourceProjectId: null,
+        seriesTask: {
+          id: "tsk_v1",
+          name: "Version 1 task",
+          status: TaskStatus.QUEUED,
+          assigneeId: null,
+        },
       }),
-      createScheduledTask({
-        id: "tsk_v2",
-        name: "Version 2 task",
-        projectId: "22222222-2222-7222-8222-222222222222",
-        metadata: JSON.stringify({
-          version: 2,
-          epochId: "33333333-3333-7333-8333-333333333333",
-          mode: "once",
-          createdAt: "2026-06-01T08:00:00.000Z",
-          ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-          timezone: "UTC",
-          sourceRunAt: "2026-06-03T09:00:00.000Z",
-          effectiveRunAt: "2026-06-03T10:00:00.000Z",
-        }),
-        nextRunAt: new Date("2026-06-03T10:00:00.000Z"),
+      createLedgerOccurrence({
+        id: "00000000-0000-7000-8000-000000000011",
+        state: "PLANNED",
+        effectiveScheduledAt: new Date("2026-06-03T10:00:00.000Z"),
+        originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
+        seriesTask: {
+          id: "tsk_v2",
+          name: "Version 2 task",
+          status: TaskStatus.QUEUED,
+          assigneeId: null,
+        },
       }),
     ]);
 
@@ -336,12 +372,10 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(body.data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
-          taskId: "tsk_schedule",
+          taskId: "tsk_v1",
           sourceType: "WORKSPACE",
         }),
         expect.objectContaining({
-          id: "v2:33333333-3333-7333-8333-333333333333:2026-06-03T09:00:00.000Z",
           taskId: "tsk_v2",
           scheduledAt: "2026-06-03T10:00:00.000Z",
           originalScheduledAt: "2026-06-03T09:00:00.000Z",
@@ -349,23 +383,6 @@ describe("GET /workspaces/{id}/calendar", () => {
           sourceProjectId: "22222222-2222-7222-8222-222222222222",
         }),
       ]),
-    );
-  });
-
-  it("omits malformed and quarantined schedules", async () => {
-    taskFindManyMock.mockResolvedValue([
-      createScheduledTask({ id: "tsk_malformed", metadata: "not json" }),
-    ]);
-
-    const response = await requestCalendar(createApp());
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual([]);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ scheduleQuarantine: null }),
-      }),
     );
   });
 
@@ -379,7 +396,6 @@ describe("GET /workspaces/{id}/calendar", () => {
         timeAccuracy: "APPROXIMATE",
       }),
     ]);
-
     const response = await requestCalendar(createApp());
     const body = await response.json();
 
@@ -389,6 +405,7 @@ describe("GET /workspaces/{id}/calendar", () => {
         id: "00000000-0000-7000-8000-000000000001",
         taskId: "tsk_history",
         taskName: "Released task",
+        sourceId: "legacy-unknown:44444444-4444-7444-8444-444444444444",
         sourceWorkspaceId: "44444444-4444-7444-8444-444444444444",
         sourceType: "LEGACY_UNKNOWN",
         sourceProjectId: null,
@@ -398,27 +415,60 @@ describe("GET /workspaces/{id}/calendar", () => {
     ]);
   });
 
-  it("sorts mixed projections and ledger rows deterministically across cursor pages", async () => {
-    taskFindManyMock.mockResolvedValue([
-      createScheduledTask(),
-      createScheduledTask({
-        id: "tsk_later",
-        name: "Later task",
-        metadata: JSON.stringify({
-          version: 1,
-          mode: "once",
-          scheduledAt: "2026-06-01T09:00:00.000Z",
-          runAt: "2026-06-04T09:00:00.000Z",
-        }),
-        nextRunAt: new Date("2026-06-04T09:00:00.000Z"),
-      }),
-    ]);
+  it("reads planned and released occurrences from the index without scanning tasks", async () => {
+    taskFindManyMock.mockRejectedValue(
+      new Error("calendar browse must not scan task schedules"),
+    );
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({ state: "PLANNED" }),
       createLedgerOccurrence({
-        effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+        id: "00000000-0000-7000-8000-000000000002",
+        state: "RELEASED",
       }),
     ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(2);
+
+    const response = await requestCalendar(createApp());
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({ state: "PLANNED" }),
+          expect.objectContaining({ state: "RELEASED" }),
+        ],
+      }),
+    );
+  });
+
+  it("uses indexed occurrence IDs for deterministic cursor pagination", async () => {
+    taskScheduleOccurrenceFindManyMock
+      .mockResolvedValueOnce([
+        createLedgerOccurrence({
+          id: "00000000-0000-7000-8000-000000000001",
+          effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+          originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+        }),
+        createLedgerOccurrence({
+          id: "00000000-0000-7000-8000-000000000002",
+          effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+          originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+        }),
+        createLedgerOccurrence({
+          id: "00000000-0000-7000-8000-000000000003",
+          effectiveScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+          originalScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+        }),
+      ])
+      .mockResolvedValueOnce([
+        createLedgerOccurrence({
+          id: "00000000-0000-7000-8000-000000000003",
+          effectiveScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+          originalScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+        }),
+      ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(3);
 
     const firstResponse = await requestCalendar(
       createApp(),
@@ -429,7 +479,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(firstResponse.status).toBe(200);
     expect(firstPage.data.map((item: { id: string }) => item.id)).toEqual([
       "00000000-0000-7000-8000-000000000001",
-      "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+      "00000000-0000-7000-8000-000000000002",
     ]);
     expect(firstPage.meta.pagination.nextCursor).toEqual(expect.any(String));
 
@@ -444,7 +494,7 @@ describe("GET /workspaces/{id}/calendar", () => {
       throw new Error(await secondResponse.text());
     }
     expect(secondPage.data.map((item: { id: string }) => item.id)).toEqual([
-      "v1:tsk_later:2026-06-01T09:00:00.000Z:2026-06-04T09:00:00.000Z",
+      "00000000-0000-7000-8000-000000000003",
     ]);
     expect(secondPage.meta.pagination).toEqual({
       cursor: firstPage.meta.pagination.nextCursor,
@@ -452,31 +502,22 @@ describe("GET /workspaces/{id}/calendar", () => {
       total: 3,
       nextCursor: null,
     });
-  });
-
-  it("keeps same-time version 1 projections on separate cursor pages", async () => {
-    taskFindManyMock.mockResolvedValue([
-      createScheduledTask(),
-      createScheduledTask({ id: "tsk_collision" }),
-    ]);
-
-    const firstResponse = await requestCalendar(
-      createApp(),
-      `from=${FROM}&to=${TO}&limit=1`,
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              effectiveScheduledAt: {
+                gt: new Date("2026-06-02T09:00:00.000Z"),
+              },
+            },
+            {
+              effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+              id: { gt: "00000000-0000-7000-8000-000000000002" },
+            },
+          ],
+        }),
+      }),
     );
-    const firstPage = await firstResponse.json();
-    const secondResponse = await requestCalendar(
-      createApp(),
-      `from=${FROM}&to=${TO}&limit=1&cursor=${encodeURIComponent(firstPage.meta.pagination.nextCursor)}`,
-    );
-    expect(secondResponse.status).toBe(200);
-    const secondPage = await secondResponse.json();
-
-    expect(firstPage.data.map((item: { id: string }) => item.id)).toEqual([
-      "v1:tsk_collision:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
-    ]);
-    expect(secondPage.data.map((item: { id: string }) => item.id)).toEqual([
-      "v1:tsk_schedule:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
-    ]);
   });
 });

@@ -4,12 +4,15 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
-const { taskFindManyMock, taskScheduleOccurrenceFindManyMock } = vi.hoisted(
-  () => ({
-    taskFindManyMock: vi.fn(),
-    taskScheduleOccurrenceFindManyMock: vi.fn(),
-  }),
-);
+const {
+  taskFindManyMock,
+  taskScheduleOccurrenceCountMock,
+  taskScheduleOccurrenceFindManyMock,
+} = vi.hoisted(() => ({
+  taskFindManyMock: vi.fn(),
+  taskScheduleOccurrenceCountMock: vi.fn(),
+  taskScheduleOccurrenceFindManyMock: vi.fn(),
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -79,6 +82,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     task: { findMany: taskFindManyMock },
     taskScheduleOccurrence: {
+      count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
   },
@@ -107,6 +111,7 @@ describe("GET /workspaces/calendar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFindManyMock.mockResolvedValue([]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
   });
 
@@ -121,10 +126,10 @@ describe("GET /workspaces/calendar", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          workspaceId: "22222222-2222-7222-8222-222222222222",
+          sourceWorkspaceId: "22222222-2222-7222-8222-222222222222",
         }),
       }),
     );
@@ -141,10 +146,10 @@ describe("GET /workspaces/calendar", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          workspaceId: "11111111-1111-7111-8111-111111111111",
+          sourceWorkspaceId: "11111111-1111-7111-8111-111111111111",
         }),
       }),
     );

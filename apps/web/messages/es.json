@@ -1353,6 +1353,11 @@
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros."
       },
+      "pagination": {
+        "loadMore": "Cargar más eventos",
+        "loading": "Cargando eventos...",
+        "error": "No se pudieron cargar más eventos."
+      },
       "error": {
         "title": "No se pudo cargar el calendario",
         "description": "Vuelve a intentarlo en un momento.",

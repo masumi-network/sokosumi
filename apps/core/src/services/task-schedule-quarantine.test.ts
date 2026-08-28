@@ -10,6 +10,16 @@ const lockCalendarScopeMock = vi.hoisted(() => vi.fn());
 const lockTaskRowsMock = vi.hoisted(() => vi.fn());
 const createNotificationMock = vi.hoisted(() => vi.fn());
 const accessibleTaskFindFirstMock = vi.hoisted(() => vi.fn());
+const removeTaskSchedulePlannedOccurrencesMock = vi.hoisted(() => vi.fn());
+const replaceTaskSchedulePlannedOccurrencesMock = vi.hoisted(() => vi.fn());
+const TaskScheduleOccurrenceLimitErrorMock = vi.hoisted(
+  () =>
+    class TaskScheduleOccurrenceLimitError extends Error {
+      constructor() {
+        super("Schedule creates too many occurrences");
+      }
+    },
+);
 
 const tx = {
   taskEvent: {
@@ -36,6 +46,14 @@ vi.mock("@/helpers/calendar-locks", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
+  replaceTaskSchedulePlannedOccurrences:
+    replaceTaskSchedulePlannedOccurrencesMock,
+  TaskScheduleOccurrenceLimitError: TaskScheduleOccurrenceLimitErrorMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -83,6 +101,7 @@ describe("task schedule quarantine operations", () => {
     quarantineFindUniqueMock.mockResolvedValue(createQuarantine());
     quarantineDeleteManyMock.mockResolvedValue({ count: 1 });
     taskUpdateMock.mockResolvedValue({ id: "task-1" });
+    replaceTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
     taskEventCreateMock.mockResolvedValue({ id: "event-1" });
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
@@ -138,6 +157,16 @@ describe("task schedule quarantine operations", () => {
     expect(quarantineDeleteManyMock).toHaveBeenCalledWith({
       where: { id: "quarantine-1", taskId: "task-1" },
     });
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        id: "task-1",
+        workspaceId: "workspace-1",
+        projectId: null,
+        schedule: expect.objectContaining({ version: 1 }),
+        nextRunAt: new Date("2026-08-27T09:00:00.000Z"),
+      }),
+    );
     expect(taskEventCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         taskId: "task-1",
@@ -161,6 +190,34 @@ describe("task schedule quarantine operations", () => {
         messageKey: "Notifications.Task.scheduleRepaired",
       }),
     );
+  });
+
+  it("keeps a quarantined schedule when its repair exceeds the Calendar limit", async () => {
+    replaceTaskSchedulePlannedOccurrencesMock.mockRejectedValue(
+      new TaskScheduleOccurrenceLimitErrorMock(),
+    );
+
+    const result = await repairTaskScheduleQuarantine({
+      taskId: "task-1",
+      operationId: "123e4567-e89b-42d3-a456-426614174009",
+      operatorId: "admin-1",
+      reason: "Corrected the imported rule",
+      schedule: {
+        mode: "recurring",
+        expr: "* * * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      },
+    });
+
+    expect(result).toMatchObject({
+      error: {
+        kind: "not_repairable",
+        reason: "Schedule creates too many occurrences",
+      },
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(quarantineDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("removes a quarantined schedule, returns the task to Draft, and audits the snapshot", async () => {
@@ -205,6 +262,10 @@ describe("task schedule quarantine operations", () => {
       }),
       select: { id: true },
     });
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      tx,
+      "task-1",
+    );
   });
 
   it("replays an exact audited removal without repeating side effects", async () => {

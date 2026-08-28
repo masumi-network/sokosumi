@@ -5313,6 +5313,10 @@ export type WorkspaceCalendarItem = {
     originalScheduledAt: Date | null;
     state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
     /**
+     * Canonical Calendar source identity
+     */
+    sourceId: string;
+    /**
      * Workspace captured as the Calendar source
      */
     sourceWorkspaceId: string;
@@ -5323,6 +5327,17 @@ export type WorkspaceCalendarItem = {
     sourceProjectId: string | null;
     sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
     timeAccuracy: 'EXACT' | 'APPROXIMATE';
+};
+
+export type WorkspaceCalendarSource = {
+    sourceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    displayName: string;
+    logoUrl: string | null;
+    /**
+     * Bounded visual marker for Calendar source displays
+     */
+    paletteToken: 'blue' | 'violet' | 'amber';
 };
 
 export type WorkspaceOrganization = {
@@ -38531,6 +38546,90 @@ export type GetWorkspacesCalendarResponses = {
 };
 
 export type GetWorkspacesCalendarResponse = GetWorkspacesCalendarResponses[keyof GetWorkspacesCalendarResponses];
+
+export type GetWorkspacesCalendarSourcesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/workspaces/calendar/sources';
+};
+
+export type GetWorkspacesCalendarSourcesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarSourcesError = GetWorkspacesCalendarSourcesErrors[keyof GetWorkspacesCalendarSourcesErrors];
+
+export type GetWorkspacesCalendarSourcesResponses = {
+    /**
+     * Active workspace Calendar sources
+     */
+    200: {
+        data: Array<WorkspaceCalendarSource>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarSourcesResponse = GetWorkspacesCalendarSourcesResponses[keyof GetWorkspacesCalendarSourcesResponses];
 
 export type GetWorkspacesByIdCalendarData = {
     body?: never;

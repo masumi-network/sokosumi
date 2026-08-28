@@ -17101,6 +17101,11 @@ export const WorkspaceCalendarItemSchema = {
             ],
             example: 'PLANNED'
         },
+        sourceId: {
+            type: 'string',
+            description: 'Canonical Calendar source identity',
+            example: 'project:22222222-2222-7222-8222-222222222222'
+        },
         sourceWorkspaceId: {
             type: 'string',
             format: 'uuid',
@@ -17150,11 +17155,60 @@ export const WorkspaceCalendarItemSchema = {
         'scheduledAt',
         'originalScheduledAt',
         'state',
+        'sourceId',
         'sourceWorkspaceId',
         'sourceType',
         'sourceProjectId',
         'sourceAccuracy',
         'timeAccuracy'
+    ]
+} as const;
+
+export const WorkspaceCalendarSourceSchema = {
+    type: 'object',
+    properties: {
+        sourceId: {
+            type: 'string',
+            example: 'project:22222222-2222-7222-8222-222222222222'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT',
+                'LEGACY_UNKNOWN'
+            ],
+            example: 'PROJECT'
+        },
+        displayName: {
+            type: 'string',
+            example: 'Q1 research'
+        },
+        logoUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: null
+        },
+        paletteToken: {
+            type: 'string',
+            enum: [
+                'blue',
+                'violet',
+                'amber'
+            ],
+            description: 'Bounded visual marker for Calendar source displays',
+            example: 'violet'
+        }
+    },
+    required: [
+        'sourceId',
+        'sourceType',
+        'displayName',
+        'logoUrl',
+        'paletteToken'
     ]
 } as const;
 

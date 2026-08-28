@@ -41,6 +41,7 @@ const {
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
+  removeTaskSchedulePlannedOccurrencesMock,
   requireTaskCollaborationMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
@@ -58,6 +59,7 @@ const {
   prismaTaskFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
+  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
@@ -117,6 +119,11 @@ vi.mock("@/helpers/x402-readiness", async (importOriginal) => {
 
 vi.mock("@/clients/masumi-payment.client", () => ({
   paymentClient: () => ({ payX402: payX402Mock }),
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -3514,6 +3521,21 @@ describe("POST /{id}/x402-payments", () => {
         }),
       );
       expect(publishTaskEventDataMock).toHaveBeenCalled();
+    });
+
+    it("removes planned occurrences when a queued task runs out of credits", async () => {
+      requireTaskCollaborationMock.mockResolvedValue(
+        createTask({ status: TaskStatus.QUEUED }),
+      );
+      const app = createApp(COWORKER_AGENT_CONTEXT);
+
+      const response = await postPayment(app, validBody());
+
+      expect(response.status).toBe(422);
+      expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+        tx,
+        TASK_ID,
+      );
     });
 
     it("keeps a terminal task's status and answers a plain 422", async () => {

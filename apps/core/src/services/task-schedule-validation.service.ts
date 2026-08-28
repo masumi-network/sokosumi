@@ -1,4 +1,9 @@
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import {
+  removeTaskSchedulePlannedOccurrences,
+  replaceTaskSchedulePlannedOccurrences,
+  TaskScheduleOccurrenceLimitError,
+} from "@/helpers/task-schedule-occurrence-index";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
 import prisma from "@/lib/db/prisma";
@@ -66,16 +71,35 @@ async function validateTask(taskId: string): Promise<boolean> {
     }
 
     const validation = validatePersistedTaskSchedule(task);
-    if (validation.valid) {
+    if (!validation.valid) {
+      await quarantineTaskSchedule(
+        tx,
+        task,
+        validation.reason,
+        validation.details,
+      );
+      return true;
+    }
+
+    if (!task.nextRunAt) {
       return false;
     }
-    await quarantineTaskSchedule(
-      tx,
-      task,
-      validation.reason,
-      validation.details,
-    );
-    return true;
+
+    try {
+      await replaceTaskSchedulePlannedOccurrences(tx, {
+        id: task.id,
+        workspaceId: task.workspaceId,
+        projectId: task.projectId,
+        schedule: validation.metadata,
+        nextRunAt: task.nextRunAt,
+      });
+    } catch (error) {
+      if (!(error instanceof TaskScheduleOccurrenceLimitError)) {
+        throw error;
+      }
+      await removeTaskSchedulePlannedOccurrences(tx, task.id);
+    }
+    return false;
   });
 }
 

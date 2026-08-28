@@ -1353,6 +1353,11 @@
       "empty": {
         "title": "No scheduled releases match these filters."
       },
+      "pagination": {
+        "loadMore": "Load more events",
+        "loading": "Loading events...",
+        "error": "Unable to load more events."
+      },
       "error": {
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",

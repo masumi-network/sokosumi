@@ -1,12 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  CalendarSourceAccuracy,
-  CalendarSourceType,
-  CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
-  TaskStatus,
-} from "@sokosumi/database";
-
+import { TaskScheduleOccurrenceState } from "@sokosumi/database";
+import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import {
@@ -15,8 +9,7 @@ import {
 } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { projectTaskScheduleOccurrences } from "@/helpers/task-schedule";
-import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
+import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -24,8 +17,6 @@ import {
   workspaceCalendarItemSchema,
   workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
-
-const MAX_CALENDAR_RANGE_MS = 90 * 24 * 60 * 60 * 1000;
 
 const paramsSchema = z.object({
   id: z
@@ -41,7 +32,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/calendar",
   description:
-    "List scheduled Task projections and persisted schedule occurrences for a workspace",
+    "List indexed planned and released schedule occurrences for a workspace",
   tags: ["Workspaces"],
   request: {
     params: paramsSchema,
@@ -141,8 +132,13 @@ function validateRange(from: string, to: string): { from: Date; to: Date } {
   ) {
     throw badRequest("to must be after from");
   }
-  if (toDate.getTime() - fromDate.getTime() > MAX_CALENDAR_RANGE_MS) {
+  if (toDate.getTime() - fromDate.getTime() > CALENDAR_OCCURRENCE_HORIZON_MS) {
     throw badRequest("Calendar range cannot exceed 90 days");
+  }
+  if (toDate.getTime() > Date.now() + CALENDAR_OCCURRENCE_HORIZON_MS) {
+    throw badRequest(
+      "Calendar browse range cannot extend beyond the next 90 days",
+    );
   }
   return { from: fromDate, to: toDate };
 }
@@ -160,14 +156,10 @@ export function parseWorkspaceCalendarQuery(
   };
 }
 
-function compareCalendarItems(
-  left: { id: string; scheduledAt: string },
-  right: { id: string; scheduledAt: string },
-): number {
-  return (
-    new Date(left.scheduledAt).getTime() -
-      new Date(right.scheduledAt).getTime() || left.id.localeCompare(right.id)
-  );
+function isPersistedOccurrenceCursor(
+  cursor: CalendarCursor | null,
+): cursor is CalendarCursor {
+  return cursor !== null && z.uuid().safeParse(cursor.id).success;
 }
 
 export async function readWorkspaceCalendar(
@@ -175,33 +167,39 @@ export async function readWorkspaceCalendar(
   query: WorkspaceCalendarReadQuery,
 ) {
   const { cursor, from, to } = query;
-  const [scheduledTasks, occurrences] = await Promise.all([
-    prisma.task.findMany({
-      where: {
-        workspaceId,
-        archivedAt: null,
-        status: TaskStatus.QUEUED,
-        metadata: { not: null },
-        nextRunAt: { not: null },
-        scheduleQuarantine: null,
-      },
-      orderBy: { id: "asc" },
-      select: {
-        id: true,
-        name: true,
-        workspaceId: true,
-        projectId: true,
-        status: true,
-        assigneeId: true,
-        metadata: true,
-        nextRunAt: true,
-      },
-    }),
+  const maxCandidates = query.limit + 1;
+  const persistedOccurrenceBaseWhere = {
+    sourceWorkspaceId: workspaceId,
+    state: {
+      in: [
+        TaskScheduleOccurrenceState.PLANNED,
+        TaskScheduleOccurrenceState.RELEASED,
+      ],
+    },
+    effectiveScheduledAt: { gte: from, lt: to },
+  };
+  const persistedOccurrenceWhere = {
+    ...persistedOccurrenceBaseWhere,
+    ...(cursor
+      ? {
+          OR: [
+            { effectiveScheduledAt: { gt: new Date(cursor.scheduledAt) } },
+            ...(isPersistedOccurrenceCursor(cursor)
+              ? [
+                  {
+                    effectiveScheduledAt: new Date(cursor.scheduledAt),
+                    id: { gt: cursor.id },
+                  },
+                ]
+              : []),
+          ],
+        }
+      : {}),
+  };
+  const [occurrences, persistedOccurrenceCount] = await Promise.all([
     prisma.taskScheduleOccurrence.findMany({
-      where: {
-        sourceWorkspaceId: workspaceId,
-        effectiveScheduledAt: { gte: from, lt: to },
-      },
+      where: persistedOccurrenceWhere,
+      take: maxCandidates,
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
       select: {
         id: true,
@@ -225,105 +223,39 @@ export async function readWorkspaceCalendar(
         },
       },
     }),
+    prisma.taskScheduleOccurrence.count({
+      where: persistedOccurrenceBaseWhere,
+    }),
   ]);
 
-  const persistedEpochOccurrences = new Set(
-    occurrences.flatMap((occurrence) =>
-      occurrence.epochId && occurrence.originalScheduledAt
-        ? [
-            `${occurrence.seriesTaskId}:${occurrence.epochId}:${occurrence.originalScheduledAt.toISOString()}`,
-          ]
-        : [],
-    ),
+  const persistedItems = occurrences.slice(0, maxCandidates).map((occurrence) =>
+    workspaceCalendarItemSchema.parse({
+      id: occurrence.id,
+      taskId: occurrence.seriesTask.id,
+      taskName: occurrence.seriesTask.name,
+      taskStatus: occurrence.seriesTask.status,
+      taskAssigneeId: occurrence.seriesTask.assigneeId,
+      scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
+      originalScheduledAt:
+        occurrence.originalScheduledAt?.toISOString() ?? null,
+      state: occurrence.state,
+      sourceId: getCalendarSourceId(occurrence),
+      sourceWorkspaceId: occurrence.sourceWorkspaceId,
+      sourceType: occurrence.sourceType,
+      sourceProjectId: occurrence.sourceProjectId,
+      sourceAccuracy: occurrence.sourceAccuracy,
+      timeAccuracy: occurrence.timeAccuracy,
+    }),
   );
-
-  const items: z.infer<typeof workspaceCalendarItemSchema>[] = [];
-
-  function addItem(item: z.infer<typeof workspaceCalendarItemSchema>) {
-    items.push(item);
-  }
-
-  for (const task of scheduledTasks) {
-    const validation = validatePersistedTaskSchedule(task);
-    if (!validation.valid || !task.nextRunAt) {
-      continue;
-    }
-
-    const projections = projectTaskScheduleOccurrences(
-      task.id,
-      validation.metadata,
-      task.nextRunAt,
-      from,
-      to,
-    );
-    for (const projection of projections) {
-      if (
-        validation.metadata.version !== 1 &&
-        persistedEpochOccurrences.has(
-          `${task.id}:${validation.metadata.epochId}:${projection.originalScheduledAt.toISOString()}`,
-        )
-      ) {
-        continue;
-      }
-      addItem(
-        workspaceCalendarItemSchema.parse({
-          id: projection.id,
-          taskId: task.id,
-          taskName: task.name,
-          taskStatus: task.status,
-          taskAssigneeId: task.assigneeId,
-          scheduledAt: projection.scheduledAt.toISOString(),
-          originalScheduledAt: projection.originalScheduledAt.toISOString(),
-          state: TaskScheduleOccurrenceState.PLANNED,
-          sourceWorkspaceId: task.workspaceId,
-          sourceType: task.projectId
-            ? CalendarSourceType.PROJECT
-            : CalendarSourceType.WORKSPACE,
-          sourceProjectId: task.projectId,
-          sourceAccuracy: CalendarSourceAccuracy.EXACT,
-          timeAccuracy: CalendarTimeAccuracy.EXACT,
-        }),
-      );
-    }
-  }
-
-  for (const occurrence of occurrences) {
-    addItem(
-      workspaceCalendarItemSchema.parse({
-        id: occurrence.id,
-        taskId: occurrence.seriesTask.id,
-        taskName: occurrence.seriesTask.name,
-        taskStatus: occurrence.seriesTask.status,
-        taskAssigneeId: occurrence.seriesTask.assigneeId,
-        scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
-        originalScheduledAt:
-          occurrence.originalScheduledAt?.toISOString() ?? null,
-        state: occurrence.state,
-        sourceWorkspaceId: occurrence.sourceWorkspaceId,
-        sourceType: occurrence.sourceType,
-        sourceProjectId: occurrence.sourceProjectId,
-        sourceAccuracy: occurrence.sourceAccuracy,
-        timeAccuracy: occurrence.timeAccuracy,
-      }),
-    );
-  }
-
-  const sortedItems = items
-    .sort(compareCalendarItems)
-    .map((item) => workspaceCalendarItemSchema.parse(item));
-
-  const itemsAfterCursor = cursor
-    ? sortedItems.filter((item) => compareCalendarItems(item, cursor) > 0)
-    : sortedItems;
-  const page = itemsAfterCursor.slice(0, query.limit);
-  const hasMore = itemsAfterCursor.length > page.length;
+  const page = persistedItems.slice(0, query.limit);
+  const hasMore = persistedItems.length > page.length;
 
   return {
     items: page,
     pagination: {
       cursor: query.requestedCursor,
       limit: query.limit,
-      total: sortedItems.length,
+      total: persistedOccurrenceCount,
       nextCursor: hasMore
         ? encodeCursor({
             id: page[page.length - 1]!.id,

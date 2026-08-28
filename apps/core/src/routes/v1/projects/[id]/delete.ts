@@ -65,6 +65,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return "missing" as const;
       }
 
+      const occurrence = await tx.taskScheduleOccurrence.findFirst({
+        where: { sourceProjectId: id },
+        select: { id: true },
+      });
+      if (occurrence) {
+        return "guarded" as const;
+      }
+
       const deleteResult = await tx.project.deleteMany({
         where: { id, workspaceId: workspaceContext.workspaceId },
       });

@@ -15,6 +15,10 @@ import {
   isSchedulableTaskStatus,
   validateScheduleInput,
 } from "@/helpers/task-schedule";
+import {
+  replaceTaskSchedulePlannedOccurrences,
+  TaskScheduleOccurrenceLimitError,
+} from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -81,63 +85,80 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    const task = await prisma.$transaction(async (tx) => {
-      const locked = await lockCalendarScope(tx, existingTask.workspaceId, [
-        existingTask.projectId,
-      ]);
-      if (!locked) {
-        throw conflict("Task Calendar source changed during schedule update");
-      }
-      if (!(await lockTaskRows(tx, [id]))) {
-        throw conflict("Task changed during schedule update");
-      }
+    const task = await prisma
+      .$transaction(async (tx) => {
+        const locked = await lockCalendarScope(tx, existingTask.workspaceId, [
+          existingTask.projectId,
+        ]);
+        if (!locked) {
+          throw conflict("Task Calendar source changed during schedule update");
+        }
+        if (!(await lockTaskRows(tx, [id]))) {
+          throw conflict("Task changed during schedule update");
+        }
 
-      const currentTask = await requireTaskCollaboration(authContext, id, tx);
-      if (
-        currentTask.workspaceId !== existingTask.workspaceId ||
-        currentTask.projectId !== existingTask.projectId
-      ) {
-        throw conflict("Task Calendar source changed during schedule update");
-      }
-      if (!isSchedulableTaskStatus(currentTask.status)) {
-        throw forbidden("You can only schedule draft, ready, or queued tasks");
-      }
-      await requireAssignedOrganizationSeat(
-        userContext.userId,
-        currentTask.organizationId,
-        tx,
-      );
-      const quarantine = await tx.taskScheduleQuarantine.findUnique({
-        where: { taskId: id },
-        select: { id: true },
-      });
-      if (quarantine) {
-        throw conflict(
-          "This schedule is quarantined and requires operator repair",
-          { kind: CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED },
+        const currentTask = await requireTaskCollaboration(authContext, id, tx);
+        if (
+          currentTask.workspaceId !== existingTask.workspaceId ||
+          currentTask.projectId !== existingTask.projectId
+        ) {
+          throw conflict("Task Calendar source changed during schedule update");
+        }
+        if (!isSchedulableTaskStatus(currentTask.status)) {
+          throw forbidden(
+            "You can only schedule draft, ready, or queued tasks",
+          );
+        }
+        await requireAssignedOrganizationSeat(
+          userContext.userId,
+          currentTask.organizationId,
+          tx,
         );
-      }
+        const quarantine = await tx.taskScheduleQuarantine.findUnique({
+          where: { taskId: id },
+          select: { id: true },
+        });
+        if (quarantine) {
+          throw conflict(
+            "This schedule is quarantined and requires operator repair",
+            { kind: CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED },
+          );
+        }
 
-      validateTaskAssigneeAssignment({
-        status: TaskStatus.QUEUED,
-        assigneeId: currentTask.assigneeId,
-      });
+        validateTaskAssigneeAssignment({
+          status: TaskStatus.QUEUED,
+          assigneeId: currentTask.assigneeId,
+        });
 
-      return tx.task.update({
-        where: { id },
-        data: {
-          metadata: JSON.stringify(metadata),
+        const task = await tx.task.update({
+          where: { id },
+          data: {
+            metadata: JSON.stringify(metadata),
+            nextRunAt,
+            ...(currentTask.status !== TaskStatus.QUEUED
+              ? { status: TaskStatus.QUEUED }
+              : {}),
+          },
+          include: buildTaskIncludeForViewer(
+            authContext,
+            currentTask.workspaceId,
+          ),
+        });
+        await replaceTaskSchedulePlannedOccurrences(tx, {
+          id,
+          workspaceId: currentTask.workspaceId,
+          projectId: currentTask.projectId,
+          schedule: metadata,
           nextRunAt,
-          ...(currentTask.status !== TaskStatus.QUEUED
-            ? { status: TaskStatus.QUEUED }
-            : {}),
-        },
-        include: buildTaskIncludeForViewer(
-          authContext,
-          currentTask.workspaceId,
-        ),
+        });
+        return task;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof TaskScheduleOccurrenceLimitError) {
+          throw badRequest(error.message);
+        }
+        throw error;
       });
-    });
 
     return ok(c, taskSchema.parse(mapTask(task)));
   });
