@@ -58,6 +58,9 @@ const route = withGlobalHeaderParameters(
 /**
  * Idempotent pending→accepted for an already-guest accept. Rejects expired
  * pending rows so a second invite cannot flip to accepted after expiresAt.
+ * Returns the best-known status from this attempt; callers must re-read when
+ * the result is still pending after a create race (beforeCreate may have
+ * accepted already).
  */
 async function acceptPendingInvitationIfNeeded(
   tx: Prisma.TransactionClient,
@@ -98,6 +101,47 @@ async function acceptPendingInvitationIfNeeded(
   if (accepted.count > 0) {
     status = CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
   }
+  return status;
+}
+
+async function resolveInvitationStatusAfterJoin(
+  tx: Prisma.TransactionClient,
+  args: {
+    invitationId: string;
+    userId: string;
+    rowStatus: string;
+    expiresAt: Date;
+    now: Date;
+    outcome: "joined" | "already_guest" | "aborted";
+  },
+): Promise<string> {
+  if (args.outcome === "aborted") {
+    throw badRequest("Invitation is no longer pending.");
+  }
+  if (args.outcome === "joined") {
+    return CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
+  }
+
+  let status = await acceptPendingInvitationIfNeeded(tx, {
+    invitationId: args.invitationId,
+    userId: args.userId,
+    status: args.rowStatus,
+    expiresAt: args.expiresAt,
+    now: args.now,
+  });
+
+  // Create unique-race as guest: beforeCreate already accepted, but the
+  // in-memory row is still pending and updateMany matched 0 rows.
+  if (status === CHAT_ROOM_INVITATION_STATUS.PENDING) {
+    const fresh = await tx.chatRoomGuestInvitation.findUnique({
+      where: { id: args.invitationId },
+      select: { status: true },
+    });
+    if (fresh) {
+      status = fresh.status;
+    }
+  }
+
   return status;
 }
 
@@ -193,20 +237,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           });
 
-        if (result.outcome === "aborted") {
-          throw badRequest("Invitation is no longer pending.");
-        }
-
-        const invitationStatus =
-          result.outcome === "already_guest"
-            ? await acceptPendingInvitationIfNeeded(tx, {
-                invitationId: row.id,
-                userId: userContext.userId,
-                status: row.status,
-                expiresAt: row.expiresAt,
-                now,
-              })
-            : CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
+        const invitationStatus = await resolveInvitationStatusAfterJoin(tx, {
+          invitationId: row.id,
+          userId: userContext.userId,
+          rowStatus: row.status,
+          expiresAt: row.expiresAt,
+          now,
+          outcome: result.outcome,
+        });
 
         return {
           invitation: mapChatRoomInvitationFromRecord(

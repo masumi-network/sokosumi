@@ -388,4 +388,31 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(userMemberCreateMock).toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });
+
+  it("accept returns accepted when concurrent guest create races", async () => {
+    userMemberCreateMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+    userMemberFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ access: "guest" });
+    // Initial load is pending; re-read after the race sees beforeCreate accept.
+    invitationFindUniqueMock
+      .mockResolvedValueOnce(pendingInvitation())
+      .mockResolvedValueOnce({ status: "accepted" });
+    // beforeCreate accepted; already_guest path's second updateMany matches 0.
+    invitationUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    const response = await createApp().request(`/${INVITE_ID}/accept`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.status).toBe("accepted");
+    expect(userMemberCreateMock).toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+  });
 });
