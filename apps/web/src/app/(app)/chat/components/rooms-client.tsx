@@ -108,12 +108,16 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
-import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
+import {
+  forgetRoomRead,
+  rememberRoomRead,
+} from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -164,6 +168,7 @@ import {
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -188,6 +193,17 @@ import {
 } from "./room-shell-layout";
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { ThreadPanel } from "./thread-panel";
+
+function dispatchOrganizationChatRoomRead(
+  roomId: string,
+  room: ChatRoom,
+): void {
+  window.dispatchEvent(
+    new CustomEvent("organization-chat-room-read", {
+      detail: { room, roomId },
+    }),
+  );
+}
 
 interface RoomsClientProps {
   /** Null in personal workspace. */
@@ -733,6 +749,7 @@ export function RoomsClient({
     scrollToBottom();
   }, [messagesPending, scrollToBottom]);
   const readMarkerRef = useRef<string | null>(null);
+  const roomReadGenerationByRoomIdRef = useRef(new Map<string, number>());
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
   // handlers must not merge into messagesState after the selection moved.
@@ -903,6 +920,8 @@ export function RoomsClient({
     setRosterOpen(false);
   }
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
+  // Matched channels are roster-managed only from the admin hub.
+  const isMatchedChannel = selectedRoom?.discoverability === "matched";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
     discoverability: selectedRoom?.discoverability,
@@ -914,16 +933,20 @@ export function RoomsClient({
   )?.role;
   const isOrgOwnerOrAdmin =
     currentMemberRole === "owner" || currentMemberRole === "admin";
-  // Host-org channel members rewrite roster; guests cannot.
+  // Host-org channel members rewrite roster; guests and matched cannot.
   const canEditSelectedRoomMembers = Boolean(
-    selectedRoom && !isDirectRoom && !isGuestInSelectedRoom,
+    selectedRoom &&
+      !isDirectRoom &&
+      !isGuestInSelectedRoom &&
+      !isMatchedChannel,
   );
   // Name/topic/discoverability and archive: organization owner/admin only.
-  // Guests never manage host channel settings.
+  // Guests and matched members never manage host channel settings.
   const canManageSelectedRoomSettings = Boolean(
     selectedRoom &&
       !isDirectRoom &&
       !isGuestInSelectedRoom &&
+      !isMatchedChannel &&
       isOrgOwnerOrAdmin,
   );
   const canArchiveSelectedRoom = canManageSelectedRoomSettings;
@@ -1285,15 +1308,23 @@ export function RoomsClient({
   // Keep sessionStorage until stream actually starts so Strict Mode remount
   // cannot lose the draft before send begins.
   useEffect(() => {
-    if (!isCoworkerStreamRoom || !selectedRoomId) {
+    if (!selectedRoomId) {
       return;
     }
     const pending = peekPendingRoomMessage(selectedRoomId);
-    if (!pending) {
+    if (pending == null) {
+      return;
+    }
+    if (
+      !shouldConsumePendingCoworkerStream({
+        isCoworkerStreamRoom,
+        hasPendingMessage: true,
+      })
+    ) {
       return;
     }
     consumePendingStreamMessage(pending);
-  }, [isCoworkerStreamRoom, selectedRoomId, consumePendingStreamMessage]);
+  }, [consumePendingStreamMessage, isCoworkerStreamRoom, selectedRoomId]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.
@@ -1500,7 +1531,12 @@ export function RoomsClient({
   const selectedRoomReadId = selectedRoom?.id ?? null;
 
   useEffect(() => {
-    if (!selectedRoomReadId) {
+    if (!selectedRoomReadId || !selectedRoom) {
+      return;
+    }
+    // Skip while pending/failed so empty-room hydrate can still advance
+    // last-read (same marker as the pending empty transcript).
+    if (messagesPending || effectiveMessageLoadFailed) {
       return;
     }
 
@@ -1517,29 +1553,51 @@ export function RoomsClient({
     }
     readMarkerRef.current = marker;
 
-    let cancelled = false;
-    markOrganizationChatRoomReadAction(selectedRoomReadId).then((result) => {
-      if (!result.ok) {
-        return;
-      }
-      applyRoomReadResultToOverlay(result.value);
-      if (cancelled) {
-        return;
-      }
-      window.dispatchEvent(
-        new CustomEvent("organization-chat-room-read", {
-          detail: { room: result.value, roomId: selectedRoomReadId },
-        }),
-      );
-    });
-
-    return () => {
-      cancelled = true;
+    const roomId = selectedRoomReadId;
+    const unreadBeforeMarkRead = selectedRoom;
+    const optimisticRoom = {
+      ...selectedRoom,
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
     };
+    const generation =
+      (roomReadGenerationByRoomIdRef.current.get(roomId) ?? 0) + 1;
+    roomReadGenerationByRoomIdRef.current.set(roomId, generation);
+
+    rememberRoomRead(optimisticRoom);
+    dispatchOrganizationChatRoomRead(roomId, optimisticRoom);
+
+    function restoreUnread(): void {
+      forgetRoomRead(roomId);
+      dispatchOrganizationChatRoomRead(roomId, unreadBeforeMarkRead);
+    }
+
+    markOrganizationChatRoomReadAction(roomId)
+      .then((result) => {
+        if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
+          return;
+        }
+        if (!result.ok) {
+          restoreUnread();
+          return;
+        }
+        rememberRoomRead(result.value);
+        dispatchOrganizationChatRoomRead(roomId, result.value);
+      })
+      .catch(() => {
+        if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
+          return;
+        }
+        restoreUnread();
+      });
   }, [
+    effectiveMessageLoadFailed,
     latestOpenThreadMessageId,
     latestTopLevelMessageId,
+    messagesPending,
     openThreadParentId,
+    selectedRoom,
     selectedRoomReadId,
   ]);
 
@@ -1873,12 +1931,8 @@ export function RoomsClient({
     if (!roomResult.ok) {
       return;
     }
-    applyRoomReadResultToOverlay(roomResult.value);
-    window.dispatchEvent(
-      new CustomEvent("organization-chat-room-read", {
-        detail: { room: roomResult.value, roomId },
-      }),
-    );
+    rememberRoomRead(roomResult.value);
+    dispatchOrganizationChatRoomRead(roomId, roomResult.value);
   }
   syncRoomAttentionAfterThreadLookRef.current =
     syncRoomAttentionAfterThreadLook;

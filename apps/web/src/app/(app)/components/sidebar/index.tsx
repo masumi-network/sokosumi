@@ -82,9 +82,14 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
+  sokoBotMenuEnabled: boolean;
 }
 
-export default function Sidebar({ accountFooter, chatList }: SidebarProps) {
+export default function Sidebar({
+  accountFooter,
+  chatList,
+  sokoBotMenuEnabled,
+}: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       {/*
@@ -100,9 +105,9 @@ export default function Sidebar({ accountFooter, chatList }: SidebarProps) {
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
-          <PersonalAssistantNav />
-          <SidebarSeparator className="-mt-px" />
-          <MenuItems />
+          <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
+          {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <MenuItems calendarMenuEnabled={sokoBotMenuEnabled} />
           <SidebarSeparator />
           {chatList}
         </div>

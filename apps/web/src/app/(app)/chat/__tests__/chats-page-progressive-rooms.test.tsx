@@ -21,6 +21,10 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
+vi.mock("@/lib/beta-access", () => ({
+  isBetaAccessEmail: () => false,
+}));
+
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   getPrivateCachedMembershipVisibleRooms: (...args: unknown[]) =>
     getPrivateCachedMembershipVisibleRoomsMock(...args),
@@ -28,9 +32,12 @@ vi.mock("@/app/components/private-sidebar-cache", () => ({
     getPrivateCachedChatListArchivedAndMembersMock(...args),
 }));
 
-vi.mock("@/app/components/sidebar/components/personal-assistant-nav", () => ({
-  default: () => <div data-testid="personal-assistant-nav" />,
-}));
+vi.mock(
+  "@/app/components/sidebar/components/personal-assistant-nav.client",
+  () => ({
+    default: () => <div data-testid="personal-assistant-nav" />,
+  }),
+);
 
 vi.mock("@/components/chat/organization-chat-list.client", () => ({
   OrganizationChatList: (props: {

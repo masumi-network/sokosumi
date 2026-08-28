@@ -23,6 +23,7 @@ import {
   jsonErrorResponse,
   jsonSuccessResponse,
 } from "@/helpers/openapi";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import {
@@ -383,6 +384,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
+
+    await requireAssignedOrganizationSeat(
+      userContext.userId,
+      workspaceContext.organizationId,
+    );
 
     const resolvedName = await resolveTaskName({
       name: body.name,

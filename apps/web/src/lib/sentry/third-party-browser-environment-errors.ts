@@ -9,11 +9,14 @@ export const inAppBrowserIgnoreErrors: RegExp[] = [
 ];
 
 /**
- * SSE/EventSource and aborted fetch streams surface as generic connection
- * closures when users navigate away (SOKOSUMI-D2 on `/tasks/:taskId`).
+ * Incomplete RSC/Flight or SSE streams when the user navigates away
+ * (SOKOSUMI-D2, SOKOSUMI-RG). Production React Flight close() throws
+ * minified error #412. Sentry's UI decodes that to "Connection closed."
+ * Dev builds throw "Connection closed." directly.
  */
 export const transientStreamIgnoreErrors: RegExp[] = [
   /^Connection closed\.?$/i,
+  /^Minified React error #412\b/i,
   /^(?:TypeError: )?Error in input stream$/i,
 ];
 

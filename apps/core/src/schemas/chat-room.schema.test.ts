@@ -14,10 +14,11 @@ import {
 } from "./chat-room-invitation.schema";
 
 describe("chatRoomDiscoverabilitySchema", () => {
-  it("accepts public, private, and external", () => {
+  it("accepts public, private, external, and matched", () => {
     expect(chatRoomDiscoverabilitySchema.parse("public")).toBe("public");
     expect(chatRoomDiscoverabilitySchema.parse("private")).toBe("private");
     expect(chatRoomDiscoverabilitySchema.parse("external")).toBe("external");
+    expect(chatRoomDiscoverabilitySchema.parse("matched")).toBe("matched");
   });
 
   it("rejects unknown values", () => {
@@ -89,6 +90,18 @@ describe("chatRoomSchema", () => {
     expect(parsed.slug).toBeNull();
   });
 
+  it("allows matched discoverability on org-less channels", () => {
+    const parsed = chatRoomSchema.parse({
+      ...baseRoom,
+      organizationId: null,
+      organizationName: null,
+      myAccess: "member",
+      discoverability: "matched",
+    });
+    expect(parsed.discoverability).toBe("matched");
+    expect(parsed.organizationId).toBeNull();
+  });
+
   it("fails without myAccess", () => {
     const { myAccess: _myAccess, ...without } = baseRoom;
     expect(() => chatRoomSchema.parse(without)).toThrow();
@@ -129,6 +142,15 @@ describe("discoverableChatRoomSchema", () => {
         discoverability: "private",
       }).discoverability,
     ).toBe("private");
+  });
+
+  it("rejects matched (never in org discoverable lists)", () => {
+    expect(() =>
+      discoverableChatRoomSchema.parse({
+        ...base,
+        discoverability: "matched",
+      }),
+    ).toThrow();
   });
 });
 

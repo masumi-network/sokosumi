@@ -1,16 +1,28 @@
+import { TaskStatus } from "@sokosumi/database";
 import {
+  hasReachedTaskScheduleReleaseTarget,
   type TaskScheduleMetadata,
-  taskScheduleMetadataSchema,
-} from "@sokosumi/database/types/task-schedule-metadata";
+  type TaskScheduleMetadataV1,
+} from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
 import { badRequest, unprocessableEntity } from "@/helpers/error";
 
-import type { PutTaskScheduleRequest } from "@/schemas/task-schedule.schema";
+import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const LEGACY_INTERVAL_DAYS_CRON_PATTERN = /^(\d+) (\d+) \*\/(\d+) \* \*$/;
+
+const SCHEDULABLE_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.DRAFT,
+  TaskStatus.READY,
+  TaskStatus.QUEUED,
+]);
+
+export function isSchedulableTaskStatus(status: TaskStatus): boolean {
+  return SCHEDULABLE_TASK_STATUSES.has(status);
+}
 
 export function inferLegacyIntervalDaysFromCron(expr: string): number | null {
   const match = LEGACY_INTERVAL_DAYS_CRON_PATTERN.exec(expr.trim());
@@ -206,7 +218,7 @@ function resolveRecurringAnchorAt(
     return new Date(metadata.anchorAt);
   }
 
-  return new Date(metadata.scheduledAt);
+  return metadata.version === 1 ? new Date(metadata.scheduledAt) : null;
 }
 
 export function isValidTimezone(timezone: string): boolean {
@@ -218,25 +230,10 @@ export function isValidTimezone(timezone: string): boolean {
   }
 }
 
-export function parseTaskScheduleMetadata(
-  metadata: string | null | undefined,
-): TaskScheduleMetadata | null {
-  if (!metadata) {
-    return null;
-  }
-
-  try {
-    const parsed = taskScheduleMetadataSchema.safeParse(JSON.parse(metadata));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
 export function buildTaskScheduleMetadata(
-  input: PutTaskScheduleRequest,
+  input: TaskScheduleInput,
   scheduledAt: Date,
-): TaskScheduleMetadata {
+): TaskScheduleMetadataV1 {
   const scheduledAtIso = scheduledAt.toISOString();
 
   if (input.mode === "once") {
@@ -267,7 +264,9 @@ export function computeScheduleNextRun(
   from?: Date,
 ): Date | null {
   if (metadata.mode === "once") {
-    return new Date(metadata.runAt);
+    return new Date(
+      metadata.version === 1 ? metadata.runAt : metadata.effectiveRunAt,
+    );
   }
 
   const intervalDays = resolveRecurringIntervalDays(metadata);
@@ -292,7 +291,136 @@ export function computeScheduleNextRun(
   });
 }
 
-export function validateScheduleInput(input: PutTaskScheduleRequest): void {
+export interface TaskScheduleOccurrenceProjection {
+  id: string;
+  scheduledAt: Date;
+  originalScheduledAt: Date;
+}
+
+function getProjectedRecurringMetadata(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+  scheduledAt: Date,
+): Extract<TaskScheduleMetadata, { mode: "recurring" }> {
+  if (metadata.version === 2) {
+    return {
+      ...metadata,
+      epochReleaseCount: metadata.epochReleaseCount + 1,
+      lastProcessedSourceAt: scheduledAt.toISOString(),
+    };
+  }
+
+  if (metadata.endsMode === "after" && metadata.occurrences != null) {
+    return {
+      ...metadata,
+      lastRunAt: scheduledAt.toISOString(),
+      occurrences: metadata.occurrences - 1,
+    };
+  }
+
+  return {
+    ...metadata,
+    lastRunAt: scheduledAt.toISOString(),
+  };
+}
+
+function getOccurrenceProjection(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  scheduledAt: Date,
+): TaskScheduleOccurrenceProjection {
+  const originalScheduledAt =
+    metadata.version === 2 && metadata.mode === "once"
+      ? new Date(metadata.sourceRunAt)
+      : new Date(scheduledAt);
+  const id =
+    metadata.version === 1
+      ? `v1:${taskId}:${metadata.scheduledAt}:${originalScheduledAt.toISOString()}`
+      : `v2:${metadata.epochId}:${originalScheduledAt.toISOString()}`;
+
+  return {
+    id,
+    scheduledAt: new Date(scheduledAt),
+    originalScheduledAt,
+  };
+}
+
+export function* iterateTaskScheduleOccurrences(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  nextRunAt: Date,
+  from: Date,
+  to: Date,
+  maxOccurrences = Number.POSITIVE_INFINITY,
+): Generator<TaskScheduleOccurrenceProjection> {
+  if (metadata.mode === "once") {
+    if (nextRunAt >= from && nextRunAt < to) {
+      yield getOccurrenceProjection(taskId, metadata, nextRunAt);
+    }
+    return;
+  }
+
+  // The scheduler must consume overdue finite recurrences before their
+  // remaining release count can be projected accurately.
+  if (nextRunAt < from && metadata.endsMode === "after") {
+    return;
+  }
+
+  let occurrenceCount = 0;
+  let projectedMetadata = metadata;
+  let projectedNextRunAt: Date | null =
+    nextRunAt < from
+      ? computeScheduleNextRun(projectedMetadata, from)
+      : new Date(nextRunAt);
+
+  while (projectedNextRunAt && projectedNextRunAt < to) {
+    if (isDueRunPastScheduleEnd(projectedMetadata, projectedNextRunAt)) {
+      break;
+    }
+
+    if (projectedNextRunAt >= from) {
+      yield getOccurrenceProjection(
+        taskId,
+        projectedMetadata,
+        projectedNextRunAt,
+      );
+      occurrenceCount += 1;
+      if (occurrenceCount === maxOccurrences) {
+        return;
+      }
+    }
+
+    projectedMetadata = getProjectedRecurringMetadata(
+      projectedMetadata,
+      projectedNextRunAt,
+    );
+    projectedNextRunAt = computeScheduleNextRun(
+      projectedMetadata,
+      projectedNextRunAt,
+    );
+  }
+}
+
+export function projectTaskScheduleOccurrences(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  nextRunAt: Date,
+  from: Date,
+  to: Date,
+  maxOccurrences = Number.POSITIVE_INFINITY,
+): TaskScheduleOccurrenceProjection[] {
+  return Array.from(
+    iterateTaskScheduleOccurrences(
+      taskId,
+      metadata,
+      nextRunAt,
+      from,
+      to,
+      maxOccurrences,
+    ),
+  );
+}
+
+export function validateScheduleInput(input: TaskScheduleInput): void {
   if (input.mode === "once") {
     const runAt = new Date(input.runAt);
     if (Number.isNaN(runAt.getTime())) {
@@ -364,7 +492,7 @@ export function isRecurringScheduleEnded(
   }
 
   if (metadata.endsMode === "after") {
-    return metadata.occurrences != null && metadata.occurrences <= 0;
+    return hasReachedTaskScheduleReleaseTarget(metadata);
   }
 
   return false;
@@ -379,7 +507,7 @@ export function isDueRunPastScheduleEnd(
   }
 
   if (metadata.endsMode === "after") {
-    return metadata.occurrences != null && metadata.occurrences <= 0;
+    return hasReachedTaskScheduleReleaseTarget(metadata);
   }
 
   return false;

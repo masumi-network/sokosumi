@@ -16,6 +16,10 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/lib/beta-access", () => ({
+  isBetaAccessEmail: () => false,
+}));
+
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   getPrivateCachedMembershipVisibleRooms: vi.fn().mockResolvedValue({
     rooms: [],
@@ -27,9 +31,12 @@ vi.mock("@/app/components/private-sidebar-cache", () => ({
   }),
 }));
 
-vi.mock("@/app/components/sidebar/components/personal-assistant-nav", () => ({
-  default: () => null,
-}));
+vi.mock(
+  "@/app/components/sidebar/components/personal-assistant-nav.client",
+  () => ({
+    default: () => null,
+  }),
+);
 
 vi.mock("@/components/chat/organization-chat-list.client", () => ({
   OrganizationChatList: () => null,

@@ -8,6 +8,7 @@ import {
   LifeBuoy,
   ListTodo,
   type LucideIcon,
+  MessagesSquare,
   Store,
   Users,
   WalletCards,
@@ -99,6 +100,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "tasks",
     href: "/admin/tasks",
     Icon: ListTodo,
+    group: "operations",
+  },
+  {
+    key: "matchedChannels",
+    href: "/admin/matched-channels",
+    Icon: MessagesSquare,
     group: "operations",
   },
   {

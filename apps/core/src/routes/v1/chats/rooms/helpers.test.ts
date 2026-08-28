@@ -1256,13 +1256,23 @@ describe("mapChatRoom guest-aware DTO fields", () => {
     expect(mapped.organizationName).toBeNull();
   });
 
-  it("maps private for non-public non-external channel discoverability", () => {
+  it("maps private for non-public non-external non-matched channel discoverability", () => {
     const room = createExternalRoom(
       [createRoomMembership(MEMBER_ID, "member")],
       { discoverability: "private" },
     );
     expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBe(
       "private",
+    );
+  });
+
+  it("maps matched discoverability for org-less matched channels", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "matched", organizationId: null },
+    );
+    expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBe(
+      "matched",
     );
   });
 

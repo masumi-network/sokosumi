@@ -15,11 +15,18 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
+}));
+
 const {
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
   requireTaskOwnershipMock,
   mapTaskMock,
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
+  refreshTaskSchedulePlannedOccurrencesMock,
   validateTaskAssigneeAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -140,6 +147,9 @@ const {
         null,
     };
   }),
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
+  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   validateTaskAssigneeAssignmentMock: vi.fn(),
 }));
 
@@ -153,6 +163,16 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskOwnership: requireTaskOwnershipMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  refreshTaskSchedulePlannedOccurrences:
+    refreshTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -189,6 +209,9 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
 describe("task coworker whitelist enforcement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
+    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
   });
 
   it("rejects task creation when coworker is not whitelisted", async () => {
@@ -225,7 +248,9 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
-      tx,
+      expect.anything(),
+      // Only the owner may put work on their own Soko Bot; the assigner has to
+      // reach the check for that rule to apply.
       { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
@@ -234,14 +259,6 @@ describe("task coworker whitelist enforcement", () => {
   it("rejects task update when coworker is not whitelisted", async () => {
     const tx = {
       task: {
-        findFirst: vi.fn().mockResolvedValue({
-          id: "tsk_123",
-          ownerId: "user_123",
-          status: TaskStatus.READY,
-          assigneeId: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
-          pendingVendorGrantId: null,
-        }),
         update: vi.fn(),
       },
     };
@@ -252,7 +269,7 @@ describe("task coworker whitelist enforcement", () => {
 
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
-      status: TaskStatus.DRAFT,
+      status: TaskStatus.READY,
       assigneeId: null,
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
@@ -278,13 +295,12 @@ describe("task coworker whitelist enforcement", () => {
   });
 
   it("uses workspace-scoped link visibility in the patch response", async () => {
-    const taskRecord = {
+    const updateMock = vi.fn().mockResolvedValue({
       id: "tsk_123",
       createdAt: "2026-03-25T10:00:00.000Z",
       updatedAt: "2026-03-25T10:00:00.000Z",
       ownerId: "user_123",
       organizationId: null,
-      workspaceId: "22222222-2222-7222-8222-222222222222",
       projectId: null,
       status: TaskStatus.READY,
       assigneeId: null,
@@ -305,20 +321,9 @@ describe("task coworker whitelist enforcement", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
-    };
-    const updateMock = vi.fn().mockResolvedValue(taskRecord);
-    const findUniqueOrThrowMock = vi.fn().mockResolvedValue(taskRecord);
+    });
     const tx = {
       task: {
-        findFirst: vi.fn().mockResolvedValue({
-          id: "tsk_123",
-          ownerId: "user_123",
-          status: TaskStatus.DRAFT,
-          assigneeId: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
-          pendingVendorGrantId: null,
-        }),
-        findUniqueOrThrow: findUniqueOrThrowMock,
         update: updateMock,
       },
     };
@@ -346,7 +351,7 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(findUniqueOrThrowMock).toHaveBeenCalledWith(
+    expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
           linksFrom: expect.objectContaining({
@@ -408,7 +413,9 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
-      tx,
+      expect.anything(),
+      // Only the owner may put work on their own Soko Bot; the assigner has to
+      // reach the check for that rule to apply.
       { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();

@@ -3,11 +3,14 @@ import { MemberRole } from "@sokosumi/database";
 import { OrganizationOwnerRetentionError } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
-import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
+import {
+  getAdminOrganizationBySlug,
+  mapAdminOrganizationMemberOverviewItem,
+  resolveAdminOrganizationOverviewSubscription,
+} from "@/helpers/admin-organization-overview.js";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildCreditsPayload } from "@/helpers/subscription.js";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -91,33 +94,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Member not found");
     }
 
-    const payload = await prisma.$transaction(async (tx) =>
-      buildCreditsPayload({
-        userId: updatedMember.userId,
-        organizationId: organization.id,
-        referenceId: organization.id,
-        tx,
-      }),
+    const subscription = await resolveAdminOrganizationOverviewSubscription(
+      organization.id,
+      prisma,
     );
 
     return ok(
       c,
-      adminOrganizationMemberOverviewItemSchema.parse({
-        id: updatedMember.id,
-        organizationId: updatedMember.organizationId,
-        role: updatedMember.role,
-        seatAssignedAt: updatedMember.seatAssignedAt,
-        createdAt: updatedMember.createdAt,
-        user: {
-          id: updatedMember.user.id,
-          name: updatedMember.user.name,
-          email: updatedMember.user.email,
-        },
-        lastSeenAt: updatedMember.lastSeenAt,
-        credits: payload.credits.total,
-        subscriptionPlan: payload.credits.subscription?.plan ?? null,
-        subscriptionStatus: payload.credits.subscription?.status ?? null,
-      }),
+      adminOrganizationMemberOverviewItemSchema.parse(
+        mapAdminOrganizationMemberOverviewItem(updatedMember, subscription),
+      ),
     );
   });
 }

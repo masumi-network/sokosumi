@@ -18,9 +18,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -137,6 +138,34 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+interface MessageEditedLabelProps {
+  editedAt: Date | string;
+  className?: string;
+}
+
+function MessageEditedLabel({ editedAt, className }: MessageEditedLabelProps) {
+  const t = useTranslations("App.Channels");
+  const format = useFormatter();
+  const localCalendarReady = useClientLocalCalendarReady();
+  const when = localCalendarReady
+    ? format.dateTime(new Date(editedAt), {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+  const editedWhen = when ? t("Edit.editedAt", { when }) : undefined;
+
+  return (
+    <span
+      className={cn("text-muted-foreground text-xs leading-none", className)}
+      title={editedWhen}
+    >
+      <span>{t("Edit.edited")}</span>
+      {editedWhen ? <span className="sr-only">{editedWhen}</span> : null}
+    </span>
+  );
+}
 
 /**
  * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
@@ -632,6 +661,7 @@ function ChannelMessageBody({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  trailing,
 }: {
   messageId: string;
   content: string;
@@ -644,6 +674,7 @@ function ChannelMessageBody({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
+  trailing?: ReactNode;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -665,6 +696,7 @@ function ChannelMessageBody({
         )}
       >
         {content.trim()}
+        {trailing}
       </div>
     );
   }
@@ -677,6 +709,7 @@ function ChannelMessageBody({
         className={cn(
           "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
+          trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
         )}
       >
         <ChannelMessageText
@@ -691,6 +724,7 @@ function ChannelMessageBody({
           onOpenDirectMessage={onOpenDirectMessage}
           openingDirectParticipantKey={openingDirectParticipantKey}
         />
+        {trailing}
       </div>
       {!skipBodyClamp && (expanded || overflows) ? (
         <button
@@ -2030,7 +2064,8 @@ export function ChatMessageRow({
     !isOutboundLocal &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId;
-  const showEdited = !isDeleted && message.editedAt != null;
+  const editedAt = message.editedAt;
+  const showEdited = !isDeleted && editedAt != null;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2172,10 +2207,8 @@ export function ChatMessageRow({
               reserveHeaderWidth
               className="text-muted-foreground text-xs leading-none"
             />
-            {showEdited ? (
-              <span className="text-muted-foreground text-xs leading-none">
-                {tChannels("Edit.edited")}
-              </span>
+            {showEdited && editedAt != null ? (
+              <MessageEditedLabel editedAt={editedAt} />
             ) : null}
           </div>
         )}
@@ -2268,12 +2301,15 @@ export function ChatMessageRow({
                     canOpenHumanDirect={canOpenHumanDirect}
                     onOpenDirectMessage={onOpenDirectMessage}
                     openingDirectParticipantKey={openingDirectParticipantKey}
+                    trailing={
+                      isContinuation && showEdited && editedAt != null ? (
+                        <MessageEditedLabel
+                          editedAt={editedAt}
+                          className="ms-1.5 inline-flex h-6 items-center"
+                        />
+                      ) : null
+                    }
                   />
-                  {isContinuation && showEdited ? (
-                    <span className="text-muted-foreground ml-1.5 text-xs">
-                      {tChannels("Edit.edited")}
-                    </span>
-                  ) : null}
                   <MessageUnfurlList
                     unfurls={message.unfurls}
                     canRemove={canRemoveUnfurl}

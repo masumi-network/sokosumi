@@ -30,7 +30,6 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
-  assignedSeatCount: number;
   cancelAtPeriodEnd: boolean;
   currentPlan: OrganizationBillingPlanName;
   currentPeriodEnd: Date | string | null;
@@ -44,7 +43,6 @@ interface OrganizationSubscriptionSectionProps {
 }
 
 export function OrganizationSubscriptionSection({
-  assignedSeatCount,
   cancelAtPeriodEnd,
   currentPlan,
   currentPeriodEnd,
@@ -67,21 +65,16 @@ export function OrganizationSubscriptionSection({
     [plans],
   );
 
-  const minimumSeats = useMemo(
-    () => resolveMinimumOrganizationSeats(assignedSeatCount),
-    [assignedSeatCount],
-  );
+  const minimumSeats = useMemo(() => resolveMinimumOrganizationSeats(), []);
   const [targetSeats, setTargetSeats] = useState(
-    resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
+    resolveTargetOrganizationSeats(currentSeats),
   );
   const [pendingPlan, setPendingPlan] =
     useState<PaidSubscriptionPlanName | null>(null);
 
   useEffect(() => {
-    setTargetSeats(
-      resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
-    );
-  }, [assignedSeatCount, currentSeats]);
+    setTargetSeats(resolveTargetOrganizationSeats(currentSeats));
+  }, [currentSeats]);
 
   const cancellationDate = useMemo(() => {
     if (!cancelAtPeriodEnd || !currentPeriodEnd) {
@@ -253,7 +246,6 @@ export function OrganizationSubscriptionSection({
         <Card>
           <CardContent className="space-y-6">
             <OrganizationSeatSettingsFields
-              assignedSeatCount={assignedSeatCount}
               inputId="organization-seats"
               memberCount={memberCount}
               onTargetSeatsChange={setTargetSeats}
@@ -289,14 +281,7 @@ export function OrganizationSubscriptionSection({
               ) : null}
             </div>
 
-            {freePlan ? (
-              <SubscriptionFreePlanRow
-                creditsText={t("includedCreditsPerSeat", {
-                  credits: freePlan.credits,
-                })}
-                plan={freePlan}
-              />
-            ) : null}
+            {freePlan ? <SubscriptionFreePlanRow plan={freePlan} /> : null}
           </>
         )}
       </div>

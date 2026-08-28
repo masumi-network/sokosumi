@@ -210,7 +210,7 @@ describe("GET /v1/admin/organizations/{slug}", () => {
         paidPlan: "starter",
         isEnterpriseContract: false,
       },
-      totalCredits: null,
+      totalCredits: 90_246,
     });
   });
 
@@ -221,7 +221,7 @@ describe("GET /v1/admin/organizations/{slug}", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.organization.slug).toBe("acme-corp");
-    expect(body.data.totalCredits).toBeNull();
+    expect(body.data.totalCredits).toBe(90_246);
     expect(body.data.members).toBeUndefined();
   });
 
@@ -256,7 +256,6 @@ describe("GET /v1/admin/organizations/{slug}/members", () => {
             email: "jane@example.com",
           },
           lastSeenAt: null,
-          credits: 42,
           subscriptionPlan: "starter",
           subscriptionStatus: "active",
         },
@@ -273,8 +272,10 @@ describe("GET /v1/admin/organizations/{slug}/members", () => {
     const body = await res.json();
     expect(body.data[0]).toMatchObject({
       id: "member_1",
-      credits: 42,
+      subscriptionPlan: "starter",
+      subscriptionStatus: "active",
     });
+    expect(body.data[0]).not.toHaveProperty("credits");
     expect(body.meta.pagination).toMatchObject({
       total: 1,
       nextCursor: null,

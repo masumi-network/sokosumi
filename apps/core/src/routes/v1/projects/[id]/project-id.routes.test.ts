@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -23,6 +24,9 @@ const {
   projectFindFirstMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
+  taskScheduleOccurrenceFindFirstMock,
+  transactionMock,
+  queryRawMock,
   jobFindFirstMock,
   jobUpdateMock,
   jobUpdateManyMock,
@@ -34,6 +38,9 @@ const {
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
+  taskScheduleOccurrenceFindFirstMock: vi.fn(),
+  transactionMock: vi.fn(),
+  queryRawMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
@@ -52,6 +59,8 @@ vi.mock("@/lib/project-files-blob", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
+    $queryRaw: queryRawMock,
     project: {
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,
@@ -61,6 +70,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: jobFindFirstMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
+    },
+    taskScheduleOccurrence: {
+      findFirst: taskScheduleOccurrenceFindFirstMock,
     },
   },
 }));
@@ -101,6 +113,10 @@ const sampleProject = {
   contextMdModel: null,
   contextMdUpdatingSince: null,
   contextMdVersion: 0,
+  projectRevision: 0,
+  calendarRevision: 0,
+  closingAt: null,
+  closedAt: null,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
@@ -123,6 +139,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 
     return await next();
   });
+  app.onError(errorHandler);
 
   return app;
 }
@@ -408,10 +425,22 @@ describe("PATCH /projects/{id}", () => {
 describe("DELETE /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        $queryRaw: queryRawMock,
+        project: { deleteMany: projectDeleteManyMock },
+        taskScheduleOccurrence: {
+          findFirst: taskScheduleOccurrenceFindFirstMock,
+        },
+      }),
+    );
   });
 
-  it("returns 404 when nothing deleted", async () => {
+  it("distinguishes a missing Project from a guarded Project", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 0 });
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([]);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -419,10 +448,26 @@ describe("DELETE /projects/{id}", () => {
     });
     expect(res.status).toBe(404);
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
+
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
+    const guardedResponse = await app.request(
+      `http://localhost/${PROJECT_ID}`,
+      { method: "DELETE" },
+    );
+    const guardedBody = (await guardedResponse.json()) as { kind?: string };
+
+    expect(guardedResponse.status).toBe(409);
+    expect(guardedBody.kind).toBe("project_has_calendar_history");
+    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 
   it("returns deleted payload", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 1 });
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -431,7 +476,28 @@ describe("DELETE /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { deleted: boolean } };
     expect(body.data.deleted).toBe(true);
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
+    expect(transactionMock).toHaveBeenCalledOnce();
     expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
+  });
+
+  it("returns calendar-history conflict before deleting a project with occurrences", async () => {
+    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({ id: "occ_123" });
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
+    const app = createApp();
+    mountDeleteProject(app);
+
+    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+    });
+    const body = (await response.json()) as { kind?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.kind).toBe("project_has_calendar_history");
+    expect(projectDeleteManyMock).not.toHaveBeenCalled();
+    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

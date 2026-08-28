@@ -70,6 +70,15 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+
+function renderMenu(hasAssignedSeat = true, calendarMenuEnabled = false) {
+  return render(
+    <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
+      <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+    </OrganizationSeatProvider>,
+  );
+}
 
 describe("MenuItems search action", () => {
   beforeEach(() => {
@@ -81,7 +90,7 @@ describe("MenuItems search action", () => {
   });
 
   it("opens history search and closes the mobile sidebar when search is clicked", () => {
-    render(<MenuItems />);
+    renderMenu();
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }));
 
@@ -91,7 +100,7 @@ describe("MenuItems search action", () => {
 
   it("still closes the mobile sidebar when history search is unavailable", () => {
     historySearchValue = null;
-    render(<MenuItems />);
+    renderMenu();
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }));
 
@@ -100,7 +109,7 @@ describe("MenuItems search action", () => {
   });
 
   it("shows History by default", () => {
-    render(<MenuItems />);
+    renderMenu();
 
     expect(screen.getByRole("link", { name: /history/i })).toHaveAttribute(
       "href",
@@ -109,7 +118,7 @@ describe("MenuItems search action", () => {
   });
 
   it("shows New Task by default", () => {
-    render(<MenuItems />);
+    renderMenu();
 
     expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
       "href",
@@ -118,8 +127,35 @@ describe("MenuItems search action", () => {
   });
 
   it("shows Search by default", () => {
-    render(<MenuItems />);
+    renderMenu();
 
     expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
+  });
+
+  it("keeps product destinations when the member has no assigned seat", () => {
+    renderMenu(false);
+
+    expect(screen.getByRole("link", { name: /newTask/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /taskManager/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /projects/i })).toBeInTheDocument();
+  });
+
+  it("shows Calendar only to NMKR users", () => {
+    const { rerender } = renderMenu();
+
+    expect(screen.queryByRole("link", { name: /calendar/i })).toBeNull();
+
+    rerender(
+      <OrganizationSeatProvider hasAssignedSeat>
+        <MenuItems calendarMenuEnabled />
+      </OrganizationSeatProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
+      "href",
+      "/calendar",
+    );
   });
 });

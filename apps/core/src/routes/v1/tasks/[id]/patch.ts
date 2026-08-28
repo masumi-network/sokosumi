@@ -1,18 +1,27 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
+import { isTaskEditableStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
+import {
+  requireMutableTaskOwnership,
+  requireTaskAssignableCoworker,
+} from "@/helpers/access-control";
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   refineAssigneeIdAliasConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
+import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import { updateTaskForActor } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -108,27 +117,94 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { name, description, projectId, assigneeId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      const updatedTask = await updateTaskForActor(
-        {
-          actor: { kind: "user", userId: userContext.userId },
+      const taskSnapshot = await requireMutableTaskOwnership(
+        userContext,
+        id,
+        tx,
+      );
+      const projectIdWasProvided = projectId !== undefined;
+      if (projectIdWasProvided && projectId !== null) {
+        const project = await tx.project.findFirst({
+          where: {
+            id: projectId,
+            workspaceId: taskSnapshot.workspaceId,
+          },
+          select: { id: true },
+        });
+
+        if (!project) {
+          throw notFound("Project not found");
+        }
+      }
+
+      if (
+        !(await lockCalendarScope(tx, taskSnapshot.workspaceId, [
+          taskSnapshot.projectId,
+          projectId,
+        ])) ||
+        !(await lockTaskRows(tx, [taskSnapshot.id]))
+      ) {
+        throw conflict("Task changed during update");
+      }
+
+      const task = await requireMutableTaskOwnership(userContext, id, tx);
+      await requireAssignedOrganizationSeat(
+        userContext.userId,
+        task.organizationId,
+        tx,
+      );
+      if (task.workspaceId !== taskSnapshot.workspaceId) {
+        throw conflict("Task changed during update");
+      }
+
+      if (!isTaskEditableStatus(task.status)) {
+        throw forbidden("You can only update draft, queued, or ready tasks");
+      }
+
+      const assigneeIdWasProvided = assigneeId !== undefined;
+      const nextAssigneeId = assigneeIdWasProvided
+        ? assigneeId
+        : task.assigneeId;
+      validateTaskAssigneeAssignment({
+        status: task.status,
+        assigneeId: nextAssigneeId,
+      });
+
+      if (assigneeIdWasProvided && assigneeId !== null) {
+        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx, {
+          kind: "user",
+          userId: userContext.userId,
+        });
+      }
+
+      const updatedTask = await tx.task.update({
+        where: {
+          id,
           ownerId: userContext.userId,
-          taskId: id,
-          intent: "metadata",
+          archivedAt: null,
+          status: {
+            in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
+          },
+        },
+        data: {
           name,
           description,
           projectId,
           assigneeId,
         },
-        tx,
-      );
-
-      return tx.task.findUniqueOrThrow({
-        where: { id: updatedTask.id },
-        include: buildTaskIncludeForViewer(
-          authContext,
-          updatedTask.workspaceId,
-        ),
+        include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
+      if (projectIdWasProvided) {
+        await refreshTaskSchedulePlannedOccurrences(tx, {
+          id: task.id,
+          workspaceId: task.workspaceId,
+          projectId: projectId ?? null,
+          status: task.status,
+          metadata: task.metadata,
+          nextRunAt: task.nextRunAt,
+        });
+      }
+      return updatedTask;
     });
 
     return ok(c, taskSchema.parse(mapTask(task)));

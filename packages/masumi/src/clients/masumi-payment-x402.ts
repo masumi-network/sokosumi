@@ -9,12 +9,10 @@ import {
 import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
 import type { Client } from "./openapi/generated/payment/client/index.js";
 import {
-  type GetX402BudgetsResponses,
   type GetX402NetworksAvailableResponses,
   type GetX402WalletsBalanceResponses,
   type GetX402WalletsResponses,
   getApiKeyStatus,
-  getX402Budgets as getX402BudgetsRequest,
   getX402NetworksAvailable,
   getX402Wallets,
   getX402WalletsBalance,
@@ -32,9 +30,32 @@ export interface PaymentClientRequestOptions {
 export type X402AvailableNetwork =
   GetX402NetworksAvailableResponses["200"]["data"]["Networks"][number];
 
-/** One x402 wallet budget granted to an API key (`GET /x402/budgets`). */
-export type X402Budget =
-  GetX402BudgetsResponses["200"]["data"]["Budgets"][number];
+/**
+ * The calling key's x402 spend cap, read from `GET /api-key-status`.
+ *
+ * The node caps x402 spend on the API KEY, never on a wallet: one credit
+ * ledger per key, keyed by `eip155:<chainId>:<asset>` units, gated by
+ * `usageLimited` (masumi ADR 0016). The unit string is byte-identical to the
+ * `<caip2Network>:<asset>` pair key Core composes readiness on, so a cap
+ * lookup is a plain map get.
+ */
+export interface X402KeySpendCaps {
+  /** The node enforces a cap only when true. */
+  usageLimited: boolean;
+  /**
+   * Remaining credit per lowercased `eip155:<chainId>:<asset>` unit, summed
+   * across rows: nothing enforces one row per (key, unit) on the node, so a
+   * split ledger must be judged by its total, exactly as the node's own
+   * debit path does.
+   */
+  creditsByUnit: ReadonlyMap<string, bigint>;
+  /**
+   * The key is `usageLimited` but holds NO `eip155:` row at all, so the node
+   * grandfathers it to uncapped x402 spend and warns per payment. Distinct
+   * from "capped at zero": this key can pay, a zero-credit one cannot.
+   */
+  grandfatheredUncapped: boolean;
+}
 
 /** One managed EVM wallet visible to the calling key (`GET /x402/wallets`). */
 export type X402Wallet =
@@ -56,7 +77,20 @@ export interface X402WalletBalanceInput {
 // the pipeline could never bind.
 const caip2EvmNetworkSchema = z.string().regex(CAIP2_EVM_NETWORK_PATTERN);
 const evmAddressSchema = z.string().regex(EVM_ADDRESS_PATTERN);
-const baseUnitAmountSchema = z.string().regex(/^\d+$/);
+/**
+ * Digit ceiling for any base-unit amount the node reports.
+ *
+ * An EVM balance cannot exceed max uint256, which is 78 digits, so 80 clears
+ * every real value with room to spare. The bound is not cosmetic: `BigInt()`
+ * is superlinear in digit count, so an unbounded digit string from the far
+ * side is CPU the sync worker spends on a value that cannot be a balance.
+ */
+const MAX_BASE_UNIT_DIGITS = 80;
+
+const baseUnitAmountSchema = z
+  .string()
+  .regex(/^\d+$/)
+  .max(MAX_BASE_UNIT_DIGITS);
 const assetDecimalsSchema = z.number().int().min(0).max(255);
 const nodeDateSchema = z.union([
   z.date(),
@@ -74,19 +108,30 @@ const x402AvailableNetworkSchema: z.ZodType<X402AvailableNetwork> = z.object({
   defaultAssetDecimals: assetDecimalsSchema.nullable(),
 });
 
-const x402BudgetSchema: z.ZodType<X402Budget> = z.object({
-  id: z.string().min(1),
-  apiKeyId: z.string().min(1),
-  evmWalletId: z.string().min(1),
-  evmWalletAddress: evmAddressSchema,
-  caip2Network: caip2EvmNetworkSchema,
-  asset: evmAddressSchema,
-  remainingAmount: baseUnitAmountSchema,
-  spentAmount: baseUnitAmountSchema,
-  createdById: z.string().min(1).nullable(),
-  createdAt: nodeDateSchema,
-  updatedAt: nodeDateSchema,
+/**
+ * One `RemainingUsageCredits` row from `GET /api-key-status`.
+ *
+ * Shape only. The node really can hold an `amount` that is not a base-unit
+ * integer, and such a row is judged per unit below (it ends grandfathering
+ * but adds nothing to its unit's sum) rather than failing the whole read, so
+ * the digit check deliberately stays out of this schema. Validating the shape
+ * here is what keeps an absent or version-skewed array from reading as "this
+ * key holds no credits".
+ */
+const apiKeyUsageCreditSchema = z.object({
+  unit: z.string(),
+  amount: z.string(),
 });
+
+/**
+ * Row ceiling for `RemainingUsageCredits`.
+ *
+ * One row is one `<caip2Network>:<asset>` unit the key holds credit in, so a
+ * real key has a handful. Thousands is version skew or a node fault, and the
+ * loop below turns every row into a `BigInt`. Refusing the read fails closed,
+ * which is the same direction every other guard here takes.
+ */
+const MAX_USAGE_CREDIT_ROWS = 1_000;
 
 const x402WalletSchema: z.ZodType<X402Wallet> = z.object({
   id: z.string().min(1),
@@ -143,8 +188,8 @@ const X402_NODE_REFUSAL_STATUSES = new Set([400, 402, 500]);
  * invariant: the "full page may hide another wallet" check below is only
  * correct while it compares against the exact page size requested. Raising
  * the fetch size without the guard fires spurious ambiguity errors; raising
- * the guard without the fetch silently disables the check and lets an
- * arbitrary uncapped Purchasing wallet become the admin-fallback signer.
+ * the guard without the fetch silently disables the check and lets readiness
+ * rank signers over a listing it cannot see all of.
  */
 const X402_WALLET_PAGE_SIZE = 100;
 
@@ -176,7 +221,7 @@ export interface X402PayInput {
  *   documented `{ error: { message } }` envelope. No header was issued, so
  *   the payment is provably unpaid and a synchronous credit refund is always
  *   safe. `status` carries the node's HTTP status (400 = deterministic
- *   pre-sign rejection, 402 = budget/balance refusal, 500 = config/signing
+ *   pre-sign rejection, 402 = usage-credit/balance refusal, 500 = config/signing
  *   failure) — the only three the spec declares. That a 500 + envelope
  *   proves "no header was issued" — i.e. the node's pay handler cannot 500
  *   AFTER its wallet signed — is a node-source-verified contract, recorded
@@ -208,7 +253,7 @@ export interface X402PayFailure {
    * Separate from `message`, which is a composed log line built on
    * `extractNodeErrorMessage` and therefore may contain a JSON dump of the
    * entire far-side body. A caller echoing anything back to the coworker must
-   * use THIS field, so a body carrying wallet or budget internals cannot
+   * use THIS field, so a body carrying wallet or credit internals cannot
    * reach a response.
    */
   nodeMessage?: string;
@@ -243,7 +288,7 @@ const REQUIRED_SIGNED_PAYMENT_STRING_FIELDS = [
  * or null when the payload is complete. A version-skewed node can answer 200
  * with a field absent/empty; forwarding that as SIGNED writes a VERIFIED
  * record with a null header — unrecoverable (route 500s, every replay 500s,
- * refund refuses VERIFIED). Mirrors the getX402Budgets version-skew guard:
+ * refund refuses VERIFIED). Mirrors the api-key-status version-skew guard:
  * trust the runtime value, not the generated type.
  */
 function firstMissingSignedField(data: unknown): string | null {
@@ -320,7 +365,7 @@ export function createX402PaymentMethods(
   network: "Preprod" | "Mainnet",
 ) {
   /**
-   * The one `GET /api-key-status` resolution both budget- and wallet-scoped
+   * The one `GET /api-key-status` resolution both cap- and wallet-scoped
    * reads depend on, memoized per methods instance.
    *
    * The key identity is fixed for the instance's lifetime (it is baked into
@@ -329,7 +374,7 @@ export function createX402PaymentMethods(
    * change simply build a fresh client. Failures are NEVER memoized: a
    * transient transport error must not poison every later call on the
    * instance. The in-flight promise is shared too, so concurrent callers
-   * (readiness fires budgets and admin wallets together) produce one status
+   * (readiness fires spend caps and wallets together) produce one status
    * request, not one each.
    *
    * The shared fetch deliberately carries NO AbortSignal, and it never
@@ -388,7 +433,7 @@ export function createX402PaymentMethods(
      * Filtered node-side to the client's environment: the Cardano
      * Preprod/Mainnet split maps onto the node's testnet/mainnet flag
      * (PR1-SPEC §6). Raw node rows — buy-side readiness composition
-     * (enabled + funded budget) happens in the caller.
+     * (enabled + funded wallet + key credit) happens in the caller.
      */
     async getX402AvailableNetworks(
       options: PaymentClientRequestOptions = {},
@@ -418,98 +463,126 @@ export function createX402PaymentMethods(
     },
 
     /**
-     * x402 wallet budgets this API key can actually draw on at pay time.
+     * The calling key's x402 spend cap.
      *
-     * Verified against masumi-payment-service `main`
-     * (`src/routes/api/x402/index.ts`): `GET /x402/budgets` requires ADMIN
-     * permission (`adminAuthenticatedEndpointFactory`) — a plain pay key is
-     * rejected outright — and its handler
-     * (`listX402WalletBudgets(input.apiKeyId)`) returns EVERY key's budget
-     * rows unless the optional `apiKeyId` query filter is passed; it is
-     * never scoped to the caller. `POST /x402/pay`, however, only draws on
-     * budgets whose `apiKeyId` equals the calling key (`pay.ts`,
-     * `createX402Payment`). So this method resolves its own key id via
-     * `GET /api-key-status` and filters server-side: a foreign key's budget
-     * must never mark a (network, asset) pair buy-side ready. Raw node
-     * rows — see getX402AvailableNetworks.
+     * Reads the SAME memoized `GET /api-key-status` every other scoped call
+     * here already resolves, so this costs no extra request. It replaces the
+     * removed `GET /x402/budgets`: masumi ADR 0016 made per-key usage credits
+     * the only x402 spend cap and deleted per-wallet budgets outright.
+     *
+     * Scoping is structural rather than filtered. `api-key-status` answers
+     * for the CALLING key only, so there is no foreign-row hazard of the kind
+     * the budgets read defended against with an explicit `apiKeyId` query
+     * filter plus a re-filter of the response.
+     *
+     * Non-`eip155:` rows are dropped: those are the Cardano rail's credits on
+     * the same shared ledger and must never make an EVM pair look payable. A
+     * non-numeric amount contributes nothing to its unit's sum, so a unit
+     * whose only row is unparsable reads as zero and its pair is delisted.
+     * That is the fail-closed direction: a malformed amount is not evidence
+     * of funding.
      */
-    async getX402Budgets(
+    async getX402KeySpendCaps(
       options: PaymentClientRequestOptions = {},
-    ): Promise<Result<X402Budget[], string>> {
+    ): Promise<Result<X402KeySpendCaps, string>> {
       try {
         const statusResult = await resolveApiKeyStatus(options);
         if (statusResult.isErr()) {
           return err(statusResult.error);
         }
-        // Runtime guard, not just the generated type: a version-skewed node
-        // answering 200 with a missing/empty id would make the query
-        // serializer silently DROP the apiKeyId param, turning this into the
-        // unscoped admin read this whole resolution exists to prevent.
-        const apiKeyId: unknown = statusResult.value?.id;
-        if (typeof apiKeyId !== "string" || apiKeyId.length === 0) {
+        const status = statusResult.value;
+        // Version-skew guard, same posture as the wallet listing's strict
+        // flag read: a node answering 200 without the flag must not read as
+        // "uncapped" and mark pairs ready that a capped key cannot pay.
+        if (typeof status?.usageLimited !== "boolean") {
           return err(
-            "api-key-status returned no key id; refusing unscoped budgets read",
+            "api-key-status returned no usageLimited flag; refusing to judge x402 spend caps",
           );
         }
-        const response = await getX402BudgetsRequest({
-          client: client(),
-          query: { apiKeyId },
-          signal: options.signal,
+        // Zod, like every other node read here, and for the same reason the
+        // flag above is guarded: `RemainingUsageCredits` is required, so an
+        // absent or malformed array is version skew, never "this key holds no
+        // credits". Reading it as an empty list would set
+        // `grandfatheredUncapped` on a usageLimited key and mark every pair
+        // ready that the node would then refuse with a 402.
+        const creditRows = z
+          .array(apiKeyUsageCreditSchema)
+          .max(MAX_USAGE_CREDIT_ROWS)
+          .safeParse(status.RemainingUsageCredits);
+        if (!creditRows.success) {
+          return err(
+            "api-key-status returned no usable RemainingUsageCredits array; refusing to judge x402 spend caps",
+          );
+        }
+        const creditsByUnit = new Map<string, bigint>();
+        let sawEvmRow = false;
+        for (const row of creditRows.data) {
+          const unit = row.unit.toLowerCase();
+          if (!unit.startsWith("eip155:")) {
+            continue;
+          }
+          // Any eip155 row at all ends grandfathering on the node, including
+          // one this loop then drops as unparsable: the node COUNTS those
+          // rows, it does not parse them. Reading that as still-grandfathered
+          // would call a hard-capped key uncapped.
+          sawEvmRow = true;
+          // Length first: an over-long amount is dropped exactly like an
+          // unparsable one, so its unit reads as zero and the pair delists.
+          // Checking before BigInt is the point, since that is the
+          // superlinear call.
+          if (
+            row.amount.length > MAX_BASE_UNIT_DIGITS ||
+            !/^\d+$/.test(row.amount)
+          ) {
+            continue;
+          }
+          creditsByUnit.set(
+            unit,
+            (creditsByUnit.get(unit) ?? 0n) + BigInt(row.amount),
+          );
+        }
+        return ok({
+          usageLimited: status.usageLimited,
+          creditsByUnit,
+          grandfatheredUncapped: status.usageLimited && !sawEvmRow,
         });
-        if (response.error || !response.data) {
-          return err(
-            `x402 budgets ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
-          );
-        }
-        // Same version-skew guard as getX402AvailableNetworks: a 200 whose
-        // `data` lacks a Budgets array must not become ok(undefined) and mark
-        // pairs ready off a body the node never really returned.
-        const budgetsResult = validateNodeRows(
-          response.data.data.Budgets,
-          x402BudgetSchema,
-          "Budgets",
-        );
-        if (budgetsResult.isErr()) {
-          return budgetsResult;
-        }
-        // Re-filter what came back. Asking the node to filter is not enough:
-        // the request-side `apiKeyId` query fails OPEN — a node that renames,
-        // drops, or ignores it answers 200 with EVERY key's rows, and a funded
-        // foreign budget would then mark a (network, asset) pair buy-side
-        // ready against an evmWalletId Soko cannot spend from, producing a
-        // post-charge 402. A row with no apiKeyId is dropped too:
-        // unattributable is indistinguishable from foreign, and only a row
-        // this key can spend may mark a pair ready.
-        return ok(
-          budgetsResult.value.filter((budget) => budget.apiKeyId === apiKeyId),
-        );
       } catch (error) {
-        return err(String(error) || "Failed to get x402 budgets");
+        return err(String(error) || "Failed to get x402 key spend caps");
       }
     },
 
     /**
-     * Purchasing wallets an ADMIN key may use without a budget grant.
+     * Purchasing wallets the calling key can sign from.
      *
-     * The payment node's outbound path treats `canAdmin` as unrestricted:
-     * when no budget exists, an admin may sign from a Purchasing wallet on
-     * the uncapped path. Non-admin keys MUST NOT inherit this discovery —
-     * this returns an empty list for them. A strict `canAdmin === true`
-     * check keeps a missing/version-skewed flag fail-closed.
+     * WHICH wallets: the node scopes `GET /x402/wallets` server-side and
+     * applies the SAME owner scope to `POST /x402/pay`. An admin key reaches
+     * every wallet, and so does a non-admin key with wallet scoping off: an
+     * absent scope list means unrestricted, the node's Cardano-parity default
+     * (`buildOwnerScopeWhere`). Only a key with wallet scoping ON is narrowed,
+     * to the wallets it created plus any an admin assigned to it via
+     * `ApiKeyX402WalletScope` (masumi ADR 0016). There is deliberately no
+     * `canAdmin` gate on that: the old one existed because a non-admin key had
+     * no legitimate uncapped path and budgets were the only grant, and with
+     * budgets gone a scoped non-admin key is a first-class signer.
      *
-     * Operational consequence: Core's buy-side readiness binds every budget
-     * row from {@link getX402Budgets} to a wallet in THIS listing and to its
-     * live balances before marking a pair ready. A plain non-admin key never
-     * gets that far — `GET /x402/budgets` is itself admin-gated on the node
-     * (see {@link getX402Budgets}), so Core's readiness sync fails its check
-     * step first and surfaces the key as a failed check, not an empty cache.
-     * The strict `canAdmin` gate here is defence in depth for version skew:
-     * a node that serves budgets while `api-key-status` omits `canAdmin`
-     * must not enable Core's uncapped admin fallback — on such a key the
-     * empty listing composes zero pairs, and Core's sync warn names the
-     * empty-wallet-listing trap.
+     * WHETHER it may pay: the owner scope matches on both endpoints, the
+     * PERMISSION TIER does not. `GET /x402/wallets` is read-authenticated and
+     * `POST /x402/pay` is pay-authenticated (`payment-core/src/auth.ts`), and
+     * read is satisfied by `canRead || canPay`. So a read-only key lists
+     * wallets it can never sign with, and readiness composed off that listing
+     * would publish pairs whose every charge 401s, a status the pay path
+     * classifies as AMBIGUOUS, so the record is held for the reconciler rather
+     * than refunded. Gate on the tier the node itself applies: `hasPermission`
+     * returns true for any admin key (`payment-core/src/permissions.ts`), so
+     * admin counts as pay. Strict equality keeps a version-skewed status
+     * fail-closed, and an empty listing composes zero ready pairs rather than
+     * leaving a stale, unpayable set in the cache.
+     *
+     * HOW MUCH: capped separately and key-globally by
+     * {@link getX402KeySpendCaps}. This listing answers "which wallet can
+     * sign", never "how much may it spend".
      */
-    async getX402AdminPurchasingWallets(
+    async getX402PurchasingWallets(
       options: PaymentClientRequestOptions = {},
     ): Promise<Result<X402Wallet[], string>> {
       try {
@@ -517,7 +590,8 @@ export function createX402PaymentMethods(
         if (statusResult.isErr()) {
           return err(statusResult.error);
         }
-        if (statusResult.value?.canAdmin !== true) {
+        const status = statusResult.value;
+        if (status?.canPay !== true && status?.canAdmin !== true) {
           return ok([]);
         }
 
@@ -540,12 +614,13 @@ export function createX402PaymentMethods(
           return walletsResult;
         }
         const wallets = walletsResult.value;
-        // A full page may hide another wallet on the next page. Treating the
-        // visible one as unique would choose an arbitrary uncapped signer.
-        // Fail closed until pagination is needed in practice.
+        // A full page may hide another wallet on the next page, and readiness
+        // RANKS wallets: an unseen better-funded one would silently change
+        // which signer wins, so a partial listing is not a safe input. Fail
+        // closed until pagination is needed in practice.
         if (wallets.length >= X402_WALLET_PAGE_SIZE) {
           return err(
-            "x402 purchasing wallet list reached its safety limit; refusing ambiguous admin fallback",
+            "x402 purchasing wallet list reached its safety limit; refusing to rank signers over a partial listing",
           );
         }
         // Re-filter the response: a node that ignores the request filter must

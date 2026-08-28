@@ -289,18 +289,14 @@ export function requireAdminAuthContext(
   return userAuthContext;
 }
 
-/**
- * Requires a browser-backed interactive admin session for money-moving actions.
- * Generic user API keys and OAuth access tokens deliberately remain valid for
- * ordinary admin reads, but cannot mint refunds or resolve held charges.
- */
+/** Requires a browser-backed interactive admin session for sensitive actions. */
 export function requireInteractiveAdminAuthContext(
   authContext: AuthenticationContext,
 ): UserAuthenticationContext {
   const userAuthContext = requireAdminAuthContext(authContext);
 
   if (userAuthContext.authenticationMethod !== "session") {
-    throw forbidden("Interactive admin session required for this money action");
+    throw forbidden("Interactive admin session required for this action");
   }
 
   return userAuthContext;

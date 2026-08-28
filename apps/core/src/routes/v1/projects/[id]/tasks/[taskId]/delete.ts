@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -63,7 +64,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.task.findFirst({
       where: { id: taskId, projectId, workspaceId },
-      select: { pendingVendorGrantId: true, status: true },
+      select: {
+        pendingVendorGrantId: true,
+        status: true,
+        metadata: true,
+        nextRunAt: true,
+        workspaceId: true,
+      },
     });
     if (!task) {
       throw notFound("Project or task link not found");
@@ -71,13 +78,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     requireTaskNotParked(task);
 
-    const unlinkResult = await prisma.task.updateMany({
-      where: { id: taskId, projectId, workspaceId },
-      data: { projectId: null },
+    await prisma.$transaction(async (tx) => {
+      const unlinkResult = await tx.task.updateMany({
+        where: { id: taskId, projectId, workspaceId, archivedAt: null },
+        data: { projectId: null },
+      });
+      if (unlinkResult.count === 0) {
+        throw notFound("Project or task link not found");
+      }
+      const updatedTask = await tx.task.findUnique({
+        where: { id: taskId },
+        select: {
+          id: true,
+          workspaceId: true,
+          projectId: true,
+          status: true,
+          metadata: true,
+          nextRunAt: true,
+        },
+      });
+      if (!updatedTask) {
+        throw notFound("Project or task link not found");
+      }
+      await refreshTaskSchedulePlannedOccurrences(tx, updatedTask);
     });
-    if (unlinkResult.count === 0) {
-      throw notFound("Project or task link not found");
-    }
 
     return ok(c, mapProjectForApi(project));
   });

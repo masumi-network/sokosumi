@@ -3,12 +3,14 @@ import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
 } from "@/helpers/access-control";
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -94,6 +96,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
+      const calendarScopes = [
+        {
+          workspaceId: ownedTask.workspaceId,
+          projectIds: [ownedTask.projectId],
+        },
+        {
+          workspaceId: targetWorkspace.id,
+          projectIds: [],
+        },
+      ].sort((left, right) =>
+        left.workspaceId.localeCompare(right.workspaceId),
+      );
+      for (const scope of calendarScopes) {
+        if (
+          !(await lockCalendarScope(tx, scope.workspaceId, scope.projectIds))
+        ) {
+          throw conflict("Task Calendar source changed during workspace move");
+        }
+      }
+      if (!(await lockTaskRows(tx, [ownedTask.id]))) {
+        throw conflict("Task changed during workspace move");
+      }
+
       const existingLink = await tx.taskLink.findFirst({
         where: {
           OR: [{ fromTaskId: id }, { toTaskId: id }],
@@ -136,6 +161,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: targetWorkspace.id,
           projectId: null,
         },
+      });
+      await refreshTaskSchedulePlannedOccurrences(tx, {
+        id: ownedTask.id,
+        workspaceId: targetWorkspace.id,
+        projectId: null,
+        status: ownedTask.status,
+        metadata: ownedTask.metadata,
+        nextRunAt: ownedTask.nextRunAt,
       });
 
       return await tx.task.findUniqueOrThrow({

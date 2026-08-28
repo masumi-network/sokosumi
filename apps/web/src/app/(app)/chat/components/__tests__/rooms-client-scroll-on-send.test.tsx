@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -130,7 +130,8 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
 }));
 
 vi.mock("@/components/chat/room-read-overlay", () => ({
-  applyRoomReadResultToOverlay: vi.fn(),
+  rememberRoomRead: vi.fn(),
+  forgetRoomRead: vi.fn(),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -372,18 +373,20 @@ const organization = {
 
 function renderRoomsClient(room: ChatRoom) {
   return render(
-    <RoomsClient
-      activeOrganization={organization}
-      rooms={[room]}
-      organizationMembers={[]}
-      currentUserId="user-1"
-      coworkers={[]}
-      selectedRoomId={room.id}
-      messageLoadFailed={false}
-      membersLoadFailed={false}
-      messages={[]}
-      messagesNextCursor={null}
-    />,
+    <OrganizationSeatProvider hasAssignedSeat={true}>
+      <RoomsClient
+        activeOrganization={organization}
+        rooms={[room]}
+        organizationMembers={[]}
+        currentUserId="user-1"
+        coworkers={[]}
+        selectedRoomId={room.id}
+        messageLoadFailed={false}
+        membersLoadFailed={false}
+        messages={[]}
+        messagesNextCursor={null}
+      />
+    </OrganizationSeatProvider>,
   );
 }
 

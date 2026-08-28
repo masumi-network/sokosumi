@@ -69,3 +69,13 @@ export const organizationSeatUnassignmentSchema = z
     }),
   })
   .openapi("OrganizationSeatUnassignment");
+
+export const organizationCallerSeatSchema = z
+  .object({
+    assigned: z.boolean().openapi({
+      description:
+        "Whether the caller is treated as seated in this organization (free: all members; paid/enterprise: assigned Seat)",
+      example: true,
+    }),
+  })
+  .openapi("OrganizationCallerSeat");

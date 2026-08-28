@@ -146,7 +146,8 @@
       "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} erneuert",
       "creditsExpiresToday": "Credits werden heute erneuert",
       "creditsExpired": "Credits verfallen",
-      "organizations": "Organisationen"
+      "organizations": "Organisationen",
+      "organization": "Organisation"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
@@ -273,7 +274,8 @@
       "vendors": "Vendors",
       "docs": "Dokumentation",
       "drive": "Dateien",
-      "soko-bots": "Soko Bots"
+      "soko-bots": "Soko Bots",
+      "calendar": "Zeitpläne"
     },
     "Jobs": {
       "StatusBadge": {
@@ -763,6 +765,11 @@
         "logout": "Abmelden",
         "cancel": "Abbrechen",
         "error": "Abmelden fehlgeschlagen"
+      },
+      "CalendarClientUpgradeModal": {
+        "title": "Aktualisierung erforderlich",
+        "description": "Sokosumi wurde aktualisiert, um geplante Tasks zu schützen. Lade die Seite neu, bevor du weitere Kalenderänderungen vornimmst.",
+        "reload": "Sokosumi neu laden"
       }
     },
     "NotificationCenter": {
@@ -3021,7 +3028,8 @@
           "settings": "Einstellungen",
           "back": "Zurück",
           "chat": "Chat",
-          "sokoBot": "Soko Bots"
+          "sokoBot": "Soko Bots",
+          "calendar": "Zeitpläne"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -3029,6 +3037,11 @@
           "untitledChat": "Unbenannter Chat",
           "modelAlt": "Modell",
           "coworkerAlt": "Mitarbeiter"
+        },
+        "SeatRequired": {
+          "title": "Zugewiesener Seat erforderlich",
+          "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
+          "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
         }
       }
     },
@@ -3297,6 +3310,10 @@
           "sokoBots": {
             "title": "Soko Bots",
             "description": "Flottenzustand, Aktivität pro Bot und protokollierte Operator-Aktionen für den Soko Bot jedes Nutzers."
+          },
+          "matchedChannels": {
+            "title": "Matched Channels",
+            "description": "Organisationslose Matched Channels erstellen und deren Roster verwalten."
           }
         }
       },
@@ -4296,6 +4313,72 @@
           "noBotTitle": "Für das Labor brauchst du einen Soko Bot",
           "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
           "noBotLink": "Hier erstellen."
+        }
+      },
+      "MatchedChannels": {
+        "title": "Matched Channels",
+        "description": "Erstelle organisationslose Matched Channels, verwalte das Roster und übernimm aktuelle Organisationsmitglieder per Snapshot.",
+        "backToAdmin": "Zurück zur Administration",
+        "listError": "Matched Channels konnten nicht geladen werden",
+        "List": {
+          "title": "Channels",
+          "description": "Live-Matched-Channels mit Sichtbarkeit nur über das Roster.",
+          "loading": "Channels werden geladen…",
+          "empty": "Noch keine Matched Channels."
+        },
+        "Create": {
+          "title": "Matched Channel erstellen",
+          "description": "Erstellt einen live organisationslosen Channel. Du wirst nicht als Raummitglied hinzugefügt.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Eindeutig unter Channels. Nach dem Erstellen nicht mehr änderbar.",
+          "slugRequired": "Channel-Slug eingeben",
+          "name": "Name",
+          "namePlaceholder": "z. B. Partners",
+          "nameHelp": "Wird in der Liste angezeigt. Startet vom Handle; hier kannst du ihn ändern.",
+          "submit": "Channel erstellen",
+          "submitting": "Wird erstellt…",
+          "success": "Matched Channel erstellt",
+          "error": "Matched Channel konnte nicht erstellt werden",
+          "slugTaken": "Dieser Channel-Slug ist bereits vergeben."
+        },
+        "Detail": {
+          "back": "Zurück zu Matched Channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Benutzer auswählen, der hinzugefügt werden soll",
+          "organizationRequired": "Organisation für den Snapshot auswählen",
+          "addUserSuccess": "Benutzer zum Roster hinzugefügt",
+          "alreadyMember": "Benutzer ist bereits in diesem Channel",
+          "addUserError": "Benutzer konnte nicht hinzugefügt werden",
+          "addOrganizationSuccess": "{added} von {totalMembers} Mitgliedern hinzugefügt ({alreadyMember} bereits im Roster)",
+          "addOrganizationError": "Organisationsmitglieder konnten nicht übernommen werden",
+          "Roster": {
+            "title": "Roster",
+            "description": "Benutzer mit Mitgliederzugang in diesem Matched Channel.",
+            "empty": "Noch keine Teilnehmer.",
+            "name": "Name",
+            "email": "E-Mail",
+            "actions": "Aktionen",
+            "remove": "Entfernen",
+            "removing": "Wird entfernt…",
+            "removeSuccess": "{name} vom Roster entfernt",
+            "removeError": "Teilnehmer konnte nicht entfernt werden"
+          },
+          "AddUser": {
+            "title": "Benutzer hinzufügen",
+            "description": "Suche einen bestehenden Plattformnutzer. Es wird keine E-Mail-Einladung gesendet; die Mitgliedschaft wird sofort erstellt.",
+            "user": "Benutzer",
+            "submit": "Benutzer hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          },
+          "AddOrganization": {
+            "title": "Organisation hinzufügen",
+            "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel (max. 200 Mitglieder pro Anfrage). Spätere Beitritte werden nicht synchronisiert.",
+            "organization": "Organisation",
+            "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
+            "submit": "Organisationsmitglieder hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          }
         }
       }
     },
@@ -5779,7 +5862,8 @@
       "Edit": {
         "action": "Bearbeiten",
         "composerAria": "Nachricht bearbeiten. Enter speichern, Escape abbrechen, Umschalt+Enter neue Zeile.",
-        "edited": "Bearbeitet"
+        "edited": "Bearbeitet",
+        "editedAt": "Bearbeitet {when}"
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",
@@ -6064,7 +6148,12 @@
       "filterAll": "Alle",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Projekt",
-      "filterTaskLabel": "Aufgabe"
+      "filterTaskLabel": "Aufgabe",
+      "recentsTab": "Zuletzt verwendet",
+      "recentsEmptyTitle": "Keine kürzlichen Dateien",
+      "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
+      "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
+      "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden"
     },
     "SokoBot": {
       "Metadata": {
@@ -6444,6 +6533,66 @@
       "teamTitle": "Team",
       "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
       "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen."
+    },
+    "Calendar": {
+      "Metadata": {
+        "title": "Zeitpläne",
+        "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
+      },
+      "previous": "Vorheriger Zeitraum",
+      "next": "Nächster Zeitraum",
+      "view": {
+        "month": "Monat",
+        "week": "Woche",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Quelle",
+        "all": "Alle Quellen",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Projekt",
+        "LEGACY_UNKNOWN": "Legacy-Quelle"
+      },
+      "accuracy": {
+        "inferred": "Abgeleitete Quelle",
+        "unknown": "Unbekannte Quelle",
+        "approximate": "Ungefähre Zeit"
+      },
+      "status": {
+        "label": "Aufgabenstatus",
+        "all": "Alle Status",
+        "DRAFT": "Entwurf",
+        "QUEUED": "In Warteschlange",
+        "READY": "Bereit",
+        "GRANT_PENDING": "Freigabe ausstehend",
+        "INPUT_REQUIRED": "Eingabe erforderlich",
+        "APPROVAL_REQUIRED": "Genehmigung erforderlich",
+        "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
+        "OUT_OF_CREDITS": "Pausiert: Credits erforderlich",
+        "CREDITS_TOPPED_UP": "Credits aufgeladen",
+        "RUNNING": "Läuft",
+        "AWAITING_EXTERNAL": "Wartet auf Externes",
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELED": "Abgebrochen"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "Alle Coworker"
+      },
+      "empty": {
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+      },
+      "pagination": {
+        "loadMore": "Weitere Ereignisse laden",
+        "loading": "Ereignisse werden geladen...",
+        "error": "Weitere Ereignisse konnten nicht geladen werden."
+      },
+      "error": {
+        "title": "Kalender konnte nicht geladen werden",
+        "description": "Bitte versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      }
     }
   },
   "Share": {
@@ -6660,7 +6809,9 @@
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
-        "canceled": "{taskName} wurde abgebrochen"
+        "canceled": "{taskName} wurde abgebrochen",
+        "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
+        "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",

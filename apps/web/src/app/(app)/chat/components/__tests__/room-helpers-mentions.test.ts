@@ -13,6 +13,7 @@ import {
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
+  omitCoworkerMentionRecords,
   parseMentionDirectChip,
   partitionRoomMentionSuggestions,
   ROOM_MENTION_ALL_ID,
@@ -534,6 +535,25 @@ describe("partitionRoomMentionSuggestions", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]?.id).toBe("people");
     expect(groups[0]?.items).toEqual([unknown]);
+  });
+});
+
+describe("omitCoworkerMentionRecords", () => {
+  it("drops coworker picker rows and keeps humans", () => {
+    const records = {
+      human: {
+        value: "Ada",
+        data: { kind: "human" as const },
+      },
+      coworker: {
+        value: "Hermes",
+        data: { kind: "coworker" as const },
+      },
+    };
+
+    expect(omitCoworkerMentionRecords(records)).toEqual({
+      human: records.human,
+    });
   });
 });
 

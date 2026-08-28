@@ -36,6 +36,7 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   GetTasksSummaryData,
+  GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
   Notice,
@@ -88,6 +89,8 @@ import type {
   UpdateSokoBotScheduleRequest,
 } from "@/lib/clients/generated/core";
 import {
+  addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
+  addAdminMatchedChannelParticipantsFromOrganization as coreAddAdminMatchedChannelParticipantsFromOrganization,
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   archiveAdminSokoBotVersion as coreArchiveAdminSokoBotVersion,
@@ -101,6 +104,7 @@ import {
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
+  createAdminMatchedChannel as coreCreateAdminMatchedChannel,
   createAdminSokoBotVersion as coreCreateAdminSokoBotVersion,
   createAdminVendor as coreCreateAdminVendor,
   createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
@@ -138,6 +142,7 @@ import {
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
+  getAdminMatchedChannel as coreGetAdminMatchedChannel,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
@@ -194,6 +199,7 @@ import {
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdMembersMeSeat as coreGetOrganizationsByIdMembersMeSeat,
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
@@ -226,12 +232,15 @@ import {
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getUsersByIdWorkspaceAccess as coreGetUsersByIdWorkspaceAccess,
   getWorkspacesById as coreGetWorkspacesById,
+  getWorkspacesCalendar as coreGetWorkspacesCalendar,
+  getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   installMySokoBotSkill as coreInstallMySokoBotSkill,
   introduceMySokoBot as coreIntroduceMySokoBot,
   judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
   listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminMatchedChannels as coreListAdminMatchedChannels,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
   listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
@@ -345,6 +354,7 @@ import {
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
+  removeAdminMatchedChannelParticipant as coreRemoveAdminMatchedChannelParticipant,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
   removeMySokoBotSkill as coreRemoveMySokoBotSkill,
   resetMySokoBotMemory as coreResetMySokoBotMemory,
@@ -1728,6 +1738,98 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listAdminMatchedChannels() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminMatchedChannels({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list matched channels",
+    );
+  }
+
+  async function createAdminMatchedChannel(body: {
+    name?: string;
+    slug: string;
+    topic?: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminMatchedChannel({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create matched channel",
+    );
+  }
+
+  async function getAdminMatchedChannel(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminMatchedChannel({
+          client,
+          path: { roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch matched channel",
+    );
+  }
+
+  async function addAdminMatchedChannelParticipant(
+    roomId: string,
+    body: { userId: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAddAdminMatchedChannelParticipant({
+          client,
+          path: { roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add matched channel participant",
+    );
+  }
+
+  async function addAdminMatchedChannelParticipantsFromOrganization(
+    roomId: string,
+    body: { organizationId?: string; organizationSlug?: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAddAdminMatchedChannelParticipantsFromOrganization({
+          client,
+          path: { roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add matched channel participants from organization",
+    );
+  }
+
+  async function removeAdminMatchedChannelParticipant(
+    roomId: string,
+    userId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRemoveAdminMatchedChannelParticipant({
+          client,
+          path: { roomId, userId },
+          cache: "no-store",
+        }),
+      "Failed to remove matched channel participant",
+    );
+  }
+
   async function addAdminOrganizationMember(
     slug: string,
     body: { userId: string; role: "owner" | "admin" | "member" },
@@ -2286,8 +2388,8 @@ export function createCoreClient(getClient: GetCoreClient) {
    * Immediately updates the purchased seat count on an organization's active
    * subscription. Core enforces that the caller is an organization owner or
    * admin, blocks self-serve changes while an enterprise contract is active,
-   * and keeps seats at or above the assigned member count. Stripe-backed
-   * subscriptions are invoiced for the change right away.
+   * and requires at least 1 purchased seat. Stripe-backed subscriptions are
+   * invoiced for the change right away.
    */
   async function updateOrganizationSubscriptionSeats(
     organizationId: string,
@@ -2373,6 +2475,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization billing plan",
+    );
+  }
+
+  async function getOrganizationCallerSeat(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdMembersMeSeat({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization caller seat",
     );
   }
 
@@ -3437,6 +3552,33 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to resolve workspace DESIGN.md",
+    );
+  }
+
+  async function getWorkspaceCalendar(
+    query: GetWorkspacesCalendarData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesCalendar({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace calendar",
+    );
+  }
+
+  async function getWorkspaceCalendarSources() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesCalendarSources({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace calendar sources",
     );
   }
 
@@ -4638,6 +4780,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAdminOrganizationBySlug,
     listAdminOrganizations,
     listAdminOrganizationMembers,
+    listAdminMatchedChannels,
+    createAdminMatchedChannel,
+    getAdminMatchedChannel,
+    addAdminMatchedChannelParticipant,
+    addAdminMatchedChannelParticipantsFromOrganization,
+    removeAdminMatchedChannelParticipant,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,
@@ -4679,6 +4827,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationActiveSubscription,
     getOrganizationBillingDetails,
     getOrganizationBillingPlan,
+    getOrganizationCallerSeat,
     getOrganizationById,
     getOrganizationDeletion,
     getOrganizationBySlug,
@@ -4719,6 +4868,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
+    getWorkspaceCalendar,
+    getWorkspaceCalendarSources,
     getWorkspaceOrganizationId,
     setMyDesignMd,
     setMyPreferredOrganization,

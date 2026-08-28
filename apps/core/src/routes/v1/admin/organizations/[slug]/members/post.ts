@@ -5,13 +5,16 @@ import {
   userRepository,
 } from "@sokosumi/database/repositories";
 
-import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
+import {
+  getAdminOrganizationBySlug,
+  mapAdminOrganizationMemberOverviewItem,
+  resolveAdminOrganizationOverviewSubscription,
+} from "@/helpers/admin-organization-overview.js";
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { created } from "@/helpers/response";
-import { buildCreditsPayload } from "@/helpers/subscription.js";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -19,7 +22,6 @@ import {
   adminOrganizationMemberOverviewItemSchema,
   adminOrganizationSlugParamSchema,
 } from "@/schemas/admin.schema";
-import { syncLocalFreeSeatsAndCreditsForCurrentMembers } from "@/services/organization-subscription-auth.service";
 
 const route = createRoute({
   method: "post",
@@ -97,8 +99,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created;
     });
 
-    await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
-
     const members = await memberRepository.getMembersWithUserAndLastSeen(
       organization.id,
       prisma,
@@ -108,33 +108,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Member not found");
     }
 
-    const payload = await prisma.$transaction(async (tx) =>
-      buildCreditsPayload({
-        userId: createdMember.userId,
-        organizationId: organization.id,
-        referenceId: organization.id,
-        tx,
-      }),
+    const subscription = await resolveAdminOrganizationOverviewSubscription(
+      organization.id,
+      prisma,
     );
 
     return created(
       c,
-      adminOrganizationMemberOverviewItemSchema.parse({
-        id: createdMember.id,
-        organizationId: createdMember.organizationId,
-        role: createdMember.role,
-        seatAssignedAt: createdMember.seatAssignedAt,
-        createdAt: createdMember.createdAt,
-        user: {
-          id: createdMember.user.id,
-          name: createdMember.user.name,
-          email: createdMember.user.email,
-        },
-        lastSeenAt: createdMember.lastSeenAt,
-        credits: payload.credits.total,
-        subscriptionPlan: payload.credits.subscription?.plan ?? null,
-        subscriptionStatus: payload.credits.subscription?.status ?? null,
-      }),
+      adminOrganizationMemberOverviewItemSchema.parse(
+        mapAdminOrganizationMemberOverviewItem(createdMember, subscription),
+      ),
     );
   });
 }

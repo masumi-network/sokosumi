@@ -5,6 +5,13 @@
 > ([NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`); nothing external
 > gates the build, and the deployed nodes already run the x402 surface. Every decision here traces to a closed ticket — links inline.
 > Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md).
+>
+> **Amended 2026-08-28 for masumi ADR 0016.** The payment node removed
+> `GET /x402/budgets`. The x402 spend cap now lives on the calling API key as
+> per-unit usage credits, and wallet access is a scope grant. Only §6's
+> buy-side readiness and the two "budget" wordings in §7 change; the listing,
+> pay, data-model, and refund decisions are untouched. The superseded text is
+> named where it stood, not deleted silently.
 
 ## 1. Scope
 
@@ -295,29 +302,45 @@ Cardano-parallel Preprod/Mainnet split (ticket 003):
   the **testnet-only EVM network allowlist**. Fixed failures hide the agent;
   dynamic readiness failures produce a non-payable preview.
 - **Production:** curation/whitelist + mainnet networks.
-- **Buy-side readiness (ticket 011 Q5):** composed Soko-side from
-  `/x402/networks/available` + `/x402/budgets` + `/x402/wallets` +
-  `/x402/wallets/balance`, reusing the cached last-known-value pattern from
-  Cardano V2 readiness. The
-  env-global `/rail-readiness` x402 checks remain the coarse health signal.
-  `GET /x402/budgets` requires **admin permission** and returns every key's
-  rows unless filtered — the client resolves its own key id via
-  `/api-key-status` and passes the `apiKeyId` filter, because `/x402/pay`
-  only draws on budgets granted to the calling key (verified against
-  upstream `main`, `src/routes/api/x402/index.ts` + `pay.ts`).
-- A pair is ready only when the key has usable budget or admin access and its
-  single purchasing wallet has both positive native gas and positive balance
-  of the priced token. Missing or ambiguous wallet data fails closed. Core
-  also requires a local trusted-domain entry for the exact `(network, asset)`
-  pair. The resource server cannot supply this EIP-712 domain metadata.
-  Current entries are Base Sepolia USDC (`USDC`, version `2`) and Base mainnet
-  USDC (`USD Coin`, version `2`).
-- **Node setup per chain:** X402Network enabled, a funded purchasing EVM
-  wallet bound to it, the Soko API key's `ChainIdLimit` covering the target
-  `eip155:*` ids, and the key holding **admin permission** (the budgets
-  readiness read above is admin-gated; without it readiness stays
-  never-recorded and the x402 listing is hidden). Funding stays a manual
-  verification.
+- **Buy-side readiness (ticket 011 Q5; amended 2026-08-28, masumi ADR 0016):**
+  composed Soko-side from `/x402/networks/available` + `/api-key-status` +
+  `/x402/wallets` + `/x402/wallets/balance`, reusing the cached
+  last-known-value pattern from Cardano V2 readiness. The env-global
+  `/rail-readiness` x402 checks remain the coarse health signal.
+  `GET /x402/budgets` is **gone from the node** and the readiness sync no
+  longer calls it. The spend cap is now per-key usage credits on
+  `/api-key-status`: one credit ledger per key, keyed by unit
+  `eip155:<chainId>:<asset>` and gated by `usageLimited`. That endpoint
+  answers for the calling key only, so the cap read needs no `apiKeyId`
+  filter and carries no foreign-row hazard. Superseded text, kept for
+  readers of older tickets: readiness used to read `/x402/budgets`, which
+  required admin permission and returned every key's rows unless filtered.
+- A pair is ready only when the key's cap allows that exact unit and some
+  Purchasing wallet the key can reach on the chain holds both positive native
+  gas and a positive balance of the priced token. The cap is key-global, so
+  nothing binds a chain to one wallet: the sync ranks the candidates and
+  records the most-funded, tie-broken on wallet id. The cap gate asks whether
+  the unit holds credit, not whether it holds enough. No price exists at sync
+  time, so a nearly exhausted unit stays listed and the node refuses the
+  charge with a 402. Missing or ambiguous wallet data fails closed. Core also
+  requires a local trusted-domain entry for the exact `(network, asset)` pair.
+  The resource server cannot supply this EIP-712 domain metadata. Current
+  entries are Base Sepolia USDC (`USDC`, version `2`) and Base mainnet USDC
+  (`USD Coin`, version `2`).
+- **Node setup per chain:** X402Network enabled, a funded Purchasing EVM
+  wallet the Soko key can reach on it, the Soko API key's `ChainIdLimit`
+  covering the target `eip155:*` ids, and, when the key is `usageLimited`,
+  credits for unit `<caip2Network>:<asset>` granted with
+  `PATCH /api/v1/api-key`. Admin permission is **no longer required**, but
+  **pay permission is**: the node applies one owner scope to both
+  `/x402/wallets` and `/x402/pay`, so a scoped non-admin key is a first-class
+  signer, yet the listing is read-authenticated while the charge is
+  pay-authenticated. A key with only `canRead` reads the listing and 401s on
+  every charge, so Soko requires `canPay` (admin also qualifies) before it
+  lists any wallet. A `usageLimited` key holding
+  no `eip155:` credit row at all is grandfathered uncapped by the node and
+  stays payable, so an operator who expected a cap there has not set one.
+  Funding stays a manual verification.
 
 ## 7. External dependencies — RESOLVED (ticket 011, from upstream source)
 
@@ -325,13 +348,14 @@ All confirmed against masumi-payment-service `main`; see
 [NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`:
 
 - **Error contract:** the node handler documents 400 = pre-sign rejection,
-  402 = budget/balance refusal, and 500 = config/signing failure. One of those
-  statuses plus the documented envelope proves only that the current call did
-  not issue a header. It permits synchronous refund on the fresh first attempt;
-  a PENDING replay remains held behind every earlier attempt's risk window.
+  402 = usage-credit/balance refusal, and 500 = config/signing failure. One of
+  those statuses plus the documented envelope proves only that the current
+  call did not issue a header. It permits synchronous refund on the fresh
+  first attempt; a PENDING replay remains held behind every earlier attempt's
+  risk window.
   Gateway/transport statuses and malformed responses are also ambiguous.
 - **Idempotency: none by design** — Soko's key is the sole dedupe; a
-  double-call costs node budget only, never user funds.
+  double-call costs the node key's own usage credits only, never user funds.
 - **By-`attemptId` lookup:** not needed for correctness; paginate-and-match
   covers audit. Low-priority node nicety.
 - **Dialect:** v2-shaped only; Soko normalizes (§3).

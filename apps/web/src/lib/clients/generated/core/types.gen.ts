@@ -648,6 +648,76 @@ export const StripeSubscriptionStatus = {
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
+export type AdminMatchedChannelOption = {
+    id: string;
+    name: string;
+    slug: string;
+};
+
+export type AdminCreateMatchedChannelBody = {
+    /**
+     * Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.
+     */
+    name?: string;
+    /**
+     * Required Channel slug (max 80 after sanitize). Unique among org-less matched channels.
+     */
+    slug: string;
+    topic?: string;
+};
+
+export type AdminMatchedChannelDetail = {
+    id: string;
+    name: string;
+    slug: string;
+    topic: string | null;
+    participants: Array<AdminMatchedChannelParticipantInfo>;
+};
+
+export type AdminMatchedChannelParticipantInfo = {
+    userId: string;
+    name: string;
+    email: string;
+    access: 'member';
+};
+
+export type AdminAddMatchedChannelFromOrganizationResult = {
+    added: number;
+    alreadyMember: number;
+    totalMembers: number;
+};
+
+export type AdminAddMatchedChannelFromOrganizationBody = {
+    /**
+     * Organization whose Members are snapshotted onto the roster
+     */
+    organizationId?: string;
+    /**
+     * Organization slug alternative to organizationId
+     */
+    organizationSlug?: string;
+};
+
+export type AdminMatchedChannelParticipant = {
+    userId: string;
+    roomId: string;
+    access: 'member';
+    outcome: 'joined' | 'already_member';
+};
+
+export type AdminAddMatchedChannelParticipantBody = {
+    /**
+     * Existing platform user to add as a member
+     */
+    userId: string;
+};
+
+export type AdminRemoveMatchedChannelParticipant = {
+    userId: string;
+    roomId: string;
+    outcome: 'removed';
+};
+
 export type AdminOrganizationOverviewItem = {
     id: string;
     name: string;
@@ -706,9 +776,9 @@ export type AdminOrganizationOverviewDetail = {
         isEnterpriseContract: boolean;
     };
     /**
-     * Enterprise pool remaining credits; null for self-serve organizations where credits are per member
+     * Organization pool remaining credits for both billing modes
      */
-    totalCredits: number | null;
+    totalCredits: number;
 };
 
 export type AdminOrganizationMemberOverviewItem = {
@@ -724,11 +794,7 @@ export type AdminOrganizationMemberOverviewItem = {
     };
     lastSeenAt: Date | null;
     /**
-     * Available credits for this member in the organization
-     */
-    credits: number;
-    /**
-     * Member subscription plan in organization context
+     * Organization subscription plan, repeated on each member row
      */
     subscriptionPlan: string | null;
     /**
@@ -966,6 +1032,10 @@ export type Task = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
+    /**
+     * Revision used for optimistic schedule mutations
+     */
+    scheduleRevision?: number;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -1096,6 +1166,20 @@ export type TaskEvent = {
     channel: Channel;
     origin: Channel & unknown;
     status?: TaskStatus | null;
+    /**
+     * Schedule activity represented by this event
+     */
+    scheduleKind?: 'CREATED' | 'UPDATED' | 'REMOVED' | 'SOURCE_CHANGED' | 'OCCURRENCE_RESCHEDULED' | 'OCCURRENCE_SKIPPED' | 'OCCURRENCE_RESTORED' | 'RELEASED' | null;
+    /**
+     * Schedule activity details for audit and notifications
+     */
+    schedulePayload?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Idempotency identity for the schedule mutation
+     */
+    scheduleOperationId?: string | null;
 };
 
 /**
@@ -1371,6 +1455,71 @@ export type RefundAdminTaskPaymentClaimBody = {
 };
 
 export type ReviewedTaskPaymentClaimActionBody = {
+    reason: string;
+};
+
+export type AdminTaskScheduleQuarantineActionResult = {
+    taskId: string;
+    eventId: string;
+    action: 'repaired' | 'removed';
+    replayed: boolean;
+};
+
+export type RepairTaskScheduleQuarantineBody = {
+    /**
+     * Idempotency identity for this operator action
+     */
+    operationId: string;
+    /**
+     * Operator reason retained in the Task audit event
+     */
+    reason: string;
+    schedule: TaskScheduleInput;
+};
+
+export type TaskScheduleInput = {
+    mode: 'once';
+    /**
+     * When the one-time schedule should run
+     */
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    /**
+     * Cron expression for recurring runs
+     */
+    expr: string;
+    /**
+     * IANA timezone for the cron expression
+     */
+    timezone?: string;
+    endsMode?: 'never' | 'on' | 'after';
+    /**
+     * End date when endsMode is on
+     */
+    endsOn?: Date;
+    /**
+     * Remaining occurrences when endsMode is after
+     */
+    occurrences?: number;
+    /**
+     * When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps
+     */
+    intervalDays?: number;
+    /**
+     * First run instant for intervalDays schedules (required when intervalDays > 1)
+     */
+    anchorAt?: Date;
+};
+
+export type RemoveTaskScheduleQuarantineBody = {
+    /**
+     * Idempotency identity for this operator action
+     */
+    operationId: string;
+    /**
+     * Operator reason retained in the Task audit event
+     */
     reason: string;
 };
 
@@ -1960,7 +2109,7 @@ export type ChatRoom = {
      */
     id: string;
     /**
-     * Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).
+     * Organization that owns the room. Null for Personal Directs and for org-less matched channels (`discoverability=matched`).
      */
     organizationId: string | null;
     /**
@@ -1979,9 +2128,9 @@ export type ChatRoom = {
     directKey: string | null;
     topic: string | null;
     /**
-     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.
+     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.
      */
-    discoverability: 'public' | 'private' | 'external' | null;
+    discoverability: 'public' | 'private' | 'external' | 'matched' | null;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -2139,7 +2288,7 @@ export type DiscoverableChatRoom = {
 };
 
 /**
- * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.
+ * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.
  */
 export const DiscoverableChannelDiscoverability = {
     PUBLIC: 'public',
@@ -2148,7 +2297,7 @@ export const DiscoverableChannelDiscoverability = {
 } as const;
 
 /**
- * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.
+ * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.
  */
 export type DiscoverableChannelDiscoverability = typeof DiscoverableChannelDiscoverability[keyof typeof DiscoverableChannelDiscoverability];
 
@@ -2309,7 +2458,7 @@ export type UpdateChatRoomRequest = {
      */
     slug?: string;
     topic?: string | null;
-    discoverability?: ChatRoomDiscoverability;
+    discoverability?: OrgChannelDiscoverability;
     /**
      * Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.
      */
@@ -2320,7 +2469,7 @@ export type UpdateChatRoomRequest = {
 /**
  * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
  */
-export const ChatRoomDiscoverability = {
+export const OrgChannelDiscoverability = {
     PUBLIC: 'public',
     PRIVATE: 'private',
     EXTERNAL: 'external'
@@ -2329,7 +2478,7 @@ export const ChatRoomDiscoverability = {
 /**
  * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
  */
-export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
+export type OrgChannelDiscoverability = typeof OrgChannelDiscoverability[keyof typeof OrgChannelDiscoverability];
 
 export type ArchivedChatRoom = {
     id: string;
@@ -2815,6 +2964,84 @@ export type RenameDriveFolderRequest = {
      * Organization ID (required when scope=org)
      */
     organizationId?: string;
+};
+
+export type DriveRecentsList = Array<DriveRecentsItem>;
+
+export type DriveRecentsItem = ({
+    kind: 'drive-file';
+} & DriveRecentsDriveFileItem) | ({
+    kind: 'task-output';
+} & DriveRecentsTaskOutputItem);
+
+export type DriveRecentsDriveFileItem = {
+    /**
+     * Drive blob file at any folder depth
+     */
+    kind: 'drive-file';
+    /**
+     * File name
+     */
+    name: string;
+    /**
+     * Blob URL
+     */
+    fileUrl: string;
+    /**
+     * Blob pathname
+     */
+    pathname: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Latest activity timestamp (blob uploadedAt)
+     */
+    activityAt: Date;
+};
+
+export type DriveRecentsTaskOutputItem = {
+    /**
+     * READY TASK_OUTPUT TaskFile row
+     */
+    kind: 'task-output';
+    /**
+     * TaskFile name
+     */
+    name: string;
+    /**
+     * TaskFile blob URL
+     */
+    fileUrl: string;
+    /**
+     * File size in bytes (null if unknown)
+     */
+    size: number | null;
+    /**
+     * Latest activity timestamp (TaskFile updatedAt)
+     */
+    activityAt: Date;
+    /**
+     * TaskFile ID
+     */
+    taskFileId: string;
+    /**
+     * Parent task ID
+     */
+    taskId: string;
+    /**
+     * Parent task name
+     */
+    taskName: string;
+    /**
+     * Parent project ID, or null
+     */
+    projectId: string | null;
+    /**
+     * Parent project name, or null
+     */
+    projectName: string | null;
 };
 
 export type DriveTasksList = Array<DriveTasksListItem>;
@@ -3718,6 +3945,13 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
+export type OrganizationCallerSeat = {
+    /**
+     * Whether the caller is treated as seated in this organization (free: all members; paid/enterprise: assigned Seat)
+     */
+    assigned: boolean;
+};
+
 export type PendingInvitation = {
     id: string;
     organizationId: string;
@@ -3978,6 +4212,18 @@ export type Project = {
      */
     contextMd: ProjectContextMdMetadata | null;
     contextMdUpdating: boolean;
+    /**
+     * Revision used for optimistic Project mutations
+     */
+    projectRevision?: number;
+    /**
+     * Exclusive release cutoff while the Project is closing
+     */
+    closingAt?: Date | null;
+    /**
+     * When the Project reached its terminal closed state
+     */
+    closedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -4901,6 +5147,10 @@ export type TaskListItem = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
+    /**
+     * Revision used for optimistic schedule mutations
+     */
+    scheduleRevision?: number;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -4965,6 +5215,20 @@ export type TaskLinkDeleted = {
 };
 
 export type PutTaskScheduleRequest = {
+    /**
+     * Idempotency identity for this series edit
+     */
+    operationId: string;
+    /**
+     * Schedule revision observed by the caller
+     */
+    expectedScheduleRevision: number;
+    /**
+     * Confirms that future occurrence exceptions may be canceled
+     */
+    discardFutureExceptions: true;
+    schedule: TaskScheduleInput;
+} | {
     mode: 'once';
     /**
      * When the one-time schedule should run
@@ -5337,6 +5601,52 @@ export type DesignMdOwnerInfo = {
     logo: string | null;
 } | {
     type: 'user';
+};
+
+export type WorkspaceCalendarItem = {
+    /**
+     * Stable Calendar item identity. Version 1 projections are display-only.
+     */
+    id: string;
+    taskId: string;
+    taskName: string;
+    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+    taskAssigneeId: string | null;
+    /**
+     * Effective time at which the item appears in the Calendar
+     */
+    scheduledAt: Date;
+    /**
+     * Original scheduled time captured by the occurrence ledger, when known
+     */
+    originalScheduledAt: Date | null;
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * Canonical Calendar source identity
+     */
+    sourceId: string;
+    /**
+     * Workspace captured as the Calendar source
+     */
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    /**
+     * Project captured as the Calendar source, when applicable
+     */
+    sourceProjectId: string | null;
+    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
+    timeAccuracy: 'EXACT' | 'APPROXIMATE';
+};
+
+export type WorkspaceCalendarSource = {
+    sourceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    displayName: string;
+    logoUrl: string | null;
+    /**
+     * Bounded visual marker for Calendar source displays
+     */
+    paletteToken: 'blue' | 'violet' | 'amber';
 };
 
 export type WorkspaceOrganization = {
@@ -6616,6 +6926,477 @@ export type ListAdminUsersResponses = {
 };
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
+
+export type ListAdminMatchedChannelsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/matched-channels';
+};
+
+export type ListAdminMatchedChannelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminMatchedChannelsError = ListAdminMatchedChannelsErrors[keyof ListAdminMatchedChannelsErrors];
+
+export type ListAdminMatchedChannelsResponses = {
+    /**
+     * Live matched channels
+     */
+    200: {
+        data: Array<AdminMatchedChannelOption>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminMatchedChannelsResponse = ListAdminMatchedChannelsResponses[keyof ListAdminMatchedChannelsResponses];
+
+export type CreateAdminMatchedChannelData = {
+    body?: AdminCreateMatchedChannelBody;
+    path?: never;
+    query?: never;
+    url: '/admin/matched-channels';
+};
+
+export type CreateAdminMatchedChannelErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminMatchedChannelError = CreateAdminMatchedChannelErrors[keyof CreateAdminMatchedChannelErrors];
+
+export type CreateAdminMatchedChannelResponses = {
+    /**
+     * Created matched channel
+     */
+    201: {
+        data: AdminMatchedChannelOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminMatchedChannelResponse = CreateAdminMatchedChannelResponses[keyof CreateAdminMatchedChannelResponses];
+
+export type GetAdminMatchedChannelData = {
+    body?: never;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}';
+};
+
+export type GetAdminMatchedChannelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminMatchedChannelError = GetAdminMatchedChannelErrors[keyof GetAdminMatchedChannelErrors];
+
+export type GetAdminMatchedChannelResponses = {
+    /**
+     * Matched channel detail
+     */
+    200: {
+        data: AdminMatchedChannelDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminMatchedChannelResponse = GetAdminMatchedChannelResponses[keyof GetAdminMatchedChannelResponses];
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationData = {
+    body?: AdminAddMatchedChannelFromOrganizationBody;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/participants/from-organization';
+};
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationError = AddAdminMatchedChannelParticipantsFromOrganizationErrors[keyof AddAdminMatchedChannelParticipantsFromOrganizationErrors];
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationResponses = {
+    /**
+     * Organization Members snapshotted
+     */
+    200: {
+        data: AdminAddMatchedChannelFromOrganizationResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationResponse = AddAdminMatchedChannelParticipantsFromOrganizationResponses[keyof AddAdminMatchedChannelParticipantsFromOrganizationResponses];
+
+export type AddAdminMatchedChannelParticipantData = {
+    body?: AdminAddMatchedChannelParticipantBody;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/participants';
+};
+
+export type AddAdminMatchedChannelParticipantErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantError = AddAdminMatchedChannelParticipantErrors[keyof AddAdminMatchedChannelParticipantErrors];
+
+export type AddAdminMatchedChannelParticipantResponses = {
+    /**
+     * Member membership ensured
+     */
+    200: {
+        data: AdminMatchedChannelParticipant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantResponse = AddAdminMatchedChannelParticipantResponses[keyof AddAdminMatchedChannelParticipantResponses];
+
+export type RemoveAdminMatchedChannelParticipantData = {
+    body?: never;
+    path: {
+        roomId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/participants/{userId}';
+};
+
+export type RemoveAdminMatchedChannelParticipantErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveAdminMatchedChannelParticipantError = RemoveAdminMatchedChannelParticipantErrors[keyof RemoveAdminMatchedChannelParticipantErrors];
+
+export type RemoveAdminMatchedChannelParticipantResponses = {
+    /**
+     * Member removed
+     */
+    200: {
+        data: AdminRemoveMatchedChannelParticipant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveAdminMatchedChannelParticipantResponse = RemoveAdminMatchedChannelParticipantResponses[keyof RemoveAdminMatchedChannelParticipantResponses];
 
 export type ListAdminOrganizationsData = {
     body?: never;
@@ -8300,6 +9081,220 @@ export type RetryAdminTaskPaymentClaimResponses = {
 };
 
 export type RetryAdminTaskPaymentClaimResponse = RetryAdminTaskPaymentClaimResponses[keyof RetryAdminTaskPaymentClaimResponses];
+
+export type RepairAdminTaskScheduleQuarantineData = {
+    body: RepairTaskScheduleQuarantineBody;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/admin/task-schedule-quarantines/{taskId}/repair';
+};
+
+export type RepairAdminTaskScheduleQuarantineErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RepairAdminTaskScheduleQuarantineError = RepairAdminTaskScheduleQuarantineErrors[keyof RepairAdminTaskScheduleQuarantineErrors];
+
+export type RepairAdminTaskScheduleQuarantineResponses = {
+    /**
+     * Task schedule quarantine repaired
+     */
+    200: {
+        data: AdminTaskScheduleQuarantineActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RepairAdminTaskScheduleQuarantineResponse = RepairAdminTaskScheduleQuarantineResponses[keyof RepairAdminTaskScheduleQuarantineResponses];
+
+export type RemoveAdminTaskScheduleQuarantineData = {
+    body: RemoveTaskScheduleQuarantineBody;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/admin/task-schedule-quarantines/{taskId}/remove';
+};
+
+export type RemoveAdminTaskScheduleQuarantineErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveAdminTaskScheduleQuarantineError = RemoveAdminTaskScheduleQuarantineErrors[keyof RemoveAdminTaskScheduleQuarantineErrors];
+
+export type RemoveAdminTaskScheduleQuarantineResponses = {
+    /**
+     * Quarantined Task schedule removed
+     */
+    200: {
+        data: AdminTaskScheduleQuarantineActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveAdminTaskScheduleQuarantineResponse = RemoveAdminTaskScheduleQuarantineResponses[keyof RemoveAdminTaskScheduleQuarantineResponses];
 
 export type ListAdminTaskX402PaymentsData = {
     body?: never;
@@ -18686,6 +19681,111 @@ export type PatchDriveFoldersRenameResponses = {
 
 export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
 
+export type GetDriveRecentsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        /**
+         * Organization ID (required when scope=org)
+         */
+        organizationId?: string;
+        /**
+         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
+         */
+        q?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/drive/recents';
+};
+
+export type GetDriveRecentsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveRecentsError = GetDriveRecentsErrors[keyof GetDriveRecentsErrors];
+
+export type GetDriveRecentsResponses = {
+    /**
+     * Drive recents retrieved
+     */
+    200: {
+        data: DriveRecentsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveRecentsResponse = GetDriveRecentsResponses[keyof GetDriveRecentsResponses];
+
 export type GetDriveTasksData = {
     body?: never;
     path?: never;
@@ -23641,6 +24741,95 @@ export type GetOrganizationsByIdMembersResponses = {
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
 
+export type GetOrganizationsByIdMembersMeSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/me/seat';
+};
+
+export type GetOrganizationsByIdMembersMeSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdMembersMeSeatError = GetOrganizationsByIdMembersMeSeatErrors[keyof GetOrganizationsByIdMembersMeSeatErrors];
+
+export type GetOrganizationsByIdMembersMeSeatResponses = {
+    /**
+     * The caller's seat assignment in this organization
+     */
+    200: {
+        data: OrganizationCallerSeat;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdMembersMeSeatResponse = GetOrganizationsByIdMembersMeSeatResponses[keyof GetOrganizationsByIdMembersMeSeatResponses];
+
 export type DeleteOrganizationsByIdMembersByMemberIdSeatData = {
     body?: never;
     path: {
@@ -25648,7 +26837,7 @@ export type PutOrganizationsByIdSubscriptionSeatsData = {
 
 export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     /**
-     * Bad Request - No active subscription, seats below assigned members, or enterprise contract exclusivity
+     * Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity
      */
     400: {
         error: string;
@@ -27387,6 +28576,20 @@ export type DeleteProjectsByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -34080,6 +35283,20 @@ export type DeleteTasksByIdScheduleErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DeleteTasksByIdScheduleError = DeleteTasksByIdScheduleErrors[keyof DeleteTasksByIdScheduleErrors];
@@ -34156,6 +35373,20 @@ export type PutTasksByIdScheduleErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -37903,6 +39134,338 @@ export type GetWorkspacesDesignMdResponses = {
 };
 
 export type GetWorkspacesDesignMdResponse = GetWorkspacesDesignMdResponses[keyof GetWorkspacesDesignMdResponses];
+
+export type GetWorkspacesCalendarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Inclusive start of the calendar range
+         */
+        from: Date;
+        /**
+         * Exclusive end of the calendar range, at most 90 days after from
+         */
+        to: Date;
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+        /**
+         * Only occurrences whose series task has this coworker
+         */
+        assigneeId?: string;
+        /**
+         * Opaque cursor for the next merged calendar page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/workspaces/calendar';
+};
+
+export type GetWorkspacesCalendarErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarError = GetWorkspacesCalendarErrors[keyof GetWorkspacesCalendarErrors];
+
+export type GetWorkspacesCalendarResponses = {
+    /**
+     * Active workspace Calendar items
+     */
+    200: {
+        data: Array<WorkspaceCalendarItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarResponse = GetWorkspacesCalendarResponses[keyof GetWorkspacesCalendarResponses];
+
+export type GetWorkspacesCalendarSourcesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/workspaces/calendar/sources';
+};
+
+export type GetWorkspacesCalendarSourcesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarSourcesError = GetWorkspacesCalendarSourcesErrors[keyof GetWorkspacesCalendarSourcesErrors];
+
+export type GetWorkspacesCalendarSourcesResponses = {
+    /**
+     * Active workspace Calendar sources
+     */
+    200: {
+        data: Array<WorkspaceCalendarSource>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesCalendarSourcesResponse = GetWorkspacesCalendarSourcesResponses[keyof GetWorkspacesCalendarSourcesResponses];
+
+export type GetWorkspacesByIdCalendarData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Inclusive start of the calendar range
+         */
+        from: Date;
+        /**
+         * Exclusive end of the calendar range, at most 90 days after from
+         */
+        to: Date;
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+        /**
+         * Only occurrences whose series task has this coworker
+         */
+        assigneeId?: string;
+        /**
+         * Opaque cursor for the next merged calendar page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/workspaces/{id}/calendar';
+};
+
+export type GetWorkspacesByIdCalendarErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdCalendarError = GetWorkspacesByIdCalendarErrors[keyof GetWorkspacesByIdCalendarErrors];
+
+export type GetWorkspacesByIdCalendarResponses = {
+    /**
+     * Workspace Calendar items
+     */
+    200: {
+        data: Array<WorkspaceCalendarItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdCalendarResponse = GetWorkspacesByIdCalendarResponses[keyof GetWorkspacesByIdCalendarResponses];
 
 export type GetWorkspacesByIdData = {
     body?: never;

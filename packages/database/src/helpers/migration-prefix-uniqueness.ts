@@ -24,6 +24,13 @@ export const ALLOWED_DUPLICATE_MIGRATION_PREFIX_FOLDERS = {
     "20260825140000_chat_room_channel_slug_namespace",
     "20260825140000_soko_bot_avatars_and_requester",
   ],
+  // Calendar and Soko Bot landed the same hour on separate branches. Both are
+  // applied in deployed environments, so renaming either would re-run its SQL
+  // and wedge the database; the pair is recorded instead.
+  "20260826140000": [
+    "20260826140000_calendar_compatibility_foundation",
+    "20260826140000_soko_bot_runtime_event",
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export interface DuplicateMigrationPrefixViolation {

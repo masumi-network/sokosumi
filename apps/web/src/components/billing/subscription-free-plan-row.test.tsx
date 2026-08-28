@@ -33,6 +33,9 @@ describe("SubscriptionFreePlanRow", () => {
       />,
     );
 
+    expect(
+      screen.getByText('includedCredits:{"credits":250}'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
     expect(container.querySelector(".md\\:grid-cols-3")).toBeNull();
     expect(

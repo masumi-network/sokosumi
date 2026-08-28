@@ -17,8 +17,9 @@ const {
   memberFindUniqueMock,
   assertOrganizationSubscriptionChangeAllowedMock,
   resolveActiveSubscriptionByReferenceIdMock,
-  getAssignedMemberCountMock,
   subscriptionUpdateMock,
+  memberFindManyMock,
+  memberUpdateMock,
   transactionMock,
   retrieveSubscriptionWithItemsMock,
   updateSubscriptionItemQuantityMock,
@@ -27,8 +28,9 @@ const {
   memberFindUniqueMock: vi.fn(),
   assertOrganizationSubscriptionChangeAllowedMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
-  getAssignedMemberCountMock: vi.fn(),
   subscriptionUpdateMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
+  memberUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
   updateSubscriptionItemQuantityMock: vi.fn(),
@@ -63,10 +65,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 });
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getAssignedMemberCount: (...args: unknown[]) =>
-      getAssignedMemberCountMock(...args),
-  },
   subscriptionRepository: {
     resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
       resolveActiveSubscriptionByReferenceIdMock(...args),
@@ -133,7 +131,14 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       async (callback: (tx: unknown) => unknown) =>
         callback({
           organization: { findUnique: organizationFindUniqueMock },
-          member: { findUnique: memberFindUniqueMock },
+          member: {
+            findMany: (...args: unknown[]) => memberFindManyMock(...args),
+            findUnique: memberFindUniqueMock,
+            update: (...args: unknown[]) => memberUpdateMock(...args),
+          },
+          subscription: {
+            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
+          },
         }),
     );
     assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
@@ -145,12 +150,13 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       seats: 2,
       stripeSubscriptionId: "sub_stripe_1",
     });
-    getAssignedMemberCountMock.mockResolvedValue(2);
     retrieveSubscriptionWithItemsMock.mockResolvedValue({
       items: { data: [{ id: "si_1" }] },
     });
     updateSubscriptionItemQuantityMock.mockResolvedValue({});
     subscriptionUpdateMock.mockResolvedValue({});
+    memberFindManyMock.mockResolvedValue([]);
+    memberUpdateMock.mockResolvedValue({});
   });
 
   it("returns 404 when the organization does not exist", async () => {
@@ -205,24 +211,152 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when decreasing seats below the assigned member count", async () => {
+  it("allows decreasing purchased seats below the assigned member count", async () => {
     setMembership("owner");
-    getAssignedMemberCountMock.mockResolvedValue(4);
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       id: "sub-row-1",
       plan: "starter",
       seats: 6,
       stripeSubscriptionId: "sub_stripe_1",
     });
+    memberFindManyMock.mockResolvedValue([
+      {
+        id: "m-oldest",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      {
+        id: "m-middle",
+        createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      {
+        id: "m-newest",
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    ]);
 
-    const response = await updateSeats("org_123", 3);
+    const response = await updateSeats("org_123", 1);
+    const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(await response.text()).toContain(
-      "Purchased seats (3) must be at least 4 to cover all assigned members",
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ seats: 1 });
+    expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      1,
     );
-    expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub-row-1" },
+      data: { seats: 1 },
+    });
+    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
+      ["m-newest", "m-middle"],
+    );
+    expect(memberUpdateMock.mock.calls[0]?.[0].data.seatAssignedAt).toBeNull();
+  });
+
+  it("unassigns overflow if the local seat write fails after Stripe", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([
+      {
+        id: "m-oldest",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      {
+        id: "m-newest",
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    ]);
+
+    let transactionCalls = 0;
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => {
+        transactionCalls += 1;
+        const tx = {
+          organization: { findUnique: organizationFindUniqueMock },
+          member: {
+            findMany: (...args: unknown[]) => memberFindManyMock(...args),
+            findUnique: memberFindUniqueMock,
+            update: (...args: unknown[]) => memberUpdateMock(...args),
+          },
+          subscription: {
+            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
+          },
+        };
+        if (transactionCalls === 2 || transactionCalls === 3) {
+          throw new Error("local seat write failed");
+        }
+        return callback(tx);
+      },
+    );
+
+    const response = await updateSeats("org_123", 1);
+
+    expect(response.status).toBe(500);
+    expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      "si_1",
+      1,
+    );
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
+      ["m-newest"],
+    );
+  });
+
+  it("persists seats on retry when the first local write fails after Stripe", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([
+      {
+        id: "m-oldest",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      {
+        id: "m-newest",
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    ]);
+
+    let transactionCalls = 0;
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => {
+        transactionCalls += 1;
+        const tx = {
+          organization: { findUnique: organizationFindUniqueMock },
+          member: {
+            findMany: (...args: unknown[]) => memberFindManyMock(...args),
+            findUnique: memberFindUniqueMock,
+            update: (...args: unknown[]) => memberUpdateMock(...args),
+          },
+          subscription: {
+            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
+          },
+        };
+        if (transactionCalls === 2) {
+          throw new Error("local seat write failed");
+        }
+        return callback(tx);
+      },
+    );
+
+    const response = await updateSeats("org_123", 1);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ seats: 1 });
+    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub-row-1" },
+      data: { seats: 1 },
+    });
+    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
+      ["m-newest"],
+    );
   });
 
   it("returns the current seats without touching Stripe when unchanged", async () => {
@@ -233,7 +367,6 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       seats: 4,
       stripeSubscriptionId: "sub_stripe_1",
     });
-    getAssignedMemberCountMock.mockResolvedValue(2);
 
     const response = await updateSeats("org_123", 4);
     const body = await response.json();
@@ -280,7 +413,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("updates only the local seat count for local free subscriptions", async () => {
+  it("no-ops seat quantity updates for local free subscriptions", async () => {
     setMembership("owner");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       id: "sub-row-1",
@@ -293,13 +426,10 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ seats: 6 });
+    expect(body.data).toEqual({ seats: 2 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
-    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
-      where: { id: "sub-row-1" },
-      data: { seats: 6 },
-    });
+    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

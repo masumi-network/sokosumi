@@ -10,7 +10,7 @@ import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
 import {
   mapSeatRepositoryError,
-  unassignOrganizationMemberSeatWithCreditSync,
+  unassignOrganizationMemberSeat,
 } from "@/services/organization-seat.service";
 
 const params = z.object({
@@ -30,7 +30,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}/members/{memberId}/seat",
   description:
-    "Unassign an organization member's seat. Only organization owners and admins may do this. The unassignment and any resulting free-credit grants happen in a single transaction.",
+    "Unassign an organization member's seat. Only organization owners and admins may do this.",
   tags: ["Organizations"],
   request: {
     params,
@@ -72,11 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
         });
 
-        return unassignOrganizationMemberSeatWithCreditSync(
-          organization.id,
-          memberId,
-          tx,
-        );
+        return unassignOrganizationMemberSeat(organization.id, memberId, tx);
       });
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));

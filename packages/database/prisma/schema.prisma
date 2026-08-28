@@ -250,6 +250,8 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  calendarRevision Int @default(0)
+
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -259,6 +261,8 @@ model Workspace {
   jobs                    Job[]
   tasks                   Task[]
   projects                Project[]
+  scheduleOccurrences     TaskScheduleOccurrence[]
+  calendarInvalidations   CalendarInvalidationOutbox[]
   vendorGrants            VendorGrant[]
   coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
   sokoBotTurns            SokoBotTurn[]
@@ -467,8 +471,17 @@ model Project {
   designMdUrl            String?
   designMdExtractionId   String?
 
-  jobs  Job[]
-  tasks Task[]
+  projectRevision  Int       @default(0)
+  calendarRevision Int       @default(0)
+  closingAt        DateTime?
+  closedAt         DateTime?
+
+  jobs                  Job[]
+  tasks                 Task[]
+  scheduleOccurrences   TaskScheduleOccurrence[]
+  closeOperation        ProjectCloseOperation?
+  events                ProjectEvent[]
+  calendarInvalidations CalendarInvalidationOutbox[]
 
   @@index([workspaceId])
   @@map("project")
@@ -1393,8 +1406,8 @@ model OauthAccessToken {
   expiresAt               DateTime
   revoked                 DateTime?
   authorizationCodeId     String?
-  resources               String[] @default([])
-  requestedUserInfoClaims String[] @default([])
+  resources               String[]  @default([])
+  requestedUserInfoClaims String[]  @default([])
   confirmation            Json?
 
   clientId String
@@ -1464,8 +1477,8 @@ model OauthConsent {
   client                  OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   referenceId             String?
   scopes                  String[]
-  resources               String[] @default([])
-  requestedUserInfoClaims String[] @default([])
+  resources               String[]    @default([])
+  requestedUserInfoClaims String[]    @default([])
 
   @@index([clientId])
   @@index([userId])
@@ -2361,8 +2374,13 @@ model Task {
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  metadata  String?
-  nextRunAt DateTime?
+  metadata         String?
+  nextRunAt        DateTime?
+  scheduleRevision Int       @default(0)
+
+  scheduleOccurrences        TaskScheduleOccurrence[] @relation("ScheduleOccurrenceSeries")
+  releasedScheduleOccurrence TaskScheduleOccurrence?  @relation("ScheduleOccurrenceReleasedTask")
+  scheduleQuarantine         TaskScheduleQuarantine?
 
   @@index([organizationId])
   @@index([workspaceId])
@@ -2422,6 +2440,187 @@ enum TaskLinkType {
   SCHEDULE
 }
 
+enum CalendarSourceType {
+  WORKSPACE
+  PROJECT
+  LEGACY_UNKNOWN
+}
+
+enum CalendarSourceAccuracy {
+  EXACT
+  INFERRED
+  UNKNOWN
+}
+
+enum CalendarTimeAccuracy {
+  EXACT
+  APPROXIMATE
+}
+
+enum TaskScheduleOccurrenceState {
+  PLANNED
+  SKIPPED
+  CANCELED
+  RELEASED
+}
+
+model TaskScheduleOccurrence {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seriesTaskId String
+  seriesTask   Task   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
+
+  releasedTaskId String? @unique
+  releasedTask   Task?   @relation("ScheduleOccurrenceReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
+
+  /// Normal occurrences require epoch/original/timezone identity. Legacy rows
+  /// are distinguished by legacyLinkId. Raw database checks enforce both
+  /// branches because Prisma cannot express conditional field requirements.
+  epochId              String?   @db.Uuid
+  originalScheduledAt  DateTime?
+  effectiveScheduledAt DateTime
+  legacyLinkId         String?   @unique
+
+  /// Distinguishes indexed v1 plans from epoch-backed v2 rows and legacy
+  /// released ledger records. Database checks enforce the valid field branch.
+  scheduleVersion Int @default(2)
+
+  state TaskScheduleOccurrenceState
+
+  sourceWorkspaceId String                 @db.Uuid
+  sourceWorkspace   Workspace              @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
+  sourceType        CalendarSourceType
+  sourceProjectId   String?                @db.Uuid
+  sourceProject     Project?               @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
+  sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
+  timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
+
+  actorUserId  String?
+  timezone     String?
+  ruleSnapshot Json?
+
+  @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
+  @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
+  @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")
+  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_occurrence_workspace_effective_id_idx")
+  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_occurrence_project_effective_id_idx")
+  @@index([state, effectiveScheduledAt, id])
+  @@map("task_schedule_occurrence")
+}
+
+enum TaskScheduleQuarantineReason {
+  INVALID_METADATA
+  INVALID_TIMEZONE
+  INVALID_STATUS
+  NEXT_RUN_MISMATCH
+}
+
+model TaskScheduleQuarantine {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String @unique
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  reason            TaskScheduleQuarantineReason
+  details           String
+  capturedMetadata  String?
+  capturedNextRunAt DateTime?
+  capturedStatus    TaskStatus
+
+  @@index([createdAt, id])
+  @@map("task_schedule_quarantine")
+}
+
+enum ProjectCloseOperationState {
+  CLOSING
+  CLOSE_FAILED
+  CLOSED
+}
+
+model ProjectCloseOperation {
+  id        String   @id @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @unique @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  state       ProjectCloseOperationState @default(CLOSING)
+  cutoffAt    DateTime
+  actorUserId String
+  reason      String?
+
+  seriesCursor   String?
+  attempts       Int       @default(0)
+  leaseToken     String?   @db.Uuid
+  leasedAt       DateTime?
+  nextAttemptAt  DateTime?
+  failureSummary Json?
+  completedAt    DateTime?
+
+  events ProjectEvent[]
+
+  @@index([state, nextAttemptAt])
+  @@map("project_close_operation")
+}
+
+enum ProjectEventKind {
+  CLOSE_REQUESTED
+  BATCH_FAILED
+  RETRY_REQUESTED
+  SERIES_RESOLVED
+  CLOSE_FINALIZED
+}
+
+model ProjectEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  closeOperationId String?                @db.Uuid
+  closeOperation   ProjectCloseOperation? @relation(fields: [closeOperationId], references: [id], onDelete: SetNull)
+
+  eventKey    String           @unique
+  kind        ProjectEventKind
+  actorUserId String?
+  reason      String?
+  payload     Json?
+
+  @@index([projectId, createdAt, id])
+  @@index([closeOperationId])
+  @@map("project_event")
+}
+
+model CalendarInvalidationOutbox {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?   @db.Uuid
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  dedupeKey        String @unique
+  calendarRevision Int
+  payload          Json
+
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  publishedAt   DateTime?
+  lastError     String?
+
+  @@index([publishedAt, nextAttemptAt])
+  @@index([workspaceId, calendarRevision])
+  @@index([projectId, calendarRevision])
+  @@map("calendar_invalidation_outbox")
+}
+
 /// At most one row per unordered task pair (any direction or `TaskLinkType`).
 /// Enforced by DB index `task_link_task_pair_key` (see migration); Prisma cannot express LEAST/GREATEST unique constraints.
 model TaskLink {
@@ -2440,6 +2639,7 @@ model TaskLink {
 
   @@index([fromTaskId])
   @@index([toTaskId])
+  @@index([type, createdAt, id])
   @@map("task_link")
 }
 
@@ -2485,6 +2685,17 @@ enum TaskPaymentClaimStatus {
   PENDING
   PURCHASED
   REFUNDED
+}
+
+enum TaskScheduleEventKind {
+  CREATED
+  UPDATED
+  REMOVED
+  SOURCE_CHANGED
+  OCCURRENCE_RESCHEDULED
+  OCCURRENCE_SKIPPED
+  OCCURRENCE_RESTORED
+  RELEASED
 }
 
 /// VERIFIED is terminal for the automated flow (PR1-SPEC §4): the node signs
@@ -2538,6 +2749,10 @@ model TaskEvent {
 
   status TaskStatus?
 
+  scheduleKind        TaskScheduleEventKind?
+  schedulePayload     Json?
+  scheduleOperationId String?                @db.Uuid
+
   comment           String?
   cents             BigInt?
   authenticationUrl String?
@@ -2558,6 +2773,7 @@ model TaskEvent {
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?
 
+  @@unique([taskId, scheduleOperationId], map: "taskEvent_taskId_scheduleOperationId_key", where: { scheduleOperationId: { not: null } })
   @@index([transactionId])
   @@index([orchestratorId])
   @@index([taskId, createdAt])
@@ -2650,15 +2866,15 @@ model TaskX402Payment {
   // The lengths are generous against their real shapes (CAIP-2 `eip155:<id>`
   // and a 42-char ERC-20 address); the app already validates both, so this is
   // a backstop, not the primary check.
-  caip2Network  String  @db.VarChar(64)
-  asset         String  @db.VarChar(128)
-  amount        String // base units, chain-native
-  payTo         String
+  caip2Network      String  @db.VarChar(64)
+  asset             String  @db.VarChar(128)
+  amount            String // base units, chain-native
+  payTo             String
   /// SHA-256 of the canonical narrowed paymentRequired plus exact source
   /// requirement. Pins protocol and every signed/accepted term so a reused
   /// idempotency key cannot replay a header for a changed 402.
   demandFingerprint String? @db.VarChar(64)
-  attemptId     String? // node attempt id, present once signed
+  attemptId         String? // node attempt id, present once signed
   /// The signed X-PAYMENT header value, stored at VERIFIED so an idempotent
   /// replay of the same (taskId, idempotencyKey) can return the stored result
   /// verbatim (PR1-SPEC §3.2) — re-signing would reserve a new node attempt
@@ -2672,8 +2888,8 @@ model TaskX402Payment {
   /// validBefore column alone, so a dead credential must not wait on an
   /// unbuilt component to observe whether it was consumed. The row and every
   /// money fact survive the purge; only this column is cleared.
-  xPaymentHeader String?
-  failureReason  String?
+  xPaymentHeader    String?
+  failureReason     String?
 
   /// Count of node /x402/pay calls for this record (fresh sign = 1, each
   /// PENDING replay re-sign +1). Bounds node-budget burn under node skew: a
@@ -2900,9 +3116,9 @@ model TaskX402PaymentAction {
   chargeTransactionId String?
   refundTransactionId String?
 
+  @@unique([paymentId], map: "task_x402_payment_action_failure_payment_uidx", where: { action: "failure" })
   @@index([paymentId, createdAt])
   @@index([operatorId, createdAt])
-  @@unique([paymentId], map: "task_x402_payment_action_failure_payment_uidx", where: { action: "failure" })
   @@map("task_x402_payment_action")
 }
 
@@ -2962,7 +3178,9 @@ model OrchestratorUsage {
 
 model ChatRoom {
   id             String        @id @default(uuid(7)) @db.Uuid
-  /// Null for personal `kind=direct` rooms (org-free DMs). Required for channels.
+  /// Null for personal `kind=direct` rooms (org-free DMs) and for org-less
+  /// matched channels (`discoverability=matched`). Required for org channels
+  /// (public / private / external).
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2974,7 +3192,8 @@ model ChatRoom {
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic                  String?
-  /// Channels: `"public"` | `"private"` (org browse / self-join). Directs: null.
+  /// Channels: `"public"` | `"private"` | `"external"` (org-scoped) or
+  /// `"matched"` (org-less, roster-only). Directs: null.
   discoverability        String?
   archivedAt             DateTime?
   createdAt              DateTime  @default(now())
@@ -2991,9 +3210,10 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for Channel (organizationId, slug) WHERE kind = 'channel',
-  // org/personal directKey, and Channel/Direct slug CHECK are enforced in SQL
-  // migrations — Prisma cannot express those partial uniques.
+  // Uniqueness for org Channel (organizationId, slug) WHERE kind = 'channel',
+  // org-less matched Channel slug WHERE organizationId IS NULL, org/personal
+  // directKey, and Channel/Direct slug CHECK are enforced in SQL migrations —
+  // Prisma cannot express those partial uniques.
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])
@@ -3160,7 +3380,7 @@ model ChatRoomPinnedMessage {
   message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   pinnedByUserId String?
-  pinnedByUser   User?    @relation("ChatRoomPinnedMessagePinnedBy", fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+  pinnedByUser   User?   @relation("ChatRoomPinnedMessagePinnedBy", fields: [pinnedByUserId], references: [id], onDelete: SetNull)
 
   pinnedAt DateTime @default(now())
 

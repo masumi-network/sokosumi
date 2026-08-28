@@ -18,22 +18,23 @@ const {
   mapTaskMock,
   prismaTransactionMock,
   projectFindFirstMock,
+  refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
-  taskFindFirstMock,
-  taskFindUniqueOrThrowMock,
+  requireTaskOwnershipMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
+  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  taskFindFirstMock: vi.fn(),
-  taskFindUniqueOrThrowMock: vi.fn(),
+  requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -44,6 +45,16 @@ vi.mock("@/helpers/task", async (importOriginal) => {
     mapTask: mapTaskMock,
   };
 });
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  refreshTaskSchedulePlannedOccurrences:
+    refreshTaskSchedulePlannedOccurrencesMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: vi.fn().mockResolvedValue(true),
+  lockTaskRows: vi.fn().mockResolvedValue(true),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -177,7 +188,7 @@ describe("patchTaskRequestSchema", () => {
 describe("PATCH /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    taskFindFirstMock.mockResolvedValue({
+    requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -185,11 +196,8 @@ describe("PATCH /tasks/{id}", () => {
       workspaceId: WORKSPACE_ID,
     });
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
     taskUpdateMock.mockResolvedValue(createTaskApi(PROJECT_ID));
-    taskFindUniqueOrThrowMock.mockImplementation(async () => {
-      const result = taskUpdateMock.mock.results.at(-1);
-      return result ? await result.value : createTaskApi(PROJECT_ID);
-    });
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -197,8 +205,6 @@ describe("PATCH /tasks/{id}", () => {
           findFirst: projectFindFirstMock,
         },
         task: {
-          findFirst: taskFindFirstMock,
-          findUniqueOrThrow: taskFindUniqueOrThrowMock,
           update: taskUpdateMock,
         },
       });
@@ -237,7 +243,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("unassigns a task from its project", async () => {
     const app = createApp();
-    taskFindFirstMock.mockResolvedValue({
+    requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -285,9 +291,42 @@ describe("PATCH /tasks/{id}", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("rejects an update when the task moves workspaces before its row is locked", async () => {
+    const app = createApp();
+    requireTaskOwnershipMock
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+      })
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        projectId: null,
+        workspaceId: "33333333-3333-4333-8333-333333333333",
+      });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId: PROJECT_ID,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(refreshTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
+  });
+
   it("moves a task directly between projects", async () => {
     const app = createApp();
-    taskFindFirstMock.mockResolvedValue({
+    requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -313,11 +352,18 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        id: "tsk_123",
+        projectId: PROJECT_ID,
+      }),
+    );
   });
 
   it("updates metadata for a queued task", async () => {
     const app = createApp();
-    taskFindFirstMock.mockResolvedValue({
+    requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
@@ -374,6 +420,6 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(taskFindFirstMock).not.toHaveBeenCalled();
+    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
   });
 });

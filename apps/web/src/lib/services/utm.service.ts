@@ -6,6 +6,7 @@ import type { z } from "zod";
 
 import { postUsersByIdUtmAttribution } from "@/lib/clients/generated/core";
 import { createClient } from "@/lib/clients/generated/core/client";
+import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { UTM_COOKIE_NAME, utmDataSchema } from "@/lib/utils/utm";
 
@@ -62,7 +63,10 @@ export const utmService = (() => {
 
         const client = createClient({
           baseUrl: getServerCoreApiBaseUrl(),
-          headers: { cookie: cookieStore.toString() },
+          headers: {
+            ...buildCalendarClientVersionHeaders(),
+            cookie: cookieStore.toString(),
+          },
         });
 
         await postUsersByIdUtmAttribution({

@@ -1,7 +1,9 @@
 import {
+  autoAssignSeatsOnPaidSubscribe,
   FREE_SUBSCRIPTION_PLAN,
   isActiveSubscriptionStatus,
   transitionToNextLocalFreeSubscriptionPeriod,
+  unassignSeatsOverPurchasedCapacity,
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import type Stripe from "stripe";
@@ -12,12 +14,16 @@ interface StripeBackedSubscriptionForReconciliation {
   id: string;
   plan: string;
   referenceId: string;
+  seats?: number | null;
   status: string;
   stripeSubscriptionId?: string | null;
 }
 
 export async function reconcileActiveStripeBackedSubscription(
   localSubscription: StripeBackedSubscriptionForReconciliation | null,
+  options: { autoAssignIfUnassigned: boolean } = {
+    autoAssignIfUnassigned: false,
+  },
 ): Promise<void> {
   if (
     !localSubscription?.stripeSubscriptionId ||
@@ -53,6 +59,64 @@ export async function reconcileActiveStripeBackedSubscription(
         `✅ Closed ${result.count} local free subscription(s) for reference ${localSubscription.referenceId} after Stripe subscription ${localSubscription.stripeSubscriptionId} became ${localSubscription.status}`,
       );
     }
+
+    const organization = await tx.organization.findUnique({
+      where: { id: localSubscription.referenceId },
+      select: { id: true },
+    });
+    if (!organization) {
+      return;
+    }
+
+    await unassignSeatsOverPurchasedCapacity(
+      organization.id,
+      localSubscription.seats,
+      tx,
+    );
+
+    if (!options.autoAssignIfUnassigned) {
+      return;
+    }
+
+    const assignedSeats = await tx.member.count({
+      where: {
+        organizationId: organization.id,
+        seatAssignedAt: {
+          not: null,
+        },
+      },
+    });
+    if (assignedSeats > 0) {
+      return;
+    }
+
+    await autoAssignSeatsOnPaidSubscribe(
+      organization.id,
+      localSubscription.seats,
+      tx,
+    );
+  });
+}
+
+export async function handleCheckoutSessionCompletedEvent(
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const stripeSubscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+  if (!stripeSubscriptionId) {
+    return;
+  }
+
+  const localSubscription =
+    await subscriptionRepository.getSubscriptionByStripeSubscriptionId(
+      stripeSubscriptionId,
+      prisma,
+    );
+
+  await reconcileActiveStripeBackedSubscription(localSubscription, {
+    autoAssignIfUnassigned: true,
   });
 }
 

@@ -1,5 +1,7 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
@@ -31,6 +33,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -217,6 +223,49 @@ describe("POST /me/usage", () => {
 
     const body = await response.json();
     expect(body.data.userId).toBe(TARGET_USER_ID);
+  });
+
+  it("returns 403 when the member has no assigned organization seat", async () => {
+    vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
+      new HTTPException(403, {
+        message: "An assigned seat is required to use this organization",
+        cause: { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
+      }),
+    );
+
+    const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: TARGET_USER_ID,
+        }),
+      },
+      coworkerUsage: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+      },
+      transaction: {
+        create: vi.fn(),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_unseated",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when tasks capability is unavailable", async () => {

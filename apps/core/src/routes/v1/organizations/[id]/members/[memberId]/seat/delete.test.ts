@@ -18,7 +18,6 @@ const {
   unassignSeatMock,
   resolveActiveSubscriptionByReferenceIdMock,
   resolveOrganizationBillingPlanMock,
-  grantFreeOrganizationMemberSubscriptionCreditsMock,
   ensureLocalFreeSubscriptionPeriodMock,
   fetchOrganizationMemberUserIdsMock,
   transactionMock,
@@ -28,7 +27,6 @@ const {
   unassignSeatMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   resolveOrganizationBillingPlanMock: vi.fn(),
-  grantFreeOrganizationMemberSubscriptionCreditsMock: vi.fn(),
   ensureLocalFreeSubscriptionPeriodMock: vi.fn(),
   fetchOrganizationMemberUserIdsMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -49,8 +47,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
       ensureLocalFreeSubscriptionPeriodMock(...args),
     fetchOrganizationMemberUserIds: (...args: unknown[]) =>
       fetchOrganizationMemberUserIdsMock(...args),
-    grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
-      grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
     resolveOrganizationBillingPlan: (...args: unknown[]) =>
       resolveOrganizationBillingPlanMock(...args),
   };
@@ -140,7 +136,6 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
       seatAssignedAt: null,
       userId: "user_456",
     });
-    grantFreeOrganizationMemberSubscriptionCreditsMock.mockResolvedValue(1);
     ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue({
       grantsCreated: 0,
       subscriptionCreated: false,
@@ -163,7 +158,7 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
     expect(unassignSeatMock).not.toHaveBeenCalled();
   });
 
-  it("grants free monthly credits when unassigning in a paid organization", async () => {
+  it("does not grant a free-tier sidecar when unassigning in a paid organization", async () => {
     setMembership("owner");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: new Date("2026-06-01T00:00:00.000Z"),
@@ -182,20 +177,10 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
       "org_123",
       expect.anything(),
     );
-    expect(
-      grantFreeOrganizationMemberSubscriptionCreditsMock,
-    ).toHaveBeenCalledWith(
-      {
-        memberUserIds: ["user_456"],
-        organizationId: "org_123",
-        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
-      },
-      expect.anything(),
-    );
     expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
-  it("syncs local-free credits when unassigning in a free organization", async () => {
+  it("unassigns a seat in a free organization without minting period credits", async () => {
     setMembership("admin");
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -206,29 +191,16 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
       status: "active",
       stripeSubscriptionId: null,
     });
-    fetchOrganizationMemberUserIdsMock.mockResolvedValue([
-      "user_123",
-      "user_456",
-    ]);
 
     const response = await unassignSeat("org_123", "member_456");
 
     expect(response.status).toBe(200);
-    expect(
-      grantFreeOrganizationMemberSubscriptionCreditsMock,
-    ).not.toHaveBeenCalled();
-    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      {
-        billingAnchorDate: new Date("2026-01-01T00:00:00.000Z"),
-        memberUserIds: ["user_123", "user_456"],
-        organizationId: "org_123",
-        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
-        periodStart: new Date("2026-05-01T00:00:00.000Z"),
-        purchasedSeats: 2,
-        referenceId: "org_123",
-      },
+    expect(unassignSeatMock).toHaveBeenCalledWith(
+      "member_456",
+      "org_123",
       expect.anything(),
     );
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
   it("skips credit handling when unassigning on consumable enterprise contracts", async () => {
@@ -247,9 +219,6 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
 
     expect(response.status).toBe(200);
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
-    expect(
-      grantFreeOrganizationMemberSubscriptionCreditsMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the member does not exist", async () => {

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
+import { parseAsString, useQueryStates } from "nuqs";
 import {
   type ReactElement,
   useCallback,
@@ -32,7 +33,13 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
+import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
+import {
+  type DrivePrimaryView,
+  DriveViewTabs,
+} from "@/app/drive/components/drive-view-tabs";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -67,7 +74,6 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useSession } from "@/lib/auth/auth.client";
@@ -265,49 +271,6 @@ interface DrivePageWorkspaceProps {
   activeOrganizationId: string | null;
 }
 
-function DriveListSkeleton(): ReactElement {
-  return (
-    <div
-      className={cn(
-        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-        PROJECTS_LIST_CARD_MIN_H_CLASS,
-      )}
-    >
-      <div className="divide-border/50 divide-y px-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <article
-            key={i}
-            className={cn(
-              "-mx-2 flex items-center gap-1 rounded-lg px-2",
-              PROJECTS_LIST_ROW_LAYOUT_CLASS,
-            )}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-              <div className="flex size-8 shrink-0 items-center justify-center">
-                <Skeleton className="size-4" />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <Skeleton className="h-4 w-32 sm:w-48" />
-                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
-                  <Skeleton className="h-3 w-12" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-              </div>
-              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
-                <Skeleton className="h-3 w-12" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            </div>
-            <div className="shrink-0 pl-2">
-              <Skeleton className="size-8" />
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function DrivePage(): ReactElement {
   const { data: session } = useSession();
   // Unknown session is not personal. Hold the last known workspace so a
@@ -375,6 +338,13 @@ function DrivePageWorkspace({
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [driveNavQuery, setDriveNavQuery] = useQueryStates({
+    view: parseAsString,
+    folder: parseAsString,
+    projectId: parseAsString,
+    taskId: parseAsString,
+    assigneeId: parseAsString,
+  });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -403,6 +373,7 @@ function DrivePageWorkspace({
   const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [recentsReloadToken, setRecentsReloadToken] = useState(0);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
   const [copying, setCopying] = useState(false);
@@ -455,9 +426,15 @@ function DrivePageWorkspace({
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
-  const folderParam = searchParams.get("folder") || "";
+  const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
   const currentFolder = folderParam;
-  const isTasksView = searchParams.get("view") === "tasks";
+  const viewParam = driveNavQuery.view ?? searchParams.get("view");
+  const isTasksView = viewParam === "tasks";
+  const isBrowseView =
+    !isTasksView && (viewParam === "browse" || folderParam.length > 0);
+  const isRecentsView = !isTasksView && !isBrowseView;
+  const primaryView: DrivePrimaryView =
+    isBrowseView || isTasksView ? "browse" : "recents";
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
@@ -491,10 +468,14 @@ function DrivePageWorkspace({
       folder: currentFolder,
       search: debouncedSearchQuery,
     }),
-    enabled: !isTasksView,
+    enabled: isBrowseView && !isTasksView,
   });
   const items = driveItemsQuery.data ?? [];
-  const loading = isTasksView ? tasksLoading : driveItemsQuery.isPending;
+  const loading = isRecentsView
+    ? false
+    : isTasksView
+      ? tasksLoading
+      : driveItemsQuery.isPending;
 
   useEffect(() => {
     if (!driveItemsQuery.isError) {
@@ -912,6 +893,7 @@ function DrivePageWorkspace({
       setDeleteDialogOpen(false);
       setItemToDelete(null);
       await refreshDriveItems();
+      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
@@ -949,7 +931,7 @@ function DrivePageWorkspace({
       ? `${currentFolder}/${folderName}`
       : folderName;
     params.set("folder", newPath);
-    params.delete("view");
+    params.set("view", "browse");
     params.delete("projectId");
     params.delete("taskId");
     params.delete("assigneeId");
@@ -960,7 +942,7 @@ function DrivePageWorkspace({
     const params = withoutLegacyDriveScopeParam(searchParams);
     if (index === -1) {
       params.delete("folder");
-      params.delete("view");
+      params.set("view", "browse");
       params.delete("projectId");
       params.delete("taskId");
       params.delete("assigneeId");
@@ -968,12 +950,25 @@ function DrivePageWorkspace({
       const segments = currentFolder.split("/");
       const newPath = segments.slice(0, index + 1).join("/");
       params.set("folder", newPath);
-      params.delete("view");
+      params.set("view", "browse");
       params.delete("projectId");
       params.delete("taskId");
       params.delete("assigneeId");
     }
     router.push(`/drive?${params.toString()}`);
+  }
+
+  function navigateToPrimaryView(view: DrivePrimaryView) {
+    void setDriveNavQuery(
+      {
+        view: view === "recents" ? null : "browse",
+        folder: null,
+        projectId: null,
+        taskId: null,
+        assigneeId: null,
+      },
+      { history: "push" },
+    );
   }
 
   function navigateToTasksRoot() {
@@ -1145,6 +1140,7 @@ function DrivePageWorkspace({
       setItemToMove(null);
       setSelectedDestination(null);
       await refreshDriveItems();
+      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
@@ -1364,6 +1360,11 @@ function DrivePageWorkspace({
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
+        <DriveViewTabs
+          activeView={primaryView}
+          browseLabel={storeRootLabel}
+          onViewChange={navigateToPrimaryView}
+        />
         <div className="flex items-center justify-end gap-4">
           {isTasksView && (
             <>
@@ -1390,7 +1391,7 @@ function DrivePageWorkspace({
               </div>
             </>
           )}
-          {!isTasksView && (
+          {!isTasksView && isBrowseView && (
             <div className="hidden items-center gap-2 md:flex">
               <div className="relative">
                 <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
@@ -1437,33 +1438,46 @@ function DrivePageWorkspace({
               />
             </div>
           )}
+          {!isTasksView && isRecentsView && (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="relative">
+                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder={t("searchPlaceholder")}
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-64 pl-8"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        <nav
-          className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
-          aria-label={t("breadcrumbNavLabel")}
-        >
-          <button
-            type="button"
-            onClick={() => navigateToBreadcrumb(-1)}
-            className={cn(
-              "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
-              !isTasksView &&
-                breadcrumbSegments.length === 0 &&
-                "text-foreground font-medium",
-            )}
-            aria-label={storeRootLabel}
-            title={storeRootLabel}
+        {!isTasksView && isBrowseView ? (
+          <nav
+            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            aria-label={t("breadcrumbNavLabel")}
           >
-            {scope === "org" ? (
-              <Building2 className="size-4" aria-hidden />
-            ) : (
-              <Home className="size-4" aria-hidden />
-            )}
-            <span className="ml-1">{storeRootLabel}</span>
-          </button>
-          {!isTasksView &&
-            breadcrumbSegments.map((segment, index) => (
+            <button
+              type="button"
+              onClick={() => navigateToBreadcrumb(-1)}
+              className={cn(
+                "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
+                breadcrumbSegments.length === 0 &&
+                  "text-foreground font-medium",
+              )}
+              aria-label={storeRootLabel}
+              title={storeRootLabel}
+            >
+              {scope === "org" ? (
+                <Building2 className="size-4" aria-hidden />
+              ) : (
+                <Home className="size-4" aria-hidden />
+              )}
+              <span className="ml-1">{storeRootLabel}</span>
+            </button>
+            {breadcrumbSegments.map((segment, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
                 <ChevronRight className="size-4" aria-hidden />
                 <button
@@ -1480,8 +1494,28 @@ function DrivePageWorkspace({
                 </button>
               </span>
             ))}
-          {isTasksView &&
-            tasksBreadcrumbs.map((crumb, index) => (
+          </nav>
+        ) : null}
+        {isTasksView ? (
+          <nav
+            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            aria-label={t("breadcrumbNavLabel")}
+          >
+            <button
+              type="button"
+              onClick={() => navigateToBreadcrumb(-1)}
+              className="hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors"
+              aria-label={storeRootLabel}
+              title={storeRootLabel}
+            >
+              {scope === "org" ? (
+                <Building2 className="size-4" aria-hidden />
+              ) : (
+                <Home className="size-4" aria-hidden />
+              )}
+              <span className="ml-1">{storeRootLabel}</span>
+            </button>
+            {tasksBreadcrumbs.map((crumb, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
                 <ChevronRight className="size-4" aria-hidden />
                 <button
@@ -1498,7 +1532,8 @@ function DrivePageWorkspace({
                 </button>
               </span>
             ))}
-        </nav>
+          </nav>
+        ) : null}
       </div>
 
       {isTasksView && (
@@ -1523,7 +1558,7 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {!isTasksView && (
+      {!isTasksView && isBrowseView && (
         <div className="mb-6 flex items-center gap-2 md:hidden">
           <div className="relative flex-1">
             <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
@@ -1547,7 +1582,47 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {loading ? (
+      {!isTasksView && isRecentsView && (
+        <div className="mb-6 flex items-center gap-2 md:hidden">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+        </div>
+      )}
+
+      {isRecentsView ? (
+        <DriveRecentsPanel
+          driveStore={driveStore}
+          activeOrganizationId={activeOrganizationId}
+          searchQuery={debouncedSearchQuery}
+          reloadToken={recentsReloadToken}
+          onOpenMoveDialog={openMoveDialog}
+          onOpenDeleteDialog={openDeleteDialog}
+          onRenameFile={handleRename}
+          onOpenCopyDialog={(item) => {
+            setTaskFileToCopy({
+              type: "task-file",
+              id: item.taskFileId,
+              name: item.name,
+              fileUrl: item.fileUrl,
+              size: item.size,
+              mimeType: null,
+              updatedAt: item.activityAt,
+            });
+            setCopyDialogOpen(true);
+          }}
+          onItemsChanged={() => {
+            void refreshDriveItems();
+          }}
+        />
+      ) : loading ? (
         <DriveListSkeleton />
       ) : emptyState ? (
         <div
@@ -2114,7 +2189,7 @@ function DrivePageWorkspace({
         </div>
       ) : null}
 
-      {!isTasksView && (
+      {!isTasksView && isBrowseView && (
         <ListMobileCreateFab
           ariaLabel={t("uploadFab")}
           onOpen={handleFabOpen}

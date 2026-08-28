@@ -270,7 +270,11 @@ Build the smallest thing that satisfies the current requirement. No knobs or ext
 
 Put logic at the right layer. Web UI, actions, and services. Core routes. Shared packages. Do not smuggle domain rules across those boundaries to save a file.
 
-Prefer libraries already in the monorepo. Pin registry versions ([pinned-dependencies](.cursor/rules/pinned-dependencies.mdc)). Use `workspace:*` instead of copying logic.
+**Reuse existing.** Before adding a helper, module, wrapper, package, or parallel path, search this repository for an existing implementation that already does the job: a package, SDK, service, UI primitive, helper, or env/config pattern. State the candidates you considered and why each fits or does not before writing the new path.
+
+Use the existing API. If it almost fits, extend it in place. If the change would create a second copy, extract or share from the existing one. Write new only when those named candidates do not fit because they are absent, sit at the wrong layer, or extending them would break the existing seam.
+
+Pin registry versions ([pinned-dependencies](.cursor/rules/pinned-dependencies.mdc)). Use `workspace:*` instead of copying logic.
 
 Keep a design you would still want in six months. A stopgap needs an explicit hotfix scope and a tracked follow-up.
 
@@ -286,8 +290,6 @@ If two keepable options remain, pick the one that matches existing patterns, nam
 
 A shortcut is fine when the user asked for the smallest change, when a hotfix has a tracked follow-up, or when expanding a bugfix would balloon into a refactor. Removing a feature means removing its types, routes, UI, migrations, and tests. If you touch a misleading API, rename it in the same change.
 
-- Prefer editing existing files over creating new ones
-- Use semantic search to understand codebase before making changes
 - Follow the three-layer architecture pattern
 - Minimize `'use client'` usage; prefer Server Components and server actions
 - At the end of every sequence of changes, run a review pass, fix any issues found, and repeat until no issues remain
@@ -318,7 +320,6 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 ### Code References
 
 - Use backticks for file, directory, function, and class names
-- Reference existing code rather than duplicating it
 - Use `@/lib/*` aliases for imports
 
 ## Agent skills
@@ -332,6 +333,10 @@ Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps
 ### Ask Matt
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
+
+### Branch Bugbot gate
+
+Optional standalone skill: [`branch-bugbot-gate`](./skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review).
 
 ### Caveman
 

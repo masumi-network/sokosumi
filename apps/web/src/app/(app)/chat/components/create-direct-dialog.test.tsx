@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "./create-direct-dialog";
 
@@ -44,6 +46,14 @@ vi.mock("@/app/chat/actions", () => ({
 vi.mock("@/components/chat/organization-chat-events", () => ({
   notifyOrganizationChatRoomsChanged: notifyOrganizationChatRoomsChangedMock,
 }));
+
+function renderSeated(ui: ReactElement) {
+  return render(
+    <OrganizationSeatProvider hasAssignedSeat={true}>
+      {ui}
+    </OrganizationSeatProvider>,
+  );
+}
 
 function member(id: string, name: string): Member {
   return {
@@ -102,7 +112,7 @@ describe("CreateDirectDialog", () => {
 
   it("creates a Direct without navigating away first, then opens the room", async () => {
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     expect(screen.queryByRole("link")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
@@ -141,7 +151,7 @@ describe("CreateDirectDialog", () => {
       value: room("room-coworker"),
     });
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await user.click(await screen.findByRole("button", { name: /Hannah/ }));
@@ -170,7 +180,7 @@ describe("CreateDirectDialog", () => {
       },
     });
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByText("Empty.membersLoadFailedTitle");
@@ -190,7 +200,7 @@ describe("CreateDirectDialog", () => {
       error: { code: "INTERNAL_SERVER_ERROR", message: "Roster down" },
     });
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByRole("heading", { name: "Draft.title" });
@@ -213,7 +223,7 @@ describe("CreateDirectDialog", () => {
       () => new Promise(() => {}),
     );
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByRole("heading", { name: "Draft.title" });
@@ -229,7 +239,7 @@ describe("CreateDirectDialog", () => {
 
   it("scrolls a fixed-height roster pane and keeps chips in the composer", async () => {
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByRole("button", { name: /Francis/ });
@@ -254,7 +264,7 @@ describe("CreateDirectDialog", () => {
 
   it("closes without routing when dismissed", async () => {
     const user = userEvent.setup();
-    render(<CreateDirectDialog />);
+    renderSeated(<CreateDirectDialog />);
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByRole("heading", { name: "Draft.title" });
@@ -265,5 +275,32 @@ describe("CreateDirectDialog", () => {
     });
     expect(assignMock).not.toHaveBeenCalled();
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+  });
+
+  it("still lists AI coworkers when the viewer has no assigned seat", async () => {
+    loadChatComposeRosterActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        organizationName: "Acme",
+        hasOrganization: true,
+        canCreateExternal: false,
+        members: [member("user-self", "Ada"), member("user-2", "Francis")],
+        coworkers: [coworker("cow-1", "Hermes")],
+        membersLoadFailed: false,
+      },
+    });
+    const user = userEvent.setup();
+    render(
+      <OrganizationSeatProvider hasAssignedSeat={false}>
+        <CreateDirectDialog />
+      </OrganizationSeatProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await screen.findByRole("heading", { name: "Draft.title" });
+
+    expect(screen.getByRole("button", { name: /Hermes/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Francis/ })).toBeTruthy();
   });
 });

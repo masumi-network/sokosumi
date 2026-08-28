@@ -146,7 +146,8 @@
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
       "creditsExpired": "Credits expired",
-      "organizations": "Organizations"
+      "organizations": "Organizations",
+      "organization": "Organization"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -289,7 +290,8 @@
       "vendors": "Vendors",
       "docs": "Documentation",
       "drive": "Files",
-      "soko-bots": "Soko Bots"
+      "soko-bots": "Soko Bots",
+      "calendar": "Schedules"
     },
     "Jobs": {
       "StatusBadge": {
@@ -779,6 +781,11 @@
         "logout": "Log out",
         "cancel": "Cancel",
         "error": "Failed to log out"
+      },
+      "CalendarClientUpgradeModal": {
+        "title": "Update required",
+        "description": "Sokosumi has been updated to protect scheduled work. Reload before making more Calendar changes.",
+        "reload": "Reload Sokosumi"
       }
     },
     "NotificationCenter": {
@@ -3021,7 +3028,8 @@
           "settings": "Settings",
           "back": "Back",
           "chat": "Chat",
-          "sokoBot": "Soko Bots"
+          "sokoBot": "Soko Bots",
+          "calendar": "Schedules"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -3029,6 +3037,11 @@
           "untitledChat": "Untitled Chat",
           "modelAlt": "Model",
           "coworkerAlt": "Coworker"
+        },
+        "SeatRequired": {
+          "title": "Assigned seat required",
+          "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
+          "hint": "Ask an owner or admin to assign you a Seat."
         }
       }
     },
@@ -3475,6 +3488,10 @@
           "sokoBots": {
             "title": "Soko Bots",
             "description": "Fleet health, per-bot activity, and audited operator controls for every user's Soko Bot."
+          },
+          "matchedChannels": {
+            "title": "Matched channels",
+            "description": "Create org-less matched channels and manage their roster."
           }
         }
       },
@@ -4327,6 +4344,72 @@
           "noBotTitle": "You need a Soko Bot to run the lab",
           "noBotDescription": "Runs use your own assistant.",
           "noBotLink": "Create it here."
+        }
+      },
+      "MatchedChannels": {
+        "title": "Matched channels",
+        "description": "Create org-less matched channels, manage the roster, and snapshot organization Members onto a channel.",
+        "backToAdmin": "Back to admin",
+        "listError": "Failed to load matched channels",
+        "List": {
+          "title": "Channels",
+          "description": "Live matched channels with roster-only visibility.",
+          "loading": "Loading channels…",
+          "empty": "No matched channels yet."
+        },
+        "Create": {
+          "title": "Create matched channel",
+          "description": "Creates a live org-less channel. You are not added as a room member.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Unique among channels. You cannot change it after creating.",
+          "slugRequired": "Enter a channel slug",
+          "name": "Name",
+          "namePlaceholder": "e.g. Partners",
+          "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
+          "submit": "Create channel",
+          "submitting": "Creating…",
+          "success": "Matched channel created",
+          "error": "Failed to create matched channel",
+          "slugTaken": "This channel slug is already taken."
+        },
+        "Detail": {
+          "back": "Back to matched channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Select a user to add",
+          "organizationRequired": "Select an organization to snapshot",
+          "addUserSuccess": "User added to roster",
+          "alreadyMember": "User is already on this channel",
+          "addUserError": "Failed to add user",
+          "addOrganizationSuccess": "Added {added} of {totalMembers} members ({alreadyMember} already on roster)",
+          "addOrganizationError": "Failed to snapshot organization members",
+          "Roster": {
+            "title": "Roster",
+            "description": "Users with member access on this matched channel.",
+            "empty": "No participants yet.",
+            "name": "Name",
+            "email": "Email",
+            "actions": "Actions",
+            "remove": "Remove",
+            "removing": "Removing…",
+            "removeSuccess": "Removed {name} from the roster",
+            "removeError": "Failed to remove participant"
+          },
+          "AddUser": {
+            "title": "Add user",
+            "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
+            "user": "User",
+            "submit": "Add user",
+            "submitting": "Adding…"
+          },
+          "AddOrganization": {
+            "title": "Add organization",
+            "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
+            "organization": "Organization",
+            "helper": "Organizations you belong to appear first in search results.",
+            "submit": "Add organization members",
+            "submitting": "Adding…"
+          }
         }
       }
     },
@@ -5767,7 +5850,8 @@
       "Edit": {
         "action": "Edit",
         "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
-        "edited": "Edited"
+        "edited": "Edited",
+        "editedAt": "Edited {when}"
       },
       "Copy": {
         "action": "Copy",
@@ -6064,7 +6148,12 @@
       "filterAll": "All",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Project",
-      "filterTaskLabel": "Task"
+      "filterTaskLabel": "Task",
+      "recentsTab": "Recents",
+      "recentsEmptyTitle": "No recent files",
+      "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
+      "loadRecentsError": "Failed to load recent files",
+      "loadMoreRecentsError": "Failed to load more recent files"
     },
     "SokoBot": {
       "Metadata": {
@@ -6444,6 +6533,66 @@
       "teamTitle": "Team",
       "teamDescription": "Everyone in this workspace and the Soko Bots they built.",
       "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here."
+    },
+    "Calendar": {
+      "Metadata": {
+        "title": "Schedules",
+        "description": "Browse scheduled task releases in your workspace."
+      },
+      "previous": "Previous period",
+      "next": "Next period",
+      "view": {
+        "month": "Month",
+        "week": "Week",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Source",
+        "all": "All sources",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Project",
+        "LEGACY_UNKNOWN": "Legacy source"
+      },
+      "accuracy": {
+        "inferred": "Inferred source",
+        "unknown": "Unknown source",
+        "approximate": "Approximate time"
+      },
+      "status": {
+        "label": "Task status",
+        "all": "All statuses",
+        "DRAFT": "Draft",
+        "QUEUED": "Queued",
+        "READY": "Ready",
+        "GRANT_PENDING": "Grant pending",
+        "INPUT_REQUIRED": "Input required",
+        "APPROVAL_REQUIRED": "Approval required",
+        "AUTHENTICATION_REQUIRED": "Authentication required",
+        "OUT_OF_CREDITS": "Paused: credits needed",
+        "CREDITS_TOPPED_UP": "Credits topped up",
+        "RUNNING": "Running",
+        "AWAITING_EXTERNAL": "Awaiting external",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "All coworkers"
+      },
+      "empty": {
+        "title": "No scheduled releases match these filters."
+      },
+      "pagination": {
+        "loadMore": "Load more events",
+        "loading": "Loading events...",
+        "error": "Unable to load more events."
+      },
+      "error": {
+        "title": "Unable to load the calendar",
+        "description": "Please try again in a moment.",
+        "retry": "Try again"
+      }
     }
   },
   "Share": {
@@ -6660,7 +6809,9 @@
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",
         "failed": "{coworkerName} failed to complete {taskName}",
-        "canceled": "{taskName} was canceled"
+        "canceled": "{taskName} was canceled",
+        "scheduleRepaired": "The schedule for {taskName} was repaired",
+        "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

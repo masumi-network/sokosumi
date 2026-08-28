@@ -77,6 +77,7 @@ export function ThreadPanel({
   allowAttachments = true,
   roomId,
   holdOffBottom = false,
+  composerDisabledMessage,
 }: {
   parentMessage: ChatRoomMessage;
   replies: ChatRoomMessage[];
@@ -124,6 +125,7 @@ export function ThreadPanel({
   allowAttachments?: boolean;
   roomId: string;
   holdOffBottom?: boolean;
+  composerDisabledMessage?: string;
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -197,7 +199,7 @@ export function ThreadPanel({
     // so a full-screen takeover is self-contained.
     <aside className="bg-background absolute inset-0 z-30 flex min-h-0 w-full shrink-0 flex-col lg:static lg:z-auto lg:w-[420px] lg:border-l">
       <RoomFileDropZone
-        enabled={allowAttachments}
+        enabled={allowAttachments && !composerDisabledMessage}
         onFiles={(files) => {
           threadComposerRef.current?.attachFiles(files);
         }}
@@ -352,33 +354,39 @@ export function ThreadPanel({
             )}
           </div>
         </div>
-        <RoomSessionComposer
-          key={draftKey}
-          ref={threadComposerRef}
-          roomId={roomId}
-          draftKey={draftKey}
-          mentions={mentionRecords}
-          usersById={usersById}
-          usersBySlug={usersBySlug}
-          coworkersById={coworkersById}
-          coworkersBySlug={coworkersBySlug}
-          channels={channelOptions}
-          channelLinks={channelLinks}
-          placeholder={t("Thread.replyPlaceholder")}
-          isSending={isSendingReply}
-          showMentionShortcut={showMentionShortcut}
-          allowAttachments={allowAttachments}
-          pendingQuote={pendingQuote}
-          onClearPendingQuote={onClearPendingQuote}
-          onRestorePendingQuote={onRestorePendingQuote}
-          onChromeResize={scrollToBottomIfPinned}
-          onBeforeSend={onBeforeSendReply}
-          onSend={handleSendReply}
-          currentUserId={currentUserId}
-          canOpenHumanDirect={canOpenHumanDirect}
-          onOpenDirectMessage={onOpenDirectMessage}
-          openingDirectParticipantKey={openingDirectParticipantKey}
-        />
+        {composerDisabledMessage ? (
+          <p className="text-muted-foreground px-4 py-3 text-sm">
+            {composerDisabledMessage}
+          </p>
+        ) : (
+          <RoomSessionComposer
+            key={draftKey}
+            ref={threadComposerRef}
+            roomId={roomId}
+            draftKey={draftKey}
+            mentions={mentionRecords}
+            usersById={usersById}
+            usersBySlug={usersBySlug}
+            coworkersById={coworkersById}
+            coworkersBySlug={coworkersBySlug}
+            channels={channelOptions}
+            channelLinks={channelLinks}
+            placeholder={t("Thread.replyPlaceholder")}
+            isSending={isSendingReply}
+            showMentionShortcut={showMentionShortcut}
+            allowAttachments={allowAttachments}
+            pendingQuote={pendingQuote}
+            onClearPendingQuote={onClearPendingQuote}
+            onRestorePendingQuote={onRestorePendingQuote}
+            onChromeResize={scrollToBottomIfPinned}
+            onBeforeSend={onBeforeSendReply}
+            onSend={handleSendReply}
+            currentUserId={currentUserId}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirectMessage={onOpenDirectMessage}
+            openingDirectParticipantKey={openingDirectParticipantKey}
+          />
+        )}
       </RoomFileDropZone>
     </aside>
   );

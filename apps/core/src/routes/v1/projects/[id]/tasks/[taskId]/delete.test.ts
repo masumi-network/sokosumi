@@ -15,18 +15,34 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { projectFindFirstMock, taskFindFirstMock, taskUpdateManyMock } =
-  vi.hoisted(() => ({
-    projectFindFirstMock: vi.fn(),
-    taskFindFirstMock: vi.fn(),
-    taskUpdateManyMock: vi.fn(),
-  }));
+const {
+  projectFindFirstMock,
+  prismaTransactionMock,
+  refreshTaskSchedulePlannedOccurrencesMock,
+  taskFindFirstMock,
+  taskFindUniqueMock,
+  taskUpdateManyMock,
+} = vi.hoisted(() => ({
+  projectFindFirstMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  refreshTaskSchedulePlannedOccurrences:
+    refreshTaskSchedulePlannedOccurrencesMock,
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: prismaTransactionMock,
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,
+      findUnique: taskFindUniqueMock,
       updateMany: taskUpdateManyMock,
     },
   },
@@ -73,6 +89,69 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 describe("DELETE /projects/{id}/tasks/{taskId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      name: "P",
+      websiteUrl: null,
+      logo: null,
+      designMdUrl: null,
+      designMdExtractionId: null,
+      briefing: null,
+      briefingUrl: null,
+      contextMd: null,
+      contextMdUrl: null,
+      contextMdUpdatedAt: null,
+      contextMdModel: null,
+      contextMdUpdatingSince: null,
+      contextMdVersion: 0,
+      createdAt: new Date("2026-04-03T08:00:00.000Z"),
+      updatedAt: new Date("2026-04-03T08:00:00.000Z"),
+    });
+    taskFindFirstMock.mockResolvedValue({
+      pendingVendorGrantId: null,
+      status: "DRAFT",
+      metadata: null,
+      nextRunAt: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    taskFindUniqueMock.mockResolvedValue({
+      id: TASK_ID,
+      projectId: null,
+      status: "DRAFT",
+      metadata: null,
+      nextRunAt: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          updateMany: taskUpdateManyMock,
+          findUnique: taskFindUniqueMock,
+        },
+      }),
+    );
+  });
+
+  it("refreshes planned occurrences after unlinking the task", async () => {
+    const app = createApp();
+    mountDeleteProjectTask(app);
+
+    const response = await app.request(
+      `http://localhost/${PROJECT_ID}/tasks/${TASK_ID}`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        id: TASK_ID,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+      }),
+    );
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

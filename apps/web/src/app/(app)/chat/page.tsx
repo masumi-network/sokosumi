@@ -11,6 +11,7 @@ import { OrganizationChatList } from "@/components/chat/organization-chat-list.c
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
+import { isBetaAccessEmail } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { ChatRoomsPage } from "@/lib/services";
 
@@ -105,6 +106,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
 
+  const hermesMenuEnabled = isBetaAccessEmail(session?.user.email);
   const listKey = activeOrganizationId ?? "personal";
 
   return (
@@ -117,8 +119,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           the last row in main's scroll (no nested overflow height-lock).
         */}
         <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
-          <PersonalAssistantNav />
-          <SidebarSeparator className="-mt-px" />
+          <PersonalAssistantNav enabled={hermesMenuEnabled} />
+          {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
           <Suspense
             fallback={
               <OrganizationChatList

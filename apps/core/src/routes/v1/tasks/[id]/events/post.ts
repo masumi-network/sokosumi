@@ -30,6 +30,7 @@ import {
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
@@ -45,6 +46,7 @@ import {
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -53,6 +55,7 @@ import {
   isCoworkerAgentContext,
   isCoworkerAuthContext,
   isUserAuthContext,
+  requireUserContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -349,6 +352,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const isAgent = isCoworkerAgentContext(authContext);
 
+      if (!isCancelOnlyWrite) {
+        const assignedSeatUserId = isAgent
+          ? task.ownerId
+          : requireUserContext(authContext).userId;
+        await requireAssignedOrganizationSeat(
+          assignedSeatUserId,
+          task.organizationId,
+          tx,
+        );
+      }
+
       if (!isAgent && credits != null) {
         throw unprocessableEntity(
           "Only the assigned coworker can set credits on task events",
@@ -494,6 +508,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           expectedStatus: task.status,
           eventStatus,
         });
+
+        if (
+          task.status === TaskStatus.QUEUED &&
+          eventStatus !== TaskStatus.QUEUED
+        ) {
+          await removeTaskSchedulePlannedOccurrences(tx, taskId);
+        }
 
         if (eventStatus === TaskStatus.CANCELED) {
           cascadedChildren = await cascadeCancelNonTerminalScheduleRuns({

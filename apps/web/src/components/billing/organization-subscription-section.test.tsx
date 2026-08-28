@@ -111,7 +111,6 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows only the enterprise card when the org has a consumable contract", () => {
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={2}
         cancelAtPeriodEnd={false}
         currentPlan="enterprise"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -137,7 +136,6 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows self-serve plans after the enterprise commercial term ends", () => {
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={0}
         cancelAtPeriodEnd={false}
         currentPlan="enterprise"
         currentPeriodEnd={null}
@@ -163,7 +161,6 @@ describe("OrganizationSubscriptionSection", () => {
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
@@ -186,17 +183,18 @@ describe("OrganizationSubscriptionSection", () => {
     );
     expect(subscriptionFreePlanRowMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        creditsText: 'includedCreditsPerSeat:{"credits":250}',
         plan: expect.objectContaining({ name: "free" }),
       }),
     );
+    expect(
+      subscriptionFreePlanRowMock.mock.calls.at(-1)?.[0],
+    ).not.toHaveProperty("creditsText");
     expect(subscriptionEnterprisePlanCardMock).toHaveBeenCalledTimes(1);
   });
 
   it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={2}
         cancelAtPeriodEnd
         currentPlan="starter"
         isEnterpriseConsumable={false}
@@ -219,10 +217,9 @@ describe("OrganizationSubscriptionSection", () => {
     );
   });
 
-  it("keeps seat updates as the primary action when seat count changes", () => {
+  it("does not force purchased seats up to the assigned member count", () => {
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={3}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
@@ -238,7 +235,8 @@ describe("OrganizationSubscriptionSection", () => {
 
     expect(subscriptionPlanCardMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actionLabel: "updateSeatsCta",
+        actionLabel: "currentPlanCta",
+        isDisabled: true,
         plan: expect.objectContaining({ name: "starter" }),
       }),
     );
@@ -247,7 +245,6 @@ describe("OrganizationSubscriptionSection", () => {
   it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
@@ -295,7 +292,6 @@ describe("OrganizationSubscriptionSection", () => {
 
     render(
       <OrganizationSubscriptionSection
-        assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}

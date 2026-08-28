@@ -1,10 +1,10 @@
 import {
-  CreditBucketReferenceType,
   type Prisma,
   TaskX402PaymentRefundKind,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 
+import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 import type {
   RefundAdminTaskX402PaymentBody,
@@ -183,15 +183,10 @@ async function writePaymentOutcomeAudit(
  * automated refusal refund and both operator levers so all three mint the exact
  * same refund shape (mirrors refundFailedTaskPaymentClaim).
  *
- * KNOWN TRIPLICATION: this mint, `refundFailedTaskPaymentClaim`
- * (task-payment-claim.service.ts) and `refundJob` (job-refund.ts) all build
- * the same nested refund-transaction + REFUND-bucket shape. Deliberately NOT
- * unified inside the x402 PR series — extracting a shared mint builder edits
- * the live Cardano refund rails, which is out of this series' blast radius.
- * Until that extraction lands, a refund-shape change (new accounting column,
- * expiry policy, org-connect fix) must be applied to ALL THREE sites or the
- * rails mint structurally different REFUND buckets for the same product
- * concept.
+ * KNOWN TRIPLICATION: the nested refund-transaction + REFUND-bucket stamp
+ * now lives in `buildCompensatingRefundTransactionCreate`. Remaining local
+ * duplication is parent attach, referenceId, and refundKind, not bucket
+ * ownership.
  *
  * Non-expiring: the debit may have consumed expiring buckets, and a payment
  * Sokosumi refunds must not cost the user credits that expire before they can
@@ -219,33 +214,12 @@ async function attachCompensatingRefund(
     data: {
       refundKind: kind,
       refundTransaction: {
-        create: {
+        create: buildCompensatingRefundTransactionCreate({
           amount: refundAmount,
-          user: { connect: { id: payment.transaction.userId } },
-          ...(payment.transaction.organizationId
-            ? {
-                organization: {
-                  connect: { id: payment.transaction.organizationId },
-                },
-              }
-            : {}),
-          sourceCreditBucket: {
-            create: {
-              amount: refundAmount,
-              referenceId: `task-x402-payment:${payment.id}`,
-              referenceType: CreditBucketReferenceType.REFUND,
-              user: { connect: { id: payment.transaction.userId } },
-              expiresAt: null,
-              ...(payment.transaction.organizationId
-                ? {
-                    organization: {
-                      connect: { id: payment.transaction.organizationId },
-                    },
-                  }
-                : {}),
-            },
-          },
-        } satisfies Prisma.TransactionCreateInput,
+          actorUserId: payment.transaction.userId,
+          organizationId: payment.transaction.organizationId,
+          referenceId: `task-x402-payment:${payment.id}`,
+        }),
       },
     },
     select: { refundTransactionId: true },

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+
 import {
   canShowOpenDirect,
   participantDirectKey,

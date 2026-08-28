@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CALENDAR_CLIENT_VERSION_HEADER } from "@sokosumi/utils";
 import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
@@ -92,6 +93,7 @@ app.use(
       "X-Context-Organization-Id",
       "X-Delegation-User-Id",
       "X-Delegation-Organization-Id",
+      CALENDAR_CLIENT_VERSION_HEADER,
     ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
