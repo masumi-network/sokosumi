@@ -37,6 +37,7 @@ import {
   DriveFilePreview,
   DriveItemCard,
   DriveItemName,
+  driveItemActivation,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
@@ -1763,8 +1764,7 @@ function DrivePageWorkspace({
                     {({ activate, nameEl, viewers }) => (
                       <DriveItemCard
                         viewMode={layoutMode}
-                        activateLabel={item.name}
-                        onActivate={activate}
+                        {...driveItemActivation(activate, item.name)}
                         actions={
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1951,10 +1951,10 @@ function DrivePageWorkspace({
                   <DriveItemCard
                     key={itemKey}
                     viewMode={layoutMode}
-                    activateLabel={item.name}
-                    onActivate={
-                      isEditing ? undefined : () => navigateToFolder(item.name)
-                    }
+                    {...driveItemActivation(
+                      isEditing ? undefined : () => navigateToFolder(item.name),
+                      item.name,
+                    )}
                     actions={blobActions}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
@@ -1996,8 +1996,10 @@ function DrivePageWorkspace({
                   {({ activate, nameEl, viewers }) => (
                     <DriveItemCard
                       viewMode={layoutMode}
-                      activateLabel={item.name}
-                      onActivate={isEditing ? undefined : activate}
+                      {...driveItemActivation(
+                        isEditing ? undefined : activate,
+                        item.name,
+                      )}
                       actions={blobActions}
                     >
                       <div className={driveItemIconWellClass(layoutMode)}>

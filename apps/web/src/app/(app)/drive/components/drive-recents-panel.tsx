@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import {
   DriveFilePreview,
   DriveItemCard,
+  driveItemActivation,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
@@ -408,8 +409,10 @@ export function DriveRecentsPanel({
                         {({ activate, nameEl, viewers }) => (
                           <DriveItemCard
                             viewMode={viewMode}
-                            activateLabel={item.name}
-                            onActivate={isEditing ? undefined : activate}
+                            {...driveItemActivation(
+                              isEditing ? undefined : activate,
+                              item.name,
+                            )}
                             actions={driveFileActions}
                           >
                             <div className={driveItemIconWellClass(viewMode)}>
@@ -497,8 +500,7 @@ export function DriveRecentsPanel({
                       {({ activate, nameEl, viewers }) => (
                         <DriveItemCard
                           viewMode={viewMode}
-                          activateLabel={item.name}
-                          onActivate={activate}
+                          {...driveItemActivation(activate, item.name)}
                           actions={
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

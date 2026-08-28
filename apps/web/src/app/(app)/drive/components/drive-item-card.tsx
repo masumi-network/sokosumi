@@ -20,23 +20,36 @@ function stopCardActivation(event: MouseEvent | PointerEvent) {
   event.stopPropagation();
 }
 
-interface DriveItemCardProps {
+interface DriveItemCardBaseProps {
   viewMode: FilesViewMode;
-  activateLabel?: string;
-  onActivate?: () => void;
   actions?: ReactNode;
   children: ReactNode;
 }
 
-export function DriveItemCard({
-  viewMode,
-  activateLabel,
-  onActivate,
-  actions,
-  children,
-}: DriveItemCardProps): ReactElement {
+type DriveItemCardProps = DriveItemCardBaseProps &
+  (
+    | { onActivate: () => void; activateLabel: string }
+    | { onActivate?: undefined; activateLabel?: string }
+  );
+
+export function driveItemActivation(
+  onActivate: (() => void) | undefined,
+  activateLabel: string,
+): { onActivate: () => void; activateLabel: string } | Record<string, never> {
+  if (!onActivate) {
+    return {};
+  }
+  return { onActivate, activateLabel };
+}
+
+export function DriveItemCard(props: DriveItemCardProps): ReactElement {
+  const { viewMode, actions, children } = props;
+  const isActivatable = props.onActivate != null;
+  const onActivate = isActivatable ? props.onActivate : undefined;
+  const activateLabel = isActivatable ? props.activateLabel : undefined;
+
   return (
-    <DriveItemNameA11yContext value={!!onActivate}>
+    <DriveItemNameA11yContext value={isActivatable}>
       <article className={driveItemArticleClass(viewMode)}>
         {onActivate ? (
           <button
@@ -50,7 +63,7 @@ export function DriveItemCard({
           className={cn(
             driveItemBodyClass(viewMode),
             "relative z-[1]",
-            onActivate ? "pointer-events-none" : undefined,
+            isActivatable ? "pointer-events-none" : undefined,
           )}
         >
           {children}

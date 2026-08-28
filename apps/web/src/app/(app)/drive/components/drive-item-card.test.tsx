@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   DriveItemCard,
   DriveItemName,
+  driveItemActivation,
 } from "@/app/drive/components/drive-item-card";
 import {
   driveItemActionsClass,
@@ -15,8 +16,7 @@ describe("DriveItemCard name accessibility", () => {
     render(
       <DriveItemCard
         viewMode="grid"
-        activateLabel="report.pdf"
-        onActivate={() => undefined}
+        {...driveItemActivation(() => undefined, "report.pdf")}
       >
         <DriveItemName name="report.pdf" />
       </DriveItemCard>,
@@ -42,6 +42,10 @@ describe("DriveItemCard name accessibility", () => {
 
     const visibleName = screen.getByText("report.pdf");
     expect(visibleName).not.toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("omits activation props when onActivate is undefined", () => {
+    expect(driveItemActivation(undefined, "report.pdf")).toEqual({});
   });
 });
 
