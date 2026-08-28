@@ -215,9 +215,10 @@ export const sokoBotService = {
 
   /** Bot + recent turns as the JSON-safe chat projection; `null` without a bot. */
   async getChatState(): Promise<SokoBotChatState | null> {
-    const bot = await this.getMine();
+    // Both reads are independent; running them in series added a whole Core
+    // round-trip to every assistant page load.
+    const [bot, turns] = await Promise.all([this.getMine(), this.listTurns()]);
     if (!bot) return null;
-    const turns = await this.listTurns();
     return toSokoBotChatState(bot, turns);
   },
 

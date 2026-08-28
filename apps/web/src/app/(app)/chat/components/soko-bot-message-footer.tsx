@@ -37,7 +37,7 @@ function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
   };
 }
 
-/** Thumbs on a message the bot sent unprompted; feeds the admin quality metric. */
+/** Thumbs on any message the bot produced; feeds the admin quality metric. */
 function FeedbackButtons({ turnId }: { turnId: string }) {
   const t = useTranslations("App.Chat.SokoBot");
   const [sent, setSent] = useState<boolean | null>(null);
@@ -95,8 +95,9 @@ export function SokoBotMessageFooter({ metadata }: { metadata: unknown }) {
   if (!info) return null;
   const pending = info.pending_decision_ids?.length ?? 0;
   const tasks = info.task_ids ?? [];
-  const proactive = Boolean(info.source && info.source !== "CHAT");
-  if (pending === 0 && tasks.length === 0 && !proactive) return null;
+  // Every answer the bot gives is worth rating, not only the unprompted ones:
+  // a reply in the owner's direct chat is the most common thing it produces.
+  // The footer always has something to show now: at minimum, the thumbs.
 
   const chip =
     "border-border bg-card hover:border-foreground/30 hover:bg-muted/40 inline-flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
@@ -116,7 +117,7 @@ export function SokoBotMessageFooter({ metadata }: { metadata: unknown }) {
           <ArrowUpRight aria-hidden className="size-3" />
         </Link>
       ) : null}
-      {proactive ? <FeedbackButtons turnId={info.turn_id} /> : null}
+      <FeedbackButtons turnId={info.turn_id} />
       {tasks.map((taskId) => (
         <Link
           key={taskId}

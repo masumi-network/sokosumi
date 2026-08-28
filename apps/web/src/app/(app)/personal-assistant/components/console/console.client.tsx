@@ -121,7 +121,9 @@ export function SokoBotConsole({
   const t = useTranslations("App.SokoBot");
   // Status is the default view; everything an owner rarely touches sits behind
   // Advanced so the page opens on what the assistant is actually doing.
-  const [view, setView] = useQueryState("view");
+  // shallow: false so flipping Advanced re-runs the server component, which is
+  // what fetches the skills, integrations and catalog that view needs.
+  const [view, setView] = useQueryState("view", { shallow: false });
   const isAdvanced = view === "advanced";
   const format = useFormatter();
   const router = useRouter();
