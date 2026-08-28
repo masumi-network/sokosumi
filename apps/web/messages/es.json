@@ -3314,8 +3314,7 @@
           },
           "credits": {
             "title": "Créditos totales",
-            "description": "Créditos disponibles combinados para esta organización.",
-            "perMember": "Los créditos se muestran por miembro a continuación."
+            "description": "Créditos disponibles combinados para esta organización."
           },
           "members": {
             "title": "Miembros",
@@ -3325,7 +3324,6 @@
             "loadError": "No se pudieron cargar los miembros.",
             "user": "Usuario",
             "role": "Rol",
-            "credits": "Créditos",
             "subscription": "Suscripción",
             "seat": "Seat",
             "seatAssigned": "Asignado",

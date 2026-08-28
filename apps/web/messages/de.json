@@ -3314,8 +3314,7 @@
           },
           "credits": {
             "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
-            "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
+            "description": "Kombiniertes verfügbares Guthaben für diese Organisation."
           },
           "members": {
             "title": "Mitglieder",
@@ -3325,7 +3324,6 @@
             "loadError": "Mitglieder konnten nicht geladen werden.",
             "user": "Benutzer",
             "role": "Rolle",
-            "credits": "Guthaben",
             "subscription": "Abonnement",
             "seat": "Seat",
             "seatAssigned": "Zugewiesen",

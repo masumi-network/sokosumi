@@ -8,16 +8,18 @@ import {
   organizationRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
-import pLimit from "p-limit";
 
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary.js";
-import { buildCreditsPayload } from "@/helpers/subscription.js";
-
-const ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY = 5;
+import { getCredits } from "@/helpers/user.js";
 
 type AdminOrganizationMemberRecord = Awaited<
   ReturnType<typeof memberRepository.getMembersWithUserAndLastSeen>
 >[number];
+
+interface AdminOrganizationOverviewSubscription {
+  plan: string;
+  status: string;
+}
 
 interface AdminOrganizationBillingSnapshot {
   mode: "enterprise_contract" | "self_serve";
@@ -44,18 +46,10 @@ function mapBillingPlan(
   };
 }
 
-export async function buildAdminOrganizationMemberOverviewItem(
+export function mapAdminOrganizationMemberOverviewItem(
   member: AdminOrganizationMemberRecord,
-  organizationId: string,
-  tx: Prisma.TransactionClient,
+  subscription: AdminOrganizationOverviewSubscription | null,
 ) {
-  const payload = await buildCreditsPayload({
-    userId: member.userId,
-    organizationId,
-    referenceId: organizationId,
-    tx,
-  });
-
   return {
     id: member.id,
     organizationId: member.organizationId,
@@ -68,10 +62,62 @@ export async function buildAdminOrganizationMemberOverviewItem(
       email: member.user.email,
     },
     lastSeenAt: member.lastSeenAt,
-    credits: payload.credits.total,
-    subscriptionPlan: payload.credits.subscription?.plan ?? null,
-    subscriptionStatus: payload.credits.subscription?.status ?? null,
+    subscriptionPlan: subscription?.plan ?? null,
+    subscriptionStatus: subscription?.status ?? null,
   };
+}
+
+export async function resolveAdminOrganizationOverviewSubscription(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+) {
+  return (
+    (await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+      organizationId,
+      tx,
+    )) ??
+    (await subscriptionRepository.getLatestSubscriptionByReferenceId(
+      organizationId,
+      tx,
+    ))
+  );
+}
+
+async function resolveOverviewCreditsActorUserId(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const owner = await tx.member.findFirst({
+    where: {
+      organizationId,
+      role: "owner",
+    },
+    select: { userId: true },
+  });
+  if (owner) {
+    return owner.userId;
+  }
+
+  const member = await tx.member.findFirst({
+    where: { organizationId },
+    orderBy: { createdAt: "asc" },
+    select: { userId: true },
+  });
+  return member?.userId ?? null;
+}
+
+async function resolveSelfServePoolRemainingCredits(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const actorUserId = await resolveOverviewCreditsActorUserId(
+    organizationId,
+    tx,
+  );
+  if (!actorUserId) {
+    return 0;
+  }
+  return getCredits(actorUserId, organizationId, tx);
 }
 
 export async function buildAdminOrganizationMemberOverviewPage(
@@ -98,13 +144,12 @@ export async function buildAdminOrganizationMemberOverviewPage(
     tx,
   );
 
-  const limit = pLimit(ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY);
-  const items = await Promise.all(
-    members.map((member) =>
-      limit(() =>
-        buildAdminOrganizationMemberOverviewItem(member, organization.id, tx),
-      ),
-    ),
+  const subscription = await resolveAdminOrganizationOverviewSubscription(
+    organization.id,
+    tx,
+  );
+  const items = members.map((member) =>
+    mapAdminOrganizationMemberOverviewItem(member, subscription),
   );
 
   return {
@@ -198,7 +243,7 @@ export async function buildAdminOrganizationOverviewDetail(
   const totalCredits =
     billingPlan.mode === "enterprise_contract"
       ? (enterpriseContract?.poolRemainingCredits ?? 0)
-      : null;
+      : await resolveSelfServePoolRemainingCredits(organization.id, tx);
 
   return {
     organization: {
