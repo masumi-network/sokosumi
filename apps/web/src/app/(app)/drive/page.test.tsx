@@ -672,9 +672,16 @@ describe("DrivePage files view mode", () => {
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
     });
-    const browseCalls = listDriveItemsMock.mock.calls.length;
+    const browseCallsBeforeToggle = listDriveItemsMock.mock.calls.length;
     expect(screen.getByTestId("files-layout-grid")).toBeVisible();
-    expect(listDriveItemsMock.mock.calls.length).toBe(browseCalls);
+
+    await user.click(screen.getByRole("radio", { name: "viewList" }));
+    expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    expect(listDriveItemsMock.mock.calls.length).toBe(browseCallsBeforeToggle);
+
+    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
+    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    expect(listDriveItemsMock.mock.calls.length).toBe(browseCallsBeforeToggle);
   });
 
   it("restores the grid preference after remount", async () => {

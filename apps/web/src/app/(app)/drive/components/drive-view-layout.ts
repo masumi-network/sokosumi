@@ -60,6 +60,6 @@ export function driveItemMetaDesktopClass(viewMode: FilesViewMode): string {
 
 export function driveItemActionsClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "absolute top-2 right-2 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+    ? "absolute top-2 right-2 shrink-0"
     : "shrink-0 pl-2";
 }

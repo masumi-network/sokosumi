@@ -84,6 +84,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type {
@@ -333,13 +334,9 @@ export default function DrivePage(): ReactElement {
   }, [activeOrganizationId, router, searchParams]);
 
   if (activeOrganizationId === undefined) {
-    const skeletonMode =
-      typeof document === "undefined"
-        ? DEFAULT_FILES_VIEW_MODE
-        : resolveFilesViewModeFromClientCookie(document.cookie);
     return (
       <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
-        <DriveListSkeleton viewMode={skeletonMode} />
+        <DriveListSkeleton viewMode={DEFAULT_FILES_VIEW_MODE} />
       </div>
     );
   }
@@ -366,11 +363,12 @@ function DrivePageWorkspace({
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [filesViewMode, setFilesViewMode] = useState<FilesViewMode>(() =>
-    typeof document === "undefined"
-      ? DEFAULT_FILES_VIEW_MODE
-      : resolveFilesViewModeFromClientCookie(document.cookie),
+  const [filesViewMode, setFilesViewMode] = useState<FilesViewMode>(
+    DEFAULT_FILES_VIEW_MODE,
   );
+  useMountEffect(() => {
+    setFilesViewMode(resolveFilesViewModeFromClientCookie(document.cookie));
+  });
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [organizationName, setOrganizationName] = useState<string | null>(null);
