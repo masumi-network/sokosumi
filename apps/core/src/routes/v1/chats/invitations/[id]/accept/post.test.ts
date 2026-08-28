@@ -128,6 +128,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   userFindUniqueMock.mockResolvedValue({
+    id: GUEST_ID,
     email: "Guest@Example.com",
     name: "Guest User",
   });
@@ -136,9 +137,12 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue(null);
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   roomFindUniqueMock.mockResolvedValue({
+    id: ROOM_ID,
+    name: "Client Room",
     archivedAt: null,
     kind: "channel",
     discoverability: "external",
+    organizationId: ORG_ID,
   });
   userMemberCreateMock.mockResolvedValue({
     id: "mem_row",
@@ -238,6 +242,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
 
   it("accept rejects email mismatch", async () => {
     userFindUniqueMock.mockResolvedValue({
+      id: OTHER_ID,
       email: "other@example.com",
       name: "Other",
     });
@@ -339,8 +344,8 @@ describe("POST /chats/invitations/{id}/accept", () => {
   });
 
   it("accept fails and rolls back when invite is no longer pending (revoke race)", async () => {
-    // Membership create may run before the conditional status transition;
-    // count 0 means revoke/decline won — throw aborts the transaction.
+    // beforeCreate accepts the invite before membership create; count 0 means
+    // revoke/decline won — throw skips create and aborts the transaction.
     invitationUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const response = await createApp().request(`/${INVITE_ID}/accept`, {
@@ -350,7 +355,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.message).toMatch(/no longer pending/i);
-    expect(userMemberCreateMock).toHaveBeenCalled();
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
     expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -378,11 +383,36 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.message).toMatch(/already a member/i);
-    expect(invitationUpdateManyMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: "accepted" }),
-      }),
+    // Invite accept runs in beforeCreate; throwing after the unique race rolls
+    // that write back with the rest of the transaction.
+    expect(userMemberCreateMock).toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+  });
+
+  it("accept returns accepted when concurrent guest create races", async () => {
+    userMemberCreateMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
     );
+    userMemberFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ access: "guest" });
+    // Initial load is pending; re-read after the race sees beforeCreate accept.
+    invitationFindUniqueMock
+      .mockResolvedValueOnce(pendingInvitation())
+      .mockResolvedValueOnce({ status: "accepted" });
+    // beforeCreate accepted; already_guest path's second updateMany matches 0.
+    invitationUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    const response = await createApp().request(`/${INVITE_ID}/accept`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.status).toBe("accepted");
+    expect(userMemberCreateMock).toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });
 });

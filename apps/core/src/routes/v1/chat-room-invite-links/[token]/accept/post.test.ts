@@ -103,7 +103,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("../../../chats/rooms/membership-status", () => ({
+vi.mock("@/routes/v1/chats/rooms/membership-status", () => ({
   recordChannelMembershipStatus: (...args: unknown[]) =>
     recordChannelMembershipStatusMock(...args),
 }));
@@ -168,7 +168,10 @@ describe("POST /chat-room-invite-links/{token}/accept", () => {
       async (cb: (client: typeof tx) => unknown) => cb(tx),
     );
     queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
-    userFindUniqueMock.mockResolvedValue({ name: "Outsider" });
+    userFindUniqueMock.mockResolvedValue({
+      id: "user_outsider",
+      name: "Outsider",
+    });
     roomFindUniqueMock.mockResolvedValue(externalRoom());
     memberFindUniqueMock.mockResolvedValue(null);
     roomUserMemberFindUniqueMock.mockResolvedValue(null);
