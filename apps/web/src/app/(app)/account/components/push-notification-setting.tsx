@@ -26,23 +26,22 @@ export function PushNotificationSetting() {
   const accountDescriptionId = useId();
   const deviceDescriptionId = useId();
 
-  // A blocked browser fails every subscribe, so name the block instead of
-  // leaving the reader with the generic failure toast. The wording is the one
-  // the notification centre already uses for the same state. `isSupported` is
-  // null until the mount read lands, and an unread answer is not a "no".
-  let accountDescription = t("pushDescription");
-  if (push.isSupported === false) {
-    accountDescription = t("pushUnsupported");
-  } else if (push.isBlocked) {
-    accountDescription = tCenter("browserPermissionDeniedDescription");
-  }
-
-  // Both messages above describe this browser, next to a switch that writes the
-  // account. Saying what the switch still does keeps it from reading as dead.
-  //
-  // Both halves are three-state aware, so a capability the mount read has not
-  // answered yet stays silent rather than claiming a block.
+  // Whether this browser is known to be unable to push. Three-state aware:
+  // `isSupported` is null until the mount read lands, and an unread answer is
+  // not a "no", so a capability nobody has answered yet claims nothing.
   const knownUnableHere = push.isSupported === false || push.isBlocked;
+
+  // Name what stops this browser. Both rows below stay usable or greyed for
+  // reasons the reader cannot see otherwise, and the account row in particular
+  // still writes consent from here. The blocked wording is the one the
+  // notification centre already uses for the same state.
+  let accountDescription = t("pushDescription");
+  if (knownUnableHere) {
+    accountDescription =
+      push.isSupported === false
+        ? t("pushUnsupported")
+        : tCenter("browserPermissionDeniedDescription");
+  }
 
   // The account-off wording waits for `canToggleAccount`, so a preference still
   // in flight does not read as an account that is switched off.
@@ -116,6 +115,9 @@ export function PushNotificationSetting() {
             className="text-muted-foreground text-sm leading-6"
             id={accountDescriptionId}
           >
+            {/* The message above describes this browser, next to a switch
+                that writes the account. Saying what the switch still does
+                keeps the row from reading as dead. */}
             {knownUnableHere
               ? `${accountDescription} ${t("pushOtherDevicesHint")}`
               : accountDescription}
