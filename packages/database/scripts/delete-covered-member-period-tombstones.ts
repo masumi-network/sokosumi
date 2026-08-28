@@ -6,6 +6,7 @@
  *
  *   pnpm --filter @sokosumi/database data-migration:delete-member-period-tombstones
  *   pnpm --filter @sokosumi/database data-migration:delete-member-period-tombstones -- --dry-run
+ *   pnpm --filter @sokosumi/database data-migration:delete-member-period-tombstones -- --verbose
  *   pnpm --filter @sokosumi/database data-migration:delete-member-period-tombstones -- --organization-id <id>
  */
 
@@ -23,13 +24,19 @@ loadEnv({
 function parseArgs(argv: string[]): {
   dryRun: boolean;
   organizationId?: string;
+  verbose: boolean;
 } {
   let dryRun = false;
   let organizationId: string | undefined;
+  let verbose = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--dry-run") {
       dryRun = true;
+      continue;
+    }
+    if (arg === "--verbose" || arg === "-v") {
+      verbose = true;
       continue;
     }
     if (arg === "--organization-id") {
@@ -38,7 +45,7 @@ function parseArgs(argv: string[]): {
       continue;
     }
   }
-  return { dryRun, organizationId };
+  return { dryRun, organizationId, verbose };
 }
 
 async function main(): Promise<void> {
@@ -51,7 +58,12 @@ async function main(): Promise<void> {
     );
   }
 
-  const { dryRun, organizationId } = parseArgs(process.argv.slice(2));
+  const { dryRun, organizationId, verbose } = parseArgs(process.argv.slice(2));
+  const debug = verbose
+    ? (message: string) => {
+        console.log(`[debug] ${message}`);
+      }
+    : undefined;
   const prisma = createPrismaClient(databaseUrl);
   try {
     console.log(
@@ -59,12 +71,20 @@ async function main(): Promise<void> {
         ? "Dry run: counting covered member period tombstones…"
         : "Deleting covered remaining-0 member period tombstones…",
     );
+    if (organizationId) {
+      console.log(`Scoped to organizationId=${organizationId}`);
+    }
+    if (verbose) {
+      console.log("Verbose debug logging enabled.");
+    }
+    const startedAt = Date.now();
     const result = await deleteCoveredMemberPeriodTombstones(prisma, {
+      debug,
       dryRun,
       organizationId,
     });
     console.log(
-      `Member period tombstone delete ${dryRun ? "dry-run" : "done"}: candidates=${result.candidates} deleted=${result.deleted} skippedRemainingPositive=${result.skippedRemainingPositive} skippedUncovered=${result.skippedUncovered} skippedUnparseable=${result.skippedUnparseable}`,
+      `Member period tombstone delete ${dryRun ? "dry-run" : "done"} in ${Date.now() - startedAt}ms: candidates=${result.candidates} deleted=${result.deleted} skippedRemainingPositive=${result.skippedRemainingPositive} skippedUncovered=${result.skippedUncovered} skippedUnparseable=${result.skippedUnparseable}`,
     );
   } finally {
     await prisma.$disconnect();

@@ -364,6 +364,44 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
     assert.equal(prisma.$transaction.mock.calls.length, 0);
     assert.equal(createTransactionMock.mock.calls.length, 0);
   });
+
+  it("emits verbose debug lines when debug is provided", async () => {
+    const debugMessages: string[] = [];
+    const prisma = {
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: "b-1",
+          referenceId: "member:user-1:in_verbose:subscription",
+          organizationId: "org-1",
+          userId: "user-1",
+          expiresAt: null,
+          activatesAt: null,
+          remaining: 0n,
+        },
+      ]),
+      $transaction: vi.fn(),
+      creditBucket: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+      member: { findFirst: vi.fn() },
+      transaction: { create: vi.fn() },
+    };
+
+    await backfillOrgPeriodIdempotencySentinels(prisma as never, {
+      debug: (message) => {
+        debugMessages.push(message);
+      },
+      dryRun: true,
+    });
+
+    assert.ok(debugMessages.some((message) => message.startsWith("collect:")));
+    assert.ok(
+      debugMessages.some((message) => message.includes("dry-run wouldCreate")),
+    );
+    assert.ok(
+      debugMessages.some((message) => message.startsWith("backfill done:")),
+    );
+  });
 });
 
 describe("assertSentinelsCoverLeftoverMemberPeriods", () => {

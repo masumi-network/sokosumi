@@ -53,6 +53,14 @@ export interface SentinelCoverageFailure {
   unparseable: number;
 }
 
+export type SentinelDebugLog = (message: string) => void;
+
+interface SentinelOperationParams {
+  debug?: SentinelDebugLog;
+  dryRun?: boolean;
+  organizationId?: string;
+}
+
 interface LeftoverMemberPeriodRow {
   activatesAt: Date | null;
   expiresAt: Date | null;
@@ -206,15 +214,22 @@ async function resolveOrgMemberActorUserId(
 
 export async function collectOrgPeriodSentinelSpecs(
   prisma: PrismaClient | Prisma.TransactionClient,
-  params: { organizationId?: string } = {},
+  params: { debug?: SentinelDebugLog; organizationId?: string } = {},
 ): Promise<{
   specs: OrgPeriodSentinelSpec[];
   scannedLeftovers: number;
   unparseable: number;
 }> {
+  const debug = params.debug;
   const leftovers = await listLeftoverMemberPeriodRows(
     prisma,
     params.organizationId,
+  );
+  debug?.(
+    `collect: scanned ${leftovers.length} leftover member: period row(s)` +
+      (params.organizationId
+        ? ` for organizationId=${params.organizationId}`
+        : ""),
   );
 
   const byReferenceId = new Map<string, OrgPeriodSentinelSpec>();
@@ -227,10 +242,16 @@ export async function collectOrgPeriodSentinelSpecs(
     );
     if (parsed.isErr()) {
       unparseable += 1;
+      debug?.(
+        `collect: unparseable leftover id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} remaining=${leftover.remaining.toString()}`,
+      );
       continue;
     }
 
     if (byReferenceId.has(parsed.value.orgReferenceId)) {
+      debug?.(
+        `collect: dedupe skip leftover id=${leftover.id} already covered by fingerprint=${parsed.value.orgReferenceId}`,
+      );
       continue;
     }
 
@@ -243,7 +264,14 @@ export async function collectOrgPeriodSentinelSpecs(
       referenceId: parsed.value.orgReferenceId,
       sourceBucketId: leftover.id,
     });
+    debug?.(
+      `collect: fingerprint kind=${parsed.value.kind} organizationId=${leftover.organizationId} referenceId=${parsed.value.orgReferenceId} sourceBucketId=${leftover.id} actorUserId=${leftover.userId}`,
+    );
   }
+
+  debug?.(
+    `collect: distinctFingerprints=${byReferenceId.size} unparseable=${unparseable}`,
+  );
 
   return {
     scannedLeftovers: leftovers.length,
@@ -343,10 +371,12 @@ export async function ensureOrgPeriodIdempotencySentinel(
 
 export async function backfillOrgPeriodIdempotencySentinels(
   prisma: PrismaClient,
-  params: { dryRun?: boolean; organizationId?: string } = {},
+  params: SentinelOperationParams = {},
 ): Promise<SentinelBackfillResult> {
+  const debug = params.debug;
   const { specs, scannedLeftovers, unparseable } =
     await collectOrgPeriodSentinelSpecs(prisma, {
+      debug,
       organizationId: params.organizationId,
     });
 
@@ -354,14 +384,21 @@ export async function backfillOrgPeriodIdempotencySentinels(
   let alreadyPresent = 0;
   let skippedNoActor = 0;
 
-  for (const spec of specs) {
+  for (const [index, spec] of specs.entries()) {
+    const step = `${index + 1}/${specs.length}`;
     let actorUserId = spec.actorUserId;
     if (!actorUserId) {
       actorUserId =
         (await resolveOrgMemberActorUserId(prisma, spec.organizationId)) ?? "";
+      debug?.(
+        `backfill [${step}] resolved actor organizationId=${spec.organizationId} actorUserId=${actorUserId || "(none)"}`,
+      );
     }
     if (!actorUserId) {
       skippedNoActor += 1;
+      debug?.(
+        `backfill [${step}] skippedNoActor organizationId=${spec.organizationId} referenceId=${spec.referenceId} kind=${spec.kind}`,
+      );
       continue;
     }
 
@@ -369,8 +406,14 @@ export async function backfillOrgPeriodIdempotencySentinels(
       const exists = await orgPeriodFingerprintExists(prisma, spec.referenceId);
       if (exists) {
         alreadyPresent += 1;
+        debug?.(
+          `backfill [${step}] dry-run alreadyPresent referenceId=${spec.referenceId}`,
+        );
       } else {
         created += 1;
+        debug?.(
+          `backfill [${step}] dry-run wouldCreate referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${actorUserId}`,
+        );
       }
       continue;
     }
@@ -383,10 +426,20 @@ export async function backfillOrgPeriodIdempotencySentinels(
     );
     if (outcome === "created") {
       created += 1;
+      debug?.(
+        `backfill [${step}] created referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${actorUserId}`,
+      );
     } else {
       alreadyPresent += 1;
+      debug?.(
+        `backfill [${step}] alreadyPresent referenceId=${spec.referenceId}`,
+      );
     }
   }
+
+  debug?.(
+    `backfill done: scannedLeftovers=${scannedLeftovers} distinctFingerprints=${specs.length} created=${created} alreadyPresent=${alreadyPresent} skippedNoActor=${skippedNoActor} unparseable=${unparseable} dryRun=${Boolean(params.dryRun)}`,
+  );
 
   return {
     alreadyPresent,
@@ -400,34 +453,54 @@ export async function backfillOrgPeriodIdempotencySentinels(
 
 export async function assertSentinelsCoverLeftoverMemberPeriods(
   prisma: PrismaClient | Prisma.TransactionClient,
-  params: { organizationId?: string } = {},
+  params: { debug?: SentinelDebugLog; organizationId?: string } = {},
 ): Promise<Result<void, SentinelCoverageFailure>> {
-  const { specs, unparseable } = await collectOrgPeriodSentinelSpecs(
-    prisma,
-    params,
-  );
+  const debug = params.debug;
+  const { specs, unparseable } = await collectOrgPeriodSentinelSpecs(prisma, {
+    debug,
+    organizationId: params.organizationId,
+  });
 
   const uncoveredReferenceIds: string[] = [];
   for (const spec of specs) {
-    if (!(await orgPeriodFingerprintExists(prisma, spec.referenceId))) {
+    const covered = await orgPeriodFingerprintExists(prisma, spec.referenceId);
+    if (!covered) {
       uncoveredReferenceIds.push(spec.referenceId);
+      debug?.(
+        `coverage: uncovered organizationId=${spec.organizationId} referenceId=${spec.referenceId} kind=${spec.kind}`,
+      );
+    } else {
+      debug?.(
+        `coverage: covered organizationId=${spec.organizationId} referenceId=${spec.referenceId}`,
+      );
     }
   }
 
   if (unparseable > 0 || uncoveredReferenceIds.length > 0) {
+    debug?.(
+      `coverage: failed unparseable=${unparseable} uncovered=${uncoveredReferenceIds.length}`,
+    );
     return err({ uncoveredReferenceIds, unparseable });
   }
 
+  debug?.(`coverage: passed distinctFingerprints=${specs.length}`);
   return ok(undefined);
 }
 
 export async function deleteCoveredMemberPeriodTombstones(
   prisma: PrismaClient,
-  params: { dryRun?: boolean; organizationId?: string } = {},
+  params: SentinelOperationParams = {},
 ): Promise<TombstoneDeleteResult> {
+  const debug = params.debug;
   const leftovers = await listLeftoverMemberPeriodRows(
     prisma,
     params.organizationId,
+  );
+  debug?.(
+    `delete: scanned ${leftovers.length} leftover member: period row(s)` +
+      (params.organizationId
+        ? ` for organizationId=${params.organizationId}`
+        : ""),
   );
 
   let deleted = 0;
@@ -439,6 +512,9 @@ export async function deleteCoveredMemberPeriodTombstones(
   for (const leftover of leftovers) {
     if (leftover.remaining > 0n) {
       skippedRemainingPositive += 1;
+      debug?.(
+        `delete: skip remaining>0 id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} remaining=${leftover.remaining.toString()}`,
+      );
       continue;
     }
 
@@ -448,6 +524,9 @@ export async function deleteCoveredMemberPeriodTombstones(
     );
     if (parsed.isErr()) {
       skippedUnparseable += 1;
+      debug?.(
+        `delete: skip unparseable id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId}`,
+      );
       continue;
     }
 
@@ -455,10 +534,16 @@ export async function deleteCoveredMemberPeriodTombstones(
       !(await orgPeriodFingerprintExists(prisma, parsed.value.orgReferenceId))
     ) {
       skippedUncovered += 1;
+      debug?.(
+        `delete: skip uncovered id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} fingerprint=${parsed.value.orgReferenceId}`,
+      );
       continue;
     }
 
     deleteIds.push(leftover.id);
+    debug?.(
+      `delete: ${params.dryRun ? "wouldDelete" : "queued"} id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} fingerprint=${parsed.value.orgReferenceId}`,
+    );
   }
 
   if (!params.dryRun && deleteIds.length > 0) {
@@ -466,9 +551,16 @@ export async function deleteCoveredMemberPeriodTombstones(
       where: { id: { in: deleteIds } },
     });
     deleted = result.count;
+    debug?.(
+      `delete: deleteMany count=${deleted} requested=${deleteIds.length}`,
+    );
   } else {
     deleted = params.dryRun ? deleteIds.length : 0;
   }
+
+  debug?.(
+    `delete done: candidates=${leftovers.length} deleted=${deleted} skippedRemainingPositive=${skippedRemainingPositive} skippedUncovered=${skippedUncovered} skippedUnparseable=${skippedUnparseable} dryRun=${Boolean(params.dryRun)}`,
+  );
 
   return {
     candidates: leftovers.length,
