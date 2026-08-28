@@ -102,8 +102,8 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "operations",
   },
   {
-    key: "externalChannels",
-    href: "/admin/external-channels",
+    key: "matchedChannels",
+    href: "/admin/matched-channels",
     Icon: MessagesSquare,
     group: "operations",
   },

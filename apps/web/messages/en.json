@@ -3314,23 +3314,20 @@
           "grantError": "Failed to grant free credits"
         }
       },
-      "ExternalChannels": {
-        "title": "External channels",
-        "description": "Pick a host organization, create a live External channel, and add existing platform users as guests. Host-org members cannot be guests.",
+      "MatchedChannels": {
+        "title": "Matched channels",
+        "description": "Create org-less matched channels, manage the roster, and snapshot organization Members onto a channel.",
         "backToAdmin": "Back to admin",
-        "hostOrganization": "Host organization",
-        "hostOrgHelper": "Organizations you belong to appear first in search results.",
-        "hostOrgRequired": "Select a host organization",
-        "listError": "Failed to load External channels",
+        "listError": "Failed to load matched channels",
         "List": {
           "title": "Channels",
-          "description": "Live External channels owned by {org}.",
+          "description": "Live matched channels with roster-only visibility.",
           "loading": "Loading channels…",
-          "empty": "No External channels for this organization yet."
+          "empty": "No matched channels yet."
         },
         "Create": {
-          "title": "Create External channel",
-          "description": "Creates a live External channel on the selected host. You are not added as a room member.",
+          "title": "Create matched channel",
+          "description": "Creates a live org-less channel. You are not added as a room member.",
           "name": "Name",
           "namePlaceholder": "Optional; derived from slug if blank",
           "slug": "Slug",
@@ -3338,28 +3335,39 @@
           "slugRequired": "Enter a channel slug",
           "submit": "Create channel",
           "submitting": "Creating…",
-          "success": "External channel created",
-          "error": "Failed to create External channel"
+          "success": "Matched channel created",
+          "error": "Failed to create matched channel"
         },
         "Detail": {
-          "back": "Back to External channels",
-          "hostLabel": "Host {org} · {slug}",
-          "guestRequired": "Select a user to add as a guest",
-          "addGuestSuccess": "Guest added",
-          "alreadyGuest": "User is already a guest on this channel",
-          "addGuestError": "Failed to add guest. Host-org members cannot be guests.",
-          "Guests": {
-            "title": "Guests",
-            "description": "Users with guest access on this External channel.",
-            "empty": "No guests yet.",
+          "back": "Back to matched channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Select a user to add",
+          "organizationRequired": "Select an organization to snapshot",
+          "addUserSuccess": "User added to roster",
+          "alreadyMember": "User is already on this channel",
+          "addUserError": "Failed to add user",
+          "addOrganizationSuccess": "Added {added} of {totalMembers} members ({alreadyMember} already on roster)",
+          "addOrganizationError": "Failed to snapshot organization members",
+          "Roster": {
+            "title": "Roster",
+            "description": "Users with member access on this matched channel.",
+            "empty": "No participants yet.",
             "name": "Name",
             "email": "Email"
           },
-          "AddGuest": {
-            "title": "Add guest",
+          "AddUser": {
+            "title": "Add user",
             "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
             "user": "User",
-            "submit": "Add guest",
+            "submit": "Add user",
+            "submitting": "Adding…"
+          },
+          "AddOrganization": {
+            "title": "Add organization",
+            "description": "Snapshot all current Members of an organization onto this channel. Future joins are not synced.",
+            "organization": "Organization",
+            "helper": "Organizations you belong to appear first in search results.",
+            "submit": "Add organization members",
             "submitting": "Adding…"
           }
         }
@@ -3398,9 +3406,9 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
-          "externalChannels": {
-            "title": "External channels",
-            "description": "Create External channels for any host organization and add existing users as guests."
+          "matchedChannels": {
+            "title": "Matched channels",
+            "description": "Create org-less matched channels and manage their roster."
           },
           "x402Payments": {
             "title": "x402 payments",

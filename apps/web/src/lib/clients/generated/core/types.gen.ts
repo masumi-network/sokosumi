@@ -216,6 +216,70 @@ export const StripeSubscriptionStatus = {
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
+export type AdminMatchedChannelOption = {
+    id: string;
+    name: string;
+    slug: string;
+};
+
+export type AdminCreateMatchedChannelBody = {
+    /**
+     * Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.
+     */
+    name?: string;
+    /**
+     * Required Channel slug (max 80 after sanitize). Unique among org-less matched channels.
+     */
+    slug: string;
+    topic?: string;
+};
+
+export type AdminMatchedChannelDetail = {
+    id: string;
+    name: string;
+    slug: string;
+    topic: string | null;
+    participants: Array<AdminMatchedChannelParticipantInfo>;
+};
+
+export type AdminMatchedChannelParticipantInfo = {
+    userId: string;
+    name: string;
+    email: string;
+    access: 'member';
+};
+
+export type AdminAddMatchedChannelFromOrganizationResult = {
+    added: number;
+    alreadyMember: number;
+    totalMembers: number;
+};
+
+export type AdminAddMatchedChannelFromOrganizationBody = {
+    /**
+     * Organization whose Members are snapshotted onto the roster
+     */
+    organizationId?: string;
+    /**
+     * Organization slug alternative to organizationId
+     */
+    organizationSlug?: string;
+};
+
+export type AdminMatchedChannelParticipant = {
+    userId: string;
+    roomId: string;
+    access: 'member';
+    outcome: 'joined' | 'already_member';
+};
+
+export type AdminAddMatchedChannelParticipantBody = {
+    /**
+     * Existing platform user to add as a member
+     */
+    userId: string;
+};
+
 export type AdminOrganizationOverviewItem = {
     id: string;
     name: string;
@@ -277,52 +341,6 @@ export type AdminOrganizationOverviewDetail = {
      * Organization pool remaining credits for both billing modes
      */
     totalCredits: number;
-};
-
-export type AdminExternalChannelOption = {
-    id: string;
-    name: string;
-    slug: string;
-};
-
-export type AdminCreateExternalChannelBody = {
-    /**
-     * Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.
-     */
-    name?: string;
-    /**
-     * Required Channel slug (max 80 after sanitize). Unique among Channels in the host organization.
-     */
-    slug: string;
-    topic?: string;
-};
-
-export type AdminExternalChannelDetail = {
-    id: string;
-    name: string;
-    slug: string;
-    topic: string | null;
-    guests: Array<AdminExternalChannelGuestInfo>;
-};
-
-export type AdminExternalChannelGuestInfo = {
-    userId: string;
-    name: string;
-    email: string;
-};
-
-export type AdminExternalChannelGuest = {
-    userId: string;
-    roomId: string;
-    access: 'guest';
-    outcome: 'joined' | 'already_guest';
-};
-
-export type AdminAddExternalChannelGuestBody = {
-    /**
-     * Existing platform user to add as a guest
-     */
-    userId: string;
 };
 
 export type AdminOrganizationMemberOverviewItem = {
@@ -1570,7 +1588,7 @@ export type ChatRoom = {
      */
     id: string;
     /**
-     * Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).
+     * Organization that owns the room. Null for Personal Directs and for org-less matched channels (`discoverability=matched`).
      */
     organizationId: string | null;
     /**
@@ -1589,9 +1607,9 @@ export type ChatRoom = {
     directKey: string | null;
     topic: string | null;
     /**
-     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.
+     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.
      */
-    discoverability: 'public' | 'private' | 'external' | null;
+    discoverability: 'public' | 'private' | 'external' | 'matched' | null;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -1747,7 +1765,7 @@ export type DiscoverableChatRoom = {
 };
 
 /**
- * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.
+ * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.
  */
 export const DiscoverableChannelDiscoverability = {
     PUBLIC: 'public',
@@ -1756,7 +1774,7 @@ export const DiscoverableChannelDiscoverability = {
 } as const;
 
 /**
- * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.
+ * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.
  */
 export type DiscoverableChannelDiscoverability = typeof DiscoverableChannelDiscoverability[keyof typeof DiscoverableChannelDiscoverability];
 
@@ -1917,7 +1935,7 @@ export type UpdateChatRoomRequest = {
      */
     slug?: string;
     topic?: string | null;
-    discoverability?: ChatRoomDiscoverability;
+    discoverability?: OrgChannelDiscoverability;
     /**
      * Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.
      */
@@ -1928,7 +1946,7 @@ export type UpdateChatRoomRequest = {
 /**
  * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
  */
-export const ChatRoomDiscoverability = {
+export const OrgChannelDiscoverability = {
     PUBLIC: 'public',
     PRIVATE: 'private',
     EXTERNAL: 'external'
@@ -1937,7 +1955,7 @@ export const ChatRoomDiscoverability = {
 /**
  * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
  */
-export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
+export type OrgChannelDiscoverability = typeof OrgChannelDiscoverability[keyof typeof OrgChannelDiscoverability];
 
 export type ArchivedChatRoom = {
     id: string;
@@ -5700,6 +5718,390 @@ export type ListAdminUsersResponses = {
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
 
+export type ListAdminMatchedChannelsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/matched-channels';
+};
+
+export type ListAdminMatchedChannelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminMatchedChannelsError = ListAdminMatchedChannelsErrors[keyof ListAdminMatchedChannelsErrors];
+
+export type ListAdminMatchedChannelsResponses = {
+    /**
+     * Live matched channels
+     */
+    200: {
+        data: Array<AdminMatchedChannelOption>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminMatchedChannelsResponse = ListAdminMatchedChannelsResponses[keyof ListAdminMatchedChannelsResponses];
+
+export type CreateAdminMatchedChannelData = {
+    body?: AdminCreateMatchedChannelBody;
+    path?: never;
+    query?: never;
+    url: '/admin/matched-channels';
+};
+
+export type CreateAdminMatchedChannelErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminMatchedChannelError = CreateAdminMatchedChannelErrors[keyof CreateAdminMatchedChannelErrors];
+
+export type CreateAdminMatchedChannelResponses = {
+    /**
+     * Created matched channel
+     */
+    201: {
+        data: AdminMatchedChannelOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminMatchedChannelResponse = CreateAdminMatchedChannelResponses[keyof CreateAdminMatchedChannelResponses];
+
+export type GetAdminMatchedChannelData = {
+    body?: never;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}';
+};
+
+export type GetAdminMatchedChannelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminMatchedChannelError = GetAdminMatchedChannelErrors[keyof GetAdminMatchedChannelErrors];
+
+export type GetAdminMatchedChannelResponses = {
+    /**
+     * Matched channel detail
+     */
+    200: {
+        data: AdminMatchedChannelDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminMatchedChannelResponse = GetAdminMatchedChannelResponses[keyof GetAdminMatchedChannelResponses];
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationData = {
+    body?: AdminAddMatchedChannelFromOrganizationBody;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/participants/from-organization';
+};
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationError = AddAdminMatchedChannelParticipantsFromOrganizationErrors[keyof AddAdminMatchedChannelParticipantsFromOrganizationErrors];
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationResponses = {
+    /**
+     * Organization Members snapshotted
+     */
+    200: {
+        data: AdminAddMatchedChannelFromOrganizationResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantsFromOrganizationResponse = AddAdminMatchedChannelParticipantsFromOrganizationResponses[keyof AddAdminMatchedChannelParticipantsFromOrganizationResponses];
+
+export type AddAdminMatchedChannelParticipantData = {
+    body?: AdminAddMatchedChannelParticipantBody;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/participants';
+};
+
+export type AddAdminMatchedChannelParticipantErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantError = AddAdminMatchedChannelParticipantErrors[keyof AddAdminMatchedChannelParticipantErrors];
+
+export type AddAdminMatchedChannelParticipantResponses = {
+    /**
+     * Member membership ensured
+     */
+    200: {
+        data: AdminMatchedChannelParticipant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminMatchedChannelParticipantResponse = AddAdminMatchedChannelParticipantResponses[keyof AddAdminMatchedChannelParticipantResponses];
+
 export type ListAdminOrganizationsData = {
     body?: never;
     path?: never;
@@ -5840,352 +6242,6 @@ export type GetAdminOrganizationBySlugResponses = {
 };
 
 export type GetAdminOrganizationBySlugResponse = GetAdminOrganizationBySlugResponses[keyof GetAdminOrganizationBySlugResponses];
-
-export type ListAdminOrgExternalChannelsData = {
-    body?: never;
-    path: {
-        slug: string;
-    };
-    query?: never;
-    url: '/admin/organizations/{slug}/external-channels';
-};
-
-export type ListAdminOrgExternalChannelsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ListAdminOrgExternalChannelsError = ListAdminOrgExternalChannelsErrors[keyof ListAdminOrgExternalChannelsErrors];
-
-export type ListAdminOrgExternalChannelsResponses = {
-    /**
-     * External channels for the host organization
-     */
-    200: {
-        data: Array<AdminExternalChannelOption>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ListAdminOrgExternalChannelsResponse = ListAdminOrgExternalChannelsResponses[keyof ListAdminOrgExternalChannelsResponses];
-
-export type CreateAdminOrgExternalChannelData = {
-    body?: AdminCreateExternalChannelBody;
-    path: {
-        slug: string;
-    };
-    query?: never;
-    url: '/admin/organizations/{slug}/external-channels';
-};
-
-export type CreateAdminOrgExternalChannelErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type CreateAdminOrgExternalChannelError = CreateAdminOrgExternalChannelErrors[keyof CreateAdminOrgExternalChannelErrors];
-
-export type CreateAdminOrgExternalChannelResponses = {
-    /**
-     * Created External channel
-     */
-    201: {
-        data: AdminExternalChannelOption;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type CreateAdminOrgExternalChannelResponse = CreateAdminOrgExternalChannelResponses[keyof CreateAdminOrgExternalChannelResponses];
-
-export type GetAdminOrgExternalChannelData = {
-    body?: never;
-    path: {
-        slug: string;
-        roomId: string;
-    };
-    query?: never;
-    url: '/admin/organizations/{slug}/external-channels/{roomId}';
-};
-
-export type GetAdminOrgExternalChannelErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetAdminOrgExternalChannelError = GetAdminOrgExternalChannelErrors[keyof GetAdminOrgExternalChannelErrors];
-
-export type GetAdminOrgExternalChannelResponses = {
-    /**
-     * External channel detail
-     */
-    200: {
-        data: AdminExternalChannelDetail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetAdminOrgExternalChannelResponse = GetAdminOrgExternalChannelResponses[keyof GetAdminOrgExternalChannelResponses];
-
-export type AddAdminExternalChannelGuestData = {
-    body?: AdminAddExternalChannelGuestBody;
-    path: {
-        slug: string;
-        roomId: string;
-    };
-    query?: never;
-    url: '/admin/organizations/{slug}/external-channels/{roomId}/guests';
-};
-
-export type AddAdminExternalChannelGuestErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type AddAdminExternalChannelGuestError = AddAdminExternalChannelGuestErrors[keyof AddAdminExternalChannelGuestErrors];
-
-export type AddAdminExternalChannelGuestResponses = {
-    /**
-     * Guest membership ensured
-     */
-    200: {
-        data: AdminExternalChannelGuest;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type AddAdminExternalChannelGuestResponse = AddAdminExternalChannelGuestResponses[keyof AddAdminExternalChannelGuestResponses];
 
 export type ListAdminOrganizationMembersData = {
     body?: never;

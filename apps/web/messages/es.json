@@ -3170,9 +3170,9 @@
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
-          "externalChannels": {
-            "title": "Canales externos",
-            "description": "Crea canales externos para cualquier organización anfitriona y añade usuarios existentes como invitados."
+          "matchedChannels": {
+            "title": "Canales emparejados",
+            "description": "Crea canales emparejados sin organización y gestiona su lista de participantes."
           },
           "x402Payments": {
             "title": "Pagos x402",
@@ -3717,23 +3717,20 @@
           "grantError": "No se pudieron otorgar los créditos gratuitos"
         }
       },
-      "ExternalChannels": {
-        "title": "Canales externos",
-        "description": "Elige una organización anfitriona, crea un canal externo en vivo y añade usuarios existentes de la plataforma como invitados. Los miembros de la organización anfitriona no pueden ser invitados.",
+      "MatchedChannels": {
+        "title": "Canales emparejados",
+        "description": "Crea canales emparejados sin organización, gestiona la lista y añade miembros actuales de una organización por snapshot.",
         "backToAdmin": "Volver al administrador",
-        "hostOrganization": "Organización anfitriona",
-        "hostOrgHelper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
-        "hostOrgRequired": "Selecciona una organización anfitriona",
-        "listError": "No se pudieron cargar los canales externos",
+        "listError": "No se pudieron cargar los canales emparejados",
         "List": {
           "title": "Canales",
-          "description": "Canales externos en vivo de {org}.",
+          "description": "Canales emparejados en vivo con visibilidad solo por lista.",
           "loading": "Cargando canales…",
-          "empty": "Aún no hay canales externos para esta organización."
+          "empty": "Aún no hay canales emparejados."
         },
         "Create": {
-          "title": "Crear canal externo",
-          "description": "Crea un canal externo en vivo en la organización anfitriona seleccionada. No se te añade como miembro de la sala.",
+          "title": "Crear canal emparejado",
+          "description": "Crea un canal en vivo sin organización. No se te añade como miembro de la sala.",
           "name": "Nombre",
           "namePlaceholder": "Opcional; se deriva del slug si está vacío",
           "slug": "Slug",
@@ -3741,28 +3738,39 @@
           "slugRequired": "Introduce un slug de canal",
           "submit": "Crear canal",
           "submitting": "Creando…",
-          "success": "Canal externo creado",
-          "error": "No se pudo crear el canal externo"
+          "success": "Canal emparejado creado",
+          "error": "No se pudo crear el canal emparejado"
         },
         "Detail": {
-          "back": "Volver a canales externos",
-          "hostLabel": "Anfitrión {org} · {slug}",
-          "guestRequired": "Selecciona un usuario para añadir como invitado",
-          "addGuestSuccess": "Invitado añadido",
-          "alreadyGuest": "El usuario ya es invitado en este canal",
-          "addGuestError": "No se pudo añadir el invitado. Los miembros de la organización anfitriona no pueden ser invitados.",
-          "Guests": {
-            "title": "Invitados",
-            "description": "Usuarios con acceso de invitado en este canal externo.",
-            "empty": "Aún no hay invitados.",
+          "back": "Volver a canales emparejados",
+          "slugLabel": "{slug}",
+          "userRequired": "Selecciona un usuario para añadir",
+          "organizationRequired": "Selecciona una organización para el snapshot",
+          "addUserSuccess": "Usuario añadido a la lista",
+          "alreadyMember": "El usuario ya está en este canal",
+          "addUserError": "No se pudo añadir el usuario",
+          "addOrganizationSuccess": "Se añadieron {added} de {totalMembers} miembros ({alreadyMember} ya estaban en la lista)",
+          "addOrganizationError": "No se pudieron añadir los miembros de la organización",
+          "Roster": {
+            "title": "Lista",
+            "description": "Usuarios con acceso de miembro en este canal emparejado.",
+            "empty": "Aún no hay participantes.",
             "name": "Nombre",
             "email": "Correo"
           },
-          "AddGuest": {
-            "title": "Añadir invitado",
+          "AddUser": {
+            "title": "Añadir usuario",
             "description": "Busca un usuario existente de la plataforma. No se envía invitación por correo; la membresía se crea de inmediato.",
             "user": "Usuario",
-            "submit": "Añadir invitado",
+            "submit": "Añadir usuario",
+            "submitting": "Añadiendo…"
+          },
+          "AddOrganization": {
+            "title": "Añadir organización",
+            "description": "Añade todos los miembros actuales de una organización a este canal. Las altas posteriores no se sincronizan.",
+            "organization": "Organización",
+            "helper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
+            "submit": "Añadir miembros de la organización",
             "submitting": "Añadiendo…"
           }
         }

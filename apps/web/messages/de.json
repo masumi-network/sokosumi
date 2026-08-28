@@ -3166,9 +3166,9 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
-          "externalChannels": {
-            "title": "Externe Channels",
-            "description": "External Channels für beliebige Host-Organisationen erstellen und bestehende Nutzer als Gäste hinzufügen."
+          "matchedChannels": {
+            "title": "Matched Channels",
+            "description": "Organisationslose Matched Channels erstellen und deren Roster verwalten."
           },
           "x402Payments": {
             "title": "x402-Zahlungen",
@@ -3649,23 +3649,20 @@
           "grantError": "Kostenlose Credits konnten nicht gewährt werden"
         }
       },
-      "ExternalChannels": {
-        "title": "Externe Channels",
-        "description": "Wähle eine Host-Organisation, erstelle einen Live-External-Channel und füge bestehende Plattformnutzer als Gäste hinzu. Mitglieder der Host-Organisation können keine Gäste sein.",
+      "MatchedChannels": {
+        "title": "Matched Channels",
+        "description": "Erstelle organisationslose Matched Channels, verwalte das Roster und übernimm aktuelle Organisationsmitglieder per Snapshot.",
         "backToAdmin": "Zurück zur Administration",
-        "hostOrganization": "Host-Organisation",
-        "hostOrgHelper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
-        "hostOrgRequired": "Host-Organisation auswählen",
-        "listError": "Externe Channels konnten nicht geladen werden",
+        "listError": "Matched Channels konnten nicht geladen werden",
         "List": {
           "title": "Channels",
-          "description": "Live-External-Channels von {org}.",
+          "description": "Live-Matched-Channels mit Sichtbarkeit nur über das Roster.",
           "loading": "Channels werden geladen…",
-          "empty": "Noch keine External Channels für diese Organisation."
+          "empty": "Noch keine Matched Channels."
         },
         "Create": {
-          "title": "External Channel erstellen",
-          "description": "Erstellt einen Live-External-Channel auf dem ausgewählten Host. Du wirst nicht als Raummitglied hinzugefügt.",
+          "title": "Matched Channel erstellen",
+          "description": "Erstellt einen live organisationslosen Channel. Du wirst nicht als Raummitglied hinzugefügt.",
           "name": "Name",
           "namePlaceholder": "Optional; wird aus dem Slug abgeleitet, wenn leer",
           "slug": "Slug",
@@ -3673,28 +3670,39 @@
           "slugRequired": "Channel-Slug eingeben",
           "submit": "Channel erstellen",
           "submitting": "Wird erstellt…",
-          "success": "External Channel erstellt",
-          "error": "External Channel konnte nicht erstellt werden"
+          "success": "Matched Channel erstellt",
+          "error": "Matched Channel konnte nicht erstellt werden"
         },
         "Detail": {
-          "back": "Zurück zu External Channels",
-          "hostLabel": "Host {org} · {slug}",
-          "guestRequired": "Benutzer auswählen, der als Gast hinzugefügt werden soll",
-          "addGuestSuccess": "Gast hinzugefügt",
-          "alreadyGuest": "Benutzer ist bereits Gast in diesem Channel",
-          "addGuestError": "Gast konnte nicht hinzugefügt werden. Mitglieder der Host-Organisation können keine Gäste sein.",
-          "Guests": {
-            "title": "Gäste",
-            "description": "Benutzer mit Gastzugang in diesem External Channel.",
-            "empty": "Noch keine Gäste.",
+          "back": "Zurück zu Matched Channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Benutzer auswählen, der hinzugefügt werden soll",
+          "organizationRequired": "Organisation für den Snapshot auswählen",
+          "addUserSuccess": "Benutzer zum Roster hinzugefügt",
+          "alreadyMember": "Benutzer ist bereits in diesem Channel",
+          "addUserError": "Benutzer konnte nicht hinzugefügt werden",
+          "addOrganizationSuccess": "{added} von {totalMembers} Mitgliedern hinzugefügt ({alreadyMember} bereits im Roster)",
+          "addOrganizationError": "Organisationsmitglieder konnten nicht übernommen werden",
+          "Roster": {
+            "title": "Roster",
+            "description": "Benutzer mit Mitgliederzugang in diesem Matched Channel.",
+            "empty": "Noch keine Teilnehmer.",
             "name": "Name",
             "email": "E-Mail"
           },
-          "AddGuest": {
-            "title": "Gast hinzufügen",
+          "AddUser": {
+            "title": "Benutzer hinzufügen",
             "description": "Suche einen bestehenden Plattformnutzer. Es wird keine E-Mail-Einladung gesendet; die Mitgliedschaft wird sofort erstellt.",
             "user": "Benutzer",
-            "submit": "Gast hinzufügen",
+            "submit": "Benutzer hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          },
+          "AddOrganization": {
+            "title": "Organisation hinzufügen",
+            "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel. Spätere Beitritte werden nicht synchronisiert.",
+            "organization": "Organisation",
+            "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
+            "submit": "Organisationsmitglieder hinzufügen",
             "submitting": "Wird hinzugefügt…"
           }
         }

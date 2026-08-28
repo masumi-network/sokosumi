@@ -86,7 +86,7 @@ describe("partitionRoomsForSidebar", () => {
       id: "matched-1",
       kind: "channel",
       myAccess: "member",
-      discoverability: "matched" as unknown as ChatRoom["discoverability"],
+      discoverability: "matched",
       organizationId: null,
       organizationName: null,
       name: "Matched room",
