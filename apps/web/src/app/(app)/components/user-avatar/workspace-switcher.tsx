@@ -26,9 +26,29 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
+export function getOrganizationSettingsPath(
+  pathname: string,
+  organizationId?: string | null,
+): string | null {
+  const isOrganizationSettings =
+    pathname === "/organization" || /^\/organizations\/.+/.test(pathname);
+
+  if (!isOrganizationSettings) {
+    return null;
+  }
+
+  // Personal workspace has no active org; `/organization` would only bounce home.
+  if (organizationId === null) {
+    return "/";
+  }
+
+  return "/organization";
+}
+
 interface SwitchOrganizationWorkspaceOptions {
   shouldRedirectAgentJobsBasePath?: boolean;
   shouldRedirectTaskDetailPath?: boolean;
+  shouldRedirectOrganizationSettingsPath?: boolean;
   successMessage?: string;
   router?: AppRouterInstance;
   pathname?: string;
@@ -83,6 +103,26 @@ export async function switchOrganizationWorkspace(
     }
   }
 
+  const shouldRedirectOrganizationSettingsPath =
+    options?.shouldRedirectOrganizationSettingsPath ?? true;
+  if (
+    shouldRedirectOrganizationSettingsPath &&
+    options?.router &&
+    options?.pathname
+  ) {
+    const organizationSettingsPath = getOrganizationSettingsPath(
+      options.pathname,
+      organizationId,
+    );
+    if (organizationSettingsPath) {
+      runRouterTransition(() => {
+        options.router?.replace(organizationSettingsPath);
+        options.router?.refresh();
+      }, options.startTransition);
+      return;
+    }
+  }
+
   if (options?.router) {
     runRouterTransition(() => {
       options.router?.refresh();
@@ -101,6 +141,7 @@ export function useWorkspaceSwitcher() {
     options?: {
       shouldRedirectAgentJobsBasePath?: boolean;
       shouldRedirectTaskDetailPath?: boolean;
+      shouldRedirectOrganizationSettingsPath?: boolean;
       successMessage?: string;
     },
   ): Promise<void> => {

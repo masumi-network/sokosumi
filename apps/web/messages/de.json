@@ -146,7 +146,7 @@
       "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} erneuert",
       "creditsExpiresToday": "Credits werden heute erneuert",
       "creditsExpired": "Credits verfallen",
-      "organizations": "Organisationen"
+      "organization": "Organisation"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
