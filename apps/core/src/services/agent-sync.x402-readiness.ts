@@ -47,8 +47,8 @@ export function boundCheckErrorForLogging(errors: readonly string[]): string {
  * Safe operator context for a successful node check that composes to zero
  * ready pairs. Never log API-key ids, RPC URLs, or facilitator credentials
  * anywhere in this service. Credit UNITS are logged in full because a unit is
- * `eip155:<chainId>:<asset>` — two public chain identifiers and nothing about
- * the key that holds it — and the unit is exactly what an operator must top
+ * `eip155:<chainId>:<asset>`: two public chain identifiers and nothing about
+ * the key that holds it. The unit is exactly what an operator must top
  * up. Amounts are reduced to a boolean: the balance is not needed to act, and
  * Sentry retains context far longer than operator logs.
  */
@@ -110,7 +110,7 @@ export async function syncX402BuySideReadiness(
 ): Promise<boolean> {
   // ONE client instance for the whole cycle: the spend caps read IS the
   // memoized `GET /api-key-status` the client already resolves, so this
-  // costs one request, not two — separate instances would each fetch it.
+  // costs one request, not two, because separate instances each fetch it.
   const nodeClient = paymentClient();
   const [networksResult, spendCapsResult, walletsResult] = await Promise.all([
     nodeClient.getX402AvailableNetworks({ signal: options.signal }),

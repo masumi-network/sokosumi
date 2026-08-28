@@ -216,7 +216,7 @@ export function computeEnabledPricedNetworks(
  *
  * On (4), masumi ADR 0016: the node caps x402 spend on the API KEY, not on a
  * wallet. `usageLimited` off means uncapped. On, it requires a positive
- * balance for unit `<caip2Network>:<asset>` — byte-identical to this pair
+ * balance for unit `<caip2Network>:<asset>`, byte-identical to this pair
  * key, which is why the gate is a map lookup. The one exception is the node's
  * own grandfathering: a `usageLimited` key holding NO `eip155:` row at all is
  * uncapped on the node and really can pay, so treating it as unready would
@@ -311,7 +311,7 @@ export function composeX402ReadySources(
       const remaining = spendCaps.creditsByUnit.get(pairLabel) ?? 0n;
       if (remaining <= 0n) {
         console.warn(
-          `[sync/agents] x402 pair ${pairLabel} has no remaining usage credits on Soko's payment-node API key, so it cannot be buy-side ready — grant credits for unit ${pairLabel} with PATCH /api/v1/api-key, or clear usageLimited on the key`,
+          `[sync/agents] x402 pair ${pairLabel} has no remaining usage credits on Soko's payment-node API key, so it cannot be buy-side ready. Grant credits for unit ${pairLabel} with PATCH /api/v1/api-key, or clear usageLimited on the key`,
         );
         continue;
       }
@@ -331,7 +331,7 @@ export function composeX402ReadySources(
       if (amount === null) {
         continue;
       }
-      // Opaque and case-sensitive — trim only. Whitespace-only cannot sign.
+      // Opaque and case-sensitive, so trim only. Whitespace-only cannot sign.
       const evmWalletId = trimEvmWalletId(walletState.wallet.id);
       const evmWalletAddress = walletState.wallet.address?.toLowerCase() ?? "";
       if (!evmWalletId || !EVM_ADDRESS_PATTERN.test(evmWalletAddress)) {
@@ -347,14 +347,14 @@ export function composeX402ReadySources(
     }
     if (!best) {
       console.warn(
-        `[sync/agents] x402 pair ${pairLabel} has no usable Purchasing wallet, so it cannot be buy-side ready — the node's listing exposes none that Soko's key can reach on this chain, or none holding both native gas and the priced token; create, scope, and fund one`,
+        `[sync/agents] x402 pair ${pairLabel} has no usable Purchasing wallet, so it cannot be buy-side ready. The node's listing exposes none that Soko's key can reach on this chain, or none holding both native gas and the priced token; create, scope, and fund one`,
       );
       continue;
     }
 
     if (spendCaps.grandfatheredUncapped) {
       console.warn(
-        `[sync/agents] x402 pair ${pairLabel} is buy-side ready on an UNCAPPED key: the key is usageLimited but holds no eip155 credit row, so the payment node grandfathers it and enforces no x402 spend cap — grant credits for unit ${pairLabel} to make the cap real`,
+        `[sync/agents] x402 pair ${pairLabel} is buy-side ready on an UNCAPPED key: the key is usageLimited but holds no eip155 credit row, so the payment node grandfathers it and enforces no x402 spend cap. Grant credits for unit ${pairLabel} to make the cap real`,
       );
     }
 
@@ -371,12 +371,12 @@ export function composeX402ReadySources(
   // asset is priceable), and each environment allows one chain today, so this
   // sort is a no-op right now. It stays because the allowlists are meant to
   // grow: the serialized array IS the change-detection key, so an unstable
-  // order would flip the cache — and page — with no readiness change behind
+  // order would flip the cache, and the page with it, on no readiness change
   // it. Code-unit order, not localeCompare, for the same reason: localeCompare
   // depends on the host's ICU build and default locale, so two Core instances
   // could disagree and alternately rewrite the cache every cycle.
   //
-  // NOTE: multi-pair output is untestable today — compose refuses every chain
+  // NOTE: multi-pair output is untestable today, because compose refuses every chain
   // outside the one-entry allowlist, so no input reaches this comparator with
   // two pairs. Whoever grows the allowlist must add multi-pair compose/sort
   // tests in the same change.

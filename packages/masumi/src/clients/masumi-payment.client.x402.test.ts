@@ -607,7 +607,7 @@ describe("api-key-status memoization", () => {
     const abortedCall = client.getX402KeySpendCaps({
       signal: controller.signal,
     });
-    // Both callers must be ones that actually await the shared resolution —
+    // Both callers must be ones that actually await the shared resolution:
     // the wallet listing no longer does, so it would pass this vacuously.
     const unaffectedCall = client.getX402KeySpendCaps();
     controller.abort();

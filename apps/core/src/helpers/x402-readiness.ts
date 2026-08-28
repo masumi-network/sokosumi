@@ -38,7 +38,7 @@ export interface X402ReadySource {
   /** ERC-20 contract address the pair is priced and paid in. */
   asset: string;
   /**
-   * Managed EVM wallet that signs this pair — the `evmWalletId` the pay
+   * Managed EVM wallet that signs this pair: the `evmWalletId` the pay
    * route passes to `POST /x402/pay`, so signing needs no per-payment
    * wallet lookup. The spend cap is key-global (masumi ADR 0016), so any
    * funded wallet on the chain is an equally valid signer; the sync recorded

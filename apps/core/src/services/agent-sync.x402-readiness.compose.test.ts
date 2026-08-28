@@ -129,8 +129,8 @@ describe("composeX402ReadySources", () => {
     });
 
     it("drops the pair and names the unit when the credits are spent to zero", () => {
-      // A zero-credit key passes every wallet-side checklist item — the wallet
-      // is listed and funded — so without this warn it is a silent zero-pairs
+      // A zero-credit key passes every wallet-side checklist item. The wallet
+      // is listed and funded, so without this warn it is a silent zero-pairs
       // deployment.
       const consoleWarnSpy = vi
         .spyOn(console, "warn")
