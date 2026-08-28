@@ -83,7 +83,20 @@ export interface X402WalletBalanceInput {
 // the pipeline could never bind.
 const caip2EvmNetworkSchema = z.string().regex(CAIP2_EVM_NETWORK_PATTERN);
 const evmAddressSchema = z.string().regex(EVM_ADDRESS_PATTERN);
-const baseUnitAmountSchema = z.string().regex(/^\d+$/);
+/**
+ * Digit ceiling for any base-unit amount the node reports.
+ *
+ * An EVM balance cannot exceed max uint256, which is 78 digits, so 80 clears
+ * every real value with room to spare. The bound is not cosmetic: `BigInt()`
+ * is superlinear in digit count, so an unbounded digit string from the far
+ * side is CPU the sync worker spends on a value that cannot be a balance.
+ */
+const MAX_BASE_UNIT_DIGITS = 80;
+
+const baseUnitAmountSchema = z
+  .string()
+  .regex(/^\d+$/)
+  .max(MAX_BASE_UNIT_DIGITS);
 const assetDecimalsSchema = z.number().int().min(0).max(255);
 const nodeDateSchema = z.union([
   z.date(),
@@ -129,6 +142,16 @@ const apiKeyUsageCreditSchema = z.object({
   unit: z.string(),
   amount: z.string(),
 });
+
+/**
+ * Row ceiling for `RemainingUsageCredits`.
+ *
+ * One row is one `<caip2Network>:<asset>` unit the key holds credit in, so a
+ * real key has a handful. Thousands is version skew or a node fault, and the
+ * loop below turns every row into a `BigInt`. Refusing the read fails closed,
+ * which is the same direction every other guard here takes.
+ */
+const MAX_USAGE_CREDIT_ROWS = 1_000;
 
 const x402WalletSchema: z.ZodType<X402Wallet> = z.object({
   id: z.string().min(1),
@@ -470,6 +493,7 @@ export function createX402PaymentMethods(
         // ready that the node would then refuse with a 402.
         const creditRows = z
           .array(apiKeyUsageCreditSchema)
+          .max(MAX_USAGE_CREDIT_ROWS)
           .safeParse(status.RemainingUsageCredits);
         if (!creditRows.success) {
           return err(
@@ -488,7 +512,14 @@ export function createX402PaymentMethods(
           // rows, it does not parse them. Reading that as still-grandfathered
           // would call a hard-capped key uncapped.
           sawEvmRow = true;
-          if (!/^\d+$/.test(row.amount)) {
+          // Length first: an over-long amount is dropped exactly like an
+          // unparsable one, so its unit reads as zero and the pair delists.
+          // Checking before BigInt is the point, since that is the
+          // superlinear call.
+          if (
+            row.amount.length > MAX_BASE_UNIT_DIGITS ||
+            !/^\d+$/.test(row.amount)
+          ) {
             continue;
           }
           creditsByUnit.set(

@@ -507,6 +507,48 @@ describe("getX402KeySpendCaps", () => {
     expect(caps?.creditsByUnit.size).toBe(0);
   });
 
+  it("drops an eip155 row whose amount is longer than any real balance", async () => {
+    // 200 digits cannot be a uint256 balance, and BigInt() is superlinear in
+    // digit count. Dropping the row costs the sync worker nothing and still
+    // ends grandfathering, so the unit reads zero and the pair delists.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          {
+            unit: `eip155:84532:${USDC_BASE_SEPOLIA}`,
+            amount: "9".repeat(200),
+          },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("fails closed when the node returns more credit rows than a key can hold", async () => {
+    // A real key holds one row per unit it has credit in, so thousands is
+    // version skew or a node fault. Every row costs a BigInt parse.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: Array.from({ length: 1001 }, (_, index) => ({
+          unit: `eip155:84532:${USDC_BASE_SEPOLIA}${index}`,
+          amount: "1",
+        })),
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
   it("reports an unlimited key as uncapped and not grandfathered", async () => {
     getApiKeyStatusMock.mockResolvedValue(
       statusResponse({ usageLimited: false }),
@@ -871,6 +913,35 @@ describe("getX402WalletBalances", () => {
           Balances: [
             walletBalance(),
             walletBalance({ native: { amount: -1 } }),
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402WalletBalances({
+      evmWalletId: "wallet_1",
+      evmWalletAddress: purchasingWallet().address,
+      caip2Network: "eip155:84532",
+    });
+
+    expect(result.isErr() && result.error).toContain("malformed row");
+  });
+
+  it("fails closed when a balance amount is longer than any real balance", async () => {
+    // Max uint256 is 78 digits. A longer amount is not a balance, and the
+    // bound keeps an unbounded digit string off the BigInt path.
+    getX402WalletsBalanceMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          evmWalletId: "wallet_1",
+          address: purchasingWallet().address,
+          Balances: [
+            walletBalance({
+              native: { symbol: "ETH", decimals: 18, amount: "9".repeat(200) },
+            }),
           ],
         },
       },
