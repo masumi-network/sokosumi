@@ -115,6 +115,21 @@ const x402BudgetSchema: z.ZodType<X402Budget> = z.object({
   updatedAt: nodeDateSchema,
 });
 
+/**
+ * One `RemainingUsageCredits` row from `GET /api-key-status`.
+ *
+ * Shape only. The node really can hold an `amount` that is not a base-unit
+ * integer, and such a row is judged per unit below (it ends grandfathering
+ * but adds nothing to its unit's sum) rather than failing the whole read, so
+ * the digit check deliberately stays out of this schema. Validating the shape
+ * here is what keeps an absent or version-skewed array from reading as "this
+ * key holds no credits".
+ */
+const apiKeyUsageCreditSchema = z.object({
+  unit: z.string(),
+  amount: z.string(),
+});
+
 const x402WalletSchema: z.ZodType<X402Wallet> = z.object({
   id: z.string().min(1),
   networkId: z.string().min(1),
@@ -446,14 +461,24 @@ export function createX402PaymentMethods(
             "api-key-status returned no usageLimited flag; refusing to judge x402 spend caps",
           );
         }
-        const rows = Array.isArray(status.RemainingUsageCredits)
-          ? status.RemainingUsageCredits
-          : [];
+        // Zod, like every other node read here, and for the same reason the
+        // flag above is guarded: `RemainingUsageCredits` is required, so an
+        // absent or malformed array is version skew, never "this key holds no
+        // credits". Reading it as an empty list would set
+        // `grandfatheredUncapped` on a usageLimited key and mark every pair
+        // ready that the node would then refuse with a 402.
+        const creditRows = z
+          .array(apiKeyUsageCreditSchema)
+          .safeParse(status.RemainingUsageCredits);
+        if (!creditRows.success) {
+          return err(
+            "api-key-status returned no usable RemainingUsageCredits array; refusing to judge x402 spend caps",
+          );
+        }
         const creditsByUnit = new Map<string, bigint>();
         let sawEvmRow = false;
-        for (const row of rows) {
-          const unit =
-            typeof row?.unit === "string" ? row.unit.toLowerCase() : "";
+        for (const row of creditRows.data) {
+          const unit = row.unit.toLowerCase();
           if (!unit.startsWith("eip155:")) {
             continue;
           }
@@ -462,7 +487,7 @@ export function createX402PaymentMethods(
           // rows, it does not parse them. Reading that as still-grandfathered
           // would call a hard-capped key uncapped.
           sawEvmRow = true;
-          if (typeof row.amount !== "string" || !/^\d+$/.test(row.amount)) {
+          if (!/^\d+$/.test(row.amount)) {
             continue;
           }
           creditsByUnit.set(

@@ -519,6 +519,42 @@ describe("getX402KeySpendCaps", () => {
     expect(caps?.grandfatheredUncapped).toBe(false);
   });
 
+  it("fails closed when the node answers 200 without the credit rows", async () => {
+    // RemainingUsageCredits is required, so an absent array is version skew,
+    // never "this key holds no credits". Reading it as empty would call a
+    // usage-limited key grandfathered and mark every pair ready.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: undefined,
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("fails closed when a credit row has the wrong shape", async () => {
+    // Distinct from an unparsable AMOUNT, which is a string the node can
+    // really hold and is judged per unit. A row whose amount is not even a
+    // string is a contract break, and guessing at it could hide a real cap.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: 1000 },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
   it("fails closed when the node answers 200 without the usageLimited flag", async () => {
     // Version skew must not read as "uncapped" and mark pairs ready that a
     // capped key cannot actually pay.
