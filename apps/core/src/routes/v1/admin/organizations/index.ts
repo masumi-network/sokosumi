@@ -1,8 +1,4 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import mountGetAdminOrgExternalChannel from "./[slug]/external-channels/[roomId]/get.js";
-import mountAddAdminExternalChannelGuest from "./[slug]/external-channels/[roomId]/guests/post.js";
-import mountListAdminOrgExternalChannels from "./[slug]/external-channels/get.js";
-import mountCreateAdminOrgExternalChannel from "./[slug]/external-channels/post.js";
 import mountGetAdminOrganizationBySlug from "./[slug]/get.js";
 import mountRemoveAdminOrganizationMember from "./[slug]/members/[memberId]/delete.js";
 import mountUpdateAdminOrganizationMemberRole from "./[slug]/members/[memberId]/role/patch.js";
@@ -16,10 +12,6 @@ const app = new OpenAPIHonoWithAuth();
 
 mountListAdminOrganizations(app);
 mountGetAdminOrganizationBySlug(app);
-mountListAdminOrgExternalChannels(app);
-mountCreateAdminOrgExternalChannel(app);
-mountGetAdminOrgExternalChannel(app);
-mountAddAdminExternalChannelGuest(app);
 mountListAdminOrganizationMembers(app);
 mountAddAdminOrganizationMember(app);
 mountRemoveAdminOrganizationMember(app);
