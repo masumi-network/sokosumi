@@ -1,6 +1,6 @@
 "use server";
 
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, sanitizeChannelSlug } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -32,7 +32,15 @@ const roomIdSchema = z.string().uuid();
 
 const createMatchedChannelSchema = z.object({
   name: z.string().trim().max(80).optional(),
-  slug: z.string().trim().min(1).max(80),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .transform((value) => sanitizeChannelSlug(value))
+    .refine((value) => value.length > 0, {
+      message: "Invalid channel slug",
+    }),
   topic: z.string().trim().max(200).optional(),
 });
 

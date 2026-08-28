@@ -1,6 +1,12 @@
 "use client";
 
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  CHANNEL_SLUG_MAX_LENGTH,
+  CORE_API_ERROR_KINDS,
+  channelNameFromSlug,
+  liveSanitizeChannelSlug,
+  sanitizeChannelSlug,
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -17,6 +23,8 @@ import {
 } from "@/lib/actions/admin-matched-channels/action";
 import type { AdminMatchedChannelOption } from "@/lib/clients/generated/core";
 
+const CHANNEL_NAME_MAX = 80;
+
 export function MatchedChannelsHub() {
   const t = useTranslations("App.Admin.MatchedChannels");
   const router = useRouter();
@@ -24,6 +32,7 @@ export function MatchedChannelsHub() {
   const [channels, setChannels] = useState<AdminMatchedChannelOption[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(true);
   const [channelName, setChannelName] = useState("");
+  const [nameDirty, setNameDirty] = useState(false);
   const [channelSlug, setChannelSlug] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -48,10 +57,23 @@ export function MatchedChannelsHub() {
     };
   }, [t]);
 
+  function handleSlugChange(raw: string) {
+    const slug = liveSanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX_LENGTH);
+    setChannelSlug(slug);
+    if (!nameDirty) {
+      setChannelName(channelNameFromSlug(sanitizeChannelSlug(slug)));
+    }
+  }
+
+  function handleNameChange(raw: string) {
+    setNameDirty(true);
+    setChannelName(raw.slice(0, CHANNEL_NAME_MAX));
+  }
+
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const slug = channelSlug.trim();
+    const slug = sanitizeChannelSlug(channelSlug);
     if (!slug) {
       toast.error(t("Create.slugRequired"));
       return;
@@ -76,6 +98,7 @@ export function MatchedChannelsHub() {
       }
       toast.success(t("Create.success"));
       setChannelName("");
+      setNameDirty(false);
       setChannelSlug("");
       router.push(`/admin/matched-channels/${result.value.id}`);
       router.refresh();
@@ -131,9 +154,10 @@ export function MatchedChannelsHub() {
             <Input
               id="channel-name"
               value={channelName}
-              onChange={(event) => setChannelName(event.target.value)}
-              maxLength={80}
+              onChange={(event) => handleNameChange(event.target.value)}
+              maxLength={CHANNEL_NAME_MAX}
               placeholder={t("Create.namePlaceholder")}
+              autoComplete="off"
             />
           </div>
           <div className="space-y-2">
@@ -141,14 +165,16 @@ export function MatchedChannelsHub() {
             <Input
               id="channel-slug"
               value={channelSlug}
-              onChange={(event) => setChannelSlug(event.target.value)}
-              maxLength={80}
+              onChange={(event) => handleSlugChange(event.target.value)}
+              maxLength={CHANNEL_SLUG_MAX_LENGTH}
               required
               placeholder={t("Create.slugPlaceholder")}
+              autoComplete="off"
+              spellCheck={false}
             />
           </div>
         </div>
-        <Button type="submit" disabled={isCreating}>
+        <Button type="submit" disabled={isCreating || !channelSlug}>
           {isCreating ? t("Create.submitting") : t("Create.submit")}
         </Button>
       </form>
