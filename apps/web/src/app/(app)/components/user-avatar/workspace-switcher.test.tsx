@@ -96,8 +96,15 @@ describe("workspace switcher", () => {
       expect(getOrganizationSettingsPath("/organization")).toBe(
         "/organization",
       );
-      expect(getOrganizationSettingsPath("/organizations")).toBe(
+      expect(getOrganizationSettingsPath("/organizations/utxo", "org-1")).toBe(
         "/organization",
+      );
+    });
+
+    it("returns / when switching away from an organization on settings routes", () => {
+      expect(getOrganizationSettingsPath("/organization", null)).toBe("/");
+      expect(getOrganizationSettingsPath("/organizations/utxo", null)).toBe(
+        "/",
       );
     });
 
@@ -105,6 +112,7 @@ describe("workspace switcher", () => {
       expect(getOrganizationSettingsPath("/account")).toBeNull();
       expect(getOrganizationSettingsPath("/tasks")).toBeNull();
       expect(getOrganizationSettingsPath("/billing")).toBeNull();
+      expect(getOrganizationSettingsPath("/organizations")).toBeNull();
       expect(getOrganizationSettingsPath("/admin/organizations")).toBeNull();
       expect(
         getOrganizationSettingsPath("/admin/organizations/acme"),
@@ -202,7 +210,7 @@ describe("workspace switcher", () => {
     });
   });
 
-  it("replaces to /organization when switching to personal from org settings", async () => {
+  it("replaces to / when switching to personal from org settings", async () => {
     pathnameMock = "/organizations/utxo";
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
@@ -238,7 +246,7 @@ describe("workspace switcher", () => {
       expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: null,
       });
-      expect(replaceMock).toHaveBeenCalledWith("/organization");
+      expect(replaceMock).toHaveBeenCalledWith("/");
       expect(refreshMock).toHaveBeenCalled();
     });
   });

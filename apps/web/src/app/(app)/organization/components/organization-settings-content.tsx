@@ -1,6 +1,15 @@
+import { ResultAsync } from "neverthrow";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { OrganizationBillingAccessRestricted } from "@/app/organizations/[organizationSlug]/components/organization-billing-access-restricted";
+import OrganizationBillingDetails from "@/app/organizations/[organizationSlug]/components/organization-billing-details";
+import { OrganizationCoworkerAccess } from "@/app/organizations/[organizationSlug]/components/organization-coworker-access";
+import OrganizationInformation from "@/app/organizations/[organizationSlug]/components/organization-information";
+import OrganizationInviteButton from "@/app/organizations/[organizationSlug]/components/organization-invite-button";
+import { OrganizationInviteLinks } from "@/app/organizations/[organizationSlug]/components/organization-invite-links";
+import { OrganizationSeatSummaryCard } from "@/app/organizations/[organizationSlug]/components/organization-seat-summary";
+import { OrganizationVendorGrants } from "@/app/organizations/[organizationSlug]/components/organization-vendor-grants";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { MembersTable } from "@/components/members-table";
@@ -19,15 +28,6 @@ import {
   organizationService,
   userService,
 } from "@/lib/services";
-
-import { OrganizationBillingAccessRestricted } from "./components/organization-billing-access-restricted";
-import OrganizationBillingDetails from "./components/organization-billing-details";
-import { OrganizationCoworkerAccess } from "./components/organization-coworker-access";
-import OrganizationInformation from "./components/organization-information";
-import OrganizationInviteButton from "./components/organization-invite-button";
-import { OrganizationInviteLinks } from "./components/organization-invite-links";
-import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
-import { OrganizationVendorGrants } from "./components/organization-vendor-grants";
 
 interface OrganizationSettingsContentProps {
   organization: OrganizationRecord;
@@ -65,24 +65,24 @@ export async function OrganizationSettingsContent({
 
   if (isOwnerOrAdmin) {
     const [pendingResult, inviteLinksResult] = await Promise.all([
-      organizationService.getPendingInvitations(organization.id).then(
-        (data) => ({ ok: true as const, data }),
-        (error: unknown) => ({ ok: false as const, error }),
+      ResultAsync.fromPromise(
+        organizationService.getPendingInvitations(organization.id),
+        (error: unknown) => error,
       ),
-      organizationService.getOrganizationInviteLinks(organization.id).then(
-        (data) => ({ ok: true as const, data }),
-        (error: unknown) => ({ ok: false as const, error }),
+      ResultAsync.fromPromise(
+        organizationService.getOrganizationInviteLinks(organization.id),
+        (error: unknown) => error,
       ),
     ]);
 
-    if (pendingResult.ok) {
-      pendingInvitations = pendingResult.data;
+    if (pendingResult.isOk()) {
+      pendingInvitations = pendingResult.value;
     } else {
       console.error("Failed to get pending invitations", pendingResult.error);
     }
 
-    if (inviteLinksResult.ok) {
-      inviteLinks = inviteLinksResult.data;
+    if (inviteLinksResult.isOk()) {
+      inviteLinks = inviteLinksResult.value;
     } else {
       console.error(
         "Failed to get organization invite links",

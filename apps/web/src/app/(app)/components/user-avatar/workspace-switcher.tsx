@@ -26,15 +26,23 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
-export function getOrganizationSettingsPath(pathname: string): string | null {
-  if (
-    pathname === "/organization" ||
-    /^\/organizations(?:\/.*)?$/.test(pathname)
-  ) {
-    return "/organization";
+export function getOrganizationSettingsPath(
+  pathname: string,
+  organizationId?: string | null,
+): string | null {
+  const isOrganizationSettings =
+    pathname === "/organization" || /^\/organizations\/.+/.test(pathname);
+
+  if (!isOrganizationSettings) {
+    return null;
   }
 
-  return null;
+  // Personal workspace has no active org; `/organization` would only bounce home.
+  if (organizationId === null) {
+    return "/";
+  }
+
+  return "/organization";
 }
 
 interface SwitchOrganizationWorkspaceOptions {
@@ -104,6 +112,7 @@ export async function switchOrganizationWorkspace(
   ) {
     const organizationSettingsPath = getOrganizationSettingsPath(
       options.pathname,
+      organizationId,
     );
     if (organizationSettingsPath) {
       runRouterTransition(() => {

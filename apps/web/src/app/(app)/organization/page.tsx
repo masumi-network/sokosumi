@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
+import { OrganizationSettingsContent } from "@/app/organization/components/organization-settings-content";
 import { userService } from "@/lib/services";
-
-import { OrganizationSettingsContent } from "../organizations/[organizationSlug]/organization-settings-content";
 
 /**
  * Context path for the active organization's settings (Settings → Organization).

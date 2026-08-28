@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { OrganizationSettingsContent } from "@/app/organization/components/organization-settings-content";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-
-import { OrganizationSettingsContent } from "./organization-settings-content";
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
