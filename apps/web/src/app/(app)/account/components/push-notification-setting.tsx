@@ -40,9 +40,8 @@ export function PushNotificationSetting() {
   // Both messages above describe this browser, next to a switch that writes the
   // account. Saying what the switch still does keeps it from reading as dead.
   //
-  // Not `!push.canSubscribeHere`: that answers "may I subscribe right now", and
-  // says no while the mount read is still out. This says "we know this browser
-  // cannot", so an unread answer stays silent rather than claiming a block.
+  // Both halves are three-state aware, so a capability the mount read has not
+  // answered yet stays silent rather than claiming a block.
   const knownUnableHere = push.isSupported === false || push.isBlocked;
 
   // The account-off wording waits for `canToggleAccount`, so a preference still

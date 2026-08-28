@@ -86,10 +86,14 @@ describe("usePushPreference", () => {
     });
     await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
+    let subscribedHere: boolean | undefined;
     await act(async () => {
-      await result.current.setAccountEnabled(true);
+      subscribedHere = await result.current.setAccountEnabled(true);
     });
 
+    // The view reports the write by this value, so pin it on the path that
+    // does subscribe as well as on the ones that do not.
+    expect(subscribedHere).toBe(true);
     expect(activatePushMock).toHaveBeenCalledWith("user_1");
     expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
     expect(activatePushMock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -292,10 +296,12 @@ describe("usePushPreference", () => {
     });
     await waitFor(() => expect(result.current.isBlocked).toBe(true));
 
+    let subscribedHere: boolean | undefined;
     await act(async () => {
-      await result.current.setAccountEnabled(true);
+      subscribedHere = await result.current.setAccountEnabled(true);
     });
 
+    expect(subscribedHere).toBe(false);
     expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
     expect(activatePushMock).not.toHaveBeenCalled();
     expect(result.current.isAccountEnabled).toBe(true);

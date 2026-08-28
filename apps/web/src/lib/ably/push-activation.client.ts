@@ -65,24 +65,17 @@ export async function activatePush(userId: string): Promise<void> {
  * so answer from the stored permission and prompt nothing. This tells the SDK
  * the truth; it only declines to re-prompt. Delete it when that PR ships.
  */
-let isAnsweringFromStoredValue = false;
-
 function answerPermissionFromStoredValue(): () => void {
-  // One patch at a time. A second activation would capture the first one's
-  // stub as "the original" and put it back for good, leaving the page unable
-  // to prompt at all. The first call owns the unwind.
-  if (typeof Notification === "undefined" || isAnsweringFromStoredValue) {
+  if (typeof Notification === "undefined") {
     return () => {};
   }
 
   const request = Notification.requestPermission;
-  isAnsweringFromStoredValue = true;
   Notification.requestPermission = () =>
     Promise.resolve(Notification.permission);
 
   return () => {
     Notification.requestPermission = request;
-    isAnsweringFromStoredValue = false;
   };
 }
 

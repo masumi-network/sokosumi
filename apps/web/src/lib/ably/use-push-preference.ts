@@ -240,8 +240,6 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     const granted = await requestBrowserNotificationPermission();
     setPermission(granted);
     if (granted !== "granted") {
-      // Undo the caller's optimistic switch: nothing here is subscribed.
-      setHasPushSubscription(false);
       return false;
     }
 
@@ -295,6 +293,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         // in and this browser stays out. The blocked branch above does the
         // same thing for a reader who refused it earlier.
         const subscribedHere = await subscribeThisBrowser(sessionUserId);
+        if (!subscribedHere) {
+          // Undo this call's own optimism: nothing here is subscribed.
+          setHasPushSubscription(false);
+        }
         await recordAccountOptIn(true);
         return subscribedHere;
       });
