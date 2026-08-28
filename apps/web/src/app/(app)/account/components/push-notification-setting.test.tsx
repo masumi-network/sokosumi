@@ -8,7 +8,7 @@ import type { PushPreference } from "@/lib/ably/use-push-preference";
 import { PushNotificationSetting } from "./push-notification-setting";
 
 /** Typed by the hook's own contract, so the fixture cannot drift from it. */
-const pushPreference: PushPreference = {
+const DEFAULTS: PushPreference = {
   isAccountEnabled: false,
   isDeviceEnabled: false,
   isSupported: true,
@@ -19,6 +19,9 @@ const pushPreference: PushPreference = {
   setAccountEnabled: vi.fn(),
   setDeviceEnabled: vi.fn(),
 };
+
+/** What the mocked hook returns. `renderWith` resets it before each render. */
+const pushPreference: PushPreference = { ...DEFAULTS };
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -37,16 +40,7 @@ vi.mock("sonner", () => ({
 }));
 
 function renderWith(overrides: Partial<PushPreference>) {
-  Object.assign(pushPreference, {
-    isAccountEnabled: false,
-    isDeviceEnabled: false,
-    isSupported: true,
-    isBlocked: false,
-    canToggleAccount: true,
-    canToggleDevice: true,
-    isSaving: false,
-    ...overrides,
-  });
+  Object.assign(pushPreference, DEFAULTS, overrides);
   render(<PushNotificationSetting />);
 }
 
