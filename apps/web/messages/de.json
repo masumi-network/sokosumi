@@ -146,7 +146,7 @@
       "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} erneuert",
       "creditsExpiresToday": "Credits werden heute erneuert",
       "creditsExpired": "Credits verfallen",
-      "organizations": "Organisationen"
+      "organization": "Organisation"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
@@ -3314,8 +3314,7 @@
           },
           "credits": {
             "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
-            "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
+            "description": "Kombiniertes verfügbares Guthaben für diese Organisation."
           },
           "members": {
             "title": "Mitglieder",
@@ -3325,7 +3324,6 @@
             "loadError": "Mitglieder konnten nicht geladen werden.",
             "user": "Benutzer",
             "role": "Rolle",
-            "credits": "Guthaben",
             "subscription": "Abonnement",
             "seat": "Seat",
             "seatAssigned": "Zugewiesen",
@@ -5530,7 +5528,12 @@
       "filterAll": "Alle",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Projekt",
-      "filterTaskLabel": "Aufgabe"
+      "filterTaskLabel": "Aufgabe",
+      "recentsTab": "Zuletzt verwendet",
+      "recentsEmptyTitle": "Keine kürzlichen Dateien",
+      "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
+      "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
+      "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden"
     }
   },
   "Share": {
