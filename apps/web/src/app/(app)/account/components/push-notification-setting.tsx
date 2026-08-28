@@ -44,35 +44,43 @@ export function PushNotificationSetting() {
     return t("pushError");
   };
 
-  // The switches stay enabled while a save runs, so focus survives it.
-  // `canSubmit` is what stops a second click landing on top of the first.
-  const handleAccountToggle = (nextValue: boolean) => {
-    if (!push.canSubmit) {
-      return;
-    }
+  /**
+   * One shape for both rows. The switches stay enabled while a save runs so
+   * focus survives it, which makes this guard the thing that stops a second
+   * click landing on top of the first. Each row passes its own `canToggle`,
+   * because the two rows unlock under different conditions. `success` is a
+   * callback so each row keeps its own literal message keys.
+   */
+  const toggleHandler =
+    (
+      canToggle: boolean,
+      change: (next: boolean) => Promise<void>,
+      success: (next: boolean) => string,
+    ) =>
+    (nextValue: boolean) => {
+      if (!canToggle || push.isSaving) {
+        return;
+      }
 
-    toast.promise(push.setAccountEnabled(nextValue), {
-      loading: t("loading"),
-      success: () =>
-        nextValue
-          ? t("pushEnabledSuccess")
-          : t("pushDisabledEverywhereSuccess"),
-      error: reportFailure,
-    });
-  };
+      toast.promise(change(nextValue), {
+        loading: t("loading"),
+        success: () => success(nextValue),
+        error: reportFailure,
+      });
+    };
 
-  const handleDeviceToggle = (nextValue: boolean) => {
-    if (!push.canSubmit) {
-      return;
-    }
+  const handleAccountToggle = toggleHandler(
+    push.canToggleAccount,
+    push.setAccountEnabled,
+    (next) =>
+      next ? t("pushEnabledSuccess") : t("pushDisabledEverywhereSuccess"),
+  );
 
-    toast.promise(push.setDeviceEnabled(nextValue), {
-      loading: t("loading"),
-      success: () =>
-        nextValue ? t("pushDeviceEnabledSuccess") : t("pushDisabledSuccess"),
-      error: reportFailure,
-    });
-  };
+  const handleDeviceToggle = toggleHandler(
+    push.canToggleDevice,
+    push.setDeviceEnabled,
+    (next) => (next ? t("pushDeviceEnabledSuccess") : t("pushDisabledSuccess")),
+  );
 
   return (
     <>

@@ -4659,7 +4659,7 @@
         "pushDisabledEverywhereSuccess": "Notificaciones push desactivadas en todos tus dispositivos",
         "pushDeviceTitle": "Este dispositivo",
         "pushDeviceDescription": "Muestra los avisos en este navegador.",
-        "pushDeviceInactiveDescription": "Activa las notificaciones push para usar este navegador.",
+        "pushDeviceInactiveDescription": "Las notificaciones push están desactivadas en tu cuenta, así que este navegador permanece en silencio.",
         "pushDeviceAriaLabel": "Activar/desactivar las notificaciones push en este dispositivo",
         "pushDeviceEnabledSuccess": "Notificaciones push activadas en este dispositivo",
         "pushDisabledSuccess": "Notificaciones push desactivadas en este dispositivo",

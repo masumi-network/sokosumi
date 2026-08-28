@@ -250,6 +250,52 @@ describe("usePushPreference", () => {
     expect(result.current.canToggleDevice).toBe(false);
   });
 
+  /**
+   * A browser with no push API: an iOS Safari tab outside the installed web
+   * app, say. The account axis is a Core write, so the reader still owns the
+   * switch that silences or wakes the devices that can push. Gating it on
+   * support left the reader unable to silence their phone from here.
+   */
+  it("silences every device from a browser that cannot push", async () => {
+    Reflect.deleteProperty(globalThis, "PushManager");
+    setAccountOptIn(true);
+    setAccountWriteResult(false);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    expect(result.current.isSupported).toBe(false);
+    // Nothing to subscribe here, so the device row stays locked.
+    expect(result.current.canToggleDevice).toBe(false);
+
+    await act(async () => {
+      await result.current.setAccountEnabled(false);
+    });
+
+    expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: false });
+    expect(result.current.isAccountEnabled).toBe(false);
+  });
+
+  it("wakes the other devices from a browser that cannot push", async () => {
+    Reflect.deleteProperty(globalThis, "PushManager");
+    setAccountOptIn(false);
+    setAccountWriteResult(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+
+    await act(async () => {
+      await result.current.setAccountEnabled(true);
+    });
+
+    expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
+    // No prompt and no registration: this browser has nothing to register.
+    expect(requestPermissionMock).not.toHaveBeenCalled();
+    expect(activatePushMock).not.toHaveBeenCalled();
+    expect(result.current.isAccountEnabled).toBe(true);
+  });
+
   it("shows the device row off when the reader revoked the OS permission", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(true);

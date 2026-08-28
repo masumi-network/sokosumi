@@ -4659,7 +4659,7 @@
         "pushDisabledEverywhereSuccess": "Push-Benachrichtigungen auf allen Geräten deaktiviert",
         "pushDeviceTitle": "Dieses Gerät",
         "pushDeviceDescription": "Zeige die Meldungen in diesem Browser.",
-        "pushDeviceInactiveDescription": "Schalte Push-Benachrichtigungen ein, um diesen Browser zu nutzen.",
+        "pushDeviceInactiveDescription": "Push-Benachrichtigungen sind für dein Konto aus. Dieser Browser bleibt still.",
         "pushDeviceAriaLabel": "Push-Benachrichtigungen auf diesem Gerät umschalten",
         "pushDeviceEnabledSuccess": "Push-Benachrichtigungen auf diesem Gerät aktiviert",
         "pushDisabledSuccess": "Push-Benachrichtigungen auf diesem Gerät deaktiviert",

@@ -89,18 +89,21 @@ interface PushPreference {
   isBlocked: boolean;
   /**
    * Whether the account row may be toggled. False while the session or the
-   * account opt-in is still loading, or the browser cannot push. Deliberately
-   * ignores a save in flight, so the row keeps focus across a save.
+   * account opt-in is still loading. Deliberately ignores a save in flight, so
+   * the row keeps focus across a save, and deliberately ignores whether this
+   * browser can push: the account axis is a Core write, and a reader on a
+   * browser with no push API still owns the switch that silences or wakes
+   * their other devices.
    */
   canToggleAccount: boolean;
   /**
-   * Whether the device row may be toggled. Adds account consent to
-   * `canToggleAccount`: subscribing a browser the account gate then silences
-   * would spend a permission prompt on nothing.
+   * Whether the device row may be toggled. Adds this browser's push support
+   * and account consent to `canToggleAccount`: subscribing a browser the
+   * account gate then silences would spend a permission prompt on nothing.
    */
   canToggleDevice: boolean;
-  /** Whether a change may start now. The toggle checks minus a save in flight. */
-  canSubmit: boolean;
+  /** Whether a save is in flight. Each row refuses a second change until it lands. */
+  isSaving: boolean;
   /** Rejects on failure so the view can surface its own error toast. */
   setAccountEnabled: (next: boolean) => Promise<void>;
   setDeviceEnabled: (next: boolean) => Promise<void>;
@@ -233,6 +236,13 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         return runSave(() => recordAccountOptIn(false));
       }
 
+      if (!isSupported) {
+        // A browser with no push API of its own still owns the account axis.
+        // The write wakes the reader's other devices; there is simply no
+        // subscription to add here, and the row's description says so.
+        return runSave(() => recordAccountOptIn(true));
+      }
+
       // Turning consent on also subscribes this browser, so the common case is
       // still one gesture. The device row then only ever touches this browser.
       return changePushSubscription(true, async (sessionUserId) => {
@@ -243,7 +253,13 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         await recordAccountOptIn(true);
       });
     },
-    [changePushSubscription, recordAccountOptIn, runSave, subscribeThisBrowser],
+    [
+      changePushSubscription,
+      isSupported,
+      recordAccountOptIn,
+      runSave,
+      subscribeThisBrowser,
+    ],
   );
 
   const setDeviceEnabled = useCallback(
@@ -260,8 +276,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     [changePushSubscription, subscribeThisBrowser],
   );
 
-  const canToggleAccount =
-    isSupported && Boolean(userId) && accountOptIn !== null;
+  const canToggleAccount = Boolean(userId) && accountOptIn !== null;
 
   return {
     isAccountEnabled: accountOptIn === true,
@@ -271,8 +286,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     isSupported,
     isBlocked: isSupported && permission === "denied",
     canToggleAccount,
-    canToggleDevice: canToggleAccount && accountOptIn === true,
-    canSubmit: canToggleAccount && !isSaving,
+    canToggleDevice: canToggleAccount && isSupported && accountOptIn === true,
+    isSaving,
     setAccountEnabled,
     setDeviceEnabled,
   };

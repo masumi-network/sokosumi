@@ -4690,7 +4690,7 @@
         "pushDisabledEverywhereSuccess": "Push notifications disabled on all your devices",
         "pushDeviceTitle": "This device",
         "pushDeviceDescription": "Show the banners on this browser.",
-        "pushDeviceInactiveDescription": "Turn push notifications on to use this browser.",
+        "pushDeviceInactiveDescription": "Push notifications are off for your account, so this browser stays silent.",
         "pushDeviceAriaLabel": "Toggle push notifications on this device",
         "pushDeviceEnabledSuccess": "Push notifications enabled on this device",
         "pushDisabledSuccess": "Push notifications disabled on this device",

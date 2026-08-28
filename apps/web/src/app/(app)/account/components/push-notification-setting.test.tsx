@@ -12,7 +12,7 @@ const pushPreference = {
   isBlocked: false,
   canToggleAccount: true,
   canToggleDevice: true,
-  canSubmit: true,
+  isSaving: false,
   setAccountEnabled: vi.fn(),
   setDeviceEnabled: vi.fn(),
 };
@@ -41,7 +41,7 @@ function renderWith(overrides: Partial<typeof pushPreference>) {
     isBlocked: false,
     canToggleAccount: true,
     canToggleDevice: true,
-    canSubmit: true,
+    isSaving: false,
     ...overrides,
   });
   render(<PushNotificationSetting />);
