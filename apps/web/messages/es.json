@@ -5239,7 +5239,8 @@
       "Edit": {
         "action": "Editar",
         "composerAria": "Editar mensaje. Intro para guardar, Escape para cancelar, Mayús+Intro para nueva línea.",
-        "edited": "Editado"
+        "edited": "(editado)",
+        "editedAt": "Editado {when}"
       },
       "Browse": {
         "trigger": "Explorar canales",

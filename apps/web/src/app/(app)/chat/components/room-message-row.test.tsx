@@ -22,6 +22,9 @@ import type {
 import { ChatMessageRow } from "./room-message-row";
 
 vi.mock("next-intl", () => ({
+  useFormatter: () => ({
+    dateTime: (value: Date | string) => `dt:${new Date(value).toISOString()}`,
+  }),
   useTranslations: (namespace?: string) => {
     return (key: string, values?: Record<string, unknown>) => {
       if (key === "Reactions.whoReacted" && values) {
@@ -52,6 +55,9 @@ vi.mock("next-intl", () => ({
       }
       if (key === "reasoning.thoughtForDuration" && values?.duration != null) {
         return `Thought for ${String(values.duration)}`;
+      }
+      if (key === "Edit.editedAt" && values?.when != null) {
+        return `Edited ${String(values.when)}`;
       }
       return key;
     };
@@ -1430,14 +1436,57 @@ describe("ChatMessageRow", () => {
     );
   });
 
-  it("shows Edited when editedAt is set", () => {
+  it("puts the edited cue next to the timestamp with a hover time", () => {
     renderRow({
       message: userMessage({
         editedAt: new Date("2026-07-01T15:00:00.000Z"),
       }),
     });
 
-    expect(screen.getByText("Edit.edited")).toBeInTheDocument();
+    const label = screen.getByText("Edit.edited");
+    expect(label.parentElement).toHaveAttribute(
+      "title",
+      expect.stringMatching(/^Edited /),
+    );
+    expect(label.parentElement).not.toHaveAttribute("aria-label");
+    expect(screen.getByText(/^Edited /)).toHaveClass("sr-only");
+    expect(screen.getByRole("time").parentElement).toContainElement(label);
+  });
+
+  it("appends the edited cue after continuation body text, not above a quote", () => {
+    renderRow({
+      isContinuation: true,
+      message: userMessage({
+        content: "Follow-up",
+        editedAt: new Date("2026-07-01T15:00:00.000Z"),
+        quote: {
+          messageId: "original",
+          authorName: "Bob",
+          snippet: "quoted line",
+        },
+      }),
+    });
+
+    const label = screen.getByText("Edit.edited");
+    const body = screen.getByText("Follow-up");
+    const quote = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(label.parentElement).toHaveAttribute(
+      "title",
+      expect.stringMatching(/^Edited /),
+    );
+    expect(screen.getByText(/^Edited /)).toHaveClass("sr-only");
+    expect(
+      screen.getByTestId("message-continuation-rail"),
+    ).not.toContainElement(label);
+    expect(quote).not.toContainElement(label);
+    expect(
+      body.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      quote.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("renders inline editor when isEditing without Save/Cancel buttons", () => {

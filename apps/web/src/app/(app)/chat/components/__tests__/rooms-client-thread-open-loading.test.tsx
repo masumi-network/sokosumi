@@ -119,7 +119,8 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
 }));
 
 vi.mock("@/components/chat/room-read-overlay", () => ({
-  applyRoomReadResultToOverlay: vi.fn(),
+  rememberRoomRead: vi.fn(),
+  forgetRoomRead: vi.fn(),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
