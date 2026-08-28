@@ -179,7 +179,8 @@ export const adminOrganizationMemberOverviewItemSchema = z
     }),
     lastSeenAt: dateTimeSchema.nullable(),
     subscriptionPlan: z.string().nullable().openapi({
-      description: "Member subscription plan in organization context",
+      description:
+        "Organization subscription plan, repeated on each member row",
       example: "starter",
     }),
     subscriptionStatus: stripeSubscriptionStatusNullableSchema,

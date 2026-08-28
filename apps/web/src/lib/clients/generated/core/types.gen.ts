@@ -292,7 +292,7 @@ export type AdminOrganizationMemberOverviewItem = {
     };
     lastSeenAt: Date | null;
     /**
-     * Member subscription plan in organization context
+     * Organization subscription plan, repeated on each member row
      */
     subscriptionPlan: string | null;
     /**

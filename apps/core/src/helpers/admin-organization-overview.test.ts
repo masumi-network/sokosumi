@@ -10,7 +10,7 @@ const {
   getLatestSubscriptionByReferenceIdMock,
   resolveOrganizationBillingPlanMock,
   getEnterpriseContractBillingSummaryMock,
-  getCreditsMock,
+  sumOrganizationOwnedCreditBalancesMock,
   buildCreditsPayloadMock,
 } = vi.hoisted(() => ({
   getUniqueOrganizationWithRelationsMock: vi.fn(),
@@ -21,7 +21,7 @@ const {
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
   resolveOrganizationBillingPlanMock: vi.fn(),
   getEnterpriseContractBillingSummaryMock: vi.fn(),
-  getCreditsMock: vi.fn(),
+  sumOrganizationOwnedCreditBalancesMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
 }));
 
@@ -33,6 +33,10 @@ vi.mock("@sokosumi/database/helpers", () => ({
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: {
+    sumOrganizationOwnedCreditBalances: (...args: unknown[]) =>
+      sumOrganizationOwnedCreditBalancesMock(...args),
+  },
   memberRepository: {
     getAssignedMemberCount: (...args: unknown[]) =>
       getAssignedMemberCountMock(...args),
@@ -60,10 +64,6 @@ vi.mock("@/helpers/enterprise-contract-summary.js", () => ({
 
 vi.mock("@/helpers/subscription.js", () => ({
   buildCreditsPayload: (...args: unknown[]) => buildCreditsPayloadMock(...args),
-}));
-
-vi.mock("@/helpers/user.js", () => ({
-  getCredits: (...args: unknown[]) => getCreditsMock(...args),
 }));
 
 import {
@@ -110,24 +110,7 @@ const MEMBER = {
   },
 };
 
-function createTx(
-  ownerUserId: string | null,
-  firstMemberUserId: string | null,
-) {
-  const memberFindFirst = vi.fn(async (args: { where?: { role?: string } }) => {
-    if (args.where?.role === "owner") {
-      return ownerUserId ? { userId: ownerUserId } : null;
-    }
-    return firstMemberUserId ? { userId: firstMemberUserId } : null;
-  });
-
-  return {
-    member: {
-      findFirst: memberFindFirst,
-    },
-    memberFindFirst,
-  };
-}
+const POOL_REMAINING_CENTS = 90_246n * 10_000_000_000n;
 
 describe("buildAdminOrganizationOverviewDetail", () => {
   beforeEach(() => {
@@ -136,10 +119,13 @@ describe("buildAdminOrganizationOverviewDetail", () => {
     getAssignedMemberCountMock.mockResolvedValue(0);
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
     getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
-    getCreditsMock.mockResolvedValue(90_246);
+    sumOrganizationOwnedCreditBalancesMock.mockResolvedValue({
+      totalCents: POOL_REMAINING_CENTS,
+      remainingCents: POOL_REMAINING_CENTS,
+    });
   });
 
-  it("returns numeric pool remaining credits for self-serve via getCredits with the owner", async () => {
+  it("returns numeric org-owned remaining credits for self-serve", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",
       plan: "free",
@@ -147,63 +133,39 @@ describe("buildAdminOrganizationOverviewDetail", () => {
       cancelAtPeriodEnd: false,
       periodEnd: null,
     });
-    const { memberFindFirst, ...tx } = createTx("user_owner", "user_member");
 
     const detail = await buildAdminOrganizationOverviewDetail(
       "acme-corp",
-      tx as unknown as Prisma.TransactionClient,
+      {} as Prisma.TransactionClient,
     );
 
     expect(detail?.totalCredits).toBe(90_246);
-    expect(getCreditsMock).toHaveBeenCalledWith(
-      "user_owner",
+    expect(sumOrganizationOwnedCreditBalancesMock).toHaveBeenCalledWith(
       "org_1",
       expect.anything(),
     );
-    expect(memberFindFirst).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to the earliest member when the organization has no owner", async () => {
+  it("does not seat-gate paid self-serve pool remaining", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",
-      plan: "free",
-      purchasedSeats: 0,
+      plan: "starter",
+      purchasedSeats: 5,
       cancelAtPeriodEnd: false,
       periodEnd: null,
     });
-    const { memberFindFirst, ...tx } = createTx(null, "user_member");
+    getAssignedMemberCountMock.mockResolvedValue(0);
 
     const detail = await buildAdminOrganizationOverviewDetail(
       "acme-corp",
-      tx as unknown as Prisma.TransactionClient,
+      {} as Prisma.TransactionClient,
     );
 
     expect(detail?.totalCredits).toBe(90_246);
-    expect(getCreditsMock).toHaveBeenCalledWith(
-      "user_member",
+    expect(sumOrganizationOwnedCreditBalancesMock).toHaveBeenCalledWith(
       "org_1",
       expect.anything(),
     );
-    expect(memberFindFirst).toHaveBeenCalledTimes(2);
-  });
-
-  it("returns 0 for self-serve when the organization has no members", async () => {
-    resolveOrganizationBillingPlanMock.mockResolvedValue({
-      mode: "self_serve",
-      plan: "free",
-      purchasedSeats: 0,
-      cancelAtPeriodEnd: false,
-      periodEnd: null,
-    });
-    const tx = createTx(null, null);
-
-    const detail = await buildAdminOrganizationOverviewDetail(
-      "acme-corp",
-      tx as unknown as Prisma.TransactionClient,
-    );
-
-    expect(detail?.totalCredits).toBe(0);
-    expect(getCreditsMock).not.toHaveBeenCalled();
   });
 
   it("keeps the enterprise pool remaining credits path", async () => {
@@ -222,15 +184,14 @@ describe("buildAdminOrganizationOverviewDetail", () => {
       isConsumable: true,
     });
     getAssignedMemberCountMock.mockResolvedValue(2);
-    const tx = createTx("user_owner", "user_member");
 
     const detail = await buildAdminOrganizationOverviewDetail(
       "acme-corp",
-      tx as unknown as Prisma.TransactionClient,
+      {} as Prisma.TransactionClient,
     );
 
     expect(detail?.totalCredits).toBe(1_200);
-    expect(getCreditsMock).not.toHaveBeenCalled();
+    expect(sumOrganizationOwnedCreditBalancesMock).not.toHaveBeenCalled();
   });
 });
 

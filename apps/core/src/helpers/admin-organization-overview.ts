@@ -4,13 +4,14 @@ import {
   resolveOrganizationBillingPlan,
 } from "@sokosumi/database/helpers";
 import {
+  creditBucketRepository,
   memberRepository,
   organizationRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary.js";
-import { getCredits } from "@/helpers/user.js";
 
 type AdminOrganizationMemberRecord = Awaited<
   ReturnType<typeof memberRepository.getMembersWithUserAndLastSeen>
@@ -83,41 +84,16 @@ export async function resolveAdminOrganizationOverviewSubscription(
   );
 }
 
-async function resolveOverviewCreditsActorUserId(
-  organizationId: string,
-  tx: Prisma.TransactionClient,
-): Promise<string | null> {
-  const owner = await tx.member.findFirst({
-    where: {
-      organizationId,
-      role: "owner",
-    },
-    select: { userId: true },
-  });
-  if (owner) {
-    return owner.userId;
-  }
-
-  const member = await tx.member.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "asc" },
-    select: { userId: true },
-  });
-  return member?.userId ?? null;
-}
-
 async function resolveSelfServePoolRemainingCredits(
   organizationId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number> {
-  const actorUserId = await resolveOverviewCreditsActorUserId(
-    organizationId,
-    tx,
-  );
-  if (!actorUserId) {
-    return 0;
-  }
-  return getCredits(actorUserId, organizationId, tx);
+  const { remainingCents } =
+    await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+      organizationId,
+      tx,
+    );
+  return convertCentsToCredits(remainingCents);
 }
 
 export async function buildAdminOrganizationMemberOverviewPage(

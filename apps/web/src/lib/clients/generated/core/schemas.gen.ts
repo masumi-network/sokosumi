@@ -1166,7 +1166,7 @@ export const AdminOrganizationMemberOverviewItemSchema = {
                 'string',
                 'null'
             ],
-            description: 'Member subscription plan in organization context',
+            description: 'Organization subscription plan, repeated on each member row',
             example: 'starter'
         },
         subscriptionStatus: {
