@@ -46,14 +46,14 @@ function budgetSensitiveJudgeModel() {
               text: "scoring the turn against the rubric...",
             },
           ],
-          finishReason: "length",
+          finishReason: "length" as const,
           usage: usage(800, 800, 0),
           warnings: [],
         };
       }
       return {
         content: [{ type: "text", text: JSON.stringify(VALID_VERDICT) }],
-        finishReason: "stop",
+        finishReason: "stop" as const,
         usage: usage(400, 100, 300),
         warnings: [],
       };

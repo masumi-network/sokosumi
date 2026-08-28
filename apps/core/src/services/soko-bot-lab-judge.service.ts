@@ -13,8 +13,8 @@ import prisma from "@/lib/db/prisma";
 
 const JUDGE_TIMEOUT_MS = 90_000;
 const VALUE_LIMIT = 2_000;
-/** Production used 800; gpt-5.5 reasoning ate the cap (SOKOSUMI-CORE-3D). */
-export const SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS = 800;
+/** Reasoning tokens count against this cap. 800 left gpt-5.5 with empty JSON (SOKOSUMI-CORE-3D). */
+export const SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS = 8_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
@@ -98,22 +98,11 @@ export async function generateSokoBotJudgeVerdict(options: {
 }
 
 async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
-  // Structured output occasionally comes back empty; one retry is cheap.
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      return await generateSokoBotJudgeVerdict({
-        model: sokoBotJudgeModel(),
-        payload,
-        abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
-      });
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError instanceof Error
-    ? lastError
-    : new SokoBotLabJudgeError("Judge produced no verdict");
+  return generateSokoBotJudgeVerdict({
+    model: sokoBotJudgeModel(),
+    payload,
+    abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
+  });
 }
 
 async function storeTurnVerdict(turnId: string, verdict: SokoBotJudgeVerdict) {
