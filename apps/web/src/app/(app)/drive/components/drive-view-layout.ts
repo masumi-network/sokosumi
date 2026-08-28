@@ -49,9 +49,9 @@ export function driveItemIconWellClass(viewMode: FilesViewMode): string {
     : "flex size-8 shrink-0 items-center justify-center";
 }
 
-/** Matches Lucide Folder `size-5` so react-file-icon does not fill the well. */
+/** Matches Lucide Folder `size-5`; flex centers the svg inside the well. */
 export const DRIVE_FILE_TYPE_ICON_CLASS =
-  "flex size-5 shrink-0 items-center justify-center overflow-hidden [&>svg]:size-full";
+  "flex size-5 shrink-0 items-center justify-center [&_svg]:size-5";
 
 /** Grid: one-line size · date. List: mobile-only row; desktop uses `driveItemMetaDesktopClass`. */
 export function driveItemMetaMobileClass(viewMode: FilesViewMode): string {
