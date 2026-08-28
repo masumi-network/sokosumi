@@ -219,7 +219,7 @@
             "unauthorizedAction": "Iniciar sesión"
           },
           "unassignSeatTitle": "Quitar Seat",
-          "unassignSeatDescription": "Al quitar el Seat de pago de {member}, dejará de recibir créditos de suscripción y pasará a recibir créditos mensuales gratuitos. Los créditos del periodo actual permanecen hasta que expiren."
+          "unassignSeatDescription": "Al quitar el Seat asignado de {member}, dejará de gastar el pool de créditos de la organización y de iniciar trabajo de coworker de pago. El chat humano y las Tasks existentes se mantienen. Los créditos del periodo actual permanecen en el pool de la organización hasta que expiren."
         },
         "assignSeat": "Asignar Seat",
         "unassignSeat": "Quitar Seat"
@@ -2910,6 +2910,11 @@
           "back": "Atrás",
           "chat": "Chat"
         },
+        "SeatRequired": {
+          "title": "Se requiere un Seat asignado",
+          "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
+          "hint": "Pide a un propietario o admin que te asigne un Seat."
+        },
         "ChatLists": {
           "title": "Chats Recientes",
           "noChats": "Aún no hay chats",
@@ -2977,9 +2982,9 @@
           "features": {
             "title": "Free incluye:",
             "items": {
-              "item1": "Acceso limitado a un Coworker agéntico",
+              "item1": "Acceso a Coworkers agénticos",
               "item2": "Acceso a Agents por email y WhatsApp",
-              "item3": "Última generación de modelos Claude",
+              "item3": "Acceso a los últimos modelos de IA",
               "item4": "Acceso a más de 100 Marketing Agents"
             }
           }
@@ -4476,7 +4481,7 @@
           "currentSeatsLabel": "Seats actuales",
           "membersLabel": "Miembros activos",
           "seatsInputLabel": "Seats comprados",
-          "seatsInputHint": "El mínimo es {minimum} para cubrir los Seats de pago en uso. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
+          "seatsInputHint": "El mínimo es {minimum}. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Puedes comprar menos Seats que miembros.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sin plan activo",
           "seatsUpdatedSuccess": "Seats actualizados correctamente.",
@@ -4495,7 +4500,7 @@
         },
         "Seats": {
           "title": "Resumen de Seats",
-          "description": "Los Seats comprados son la capacidad de tu plan de pago. Los miembros con un Seat de pago reciben créditos de suscripción. Los miembros sin Seat de pago reciben créditos mensuales gratuitos.",
+          "description": "Los Seats comprados son la capacidad de tu plan de pago. Los Seats asignados gastan el pool compartido de créditos de la organización. Los miembros sin Seat asignado conservan el chat humano y pueden leer las Tasks existentes.",
           "purchased": "Comprados",
           "assigned": "Asignados",
           "unused": "Sin usar",

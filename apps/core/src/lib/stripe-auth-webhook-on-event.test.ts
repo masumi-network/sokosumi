@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handleEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
+const handleCheckoutSessionCompletedEventMock = vi.fn();
 const captureExceptionMock = vi.fn();
 
 vi.mock("@sentry/node", () => ({
@@ -17,6 +18,8 @@ vi.mock("@/services/stripe-webhook.service", () => ({
 vi.mock("@/services/stripe-backed-subscription.service", () => ({
   handleSubscriptionDeletedEvent: (...args: unknown[]) =>
     handleSubscriptionDeletedEventMock(...args),
+  handleCheckoutSessionCompletedEvent: (...args: unknown[]) =>
+    handleCheckoutSessionCompletedEventMock(...args),
 }));
 
 import {
@@ -45,6 +48,7 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     vi.clearAllMocks();
     handleEventMock.mockResolvedValue(undefined);
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
+    handleCheckoutSessionCompletedEventMock.mockResolvedValue(undefined);
   });
 
   it("routes billing events through stripeWebhookService", async () => {
@@ -58,6 +62,21 @@ describe("handleStripeAuthWebhookOnEvent", () => {
 
     expect(handleEventMock).toHaveBeenCalledWith(event);
     expect(handleSubscriptionDeletedEventMock).not.toHaveBeenCalled();
+  });
+
+  it("handles checkout.session.completed", async () => {
+    const session = { id: "cs_123", subscription: "sub_123" };
+
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_checkout",
+      type: "checkout.session.completed",
+      data: { object: session },
+    } as never);
+
+    expect(handleCheckoutSessionCompletedEventMock).toHaveBeenCalledWith(
+      session,
+    );
+    expect(handleEventMock).not.toHaveBeenCalled();
   });
 
   it("handles customer.subscription.deleted", async () => {

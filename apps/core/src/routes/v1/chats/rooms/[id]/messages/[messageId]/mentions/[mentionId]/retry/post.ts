@@ -77,7 +77,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const message = await prisma.$transaction(async (tx) => {
       await requireChatRoomUserWriteAccess(id, userContext.userId, tx);
-
       const existing = await tx.chatRoomMessage.findFirst({
         where: { id: messageId, roomId: id },
         select: {

@@ -204,7 +204,7 @@
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
           "removeDescription": "Are you sure you want to remove {member} from the organization?",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire.",
+          "unassignSeatDescription": "Removing {member}'s assigned Seat stops them spending the organization credit pool and starting coworker-paid work. Human chat and existing Tasks stay. Current-period credits remain in the organization pool until they expire.",
           "confirm": "Confirm",
           "cancel": "Cancel",
           "Success": {
@@ -2910,6 +2910,11 @@
           "back": "Back",
           "chat": "Chat"
         },
+        "SeatRequired": {
+          "title": "Assigned seat required",
+          "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
+          "hint": "Ask an owner or admin to assign you a Seat."
+        },
         "ChatLists": {
           "title": "Recent Chats",
           "noChats": "No chats yet",
@@ -3008,9 +3013,9 @@
           "features": {
             "title": "Free Includes:",
             "items": {
-              "item1": "Limited Access to 1 Agentic Coworker",
+              "item1": "Access to Agentic Coworkers",
               "item2": "Email and WhatsApp Access to Agents",
-              "item3": "Latest Generation of Claude Models",
+              "item3": "Access to the latest AI models",
               "item4": "Access to 100+ Marketing Agents"
             }
           }
@@ -4507,7 +4512,7 @@
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover paid seats in use. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
+          "seatsInputHint": "Minimum is {minimum}. Organization has {members, plural, =1 {# member} other {# members}}. You can purchase fewer seats than members.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated successfully.",
@@ -4526,7 +4531,7 @@
         },
         "Seats": {
           "title": "Seats overview",
-          "description": "Purchased seats are your paid plan capacity. Members with a paid seat receive subscription credits. Members without a paid seat receive free monthly credits.",
+          "description": "Purchased Seats are your paid plan capacity. Assigned Seats spend the shared organization credit pool. Members without an assigned Seat keep human chat and can read existing Tasks.",
           "purchased": "Purchased",
           "assigned": "Assigned",
           "unused": "Unused",

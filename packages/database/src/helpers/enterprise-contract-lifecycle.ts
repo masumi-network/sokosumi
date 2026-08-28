@@ -22,6 +22,10 @@ import {
   findEnterprisePeriodCreditBucket,
   resolveOrganizationGrantTransactionUserId,
 } from "./enterprise-contract-grants.js";
+import {
+  autoAssignSeatsOnPaidSubscribe,
+  unassignSeatsOverPurchasedCapacity,
+} from "./organization-paid-subscribe-seats.js";
 
 export {
   EnterpriseContractActivationError,
@@ -191,6 +195,17 @@ export async function activateEnterpriseContract(
       status: EnterpriseContractStatus.active,
     },
   });
+
+  await autoAssignSeatsOnPaidSubscribe(
+    contract.organizationId,
+    contract.seats,
+    tx,
+  );
+  await unassignSeatsOverPurchasedCapacity(
+    contract.organizationId,
+    contract.seats,
+    tx,
+  );
 
   return {
     contractId,

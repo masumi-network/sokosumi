@@ -15,7 +15,6 @@ const {
   removeMemberMock,
   applyOrganizationExitChatRevocationMock,
   publishOrganizationExitChatRevocationMock,
-  syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   transactionMock,
   authContextState,
 } = vi.hoisted(() => ({
@@ -32,7 +31,6 @@ const {
   removeMemberMock: vi.fn(),
   applyOrganizationExitChatRevocationMock: vi.fn(),
   publishOrganizationExitChatRevocationMock: vi.fn(),
-  syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
 
@@ -61,11 +59,6 @@ vi.mock("@/helpers/chat-room-organization-exit", () => ({
     applyOrganizationExitChatRevocationMock(...args),
   publishOrganizationExitChatRevocation: (...args: unknown[]) =>
     publishOrganizationExitChatRevocationMock(...args),
-}));
-
-vi.mock("@/services/organization-subscription-auth.service", () => ({
-  syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -121,9 +114,6 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
       statusMessages: [],
     });
     publishOrganizationExitChatRevocationMock.mockResolvedValue(undefined);
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
-      undefined,
-    );
     transactionMock.mockImplementation(async (callback) => callback({}));
   });
 
@@ -156,9 +146,6 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
       "user_target",
       { revokedRoomIds: ["room-1"], statusMessages: [] },
     );
-    expect(
-      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
-    ).toHaveBeenCalledWith("org_1");
     expect(callOrder).toEqual(["apply", "removeMember", "publish"]);
   });
 
@@ -172,9 +159,6 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
 
     expect(response.status).toBe(400);
     expect(publishOrganizationExitChatRevocationMock).not.toHaveBeenCalled();
-    expect(
-      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization is missing", async () => {

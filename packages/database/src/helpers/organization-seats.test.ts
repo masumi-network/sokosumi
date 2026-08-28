@@ -26,11 +26,13 @@ describe("organization-seats helpers", () => {
     );
   });
 
-  it("ensurePurchasedSeatsSufficient validates purchased vs assigned", () => {
-    expect(() => ensurePurchasedSeatsSufficient(4, 5)).toThrow(
-      "Purchased seats (4) must be at least 5",
+  it("ensurePurchasedSeatsSufficient requires an integer of at least 1", () => {
+    expect(() => ensurePurchasedSeatsSufficient(1)).not.toThrow();
+    expect(() => ensurePurchasedSeatsSufficient(4)).not.toThrow();
+    expect(() => ensurePurchasedSeatsSufficient(0)).toThrow(
+      "Purchased seats must be an integer of at least 1",
     );
-    expect(() => ensurePurchasedSeatsSufficient(0, 0)).toThrow(
+    expect(() => ensurePurchasedSeatsSufficient(1.5)).toThrow(
       "Purchased seats must be an integer of at least 1",
     );
   });

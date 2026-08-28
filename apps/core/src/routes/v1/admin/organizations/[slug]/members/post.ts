@@ -19,7 +19,6 @@ import {
   adminOrganizationMemberOverviewItemSchema,
   adminOrganizationSlugParamSchema,
 } from "@/schemas/admin.schema";
-import { syncLocalFreeSeatsAndCreditsForCurrentMembers } from "@/services/organization-subscription-auth.service";
 
 const route = createRoute({
   method: "post",
@@ -96,8 +95,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       return created;
     });
-
-    await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
 
     const members = await memberRepository.getMembersWithUserAndLastSeen(
       organization.id,

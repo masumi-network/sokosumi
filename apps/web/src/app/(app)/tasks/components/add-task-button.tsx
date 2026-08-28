@@ -2,6 +2,8 @@
 
 import { Plus } from "lucide-react";
 
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
+
 import { useCreateTaskModal } from "./create-task-modal";
 
 interface AddTaskButtonProps {
@@ -10,6 +12,11 @@ interface AddTaskButtonProps {
 
 export function AddTaskButton({ label }: AddTaskButtonProps) {
   const { handleOpen } = useCreateTaskModal();
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
+
+  if (!hasAssignedSeat) {
+    return null;
+  }
 
   return (
     <button

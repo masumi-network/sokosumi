@@ -1,7 +1,10 @@
 import * as Sentry from "@sentry/node";
 import type Stripe from "stripe";
 
-import { handleSubscriptionDeletedEvent } from "@/services/stripe-backed-subscription.service";
+import {
+  handleCheckoutSessionCompletedEvent,
+  handleSubscriptionDeletedEvent,
+} from "@/services/stripe-backed-subscription.service";
 import { stripeWebhookService } from "@/services/stripe-webhook.service";
 
 export const BILLING_STRIPE_EVENT_TYPES: ReadonlySet<Stripe.Event.Type> =
@@ -18,6 +21,25 @@ export async function handleStripeAuthWebhookOnEvent(
 ): Promise<void> {
   if (isBillingStripeEventType(event.type)) {
     await stripeWebhookService.handleEvent(event);
+    return;
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    try {
+      await handleCheckoutSessionCompletedEvent(session);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: {
+          stripeEventType: "checkout.session.completed",
+        },
+        extra: {
+          eventId: event.id,
+          sessionId: session.id,
+        },
+      });
+      throw error;
+    }
     return;
   }
 

@@ -9,6 +9,7 @@ import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { findOrchestratorForUser } from "@/helpers/orchestrator-instance";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -21,7 +22,7 @@ const route = createRoute({
   method: "post",
   path: "/me/usage",
   description:
-    "Create personal-scope usage for the orchestrator instance of the user in the body. Always bills the user's personal credit buckets (PA is user-bound, not org-bound).",
+    "Create usage for the orchestrator instance of the user in the body. Bills the organization credit pool when X-Context organization is present; otherwise personal credits.",
   tags: ["Orchestrators"],
   request: {
     body: {
@@ -68,8 +69,9 @@ function serializeUsage(usage: {
   });
 }
 
-async function preparePersonalConsumptions(
+async function prepareOrchestratorConsumptions(
   userId: string,
+  organizationId: string | null,
   cents: bigint,
   tx: Prisma.TransactionClient,
 ): Promise<Consumption[]> {
@@ -80,7 +82,7 @@ async function preparePersonalConsumptions(
   try {
     return await creditBucketRepository.prepareConsumption(
       userId,
-      null,
+      organizationId,
       cents,
       tx,
     );
@@ -94,9 +96,12 @@ async function preparePersonalConsumptions(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOrchestratorAuthContext(c.var.authContext);
+    const orchestratorContext = requireOrchestratorAuthContext(
+      c.var.authContext,
+    );
     const { credits, idempotencyKey, referenceId, userId } =
       c.req.valid("json");
+    const organizationId = orchestratorContext.context?.organizationId ?? null;
 
     const result = await serializableTransaction(async (tx) => {
       // Include archived rows so idempotent retries still resolve after purge
@@ -132,6 +137,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             "Idempotency key already used with different reference id",
           );
         }
+        if (existing.organizationId !== organizationId) {
+          throw conflict(
+            "Idempotency key already used with different organization id",
+          );
+        }
 
         return { usage: existing, created: false };
       }
@@ -141,13 +151,41 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Orchestrator instance not found for user");
       }
 
+      if (organizationId !== null) {
+        const member = await tx.member.findUnique({
+          where: {
+            userId_organizationId: {
+              userId,
+              organizationId,
+            },
+          },
+          select: { userId: true },
+        });
+
+        if (!member) {
+          throw badRequest(
+            "User is not a member of the specified organization",
+          );
+        }
+      }
+
+      await requireAssignedOrganizationSeat(userId, organizationId, tx);
+
       const cents = convertCreditsToCents(credits);
-      const consumptions = await preparePersonalConsumptions(userId, cents, tx);
+      const consumptions = await prepareOrchestratorConsumptions(
+        userId,
+        organizationId,
+        cents,
+        tx,
+      );
 
       const transaction = await tx.transaction.create({
         data: {
           amount: cents * BigInt(-1),
           user: { connect: { id: userId } },
+          ...(organizationId
+            ? { organization: { connect: { id: organizationId } } }
+            : {}),
           creditConsumptions: {
             createMany: {
               data: consumptions.map((consumption) => ({
@@ -168,7 +206,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           referenceId: referenceId ?? null,
           orchestratorId,
           userId,
-          organizationId: null,
+          organizationId,
           cents,
           transactionId: transaction.id,
         },

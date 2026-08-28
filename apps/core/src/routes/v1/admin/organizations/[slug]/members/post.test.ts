@@ -16,7 +16,6 @@ const {
   getMembersWithUserAndLastSeenMock,
   ensurePersonalWorkspaceForOrganizationMembershipMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
-  syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   buildCreditsPayloadMock,
   transactionMock,
   authContextState,
@@ -36,7 +35,6 @@ const {
   getMembersWithUserAndLastSeenMock: vi.fn(),
   ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
   upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
-  syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -74,11 +72,6 @@ vi.mock("@/helpers/org-membership-personal-workspace", () => ({
 vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
   upgradeGuestChatRoomMembershipsToMember: (...args: unknown[]) =>
     upgradeGuestChatRoomMembershipsToMemberMock(...args),
-}));
-
-vi.mock("@/services/organization-subscription-auth.service", () => ({
-  syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
 }));
 
 vi.mock("@/helpers/subscription.js", () => ({
@@ -157,9 +150,6 @@ describe("POST /admin/organizations/{slug}/members", () => {
       undefined,
     );
     upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
-    syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
-      undefined,
-    );
     getMembersWithUserAndLastSeenMock.mockResolvedValue([MEMBER]);
     buildCreditsPayloadMock.mockResolvedValue({
       credits: { total: 0, subscription: null },
@@ -188,8 +178,5 @@ describe("POST /admin/organizations/{slug}/members", () => {
 
     expect(response.status).toBe(500);
     expect(createMemberMock).not.toHaveBeenCalled();
-    expect(
-      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
-    ).not.toHaveBeenCalled();
   });
 });

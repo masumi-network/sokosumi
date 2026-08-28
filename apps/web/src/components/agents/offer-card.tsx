@@ -562,7 +562,7 @@ export function OfferDetailDialog({
 }: {
   item: OfferDetailItem | null;
   onClose: () => void;
-  onStart: () => void;
+  onStart?: () => void;
   typeLabel?: (type: OutputKind) => string;
   labels: OfferDetailLabels;
 }) {
@@ -597,7 +597,7 @@ function OfferDetailBody({
   item: OfferDetailItem;
   labels: OfferDetailLabels;
   typeLabel: (type: OutputKind) => string;
-  onStart: () => void;
+  onStart?: () => void;
 }) {
   const { offer } = item;
   const outputs = offerOutputs(offer);
@@ -698,10 +698,12 @@ function OfferDetailBody({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Button type="button" onClick={onStart}>
-              {labels.start}
-              <ArrowRight aria-hidden className="size-4" />
-            </Button>
+            {onStart ? (
+              <Button type="button" onClick={onStart}>
+                {labels.start}
+                <ArrowRight aria-hidden className="size-4" />
+              </Button>
+            ) : null}
             {active.url ? (
               <Button asChild variant="outline">
                 <a href={active.url} target="_blank" rel="noreferrer">
