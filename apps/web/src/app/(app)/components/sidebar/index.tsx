@@ -107,7 +107,7 @@ export default function Sidebar({
         <div className="flex w-full flex-col gap-0">
           <PersonalAssistantNav enabled={hermesMenuEnabled} />
           {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-          <MenuItems />
+          <MenuItems calendarMenuEnabled={hermesMenuEnabled} />
           <SidebarSeparator />
           {chatList}
         </div>

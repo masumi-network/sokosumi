@@ -8,9 +8,12 @@ import {
   subMonths,
 } from "date-fns";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
+import { getSession } from "@/lib/auth/auth.server";
+import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
@@ -58,6 +61,10 @@ export default async function CalendarPage({
   searchParams,
 }: CalendarPageProps) {
   await connection();
+  const session = await getSession();
+  if (!isHermesBetaAccessEmail(session?.user.email)) {
+    notFound();
+  }
 
   const { date } = await searchParams;
   const now = new Date();

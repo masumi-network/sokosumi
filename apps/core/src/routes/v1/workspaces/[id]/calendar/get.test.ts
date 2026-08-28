@@ -9,12 +9,14 @@ const {
   taskFindManyMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
+  userFindUniqueMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
   taskFindManyMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
 }));
@@ -38,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
+    user: { findUnique: userFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
 }));
@@ -144,6 +147,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     taskFindManyMock.mockReset();
     taskScheduleOccurrenceCountMock.mockReset();
     taskScheduleOccurrenceFindManyMock.mockReset();
+    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
     taskFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
@@ -193,6 +197,16 @@ describe("GET /workspaces/{id}/calendar", () => {
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-NMKR users before reading calendar data", async () => {
+    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+
+    const response = await requestCalendar(createApp());
+
+    expect(response.status).toBe(403);
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
   it("excludes skipped and canceled occurrences", async () => {

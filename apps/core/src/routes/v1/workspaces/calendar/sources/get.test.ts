@@ -7,10 +7,12 @@ import type { AuthenticationContext } from "@/middleware/auth";
 const {
   projectFindManyMock,
   taskScheduleOccurrenceFindFirstMock,
+  userFindUniqueMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   projectFindManyMock: vi.fn(),
   taskScheduleOccurrenceFindFirstMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
 
@@ -18,6 +20,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findMany: projectFindManyMock },
     taskScheduleOccurrence: { findFirst: taskScheduleOccurrenceFindFirstMock },
+    user: { findUnique: userFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
 }));
@@ -72,6 +75,7 @@ describe("GET /workspaces/calendar/sources", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
     workspaceFindUniqueMock.mockResolvedValue({
       organization: null,
       user: { name: "Ada Lovelace", image: "https://example.com/ada.png" },
@@ -132,6 +136,18 @@ describe("GET /workspaces/calendar/sources", () => {
       orderBy: [{ name: "asc" }, { id: "asc" }],
       select: { id: true, name: true, logo: true, closedAt: true },
     });
+  });
+
+  it("rejects non-NMKR users before reading sources", async () => {
+    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+
+    const response = await createApp().request(
+      "http://localhost/calendar/sources",
+    );
+
+    expect(response.status).toBe(403);
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+    expect(projectFindManyMock).not.toHaveBeenCalled();
   });
 
   it("adds the legacy source only when the workspace has legacy occurrences", async () => {

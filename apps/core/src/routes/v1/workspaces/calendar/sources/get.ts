@@ -1,9 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
+import { isNmkrEmail } from "@sokosumi/utils";
 
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { notFound } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -35,7 +36,14 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireAuthorizedUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
+    const user = await prisma.user.findUnique({
+      where: { id: userContext.userId },
+      select: { email: true },
+    });
+    if (!isNmkrEmail(user?.email)) {
+      throw forbidden("Calendar is only available to NMKR users");
+    }
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const workspaceId = workspaceContext.workspaceId;
 
