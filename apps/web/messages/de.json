@@ -5530,7 +5530,12 @@
       "filterAll": "Alle",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Projekt",
-      "filterTaskLabel": "Aufgabe"
+      "filterTaskLabel": "Aufgabe",
+      "recentsTab": "Zuletzt verwendet",
+      "recentsEmptyTitle": "Keine kürzlichen Dateien",
+      "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
+      "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
+      "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden"
     }
   },
   "Share": {

@@ -7959,6 +7959,162 @@ export const RenameDriveFolderRequestSchema = {
     ]
 } as const;
 
+export const DriveRecentsListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DriveRecentsItem'
+    }
+} as const;
+
+export const DriveRecentsItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveRecentsDriveFileItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsTaskOutputItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
+            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem'
+        }
+    }
+} as const;
+
+export const DriveRecentsDriveFileItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'drive-file'
+            ],
+            example: 'drive-file',
+            description: 'Drive blob file at any folder depth'
+        },
+        name: {
+            type: 'string',
+            example: 'report.pdf',
+            description: 'File name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/...',
+            description: 'Blob URL'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/Projects/report.pdf',
+            description: 'Blob pathname'
+        },
+        size: {
+            type: 'integer',
+            example: 1024,
+            description: 'File size in bytes'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (blob uploadedAt)'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'fileUrl',
+        'pathname',
+        'size',
+        'activityAt'
+    ]
+} as const;
+
+export const DriveRecentsTaskOutputItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'task-output'
+            ],
+            example: 'task-output',
+            description: 'READY TASK_OUTPUT TaskFile row'
+        },
+        name: {
+            type: 'string',
+            example: 'mockup-v2.pdf',
+            description: 'TaskFile name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/tasks/...',
+            description: 'TaskFile blob URL'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 1024000,
+            description: 'File size in bytes (null if unknown)'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (TaskFile updatedAt)'
+        },
+        taskFileId: {
+            type: 'string',
+            example: 'tf_123',
+            description: 'TaskFile ID'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_xyz789',
+            description: 'Parent task ID'
+        },
+        taskName: {
+            type: 'string',
+            example: 'Design mockups',
+            description: 'Parent task name'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Q4 Campaign',
+            description: 'Parent project name, or null'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'fileUrl',
+        'size',
+        'activityAt',
+        'taskFileId',
+        'taskId',
+        'taskName',
+        'projectId',
+        'projectName'
+    ]
+} as const;
+
 export const DriveTasksListSchema = {
     type: 'array',
     items: {

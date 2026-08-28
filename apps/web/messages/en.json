@@ -5530,7 +5530,12 @@
       "filterAll": "All",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Project",
-      "filterTaskLabel": "Task"
+      "filterTaskLabel": "Task",
+      "recentsTab": "Recents",
+      "recentsEmptyTitle": "No recent files",
+      "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
+      "loadRecentsError": "Failed to load recent files",
+      "loadMoreRecentsError": "Failed to load more recent files"
     }
   },
   "Share": {
