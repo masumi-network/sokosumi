@@ -29,7 +29,7 @@ export function ProjectDetailHeader({
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-4 md:px-0">
       <Link
         href="/projects"
         className="text-muted-foreground hover:text-foreground hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
@@ -45,7 +45,7 @@ export function ProjectDetailHeader({
             logo={projectLogo}
             className="size-10 rounded-lg text-sm"
           />
-          <div className="min-w-0 space-y-1.5">
+          <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
                 {projectName}
@@ -62,23 +62,23 @@ export function ProjectDetailHeader({
                 </a>
               ) : null}
             </div>
-
-            <dl className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
-              {metadata.map((item, index) => (
-                <div key={item.label} className="flex items-center gap-2">
-                  {index > 0 ? <span aria-hidden>·</span> : null}
-                  <div className="flex items-center gap-1.5">
-                    <dt>{item.label}</dt>
-                    <dd>{item.value}</dd>
-                  </div>
-                </div>
-              ))}
-            </dl>
           </div>
         </div>
 
         <div className="shrink-0">{actions}</div>
       </div>
+
+      <dl className="text-muted-foreground flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
+        {metadata.map((item, index) => (
+          <div key={item.label} className="flex items-center gap-2">
+            {index > 0 ? <span aria-hidden>·</span> : null}
+            <div className="flex items-center gap-1.5">
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

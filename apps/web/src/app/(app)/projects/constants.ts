@@ -26,9 +26,9 @@ export const PROJECTS_DETAIL_SHELL_CLASS =
 export const PROJECTS_DETAIL_TOP_CLASS = "w-full";
 
 /**
- * Workspace modules (`modules.title`): light horizontal pad on mobile.
+ * Workspace modules (`modules.title`): mobile px-4 horizontal pad.
  */
-export const PROJECTS_DETAIL_WORKSPACE_CLASS = "mt-6 space-y-3 px-2 md:px-0";
+export const PROJECTS_DETAIL_WORKSPACE_CLASS = "mt-6 space-y-3 px-4 md:px-0";
 
 /**
  * Shared list card min-height for Instant skeleton, loaded list, and empty state
