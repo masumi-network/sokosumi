@@ -10,17 +10,19 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountCreateAdminMatchedChannel from "./post";
 
-const { chatRoomCreateMock, authContextState } = vi.hoisted(() => ({
-  authContextState: {
-    current: {
-      actor: "user",
-      userId: "user_admin",
-      organizationId: null,
-      role: "admin",
-    } as AuthenticationContext,
-  },
-  chatRoomCreateMock: vi.fn(),
-}));
+const { chatRoomCreateMock, chatRoomFindFirstMock, authContextState } =
+  vi.hoisted(() => ({
+    authContextState: {
+      current: {
+        actor: "user",
+        userId: "user_admin",
+        organizationId: null,
+        role: "admin",
+      } as AuthenticationContext,
+    },
+    chatRoomCreateMock: vi.fn(),
+    chatRoomFindFirstMock: vi.fn(),
+  }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -45,7 +47,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    chatRoom: { create: (...args: unknown[]) => chatRoomCreateMock(...args) },
+    chatRoom: {
+      create: (...args: unknown[]) => chatRoomCreateMock(...args),
+      findFirst: (...args: unknown[]) => chatRoomFindFirstMock(...args),
+    },
   },
 }));
 
@@ -82,6 +87,7 @@ describe("POST /admin/matched-channels", () => {
       organizationId: null,
       role: "admin",
     };
+    chatRoomFindFirstMock.mockResolvedValue(null);
     chatRoomCreateMock.mockResolvedValue({
       id: ROOM_ID,
       name: "Partners",
@@ -115,6 +121,18 @@ describe("POST /admin/matched-channels", () => {
       },
       select: { id: true, name: true, slug: true },
     });
+  });
+
+  it("returns 409 CHANNEL_SLUG_TAKEN when an org-less channel already has the slug", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({ id: ROOM_ID });
+
+    const response = await post({ slug: "partners" });
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN);
+    expect(body.message).toBe("This Channel slug is taken.");
+    expect(chatRoomCreateMock).not.toHaveBeenCalled();
   });
 
   it("derives the name from the slug when name is omitted", async () => {

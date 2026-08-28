@@ -1,5 +1,6 @@
 "use server";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -10,7 +11,10 @@ import {
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import {
   type AdminAddMatchedChannelFromOrganizationResult,
   type AdminMatchedChannelDetail,
@@ -65,6 +69,15 @@ function toAdminActionError(error: unknown): ActionError {
     return {
       code: CommonErrorCode.UNAUTHORIZED,
       message: "Admin access required",
+    };
+  }
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN
+  ) {
+    return {
+      code: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+      message: error.message,
     };
   }
   return toCoreApiActionError(error);

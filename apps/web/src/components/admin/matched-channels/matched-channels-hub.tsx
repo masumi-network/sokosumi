@@ -1,5 +1,6 @@
 "use client";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -66,7 +67,11 @@ export function MatchedChannelsHub() {
         },
       });
       if (!result.ok) {
-        toast.error(result.error.message ?? t("Create.error"));
+        toast.error(
+          result.error.code === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN
+            ? t("Create.slugTaken")
+            : (result.error.message ?? t("Create.error")),
+        );
         return;
       }
       toast.success(t("Create.success"));

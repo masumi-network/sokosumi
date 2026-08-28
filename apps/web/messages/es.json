@@ -3739,7 +3739,8 @@
           "submit": "Crear canal",
           "submitting": "Creando…",
           "success": "Canal emparejado creado",
-          "error": "No se pudo crear el canal emparejado"
+          "error": "No se pudo crear el canal emparejado",
+          "slugTaken": "Este slug de canal ya está en uso."
         },
         "Detail": {
           "back": "Volver a canales emparejados",

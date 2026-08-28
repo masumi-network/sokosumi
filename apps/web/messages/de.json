@@ -3671,7 +3671,8 @@
           "submit": "Channel erstellen",
           "submitting": "Wird erstellt…",
           "success": "Matched Channel erstellt",
-          "error": "Matched Channel konnte nicht erstellt werden"
+          "error": "Matched Channel konnte nicht erstellt werden",
+          "slugTaken": "Dieser Channel-Slug ist bereits vergeben."
         },
         "Detail": {
           "back": "Zurück zu Matched Channels",

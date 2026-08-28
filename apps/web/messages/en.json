@@ -3336,7 +3336,8 @@
           "submit": "Create channel",
           "submitting": "Creating…",
           "success": "Matched channel created",
-          "error": "Failed to create matched channel"
+          "error": "Failed to create matched channel",
+          "slugTaken": "This channel slug is already taken."
         },
         "Detail": {
           "back": "Back to matched channels",

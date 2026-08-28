@@ -3,7 +3,10 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isSlugUniqueConstraintError } from "@/helpers/prisma";
+import {
+  isPrismaUniqueViolation,
+  isSlugUniqueConstraintError,
+} from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -16,6 +19,12 @@ import {
   adminCreateMatchedChannelBodySchema,
   adminMatchedChannelOptionSchema,
 } from "@/schemas/admin.schema";
+
+function throwSlugTaken(): never {
+  throw conflict("This Channel slug is taken.", {
+    kind: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+  });
+}
 
 const route = createRoute({
   method: "post",
@@ -53,6 +62,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const slug = requireSanitizedChannelSlug(body.slug);
     const name = resolveChannelName(body.name, slug);
 
+    const existing = await prisma.chatRoom.findFirst({
+      where: {
+        kind: "channel",
+        organizationId: null,
+        slug,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throwSlugTaken();
+    }
+
     try {
       const room = await prisma.chatRoom.create({
         data: {
@@ -76,10 +97,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
       );
     } catch (error) {
-      if (isSlugUniqueConstraintError(error)) {
-        throw conflict("This Channel slug is taken.", {
-          kind: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
-        });
+      // This create only has slug uniqueness. Driver adapters sometimes omit
+      // P2002 meta.target, so treat any unique violation as slug taken.
+      if (
+        isSlugUniqueConstraintError(error) ||
+        isPrismaUniqueViolation(error)
+      ) {
+        throwSlugTaken();
       }
       throw error;
     }
