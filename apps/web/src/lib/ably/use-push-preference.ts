@@ -104,16 +104,16 @@ export interface PushPreference {
    * this row greys out rather than offering a change nobody could hear.
    */
   canToggleDevice: boolean;
-  /**
-   * Whether this browser can become a push device right now. The account row
-   * reads it to say what its write actually did: with no push available here,
-   * turning consent on reaches only the reader's other devices.
-   */
-  canSubscribeHere: boolean;
   /** Whether a save is in flight. Each row refuses a second change until it lands. */
   isSaving: boolean;
-  /** Rejects on failure so the view can surface its own error toast. */
-  setAccountEnabled: (next: boolean) => Promise<void>;
+  /**
+   * Rejects on failure so the view can surface its own error toast. Resolves
+   * with whether this browser ended up a push device, which is what the view
+   * reports: turning consent on from a browser that cannot push, or from one
+   * whose reader refuses the prompt, reaches the other devices only.
+   */
+  setAccountEnabled: (next: boolean) => Promise<boolean>;
+  /** Rejects on failure, a refused permission included: this row is this browser. */
   setDeviceEnabled: (next: boolean) => Promise<void>;
 }
 
@@ -188,14 +188,14 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    * browser subscription, so there is nothing to roll back.
    */
   const runSave = useCallback(
-    async (work: (sessionUserId: string) => Promise<void>) => {
+    async <T>(work: (sessionUserId: string) => Promise<T>): Promise<T> => {
       if (!userId) {
         throw new Error("Cannot change the push preference without a session");
       }
 
       setIsSaving(true);
       try {
-        await work(userId);
+        return await work(userId);
       } finally {
         setIsSaving(false);
       }
@@ -208,11 +208,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    * the work throws.
    */
   const changePushSubscription = useCallback(
-    (nextSubscribed: boolean, work: (sessionUserId: string) => Promise<void>) =>
+    <T>(nextSubscribed: boolean, work: (sessionUserId: string) => Promise<T>) =>
       runSave(async (sessionUserId) => {
         setHasPushSubscription(nextSubscribed);
         try {
-          await work(sessionUserId);
+          return await work(sessionUserId);
         } catch (error) {
           // Re-read rather than assume the old value: the work may have failed
           // halfway, after the subscription already changed.
@@ -224,8 +224,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   );
 
   /**
-   * Turns this browser into a push device. Either row can be the first thing a
-   * reader touches, so both subscribe through here.
+   * Turns this browser into a push device, and reports whether it managed to.
+   * Either row can be the first thing a reader touches, so both subscribe
+   * through here, and they read a refused prompt differently: for the account
+   * row it answers for this browser only, for the device row it is the whole
+   * request. Anything else throws for both.
    */
   const subscribeThisBrowser = useCallback(async (sessionUserId: string) => {
     // Ask for the OS permission before anything else awaits, so the prompt
@@ -237,28 +240,36 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     const granted = await requestBrowserNotificationPermission();
     setPermission(granted);
     if (granted !== "granted") {
-      throw new Error("The browser refused the notification permission");
+      // Undo the caller's optimistic switch: nothing here is subscribed.
+      setHasPushSubscription(false);
+      return false;
     }
 
     const { activatePush } = await loadPushActivation();
     await activatePush(sessionUserId);
+    return true;
   }, []);
 
   /**
-   * Whether this browser could become a push device at all. A missing push API
-   * and a blocked permission fail the same way, so they answer as one: both
-   * rows read this, and neither may promise a subscription it cannot make.
+   * A missing push API and a blocked permission both stop a subscription here,
+   * so `canSubscribeHere` merges them. `isBlocked` stays apart because the view
+   * names the two in different words. Neither gates the account row: that row
+   * is a Core write, and it still silences or wakes the other devices.
    */
-  const isBlocked = isSupported === true && permission === "denied";
-  const canSubscribeHere = isSupported === true && permission !== "denied";
+  const isDenied = permission === "denied";
+  const isBlocked = isSupported === true && isDenied;
+  const canSubscribeHere = isSupported === true && !isDenied;
 
   const setAccountEnabled = useCallback(
-    (next: boolean) => {
+    (next: boolean): Promise<boolean> => {
       if (!next) {
         // Consent only. Registrations stay, so the reader's other browsers do
         // not have to activate again when consent comes back (ADR-0019), and
         // this row stays reachable from a browser that never subscribed.
-        return runSave(() => recordAccountOptIn(false));
+        return runSave(async () => {
+          await recordAccountOptIn(false);
+          return false;
+        });
       }
 
       if (!canSubscribeHere) {
@@ -266,7 +277,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         // blocked notifications for the site. It still owns the account axis,
         // so the write wakes the reader's other devices. Subscribing first
         // here would throw and lose the consent write with it.
-        return runSave(() => recordAccountOptIn(true));
+        return runSave(async () => {
+          await recordAccountOptIn(true);
+          return false;
+        });
       }
 
       // Turning consent on also subscribes this browser, so the common case is
@@ -275,8 +289,14 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         // Register the device first. If the Core write then fails, the device
         // is known to Ably but Core sends nothing, so the reader gets silence
         // rather than banners they never consented to.
-        await subscribeThisBrowser(sessionUserId);
+        //
+        // A refused prompt is not a failure here. The reader asked for push on
+        // their account, and answered for this browser only, so consent goes
+        // in and this browser stays out. The blocked branch above does the
+        // same thing for a reader who refused it earlier.
+        const subscribedHere = await subscribeThisBrowser(sessionUserId);
         await recordAccountOptIn(true);
+        return subscribedHere;
       });
     },
     [
@@ -292,7 +312,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     (next: boolean) =>
       changePushSubscription(next, async (sessionUserId) => {
         if (next) {
-          await subscribeThisBrowser(sessionUserId);
+          // This row asks for one thing, so a refusal fails the whole request
+          // and the view says so.
+          if (!(await subscribeThisBrowser(sessionUserId))) {
+            throw new Error("The browser refused the notification permission");
+          }
           return;
         }
 
@@ -317,7 +341,6 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     // receives anything, so this row greys out rather than offering a change
     // that would alter nothing the reader can hear.
     canToggleDevice: hasSession && canSubscribeHere && isAccountEnabled,
-    canSubscribeHere,
     isSaving,
     setAccountEnabled,
     setDeviceEnabled,

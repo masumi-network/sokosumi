@@ -70,10 +70,10 @@ export function PushNotificationSetting() {
    * callback so each row keeps its own literal message keys.
    */
   const toggleHandler =
-    (
+    <T,>(
       canToggle: boolean,
-      change: (next: boolean) => Promise<void>,
-      success: (next: boolean) => string,
+      change: (next: boolean) => Promise<T>,
+      success: (next: boolean, result: T) => string,
     ) =>
     (nextValue: boolean) => {
       if (!canToggle || push.isSaving) {
@@ -82,7 +82,7 @@ export function PushNotificationSetting() {
 
       toast.promise(change(nextValue), {
         loading: t("loading"),
-        success: () => success(nextValue),
+        success: (result: T) => success(nextValue, result),
         error: reportFailure,
       });
     };
@@ -90,15 +90,15 @@ export function PushNotificationSetting() {
   const handleAccountToggle = toggleHandler(
     push.canToggleAccount,
     push.setAccountEnabled,
-    (next) => {
+    (next, subscribedHere) => {
       if (!next) {
         return t("pushDisabledEverywhereSuccess");
       }
 
-      // The same branch the hook took. With no push available here the write
-      // reached only the reader's other devices, and a flat "enabled" would
-      // contradict the "not available in this browser" sitting right under it.
-      return push.canSubscribeHere
+      // What the write actually did, rather than what this view can guess.
+      // This browser stays out when it cannot push and when the reader refuses
+      // the prompt, and a flat "enabled" would contradict the device row.
+      return subscribedHere
         ? t("pushEnabledSuccess")
         : t("pushEnabledOtherDevicesSuccess");
     },

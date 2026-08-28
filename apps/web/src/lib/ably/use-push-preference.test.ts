@@ -107,7 +107,7 @@ describe("usePushPreference", () => {
     });
     await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
-    let pending!: Promise<void>;
+    let pending!: Promise<boolean>;
     act(() => {
       pending = result.current.setAccountEnabled(true);
     });
@@ -123,7 +123,12 @@ describe("usePushPreference", () => {
     });
   });
 
-  it("registers nothing when the reader refuses the prompt", async () => {
+  /**
+   * The reader clicked the account row, so the prompt answers for this browser
+   * and nothing else. Losing their consent write with it would leave the phone
+   * in their pocket silent because a laptop said no.
+   */
+  it("records consent anyway when the reader refuses the prompt", async () => {
     setNotificationPermission("default");
     requestPermissionMock.mockResolvedValue("denied");
     const { result } = renderHook(() => usePushPreference("user_1"), {
@@ -131,14 +136,38 @@ describe("usePushPreference", () => {
     });
     await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
+    let subscribedHere: boolean | undefined;
     await act(async () => {
-      await expect(result.current.setAccountEnabled(true)).rejects.toThrow();
+      subscribedHere = await result.current.setAccountEnabled(true);
+    });
+
+    expect(subscribedHere).toBe(false);
+    expect(activatePushMock).not.toHaveBeenCalled();
+    expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
+    expect(result.current.isAccountEnabled).toBe(true);
+    expect(result.current.isDeviceEnabled).toBe(false);
+    expect(result.current.isBlocked).toBe(true);
+  });
+
+  /** The device row asks for one thing, so the same refusal fails it. */
+  it("fails the device row when the reader refuses the prompt", async () => {
+    setNotificationPermission("default");
+    requestPermissionMock.mockResolvedValue("denied");
+    setAccountOptIn(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+
+    await act(async () => {
+      await expect(result.current.setDeviceEnabled(true)).rejects.toThrow(
+        "The browser refused the notification permission",
+      );
     });
 
     expect(activatePushMock).not.toHaveBeenCalled();
     expect(patchMyPreferencesMock).not.toHaveBeenCalled();
     expect(result.current.isDeviceEnabled).toBe(false);
-    expect(result.current.isBlocked).toBe(true);
   });
 
   it("withdraws consent without deregistering this browser", async () => {
@@ -235,7 +264,7 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(false);
   });
 
-  it("locks the device row while the account is off", async () => {
+  it("locks the device row while the account is off, even when subscribed", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(false);
 
@@ -270,9 +299,7 @@ describe("usePushPreference", () => {
     expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
     expect(activatePushMock).not.toHaveBeenCalled();
     expect(result.current.isAccountEnabled).toBe(true);
-    // Nothing here to subscribe, so the device row stays locked and the view
-    // reports the write as reaching the reader's other devices.
-    expect(result.current.canSubscribeHere).toBe(false);
+    // Nothing here to subscribe, so the device row stays locked.
     expect(result.current.canToggleDevice).toBe(false);
   });
 
