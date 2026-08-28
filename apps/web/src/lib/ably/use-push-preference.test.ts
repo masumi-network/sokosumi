@@ -224,7 +224,7 @@ describe("usePushPreference", () => {
     expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: false });
     expect(result.current.isAccountEnabled).toBe(false);
     // Registrations stay, so consent can come back without every browser
-    // activating again (ADR-0019).
+    // activating again (ADR-0022).
     expect(deactivatePushMock).not.toHaveBeenCalled();
     expect(result.current.isDeviceEnabled).toBe(true);
   });

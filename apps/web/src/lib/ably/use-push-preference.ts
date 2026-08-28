@@ -37,7 +37,7 @@ function loadPushActivation() {
  * died outside the app (permission revoked, storage cleared, a half-failed
  * disable) shows as off instead of a stale on.
  *
- * This is the read half of ADR-0020's self-heal, and only the read half: it
+ * This is the read half of ADR-0023's self-heal, and only the read half: it
  * re-activates nothing, and it runs in the settings card rather than on app
  * open. It also cannot see whether the device is still subscribed to the
  * notifications channel on Ably's side. SOK-876 owns both gaps.
@@ -103,7 +103,7 @@ export interface PushPreference {
    * reports: turning consent on from a browser that cannot push, or from one
    * whose reader refuses the prompt, reaches the other devices only. Turning
    * consent off subscribes nothing either, and leaves the registrations it
-   * already had (ADR-0019).
+   * already had (ADR-0022).
    */
   setAccountEnabled: (next: boolean) => Promise<boolean>;
   /** Rejects on failure, a refused permission included: this row is this browser. */
@@ -259,7 +259,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     (next: boolean): Promise<boolean> => {
       if (!next) {
         // Consent only. Registrations stay, so the reader's other browsers do
-        // not have to activate again when consent comes back (ADR-0019), and
+        // not have to activate again when consent comes back (ADR-0022), and
         // this row stays reachable from a browser that never subscribed.
         return runSave(async () => {
           await recordAccountOptIn(false);

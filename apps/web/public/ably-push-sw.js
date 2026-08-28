@@ -6,7 +6,7 @@
  * exception in `canSkipDisplay`. Skipping one anywhere else makes the browser
  * post its own "This site has been updated in the background" banner instead.
  *
- * Core sends no display strings (ADR-0020). This worker renders them from the
+ * Core sends no display strings (ADR-0023). This worker renders them from the
  * notification's `messageKey` and `messageParams`.
  *
  * Plain JavaScript on purpose: the browser fetches this file from `public/` as
@@ -225,7 +225,7 @@ function showsNotificationsInApp(client) {
  *
  * Chromium documents a focused-window exception: a handler does not have to
  * show a notification while the reader already has the site open and focused
- * (ADR-0020). WebKit grants no exception and revokes the subscription when a
+ * (ADR-0023). WebKit grants no exception and revokes the subscription when a
  * push displays nothing, so every other engine always displays.
  *
  * "Open and focused" means a page that shows the notification itself, so this
