@@ -12,8 +12,9 @@ import prisma from "@/lib/db/prisma";
 /**
  * x402 buy-side readiness (PR1-SPEC §6, ticket 011 Q5).
  *
- * Composed Soko-side from the node's `GET /x402/networks/available` and
- * `GET /x402/budgets` (both per-chain today) by
+ * Composed Soko-side from the node's `GET /x402/networks/available`,
+ * `GET /x402/wallets`, and the calling key's spend caps on
+ * `GET /api-key-status`, by
  * `syncX402BuySideReadiness`, cached in SyncMetadata under
  * `X402_BUY_SIDE_READINESS_KEY` exactly like the Cardano V2 rail readiness:
  * last-known-value semantics, failure marker for one page per streak, and a
@@ -34,13 +35,14 @@ export const X402_BUY_SIDE_READINESS_FAILURE_KEY =
 export interface X402ReadySource {
   /** CAIP-2 EVM network id, e.g. `eip155:84532`. */
   caip2Network: string;
-  /** ERC-20 contract address the funded budget is denominated in. */
+  /** ERC-20 contract address the pair is priced and paid in. */
   asset: string;
   /**
-   * Managed EVM wallet backing the pair's budget — the `evmWalletId` the pay
+   * Managed EVM wallet that signs this pair: the `evmWalletId` the pay
    * route passes to `POST /x402/pay`, so signing needs no per-payment
-   * `/x402/budgets` fetch. When several budgets back the pair, the sync
-   * recorded the one with the most remaining spend.
+   * wallet lookup. The spend cap is key-global (masumi ADR 0016), so any
+   * funded wallet on the chain is an equally valid signer; the sync recorded
+   * the one holding the most of the priced token.
    */
   evmWalletId: string;
   /** Expected EVM payer address for this managed wallet, canonical lowercase. */
@@ -216,7 +218,7 @@ export function findX402ReadySource(
  * Listing and pay treat empty as fail-closed.
  *
  * Deliberately NOT expired on age, mirroring `getCardanoV2ReadySources`:
- * readiness is configuration plus budget presence, refreshed by the sync
+ * readiness is configuration plus funded-wallet presence, refreshed by the sync
  * cron; a value that has not been refreshed for a while is almost certainly
  * still true, and expiring it would let our own cron falling behind take the
  * entire x402 listing down. A node that truly cannot pay refuses the sign,
@@ -272,8 +274,8 @@ export const getX402ReadySources = async (
           "evmWalletId" in source &&
           typeof source.evmWalletId === "string" &&
           trimEvmWalletId(source.evmWalletId) !== undefined &&
-          // The signed payer must later match the exact wallet whose budget
-          // and balances made this pair ready. Old cache rows without the
+          // The signed payer must later match the exact wallet whose
+          // balances made this pair ready. Old cache rows without the
           // expected address cannot establish that binding and fail closed.
           "evmWalletAddress" in source &&
           typeof source.evmWalletAddress === "string" &&

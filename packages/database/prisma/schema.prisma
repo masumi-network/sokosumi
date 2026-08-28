@@ -2294,7 +2294,9 @@ model OrchestratorUsage {
 
 model ChatRoom {
   id             String        @id @default(uuid(7)) @db.Uuid
-  /// Null for personal `kind=direct` rooms (org-free DMs). Required for channels.
+  /// Null for personal `kind=direct` rooms (org-free DMs) and for org-less
+  /// matched channels (`discoverability=matched`). Required for org channels
+  /// (public / private / external).
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2306,7 +2308,8 @@ model ChatRoom {
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic                  String?
-  /// Channels: `"public"` | `"private"` (org browse / self-join). Directs: null.
+  /// Channels: `"public"` | `"private"` | `"external"` (org-scoped) or
+  /// `"matched"` (org-less, roster-only). Directs: null.
   discoverability        String?
   archivedAt             DateTime?
   createdAt              DateTime  @default(now())
@@ -2323,9 +2326,10 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for Channel (organizationId, slug) WHERE kind = 'channel',
-  // org/personal directKey, and Channel/Direct slug CHECK are enforced in SQL
-  // migrations — Prisma cannot express those partial uniques.
+  // Uniqueness for org Channel (organizationId, slug) WHERE kind = 'channel',
+  // org-less matched Channel slug WHERE organizationId IS NULL, org/personal
+  // directKey, and Channel/Direct slug CHECK are enforced in SQL migrations —
+  // Prisma cannot express those partial uniques.
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])

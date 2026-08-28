@@ -81,6 +81,30 @@ describe("partitionRoomsForSidebar", () => {
     expect(result.namedChannels.map((r) => r.id)).toEqual(["public-1"]);
   });
 
+  it("puts matched channels under External, not Channels", () => {
+    const matched = makeRoom({
+      id: "matched-1",
+      kind: "channel",
+      myAccess: "member",
+      discoverability: "matched",
+      organizationId: null,
+      organizationName: null,
+      name: "Matched room",
+    });
+    const publicChannel = makeRoom({
+      id: "public-1",
+      kind: "channel",
+      myAccess: "member",
+      discoverability: "public",
+      name: "General",
+    });
+
+    const result = partitionRoomsForSidebar([matched, publicChannel]);
+
+    expect(result.externalJoined.map((r) => r.id)).toEqual(["matched-1"]);
+    expect(result.namedChannels.map((r) => r.id)).toEqual(["public-1"]);
+  });
+
   it("puts personal human Directs under Direct Messages even when the peer is not an org teammate", () => {
     const personal = makeRoom({
       id: "personal-dm",

@@ -812,6 +812,247 @@ export const StripeSubscriptionStatusSchema = {
     description: 'Stripe subscription lifecycle status'
 } as const;
 
+export const AdminMatchedChannelOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Matched Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'matched-channel'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const AdminCreateMatchedChannelBodySchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 80,
+            description: 'Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.',
+            example: 'Partners'
+        },
+        slug: {
+            type: 'string',
+            description: 'Required Channel slug (max 80 after sanitize). Unique among org-less matched channels.',
+            example: 'partners'
+        },
+        topic: {
+            type: 'string',
+            maxLength: 200,
+            example: 'Partner coordination'
+        }
+    },
+    required: [
+        'slug'
+    ]
+} as const;
+
+export const AdminMatchedChannelDetailSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Matched Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'matched-channel'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Partner coordination'
+        },
+        participants: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminMatchedChannelParticipantInfo'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'topic',
+        'participants'
+    ]
+} as const;
+
+export const AdminMatchedChannelParticipantInfoSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        email: {
+            type: 'string',
+            example: 'ada@example.com'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'member'
+            ],
+            example: 'member'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'email',
+        'access'
+    ]
+} as const;
+
+export const AdminAddMatchedChannelFromOrganizationResultSchema = {
+    type: 'object',
+    properties: {
+        added: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        alreadyMember: {
+            type: 'integer',
+            minimum: 0,
+            example: 1
+        },
+        totalMembers: {
+            type: 'integer',
+            minimum: 0,
+            example: 4
+        }
+    },
+    required: [
+        'added',
+        'alreadyMember',
+        'totalMembers'
+    ]
+} as const;
+
+export const AdminAddMatchedChannelFromOrganizationBodySchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization whose Members are snapshotted onto the roster',
+            example: 'org_123'
+        },
+        organizationSlug: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization slug alternative to organizationId',
+            example: 'acme-corp'
+        }
+    }
+} as const;
+
+export const AdminMatchedChannelParticipantSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'member'
+            ],
+            example: 'member'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'joined',
+                'already_member'
+            ],
+            example: 'joined'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'access',
+        'outcome'
+    ]
+} as const;
+
+export const AdminAddMatchedChannelParticipantBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Existing platform user to add as a member',
+            example: 'user_123'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
+export const AdminRemoveMatchedChannelParticipantSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'removed'
+            ],
+            example: 'removed'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'outcome'
+    ]
+} as const;
+
 export const AdminOrganizationOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -5392,7 +5633,7 @@ export const ChatRoomSchema = {
                 'string',
                 'null'
             ],
-            description: 'Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).',
+            description: 'Organization that owns the room. Null for Personal Directs and for org-less matched channels (`discoverability=matched`).',
             example: 'org_123'
         },
         organizationName: {
@@ -5447,9 +5688,10 @@ export const ChatRoomSchema = {
                 'public',
                 'private',
                 'external',
+                'matched',
                 null
             ],
-            description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.',
+            description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.',
             example: 'public'
         },
         createdByUserId: {
@@ -5896,7 +6138,7 @@ export const DiscoverableChannelDiscoverabilitySchema = {
         'private',
         'external'
     ],
-    description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.',
+    description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.',
     example: 'public'
 } as const;
 
@@ -6588,7 +6830,7 @@ export const UpdateChatRoomRequestSchema = {
             example: 'Launch planning with design and AI research partners'
         },
         discoverability: {
-            $ref: '#/components/schemas/ChatRoomDiscoverability'
+            $ref: '#/components/schemas/OrgChannelDiscoverability'
         },
         memberUserIds: {
             type: 'array',
@@ -6617,7 +6859,7 @@ export const UpdateChatRoomRequestSchema = {
     }
 } as const;
 
-export const ChatRoomDiscoverabilitySchema = {
+export const OrgChannelDiscoverabilitySchema = {
     type: 'string',
     enum: [
         'public',

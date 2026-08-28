@@ -8,13 +8,17 @@ export interface PartitionedSidebarRooms {
   externalJoined: ChatRoom[];
 }
 
+/** Discoverability values that live under the External/peer sidebar section. */
+const PEER_SIDEBAR_DISCOVERABILITY = new Set<string>(["external", "matched"]);
+
 /**
  * Split the unified room list for the chat sidebar.
  *
- * External channels (`discoverability === "external"`) — host members and
- * guests — live only under External, never under Channels, so they read as a
- * peer section next to Channels / Direct Messages. Every Direct lists under
- * Direct Messages, including Personal 1:1s with a Guest.
+ * External and matched channels (`discoverability === "external" | "matched"`)
+ * — host members, guests, and matched roster members — live only under
+ * External, never under Channels, so they read as a peer section next to
+ * Channels / Direct Messages. Every Direct lists under Direct Messages,
+ * including Personal 1:1s with a Guest.
  */
 export function partitionRoomsForSidebar(
   rooms: ChatRoom[],
@@ -24,7 +28,11 @@ export function partitionRoomsForSidebar(
   const externalJoined: ChatRoom[] = [];
 
   for (const room of rooms) {
-    if (room.kind === "channel" && room.discoverability === "external") {
+    if (
+      room.kind === "channel" &&
+      room.discoverability != null &&
+      PEER_SIDEBAR_DISCOVERABILITY.has(room.discoverability)
+    ) {
       externalJoined.push(room);
       continue;
     }
