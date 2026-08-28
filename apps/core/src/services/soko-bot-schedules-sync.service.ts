@@ -6,6 +6,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { SOKO_BOT_BETA_OWNER_FILTER } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/services/soko-bot-control-plane.service";
 import {
   buildSystemBeatMessage,
+  proactiveGate,
   stampNudges,
 } from "@/services/soko-bot-proactive.service";
 
@@ -149,7 +151,11 @@ export class SokoBotSchedulesSyncService {
     const pending = await prisma.sokoBotScheduleRun.findFirst({
       where: {
         schedule: {
-          sokoBot: { archivedAt: null, status: { not: "PAUSED" } },
+          sokoBot: {
+            archivedAt: null,
+            ...SOKO_BOT_BETA_OWNER_FILTER,
+            status: { not: "PAUSED" },
+          },
         },
         OR: [
           {
@@ -210,6 +216,7 @@ export class SokoBotSchedulesSyncService {
         nextRunAt: { lte: new Date() },
         sokoBot: {
           archivedAt: null,
+          ...SOKO_BOT_BETA_OWNER_FILTER,
           status: { not: "PAUSED" },
           // Every schedule is something the bot runs unattended, including the
           // ones it created for itself through create_schedule, which needs no
@@ -448,6 +455,11 @@ export class SokoBotSchedulesSyncService {
             });
           }
         }
+        // A schedule the bot wrote for itself is still a turn it starts, and
+        // it may create ten of them at a one-minute cadence. The owner's daily
+        // limit is the ceiling on all of it.
+        const gate = await proactiveGate(schedule.sokoBotId);
+        if (!gate.ok) return "deferred";
         const started = await sokoBotControlPlane.startTurn({
           userId: schedule.userId,
           workspaceId: schedule.workspaceId,

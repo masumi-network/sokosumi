@@ -1,3 +1,4 @@
+import { SOKO_BOT_BETA_OWNER_FILTER } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
@@ -148,6 +149,7 @@ export class SokoBotTaskboardSyncService {
     const bots = await prisma.sokoBot.findMany({
       where: {
         archivedAt: null,
+        ...SOKO_BOT_BETA_OWNER_FILTER,
         adminPausedAt: null,
         coworker: { isNot: null },
       },
@@ -232,6 +234,7 @@ export class SokoBotTaskboardSyncService {
       where: {
         workspaceId: bot.workspaceId,
         archivedAt: null,
+        ...SOKO_BOT_BETA_OWNER_FILTER,
         OR: [
           { assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } },
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
@@ -342,13 +345,12 @@ export class SokoBotTaskboardSyncService {
     });
     const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
     if (updates.length === 0 && attention.length === 0) return false;
-    // Assigned work always goes through; pure follow-up/nudge turns respect
-    // the owner's pause and daily cap.
-    const mustWork = updates.some((u) => u.work);
-    if (!mustWork) {
-      const gate = await proactiveGate(bot.id, now);
-      if (!gate.ok) return false;
-    }
+    // Every turn the bot starts counts, assigned work included. Exempting it
+    // meant anyone who could put a Task on the bot could drive unlimited
+    // billed turns, and a bot that assigned work to itself could loop on the
+    // one-minute cron forever. The owner's limit is the number they set.
+    const gate = await proactiveGate(bot.id, now);
+    if (!gate.ok) return false;
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
     const message = [
       ...(batch.length > 0 ? [buildTaskboardMessage(batch), ""] : []),

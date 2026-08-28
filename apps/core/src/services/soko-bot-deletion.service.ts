@@ -3,6 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { revokeAllSokoBotIntegrations } from "@/services/soko-bot-integrations.service";
 
 /**
  * Deleting a Soko Bot always erases everything the bot owned — turns, runtime
@@ -23,6 +24,9 @@ export type SokoBotDeletionOutcome = "deleted" | "tombstoned";
 
 export interface SokoBotDeletionResult {
   outcome: SokoBotDeletionOutcome;
+  /** Connected accounts that could not be revoked; the owner must clear these
+   * with the provider themselves, so the caller has to be able to say so. */
+  unrevokedIntegrations: string[];
   /** What kept the row alive, for the confirmation the caller shows. */
   retained: {
     tasks: number;
@@ -57,6 +61,11 @@ async function eraseOwnedRecords(
 export async function deleteSokoBot(
   sokoBotId: string,
 ): Promise<SokoBotDeletionResult> {
+  // Revoke before the rows go: deleting the local pointer first would leave the
+  // account registered with the provider and remove the owner's only way to
+  // disconnect it. Outside the transaction because it is a remote call.
+  const revocation = await revokeAllSokoBotIntegrations(sokoBotId);
+
   return serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
@@ -94,6 +103,7 @@ export async function deleteSokoBot(
       ]);
 
     const retained = { tasks, taskEvents, billingRecords, chatMessages };
+    const unrevokedIntegrations = revocation.failed;
 
     if (coworkerId && coworkerRefs === 0) {
       // Chat membership and mentions cascade; nothing else points here.
@@ -117,7 +127,7 @@ export async function deleteSokoBot(
       coworkerRefs === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
-      return { outcome: "deleted" as const, retained };
+      return { outcome: "deleted" as const, retained, unrevokedIntegrations };
     }
 
     await tx.sokoBot.update({
@@ -154,7 +164,7 @@ export async function deleteSokoBot(
         consecutivePollErrors: 0,
       },
     });
-    return { outcome: "tombstoned" as const, retained };
+    return { outcome: "tombstoned" as const, retained, unrevokedIntegrations };
   }, "Soko Bot deletion collided with active work");
 }
 

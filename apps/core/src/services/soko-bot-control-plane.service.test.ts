@@ -748,6 +748,13 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it("grants a teammate mention only the teammate ceiling", async () => {
+    // A teammate's turn now draws on the owner's daily allowance, so the gate
+    // reads the bot's proactive settings before the turn starts.
+    botFindUniqueOrThrowMock.mockResolvedValue({
+      proactivePaused: false,
+      proactiveDailyLimit: 20,
+      ingestTimezone: "Europe/Berlin",
+    });
     // The bot answers into a shared room, so the owner's private reads must
     // not be on the grant and the packet must be built for a teammate.
     botFindFirstMock.mockResolvedValue(adminBot());

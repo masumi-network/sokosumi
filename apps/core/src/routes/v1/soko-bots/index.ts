@@ -149,9 +149,12 @@ app.use("*", async (c, next) => {
   }
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
-    select: { email: true },
+    select: { email: true, emailVerified: true },
   });
-  if (!isNmkrEmail(user?.email)) {
+  // Signup neither requires verification nor withholds the session, so the
+  // domain alone proves nothing: anyone can register `someone@nmkr.io`
+  // without holding that mailbox. Verification is what the whitelist rests on.
+  if (!user?.emailVerified || !isNmkrEmail(user.email)) {
     throw notFound("Soko Bot is not enabled");
   }
   await next();

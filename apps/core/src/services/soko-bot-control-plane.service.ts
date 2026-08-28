@@ -1630,13 +1630,41 @@ export class SokoBotControlPlane {
     const version = await resolveSokoBotVersion(
       input.versionId ?? bot.versionId,
     );
+    // A turn with no owner message is composed from untrusted material — mail
+    // subjects, calendar titles, task comments — and the classifier reads that
+    // composed text. Hiring is the one tool that spends real money on a
+    // marketplace, and it executes without approval, so an attacker who can
+    // put the word "hire" in the owner's inbox must not be able to route a
+    // scheduled turn onto it. Autonomy covers starting work the owner already
+    // pays for; buying more is still theirs to ask for.
+    // A teammate mentioning the bot spends the OWNER's credits, and nothing in
+    // chat limits how often they may do it. Their turns draw on the owner's
+    // daily allowance so the bill has a ceiling its owner set.
+    if (requestedByTeammate) {
+      const { proactiveGate } = await import(
+        "@/services/soko-bot-proactive.service"
+      );
+      const gate = await proactiveGate(bot.id);
+      if (!gate.ok) {
+        throw new SokoBotBusyError(
+          "This Soko Bot has reached its owner's daily limit",
+        );
+      }
+    }
+    const selfStarted =
+      input.source === "SCHEDULE" ||
+      input.source === "INGEST" ||
+      input.source === "EVENT";
+    const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
+      classification.classification.route
+    ].filter(
+      (capability) => !(selfStarted && capability === "hire_agent"),
+    ) as readonly SokoBotCapability[];
     const capabilities = applyVersionCapabilities(
       version,
       (requestedByTeammate
         ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-        : [
-            ...SOKO_BOT_ROUTE_CAPABILITIES[classification.classification.route],
-          ]) as readonly SokoBotCapability[],
+        : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();

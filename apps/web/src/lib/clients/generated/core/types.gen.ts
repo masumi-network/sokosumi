@@ -290,6 +290,7 @@ export type SokoBotVersionWrite = {
 
 export type SokoBotDeletionResult = {
     outcome: 'deleted' | 'tombstoned';
+    unrevokedIntegrations: Array<string>;
     retained: {
         tasks: number;
         taskEvents: number;

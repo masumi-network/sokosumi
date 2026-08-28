@@ -1258,6 +1258,12 @@ export const SokoBotDeletionResultSchema = {
                 'tombstoned'
             ]
         },
+        unrevokedIntegrations: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
         retained: {
             type: 'object',
             properties: {
@@ -1288,6 +1294,7 @@ export const SokoBotDeletionResultSchema = {
     },
     required: [
         'outcome',
+        'unrevokedIntegrations',
         'retained'
     ]
 } as const;

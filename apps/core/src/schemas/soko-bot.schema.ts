@@ -956,6 +956,9 @@ export const sokoBotDeletionResultSchema = z
      * an emptied row stays behind to keep those records resolvable.
      */
     outcome: z.enum(["deleted", "tombstoned"]),
+    /** Providers whose account could not be revoked; the owner must clear
+     * those with the provider themselves. */
+    unrevokedIntegrations: z.array(z.string()),
     retained: z.object({
       tasks: z.number().int().nonnegative(),
       taskEvents: z.number().int().nonnegative(),

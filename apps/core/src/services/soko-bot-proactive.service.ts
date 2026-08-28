@@ -5,9 +5,9 @@ import {
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
-
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { SOKO_BOT_BETA_OWNER_FILTER } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   activeIntegrationsForBot,
@@ -178,6 +178,7 @@ export async function findAttentionItems(bot: {
     where: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
+      ...SOKO_BOT_BETA_OWNER_FILTER,
       status: { in: ["RUNNING", "INPUT_REQUIRED", "FAILED"] },
       updatedAt: { gte: new Date(bot.now.getTime() - ATTENTION_MAX_AGE_MS) },
       ...(bot.followWholeBoard
@@ -369,6 +370,7 @@ export async function buildSystemBeatMessage(input: {
     where: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
+      ...SOKO_BOT_BETA_OWNER_FILTER,
       status: { notIn: ["COMPLETED", "CANCELED"] },
       ...(bot.followWholeBoard || !bot.coworkerId
         ? {}

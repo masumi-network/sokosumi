@@ -13,6 +13,7 @@ const {
   txTurnUpdateManyMock,
   counts,
   deleteManyCalls,
+  revokeIntegrationsMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   txBotFindFirstMock: vi.fn(),
@@ -33,10 +34,14 @@ const {
     coworkerUsage: 0,
   },
   deleteManyCalls: [] as string[],
+  revokeIntegrationsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: { sokoBot: { findFirst: botFindFirstMock } },
+}));
+vi.mock("@/services/soko-bot-integrations.service", () => ({
+  revokeAllSokoBotIntegrations: revokeIntegrationsMock,
 }));
 
 function deleteManyRecorder(table: string) {
@@ -101,6 +106,7 @@ describe("deleteSokoBot", () => {
     for (const key of Object.keys(counts) as (keyof typeof counts)[]) {
       counts[key] = 0;
     }
+    revokeIntegrationsMock.mockResolvedValue({ revoked: 0, failed: [] });
     txBotFindFirstMock.mockResolvedValue({
       id: BOT_ID,
       coworker: { id: COWORKER_ID },

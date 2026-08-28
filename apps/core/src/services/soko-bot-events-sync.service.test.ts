@@ -4,6 +4,7 @@ const {
   delegationFindManyMock,
   delegationUpdateMock,
   getEnvMock,
+  proactiveGateMock,
   reconcileTurnMock,
   startTurnMock,
 } = vi.hoisted(() => ({
@@ -12,9 +13,13 @@ const {
   getEnvMock: vi.fn(),
   reconcileTurnMock: vi.fn(),
   startTurnMock: vi.fn(),
+  proactiveGateMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/services/soko-bot-proactive.service", () => ({
+  proactiveGate: proactiveGateMock,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotDelegation: {
@@ -63,6 +68,7 @@ describe("SokoBotEventsSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 0, limit: 20 });
     delegationUpdateMock.mockResolvedValue({});
     reconcileTurnMock.mockResolvedValue(undefined);
     startTurnMock.mockResolvedValue({
@@ -70,6 +76,27 @@ describe("SokoBotEventsSyncService", () => {
       status: "RUNNING",
       reconciliationLeaseToken: "lease",
     });
+  });
+
+  it("does not wake a bot that has spent its daily allowance", async () => {
+    // EVENT turns bill the owner like any other. Without this a bot that
+    // comments on its own Task wakes itself every cron minute forever.
+    proactiveGateMock.mockResolvedValue({
+      ok: false,
+      usedToday: 20,
+      limit: 20,
+      reason: "daily-limit",
+    });
+    delegationFindManyMock.mockResolvedValue([
+      taskDelegation("a", "READY", "COMPLETED"),
+    ]);
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
   });
 
   it("wakes the bot once for all changed delegations and marks them seen", async () => {

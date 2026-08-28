@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { isBetaAccessEmail } from "@/lib/beta-access";
+import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
@@ -20,7 +20,7 @@ export default async function SokoBotsPage() {
   const session = await getSessionOrRedirect();
   // Same beta gate as the assistant route: while Soko Bot is limited to the
   // whitelisted domains, this page must not exist for anyone else either.
-  if (!isBetaAccessEmail(session.user.email)) {
+  if (!hasSokoBotBetaAccess(session.user)) {
     notFound();
   }
   const [t, team, avatars] = await Promise.all([
