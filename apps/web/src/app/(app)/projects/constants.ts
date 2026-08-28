@@ -31,7 +31,7 @@ export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
  * Shared by live `ProjectListItem` and Instant skeleton items.
  */
 export const PROJECTS_ITEM_LAYOUT_CLASS =
-  "[content-visibility:auto] [contain-intrinsic-size:auto_120px] md:[contain-intrinsic-size:auto_72px]";
+  "[content-visibility:auto] [contain-intrinsic-size:auto_148px] md:[contain-intrinsic-size:auto_72px]";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

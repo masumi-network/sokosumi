@@ -21,7 +21,7 @@ describe("projects list CLS layout constants", () => {
       "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     );
     expect(PROJECTS_ITEM_LAYOUT_CLASS).toBe(
-      "[content-visibility:auto] [contain-intrinsic-size:auto_120px] md:[contain-intrinsic-size:auto_72px]",
+      "[content-visibility:auto] [contain-intrinsic-size:auto_148px] md:[contain-intrinsic-size:auto_72px]",
     );
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:grid-cols-1");

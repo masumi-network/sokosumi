@@ -99,7 +99,7 @@ describe("projects list CLS layout pairing", () => {
     expect(loading).toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
     expect(item).toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
     expect(PROJECTS_ITEM_LAYOUT_CLASS).toContain(
-      "[contain-intrinsic-size:auto_120px]",
+      "[contain-intrinsic-size:auto_148px]",
     );
     expect(PROJECTS_ITEM_LAYOUT_CLASS).toContain(
       "md:[contain-intrinsic-size:auto_72px]",

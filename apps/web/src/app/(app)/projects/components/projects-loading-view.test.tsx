@@ -59,8 +59,9 @@ describe("ProjectsLoadingView", () => {
     expect(items.length).toBe(4);
 
     for (const item of items) {
-      expect(item.className).toContain("border");
-      expect(item.className).toContain("md:border-0");
+      const card = item.firstElementChild;
+      expect(card?.className).toContain("border");
+      expect(card?.className).toContain("md:border-0");
       for (const token of PROJECTS_ITEM_LAYOUT_CLASS.split(/\s+/)) {
         expect(item.className).toContain(token);
       }

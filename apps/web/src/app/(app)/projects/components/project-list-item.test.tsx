@@ -58,14 +58,15 @@ describe("ProjectListItem", () => {
   });
 
   it("renders as a bordered card on mobile and a list row from md up", () => {
-    const { container } = render(
-      <ProjectListItem project={project} labels={labels} />,
-    );
+    render(<ProjectListItem project={project} labels={labels} />);
 
-    const article = container.querySelector("article");
-    expect(article?.className).toContain("border");
-    expect(article?.className).toContain("rounded-lg");
-    expect(article?.className).toContain("md:border-0");
+    const link = screen.getByRole("link", { name: /Autumn Launch/ });
+    expect(link.className).toContain("border");
+    expect(link.className).toContain("rounded-lg");
+    expect(link.className).toContain("md:border-0");
+    expect(link.className).toContain("p-3");
+
+    const article = link.closest("article");
     for (const token of PROJECTS_ITEM_LAYOUT_CLASS.split(/\s+/)) {
       expect(article?.className).toContain(token);
     }

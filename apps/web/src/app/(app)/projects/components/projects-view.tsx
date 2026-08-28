@@ -72,9 +72,6 @@ export function ProjectsView({
   const [isPending, startTransition] = useTransition();
   const hasLoadedProjects = items.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
-  const rowLabels = {
-    counts: labels.counts,
-  };
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
@@ -114,7 +111,7 @@ export function ProjectsView({
               <ProjectListItem
                 key={project.id}
                 project={project}
-                labels={rowLabels}
+                labels={{ counts: labels.counts }}
               />
             ))}
           </div>

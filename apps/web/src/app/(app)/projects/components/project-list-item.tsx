@@ -22,16 +22,13 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
   const briefing = previewProjectBriefing(project.briefing);
 
   return (
-    <article
-      className={cn(
-        "border-border/50 bg-background/60 rounded-lg border p-3 transition-colors",
-        "md:hover:bg-muted/50 md:-mx-2 md:rounded-lg md:border-0 md:bg-transparent md:p-0",
-        PROJECTS_ITEM_LAYOUT_CLASS,
-      )}
-    >
+    <article className={PROJECTS_ITEM_LAYOUT_CLASS}>
       <Link
         href={`/projects/${project.id}`}
-        className="flex min-w-0 flex-col gap-2 rounded-lg transition-colors active:scale-[0.995] md:flex-row md:items-center md:gap-4 md:px-2 md:py-3"
+        className={cn(
+          "border-border/50 bg-background/60 flex min-w-0 flex-col gap-2 rounded-lg border p-3 transition-colors active:scale-[0.995]",
+          "md:hover:bg-muted/50 md:-mx-2 md:flex-row md:items-center md:gap-4 md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:py-3",
+        )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <ProjectAvatar name={project.name} logo={project.logo} />
