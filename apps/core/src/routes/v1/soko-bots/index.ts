@@ -140,15 +140,19 @@ app.use("*", async (c, next) => {
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
   // It lives on the router rather than per handler so a new endpoint cannot
   // be added outside it; the UI gate alone would leave the API open.
+  // Fail closed: every handler here requires a user actor today, and an
+  // endpoint added later for a coworker key must not slip past the beta by
+  // simply not being a user.
   const auth = c.var.authContext;
-  if (isUserAuthContext(auth)) {
-    const user = await prisma.user.findUnique({
-      where: { id: auth.userId },
-      select: { email: true },
-    });
-    if (!isNmkrEmail(user?.email)) {
-      throw notFound("Soko Bot is not enabled");
-    }
+  if (!isUserAuthContext(auth)) {
+    throw notFound("Soko Bot is not enabled");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: auth.userId },
+    select: { email: true },
+  });
+  if (!isNmkrEmail(user?.email)) {
+    throw notFound("Soko Bot is not enabled");
   }
   await next();
 });
