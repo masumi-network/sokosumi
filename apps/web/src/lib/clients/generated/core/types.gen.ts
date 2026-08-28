@@ -274,9 +274,9 @@ export type AdminOrganizationOverviewDetail = {
         isEnterpriseContract: boolean;
     };
     /**
-     * Enterprise pool remaining credits; null for self-serve organizations where credits are per member
+     * Organization pool remaining credits for both billing modes
      */
-    totalCredits: number | null;
+    totalCredits: number;
 };
 
 export type AdminOrganizationMemberOverviewItem = {
@@ -292,11 +292,7 @@ export type AdminOrganizationMemberOverviewItem = {
     };
     lastSeenAt: Date | null;
     /**
-     * Available credits for this member in the organization
-     */
-    credits: number;
-    /**
-     * Member subscription plan in organization context
+     * Organization subscription plan, repeated on each member row
      */
     subscriptionPlan: string | null;
     /**

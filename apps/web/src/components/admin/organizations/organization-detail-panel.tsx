@@ -202,20 +202,12 @@ export function OrganizationDetailPanel({
 
         <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
           <h2 className="font-medium">{t("credits.title")}</h2>
-          {detail.totalCredits != null ? (
-            <>
-              <p className="text-2xl font-semibold tabular-nums">
-                {formatter.number(formatCreditsForDisplay(detail.totalCredits))}
-              </p>
-              <p className="text-muted-foreground text-sm">
-                {t("credits.description")}
-              </p>
-            </>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              {t("credits.perMember")}
-            </p>
-          )}
+          <p className="text-2xl font-semibold tabular-nums">
+            {formatter.number(formatCreditsForDisplay(detail.totalCredits))}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {t("credits.description")}
+          </p>
         </section>
       </div>
 
@@ -292,9 +284,6 @@ export function OrganizationDetailPanel({
                 <TableRow>
                   <TableHead className="pl-4">{t("members.user")}</TableHead>
                   <TableHead>{t("members.role")}</TableHead>
-                  <TableHead className="text-right">
-                    {t("members.credits")}
-                  </TableHead>
                   <TableHead>{t("members.subscription")}</TableHead>
                   {showSeatManagement ? (
                     <TableHead>{t("members.seat")}</TableHead>
@@ -317,11 +306,6 @@ export function OrganizationDetailPanel({
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{member.role}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatter.number(
-                        formatCreditsForDisplay(member.credits),
-                      )}
                     </TableCell>
                     <TableCell>
                       {member.subscriptionPlan ? (

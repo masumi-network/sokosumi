@@ -212,6 +212,37 @@ export const creditBucketRepository = {
     return rows[0] ?? { totalCents: 0n, remainingCents: 0n };
   },
 
+  async sumOrganizationOwnedCreditBalances(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+    now: Date = new Date(),
+  ): Promise<{ totalCents: bigint; remainingCents: bigint }> {
+    const rows = await tx.$queryRaw<
+      Array<{ totalCents: bigint; remainingCents: bigint }>
+    >`
+      WITH bucket_avail AS (
+        SELECT
+          cb.amount,
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE cb."organizationId" = ${organizationId}
+          AND cb."userId" IS NULL
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND ${creditBucketActivatesAtOrBeforeSql(now)}
+        GROUP BY cb.id, cb.amount
+      )
+      SELECT
+        COALESCE(SUM(amount), 0)::bigint AS "totalCents",
+        COALESCE(SUM(GREATEST(available, 0)), 0)::bigint AS "remainingCents"
+      FROM bucket_avail
+    `;
+
+    return rows[0] ?? { totalCents: 0n, remainingCents: 0n };
+  },
+
   async listEnterprisePoolBucketsWithBalances(
     userId: string,
     organizationId: string,

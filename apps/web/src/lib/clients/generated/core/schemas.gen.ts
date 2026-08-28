@@ -1089,11 +1089,8 @@ export const AdminOrganizationOverviewDetailSchema = {
             ]
         },
         totalCredits: {
-            type: [
-                'number',
-                'null'
-            ],
-            description: 'Enterprise pool remaining credits; null for self-serve organizations where credits are per member',
+            type: 'number',
+            description: 'Organization pool remaining credits for both billing modes',
             example: 1200
         }
     },
@@ -1164,17 +1161,12 @@ export const AdminOrganizationMemberOverviewItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        credits: {
-            type: 'number',
-            description: 'Available credits for this member in the organization',
-            example: 42.5
-        },
         subscriptionPlan: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'Member subscription plan in organization context',
+            description: 'Organization subscription plan, repeated on each member row',
             example: 'starter'
         },
         subscriptionStatus: {
@@ -1198,7 +1190,6 @@ export const AdminOrganizationMemberOverviewItemSchema = {
         'createdAt',
         'user',
         'lastSeenAt',
-        'credits',
         'subscriptionPlan',
         'subscriptionStatus'
     ]
