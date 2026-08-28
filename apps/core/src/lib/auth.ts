@@ -84,10 +84,6 @@ import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
-import {
-  ensureCanAcceptOrganizationInvitation,
-  syncLocalFreeSeatsAndCreditsForCurrentMembers,
-} from "@/services/organization-subscription-auth.service";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
@@ -234,15 +230,19 @@ type StripeBackedLocalSubscription = NonNullable<
 async function handleStripeBackedSubscriptionLifecycle({
   event,
   subscription,
+  autoAssignIfUnassigned,
 }: {
   event: {
     id: string;
     type: string;
   };
   subscription: StripeBackedLocalSubscription;
+  autoAssignIfUnassigned: boolean;
 }): Promise<void> {
   try {
-    await reconcileActiveStripeBackedSubscription(subscription);
+    await reconcileActiveStripeBackedSubscription(subscription, {
+      autoAssignIfUnassigned,
+    });
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
@@ -680,7 +680,6 @@ export const auth = betterAuth({
           };
         },
         beforeAcceptInvitation: async ({ organization, user }) => {
-          await ensureCanAcceptOrganizationInvitation(organization.id);
           await ensurePersonalWorkspaceForOrganizationMembership(user.id, {
             organizationId: organization.id,
           });
@@ -695,14 +694,12 @@ export const auth = betterAuth({
             user.id,
             organization.id,
           );
-          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         afterAddMember: async ({ organization, user }) => {
           await upgradeGuestChatRoomMembershipsToMember(
             user.id,
             organization.id,
           );
-          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         // BA leaveOrganization has no remove-member hooks — durable hard-leave
         // for leave (and for remove) is the member-delete DB trigger. For
@@ -718,7 +715,7 @@ export const auth = betterAuth({
             member as { organizationExitChatRoomIds?: string[] }
           ).organizationExitChatRoomIds = roomIds;
         },
-        afterRemoveMember: async ({ organization, user, member }) => {
+        afterRemoveMember: async ({ user, member }) => {
           const roomIds =
             (member as { organizationExitChatRoomIds?: string[] })
               .organizationExitChatRoomIds ?? [];
@@ -726,7 +723,6 @@ export const auth = betterAuth({
             revokedRoomIds: roomIds,
             statusMessages: [],
           });
-          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         beforeDeleteOrganization: async ({ organization, user }) => {
           const evaluation = await evaluateOrganizationDeletion(
@@ -835,8 +831,16 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(),
-        onSubscriptionCreated: handleStripeBackedSubscriptionLifecycle,
-        onSubscriptionUpdate: handleStripeBackedSubscriptionLifecycle,
+        onSubscriptionCreated: (params) =>
+          handleStripeBackedSubscriptionLifecycle({
+            ...params,
+            autoAssignIfUnassigned: true,
+          }),
+        onSubscriptionUpdate: (params) =>
+          handleStripeBackedSubscriptionLifecycle({
+            ...params,
+            autoAssignIfUnassigned: false,
+          }),
         getCheckoutSessionParams: async () => ({
           params: {
             automatic_tax: {

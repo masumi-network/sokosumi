@@ -16,6 +16,11 @@ interface ReadOnlyForViewerParams {
    */
   forceReadOnly: boolean;
   taskStatus: string;
+  /**
+   * Paid assigned organization seat. Personal and free orgs are true.
+   * When false, the viewer may read the task but not comment, assign, or edit.
+   */
+  hasAssignedSeat?: boolean;
 }
 
 function isGrantPendingStatus(status: string): boolean {
@@ -36,8 +41,9 @@ export function isReadOnlyForViewer({
   sessionUserId,
   forceReadOnly,
   taskStatus,
+  hasAssignedSeat = false,
 }: ReadOnlyForViewerParams): boolean {
-  if (forceReadOnly || isGrantPendingStatus(taskStatus)) {
+  if (forceReadOnly || isGrantPendingStatus(taskStatus) || !hasAssignedSeat) {
     return true;
   }
   return taskWorkspaceOrganizationId !== null && sessionUserId !== taskOwnerId;
@@ -130,6 +136,9 @@ function canOrgCollaboratorActOnTaskForViewer({
 export function canCommentOnTaskForViewer(
   params: OrgCollaboratorViewerParams,
 ): boolean {
+  if (params.hasAssignedSeat !== true) {
+    return false;
+  }
   return canOrgCollaboratorActOnTaskForViewer(params);
 }
 

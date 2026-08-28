@@ -2090,9 +2090,8 @@ async function userHasPaidPlanCoverage(userId: string): Promise<boolean> {
       organizationId,
       prisma,
     );
-    // Match the canonical coverage checks (organization-subscription-auth,
-    // seat service): an "active" contract past its commercial term is not
-    // consumable and must not grant assistant access.
+    // Match seat-service coverage: an "active" contract past its commercial
+    // term is not consumable and must not grant assistant access.
     if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable)
       return true;
     if (billingPlan.mode === "self_serve" && billingPlan.plan !== "free")

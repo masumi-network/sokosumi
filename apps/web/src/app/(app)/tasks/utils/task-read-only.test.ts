@@ -30,8 +30,34 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
+  });
+
+  it("defaults to read-only when assigned seat is omitted", () => {
+    expect(
+      isReadOnlyForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+      }),
+    ).toBe(true);
+  });
+
+  it("makes an unseated paid owner read-only", () => {
+    expect(
+      isReadOnlyForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        hasAssignedSeat: false,
+      }),
+    ).toBe(true);
   });
 
   it("makes a non-owner collaborator on an organization task read-only", () => {
@@ -54,6 +80,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
   });
@@ -66,6 +93,7 @@ describe("isReadOnlyForViewer", () => {
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
   });
@@ -243,8 +271,21 @@ describe("canCommentOnTaskForViewer", () => {
         sessionUserId: "member_2",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+        hasAssignedSeat: true,
       }),
     ).toBe(true);
+  });
+
+  it("blocks comments when assigned seat is omitted", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+      }),
+    ).toBe(false);
   });
 
   it("keeps mutation read-only collaborators from commenting when forced read-only", () => {
@@ -267,6 +308,19 @@ describe("canCommentOnTaskForViewer", () => {
         sessionUserId: "someone_else",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks comments when the viewer has no assigned seat", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskOwnerId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        taskStatus: TaskStatus.READY,
+        hasAssignedSeat: false,
       }),
     ).toBe(false);
   });

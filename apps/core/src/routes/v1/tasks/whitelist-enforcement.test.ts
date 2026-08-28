@@ -15,6 +15,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
+}));
+
 const {
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,

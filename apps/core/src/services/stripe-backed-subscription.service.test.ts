@@ -1,14 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const autoAssignSeatsOnPaidSubscribeMock = vi.fn();
+const unassignSeatsOverPurchasedCapacityMock = vi.fn();
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const subscriptionUpdateManyMock = vi.fn();
 
+const organizationFindUniqueMock = vi.fn();
+const memberAssignedCountMock = vi.fn();
+
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     subscription: {
       updateMany: (...args: unknown[]) => subscriptionUpdateManyMock(...args),
+    },
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    member: {
+      count: (...args: unknown[]) => memberAssignedCountMock(...args),
     },
   }),
 );
@@ -18,6 +29,10 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
+    autoAssignSeatsOnPaidSubscribe: (...args: unknown[]) =>
+      autoAssignSeatsOnPaidSubscribeMock(...args),
+    unassignSeatsOverPurchasedCapacity: (...args: unknown[]) =>
+      unassignSeatsOverPurchasedCapacityMock(...args),
     transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       transitionToNextLocalFreeSubscriptionPeriodMock(...args),
   };
@@ -44,6 +59,10 @@ describe("reconcileActiveStripeBackedSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     subscriptionUpdateManyMock.mockResolvedValue({ count: 2 });
+    organizationFindUniqueMock.mockResolvedValue(null);
+    memberAssignedCountMock.mockResolvedValue(0);
+    autoAssignSeatsOnPaidSubscribeMock.mockResolvedValue(0);
+    unassignSeatsOverPurchasedCapacityMock.mockResolvedValue(0);
   });
 
   it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
@@ -79,6 +98,115 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     });
   });
 
+  it("auto-assigns seats when the Stripe-backed subscription is for an organization", async () => {
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: true },
+    );
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
+  });
+
+  it("auto-assigns seats on first paid even when no local-free rows close", async () => {
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+    memberAssignedCountMock.mockResolvedValue(0);
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: true },
+    );
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
+  });
+
+  it("does not auto-assign seats on later subscription updates when none are assigned", async () => {
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+    memberAssignedCountMock.mockResolvedValue(0);
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: false },
+    );
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).not.toHaveBeenCalled();
+    expect(unassignSeatsOverPurchasedCapacityMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
+  });
+
+  it("does not auto-assign seats when the organization already has assigned seats", async () => {
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+    memberAssignedCountMock.mockResolvedValue(2);
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription({
+      id: "sub_local_paid",
+      plan: "pro",
+      referenceId: "org-enterprise",
+      seats: 5,
+      status: "active",
+      stripeSubscriptionId: "sub_enterprise",
+    });
+
+    expect(autoAssignSeatsOnPaidSubscribeMock).not.toHaveBeenCalled();
+    expect(unassignSeatsOverPurchasedCapacityMock).toHaveBeenCalledWith(
+      "org-enterprise",
+      5,
+      expect.anything(),
+    );
+  });
+
   it("does not cancel local free rows for non-active local subscription statuses", async () => {
     const { reconcileActiveStripeBackedSubscription } = await import(
       "./stripe-backed-subscription.service"
@@ -109,6 +237,58 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     });
 
     expect(subscriptionUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCheckoutSessionCompletedEvent", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-1" });
+    memberAssignedCountMock.mockResolvedValue(0);
+    autoAssignSeatsOnPaidSubscribeMock.mockResolvedValue(2);
+    unassignSeatsOverPurchasedCapacityMock.mockResolvedValue(0);
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      id: "sub_local_paid",
+      plan: "pro",
+      referenceId: "org-1",
+      seats: 3,
+      status: "active",
+      stripeSubscriptionId: "sub_stripe_1",
+    });
+  });
+
+  it("reconciles the local Stripe-backed subscription from checkout", async () => {
+    const { handleCheckoutSessionCompletedEvent } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await handleCheckoutSessionCompletedEvent({
+      subscription: "sub_stripe_1",
+    } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      expect.anything(),
+    );
+    expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
+      "org-1",
+      3,
+      expect.anything(),
+    );
+  });
+
+  it("skips checkout sessions without a subscription id", async () => {
+    const { handleCheckoutSessionCompletedEvent } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await handleCheckoutSessionCompletedEvent({
+      subscription: null,
+    } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).not.toHaveBeenCalled();
+    expect(autoAssignSeatsOnPaidSubscribeMock).not.toHaveBeenCalled();
   });
 });
 

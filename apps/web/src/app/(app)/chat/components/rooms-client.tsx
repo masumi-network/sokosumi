@@ -117,6 +117,7 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -167,6 +168,7 @@ import {
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -1300,15 +1302,23 @@ export function RoomsClient({
   // Keep sessionStorage until stream actually starts so Strict Mode remount
   // cannot lose the draft before send begins.
   useEffect(() => {
-    if (!isCoworkerStreamRoom || !selectedRoomId) {
+    if (!selectedRoomId) {
       return;
     }
     const pending = peekPendingRoomMessage(selectedRoomId);
-    if (!pending) {
+    if (pending == null) {
+      return;
+    }
+    if (
+      !shouldConsumePendingCoworkerStream({
+        isCoworkerStreamRoom,
+        hasPendingMessage: true,
+      })
+    ) {
       return;
     }
     consumePendingStreamMessage(pending);
-  }, [isCoworkerStreamRoom, selectedRoomId, consumePendingStreamMessage]);
+  }, [consumePendingStreamMessage, isCoworkerStreamRoom, selectedRoomId]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.

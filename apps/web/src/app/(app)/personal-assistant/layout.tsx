@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-
+import { OrganizationProductSeatRequired } from "@/components/billing/organization-product-seat-required";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { HERMES_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
+import { isOrganizationProductLocked } from "@/lib/auth/is-organization-product-locked";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 
 import FullscreenEffect from "./components/fullscreen-effect";
@@ -20,6 +21,9 @@ export default async function HermesLayout({ children }: HermesLayoutProps) {
   const session = await getSession();
   if (!isHermesBetaAccessEmail(session?.user.email)) {
     notFound();
+  }
+  if (await isOrganizationProductLocked()) {
+    return <OrganizationProductSeatRequired />;
   }
 
   // We DON'T use `data-agent-fullbleed` here even though it nicely zeros

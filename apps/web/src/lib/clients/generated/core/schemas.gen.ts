@@ -11950,6 +11950,20 @@ export const MemberSchema = {
     ]
 } as const;
 
+export const OrganizationCallerSeatSchema = {
+    type: 'object',
+    properties: {
+        assigned: {
+            type: 'boolean',
+            description: 'Whether the caller is treated as seated in this organization (free: all members; paid/enterprise: assigned Seat)',
+            example: true
+        }
+    },
+    required: [
+        'assigned'
+    ]
+} as const;
+
 export const PendingInvitationSchema = {
     type: 'object',
     properties: {

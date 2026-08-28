@@ -26,6 +26,7 @@ import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
+import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
@@ -206,6 +207,7 @@ function VendorDashboard({
   onStartTask: (assigneeId: string, prompt?: string) => void;
   isFirst: boolean;
 }) {
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const [activeId, setActiveId] = useState(members[0]?.id);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const active = members.find((member) => member.id === activeId) ?? members[0];
@@ -342,16 +344,18 @@ function VendorDashboard({
                   className="w-full sm:w-auto"
                 />
               ) : null}
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                className="w-full sm:w-auto"
-                onClick={() => onStartTask(active.id)}
-              >
-                {labels.startForCoworker(active.name)}
-                <ArrowRight aria-hidden className="size-4" />
-              </Button>
+              {hasAssignedSeat ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  onClick={() => onStartTask(active.id)}
+                >
+                  {labels.startForCoworker(active.name)}
+                  <ArrowRight aria-hidden className="size-4" />
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -434,6 +438,7 @@ function CoworkerGallerySectionInner({
   coworkers,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
   // Gallery search query (URL-backed) filters coworker offers below.
   const { query, setQuery } = useGalleryFilter();
@@ -708,12 +713,16 @@ function CoworkerGallerySectionInner({
             : null
         }
         onClose={() => setSelected(null)}
-        onStart={() => {
-          if (selected) {
-            handleOpenWith(selected.coworker.id, selected.offer.prompt);
-          }
-          setSelected(null);
-        }}
+        onStart={
+          hasAssignedSeat
+            ? () => {
+                if (selected) {
+                  handleOpenWith(selected.coworker.id, selected.offer.prompt);
+                }
+                setSelected(null);
+              }
+            : undefined
+        }
         labels={{
           deliveredBy: t("deliveredByLabel"),
           deliverable: t("deliverableLabel"),

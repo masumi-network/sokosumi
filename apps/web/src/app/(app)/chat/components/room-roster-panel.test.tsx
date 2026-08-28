@@ -1,6 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+
 import type { ChatParticipantHoverProfile } from "./room-helpers";
 import { RoomRosterPanel } from "./room-roster-panel";
 
@@ -65,15 +67,17 @@ describe("RoomRosterPanel", () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <RoomRosterPanel
-        participants={[humanAda, coworkerHannah]}
-        currentUserId="user-self"
-        canOpenHumanDirect
-        onOpenDirect={vi.fn()}
-        openingDirectKey={null}
-        onClose={onClose}
-        labels={labels}
-      />,
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <RoomRosterPanel
+          participants={[humanAda, coworkerHannah]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={vi.fn()}
+          openingDirectKey={null}
+          onClose={onClose}
+          labels={labels}
+        />
+      </OrganizationSeatProvider>,
     );
 
     const panel = screen.getByTestId("room-roster-panel");
@@ -95,15 +99,17 @@ describe("RoomRosterPanel", () => {
     const user = userEvent.setup();
     const onOpenDirect = vi.fn();
     render(
-      <RoomRosterPanel
-        participants={[humanSelf, humanAda, coworkerHannah]}
-        currentUserId="user-self"
-        canOpenHumanDirect
-        onOpenDirect={onOpenDirect}
-        openingDirectKey={null}
-        onClose={vi.fn()}
-        labels={labels}
-      />,
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <RoomRosterPanel
+          participants={[humanSelf, humanAda, coworkerHannah]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={onOpenDirect}
+          openingDirectKey={null}
+          onClose={vi.fn()}
+          labels={labels}
+        />
+      </OrganizationSeatProvider>,
     );
 
     const adaRow = screen
@@ -152,15 +158,17 @@ describe("RoomRosterPanel", () => {
 
   it("lists room members even when the org roster failed to load", () => {
     render(
-      <RoomRosterPanel
-        participants={[humanAda]}
-        currentUserId="user-self"
-        canOpenHumanDirect
-        onOpenDirect={vi.fn()}
-        openingDirectKey={null}
-        onClose={vi.fn()}
-        labels={labels}
-      />,
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <RoomRosterPanel
+          participants={[humanAda]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={vi.fn()}
+          openingDirectKey={null}
+          onClose={vi.fn()}
+          labels={labels}
+        />
+      </OrganizationSeatProvider>,
     );
 
     expect(screen.getByText("Ada")).toBeTruthy();
@@ -169,15 +177,17 @@ describe("RoomRosterPanel", () => {
 
   it("shows empty copy when there are no participants", () => {
     render(
-      <RoomRosterPanel
-        participants={[]}
-        currentUserId="user-self"
-        canOpenHumanDirect
-        onOpenDirect={vi.fn()}
-        openingDirectKey={null}
-        onClose={vi.fn()}
-        labels={labels}
-      />,
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <RoomRosterPanel
+          participants={[]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={vi.fn()}
+          openingDirectKey={null}
+          onClose={vi.fn()}
+          labels={labels}
+        />
+      </OrganizationSeatProvider>,
     );
 
     expect(screen.getByText("No members to show.")).toBeTruthy();
@@ -187,15 +197,17 @@ describe("RoomRosterPanel", () => {
     const user = userEvent.setup();
     const onOpenDirect = vi.fn();
     render(
-      <RoomRosterPanel
-        participants={[humanSelf, humanAda, coworkerHannah]}
-        currentUserId="user-self"
-        canOpenHumanDirect
-        onOpenDirect={onOpenDirect}
-        openingDirectKey={null}
-        onClose={vi.fn()}
-        labels={labels}
-      />,
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <RoomRosterPanel
+          participants={[humanSelf, humanAda, coworkerHannah]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={onOpenDirect}
+          openingDirectKey={null}
+          onClose={vi.fn()}
+          labels={labels}
+        />
+      </OrganizationSeatProvider>,
     );
 
     const copyMessages = {
