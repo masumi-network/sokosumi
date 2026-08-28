@@ -15,6 +15,26 @@ import { buildCreditsPayload } from "@/helpers/subscription.js";
 
 const ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY = 5;
 
+export async function listAdminExternalChannels(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+) {
+  const rooms = await tx.chatRoom.findMany({
+    where: {
+      organizationId,
+      kind: "channel",
+      discoverability: "external",
+      archivedAt: null,
+    },
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: "asc" },
+  });
+
+  return rooms.flatMap((room) =>
+    room.slug ? [{ id: room.id, name: room.name, slug: room.slug }] : [],
+  );
+}
+
 type AdminOrganizationMemberRecord = Awaited<
   ReturnType<typeof memberRepository.getMembersWithUserAndLastSeen>
 >[number];
