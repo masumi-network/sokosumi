@@ -89,7 +89,7 @@ async function BotNode({ member }: { member: Member }) {
     </>
   );
   return (
-    <div className="bg-background rounded-lg border">
+    <div className="bg-card-background rounded-lg border">
       {member.isYou ? (
         <Link
           href={SOKO_BOT_ROUTE}
@@ -123,7 +123,7 @@ async function PersonNode({ member }: { member: Member }) {
     <li className="flex w-full flex-col">
       <div
         className={cn(
-          "bg-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
+          "bg-card-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
           member.isYou && "border-primary/50",
         )}
       >
@@ -169,7 +169,7 @@ export async function TeamChart({ team }: { team: SokoBotTeam }) {
   );
   return (
     <div className="space-y-0">
-      <div className="bg-background inline-flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
+      <div className="bg-card-background inline-flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
         {team.workspace.logo ? (
           <img
             src={team.workspace.logo}

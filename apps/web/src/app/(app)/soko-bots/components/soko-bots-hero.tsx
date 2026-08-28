@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -65,13 +65,9 @@ export async function SokoBotsHero({
   const faces = avatars.slice(0, bot ? 4 : 5);
 
   return (
-    <section className="bg-card/40 relative overflow-hidden rounded-xl border">
+    <section className="bg-card-background relative overflow-hidden rounded-xl border">
       <div className="flex flex-col gap-6 p-6 sm:p-8">
         <div className="space-y-4">
-          <span className="text-primary inline-flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
-            <Sparkles aria-hidden className="size-3.5" />
-            {t("heroEyebrow")}
-          </span>
           <h1 className="text-foreground max-w-3xl text-3xl font-semibold tracking-tight text-balance md:text-4xl">
             {t("heroTitle")}
           </h1>

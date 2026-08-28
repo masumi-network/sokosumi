@@ -38,20 +38,21 @@ export default async function SokoBotsPage() {
       <SokoBotsHero me={me} avatars={avatars} />
       {team ? (
         <section className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-2 border-b pb-3">
-            <div>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-foreground text-lg font-medium">
                 {t("teamTitle")}
               </h2>
-              <p className="text-muted-foreground text-sm">
-                {team.workspace.kind === "organization"
-                  ? t("teamDescription")
-                  : t("teamDescriptionPersonal")}
+              <p className="text-muted-foreground text-xs tabular-nums">
+                {t("peopleCount", { count: team.members.length })}
               </p>
             </div>
-            <p className="text-muted-foreground text-xs tabular-nums">
-              {t("peopleCount", { count: team.members.length })}
+            <p className="text-muted-foreground text-sm">
+              {team.workspace.kind === "organization"
+                ? t("teamDescription")
+                : t("teamDescriptionPersonal")}
             </p>
+            <hr className="border-border" />
           </div>
           <TeamChart team={team} />
         </section>
