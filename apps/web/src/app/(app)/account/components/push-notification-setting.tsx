@@ -64,18 +64,19 @@ export function PushNotificationSetting() {
   /**
    * One shape for both rows. The switches stay enabled while a save runs so
    * focus survives it, which makes this guard the thing that stops a second
-   * click landing on top of the first. Each row passes its own `canToggle`,
-   * because the two rows unlock under different conditions. `success` is a
-   * callback so each row keeps its own literal message keys.
+   * click landing on top of the first. `success` is a callback so each row
+   * keeps its own literal message keys.
+   *
+   * Whether a row may be toggled at all is the `disabled` prop's job below. A
+   * disabled switch fires no change, so a second check here would be dead.
    */
   const toggleHandler =
     <T,>(
-      canToggle: boolean,
       change: (next: boolean) => Promise<T>,
       success: (next: boolean, result: T) => string,
     ) =>
     (nextValue: boolean) => {
-      if (!canToggle || push.isSaving) {
+      if (push.isSaving) {
         return;
       }
 
@@ -87,7 +88,6 @@ export function PushNotificationSetting() {
     };
 
   const handleAccountToggle = toggleHandler(
-    push.canToggleAccount,
     push.setAccountEnabled,
     (next, subscribedHere) => {
       if (!next) {
@@ -103,11 +103,8 @@ export function PushNotificationSetting() {
     },
   );
 
-  const handleDeviceToggle = toggleHandler(
-    push.canToggleDevice,
-    push.setDeviceEnabled,
-    (next) =>
-      next ? t("pushDeviceEnabledSuccess") : t("pushDeviceDisabledSuccess"),
+  const handleDeviceToggle = toggleHandler(push.setDeviceEnabled, (next) =>
+    next ? t("pushDeviceEnabledSuccess") : t("pushDeviceDisabledSuccess"),
   );
 
   return (
