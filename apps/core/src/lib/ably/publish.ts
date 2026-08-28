@@ -83,6 +83,35 @@ interface NotificationPushData
   metadata?: string;
 }
 
+/**
+ * The longest string a single push parameter may carry.
+ *
+ * A display name has no server-side length limit: the 128 in the web form's
+ * schema is client-side only, and the column is unbounded text. The whole push
+ * payload rides a 4 KB Web Push ceiling, so one very long name would cost
+ * every recipient of that account's messages their banner.
+ *
+ * The values are capped rather than the encoded string, because a truncated
+ * JSON document does not parse and the worker would fall back to a generic
+ * banner instead of a shortened name. `metadata` is left alone: it carries
+ * ids Core generates, and truncating one would break routing silently.
+ */
+const MAX_PUSH_PARAM_LENGTH = 128;
+
+/** Codepoint-safe, so a cut never lands inside a surrogate pair. */
+function capPushParamValue(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const codePoints = [...value];
+  if (codePoints.length <= MAX_PUSH_PARAM_LENGTH) {
+    return value;
+  }
+
+  return codePoints.slice(0, MAX_PUSH_PARAM_LENGTH).join("");
+}
+
 function toNotificationPushData(
   notification: NotificationEventData,
 ): NotificationPushData {
@@ -91,7 +120,14 @@ function toNotificationPushData(
     kind: notification.kind,
     referenceId: notification.referenceId,
     messageKey: notification.messageKey,
-    messageParams: JSON.stringify(notification.messageParams),
+    messageParams: JSON.stringify(
+      Object.fromEntries(
+        Object.entries(notification.messageParams).map(([key, value]) => [
+          key,
+          capPushParamValue(value),
+        ]),
+      ),
+    ),
     ...(notification.metadata !== null && {
       metadata: JSON.stringify(notification.metadata),
     }),

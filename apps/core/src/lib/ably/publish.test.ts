@@ -171,6 +171,57 @@ describe("publishNotificationEvent", () => {
     }
   });
 
+  /**
+   * A display name has no server-side length limit, and the whole push payload
+   * rides a 4 KB Web Push ceiling. Without a cap, one account with a very long
+   * name would silence the banner for everyone it messages.
+   */
+  it("caps a long push parameter so one name cannot break the payload", async () => {
+    const longName = "a".repeat(500);
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: {
+        ...notification,
+        messageParams: { authorName: longName, roomName: "General" },
+      },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, string>
+      | undefined;
+    const params = JSON.parse(pushData?.messageParams ?? "{}") as {
+      authorName: string;
+      roomName: string;
+    };
+
+    expect(params.authorName).toBe("a".repeat(128));
+    // Everything else rides through untouched, and the document still parses.
+    expect(params.roomName).toBe("General");
+  });
+
+  /** A cut inside a surrogate pair would send a lone half to the worker. */
+  it("cuts a long parameter on a codepoint, not a code unit", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: {
+        ...notification,
+        messageParams: { authorName: "\u{1F600}".repeat(200) },
+      },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, string>
+      | undefined;
+    const params = JSON.parse(pushData?.messageParams ?? "{}") as {
+      authorName: string;
+    };
+
+    expect([...params.authorName]).toHaveLength(128);
+    expect(params.authorName).toBe("\u{1F600}".repeat(128));
+  });
+
   it("omits metadata rather than sending null when there is none", async () => {
     await publishNotificationEvent({
       userId: "user_123",
