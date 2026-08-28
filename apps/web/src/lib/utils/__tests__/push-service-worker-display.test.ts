@@ -4,7 +4,7 @@ import { createContext, runInContext } from "node:vm";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { notificationTargetSchema } from "../notification-service-worker";
+import { notificationTargetSchema } from "@/lib/utils/notification-service-worker";
 
 /**
  * The worker ships as a plain script in `public/`, so it cannot be imported.

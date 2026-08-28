@@ -8,7 +8,7 @@ import { PushNotificationSetting } from "./push-notification-setting";
 const pushPreference = {
   isAccountEnabled: false,
   isDeviceEnabled: false,
-  isSupported: true,
+  isSupported: true as boolean | null,
   isBlocked: false,
   canToggleAccount: true,
   canToggleDevice: true,
@@ -58,11 +58,18 @@ describe("PushNotificationSetting", () => {
     vi.clearAllMocks();
   });
 
-  it("names the browser block, so the reader knows why enabling fails", () => {
+  /**
+   * Both browser messages describe this browser, beside a switch that writes
+   * the account. Without the hint the row reads as dead, and the reader stops
+   * short of silencing the devices that can push.
+   */
+  it("names the browser block and says the switch still works", () => {
     renderWith({ isBlocked: true });
 
     expect(
-      screen.getByText("browserPermissionDeniedDescription"),
+      screen.getByText(
+        "browserPermissionDeniedDescription pushOtherDevicesHint",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -75,7 +82,29 @@ describe("PushNotificationSetting", () => {
   it("says the browser cannot push at all before it says it is blocked", () => {
     renderWith({ isSupported: false, isBlocked: true });
 
-    expect(screen.getByText("pushUnsupported")).toBeInTheDocument();
+    expect(
+      screen.getByText("pushUnsupported pushOtherDevicesHint"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the browser message off the screen until the read lands", () => {
+    // Null, not false: the answer needs `window`, and an unread answer told
+    // every reader on every browser that theirs does not support push.
+    renderWith({ isSupported: null });
+
+    expect(screen.getByText("pushDescription")).toBeInTheDocument();
+    expect(
+      screen.queryByText("pushDeviceUnavailableDescription"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says the device row is unavailable when this browser cannot push", () => {
+    renderWith({ isSupported: false, canToggleDevice: false });
+
+    expect(
+      screen.getByText("pushDeviceUnavailableDescription"),
+    ).toBeInTheDocument();
+    expect(deviceSwitch()).toBeDisabled();
   });
 
   it("locks the device row and says why while the account is off", () => {

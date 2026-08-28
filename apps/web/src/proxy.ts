@@ -31,6 +31,11 @@ const EXCLUDED_PATHS = [
   // The push service worker. The browser re-fetches it to check for updates,
   // and a redirect fails a worker script fetch, so a reader whose session
   // cookie expired would keep the worker version they installed.
+  //
+  // Spelled out rather than imported as `NOTIFICATION_SERVICE_WORKER_URL`: that
+  // constant sits in a module that imports zod and the notification schema, and
+  // the proxy runs on every request. `proxy.test.ts` builds the URL from the
+  // constant, so a rename fails there rather than silently here.
   "/ably-push-sw.js",
   "/maintenance",
 ];

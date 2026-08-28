@@ -235,7 +235,7 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(false);
   });
 
-  it("locks the device row while the account is opted out", async () => {
+  it("still lets a subscribed browser drop itself while the account is off", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(false);
 
@@ -245,8 +245,45 @@ describe("usePushPreference", () => {
 
     await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
     expect(result.current.isAccountEnabled).toBe(false);
-    // Reported honestly: this browser would wake up if consent came back.
+    // Reported honestly: this browser would wake up if consent came back, and
+    // story 8 says the reader may drop it without touching the others.
     expect(result.current.isDeviceEnabled).toBe(true);
+    expect(result.current.canToggleDevice).toBe(true);
+  });
+
+  it("locks the device row when the account is off and nothing is subscribed", async () => {
+    setDeviceSubscribed(false);
+    setAccountOptIn(false);
+
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    // Subscribing here would spend a permission prompt on a browser the
+    // account gate then silences.
+    expect(result.current.canToggleDevice).toBe(false);
+  });
+
+  it("records consent from a browser that blocks notifications", async () => {
+    // Same hole as the unsupported browser: subscribing first threw, and the
+    // consent write went with it, so a blocked laptop could not wake a phone.
+    setNotificationPermission("denied");
+    setAccountOptIn(false);
+    setAccountWriteResult(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isBlocked).toBe(true));
+
+    await act(async () => {
+      await result.current.setAccountEnabled(true);
+    });
+
+    expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: true });
+    expect(activatePushMock).not.toHaveBeenCalled();
+    expect(result.current.isAccountEnabled).toBe(true);
+    // Nothing here to subscribe, so the device row stays locked.
     expect(result.current.canToggleDevice).toBe(false);
   });
 

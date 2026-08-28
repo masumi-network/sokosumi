@@ -80,26 +80,33 @@ interface PushPreference {
   isAccountEnabled: boolean;
   /** Whether this browser holds a live push subscription. */
   isDeviceEnabled: boolean;
-  isSupported: boolean;
   /**
-   * Whether the browser blocks notifications for this site. Enabling can only
-   * fail while it does, so the view says so rather than leaving the reader with
-   * the generic failure toast.
+   * Whether this browser can push at all. Null until the mount read lands: the
+   * answer needs `window`, so it cannot be read during render, and reporting
+   * `false` in the meantime told every reader on every browser that theirs does
+   * not support push.
+   */
+  isSupported: boolean | null;
+  /**
+   * Whether the browser blocks notifications for this site. Subscribing can
+   * only fail while it does, so the view says so rather than leaving the reader
+   * with the generic failure toast.
    */
   isBlocked: boolean;
   /**
    * Whether the account row may be toggled. False while the session or the
    * account opt-in is still loading. Deliberately ignores a save in flight, so
    * the row keeps focus across a save, and deliberately ignores whether this
-   * browser can push: the account axis is a Core write, and a reader on a
-   * browser with no push API still owns the switch that silences or wakes
+   * browser can push: the account axis is a Core write, and a reader whose
+   * browser cannot subscribe still owns the switch that silences or wakes
    * their other devices.
    */
   canToggleAccount: boolean;
   /**
-   * Whether the device row may be toggled. Adds this browser's push support
-   * and account consent to `canToggleAccount`: subscribing a browser the
-   * account gate then silences would spend a permission prompt on nothing.
+   * Whether the device row may be toggled. Adds to `canToggleAccount` that this
+   * browser can subscribe, and that there is something here to change: with the
+   * account gate closed and no subscription held, turning it on would spend a
+   * permission prompt on a browser the gate then silences.
    */
   canToggleDevice: boolean;
   /** Whether a save is in flight. Each row refuses a second change until it lands. */
@@ -111,7 +118,7 @@ interface PushPreference {
 
 export function usePushPreference(userId: string | undefined): PushPreference {
   const [hasPushSubscription, setHasPushSubscription] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [permission, setPermission] =
     useState<BrowserNotificationPermission | null>(null);
@@ -227,6 +234,14 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     await activatePush(sessionUserId);
   }, []);
 
+  /**
+   * Whether this browser could become a push device at all. A missing push API
+   * and a blocked permission fail the same way, so they answer as one: both
+   * rows read this, and neither may promise a subscription it cannot make.
+   */
+  const isBlocked = isSupported === true && permission === "denied";
+  const canSubscribeHere = isSupported === true && !isBlocked;
+
   const setAccountEnabled = useCallback(
     (next: boolean) => {
       if (!next) {
@@ -236,10 +251,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         return runSave(() => recordAccountOptIn(false));
       }
 
-      if (!isSupported) {
-        // A browser with no push API of its own still owns the account axis.
-        // The write wakes the reader's other devices; there is simply no
-        // subscription to add here, and the row's description says so.
+      if (!canSubscribeHere) {
+        // This browser cannot become a push device: no push API, or the reader
+        // blocked notifications for the site. It still owns the account axis,
+        // so the write wakes the reader's other devices. Subscribing first
+        // here would throw and lose the consent write with it.
         return runSave(() => recordAccountOptIn(true));
       }
 
@@ -254,8 +270,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       });
     },
     [
+      canSubscribeHere,
       changePushSubscription,
-      isSupported,
       recordAccountOptIn,
       runSave,
       subscribeThisBrowser,
@@ -284,9 +300,16 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     // the reader can see which of their devices would wake up when it returns.
     isDeviceEnabled: hasPushSubscription,
     isSupported,
-    isBlocked: isSupported && permission === "denied",
+    isBlocked,
     canToggleAccount,
-    canToggleDevice: canToggleAccount && isSupported && accountOptIn === true,
+    // Unlocked while the account is off if this browser holds a subscription,
+    // so the reader can still drop this device (story 8). With nothing to drop
+    // and the account gate closed, turning it on would spend a permission
+    // prompt on a browser the gate then silences.
+    canToggleDevice:
+      canToggleAccount &&
+      canSubscribeHere &&
+      (accountOptIn === true || hasPushSubscription),
     isSaving,
     setAccountEnabled,
     setDeviceEnabled,

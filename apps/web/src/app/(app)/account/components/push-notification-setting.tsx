@@ -26,14 +26,28 @@ export function PushNotificationSetting() {
   const accountDescriptionId = useId();
   const deviceDescriptionId = useId();
 
-  // A blocked browser fails every enable, so name the block instead of leaving
-  // the reader with the generic failure toast. The wording is the one the
-  // notification centre already uses for the same state.
+  // A blocked browser fails every subscribe, so name the block instead of
+  // leaving the reader with the generic failure toast. The wording is the one
+  // the notification centre already uses for the same state. `isSupported` is
+  // null until the mount read lands, and an unread answer is not a "no".
   let accountDescription = t("pushDescription");
-  if (!push.isSupported) {
+  if (push.isSupported === false) {
     accountDescription = t("pushUnsupported");
   } else if (push.isBlocked) {
     accountDescription = tCenter("browserPermissionDeniedDescription");
+  }
+
+  // Both messages above describe this browser, next to a switch that writes the
+  // account. Saying what the switch still does keeps it from reading as dead.
+  const cannotSubscribeHere = push.isSupported === false || push.isBlocked;
+
+  // The account-off wording waits for `canToggleAccount`, so a preference still
+  // in flight does not read as an account that is switched off.
+  let deviceDescription = t("pushDeviceDescription");
+  if (cannotSubscribeHere) {
+    deviceDescription = t("pushDeviceUnavailableDescription");
+  } else if (push.canToggleAccount && !push.isAccountEnabled) {
+    deviceDescription = t("pushDeviceInactiveDescription");
   }
 
   // The reader gets one wording for every failure, so log the real reason: a
@@ -91,7 +105,9 @@ export function PushNotificationSetting() {
             className="text-muted-foreground text-sm leading-6"
             id={accountDescriptionId}
           >
-            {accountDescription}
+            {cannotSubscribeHere
+              ? `${accountDescription} ${t("pushOtherDevicesHint")}`
+              : accountDescription}
           </p>
         </div>
         <Switch
@@ -112,9 +128,7 @@ export function PushNotificationSetting() {
             className="text-muted-foreground text-sm leading-6"
             id={deviceDescriptionId}
           >
-            {push.isAccountEnabled
-              ? t("pushDeviceDescription")
-              : t("pushDeviceInactiveDescription")}
+            {deviceDescription}
           </p>
         </div>
         <Switch
