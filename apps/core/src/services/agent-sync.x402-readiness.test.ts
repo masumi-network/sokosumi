@@ -466,6 +466,34 @@ describe("syncX402BuySideReadiness", () => {
     expect(bounded.indexOf("; 1:")).toBeLessThan(210);
   });
 
+  it("redacts an env secret the far side echoed back", () => {
+    // The exposure this closes: extractNodeErrorMessage falls back to a JSON
+    // dump of the whole response body, so a proxy in front of the node that
+    // answers with the request headers echoed hands our own PAYMENT_API_KEY
+    // back to us. That string goes to stdout AND into a Sentry message.
+    const key = process.env.PAYMENT_API_KEY as string;
+
+    const bounded = boundCheckErrorForLogging([
+      `api-key-status 502: {"headers":{"token":"${key}"}}`,
+    ]);
+
+    expect(bounded).not.toContain(key);
+    expect(bounded).toContain("[redacted:env-secret]");
+  });
+
+  it("redacts before truncating, so a halved key cannot survive", () => {
+    // Order matters on its own. The per-item cap is 200 characters, so a key
+    // starting at 195 is cut in half by the slice; five characters of key
+    // material is still key material. Redacting first removes it whole.
+    const key = process.env.PAYMENT_API_KEY as string;
+
+    const bounded = boundCheckErrorForLogging([`${"x".repeat(195)}${key}`]);
+
+    expect(bounded).not.toContain(key.slice(0, 5));
+    // The marker itself is what the slice cuts now, not the key.
+    expect(bounded).toContain("[red");
+  });
+
   it("keeps paging while readiness has never been recorded (cold start)", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")

@@ -12,6 +12,7 @@ import {
   X402_BUY_SIDE_READINESS_KEY,
 } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
+import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
 import {
   composeX402ReadySources,
@@ -37,8 +38,13 @@ const MAX_CHECK_ERROR_TOTAL_LENGTH = 2_000;
  * (three endpoint errors item-capped cannot exceed it), so it is pinned here.
  */
 export function boundCheckErrorForLogging(errors: readonly string[]): string {
+  // Redact BEFORE the slice. Truncating first can cut a key in half and leave
+  // the leading half in the log, which is still key material.
+  const secrets = getEnvSecrets();
   return errors
-    .map((error) => error.slice(0, MAX_CHECK_ERROR_ITEM_LENGTH))
+    .map((error) =>
+      redactSecrets(error, secrets).slice(0, MAX_CHECK_ERROR_ITEM_LENGTH),
+    )
     .join("; ")
     .slice(0, MAX_CHECK_ERROR_TOTAL_LENGTH);
 }
