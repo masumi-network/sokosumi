@@ -108,9 +108,11 @@ export interface PushPreference {
   isSaving: boolean;
   /**
    * Rejects on failure so the view can surface its own error toast. Resolves
-   * with whether this browser ended up a push device, which is what the view
+   * with whether this write subscribed this browser, which is what the view
    * reports: turning consent on from a browser that cannot push, or from one
-   * whose reader refuses the prompt, reaches the other devices only.
+   * whose reader refuses the prompt, reaches the other devices only. Turning
+   * consent off subscribes nothing either, and leaves the registrations it
+   * already had (ADR-0019).
    */
   setAccountEnabled: (next: boolean) => Promise<boolean>;
   /** Rejects on failure, a refused permission included: this row is this browser. */
@@ -207,6 +209,12 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    * Move this browser into `nextSubscribed`, optimistically, and roll back if
    * the work throws.
    */
+  const resyncSubscription = useCallback(async () => {
+    // Re-read rather than assume the old value: the work may have failed
+    // halfway, after the subscription already changed.
+    setHasPushSubscription(await readPushSubscription());
+  }, []);
+
   const changePushSubscription = useCallback(
     <T>(nextSubscribed: boolean, work: (sessionUserId: string) => Promise<T>) =>
       runSave(async (sessionUserId) => {
@@ -214,13 +222,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         try {
           return await work(sessionUserId);
         } catch (error) {
-          // Re-read rather than assume the old value: the work may have failed
-          // halfway, after the subscription already changed.
-          setHasPushSubscription(await readPushSubscription());
+          await resyncSubscription();
           throw error;
         }
       }),
-    [runSave],
+    [resyncSubscription, runSave],
   );
 
   /**
@@ -283,28 +289,35 @@ export function usePushPreference(userId: string | undefined): PushPreference {
 
       // Turning consent on also subscribes this browser, so the common case is
       // still one gesture. The device row then only ever touches this browser.
-      return changePushSubscription(true, async (sessionUserId) => {
-        // Register the device first. If the Core write then fails, the device
-        // is known to Ably but Core sends nothing, so the reader gets silence
-        // rather than banners they never consented to.
-        //
-        // A refused prompt is not a failure here. The reader asked for push on
-        // their account, and answered for this browser only, so consent goes
-        // in and this browser stays out. The blocked branch above does the
-        // same thing for a reader who refused it earlier.
-        const subscribedHere = await subscribeThisBrowser(sessionUserId);
-        if (!subscribedHere) {
-          // Undo this call's own optimism: nothing here is subscribed.
-          setHasPushSubscription(false);
+      //
+      // That row moves on the answer, not ahead of it. The reader is holding
+      // an OS prompt open, and the account row cannot move until its write
+      // lands, so painting this one on first would sit a checked switch beside
+      // its own "push is off for your account" for as long as the prompt is up.
+      return runSave(async (sessionUserId) => {
+        try {
+          // Register the device first. If the Core write then fails, the
+          // device is known to Ably but Core sends nothing, so the reader gets
+          // silence rather than banners they never consented to.
+          //
+          // A refused prompt is not a failure here. The reader asked for push
+          // on their account, and answered for this browser only, so consent
+          // goes in and this browser stays out. The blocked branch above does
+          // the same for a reader who refused it earlier.
+          const subscribedHere = await subscribeThisBrowser(sessionUserId);
+          setHasPushSubscription(subscribedHere);
+          await recordAccountOptIn(true);
+          return subscribedHere;
+        } catch (error) {
+          await resyncSubscription();
+          throw error;
         }
-        await recordAccountOptIn(true);
-        return subscribedHere;
       });
     },
     [
       canSubscribeHere,
-      changePushSubscription,
       recordAccountOptIn,
+      resyncSubscription,
       runSave,
       subscribeThisBrowser,
     ],

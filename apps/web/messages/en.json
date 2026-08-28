@@ -4682,7 +4682,7 @@
         "marketingEmailsEnabledSuccess": "Marketing emails enabled",
         "marketingEmailsDisabledSuccess": "Marketing emails disabled",
         "pushTitle": "Push notifications",
-        "pushDescription": "Get a banner when Sokosumi is closed. Off silences every device.",
+        "pushDescription": "Get a banner for chat updates when Sokosumi is closed. Off silences every device.",
         "pushUnsupported": "This browser does not support push notifications.",
         "pushOtherDevicesHint": "This switch still controls your other devices.",
         "pushAriaLabel": "Toggle push notifications for the account",

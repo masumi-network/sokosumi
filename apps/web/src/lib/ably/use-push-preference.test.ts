@@ -128,6 +128,40 @@ describe("usePushPreference", () => {
   });
 
   /**
+   * The account row cannot move until its write lands, so a device row that
+   * moved first would sit checked beside its own "push is off for your
+   * account" for as long as the reader leaves the prompt open.
+   */
+  it("holds the device row until the reader answers the prompt", async () => {
+    setNotificationPermission("default");
+    let answerPrompt!: (permission: NotificationPermission) => void;
+    requestPermissionMock.mockReturnValue(
+      new Promise((resolve) => {
+        answerPrompt = resolve;
+      }),
+    );
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+
+    let pending!: Promise<boolean>;
+    act(() => {
+      pending = result.current.setAccountEnabled(true);
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(false);
+    expect(result.current.isAccountEnabled).toBe(false);
+
+    await act(async () => {
+      answerPrompt("granted");
+      await pending;
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(true);
+  });
+
+  /**
    * The reader clicked the account row, so the prompt answers for this browser
    * and nothing else. Losing their consent write with it would leave the phone
    * in their pocket silent because a laptop said no.

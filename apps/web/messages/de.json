@@ -4651,7 +4651,7 @@
         "marketingEmailsEnabledSuccess": "Marketing-E-Mails aktiviert",
         "marketingEmailsDisabledSuccess": "Marketing-E-Mails deaktiviert",
         "pushTitle": "Push-Benachrichtigungen",
-        "pushDescription": "Erhalte eine Meldung, wenn Sokosumi geschlossen ist. Aus schaltet alle Geräte stumm.",
+        "pushDescription": "Erhalte eine Meldung zu Chat-Updates, wenn Sokosumi geschlossen ist. Aus schaltet alle Geräte stumm.",
         "pushUnsupported": "Dieser Browser unterstützt keine Push-Benachrichtigungen.",
         "pushOtherDevicesHint": "Dieser Schalter steuert weiterhin deine anderen Geräte.",
         "pushAriaLabel": "Push-Benachrichtigungen für das Konto umschalten",

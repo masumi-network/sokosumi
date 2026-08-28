@@ -41,7 +41,7 @@ const LOCALE_COOKIE_NAME = "sokosumi.locale";
 /**
  * Copy of `Library.Notifications.Chat.*` from apps/web/messages/<locale>.json.
  *
- * A service worker cannot reach next-intl, so the tracer duplicates the two
+ * A service worker cannot reach next-intl, so this worker duplicates the two
  * chat strings. SOK-876 replaces this with the shared renderer. Change a
  * string here only together with the message files.
  */
