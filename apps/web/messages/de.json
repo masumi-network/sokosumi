@@ -3707,7 +3707,7 @@
           },
           "AddOrganization": {
             "title": "Organisation hinzufügen",
-            "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel. Spätere Beitritte werden nicht synchronisiert.",
+            "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel (max. 200 Mitglieder pro Anfrage). Spätere Beitritte werden nicht synchronisiert.",
             "organization": "Organisation",
             "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
             "submit": "Organisationsmitglieder hinzufügen",

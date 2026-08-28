@@ -3372,7 +3372,7 @@
           },
           "AddOrganization": {
             "title": "Add organization",
-            "description": "Snapshot all current Members of an organization onto this channel. Future joins are not synced.",
+            "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
             "organization": "Organization",
             "helper": "Organizations you belong to appear first in search results.",
             "submit": "Add organization members",

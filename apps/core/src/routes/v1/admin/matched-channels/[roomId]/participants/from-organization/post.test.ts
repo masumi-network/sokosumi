@@ -6,6 +6,8 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 
+import { ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS } from "@/schemas/admin.schema";
+
 import mountAddAdminMatchedChannelParticipantsFromOrganization from "./post";
 
 const {
@@ -182,6 +184,23 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
     const response = await post({ organizationId: "missing" });
     expect(response.status).toBe(404);
     expect(memberFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the organization exceeds the snapshot member soft cap", async () => {
+    memberFindManyMock.mockResolvedValue(
+      Array.from(
+        { length: ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS + 1 },
+        (_, index) => ({ userId: `user_${index}` }),
+      ),
+    );
+
+    const response = await post({ organizationId: "org_1" });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toMatch(/Snapshot is limited/i);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(ensureMatchedChannelParticipantMock).not.toHaveBeenCalled();
   });
 
   it("rejects when both id and slug are provided", async () => {

@@ -405,6 +405,13 @@ export const adminRemoveMatchedChannelParticipantSchema = z
   })
   .openapi("AdminRemoveMatchedChannelParticipant");
 
+/**
+ * Soft cap for one-shot org → matched roster snapshots. Each member takes a
+ * locked ensure in a single transaction; larger orgs should be added in waves
+ * or per-user until chunking lands.
+ */
+export const ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS = 200;
+
 export const adminAddMatchedChannelFromOrganizationBodySchema = z
   .object({
     organizationId: z.string().min(1).optional().openapi({

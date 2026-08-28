@@ -3,12 +3,13 @@ import { createRoute } from "@hono/zod-openapi";
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { ensureMatchedChannelParticipant } from "@/helpers/chat-room-matched-membership.js";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime.js";
-import { notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS,
   adminAddMatchedChannelFromOrganizationBodySchema,
   adminAddMatchedChannelFromOrganizationResultSchema,
   adminMatchedChannelRoomParamsSchema,
@@ -18,8 +19,7 @@ const route = createRoute({
   method: "post",
   path: "/{roomId}/participants/from-organization",
   operationId: "addAdminMatchedChannelParticipantsFromOrganization",
-  description:
-    "Snapshot all current Organization Members onto a live matched channel as members (admin only). Idempotent per user. Returns added / alreadyMember / totalMembers counts.",
+  description: `Snapshot current Organization Members onto a live matched channel as members (admin only). Idempotent per user. Rejects when the organization has more than ${ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS} Members — add in smaller waves or per user. Returns added / alreadyMember / totalMembers counts.`,
   tags: ["Admin"],
   request: {
     params: adminMatchedChannelRoomParamsSchema,
@@ -63,6 +63,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { organizationId: organization.id },
       select: { userId: true },
     });
+
+    if (members.length > ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS) {
+      throw badRequest(
+        `Organization has ${members.length} Members. Snapshot is limited to ${ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS} per request — add a smaller organization, or add users individually.`,
+      );
+    }
 
     let added = 0;
     let alreadyMember = 0;

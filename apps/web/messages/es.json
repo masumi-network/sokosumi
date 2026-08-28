@@ -3775,7 +3775,7 @@
           },
           "AddOrganization": {
             "title": "Añadir organización",
-            "description": "Añade todos los miembros actuales de una organización a este canal. Las altas posteriores no se sincronizan.",
+            "description": "Añade todos los miembros actuales de una organización a este canal (máx. 200 miembros por solicitud). Las altas posteriores no se sincronizan.",
             "organization": "Organización",
             "helper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
             "submit": "Añadir miembros de la organización",

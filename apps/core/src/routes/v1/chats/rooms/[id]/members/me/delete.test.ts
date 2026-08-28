@@ -136,16 +136,22 @@ function member(id: string, access: "member" | "guest" = "member") {
 function room(
   overrides: {
     kind?: string;
+    organizationId?: string | null;
+    discoverability?: string | null;
     memberIds?: string[];
     userMembers?: ReturnType<typeof member>[];
   } = {},
 ) {
   return {
     id: ROOM_ID,
-    organizationId: "org_1",
+    organizationId:
+      overrides.organizationId === undefined
+        ? "org_1"
+        : overrides.organizationId,
     name: "general",
     slug: "general",
     kind: overrides.kind ?? "channel",
+    discoverability: overrides.discoverability ?? "private",
     directKey: null,
     topic: null,
     createdByUserId: OTHER_ID,
@@ -243,9 +249,29 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     roomFindFirstMock.mockResolvedValue(room({ memberIds: [SELF_ID] }));
     userMemberCountMock.mockResolvedValue(0);
 
-    expect((await leave()).status).toBe(400);
+    const response = await leave();
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/organization owner or admin/i);
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
     expect(readStateDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("points last member of an org-less matched room at platform admin", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      room({
+        memberIds: [SELF_ID],
+        organizationId: null,
+        discoverability: "matched",
+      }),
+    );
+    userMemberCountMock.mockResolvedValue(0);
+
+    const response = await leave();
+    const body = await response.text();
+    expect(response.status).toBe(400);
+    expect(body).toMatch(/platform admin/i);
+    expect(body).not.toMatch(/organization owner/i);
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("refuses last host leave while guests remain", async () => {
