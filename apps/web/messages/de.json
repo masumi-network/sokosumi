@@ -3166,6 +3166,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "matchedChannels": {
+            "title": "Matched Channels",
+            "description": "Organisationslose Matched Channels erstellen und deren Roster verwalten."
+          },
           "x402Payments": {
             "title": "x402-Zahlungen",
             "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
@@ -3643,6 +3647,72 @@
           "submitting": "Credits werden gewährt…",
           "grantSuccess": "Kostenlose Credits gewährt",
           "grantError": "Kostenlose Credits konnten nicht gewährt werden"
+        }
+      },
+      "MatchedChannels": {
+        "title": "Matched Channels",
+        "description": "Erstelle organisationslose Matched Channels, verwalte das Roster und übernimm aktuelle Organisationsmitglieder per Snapshot.",
+        "backToAdmin": "Zurück zur Administration",
+        "listError": "Matched Channels konnten nicht geladen werden",
+        "List": {
+          "title": "Channels",
+          "description": "Live-Matched-Channels mit Sichtbarkeit nur über das Roster.",
+          "loading": "Channels werden geladen…",
+          "empty": "Noch keine Matched Channels."
+        },
+        "Create": {
+          "title": "Matched Channel erstellen",
+          "description": "Erstellt einen live organisationslosen Channel. Du wirst nicht als Raummitglied hinzugefügt.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Eindeutig unter Channels. Nach dem Erstellen nicht mehr änderbar.",
+          "slugRequired": "Channel-Slug eingeben",
+          "name": "Name",
+          "namePlaceholder": "z. B. Partners",
+          "nameHelp": "Wird in der Liste angezeigt. Startet vom Handle; hier kannst du ihn ändern.",
+          "submit": "Channel erstellen",
+          "submitting": "Wird erstellt…",
+          "success": "Matched Channel erstellt",
+          "error": "Matched Channel konnte nicht erstellt werden",
+          "slugTaken": "Dieser Channel-Slug ist bereits vergeben."
+        },
+        "Detail": {
+          "back": "Zurück zu Matched Channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Benutzer auswählen, der hinzugefügt werden soll",
+          "organizationRequired": "Organisation für den Snapshot auswählen",
+          "addUserSuccess": "Benutzer zum Roster hinzugefügt",
+          "alreadyMember": "Benutzer ist bereits in diesem Channel",
+          "addUserError": "Benutzer konnte nicht hinzugefügt werden",
+          "addOrganizationSuccess": "{added} von {totalMembers} Mitgliedern hinzugefügt ({alreadyMember} bereits im Roster)",
+          "addOrganizationError": "Organisationsmitglieder konnten nicht übernommen werden",
+          "Roster": {
+            "title": "Roster",
+            "description": "Benutzer mit Mitgliederzugang in diesem Matched Channel.",
+            "empty": "Noch keine Teilnehmer.",
+            "name": "Name",
+            "email": "E-Mail",
+            "actions": "Aktionen",
+            "remove": "Entfernen",
+            "removing": "Wird entfernt…",
+            "removeSuccess": "{name} vom Roster entfernt",
+            "removeError": "Teilnehmer konnte nicht entfernt werden"
+          },
+          "AddUser": {
+            "title": "Benutzer hinzufügen",
+            "description": "Suche einen bestehenden Plattformnutzer. Es wird keine E-Mail-Einladung gesendet; die Mitgliedschaft wird sofort erstellt.",
+            "user": "Benutzer",
+            "submit": "Benutzer hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          },
+          "AddOrganization": {
+            "title": "Organisation hinzufügen",
+            "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel (max. 200 Mitglieder pro Anfrage). Spätere Beitritte werden nicht synchronisiert.",
+            "organization": "Organisation",
+            "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
+            "submit": "Organisationsmitglieder hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          }
         }
       },
       "Agents": {

@@ -920,6 +920,8 @@ export function RoomsClient({
     setRosterOpen(false);
   }
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
+  // Matched channels are roster-managed only from the admin hub.
+  const isMatchedChannel = selectedRoom?.discoverability === "matched";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
     discoverability: selectedRoom?.discoverability,
@@ -931,16 +933,20 @@ export function RoomsClient({
   )?.role;
   const isOrgOwnerOrAdmin =
     currentMemberRole === "owner" || currentMemberRole === "admin";
-  // Host-org channel members rewrite roster; guests cannot.
+  // Host-org channel members rewrite roster; guests and matched cannot.
   const canEditSelectedRoomMembers = Boolean(
-    selectedRoom && !isDirectRoom && !isGuestInSelectedRoom,
+    selectedRoom &&
+      !isDirectRoom &&
+      !isGuestInSelectedRoom &&
+      !isMatchedChannel,
   );
   // Name/topic/discoverability and archive: organization owner/admin only.
-  // Guests never manage host channel settings.
+  // Guests and matched members never manage host channel settings.
   const canManageSelectedRoomSettings = Boolean(
     selectedRoom &&
       !isDirectRoom &&
       !isGuestInSelectedRoom &&
+      !isMatchedChannel &&
       isOrgOwnerOrAdmin,
   );
   const canArchiveSelectedRoom = canManageSelectedRoomSettings;

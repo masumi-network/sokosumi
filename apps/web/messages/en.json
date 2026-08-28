@@ -3314,6 +3314,72 @@
           "grantError": "Failed to grant free credits"
         }
       },
+      "MatchedChannels": {
+        "title": "Matched channels",
+        "description": "Create org-less matched channels, manage the roster, and snapshot organization Members onto a channel.",
+        "backToAdmin": "Back to admin",
+        "listError": "Failed to load matched channels",
+        "List": {
+          "title": "Channels",
+          "description": "Live matched channels with roster-only visibility.",
+          "loading": "Loading channels…",
+          "empty": "No matched channels yet."
+        },
+        "Create": {
+          "title": "Create matched channel",
+          "description": "Creates a live org-less channel. You are not added as a room member.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Unique among channels. You cannot change it after creating.",
+          "slugRequired": "Enter a channel slug",
+          "name": "Name",
+          "namePlaceholder": "e.g. Partners",
+          "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
+          "submit": "Create channel",
+          "submitting": "Creating…",
+          "success": "Matched channel created",
+          "error": "Failed to create matched channel",
+          "slugTaken": "This channel slug is already taken."
+        },
+        "Detail": {
+          "back": "Back to matched channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Select a user to add",
+          "organizationRequired": "Select an organization to snapshot",
+          "addUserSuccess": "User added to roster",
+          "alreadyMember": "User is already on this channel",
+          "addUserError": "Failed to add user",
+          "addOrganizationSuccess": "Added {added} of {totalMembers} members ({alreadyMember} already on roster)",
+          "addOrganizationError": "Failed to snapshot organization members",
+          "Roster": {
+            "title": "Roster",
+            "description": "Users with member access on this matched channel.",
+            "empty": "No participants yet.",
+            "name": "Name",
+            "email": "Email",
+            "actions": "Actions",
+            "remove": "Remove",
+            "removing": "Removing…",
+            "removeSuccess": "Removed {name} from the roster",
+            "removeError": "Failed to remove participant"
+          },
+          "AddUser": {
+            "title": "Add user",
+            "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
+            "user": "User",
+            "submit": "Add user",
+            "submitting": "Adding…"
+          },
+          "AddOrganization": {
+            "title": "Add organization",
+            "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
+            "organization": "Organization",
+            "helper": "Organizations you belong to appear first in search results.",
+            "submit": "Add organization members",
+            "submitting": "Adding…"
+          }
+        }
+      },
       "Overview": {
         "title": "Admin",
         "description": "Internal tools for accounts, billing, catalog, and operations.",
@@ -3347,6 +3413,10 @@
           "tasks": {
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
+          },
+          "matchedChannels": {
+            "title": "Matched channels",
+            "description": "Create org-less matched channels and manage their roster."
           },
           "x402Payments": {
             "title": "x402 payments",

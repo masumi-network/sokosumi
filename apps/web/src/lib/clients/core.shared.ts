@@ -91,6 +91,8 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
+  addAdminMatchedChannelParticipantsFromOrganization as coreAddAdminMatchedChannelParticipantsFromOrganization,
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
@@ -98,6 +100,7 @@ import {
   claimCoupon as coreClaimCoupon,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
+  createAdminMatchedChannel as coreCreateAdminMatchedChannel,
   createAdminVendor as coreCreateAdminVendor,
   createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
@@ -132,6 +135,7 @@ import {
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
+  getAdminMatchedChannel as coreGetAdminMatchedChannel,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
@@ -230,6 +234,7 @@ import {
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminMatchedChannels as coreListAdminMatchedChannels,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
@@ -343,6 +348,7 @@ import {
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
+  removeAdminMatchedChannelParticipant as coreRemoveAdminMatchedChannelParticipant,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
@@ -1710,6 +1716,98 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to list organization members",
+    );
+  }
+
+  async function listAdminMatchedChannels() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminMatchedChannels({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list matched channels",
+    );
+  }
+
+  async function createAdminMatchedChannel(body: {
+    name?: string;
+    slug: string;
+    topic?: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminMatchedChannel({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create matched channel",
+    );
+  }
+
+  async function getAdminMatchedChannel(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminMatchedChannel({
+          client,
+          path: { roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch matched channel",
+    );
+  }
+
+  async function addAdminMatchedChannelParticipant(
+    roomId: string,
+    body: { userId: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAddAdminMatchedChannelParticipant({
+          client,
+          path: { roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add matched channel participant",
+    );
+  }
+
+  async function addAdminMatchedChannelParticipantsFromOrganization(
+    roomId: string,
+    body: { organizationId?: string; organizationSlug?: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAddAdminMatchedChannelParticipantsFromOrganization({
+          client,
+          path: { roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add matched channel participants from organization",
+    );
+  }
+
+  async function removeAdminMatchedChannelParticipant(
+    roomId: string,
+    userId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRemoveAdminMatchedChannelParticipant({
+          client,
+          path: { roomId, userId },
+          cache: "no-store",
+        }),
+      "Failed to remove matched channel participant",
     );
   }
 
@@ -4535,6 +4633,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAdminOrganizationBySlug,
     listAdminOrganizations,
     listAdminOrganizationMembers,
+    listAdminMatchedChannels,
+    createAdminMatchedChannel,
+    getAdminMatchedChannel,
+    addAdminMatchedChannelParticipant,
+    addAdminMatchedChannelParticipantsFromOrganization,
+    removeAdminMatchedChannelParticipant,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

@@ -2,12 +2,12 @@ import { Globe2, Hash, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChannelDiscoverabilityIconProps {
-  discoverability?: "public" | "private" | "external" | null;
+  discoverability?: "public" | "private" | "external" | "matched" | null;
   className?: string;
 }
 
 /**
- * Slack-like: `#` for public, lock for private, globe for external.
+ * Slack-like: `#` for public, lock for private, globe for external/matched.
  * Outer size-5 matches DM avatars so every room row shares one leading column.
  * Glyph stays size-3.5; wrapper blocks sidebar `[&>svg]:size-4` override.
  */
@@ -18,7 +18,7 @@ export function ChannelDiscoverabilityIcon({
   const Icon =
     discoverability === "private"
       ? Lock
-      : discoverability === "external"
+      : discoverability === "external" || discoverability === "matched"
         ? Globe2
         : Hash;
 
