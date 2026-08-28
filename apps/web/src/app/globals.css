@@ -855,28 +855,6 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   font-weight: 700;
 }
 
-/* The Personal Assistant surface keeps the shared breadcrumb header (like
- * every other route) but renders its chat/empty-state full-bleed in the
- * content area below it. Kill AppLayout's `p-4` gutter so the chat fills the
- * area; keep main's normal `calc(100svh-4rem)` height (so it sits under the
- * header, not over it) and its `overflow-y-auto`. Done here instead of via
- * `data-agent-fullbleed` so main keeps its own scroll; otherwise the setup
- * loaders leak excess height to the document body. Keyed off a body attribute
- * toggled by FullscreenEffect. */
-body[data-hermes-fullscreen="true"] [data-app-main] {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  padding-bottom: 0 !important;
-}
-/* On mobile the header is `fixed`, so main's top padding (`pt-20`) is the only
- * thing keeping the chat clear of it — preserve it there. From `md` up the
- * header is in-flow (sticky), so the top gutter can go for true full-bleed. */
-@media (min-width: 768px) {
-  body[data-hermes-fullscreen="true"] [data-app-main] {
-    padding-top: 0 !important;
-  }
-}
-
 /* Respect reduced-motion for the chat "thinking" indicator: freeze the
  * reasoning shimmer to plain foreground text. Defined after the rules
  * above so source order wins. */

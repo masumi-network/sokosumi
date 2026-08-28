@@ -26,12 +26,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
       };
     }
 
-    if (
-      (authContext.actor === "coworker" ||
-        authContext.actor === "orchestrator") &&
-      "context" in authContext &&
-      authContext.context
-    ) {
+    if (authContext.actor === "coworker" && authContext.context) {
       return {
         source: "context" as const,
         userId: authContext.context.userId,

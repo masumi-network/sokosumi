@@ -46,7 +46,7 @@ export function getPrismaErrorCode(error: unknown): string | null {
 
 /**
  * Network timeouts and dropped connections from outbound HTTP/fetch calls.
- * Shared by Resend, skills.sh, coworker retrieve, and similar integrations.
+ * Shared by Resend, Coworker retrieval, and similar integrations.
  */
 export function isTransientFetchError(error: unknown): boolean {
   const message = getErrorMessage(error);

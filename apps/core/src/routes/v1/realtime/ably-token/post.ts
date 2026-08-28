@@ -8,12 +8,12 @@ import { createAblyClientTokenRequest } from "@/lib/ably/create-token-request";
 import prisma from "@/lib/db/prisma";
 import {
   type EnvVariables,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/ably-token.schema";
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/ably-token",

@@ -127,6 +127,7 @@ describe("messageSender", () => {
       caption: null,
       image: null,
       presence: "online",
+      sokoBotAvatarSeed: null,
     });
   });
 });

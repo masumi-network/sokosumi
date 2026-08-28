@@ -27,12 +27,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
     if (authContext.actor === "user") {
       return { source: "session" as const, ...authContext };
     }
-    if (
-      (authContext.actor === "coworker" ||
-        authContext.actor === "orchestrator") &&
-      "context" in authContext &&
-      authContext.context
-    ) {
+    if (authContext.actor === "coworker" && authContext.context) {
       return {
         source: "context" as const,
         userId: authContext.context.userId,
@@ -57,17 +52,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
     }
     if (authContext.actor === "user") {
       return { source: "session" as const, ...authContext };
-    }
-    if (
-      authContext.actor === "orchestrator" &&
-      "context" in authContext &&
-      authContext.context
-    ) {
-      return {
-        source: "context" as const,
-        userId: authContext.context.userId,
-        organizationId: authContext.context.organizationId,
-      };
     }
     throw new HTTPException(403, {
       message:
@@ -156,7 +140,7 @@ describe("GET /organizations/{id}/billing-details", () => {
     expect(getOrganizationBillingDetailsMock).not.toHaveBeenCalled();
   });
 
-  it("rejects coworker with context headers (owner/session or orchestrator only)", async () => {
+  it("rejects coworker with context headers (owner session only)", async () => {
     const response = await createApp({
       actor: "coworker",
       coworkerId: "cow_1",
@@ -165,20 +149,6 @@ describe("GET /organizations/{id}/billing-details", () => {
     }).request("http://localhost/org_1/billing-details");
 
     expect(response.status).toBe(403);
-  });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    const response = await createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: "org_123" },
-    }).request("http://localhost/org_123/billing-details");
-
-    expect(response.status).toBe(200);
-    expect(getOrganizationBillingDetailsMock).toHaveBeenCalledWith(
-      "org_123",
-      "user_123",
-    );
   });
 
   it("returns 403 when the user is not an owner or admin", async () => {

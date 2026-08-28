@@ -8,7 +8,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { deleteProjectBlobs } from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -31,12 +31,12 @@ const deleteResponseSchema = z
   })
   .openapi("ProjectDeleted");
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "delete",
     path: "/{id}",
     description:
-      "Delete a project. Session user or orchestrator with context headers; coworker keys are rejected so X-Context-User-Id cannot destroy projects in another user's workspace.",
+      "Delete a project. Interactive session user only; coworker keys are rejected so X-Context-User-Id cannot destroy projects in another user's workspace.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

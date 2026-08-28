@@ -22,7 +22,6 @@ const PRIMITIVE_SOURCES = [
   "components/ui/select.tsx",
   "components/chat/room-message-composer.tsx",
   "app/(app)/tasks/components/markdown-editor.tsx",
-  "app/(app)/personal-assistant/components/settings-panel.tsx",
 ] as const;
 
 /** Callers must not set size — only the shared seam may. */

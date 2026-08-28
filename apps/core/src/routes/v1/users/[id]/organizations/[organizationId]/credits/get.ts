@@ -29,7 +29,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/organizations/{organizationId}/credits",
     description:
-      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user, or orchestrator/coworker with matching `X-Context-User-Id`.",
+      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`.",
     tags: ["Users"],
     request: {
       params,

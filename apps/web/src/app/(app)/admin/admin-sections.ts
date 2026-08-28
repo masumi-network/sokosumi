@@ -1,6 +1,7 @@
 import {
   Bot,
   BotMessageSquare,
+  BrainCircuit,
   Building,
   Building2,
   Coins,
@@ -111,6 +112,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "x402Payments",
     href: "/admin/x402-payments",
     Icon: WalletCards,
+    group: "operations",
+  },
+  {
+    key: "sokoBots",
+    href: "/admin/soko-bots",
+    Icon: BrainCircuit,
     group: "operations",
   },
 ];

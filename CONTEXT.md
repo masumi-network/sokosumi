@@ -24,7 +24,39 @@ _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 
 **Coworker**:
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
-_Avoid_: Agent (when meaning this), assistant (Hermes)
+_Avoid_: Agent (when meaning this), Soko Bot
+
+### Soko Bot
+
+**Soko Bot**:
+A user-owned, first-party personal project manager. It helps one user operate Sokosumi, normally by delegating Tasks to Coworkers or hiring Agents to run Jobs. It is neither an Agent nor a Coworker.
+_Avoid_: Hermes, orchestrator, Agent, Coworker, bot (when meaning a generic AI actor)
+
+**Delegation**:
+Creating, assigning, or managing a Task for a Coworker on the user's behalf. Distinct from hiring an Agent to start a Job.
+_Avoid_: Hire (Task → Coworker), execute (the Coworker executes the Task)
+
+**Direct response**:
+A Soko Bot answer that does not create or mutate a Task or Job. Used for conversation, clarification, summaries, and advice.
+_Avoid_: Self-execution (the Soko Bot manages work; it does not perform delegated work itself)
+
+**Context packet**:
+A bounded, point-in-time view of relevant Sokosumi state supplied to a Soko Bot turn, including current workspace, Projects, Tasks, Coworkers, Agents, Jobs, and pending decisions. It is a prompt input, not an authoritative copy of product data.
+_Avoid_: Memory, database snapshot
+
+**Soko Bot memory**:
+Short-lived working notes maintained for one Soko Bot: active goals, decisions, preferences, follow-ups, and blockers. Product records remain authoritative.
+_Avoid_: Context packet, chat history, source of truth
+
+**Legacy Soko Bot history**:
+Immutable read-only copy of chat messages created by external Hermes before
+first-party Soko Bot cutover. It is shown separately from new Soko Bot turns
+and never resumes an Eve session.
+_Avoid_: Soko Bot memory, current turn history, Hermes chat (in product UI)
+
+**Pending decision**:
+A bounded Soko Bot proposal that needs user approval or clarification after the current turn ends. Accepting it starts a new authorized action; it never leaves a Soko Bot turn parked.
+_Avoid_: Paused turn, confirmation card (presentation), Eve approval
 
 ### Developers
 

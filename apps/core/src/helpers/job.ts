@@ -281,6 +281,24 @@ interface CreateAgentJobInput {
   taskContext?: {
     taskId: string;
   };
+  /**
+   * Runs after all local pricing, Agent, project, and buyer-cap validation but
+   * immediately before the seller-side start request. Callers use this
+   * boundary to durably fence retries that could otherwise start paid work
+   * twice after an ambiguous network response.
+   */
+  beforeSellerStart?: () => Promise<void>;
+  /** Reports classified seller-start failure after the retry fence exists. */
+  afterSellerStartFailure?: (failure: AgentJobStartFailure) => Promise<void>;
+  /**
+   * Runs after the Job and initial event are created, inside the same local
+   * transaction and before commit. Callers can atomically attach exact local
+   * correlation without changing normal Job creation behavior.
+   */
+  afterLocalJobCreate?: (
+    job: JobWithListSummaryRelations,
+    tx: Prisma.TransactionClient,
+  ) => Promise<void>;
 }
 
 export interface JobOwnerContext {
@@ -549,6 +567,22 @@ export async function createAgentJobForUser(
     taskId: taskContext?.taskId,
   };
 
+  // Complete fallible local preflight before seller dispatch. Final balance
+  // validation still runs in Job creation transaction to close spend races.
+  await resolveJobName();
+  if (cost.cents > 0) {
+    await serializableTransaction(
+      async (tx) =>
+        validateCreditBalance(
+          owner.ownerId,
+          owner.organizationId,
+          cost.cents,
+          tx,
+        ),
+      "Balance preflight conflicted with a concurrent credit update. Please retry.",
+    );
+  }
+
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
@@ -557,12 +591,14 @@ export async function createAgentJobForUser(
 
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
+      await input.beforeSellerStart?.();
       const startFreeJobResult = await createAgentClient().startFreeAgentJob(
         masumiAgent,
         agentInput.inputData,
       );
 
       if (startFreeJobResult.isErr()) {
+        await input.afterSellerStartFailure?.(startFreeJobResult.error);
         reportStrandedStartJobFailure(startFreeJobResult.error, {
           agentId: agent.id,
           pricingType: PricingType.FREE,
@@ -572,13 +608,13 @@ export async function createAgentJobForUser(
         );
       }
 
-      await resolveJobName();
       freeJobResult = startFreeJobResult.value;
       break;
     }
     case PricingType.FIXED: {
       identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
+      await input.beforeSellerStart?.();
       const startPaidJobResult = await createAgentClient().startPaidAgentJob(
         masumiAgent,
         identifierFromPurchaser,
@@ -586,6 +622,7 @@ export async function createAgentJobForUser(
       );
 
       if (startPaidJobResult.isErr()) {
+        await input.afterSellerStartFailure?.(startPaidJobResult.error);
         reportStrandedStartJobFailure(startPaidJobResult.error, {
           agentId: agent.id,
           pricingType: PricingType.FIXED,
@@ -792,7 +829,6 @@ export async function createAgentJobForUser(
         };
       }
 
-      await resolveJobName();
       break;
     }
     case PricingType.UNKNOWN:
@@ -813,35 +849,38 @@ export async function createAgentJobForUser(
       tx,
     );
 
+    let createdJob: JobWithListSummaryRelations;
     if (agent.pricing.pricingType === PricingType.FREE) {
       if (!freeJobResult) {
         throw unprocessableEntity("Free agent job start failed");
       }
 
-      return await createFreeJob(
+      createdJob = await createFreeJob(
         { ...jobInput, name: jobName },
         freeJobResult,
         tx,
       );
-    }
+    } else {
+      if (
+        !paidJobResult ||
+        !identifierFromPurchaser ||
+        !expectedPurchaseAmounts
+      ) {
+        throw unprocessableEntity("Paid agent job start failed");
+      }
 
-    if (
-      !paidJobResult ||
-      !identifierFromPurchaser ||
-      !expectedPurchaseAmounts
-    ) {
-      throw unprocessableEntity("Paid agent job start failed");
+      createdJob = await createPaidJob(
+        { ...jobInput, name: jobName },
+        cost,
+        paidJobResult,
+        identifierFromPurchaser,
+        expectedPurchaseAmounts,
+        purchaseRequestAmounts !== null,
+        tx,
+      );
     }
-
-    return await createPaidJob(
-      { ...jobInput, name: jobName },
-      cost,
-      paidJobResult,
-      identifierFromPurchaser,
-      expectedPurchaseAmounts,
-      purchaseRequestAmounts !== null,
-      tx,
-    );
+    await input.afterLocalJobCreate?.(createdJob, tx);
+    return createdJob;
   }, "Job creation conflicted with a concurrent request. Please retry.");
 
   if (

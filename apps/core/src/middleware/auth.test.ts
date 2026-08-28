@@ -135,7 +135,8 @@ describe("authMiddleware", () => {
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("authenticates from the orchestrator service token", async () => {
+  it("rejects the removed orchestrator service token", async () => {
+    verifyApiKeyMock.mockResolvedValue({ valid: false, key: null });
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
@@ -143,12 +144,9 @@ describe("authMiddleware", () => {
       },
     });
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "orchestrator",
-    });
+    expect(response.status).toBe(401);
     expect(coworkerApiKeyFindUniqueMock).not.toHaveBeenCalled();
-    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    expect(verifyApiKeyMock).toHaveBeenCalled();
   });
 
   it("does not treat a wrong bearer as orchestrator service auth", async () => {
@@ -704,16 +702,6 @@ describe("forbidCoworkerActor", () => {
     ).not.toThrow();
   });
 
-  it("allows orchestrator actors with context", () => {
-    expect(() =>
-      forbidCoworkerActor({
-        actor: "orchestrator",
-        orchestratorId: "orch_1",
-        context: { userId: "user_123", organizationId: null },
-      }),
-    ).not.toThrow();
-  });
-
   it("rejects coworker actors", () => {
     expect(() =>
       forbidCoworkerActor({
@@ -741,20 +729,6 @@ describe("requireOwnerUserContext", () => {
       userId: "user_123",
       organizationId: "org_1",
       role: "user",
-    });
-  });
-
-  it("returns orchestrator contextual user", () => {
-    expect(
-      requireOwnerUserContext({
-        actor: "orchestrator",
-        orchestratorId: "orch_1",
-        context: { userId: "user_123", organizationId: "org_1" },
-      }),
-    ).toEqual({
-      source: "context",
-      userId: "user_123",
-      organizationId: "org_1",
     });
   });
 

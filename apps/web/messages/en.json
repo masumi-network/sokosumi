@@ -146,6 +146,7 @@
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
       "creditsExpired": "Credits expired",
+      "organizations": "Organizations",
       "organization": "Organization"
     },
     "OrganizationSwitcher": {
@@ -204,7 +205,7 @@
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
           "removeDescription": "Are you sure you want to remove {member} from the organization?",
-          "unassignSeatDescription": "Removing {member}'s assigned Seat stops them spending the organization credit pool and starting coworker-paid work. Human chat and existing Tasks stay. Current-period credits remain in the organization pool until they expire.",
+          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire.",
           "confirm": "Confirm",
           "cancel": "Cancel",
           "Success": {
@@ -283,13 +284,14 @@
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
-      "calendar": "Schedules",
       "oauth-clients": "OAuth Clients",
       "api-keys": "API Keys",
       "coworkers": "Coworkers",
       "vendors": "Vendors",
       "docs": "Documentation",
-      "drive": "Files"
+      "drive": "Files",
+      "soko-bots": "Soko Bots",
+      "calendar": "Schedules"
     },
     "Jobs": {
       "StatusBadge": {
@@ -773,17 +775,17 @@
         "login": "Login",
         "register": "Register"
       },
-      "CalendarClientUpgradeModal": {
-        "title": "Update required",
-        "description": "Sokosumi has been updated to protect scheduled work. Reload before making more Calendar changes.",
-        "reload": "Reload Sokosumi"
-      },
       "LogoutModal": {
         "title": "Do you really want to log out?",
         "description": "Log out \"{email}\" from Sokosumi.",
         "logout": "Log out",
         "cancel": "Cancel",
         "error": "Failed to log out"
+      },
+      "CalendarClientUpgradeModal": {
+        "title": "Update required",
+        "description": "Sokosumi has been updated to protect scheduled work. Reload before making more Calendar changes.",
+        "reload": "Reload Sokosumi"
       }
     },
     "NotificationCenter": {
@@ -841,6 +843,108 @@
       "openInNewTab": "Open in new tab",
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
+    },
+    "SokoBot": {
+      "BotStatus": {
+        "IDLE": "Idle",
+        "RUNNING": "Running",
+        "PAUSED": "Paused",
+        "ERROR": "Error"
+      },
+      "TurnStatus": {
+        "QUEUED": "Queued",
+        "STARTING": "Starting",
+        "RUNNING": "Running",
+        "CANCEL_REQUESTED": "Cancelling",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled",
+        "FAILED": "Failed"
+      },
+      "Route": {
+        "UNCLASSIFIED": "Unclassified",
+        "DIRECT_RESPONSE": "Direct response",
+        "CLARIFY": "Clarify",
+        "DELEGATE_TASK": "Delegate task",
+        "HIRE_AGENT": "Hire agent",
+        "MANAGE_WORK": "Manage work",
+        "MIXED": "Mixed"
+      },
+      "DecisionStatus": {
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "EXPIRED": "Expired"
+      },
+      "RunStatus": {
+        "PENDING": "Pending",
+        "CLAIMED": "Claimed",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "DEAD_LETTER": "Dead letter"
+      },
+      "ToolStatus": {
+        "PENDING": "Pending",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed"
+      },
+      "DelegationKind": {
+        "TASK": "Task",
+        "JOB": "Job"
+      },
+      "Activity": {
+        "empty": "No activity recorded for this turn.",
+        "events": "{count, plural, one {# event} other {# events}}",
+        "toolCalls": "{count, plural, one {# tool call} other {# tool calls}}",
+        "delegations": "{count, plural, one {# delegation} other {# delegations}}",
+        "decisions": "{count, plural, one {# decision} other {# decisions}}",
+        "openTask": "Open task",
+        "job": "Job",
+        "expires": "Expires",
+        "outcome": {
+          "processing": "in progress",
+          "ambiguous": "outcome unconfirmed — under review",
+          "failed": "failed",
+          "accepted": "done"
+        }
+      },
+      "Legacy": {
+        "empty": "No earlier conversations.",
+        "role": {
+          "user": "You",
+          "assistant": "Assistant",
+          "system": "System"
+        },
+        "steps": "{count, plural, one {# step} other {# steps}}"
+      },
+      "Proposal": {
+        "empty": "No proposal details were provided.",
+        "incomplete": "This hire proposal is missing an Agent or a positive credit ceiling; it cannot be accepted.",
+        "redactionNote": "Credential-looking fields are masked. Review before accepting.",
+        "fields": {
+          "agentId": "Agent",
+          "maxCredits": "Max credits",
+          "name": "Name",
+          "projectId": "Project",
+          "inputData": "Input",
+          "taskId": "Task",
+          "coworkerId": "Coworker",
+          "status": "Status",
+          "description": "Description",
+          "jobId": "Job",
+          "eventId": "Job event",
+          "reason": "Reason",
+          "ready": "Start right away"
+        }
+      },
+      "DecisionExplain": {
+        "PENDING": "",
+        "PROCESSING": "Being carried out. If this is an Agent hire, the seller-side start is in flight or unconfirmed — do not resubmit; it resolves automatically or an operator will follow up.",
+        "ACCEPTED": "Approved and carried out.",
+        "REJECTED": "Rejected. Nothing was created.",
+        "EXPIRED": "Expired without a decision. Ask your Soko Bot again if still needed."
+      }
     }
   },
   "Join": {
@@ -1303,66 +1407,6 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
-    "Calendar": {
-      "Metadata": {
-        "title": "Schedules",
-        "description": "Browse scheduled task releases in your workspace."
-      },
-      "previous": "Previous period",
-      "next": "Next period",
-      "view": {
-        "month": "Month",
-        "week": "Week",
-        "agenda": "Agenda"
-      },
-      "source": {
-        "label": "Source",
-        "all": "All sources",
-        "WORKSPACE": "Workspace",
-        "PROJECT": "Project",
-        "LEGACY_UNKNOWN": "Legacy source"
-      },
-      "accuracy": {
-        "inferred": "Inferred source",
-        "unknown": "Unknown source",
-        "approximate": "Approximate time"
-      },
-      "status": {
-        "label": "Task status",
-        "all": "All statuses",
-        "DRAFT": "Draft",
-        "QUEUED": "Queued",
-        "READY": "Ready",
-        "GRANT_PENDING": "Grant pending",
-        "INPUT_REQUIRED": "Input required",
-        "APPROVAL_REQUIRED": "Approval required",
-        "AUTHENTICATION_REQUIRED": "Authentication required",
-        "OUT_OF_CREDITS": "Paused: credits needed",
-        "CREDITS_TOPPED_UP": "Credits topped up",
-        "RUNNING": "Running",
-        "AWAITING_EXTERNAL": "Awaiting external",
-        "COMPLETED": "Completed",
-        "FAILED": "Failed",
-        "CANCELED": "Canceled"
-      },
-      "coworker": {
-        "label": "Coworker",
-        "all": "All coworkers"
-      },
-      "empty": {
-        "title": "No scheduled releases match these filters."
-      },
-      "pagination": {
-        "loadMore": "Load more events",
-        "loading": "Loading events...",
-        "error": "Unable to load more events."
-      },
-      "error": {
-        "title": "Unable to load the calendar",
-        "description": "Please try again in a moment.",
-        "retry": "Try again"
-      }
-    },
     "History": {
       "Metadata": {
         "title": "History",
@@ -1570,6 +1614,15 @@
           "label": "Search",
           "subtitle": "Specialized Agents"
         }
+      },
+      "SokoBot": {
+        "feedbackAsk": "Useful?",
+        "feedbackUseful": "Useful",
+        "feedbackNotUseful": "Not useful",
+        "feedbackThanks": "Thanks, noted.",
+        "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
+        "review": "Review on the assistant page",
+        "task": "Task"
       }
     },
     "Tasks": {
@@ -2966,7 +3019,6 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
-          "calendar": "Schedules",
           "hermes": "Personal Assistant",
           "hermesNew": "New",
           "hermesUnread": "{count} unread",
@@ -2975,12 +3027,9 @@
           "admin": "Admin",
           "settings": "Settings",
           "back": "Back",
-          "chat": "Chat"
-        },
-        "SeatRequired": {
-          "title": "Assigned seat required",
-          "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
-          "hint": "Ask an owner or admin to assign you a Seat."
+          "chat": "Chat",
+          "sokoBot": "Soko Bots",
+          "calendar": "Schedules"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -2988,6 +3037,11 @@
           "untitledChat": "Untitled Chat",
           "modelAlt": "Model",
           "coworkerAlt": "Coworker"
+        },
+        "SeatRequired": {
+          "title": "Assigned seat required",
+          "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
+          "hint": "Ask an owner or admin to assign you a Seat."
         }
       }
     },
@@ -3080,9 +3134,9 @@
           "features": {
             "title": "Free Includes:",
             "items": {
-              "item1": "Access to Agentic Coworkers",
+              "item1": "Limited Access to 1 Agentic Coworker",
               "item2": "Email and WhatsApp Access to Agents",
-              "item3": "Access to the latest AI models",
+              "item3": "Latest Generation of Claude Models",
               "item4": "Access to 100+ Marketing Agents"
             }
           }
@@ -3381,72 +3435,6 @@
           "grantError": "Failed to grant free credits"
         }
       },
-      "MatchedChannels": {
-        "title": "Matched channels",
-        "description": "Create org-less matched channels, manage the roster, and snapshot organization Members onto a channel.",
-        "backToAdmin": "Back to admin",
-        "listError": "Failed to load matched channels",
-        "List": {
-          "title": "Channels",
-          "description": "Live matched channels with roster-only visibility.",
-          "loading": "Loading channels…",
-          "empty": "No matched channels yet."
-        },
-        "Create": {
-          "title": "Create matched channel",
-          "description": "Creates a live org-less channel. You are not added as a room member.",
-          "slug": "Handle",
-          "slugPlaceholder": "partners",
-          "slugHelp": "Unique among channels. You cannot change it after creating.",
-          "slugRequired": "Enter a channel slug",
-          "name": "Name",
-          "namePlaceholder": "e.g. Partners",
-          "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
-          "submit": "Create channel",
-          "submitting": "Creating…",
-          "success": "Matched channel created",
-          "error": "Failed to create matched channel",
-          "slugTaken": "This channel slug is already taken."
-        },
-        "Detail": {
-          "back": "Back to matched channels",
-          "slugLabel": "{slug}",
-          "userRequired": "Select a user to add",
-          "organizationRequired": "Select an organization to snapshot",
-          "addUserSuccess": "User added to roster",
-          "alreadyMember": "User is already on this channel",
-          "addUserError": "Failed to add user",
-          "addOrganizationSuccess": "Added {added} of {totalMembers} members ({alreadyMember} already on roster)",
-          "addOrganizationError": "Failed to snapshot organization members",
-          "Roster": {
-            "title": "Roster",
-            "description": "Users with member access on this matched channel.",
-            "empty": "No participants yet.",
-            "name": "Name",
-            "email": "Email",
-            "actions": "Actions",
-            "remove": "Remove",
-            "removing": "Removing…",
-            "removeSuccess": "Removed {name} from the roster",
-            "removeError": "Failed to remove participant"
-          },
-          "AddUser": {
-            "title": "Add user",
-            "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
-            "user": "User",
-            "submit": "Add user",
-            "submitting": "Adding…"
-          },
-          "AddOrganization": {
-            "title": "Add organization",
-            "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
-            "organization": "Organization",
-            "helper": "Organizations you belong to appear first in search results.",
-            "submit": "Add organization members",
-            "submitting": "Adding…"
-          }
-        }
-      },
       "Overview": {
         "title": "Admin",
         "description": "Internal tools for accounts, billing, catalog, and operations.",
@@ -3481,10 +3469,6 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
-          "matchedChannels": {
-            "title": "Matched channels",
-            "description": "Create org-less matched channels and manage their roster."
-          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -3500,6 +3484,14 @@
           "agents": {
             "title": "Agents",
             "description": "Browse all marketplace agents and manage Sokosumi display metadata overrides."
+          },
+          "sokoBots": {
+            "title": "Soko Bots",
+            "description": "Fleet health, per-bot activity, and audited operator controls for every user's Soko Bot."
+          },
+          "matchedChannels": {
+            "title": "Matched channels",
+            "description": "Create org-less matched channels and manage their roster."
           }
         }
       },
@@ -3629,7 +3621,8 @@
           },
           "credits": {
             "title": "Total credits",
-            "description": "Combined available credits for this organization."
+            "description": "Combined available credits for this organization.",
+            "perMember": "Credits are listed per member below."
           },
           "members": {
             "title": "Members",
@@ -3639,6 +3632,7 @@
             "loadError": "Failed to load members.",
             "user": "User",
             "role": "Role",
+            "credits": "Credits",
             "subscription": "Subscription",
             "seat": "Seat",
             "seatAssigned": "Assigned",
@@ -3926,6 +3920,495 @@
             "tagsPlaceholder": "Comma-separated tag names",
             "examples": "Example outputs",
             "examplesPlaceholder": "One per line: name|mimeType|url"
+          }
+        }
+      },
+      "SokoBots": {
+        "title": "Soko Bots",
+        "description": "Fleet health and exact per-bot activity across all users.",
+        "Health": {
+          "total": "Bots",
+          "running": "Running",
+          "paused": "Paused",
+          "error": "Erroring",
+          "pendingDecisions": "Pending approvals",
+          "archived": "Archived"
+        },
+        "Fleet": {
+          "searchPlaceholder": "Search by bot, owner name, or email…",
+          "totalCount": "{count, plural, one {# bot} other {# bots}}",
+          "loadError": "Failed to load Soko Bots.",
+          "empty": "No Soko Bots found.",
+          "bot": "Bot",
+          "owner": "Owner",
+          "status": "Status",
+          "turns": "Turns",
+          "pending": "Pending",
+          "schedules": "Schedules",
+          "failures": "Failures",
+          "runtime": "Runtime",
+          "lastActivity": "Last activity",
+          "unnamed": "Unnamed",
+          "archived": "Archived",
+          "version": "Version"
+        },
+        "Detail": {
+          "backToList": "Back to Soko Bots",
+          "unnamed": "Unnamed",
+          "archived": "Archived",
+          "sectionsNav": "Sections",
+          "sections": {
+            "overview": "Overview",
+            "turns": "Turns",
+            "decisions": "Decisions",
+            "schedules": "Schedules",
+            "memory": "Memory",
+            "audit": "Audit",
+            "legacy": "Legacy"
+          }
+        },
+        "Actions": {
+          "group": "Operator actions",
+          "labels": {
+            "PAUSE": "Pause",
+            "RESUME": "Resume",
+            "RESET_SESSION": "Reset session",
+            "RESET_MEMORY": "Reset memory",
+            "RETRY_LAST_FAILED": "Retry last failed"
+          },
+          "descriptions": {
+            "PAUSE": "Stops new turns and scheduled runs for this bot until resumed.",
+            "RESUME": "Allows the bot to accept turns and run schedules again.",
+            "RESET_SESSION": "Retires the runtime session; the next turn starts a fresh session with Core-canonical memory and context.",
+            "RESET_MEMORY": "Replaces the bot's memory with an empty revision. Product records are unaffected.",
+            "RETRY_LAST_FAILED": "Starts a new operator-attributed turn for the most recent failed turn."
+          },
+          "reasonLabel": "Reason",
+          "reasonPlaceholder": "Why are you doing this? (required, recorded in the audit log)",
+          "reasonHint": "3–500 characters. Stored immutably with your operator id.",
+          "cancel": "Cancel",
+          "confirm": "Confirm",
+          "working": "Working…",
+          "done": "{action} recorded.",
+          "error": "Action failed."
+        },
+        "Overview": {
+          "title": "Overview",
+          "owner": "Owner",
+          "workspaceUser": "User id",
+          "createdAt": "Created",
+          "updatedAt": "Updated",
+          "archivedAt": "Archived",
+          "lastActivityAt": "Last activity",
+          "lastTurnAt": "Last turn",
+          "lastSucceededAt": "Last success",
+          "lastFailedAt": "Last failure",
+          "consecutiveFailures": "Consecutive failures",
+          "recentTurns": "Recent turns",
+          "recentTurnsValue": "{total} total · {completed} ok · {failed} failed",
+          "successRate": "Success rate",
+          "runtime": "Runtime",
+          "eveSessionId": "Eve session",
+          "runtimeVersion": "Runtime version",
+          "runtimeDeployment": "Deployment",
+          "sandboxId": "Sandbox",
+          "sandboxStatus": "Sandbox status",
+          "memoryVersion": "Memory version",
+          "memoryHash": "Memory hash",
+          "personality": "Personality (tone / detail / style)",
+          "healthy": "Runtime healthy",
+          "unhealthy": "Runtime unhealthy",
+          "healthUnknown": "Health unknown",
+          "checkedAt": "checked",
+          "healthRuntimeVersion": "Health-check runtime",
+          "sessionStatus": "Session status"
+        },
+        "Turns": {
+          "title": "Turns",
+          "description": "Most recent turns with classification, context, tool calls, and outcomes. Safe summaries only — no model reasoning.",
+          "count": "{count, plural, one {# turn} other {# turns}}",
+          "empty": "No turns yet.",
+          "source": {
+            "CHAT": "Chat",
+            "SCHEDULE": "Scheduled",
+            "ADMIN_RETRY": "Operator retry"
+          },
+          "yes": "Yes",
+          "no": "No",
+          "turnId": "Turn id",
+          "clientTurnId": "Client turn id",
+          "workspaceId": "Workspace",
+          "eveSessionId": "Eve session",
+          "eveTurnId": "Eve turn",
+          "runtimeVersion": "Runtime",
+          "startedAt": "Started",
+          "completedAt": "Completed",
+          "deadlineAt": "Deadline",
+          "cancellationRequestedAt": "Cancel requested",
+          "errorKind": "Error kind",
+          "errorDetail": "Error detail",
+          "classification": "Classification",
+          "route": "Route",
+          "confidence": "Confidence",
+          "classifierModel": "Classifier model",
+          "classifierVersion": "Classifier version",
+          "classifierLatency": "Classifier latency",
+          "classificationFailed": "Classification failed",
+          "requiresClarification": "Requires clarification",
+          "requiresApproval": "Requires approval",
+          "requestedOutcome": "Requested outcome",
+          "rationaleSummary": "Rationale",
+          "capabilities": "Capabilities",
+          "contextSnapshot": "Context snapshot",
+          "snapshotId": "Snapshot id",
+          "schemaVersion": "Schema",
+          "hash": "Hash",
+          "byteSize": "Size",
+          "tokenEstimate": "Token estimate",
+          "generatedAt": "Generated",
+          "counts": "Counts",
+          "omissions": "Omissions",
+          "noSnapshot": "No context snapshot stored for this turn.",
+          "conversation": "Conversation",
+          "user": "User",
+          "answer": "Answer",
+          "activity": "Activity",
+          "tokensShort": "tok",
+          "modelUsage": "Model & usage",
+          "modelId": "Model",
+          "inputTokens": "Input tokens",
+          "outputTokens": "Output tokens",
+          "cacheReadTokens": "Cache read",
+          "cacheWriteTokens": "Cache write",
+          "costUsd": "Cost (USD)",
+          "noUsage": "No usage recorded for this turn.",
+          "Quality": {
+            "title": "Quality",
+            "notJudged": "Not graded yet. The judge runs after a turn settles.",
+            "howScored": "Overall is the mean of the four dimensions below, rounded — except that an honesty score of 2 or lower caps the overall at 2, so a fabricated claim cannot be averaged away.",
+            "rubricUsed": "Graded against the {rubric} rubric",
+            "judgeModel": "Judge model",
+            "judgedAt": "Judged",
+            "rationale": "Rationale",
+            "issues": "Issues",
+            "rubric": {
+              "owner": "owner-turn",
+              "proactive": "self-started"
+            },
+            "verdict": {
+              "pass": "pass",
+              "weak": "weak",
+              "fail": "fail"
+            },
+            "dimension": {
+              "delegation": "Delegation",
+              "followThrough": "Follow-through",
+              "judgment": "Judgment",
+              "honesty": "Honesty"
+            }
+          }
+        },
+        "Decisions": {
+          "title": "Decisions",
+          "description": "Proposals awaiting or already resolved by the owner.",
+          "count": "{count, plural, one {# decision} other {# decisions}}",
+          "empty": "No decisions.",
+          "tool": "Tool",
+          "status": "Status",
+          "reason": "Reason",
+          "turn": "Turn",
+          "created": "Created",
+          "expires": "Expires",
+          "resolved": "Resolved",
+          "result": "Result"
+        },
+        "Schedules": {
+          "title": "Schedules",
+          "description": "User-owned schedules and their recent runs.",
+          "count": "{count, plural, one {# schedule} other {# schedules}}",
+          "empty": "No schedules.",
+          "enabled": "Enabled",
+          "disabled": "Disabled",
+          "nextRun": "next",
+          "lastRun": "last",
+          "failures": "{count, plural, one {# consecutive failure} other {# consecutive failures}}",
+          "scheduledFor": "Scheduled for",
+          "status": "Status",
+          "attempt": "Attempt",
+          "turn": "Turn",
+          "completedAt": "Completed",
+          "error": "Error",
+          "actions": "Actions",
+          "retryRun": "Retry run",
+          "disableSchedule": "Disable schedule",
+          "actionDescription": "This operator action is audited. Explain why it is needed.",
+          "reasonLabel": "Reason",
+          "cancel": "Cancel",
+          "working": "Working…",
+          "actionDone": "Schedule action completed.",
+          "actionError": "Could not complete schedule action.",
+          "noRuns": "No runs yet."
+        },
+        "Memory": {
+          "title": "Memory",
+          "description": "Canonical memory revisions kept by Core.",
+          "currentVersion": "v{version}",
+          "empty": "No memory revisions.",
+          "version": "Version",
+          "hash": "Hash",
+          "size": "Size",
+          "source": "Source",
+          "createdAt": "Created",
+          "showCurrent": "Show current memory"
+        },
+        "Audit": {
+          "title": "Audit",
+          "description": "Immutable record of operator actions on this bot.",
+          "count": "{count, plural, one {# operation} other {# operations}}",
+          "empty": "No operator actions yet.",
+          "operator": "operator",
+          "request": "request",
+          "before": "before",
+          "after": "after",
+          "outcome": {
+            "SUCCEEDED": "Succeeded",
+            "FAILED": "Failed",
+            "ATTEMPTED": "Unconfirmed"
+          },
+          "target": "target",
+          "attemptedAt": "attempted",
+          "resolvedAt": "resolved",
+          "operation": "operation",
+          "trace": "trace",
+          "orphanHint": "Attempted but no outcome was recorded — the process may have crashed after this row was written. Verify the bot state before repeating.",
+          "failedLabel": "Failed:",
+          "unknownError": "unknown_error"
+        },
+        "Legacy": {
+          "title": "Legacy history",
+          "description": "Conversation imported from the previous assistant, for support diagnostics. Read-only; step contents are never shown.",
+          "count": "{count, plural, one {# message} other {# messages}}",
+          "empty": "No legacy history for this bot.",
+          "toggle": "{count, plural, one {Show # message} other {Show # messages}}"
+        },
+        "Quality": {
+          "title": "Quality",
+          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days.",
+          "overall": "{judged} of {turns} turns judged",
+          "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
+          "thumbs": "{up} 👍 · {down} 👎",
+          "chartLabel": "Judge scores and owner feedback by day",
+          "countAxis": "Feedback count",
+          "legendScore": "Judge score (1–5)",
+          "legendThumbsUp": "Thumbs up (count)",
+          "legendThumbsDown": "Thumbs down (count)",
+          "scorePoint": "{date}: judge score {score}; {turns, plural, one {# settled turn} other {# settled turns}}",
+          "thumbsUpPoint": "{date}: {count} thumbs up",
+          "thumbsDownPoint": "{date}: {count} thumbs down",
+          "versionFilter": "Filter by version",
+          "allVersions": "All versions",
+          "version": "Version",
+          "turns": "Turns",
+          "avgScore": "Avg score",
+          "realRunsByVersion": "Real usage by version"
+        },
+        "labLink": "Behaviour lab",
+        "versionsLink": "Versions",
+        "Versions": {
+          "title": "Soko Bot versions",
+          "description": "Author, test, and promote the operating instructions used by Soko Bot.",
+          "detailMetadataTitle": "Soko Bot version",
+          "detailMetadataDescription": "Soko Bot version settings, real-run performance, and lab history.",
+          "create": "Create version",
+          "backToSokoBots": "Back to Soko Bots",
+          "backToVersions": "Back to versions",
+          "backToVersion": "Back to version",
+          "createTitle": "Create Soko Bot version",
+          "createDescription": "Define a new prompt, model, skills, and tool policy for testing.",
+          "duplicateTitle": "Duplicate Soko Bot version",
+          "duplicateDescription": "Every setting is copied from the source. Choose a new version ID before saving.",
+          "editTitle": "Edit {version}",
+          "editDescription": "Changes apply whenever this authored version runs again.",
+          "List": {
+            "version": "Version",
+            "model": "Model",
+            "region": "Region",
+            "actions": "Actions"
+          },
+          "State": {
+            "default": "Default",
+            "builtIn": "Built-in",
+            "authored": "Authored"
+          },
+          "Values": {
+            "noRegion": "None",
+            "eu": "EU",
+            "us": "US",
+            "none": "None",
+            "judgePass": "Passed",
+            "judgeWeak": "Weak",
+            "judgeFail": "Failed",
+            "allRouteTools": "Every tool allowed by the route"
+          },
+          "Actions": {
+            "view": "View",
+            "edit": "Edit",
+            "duplicate": "Duplicate",
+            "testInLab": "Test in lab",
+            "cancel": "Cancel",
+            "promote": "Promote",
+            "promoteTitle": "Promote this version?",
+            "promoteConfirm": "This affects new bots only. Existing bots keep the version they were created on.",
+            "promoting": "Promoting…",
+            "promoted": "Version promoted for new bots.",
+            "promoteError": "Could not promote this version.",
+            "archive": "Archive",
+            "archiveTitle": "Archive this version?",
+            "archiveConfirm": "It will disappear from version pickers. Bots pinned to it fall back to the built-in default when they next run.",
+            "archiving": "Archiving…",
+            "archived": "Version archived.",
+            "archiveError": "Could not archive this version.",
+            "archiveDefaultHint": "Promote another version before archiving this default."
+          },
+          "Form": {
+            "slug": "Version ID",
+            "slugHint": "Lowercase letters, numbers, and dashes. It cannot be changed later.",
+            "name": "Name",
+            "summary": "Summary",
+            "model": "Model",
+            "region": "Inference region",
+            "systemPrompt": "System prompt",
+            "systemPromptHint": "The operating contract for this version. Review it as carefully as code.",
+            "skills": "Skills",
+            "skillsHint": "Select the skill instructions included with every turn.",
+            "tools": "Tools",
+            "toolsHint": "Select a narrower tool set, or leave every tool unchecked to use the route ceiling.",
+            "allRouteTools": "Every tool allowed by the route",
+            "gatewayModels": "Browse gateway models",
+            "searchModels": "Search models…",
+            "noModelMatch": "No matching model.",
+            "noGatewayModels": "No gateway models reported. Enter a model ID.",
+            "noSkillsAvailable": "No skills are available.",
+            "duplicatedFrom": "Duplicating {version}. All settings were copied; the new version ID is blank.",
+            "saveError": "Could not save this version.",
+            "created": "Version created.",
+            "updated": "Version updated.",
+            "saving": "Saving…",
+            "create": "Create version",
+            "save": "Save changes"
+          },
+          "Detail": {
+            "readOnlyTitle": "Read-only built-in version",
+            "builtInReadOnly": "Built-in versions are read-only because code owns them. Duplicate this version to customize it.",
+            "model": "Model",
+            "region": "Inference region",
+            "skills": "Skills",
+            "tools": "Tools",
+            "realRuns": "Real-run performance",
+            "realRunsHint": "Actual non-lab turns across the fleet.",
+            "turns": "Turns",
+            "judged": "Judged",
+            "avgScore": "Average score",
+            "labHistory": "Lab history",
+            "labHistoryHint": "Recent Behaviour Lab runs recorded by your admin account.",
+            "notJudged": "Not judged",
+            "neverRunInLab": "No lab runs recorded for this version.",
+            "prompt": "System prompt",
+            "promptHint": "The complete prompt sent as this version's operating contract."
+          }
+        },
+        "Lab": {
+          "title": "Behaviour lab",
+          "description": "Fixed prompts scored against how the assistant should react. Re-run after changing the prompt, classifier, or model.",
+          "warning": "Runs are real turns: they create tasks and approvals in your workspace.",
+          "runAll": "Run all",
+          "run": "Run",
+          "running": "Running…",
+          "lastRun": "Last run {time}",
+          "openTurn": "Open turn",
+          "neverRun": "Not run yet.",
+          "score": "{passed}/{total} checks passed",
+          "startError": "Could not start the turn.",
+          "timeout": "The turn did not finish within 5 minutes.",
+          "version": "Version",
+          "overviewModel": "Model",
+          "overviewSkills": "Skills",
+          "overviewTools": "Tools",
+          "overviewPrompt": "System prompt",
+          "allTools": "all tools of the route",
+          "showPrompt": "Show",
+          "hidePrompt": "Hide",
+          "judge": "Judge",
+          "judgeScores": "delegation {d} · follow-through {f} · judgment {j} · honesty {h}",
+          "runAllVersions": "Run all {count} versions",
+          "noBotTitle": "You need a Soko Bot to run the lab",
+          "noBotDescription": "Runs use your own assistant.",
+          "noBotLink": "Create it here."
+        }
+      },
+      "MatchedChannels": {
+        "title": "Matched channels",
+        "description": "Create org-less matched channels, manage the roster, and snapshot organization Members onto a channel.",
+        "backToAdmin": "Back to admin",
+        "listError": "Failed to load matched channels",
+        "List": {
+          "title": "Channels",
+          "description": "Live matched channels with roster-only visibility.",
+          "loading": "Loading channels…",
+          "empty": "No matched channels yet."
+        },
+        "Create": {
+          "title": "Create matched channel",
+          "description": "Creates a live org-less channel. You are not added as a room member.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Unique among channels. You cannot change it after creating.",
+          "slugRequired": "Enter a channel slug",
+          "name": "Name",
+          "namePlaceholder": "e.g. Partners",
+          "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
+          "submit": "Create channel",
+          "submitting": "Creating…",
+          "success": "Matched channel created",
+          "error": "Failed to create matched channel",
+          "slugTaken": "This channel slug is already taken."
+        },
+        "Detail": {
+          "back": "Back to matched channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Select a user to add",
+          "organizationRequired": "Select an organization to snapshot",
+          "addUserSuccess": "User added to roster",
+          "alreadyMember": "User is already on this channel",
+          "addUserError": "Failed to add user",
+          "addOrganizationSuccess": "Added {added} of {totalMembers} members ({alreadyMember} already on roster)",
+          "addOrganizationError": "Failed to snapshot organization members",
+          "Roster": {
+            "title": "Roster",
+            "description": "Users with member access on this matched channel.",
+            "empty": "No participants yet.",
+            "name": "Name",
+            "email": "Email",
+            "actions": "Actions",
+            "remove": "Remove",
+            "removing": "Removing…",
+            "removeSuccess": "Removed {name} from the roster",
+            "removeError": "Failed to remove participant"
+          },
+          "AddUser": {
+            "title": "Add user",
+            "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
+            "user": "User",
+            "submit": "Add user",
+            "submitting": "Adding…"
+          },
+          "AddOrganization": {
+            "title": "Add organization",
+            "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
+            "organization": "Organization",
+            "helper": "Organizations you belong to appear first in search results.",
+            "submit": "Add organization members",
+            "submitting": "Adding…"
           }
         }
       }
@@ -4647,7 +5130,7 @@
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum}. Organization has {members, plural, =1 {# member} other {# members}}. You can purchase fewer seats than members.",
+          "seatsInputHint": "Minimum is {minimum} to cover paid seats in use. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated successfully.",
@@ -4666,7 +5149,7 @@
         },
         "Seats": {
           "title": "Seats overview",
-          "description": "Purchased Seats are your paid plan capacity. Assigned Seats spend the shared organization credit pool. Members without an assigned Seat keep human chat and can read existing Tasks.",
+          "description": "Purchased seats are your paid plan capacity. Members with a paid seat receive subscription credits. Members without a paid seat receive free monthly credits.",
           "purchased": "Purchased",
           "assigned": "Assigned",
           "unused": "Unused",
@@ -5367,7 +5850,7 @@
       "Edit": {
         "action": "Edit",
         "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
-        "edited": "(edited)",
+        "edited": "Edited",
         "editedAt": "Edited {when}"
       },
       "Copy": {
@@ -5673,6 +6156,445 @@
       "loadMoreRecentsError": "Failed to load more recent files",
       "viewList": "List",
       "viewGrid": "Grid"
+    },
+    "SokoBot": {
+      "Metadata": {
+        "title": "Personal Assistant",
+        "description": "Your Soko Bot: a personal project manager that delegates Tasks to Coworkers and hires Agents to run Jobs."
+      },
+      "Unavailable": {
+        "title": "Soko Bot is not available yet",
+        "description": "The Personal Assistant is not enabled on this environment. Please check back later."
+      },
+      "Create": {
+        "title": "Meet your Soko Bot",
+        "successTitle": "Meet {name}",
+        "successHint": "Opening your chat…",
+        "description": "A personal project manager inside Sokosumi. It answers directly when it can, delegates Tasks to your Coworkers, and hires marketplace Agents to run Jobs. Give it a name and a picture.",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Atlas",
+        "submit": "Create Soko Bot",
+        "submitting": "Creating…",
+        "created": "Soko Bot created.",
+        "error": "Could not create the Soko Bot.",
+        "avatarLabel": "Picture"
+      },
+      "Memory": {
+        "title": "Memory",
+        "description": "What it currently keeps in mind.",
+        "hash": "Hash",
+        "size": "Size",
+        "updated": "Updated",
+        "show": "Show notes",
+        "empty": "No memory yet.",
+        "reset": "Reset",
+        "resetTitle": "Reset memory?",
+        "resetDescription": "Clears active goals, decisions, preferences, follow-ups, and blockers. Tasks and Jobs are not affected.",
+        "resetCancel": "Keep",
+        "resetConfirm": "Reset memory",
+        "resetDone": "Memory reset.",
+        "resetError": "Could not reset memory."
+      },
+      "HowItWorks": {
+        "title": "How it works",
+        "description": "What it does on its own, and when.",
+        "rhythms": "Rhythms",
+        "triggers": "Triggers",
+        "paused": "Paused"
+      },
+      "Integrations": {
+        "connected": "Account connected.",
+        "connectFailed": "The connection did not complete. Try again.",
+        "lastError": "Needs attention: {error}",
+        "title": "Connected accounts",
+        "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask.",
+        "connect": "Connect",
+        "reconnect": "Reconnect",
+        "disconnect": "Disconnect",
+        "disconnected": "Disconnected.",
+        "connectError": "Could not start the connection.",
+        "disconnectError": "Could not disconnect.",
+        "unavailable": "Integrations are not enabled on this environment.",
+        "pending": "Waiting for you to finish signing in…",
+        "failed": "Connection failed. Reconnect to try again.",
+        "connectedNotChecked": "Connected · first check runs within 15 minutes",
+        "lastChecked": "Connected · checked {when}",
+        "search": "Search",
+        "searchPlaceholder": "Add another app (Slack, Notion, Linear, …)",
+        "searchError": "Search failed.",
+        "noResults": "Nothing found.",
+        "kindsGeneric": "Usable through its tools",
+        "popularTitle": "Popular apps — click to connect",
+        "resultsTitle": "Search results",
+        "showMore": "Show {count} more",
+        "showFewer": "Show fewer",
+        "kindsMail": "Reads your inbox",
+        "kindsCalendar": "Reads your calendar",
+        "kindsMailCalendar": "Reads your inbox and calendar"
+      },
+      "Schedules": {
+        "builtIn": "Built-in",
+        "title": "Schedules",
+        "description": "Things it does on its own, on a schedule.",
+        "count": "{count, plural, one {# schedule} other {# schedules}}",
+        "empty": "No schedules yet.",
+        "nextRun": "Next",
+        "lastRun": "Last",
+        "failures": "Failures",
+        "disabled": "disabled",
+        "enable": "Enable schedule",
+        "disable": "Disable schedule",
+        "delete": "Delete",
+        "deleteTitle": "Delete schedule?",
+        "deleteDescription": "Future runs are removed. Past turns stay in your history.",
+        "deleteCancel": "Keep",
+        "deleteConfirm": "Delete",
+        "deleted": "Schedule deleted.",
+        "deleteError": "Could not delete the schedule.",
+        "updateError": "Could not update the schedule.",
+        "Form": {
+          "open": "New schedule",
+          "name": "Name",
+          "cron": "Cron expression",
+          "cronHint": "Five fields, e.g. 0 9 * * 1-5 for weekdays at 09:00.",
+          "timezone": "Timezone",
+          "prompt": "Prompt",
+          "submit": "Create schedule",
+          "submitting": "Creating…",
+          "cancel": "Cancel",
+          "created": "Schedule created.",
+          "error": "Could not create the schedule."
+        }
+      },
+      "Settings": {
+        "Proactive": {
+          "pauseTitle": "Pause everything it starts on its own",
+          "pauseDescription": "Stops the stand-up, weekly wrap, mail checks and nudges. Chat and assigned Tasks keep working.",
+          "limitTitle": "Daily limit",
+          "limitDescription": "Self-started turns per day.",
+          "limitUsage": "{used} of {limit} self-started turns used today.",
+          "timezoneTitle": "Timezone",
+          "timezoneDescription": "For the morning stand-up, the weekly wrap and \"today\" in briefings.",
+          "error": "Could not save the setting."
+        },
+        "title": "Settings",
+        "followBoardTitle": "Follow the whole board",
+        "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment asks something, mentions it, or matches what it remembers.",
+        "followBoardError": "Could not update the setting.",
+        "archiveTitle": "Archive Soko Bot",
+        "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
+        "archive": "Archive",
+        "archiveConfirmTitle": "Archive your Soko Bot?",
+        "archiveConfirmDescription": "Running turns are cancelled and schedules stop. You can reactivate it any time from this page.",
+        "archiveCancel": "Keep",
+        "archiveConfirm": "Archive",
+        "archived": "Soko Bot archived.",
+        "archiveError": "Could not archive the Soko Bot."
+      },
+      "Chat": {
+        "defaultName": "Soko Bot",
+        "avatarAlt": "Soko Bot",
+        "legacyDivider": "{count, plural, one {# earlier message imported from your previous assistant} other {# earlier messages imported from your previous assistant}}",
+        "toolSteps": "{count, plural, one {# step} other {# steps}}",
+        "answeredIn": "{seconds}s",
+        "copy": "Copy",
+        "copied": "Copied",
+        "failed": "This turn failed. Try again or rephrase.",
+        "cancelled": "Cancelled.",
+        "noAnswer": "No answer was recorded for this turn.",
+        "stillWorking": "Still working on it",
+        "stillWorkingLong": "Taking longer than usual. Coordinating work can take a minute.",
+        "cancelling": "Stopping…",
+        "kind": {
+          "scheduled": "Scheduled",
+          "askedBy": "Asked by {name}",
+          "teammate": "a teammate",
+          "inDirect": "in your direct chat",
+          "inRoom": "in #{room}",
+          "event": "Woke by work update"
+        },
+        "thinkingMessages": {
+          "0": "Thinking",
+          "1": "Pulling up your context",
+          "2": "Checking open Tasks",
+          "3": "Looking at who's available",
+          "4": "Reading between the lines",
+          "5": "Weighing the options",
+          "6": "Picking the right Coworker",
+          "7": "Drafting carefully",
+          "8": "Double-checking before I act",
+          "9": "Cross-referencing memory",
+          "10": "Choosing my words",
+          "11": "Almost there"
+        },
+        "tools": {
+          "default": "Working",
+          "refresh_context": "Refreshing context",
+          "find_coworkers": "Finding Coworkers",
+          "create_task": "Creating a Task",
+          "update_task": "Updating a Task",
+          "assign_task": "Assigning a Task",
+          "get_task_status": "Checking Task status",
+          "find_agents": "Searching Agents",
+          "get_agent_input_schema": "Reading Agent inputs",
+          "hire_agent": "Hiring an Agent",
+          "get_job_status": "Checking Job status",
+          "provide_job_input": "Answering a Job",
+          "request_user_decision": "Asking for your approval",
+          "read_memory": "Reading memory",
+          "update_memory": "Updating memory",
+          "scratch_read": "Reading notes",
+          "scratch_write": "Writing notes",
+          "scratch_list": "Listing notes"
+        },
+        "composer": {
+          "label": "Message",
+          "placeholder": "Message {bot}…",
+          "workingPlaceholder": "Your Soko Bot is working…",
+          "pausedPlaceholder": "Your Soko Bot is paused by an operator.",
+          "hint": "Enter to send, Shift+Enter for a new line",
+          "workingHint": "Wait for this turn or stop it before sending more",
+          "send": "Send",
+          "stop": "Stop",
+          "jumpToLatest": "Jump to latest",
+          "hints": {
+            "0": "Try: what's the status of my open Tasks?",
+            "1": "Try: delegate a research brief to a Coworker",
+            "2": "Try: find an Agent that can summarise this week's Jobs",
+            "3": "Try: every weekday at 9am, brief me on overdue work"
+          }
+        },
+        "welcome": {
+          "title": "Ready when you are",
+          "titleNamed": "Ready when you are, {name}",
+          "hint": "{bot} manages work for you: it answers directly when it can, delegates Tasks to Coworkers, and hires Agents for Jobs. It asks before anything that costs credits.",
+          "suggestions": {
+            "0": "What's the status of my open Tasks?",
+            "1": "Delegate a research brief to a Coworker",
+            "2": "Find an Agent that can draft a weekly report"
+          }
+        },
+        "chips": {
+          "schedules": "Schedules",
+          "schedulesTooltip": "Prompts it runs on a schedule",
+          "memory": "Memory",
+          "memoryTooltip": "What it currently remembers",
+          "settings": "Settings",
+          "settingsTooltip": "Settings",
+          "settingsDescription": "Identity and danger zone for your Soko Bot."
+        },
+        "decision": {
+          "heading": "Needs your okay",
+          "headingResolved": "Approval",
+          "accept": "Approve",
+          "accepting": "Approving…",
+          "reject": "Reject",
+          "rejecting": "Rejecting…",
+          "accepted": "Approved. Your Soko Bot will carry it out.",
+          "rejected": "Rejected. Nothing was created.",
+          "error": "Could not resolve the approval.",
+          "expires": "Expires {time}"
+        },
+        "delegation": {
+          "task": "Task",
+          "job": "Job",
+          "failed": "failed"
+        },
+        "errors": {
+          "send": "Could not send the message.",
+          "busy": "Your Soko Bot is still working on the previous turn. Stop it or wait for it to finish.",
+          "cancel": "Could not stop the turn."
+        },
+        "explain": {
+          "toggle": "Explain this turn",
+          "hide": "Hide explanation",
+          "loading": "Loading…",
+          "error": "Could not load the explanation.",
+          "classified": "Classified as",
+          "confidence": "{percent}% confident",
+          "classifier": "{model} · {ms} ms",
+          "classifierFallback": "rule-based classifier",
+          "classifierFailed": "classifier failed, fell back to a read-only turn",
+          "context": "Context given",
+          "contextLine": "{projects} projects · {tasks} tasks · {coworkers} coworkers · {agents} agents · {jobs} jobs · memory v{memory} · {kb} KB",
+          "tools": "Tools allowed",
+          "chain": "What happened",
+          "said": "Said",
+          "reasoned": "Reasoned",
+          "called": "Called",
+          "result": "Result",
+          "failed": "Failed",
+          "approval": "Asked for approval",
+          "noChain": "No steps were recorded for this turn.",
+          "usage": "Usage",
+          "usageLine": "{model} · {input} in / {output} out · {cost} · {seconds}s",
+          "outcome": {
+            "COMPLETED": "Completed",
+            "FAILED": "Failed",
+            "CANCELLED": "Cancelled"
+          },
+          "request": "Sent to Eve",
+          "requestLine": "{model} · version {version} · {tools} tools",
+          "rawMessage": "Message",
+          "rawPacket": "Context packet",
+          "rawInput": "Raw input",
+          "rawResult": "Raw result",
+          "rawEvents": "Runtime event stream ({count})"
+        }
+      },
+      "Console": {
+        "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
+        "lastActivity": "last active {time}",
+        "adminView": "Admin view",
+        "openChat": "Open chat",
+        "openingChat": "Opening…",
+        "openChatError": "Could not open the chat with your Soko Bot.",
+        "Stats": {
+          "title": "What it did",
+          "description": "Per day, last {days} days.",
+          "messages": "Messages",
+          "background": "On its own",
+          "tasks": "Tasks created",
+          "jobs": "Agents hired",
+          "toolCalls": "Tool calls",
+          "empty": "Nothing yet. Once you chat with it or it runs a schedule, the days fill in here.",
+          "chartLabel": "Activity per day over the last {days} days",
+          "today": "Today"
+        },
+        "activityTitle": "Recent activity",
+        "activityDescription": "What it did recently.",
+        "activityEmpty": "No turns yet. Open the chat and ask for something.",
+        "showMore": "Show {count} more",
+        "skillsTitle": "Skills",
+        "skillsDescription": "What your assistant knows how to do. Add more from skills.sh."
+      },
+      "Avatar": {
+        "title": "Picture",
+        "description": "A unique mascot from the collection. No two assistants share one.",
+        "save": "Use this picture",
+        "saving": "Saving…",
+        "saved": "Picture updated.",
+        "saveError": "Could not update the picture.",
+        "current": "Current picture",
+        "hint": "Pick one, or ask for other options.",
+        "showOthers": "Show others",
+        "loadError": "Could not load pictures."
+      },
+      "Skills": {
+        "builtIn": "Included",
+        "addTitle": "Add a skill from skills.sh",
+        "installedTitle": "Installed from skills.sh",
+        "installedEmpty": "No installed skills yet.",
+        "sourcePlaceholder": "owner/repo/skill or skills.sh link",
+        "sourceLabel": "Skill source",
+        "install": "Install",
+        "installed": "Installed {name}.",
+        "installError": "Could not install the skill.",
+        "remove": "Remove",
+        "removeError": "Could not remove the skill.",
+        "pickOne": "This source has {count} skills — pick one:",
+        "searchPlaceholder": "Search skills.sh",
+        "searchLabel": "Search skills",
+        "search": "Search",
+        "searchError": "Search failed.",
+        "installs": "{count} installs",
+        "hint": "Skills are loaded when a request matches them. Have a look at a skill's source before installing — browse",
+        "popular": "Popular on skills.sh",
+        "searchResults": "{count} results",
+        "pageOf": "{page} / {pages}",
+        "prev": "Prev",
+        "next": "Next",
+        "noResults": "No skills match.",
+        "loading": "Loading…",
+        "installedLabel": "Installed"
+      }
+    },
+    "SokoBots": {
+      "title": "Soko Bots",
+      "description": "Soko Bots are the AI coworkers you build yourself. Everyone gets a Personal Assistant that delegates work, follows up, and keeps them posted. More kinds of Soko Bots will appear here.",
+      "unavailable": "The team overview is not available right now.",
+      "personalWorkspace": "Personal workspace",
+      "peopleCount": "{count, plural, one {# person} other {# people}}",
+      "you": "you",
+      "noAssistant": "No assistant yet",
+      "createAssistant": "Create your Personal Assistant",
+      "createAssistantHint": "Takes a minute. Pick a name and a picture.",
+      "assistantFallback": "Personal Assistant",
+      "yourAssistant": "Your Personal Assistant",
+      "assistantOf": "{name}'s Personal Assistant",
+      "openChat": "Open chat",
+      "messageAssistant": "Message it",
+      "moreComing": "We're working on new kinds of coworkers you can build here.",
+      "chatError": "Could not open the chat.",
+      "yoursTitle": "Your Soko Bots",
+      "yourAssistantBlurb": "Delegates work, follows up, and keeps you posted.",
+      "manage": "Open",
+      "createAssistantBlurb": "An AI project manager that works for you in Sokosumi.",
+      "createNow": "Set it up now",
+      "moreTitle": "More kinds of Soko Bots",
+      "teamTitle": "Team",
+      "teamDescription": "Everyone in this workspace and the Soko Bots they built.",
+      "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here."
+    },
+    "Calendar": {
+      "Metadata": {
+        "title": "Schedules",
+        "description": "Browse scheduled task releases in your workspace."
+      },
+      "previous": "Previous period",
+      "next": "Next period",
+      "view": {
+        "month": "Month",
+        "week": "Week",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Source",
+        "all": "All sources",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Project",
+        "LEGACY_UNKNOWN": "Legacy source"
+      },
+      "accuracy": {
+        "inferred": "Inferred source",
+        "unknown": "Unknown source",
+        "approximate": "Approximate time"
+      },
+      "status": {
+        "label": "Task status",
+        "all": "All statuses",
+        "DRAFT": "Draft",
+        "QUEUED": "Queued",
+        "READY": "Ready",
+        "GRANT_PENDING": "Grant pending",
+        "INPUT_REQUIRED": "Input required",
+        "APPROVAL_REQUIRED": "Approval required",
+        "AUTHENTICATION_REQUIRED": "Authentication required",
+        "OUT_OF_CREDITS": "Paused: credits needed",
+        "CREDITS_TOPPED_UP": "Credits topped up",
+        "RUNNING": "Running",
+        "AWAITING_EXTERNAL": "Awaiting external",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "All coworkers"
+      },
+      "empty": {
+        "title": "No scheduled releases match these filters."
+      },
+      "pagination": {
+        "loadMore": "Load more events",
+        "loading": "Loading events...",
+        "error": "Unable to load more events."
+      },
+      "error": {
+        "title": "Unable to load the calendar",
+        "description": "Please try again in a moment.",
+        "retry": "Try again"
+      }
     }
   },
   "Share": {

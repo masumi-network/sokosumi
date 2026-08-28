@@ -317,27 +317,4 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(assignSeatMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    setMembership("owner");
-
-    const response = await assignSeat("org_123", "member_456", {
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: "org_123" },
-    });
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({
-      memberId: "member_456",
-      seatAssignedAt: "2026-05-01T00:00:00.000Z",
-    });
-    expect(assignSeatMock).toHaveBeenCalledWith(
-      "member_456",
-      "org_123",
-      3,
-      expect.anything(),
-    );
-  });
 });

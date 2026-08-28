@@ -248,6 +248,10 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
+      expect.anything(),
+      // Only the owner may put work on their own Soko Bot; the assigner has to
+      // reach the check for that rule to apply.
+      { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
@@ -409,6 +413,10 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
+      expect.anything(),
+      // Only the owner may put work on their own Soko Bot; the assigner has to
+      // reach the check for that rule to apply.
+      { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });

@@ -10,9 +10,9 @@ implicitly through task and job endpoints.
 > pickable in chat/tasks for humans uses `CoworkerWorkspaceAccess` instead —
 > see [`coworker-workspace-access-api.md`](./coworker-workspace-access-api.md).
 
-> **Hermes / first-party orchestrators** do **not** use this grant model. They
-> authenticate as `actor: orchestrator` (shared `ORCHESTRATOR_SERVICE_TOKEN`) and skip vendor grants /
-> whitelist. See [`docs/orchestrator/hermes-orchestrator-actor.md`](../orchestrator/hermes-orchestrator-actor.md).
+> **Soko Bot** does not authenticate as a coworker. Its Eve runtime receives
+> short-lived, turn-scoped grants and invokes capability-specific Core tools.
+> Delegated Coworker work still follows this vendor-grant model.
 
 - **Source of truth (behavior):** `apps/core/src/helpers/access-control.ts`,
   `apps/core/src/helpers/vendor-grants.ts`, `apps/core/src/routes/v1/tasks/*`

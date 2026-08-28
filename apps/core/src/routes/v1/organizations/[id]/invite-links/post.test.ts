@@ -69,11 +69,6 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   context: { userId: "victim_999", organizationId: "org_123" },
 };
 
-const ORCHESTRATOR_AUTH_CONTEXT: AuthenticationContext = {
-  actor: "orchestrator",
-  context: { userId: "user_123", organizationId: "org_123" },
-};
-
 const orgId = "org_123";
 const NOW = new Date("2026-07-25T12:00:00.000Z");
 
@@ -156,13 +151,6 @@ describe("POST /organizations/{id}/invite-links", () => {
 
   it("rejects a coworker/context actor so it cannot mint links as a victim", async () => {
     const response = await postCreate(COWORKER_AUTH_CONTEXT);
-    expect(response.status).toBe(403);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(createInviteLinkMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects an orchestrator actor (session-only mutation)", async () => {
-    const response = await postCreate(ORCHESTRATOR_AUTH_CONTEXT);
     expect(response.status).toBe(403);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(createInviteLinkMock).not.toHaveBeenCalled();

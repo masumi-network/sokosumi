@@ -126,43 +126,4 @@ describe("GET /agents/{id}/reviews/me", () => {
     expect(response.status).toBe(404);
     expect(getUserAgentReviewMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    getUserAgentReviewMock.mockResolvedValue({
-      id: "rating_123",
-      rating: 4,
-      comment: "Solid output.",
-    });
-
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    });
-    const response = await app.request("http://localhost/agent_123/reviews/me");
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(getUserAgentReviewMock).toHaveBeenCalledWith(
-      "agent_123",
-      "user_123",
-      expect.anything(),
-    );
-    expect(body.data).toEqual({
-      id: "rating_123",
-      rating: 4,
-      comment: "Solid output.",
-    });
-  });
-
-  it("returns 403 for bare orchestrator without context headers", async () => {
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-    });
-    const response = await app.request("http://localhost/agent_123/reviews/me");
-
-    expect(response.status).toBe(403);
-    expect(getUserAgentReviewMock).not.toHaveBeenCalled();
-  });
 });

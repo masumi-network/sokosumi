@@ -30,7 +30,9 @@
     "test:ci": "vitest run",
     "test:watch": "vitest",
     "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts",
-    "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts"
+    "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts",
+    "soko-bot:import-cutover": "tsx --env-file=.env scripts/import-soko-bot-cutover.mts",
+    "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.2",
@@ -40,6 +42,7 @@
     "@better-auth/prisma-adapter": "1.7.2",
     "@better-auth/stripe": "1.7.2",
     "@better-auth/utils": "0.4.2",
+    "@composio/core": "0.17.0",
     "@hono/node-server": "2.1.1",
     "@hono/zod-openapi": "1.6.1",
     "@openrouter/ai-sdk-provider": "3.0.0",
@@ -53,10 +56,10 @@
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/net": "workspace:*",
+    "@sokosumi/soko-bot": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "@vercel/blob": "2.8.0",
     "@vercel/functions": "3.9.5",
-    "@vercel/oidc": "3.8.5",
     "@vercel/related-projects": "1.1.1",
     "ably": "2.28.0",
     "ai": "7.0.83",
@@ -74,7 +77,8 @@
     "slugify": "1.6.9",
     "stripe": "22.6.0",
     "uuid": "14.0.2",
-    "viem": "2.56.0"
+    "viem": "2.56.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@evlog/cli": "0.6.0",

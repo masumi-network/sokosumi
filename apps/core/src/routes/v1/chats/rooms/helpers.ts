@@ -41,7 +41,21 @@ export const chatRoomCoworkerSelect = {
   slug: true,
   caption: true,
   image: true,
+  sokoBotId: true,
+  sokoBot: { select: { userId: true, avatarSeed: true } },
 } as const satisfies Prisma.CoworkerSelect;
+
+/**
+ * Orb seed for a Soko Bot coworker (the bot has no image; the web renders a
+ * generative avatar from this seed). Null for marketplace coworkers.
+ */
+export function sokoBotAvatarSeedFor(coworker: {
+  sokoBotId: string | null;
+  sokoBot: { userId: string; avatarSeed: string | null } | null;
+}): string | null {
+  if (!coworker.sokoBotId || !coworker.sokoBot) return null;
+  return coworker.sokoBot.avatarSeed ?? `orb:${coworker.sokoBot.userId}`;
+}
 
 type ChatRoomPresence = "online" | "afk" | "offline";
 
@@ -814,6 +828,8 @@ export function mapChatRoom(
       caption: coworker.caption ?? null,
       image: coworker.image ?? null,
       presence: "online" as const,
+      sokoBotId: coworker.sokoBotId ?? null,
+      sokoBotAvatarSeed: sokoBotAvatarSeedFor(coworker),
     })),
   };
 }
@@ -1064,6 +1080,8 @@ export function mapChatRoomMessage(
           slug: message.senderCoworker.slug,
           caption: message.senderCoworker.caption ?? null,
           image: message.senderCoworker.image ?? null,
+          sokoBotId: message.senderCoworker.sokoBotId ?? null,
+          sokoBotAvatarSeed: sokoBotAvatarSeedFor(message.senderCoworker),
           presence: "online" as const,
         },
       };
@@ -1610,6 +1628,7 @@ const chatRoomWriteSelect = {
           id: true,
           name: true,
           slug: true,
+          sokoBotId: true,
         },
       },
     },
