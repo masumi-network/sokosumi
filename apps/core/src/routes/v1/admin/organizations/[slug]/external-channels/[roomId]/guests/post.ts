@@ -3,7 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { joinExternalChannelAsGuest } from "@/helpers/chat-room-guest-membership.js";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime.js";
-import { notFound } from "@/helpers/error";
+import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -43,6 +43,24 @@ const route = createRoute({
   },
 });
 
+function adminGuestOutcome(
+  outcome: "joined" | "already_guest" | "aborted",
+): "joined" | "already_guest" {
+  switch (outcome) {
+    case "joined":
+    case "already_guest":
+      return outcome;
+    case "aborted":
+      throw internalServerError(
+        "Admin guest add cannot abort without beforeCreate",
+      );
+    default: {
+      const _exhaustive: never = outcome;
+      throw internalServerError(`Unexpected guest outcome: ${_exhaustive}`);
+    }
+  }
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { slug, roomId } = c.req.valid("param");
@@ -71,8 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: result.userId,
         roomId: result.roomId,
         access: result.access,
-        outcome:
-          result.outcome === "already_guest" ? "already_guest" : "joined",
+        outcome: adminGuestOutcome(result.outcome),
       }),
     );
   });
