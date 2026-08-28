@@ -191,7 +191,7 @@ describe("syncX402BuySideReadiness", () => {
     },
   );
 
-  it("keeps cached readiness when required admin balance lookup fails", async () => {
+  it("keeps cached readiness when a required balance lookup fails", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
@@ -668,7 +668,11 @@ describe("syncX402BuySideReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("forwards the abort signal to both node checks", async () => {
+  // Every node call, not just the two the sync fires first. A cycle aborts on
+  // shutdown, and a call that never receives the signal keeps its request
+  // alive past the abort — the wallet listing and the per-wallet balance
+  // fetches included, since those are the calls that fan out.
+  it("forwards the abort signal to every node call", async () => {
     const signal = new AbortController().signal;
 
     await syncX402BuySideReadiness({ signal });
@@ -677,6 +681,13 @@ describe("syncX402BuySideReadiness", () => {
       expect.objectContaining({ signal }),
     );
     expect(getX402KeySpendCapsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal }),
+    );
+    expect(getX402PurchasingWalletsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal }),
+    );
+    expect(getX402WalletBalancesMock).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ signal }),
     );
   });
