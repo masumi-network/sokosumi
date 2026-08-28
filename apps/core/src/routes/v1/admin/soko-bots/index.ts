@@ -26,12 +26,18 @@ import {
   adminSokoBotDetailSchema,
   adminSokoBotListSchema,
   adminSokoBotQualitySchema,
+  setSokoBotAvailabilityRequestSchema,
+  sokoBotAvailabilitySchema,
   sokoBotDeletionResultSchema,
   sokoBotGatewayModelListSchema,
   sokoBotVersionDetailSchema,
   sokoBotVersionListSchema,
   sokoBotVersionWriteSchema,
 } from "@/schemas/soko-bot.schema";
+import {
+  getSokoBotAvailability,
+  setSokoBotDisabled,
+} from "@/services/soko-bot-availability.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
   SokoBotBusyError,
@@ -369,6 +375,62 @@ app.openapi(updateVersionRoute, async (c) => {
     c,
     versionDetail(version, true, await getDefaultSokoBotVersionId()),
   );
+});
+
+const availabilityRoute = createRoute({
+  method: "get",
+  path: "/availability",
+  operationId: "getAdminSokoBotAvailability",
+  tags: ["Admin"],
+  responses: {
+    200: jsonSuccessResponse(sokoBotAvailabilitySchema, "Feature availability"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+app.openapi(availabilityRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  const availability = await getSokoBotAvailability();
+  return ok(c, {
+    disabled: availability.disabled,
+    disabledAt: availability.disabledAt?.toISOString() ?? null,
+    disabledReason: availability.disabledReason,
+  });
+});
+
+const setAvailabilityRoute = createRoute({
+  method: "put",
+  path: "/availability",
+  operationId: "setAdminSokoBotAvailability",
+  tags: ["Admin"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: setSokoBotAvailabilityRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotAvailabilitySchema, "Feature availability"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+app.openapi(setAvailabilityRoute, async (c) => {
+  const auth = requireAdminAuthContext(c.var.authContext);
+  const body = c.req.valid("json");
+  const availability = await setSokoBotDisabled({
+    disabled: body.disabled,
+    adminUserId: auth.userId,
+    reason: body.reason ?? null,
+  });
+  return ok(c, {
+    disabled: availability.disabled,
+    disabledAt: availability.disabledAt?.toISOString() ?? null,
+    disabledReason: availability.disabledReason,
+  });
 });
 
 const deleteBotRoute = createRoute({

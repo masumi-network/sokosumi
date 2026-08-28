@@ -2095,6 +2095,13 @@ model SokoBotSetting {
   /// Version new bots are created on; null falls back to the code default.
   defaultVersionId String?
 
+  /// Set while an administrator has switched the whole feature off: no turns
+  /// start, no model calls are made, and the console says so. A database flag
+  /// rather than an env var so it takes effect at once, without a redeploy.
+  disabledAt       DateTime?
+  disabledByUserId String?
+  disabledReason   String?
+
   @@map("soko_bot_setting")
 }
 

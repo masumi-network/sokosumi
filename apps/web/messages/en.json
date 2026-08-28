@@ -4360,6 +4360,19 @@
           "noBotTitle": "You need a Soko Bot to run the lab",
           "noBotDescription": "Runs use your own assistant.",
           "noBotLink": "Create it here."
+        },
+        "KillSwitch": {
+          "title": "Feature switch",
+          "stateEnabled": "Soko Bot is running normally.",
+          "stateDisabled": "Disabled — {reason}",
+          "noReason": "no reason given",
+          "disable": "Disable Soko Bot",
+          "enable": "Enable Soko Bot",
+          "working": "Working…",
+          "reasonPlaceholder": "Reason shown to users (optional)",
+          "disabled": "Soko Bot disabled.",
+          "enabled": "Soko Bot enabled.",
+          "error": "Could not change the feature switch."
         }
       },
       "MatchedChannels": {
@@ -6544,6 +6557,10 @@
         "noResults": "No skills match.",
         "loading": "Loading…",
         "installedLabel": "Installed"
+      },
+      "Disabled": {
+        "title": "Soko Bot is temporarily unavailable",
+        "description": "An administrator has switched Soko Bot off for now. Nothing your assistant has done is lost, and it will pick up where it left off."
       }
     },
     "SokoBots": {
@@ -6576,7 +6593,8 @@
       "heroBody": "A Soko Bot is your own assistant inside Sokosumi. It works your Taskboard with your Coworkers, reads the mail and calendar you connect, starts the work that's worth doing, and tells you about it in chat. Everyone in the workspace builds their own.",
       "heroCta": "Create your Soko Bot",
       "heroCtaHint": "Takes a minute: pick a name and a face.",
-      "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}"
+      "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}",
+      "disabled": "Soko Bot is temporarily unavailable"
     },
     "Calendar": {
       "Metadata": {

@@ -147,6 +147,7 @@ import {
   getAdminMatchedChannel as coreGetAdminMatchedChannel,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminSokoBot as coreGetAdminSokoBot,
+  getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
@@ -368,6 +369,7 @@ import {
   searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
+  setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
@@ -3866,6 +3868,26 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getAdminSokoBotAvailability() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotAvailability({ client, cache: "no-store" }),
+      "Failed to read Soko Bot availability",
+    );
+  }
+
+  async function setAdminSokoBotAvailability(body: {
+    disabled: boolean;
+    reason?: string;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSetAdminSokoBotAvailability({ client, body }),
+      "Failed to update Soko Bot availability",
+    );
+  }
+
   async function deleteAdminSokoBot(sokoBotId: string) {
     return executeCoreOperation(
       getClient,
@@ -4934,6 +4956,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,
+    getAdminSokoBotAvailability,
+    setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,
     listSokoBotAvatars,
     claimMySokoBotAvatar,

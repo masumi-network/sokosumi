@@ -4329,6 +4329,19 @@
           "noBotTitle": "Für das Labor brauchst du einen Soko Bot",
           "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
           "noBotLink": "Hier erstellen."
+        },
+        "KillSwitch": {
+          "title": "Funktionsschalter",
+          "stateEnabled": "Soko Bot läuft normal.",
+          "stateDisabled": "Deaktiviert — {reason}",
+          "noReason": "kein Grund angegeben",
+          "disable": "Soko Bot deaktivieren",
+          "enable": "Soko Bot aktivieren",
+          "working": "Wird ausgeführt…",
+          "reasonPlaceholder": "Grund für Nutzer (optional)",
+          "disabled": "Soko Bot deaktiviert.",
+          "enabled": "Soko Bot aktiviert.",
+          "error": "Der Funktionsschalter konnte nicht geändert werden."
         }
       },
       "MatchedChannels": {
@@ -6544,6 +6557,10 @@
         "noResults": "Keine passenden Skills.",
         "loading": "Lädt…",
         "installedLabel": "Installiert"
+      },
+      "Disabled": {
+        "title": "Soko Bot ist vorübergehend nicht verfügbar",
+        "description": "Ein Administrator hat Soko Bot vorerst abgeschaltet. Nichts von der Arbeit deines Assistenten geht verloren; er macht später dort weiter, wo er aufgehört hat."
       }
     },
     "SokoBots": {
@@ -6576,7 +6593,8 @@
       "heroBody": "Ein Soko Bot ist dein eigener Assistent in Sokosumi. Er arbeitet mit deinen Coworkern am Taskboard, liest die Mails und Kalender, die du verbindest, startet die Arbeit, die sich lohnt, und erzählt dir im Chat davon. Jede Person im Workspace baut sich einen eigenen.",
       "heroCta": "Soko Bot erstellen",
       "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
-      "teamCount": "{humans, plural, one {# Mensch} other {# Menschen}}, {bots, plural, =0 {noch keine Soko Bots} one {# Soko Bot} other {# Soko Bots}}"
+      "teamCount": "{humans, plural, one {# Mensch} other {# Menschen}}, {bots, plural, =0 {noch keine Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
+      "disabled": "Soko Bot ist vorübergehend nicht verfügbar"
     },
     "Calendar": {
       "Metadata": {

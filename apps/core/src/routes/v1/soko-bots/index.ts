@@ -9,6 +9,7 @@ import {
   conflict,
   forbidden,
   notFound,
+  serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
 import {
@@ -73,6 +74,7 @@ import {
   updateSokoBotScheduleRequestSchema,
   updateSokoBotVersionRequestSchema,
 } from "@/schemas/soko-bot.schema";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import {
   claimAvatar,
   listAvailableAvatars,
@@ -137,6 +139,15 @@ const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
 
 app.use("*", async (c, next) => {
   if (!getEnv().SOKO_BOT_ENABLED) throw notFound("Soko Bot is not enabled");
+  // 503 rather than 404: the feature exists and is coming back, and the
+  // console tells the owner that rather than pretending it was never there.
+  const availability = await getSokoBotAvailability();
+  if (availability.disabled) {
+    throw serviceUnavailable(
+      availability.disabledReason ??
+        "Soko Bot is temporarily disabled by an administrator",
+    );
+  }
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
   // It lives on the router rather than per handler so a new endpoint cannot
   // be added outside it; the UI gate alone would leave the API open.

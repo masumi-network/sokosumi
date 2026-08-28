@@ -288,6 +288,17 @@ export type SokoBotVersionWrite = {
     capabilities?: Array<string>;
 };
 
+export type SokoBotAvailability = {
+    disabled: boolean;
+    disabledAt: string | null;
+    disabledReason: string | null;
+};
+
+export type SetSokoBotAvailabilityRequest = {
+    disabled: boolean;
+    reason?: string;
+};
+
 export type SokoBotDeletionResult = {
     outcome: 'deleted' | 'tombstoned';
     unrevokedIntegrations: Array<string>;
@@ -6633,6 +6644,118 @@ export type UpdateAdminSokoBotVersionResponses = {
 };
 
 export type UpdateAdminSokoBotVersionResponse = UpdateAdminSokoBotVersionResponses[keyof UpdateAdminSokoBotVersionResponses];
+
+export type GetAdminSokoBotAvailabilityData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/availability';
+};
+
+export type GetAdminSokoBotAvailabilityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotAvailabilityError = GetAdminSokoBotAvailabilityErrors[keyof GetAdminSokoBotAvailabilityErrors];
+
+export type GetAdminSokoBotAvailabilityResponses = {
+    /**
+     * Feature availability
+     */
+    200: {
+        data: SokoBotAvailability;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotAvailabilityResponse = GetAdminSokoBotAvailabilityResponses[keyof GetAdminSokoBotAvailabilityResponses];
+
+export type SetAdminSokoBotAvailabilityData = {
+    body?: SetSokoBotAvailabilityRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/availability';
+};
+
+export type SetAdminSokoBotAvailabilityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvailabilityError = SetAdminSokoBotAvailabilityErrors[keyof SetAdminSokoBotAvailabilityErrors];
+
+export type SetAdminSokoBotAvailabilityResponses = {
+    /**
+     * Feature availability
+     */
+    200: {
+        data: SokoBotAvailability;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvailabilityResponse = SetAdminSokoBotAvailabilityResponses[keyof SetAdminSokoBotAvailabilityResponses];
 
 export type DeleteAdminSokoBotData = {
     body?: never;

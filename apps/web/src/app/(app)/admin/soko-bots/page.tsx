@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { FleetHealthSummary } from "@/components/admin/soko-bots/fleet-health-summary";
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { SokoBotFleetTable } from "@/components/admin/soko-bots/soko-bot-fleet-table.client";
+import { SokoBotKillSwitch } from "@/components/admin/soko-bots/soko-bot-kill-switch.client";
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
@@ -30,10 +31,15 @@ export default async function AdminSokoBotsPage({
     typeof params.qualityVersion === "string"
       ? params.qualityVersion.trim() || undefined
       : undefined;
-  const [t, list, quality] = await Promise.all([
+  const [t, list, quality, availability] = await Promise.all([
     getTranslations("App.Admin.SokoBots"),
     adminSokoBotService.list({ limit: FLEET_PAGE_LIMIT }),
     adminSokoBotService.quality({ versionId: qualityVersion }),
+    adminSokoBotService.getAvailability().catch(() => ({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    })),
   ]);
   const selectedVersionId = quality.versions.some(
     (version) => version.versionId === qualityVersion,
@@ -67,6 +73,7 @@ export default async function AdminSokoBotsPage({
           </div>
         </div>
 
+        <SokoBotKillSwitch initial={availability} />
         <FleetHealthSummary items={list.items} total={list.total} />
         <QualityOverview
           quality={quality}

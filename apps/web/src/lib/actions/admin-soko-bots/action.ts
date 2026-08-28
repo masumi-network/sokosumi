@@ -15,6 +15,7 @@ import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
+  SokoBotAvailability,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
 } from "@/lib/clients/generated/core";
@@ -24,6 +25,7 @@ import {
   ADMIN_SOKO_BOT_SCHEDULE_ACTIONS,
   ADMIN_SOKO_BOT_VERSIONS_ROUTE,
   ADMIN_SOKO_BOTS_ROUTE,
+  SOKO_BOT_ROUTE,
 } from "@/lib/soko-bot/constants";
 import {
   type AuthenticatedRequest,
@@ -170,6 +172,39 @@ export const deleteAdminSokoBotAction = withSession<
     const result = await adminSokoBotService.deleteBot(parsed.data.sokoBotId);
     revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
     return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+interface SetAvailabilityParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+const availabilitySchema = z.object({
+  disabled: z.boolean(),
+  reason: z.string().trim().max(300).optional(),
+});
+
+export const setSokoBotAvailabilityAction = withSession<
+  SetAvailabilityParams,
+  ActionResultDto<SokoBotAvailability, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = availabilitySchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid request" }),
+      );
+    }
+    const availability = await adminSokoBotService.setAvailability(
+      parsed.data.disabled,
+      parsed.data.reason,
+    );
+    revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
+    revalidatePath(SOKO_BOT_ROUTE);
+    return toActionResult(ok(availability));
   } catch (error) {
     return toActionResult(err(mapError(error)));
   }
