@@ -474,6 +474,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: { create: mockTaskEventCreate },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,

@@ -11,8 +11,8 @@ import { OrganizationChatList } from "@/components/chat/organization-chat-list.c
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
+import { isBetaAccessEmail } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import type { ChatRoomsPage } from "@/lib/services";
 
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
@@ -106,7 +106,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
 
-  const hermesMenuEnabled = isHermesBetaAccessEmail(session?.user.email);
+  const hermesMenuEnabled = isBetaAccessEmail(session?.user.email);
   const listKey = activeOrganizationId ?? "personal";
 
   return (
