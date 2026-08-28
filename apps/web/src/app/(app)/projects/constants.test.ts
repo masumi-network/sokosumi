@@ -33,16 +33,16 @@ describe("projects list CLS layout constants", () => {
 });
 
 describe("projects mobile padding shells", () => {
-  it("index shell matches Drive: page px-2 inside main p-4 (no -mx-4)", () => {
+  it("index shell is w-full inside main p-4 (no extra px-2 / -mx-4)", () => {
     const tokens = PROJECTS_PAGE_SHELL_CLASS.split(/\s+/);
     expect(tokens).toContain("w-full");
-    expect(tokens).toContain("px-2");
+    expect(tokens).not.toContain("px-2");
     expect(tokens).not.toContain("-mx-4");
     expect(tokens).not.toContain("px-4");
     expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("calc(100%");
   });
 
-  it("detail shell cancels main p-4 on both edges; workspace keeps index px-2", () => {
+  it("detail shell cancels main p-4 on both edges; workspace keeps mobile px-2", () => {
     const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
     const workspace = PROJECTS_DETAIL_WORKSPACE_CLASS.split(/\s+/);
 

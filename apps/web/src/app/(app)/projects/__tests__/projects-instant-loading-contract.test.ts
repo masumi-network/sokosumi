@@ -131,7 +131,7 @@ describe("projects list CLS layout pairing", () => {
     expect(page).toMatch(/PROJECTS_PAGE_SHELL_CLASS/);
     expect(loading).toMatch(/PROJECTS_PAGE_SHELL_CLASS/);
     expect(PROJECTS_PAGE_SHELL_CLASS).toContain("w-full");
-    expect(PROJECTS_PAGE_SHELL_CLASS).toContain("px-2");
+    expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("px-2");
     expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("-mx-4");
   });
 });

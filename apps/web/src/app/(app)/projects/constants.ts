@@ -6,11 +6,11 @@ import type {
 export const PROJECTS_PAGE_LIMIT = 20;
 
 /**
- * Projects index + Instant shell. Same as Drive list pages: keep app-main
- * `p-4` and add page `px-2` (do not `-mx-4` here). Detail cancels the shell
- * separately for edge-to-edge chrome.
+ * Projects index + Instant shell. Keep app-main `p-4` with no extra page
+ * horizontal pad (do not `-mx-4` here). Detail cancels the shell separately
+ * for edge-to-edge chrome.
  */
-export const PROJECTS_PAGE_SHELL_CLASS = "w-full px-2";
+export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
  * Project detail outer shell. Cancel main `p-4` on mobile so the top block can
@@ -26,7 +26,7 @@ export const PROJECTS_DETAIL_SHELL_CLASS =
 export const PROJECTS_DETAIL_TOP_CLASS = "w-full";
 
 /**
- * Workspace modules (`modules.title`): same net `px-2` as the Projects index.
+ * Workspace modules (`modules.title`): light horizontal pad on mobile.
  */
 export const PROJECTS_DETAIL_WORKSPACE_CLASS = "mt-6 space-y-3 px-2 md:px-0";
 
