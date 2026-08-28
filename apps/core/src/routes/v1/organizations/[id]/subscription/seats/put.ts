@@ -35,7 +35,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/subscription/seats",
   description:
-    "Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`); local free subscriptions only update the stored seat count. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
+    "Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`). Local free subscriptions return the stored seat count without changing it. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
   tags: ["Organizations"],
   request: {
     params,
@@ -104,6 +104,24 @@ async function increaseStripeSubscriptionSeats(
     firstItem.id,
     seats,
   );
+}
+
+async function persistPurchasedSeatsAndUnassignOverflow(params: {
+  subscriptionId: string;
+  organizationId: string;
+  seats: number;
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.subscription.update({
+      where: { id: params.subscriptionId },
+      data: { seats: params.seats },
+    });
+    await unassignSeatsOverPurchasedCapacity(
+      params.organizationId,
+      params.seats,
+      tx,
+    );
+  });
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -190,26 +208,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
 
     try {
-      await prisma.$transaction(async (tx) => {
-        await tx.subscription.update({
-          where: { id: target.subscriptionId },
-          data: { seats },
-        });
-        await unassignSeatsOverPurchasedCapacity(
-          target.organizationId,
-          seats,
-          tx,
-        );
+      await persistPurchasedSeatsAndUnassignOverflow({
+        subscriptionId: target.subscriptionId,
+        organizationId: target.organizationId,
+        seats,
       });
     } catch (error) {
-      await prisma.$transaction(async (tx) => {
-        await unassignSeatsOverPurchasedCapacity(
-          target.organizationId,
+      try {
+        await persistPurchasedSeatsAndUnassignOverflow({
+          subscriptionId: target.subscriptionId,
+          organizationId: target.organizationId,
           seats,
-          tx,
-        );
-      });
-      throw error;
+        });
+      } catch {
+        await prisma.$transaction(async (tx) => {
+          await unassignSeatsOverPurchasedCapacity(
+            target.organizationId,
+            seats,
+            tx,
+          );
+        });
+        throw error;
+      }
     }
 
     return ok(c, organizationSubscriptionSeatsSchema.parse({ seats }));

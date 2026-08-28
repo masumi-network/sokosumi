@@ -287,7 +287,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
             update: (...args: unknown[]) => subscriptionUpdateMock(...args),
           },
         };
-        if (transactionCalls === 2) {
+        if (transactionCalls === 2 || transactionCalls === 3) {
           throw new Error("local seat write failed");
         }
         return callback(tx);
@@ -302,6 +302,58 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
       "si_1",
       1,
     );
+    expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+    expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
+      ["m-newest"],
+    );
+  });
+
+  it("persists seats on retry when the first local write fails after Stripe", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([
+      {
+        id: "m-oldest",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+      {
+        id: "m-newest",
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    ]);
+
+    let transactionCalls = 0;
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => {
+        transactionCalls += 1;
+        const tx = {
+          organization: { findUnique: organizationFindUniqueMock },
+          member: {
+            findMany: (...args: unknown[]) => memberFindManyMock(...args),
+            findUnique: memberFindUniqueMock,
+            update: (...args: unknown[]) => memberUpdateMock(...args),
+          },
+          subscription: {
+            update: (...args: unknown[]) => subscriptionUpdateMock(...args),
+          },
+        };
+        if (transactionCalls === 2) {
+          throw new Error("local seat write failed");
+        }
+        return callback(tx);
+      },
+    );
+
+    const response = await updateSeats("org_123", 1);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ seats: 1 });
+    expect(subscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub-row-1" },
+      data: { seats: 1 },
+    });
     expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
       ["m-newest"],
     );

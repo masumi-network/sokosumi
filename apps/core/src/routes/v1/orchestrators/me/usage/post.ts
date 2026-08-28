@@ -137,6 +137,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             "Idempotency key already used with different reference id",
           );
         }
+        if (existing.organizationId !== organizationId) {
+          throw conflict(
+            "Idempotency key already used with different organization id",
+          );
+        }
 
         return { usage: existing, created: false };
       }

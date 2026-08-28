@@ -95,13 +95,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    await requireAssignedOrganizationSeat(
-      userContext.userId,
-      existingTask.organizationId,
-    );
-
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskCollaboration(authContext, id, tx);
+      const taskInTx = await requireTaskCollaboration(authContext, id, tx);
+
+      await requireAssignedOrganizationSeat(
+        userContext.userId,
+        taskInTx.organizationId,
+        tx,
+      );
 
       return tx.task.update({
         where: { id },

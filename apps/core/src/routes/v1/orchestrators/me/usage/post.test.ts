@@ -46,6 +46,7 @@ interface UsageRecord {
   referenceId: string | null;
   orchestratorId: string;
   userId: string;
+  organizationId: string | null;
   cents: bigint;
   transactionId: string;
 }
@@ -59,6 +60,7 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
     referenceId: null,
     orchestratorId: ORCHESTRATOR_ID,
     userId: TARGET_USER_ID,
+    organizationId: null,
     cents: 25000000000n,
     transactionId: "txn_123",
     ...overrides,
@@ -339,6 +341,51 @@ describe("POST /orchestrators/me/usage", () => {
     });
 
     expect(response.status).toBe(403);
+    expect(usageCreate).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the idempotency key is reused with a different organization id", async () => {
+    const existing = createUsage({ organizationId: "org_original" });
+    const { usageCreate } = mockTxWithOrchestrator({ existingUsage: existing });
+
+    const app = createApp("orchestrator", {
+      context: { organizationId: "org_123", userId: TARGET_USER_ID },
+    });
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: existing.idempotencyKey,
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.text()).toContain("different organization id");
+    expect(usageCreate).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+  });
+
+  it("replays existing usage for the same organization id", async () => {
+    const existing = createUsage({ organizationId: "org_123" });
+    const { usageCreate } = mockTxWithOrchestrator({ existingUsage: existing });
+
+    const app = createApp("orchestrator", {
+      context: { organizationId: "org_123", userId: TARGET_USER_ID },
+    });
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: existing.idempotencyKey,
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(200);
     expect(usageCreate).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });

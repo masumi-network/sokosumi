@@ -136,7 +136,7 @@ function canOrgCollaboratorActOnTaskForViewer({
 export function canCommentOnTaskForViewer(
   params: OrgCollaboratorViewerParams,
 ): boolean {
-  if (params.hasAssignedSeat === false) {
+  if (params.hasAssignedSeat !== true) {
     return false;
   }
   return canOrgCollaboratorActOnTaskForViewer(params);

@@ -120,7 +120,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
