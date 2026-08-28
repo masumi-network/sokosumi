@@ -43,6 +43,7 @@ import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
+  DRIVE_FILE_TYPE_ICON_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -331,7 +332,7 @@ function DrivePageWorkspace({
   const isRecentsView = !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView =
     isBrowseView || isTasksView ? "browse" : "recents";
-  const layoutMode: FilesViewMode = isTasksView ? "list" : filesViewMode;
+  const layoutMode: FilesViewMode = filesViewMode;
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
@@ -1259,7 +1260,7 @@ function DrivePageWorkspace({
     document.cookie = serializeFilesViewModeCookie(next);
   }
 
-  const filesViewModeSwitch = !isTasksView ? (
+  const filesViewModeSwitch = (
     <DriveViewModeSwitch
       value={filesViewMode}
       onChange={handleFilesViewModeChange}
@@ -1268,7 +1269,7 @@ function DrivePageWorkspace({
         grid: t("viewGrid"),
       }}
     />
-  ) : null;
+  );
 
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
@@ -1804,7 +1805,9 @@ function DrivePageWorkspace({
                         }
                       >
                         <div className={driveItemIconWellClass(layoutMode)}>
-                          <FileTypeIcon extension={extension || "file"} />
+                          <div className={DRIVE_FILE_TYPE_ICON_CLASS}>
+                            <FileTypeIcon extension={extension || "file"} />
+                          </div>
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           {nameEl}
@@ -2003,7 +2006,9 @@ function DrivePageWorkspace({
                       actions={blobActions}
                     >
                       <div className={driveItemIconWellClass(layoutMode)}>
-                        <FileTypeIcon extension={extension || "file"} />
+                        <div className={DRIVE_FILE_TYPE_ICON_CLASS}>
+                          <FileTypeIcon extension={extension || "file"} />
+                        </div>
                       </div>
                       {isEditing ? (
                         <Input
