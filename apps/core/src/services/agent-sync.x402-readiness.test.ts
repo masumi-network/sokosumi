@@ -288,6 +288,73 @@ describe("syncX402BuySideReadiness", () => {
     );
   });
 
+  it("pages when payable pairs are recorded on an uncapped key", async () => {
+    // The gap this closes. A usageLimited key with no eip155 credit row is
+    // grandfathered uncapped by the node, so these pairs really are payable,
+    // with no ceiling, while the operator believes a cap is on. The
+    // zero-pairs page cannot cover it: there ARE ready pairs.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    getX402KeySpendCapsMock.mockResolvedValue(
+      ok(keySpendCaps({ usageLimited: true, grandfatheredUncapped: true })),
+    );
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).toHaveBeenCalledTimes(1);
+    expect(captureMessageMock.mock.calls[0][0]).toContain("UNCAPPED");
+    expect(captureMessageMock.mock.calls[0][1]).toBe("warning");
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not page for an uncapped key on a Vercel preview", async () => {
+    // Preview runs a deliberately non-admin key (SOK-860). Paging from there
+    // is the noise that alert suppression exists to stop.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    envState.VERCEL_ENV = "preview";
+    getX402KeySpendCapsMock.mockResolvedValue(
+      ok(keySpendCaps({ usageLimited: true, grandfatheredUncapped: true })),
+    );
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not page when a capped key holds real credits", async () => {
+    // No false positive: a key with a cap actually in force is the healthy
+    // state and must stay silent.
+    getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(1_000_000n)));
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("does not re-page for an uncapped key when readiness did not change", async () => {
+    // Latched on the transition like the zero-pairs page, so a lasting
+    // misconfiguration does not spam. The per-pair warn log still repeats.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    getX402KeySpendCapsMock.mockResolvedValue(
+      ok(keySpendCaps({ usageLimited: true, grandfatheredUncapped: true })),
+    );
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+    consoleWarnSpy.mockRestore();
+  });
+
   it("reports no change when the cache holds the same pair set", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: JSON.stringify([READY_SOURCE]),

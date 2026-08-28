@@ -306,6 +306,25 @@ export async function syncX402BuySideReadiness(
     });
   }
 
+  if (readySources.length > 0 && keySpendCaps?.grandfatheredUncapped) {
+    // The node grandfathers a usageLimited key that holds no eip155 credit
+    // row: it enforces NO x402 spend cap at all, so every pair recorded above
+    // is payable without a ceiling while the operator believes a cap is on.
+    // compose warns per pair, but a warn line is not a signal anyone watches,
+    // and the zero-pairs page below cannot cover this by construction: the
+    // whole point of this state is that there ARE ready pairs.
+    //
+    // Latched on the transition like that page, so a lasting misconfiguration
+    // does not spam; the per-pair warn log repeats every cycle regardless.
+    // Preview runs a deliberately non-admin key (SOK-860) and must not page.
+    if (readinessChanged && getEnv().VERCEL_ENV !== "preview") {
+      Sentry.captureMessage(
+        "x402 buy-side readiness recorded payable pairs on an UNCAPPED payment-node API key. The key is usageLimited but holds no eip155 credit row, so the node grandfathers it and enforces no x402 spend cap: Soko will sign x402 payments with no ceiling. Grant credits for the listed units with PATCH /api/v1/api-key to make the intended cap real, or clear usageLimited on the key if uncapped is deliberate. The sync warn log names every affected pair",
+        "warning",
+      );
+    }
+  }
+
   if (readySources.length === 0) {
     console.warn(
       "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
