@@ -37,6 +37,7 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
   recordSokoBotTurnUsage,
@@ -74,6 +75,8 @@ const ACTIVE_TURN_STATUSES = [
 export class SokoBotNotFoundError extends Error {}
 export class SokoBotBusyError extends Error {}
 export class SokoBotValidationError extends Error {}
+/** The administrator switched the whole feature off. */
+export class SokoBotDisabledError extends Error {}
 
 async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
   try {
@@ -1487,6 +1490,16 @@ export class SokoBotControlPlane {
   async startTurn(
     input: StartSokoBotTurnInput,
   ): Promise<SokoBotTurnStartResult> {
+    // The single choke point for every turn, whatever started it: chat,
+    // schedules, ingest, coworker events or the lab. Refusing here is what
+    // makes the administrator switch mean "no model calls".
+    const availability = await getSokoBotAvailability();
+    if (availability.disabled) {
+      throw new SokoBotDisabledError(
+        availability.disabledReason ??
+          "Soko Bot is temporarily disabled by an administrator",
+      );
+    }
     const message = input.message.trim();
     const clientTurnId = input.clientTurnId.trim();
     const source = input.source ?? "CHAT";

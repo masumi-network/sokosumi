@@ -49,6 +49,7 @@ const {
   turnCountMock,
   turnUpdateManyMock,
   workspaceFindFirstMock,
+  availabilityMock,
 } = vi.hoisted(() => ({
   adminActionCreateMock: vi.fn(),
   adminActionFindFirstMock: vi.fn(),
@@ -98,6 +99,7 @@ const {
   turnCountMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
+  availabilityMock: vi.fn(),
 }));
 
 vi.mock("@/services/soko-bot-chat.service", () => ({
@@ -108,6 +110,9 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/services/soko-bot-availability.service", () => ({
+  getSokoBotAvailability: availabilityMock,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -288,6 +293,11 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
 describe("SokoBotControlPlane lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    });
     getEnvMock.mockReturnValue({ SOKO_BOT_CLASSIFIER_MODE: "rules" });
     adminActionCreateMock.mockResolvedValue({});
     adminActionFindFirstMock.mockResolvedValue(null);
@@ -745,6 +755,27 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(resetSession).not.toHaveBeenCalled();
     expect(turnUpdateManyMock).toHaveBeenCalledOnce();
+  });
+
+  it("starts no turn at all while an administrator has it switched off", async () => {
+    // The switch has to mean "no model calls", so it is refused at the single
+    // point every turn passes through rather than per entry point.
+    availabilityMock.mockResolvedValue({
+      disabled: true,
+      disabledAt: new Date(),
+      disabledReason: "Paused while we investigate",
+    });
+
+    await expect(
+      new SokoBotControlPlane().startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "client-turn-off",
+        message: "Hello",
+      }),
+    ).rejects.toThrow(/investigate/i);
+
+    expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
   it("grants a teammate mention only the teammate ceiling", async () => {

@@ -4329,6 +4329,19 @@
           "noBotTitle": "Necesitas un Soko Bot para usar el laboratorio",
           "noBotDescription": "Las ejecuciones usan tu propio asistente.",
           "noBotLink": "Créalo aquí."
+        },
+        "KillSwitch": {
+          "title": "Interruptor de la función",
+          "stateEnabled": "Soko Bot funciona con normalidad.",
+          "stateDisabled": "Desactivado — {reason}",
+          "noReason": "sin motivo indicado",
+          "disable": "Desactivar Soko Bot",
+          "enable": "Activar Soko Bot",
+          "working": "Trabajando…",
+          "reasonPlaceholder": "Motivo mostrado a los usuarios (opcional)",
+          "disabled": "Soko Bot desactivado.",
+          "enabled": "Soko Bot activado.",
+          "error": "No se pudo cambiar el interruptor."
         }
       },
       "MatchedChannels": {
@@ -6544,6 +6557,10 @@
         "noResults": "Ningún skill coincide.",
         "loading": "Cargando…",
         "installedLabel": "Instalado"
+      },
+      "Disabled": {
+        "title": "Soko Bot no está disponible temporalmente",
+        "description": "Un administrador ha desactivado Soko Bot por ahora. No se pierde nada de lo que hizo tu asistente; retomará donde lo dejó."
       }
     },
     "SokoBots": {
@@ -6576,7 +6593,8 @@
       "heroBody": "Un Soko Bot es tu propio asistente dentro de Sokosumi. Trabaja en tu tablero con tus Coworkers, lee el correo y el calendario que conectes, empieza el trabajo que merece la pena y te lo cuenta en el chat. Cada persona del espacio crea el suyo.",
       "heroCta": "Crea tu Soko Bot",
       "heroCtaHint": "Un minuto: elige un nombre y una cara.",
-      "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}"
+      "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
+      "disabled": "Soko Bot no está disponible temporalmente"
     },
     "Calendar": {
       "Metadata": {

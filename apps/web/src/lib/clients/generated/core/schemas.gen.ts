@@ -1248,6 +1248,48 @@ export const SokoBotVersionWriteSchema = {
     ]
 } as const;
 
+export const SokoBotAvailabilitySchema = {
+    type: 'object',
+    properties: {
+        disabled: {
+            type: 'boolean'
+        },
+        disabledAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        disabledReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'disabled',
+        'disabledAt',
+        'disabledReason'
+    ]
+} as const;
+
+export const SetSokoBotAvailabilityRequestSchema = {
+    type: 'object',
+    properties: {
+        disabled: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            maxLength: 300
+        }
+    },
+    required: [
+        'disabled'
+    ]
+} as const;
+
 export const SokoBotDeletionResultSchema = {
     type: 'object',
     properties: {

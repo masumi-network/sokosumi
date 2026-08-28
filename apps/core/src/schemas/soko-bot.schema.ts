@@ -967,3 +967,18 @@ export const sokoBotDeletionResultSchema = z
     }),
   })
   .openapi("SokoBotDeletionResult");
+
+export const sokoBotAvailabilitySchema = z
+  .object({
+    disabled: z.boolean(),
+    disabledAt: z.string().nullable(),
+    disabledReason: z.string().nullable(),
+  })
+  .openapi("SokoBotAvailability");
+
+export const setSokoBotAvailabilityRequestSchema = z
+  .object({
+    disabled: z.boolean(),
+    reason: z.string().trim().max(300).optional(),
+  })
+  .openapi("SetSokoBotAvailabilityRequest");

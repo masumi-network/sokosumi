@@ -45,6 +45,19 @@ export const adminSokoBotService = {
     return response.data;
   },
 
+  async getAvailability() {
+    const response = await coreClient.getAdminSokoBotAvailability();
+    return response.data;
+  },
+
+  async setAvailability(disabled: boolean, reason?: string) {
+    const response = await coreClient.setAdminSokoBotAvailability({
+      disabled,
+      ...(reason ? { reason } : {}),
+    });
+    return response.data;
+  },
+
   async deleteBot(sokoBotId: string) {
     const response = await coreClient.deleteAdminSokoBot(sokoBotId);
     return response.data;
