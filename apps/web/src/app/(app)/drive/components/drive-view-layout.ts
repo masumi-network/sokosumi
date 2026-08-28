@@ -30,7 +30,7 @@ export function driveRecentsDayItemsClass(viewMode: FilesViewMode): string {
 
 export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "group relative flex flex-col gap-2 rounded-lg border border-border/50 bg-background/60 p-3 hover:bg-muted/50"
+    ? "group relative flex items-center gap-2 rounded-lg border border-border/50 bg-background/60 p-3 hover:bg-muted/50"
     : cn(
         "relative -mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -39,7 +39,7 @@ export function driveItemArticleClass(viewMode: FilesViewMode): string {
 
 export function driveItemBodyClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "flex min-w-0 flex-1 flex-col gap-2"
+    ? "flex min-w-0 flex-1 items-center gap-2"
     : "flex min-w-0 flex-1 items-center gap-4 py-3 px-2";
 }
 
@@ -63,9 +63,7 @@ export function driveItemMetaDesktopClass(viewMode: FilesViewMode): string {
 }
 
 export function driveItemActionsClass(viewMode: FilesViewMode): string {
-  return viewMode === "grid"
-    ? "absolute top-2 right-2 shrink-0"
-    : "shrink-0 pl-2";
+  return viewMode === "grid" ? "shrink-0 pl-1" : "shrink-0 pl-2";
 }
 
 export function driveItemNameClass(): string {

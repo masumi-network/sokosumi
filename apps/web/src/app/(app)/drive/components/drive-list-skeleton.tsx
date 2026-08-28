@@ -9,7 +9,6 @@ import {
 } from "@/app/drive/components/drive-view-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
-import { cn } from "@/lib/utils";
 
 interface DriveListSkeletonProps {
   viewMode?: FilesViewMode;
@@ -26,10 +25,7 @@ export function DriveListSkeleton({
       >
         <div className={driveItemsListClass("grid")}>
           {Array.from({ length: 8 }).map((_, i) => (
-            <article
-              key={i}
-              className={cn(driveItemArticleClass("grid"), "min-h-24")}
-            >
+            <article key={i} className={driveItemArticleClass("grid")}>
               <div className={driveItemBodyClass("grid")}>
                 <div className={driveItemIconWellClass("grid")}>
                   <Skeleton className="size-4" />
@@ -41,6 +37,9 @@ export function DriveListSkeleton({
                     <Skeleton className="h-3 w-16" />
                   </div>
                 </div>
+              </div>
+              <div className="shrink-0 pl-1">
+                <Skeleton className="size-8" />
               </div>
             </article>
           ))}
