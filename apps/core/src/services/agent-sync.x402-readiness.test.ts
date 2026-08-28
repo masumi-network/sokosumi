@@ -670,8 +670,8 @@ describe("syncX402BuySideReadiness", () => {
 
   // Every node call, not just the two the sync fires first. A cycle aborts on
   // shutdown, and a call that never receives the signal keeps its request
-  // alive past the abort — the wallet listing and the per-wallet balance
-  // fetches included, since those are the calls that fan out.
+  // alive past that abort. The wallet listing and the per-wallet balance
+  // fetches count too, and those are the calls that fan out.
   it("forwards the abort signal to every node call", async () => {
     const signal = new AbortController().signal;
 

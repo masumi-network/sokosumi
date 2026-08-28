@@ -554,9 +554,14 @@ export function createX402PaymentMethods(
     /**
      * Purchasing wallets the calling key can sign from.
      *
-     * The node scopes `GET /x402/wallets` server-side: an admin key reaches
-     * every wallet, a scoped key reaches the ones it created plus any an
-     * admin assigned to it via `ApiKeyX402WalletScope` (masumi ADR 0016).
+     * The node scopes `GET /x402/wallets` server-side, and it applies the
+     * SAME scope to `POST /x402/pay`, so a wallet this listing returns is a
+     * wallet the key can sign with. An admin key reaches every wallet, and so
+     * does a non-admin key with wallet scoping off: an absent scope list means
+     * unrestricted, the node's Cardano-parity default
+     * (`buildOwnerScopeWhere`). Only a key with wallet scoping ON is narrowed,
+     * to the wallets it created plus any an admin assigned to it via
+     * `ApiKeyX402WalletScope` (masumi ADR 0016).
      * There is deliberately no `canAdmin` gate here any more. The old gate
      * existed because a non-admin key had no legitimate uncapped path, and
      * budgets were the only grant; with budgets gone, a scoped non-admin key

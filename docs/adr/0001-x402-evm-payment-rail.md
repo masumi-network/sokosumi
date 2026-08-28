@@ -16,6 +16,16 @@
 > work still outstanding is the future settlement-observation surface, called
 > out as explicitly-future below.
 
+> **Amended 2026-08-28 by masumi ADR 0016.** The payment node removed
+> `GET /x402/budgets` and the `x402.budget` rail check. The x402 spend cap now
+> lives on the calling API key as per-unit usage credits
+> (`eip155:<chainId>:<asset>`, gated by `usageLimited`), and wallet access is
+> an `ApiKeyX402WalletScope` grant rather than a budget row. Decision 6
+> (buy-side readiness gating) is restated below; the node-surface list in
+> Context and the error-contract wording in Decision 4 are corrected in place.
+> Every other decision here stands. Superseded sentences are named where they
+> stood rather than deleted.
+
 ## Context
 
 Sokosumi buys agent work through the Masumi payment node. Today every paid
@@ -54,10 +64,15 @@ Relevant payment-node surface (pinned in `packages/masumi/spec/payment.openapi.j
   (`evmWalletId`, `paymentRequired`, `preferredNetwork`, `preferredAsset`,
   `paymentIdentifier`).
 - `GET /rail-readiness` — per-rail checks; the X402 rail's `isReady` covers
-  *receiving* only, while buy-side readiness is expressed by the
-  `x402.purchasing_wallet` and `x402.budget` checks.
-- `/x402/networks`, `/x402/wallets`, `/x402/budgets`, `/x402/payments` —
-  operator-level network/wallet/budget management stays in the node.
+  *receiving* only. The coarse buy-side check is `x402.purchasing_wallet`.
+  (Superseded: an `x402.budget` check sat beside it until masumi ADR 0016
+  removed it.)
+- `GET /api-key-status`: the calling key's own record, including
+  `usageLimited` and its `RemainingUsageCredits` rows. This is where the x402
+  spend cap lives after masumi ADR 0016.
+- `/x402/networks`, `/x402/wallets`, `/x402/payments`: operator-level
+  network and wallet management stays in the node. (Superseded:
+  `/x402/budgets` sat in this list until masumi ADR 0016 removed it.)
 
 Schema sockets already in place after the V2 migration:
 
@@ -142,8 +157,8 @@ post-hoc `EXPIRED_UNUSED` refund defined below.
 **Confirmed (ticket 011):** the `/x402/pay` error contract is now known —
 400 = deterministic pre-sign rejection (bad `accepts`, no `ChainIdLimit`
 match, network disabled, requirements drift, identifier not advertised),
-402 = budget/balance refusal, and 500 = config/signing failure. Core refunds
-only when one of these node-owned statuses also has the documented error
+402 = usage-credit/balance refusal, and 500 = config/signing failure. Core
+refunds only when one of these node-owned statuses also has the documented error
 envelope. Transport failures, gateway statuses, malformed responses, and lost
 responses remain ambiguous. `/x402/payments` still has no by-`attemptId`
 filter and no `/x402/payments/{id}` route. Core therefore treats every ambiguous sign as
@@ -164,13 +179,33 @@ Availability and pre-charge gates use Soko's cached set of ready
 `(network, asset, evmWalletId, evmWalletAddress, decimals)` sources. A source
 requires an enabled x402 network with a usable default-asset scale. Core also
 requires a locally trusted exact-EVM EIP-712 domain for that pair. The Soko API
-key needs a positive budget tied to a purchasing wallet. A confirmed admin key
-with no binding budget can instead use exactly one Purchasing wallet. The
-selected wallet must have positive native gas and positive default-token
-balance. Environment-global
-`x402.purchasing_wallet` / `x402.budget` rail checks remain coarse diagnostics,
-not listing or pre-charge gates. The cache follows Cardano V2's
-last-known-value pattern.
+key's spend cap must allow the pair's unit, and some Purchasing wallet the key
+can reach on that chain must hold positive native gas and a positive
+default-token balance. The environment-global `x402.purchasing_wallet` rail
+check remains a coarse diagnostic, not a listing or pre-charge gate. The cache
+follows Cardano V2's last-known-value pattern.
+
+**Amended 2026-08-28 (masumi ADR 0016).** The two sentences this decision used
+to carry are superseded: "The Soko API key needs a positive budget tied to a
+purchasing wallet" and "A confirmed admin key with no binding budget can
+instead use exactly one Purchasing wallet". Both described a per-wallet budget
+row that the node no longer has, and the `x402.budget` rail check named beside
+them is gone too. What replaces them:
+
+- The cap is on the KEY, not the wallet. `usageLimited` off means uncapped.
+  On, the key needs remaining credit for unit `eip155:<chainId>:<asset>`,
+  which is byte-identical to the pair key readiness composes on. The gate
+  tests presence, not sufficiency: no price exists at sync time, so a nearly
+  exhausted unit stays listed and the node refuses the charge with a 402.
+- A `usageLimited` key holding no `eip155:` credit row at all is grandfathered
+  uncapped by the node and really can pay, so it stays listed and the sync
+  warns that the intended cap is not in force.
+- Admin permission is no longer part of readiness. The node applies one wallet
+  scope to both `GET /x402/wallets` and `POST /x402/pay`, so a wallet the
+  listing returns is a wallet the key can sign with. Because the cap is
+  key-global, nothing binds a chain to one wallet: the sync ranks the funded
+  candidates and records the most-funded, tie-broken on wallet id so the
+  cached set stays stable across syncs.
 
 Two corrections to how the proposed draft described this (both verified
 2026-08-11):
@@ -183,12 +218,15 @@ Two corrections to how the proposed draft described this (both verified
 - **Confirmed (ticket 011):** `/rail-readiness` exposes the x402 checks
   **once per environment, not per network** — there is no x402 analog of the
   Cardano `PurchaseSources` per-source readiness. Per-chain buy-side readiness
-  is therefore **composed Soko-side** from `/x402/networks/available`,
-  Soko-key `/x402/budgets`, admin `/x402/wallets`, and
-  `/x402/wallets/balance`, reusing the same cached
-  last-known-value pattern; the env-global `/rail-readiness` checks stay the
-  coarse health signal. Un-collapsing the per-chain breakdown `/rail-readiness`
-  already computes is a low-priority node ask, not a build gate.
+  is therefore **composed Soko-side** from `/x402/networks/available`, the
+  calling key's spend caps on `/api-key-status`, `/x402/wallets`, and
+  `/x402/wallets/balance`, reusing the same cached last-known-value pattern;
+  the env-global `/rail-readiness` checks stay the coarse health signal. (The
+  2026-08-11 wording read "Soko-key `/x402/budgets`, admin `/x402/wallets`";
+  masumi ADR 0016 replaced the first with the key's usage credits and made the
+  second reachable without admin.) Un-collapsing the per-chain breakdown
+  `/rail-readiness` already computes is a low-priority node ask, not a build
+  gate.
 
 The trusted exact-EVM domain allowlist currently contains Base Sepolia USDC
 (`USDC`, version `2`) and Base mainnet USDC (`USD Coin`, version `2`). The
@@ -197,8 +235,12 @@ resource server cannot override this signing domain.
 ### 7. Node prerequisites (operator runbook, not code)
 
 - X402Network enabled on the node per target chain.
-- A funded purchasing EVM wallet per chain, bound to the network.
+- A funded Purchasing EVM wallet per chain that the sokosumi API key can
+  reach, holding both native gas and the chain's priced token.
 - The sokosumi API key's `ChainIdLimit` includes the relevant `eip155:*` ids.
+- When that key is `usageLimited`, credits for unit
+  `eip155:<chainId>:<asset>` on each target chain, granted with
+  `PATCH /api/v1/api-key` (masumi ADR 0016).
 
 ### 8. One public `GET /v1/agents`
 
@@ -273,7 +315,7 @@ on a single job:
   rail-specific branches anyway. A sibling model keeps both lifecycles honest.
 - **Integrate an x402 facilitator/wallet directly in sokosumi.** Rejected:
   custody of EVM keys moves into sokosumi, duplicates the node's wallet,
-  budget, and settlement machinery, and diverges from the payment-node
+  spend-cap, and settlement machinery, and diverges from the payment-node
   delegation model the Cardano rails use.
 - **Infer the rail from the agent's entry type at runtime.** Rejected: jobs
   outlive agent revisions (agents are re-registered and superseded), so the

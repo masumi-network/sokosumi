@@ -221,7 +221,10 @@ export function computeEnabledPricedNetworks(
  * own grandfathering: a `usageLimited` key holding NO `eip155:` row at all is
  * uncapped on the node and really can pay, so treating it as unready would
  * hide agents the node would happily settle. It warns instead, because an
- * operator who believes they set a cap has not.
+ * operator who believes they set a cap has not. The gate asks whether the
+ * unit holds credit, never whether it holds enough: no price exists at sync
+ * time, so a nearly exhausted unit stays listed and the node refuses the
+ * charge with a 402 instead.
  *
  * On (3), any funded wallet is an equally valid signer now that the cap is
  * key-global: nothing binds a chain's spend to one wallet any more. The
@@ -299,6 +302,12 @@ export function composeX402ReadySources(
       continue;
     }
     if (spendCaps.usageLimited && !spendCaps.grandfatheredUncapped) {
+      // Presence, not sufficiency. The node debits by comparing the SUM of
+      // the unit's credit rows against the payment amount, while readiness
+      // runs before any price is known. A unit holding one base unit still
+      // lists the pair, and the node can still refuse the charge with a 402.
+      // Listing cannot close that gap: a post-charge 402 on a listed pair
+      // is the expected shape of an almost-empty credit unit.
       const remaining = spendCaps.creditsByUnit.get(pairLabel) ?? 0n;
       if (remaining <= 0n) {
         console.warn(
