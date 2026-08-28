@@ -145,11 +145,13 @@ function SourceMarker({
 
 function CalendarEvent({
   item,
+  isWeekView,
   onNavigate,
   showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
+  isWeekView: boolean;
   onNavigate: () => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
@@ -161,7 +163,9 @@ function CalendarEvent({
     <span
       role="link"
       tabIndex={0}
-      className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium"
+      className={`text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium ${
+        isWeekView ? "" : "bg-primary/10"
+      }`}
       onClick={(event) => {
         event.stopPropagation();
         onNavigate();
@@ -220,8 +224,11 @@ function CalendarView({
           id: item.id,
           title: item.taskName,
           start: item.scheduledAt.toISOString(),
+          classNames:
+            view === "week" ? ["!bg-transparent", "!border-transparent"] : [],
         }))}
         timeZone={CALENDAR_TIME_ZONE}
+        allDaySlot={false}
         headerToolbar={false}
         height="auto"
         eventContent={(eventInfo) => {
@@ -229,6 +236,7 @@ function CalendarView({
           return item ? (
             <CalendarEvent
               item={item}
+              isWeekView={view === "week"}
               onNavigate={() => onNavigate(item.taskId)}
               showDetails={view === "agenda"}
               source={sources.find(

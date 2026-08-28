@@ -258,6 +258,23 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
+  it("removes blue event blocks and the all-day row from the week view", () => {
+    const { container } = render(
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18">
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(container.querySelector(".fc-timegrid-event")).toHaveClass(
+      "!bg-transparent",
+      "!border-transparent",
+    );
+    expect(
+      container.querySelector(".fc-timegrid-event [role='link']"),
+    ).not.toHaveClass("bg-primary/10");
+    expect(screen.queryByText("all-day")).not.toBeInTheDocument();
+  });
+
   it("loads and renders the next calendar page", async () => {
     const user = userEvent.setup();
     getWorkspaceCalendarMock.mockResolvedValue({
