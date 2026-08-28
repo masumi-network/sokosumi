@@ -124,7 +124,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    * consent. The cost is a dead switch with no message on a read failure that
    * outlasts the query's retries.
    */
-  const { data: preferences } = useQuery(getMyPreferencesQueryOptions());
+  const { data: preferences } = useQuery(getMyPreferencesQueryOptions(userId));
   const accountOptIn = preferences?.data.pushOptIn ?? null;
   const queryClient = useQueryClient();
 
@@ -135,11 +135,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   const recordAccountOptIn = useCallback(
     async (pushOptIn: boolean) => {
       queryClient.setQueryData(
-        getMyPreferencesQueryKey(),
+        getMyPreferencesQueryKey(userId),
         await preferencesBrowserClient.patchMyPreferences({ pushOptIn }),
       );
     },
-    [queryClient],
+    [queryClient, userId],
   );
 
   // Browser-only reads, so they cannot run during render.
